@@ -1,0 +1,9 @@
+node_modules/
+.cache/
+.agent-teams-local/
+coverage/
+*.log
+*.tgz
+*.tsbuildinfo
+packages/engineering-foundation/dist/
+packages/engineering-foundation/LICENSE

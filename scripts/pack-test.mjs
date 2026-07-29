@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const pnpmExecutable = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(
   repositoryRoot,
@@ -37,7 +38,7 @@ const forbiddenEntries = [
 
 try {
   await execFileAsync(
-    "pnpm",
+    pnpmExecutable,
     ["pack", "--pack-destination", temporaryRoot],
     { cwd: packageRoot }
   );
@@ -95,7 +96,7 @@ try {
   );
 
   await execFileAsync(
-    "pnpm",
+    pnpmExecutable,
     ["install", "--ignore-scripts", "--no-frozen-lockfile"],
     { cwd: consumerRoot }
   );
@@ -118,7 +119,7 @@ try {
     { cwd: consumerRoot }
   );
   const { stdout: versionOutput } = await execFileAsync(
-    "pnpm",
+    pnpmExecutable,
     ["exec", "agent-teams-foundation", "--version"],
     { cwd: consumerRoot }
   );
@@ -184,7 +185,7 @@ try {
     "utf8"
   );
   await execFileAsync(
-    "pnpm",
+    pnpmExecutable,
     ["install", "--ignore-scripts", "--no-frozen-lockfile"],
     { cwd: localModeConsumerRoot }
   );
@@ -210,7 +211,7 @@ try {
   await writeFile(siblingSentinelPath, "preserve-me\n", "utf8");
 
   const { stdout: attachOutput } = await execFileAsync(
-    "pnpm",
+    pnpmExecutable,
     [
       "exec",
       "agent-teams-foundation",
@@ -240,7 +241,7 @@ try {
   }
 
   const { stdout: detachOutput } = await execFileAsync(
-    "pnpm",
+    pnpmExecutable,
     [
       "exec",
       "agent-teams-foundation",

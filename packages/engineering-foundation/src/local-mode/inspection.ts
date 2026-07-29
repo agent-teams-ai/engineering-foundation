@@ -114,9 +114,37 @@ export async function inspectFoundationMode(
   const consumerRoot = await realpath(resolve(consumerPath));
   const issues: string[] = [];
   const localStateDirectory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
-  const localEntries: string[] = await readdir(localStateDirectory).catch(
-    () => []
-  );
+  let localStateDirectoryIsSafe = true;
+  let localStateDirectoryExists = false;
+  try {
+    const stateEntry = await lstat(localStateDirectory);
+    localStateDirectoryExists = true;
+    if (
+      !stateEntry.isDirectory() ||
+      stateEntry.isSymbolicLink() ||
+      (await realpath(localStateDirectory)) !== localStateDirectory
+    ) {
+      localStateDirectoryIsSafe = false;
+      issues.push(
+        "Local foundation state path must be a real consumer-owned directory."
+      );
+    }
+  } catch (error) {
+    if (
+      !(
+        error instanceof Error &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      )
+    ) {
+      localStateDirectoryIsSafe = false;
+      issues.push("Local foundation state directory cannot be inspected.");
+    }
+  }
+  const localEntries: string[] =
+    localStateDirectoryExists && localStateDirectoryIsSafe
+      ? await readdir(localStateDirectory)
+      : [];
   if (
     options.ignoreOperationLock !== true &&
     localEntries.includes(LOCAL_OPERATION_LOCK)
@@ -181,7 +209,9 @@ export async function inspectFoundationMode(
     issues.push("Installed foundation package cannot be resolved.");
   }
 
-  const linkState = await readOptionalLinkState(consumerRoot, issues);
+  const linkState = localStateDirectoryIsSafe
+    ? await readOptionalLinkState(consumerRoot, issues)
+    : undefined;
   if (linkState !== undefined) {
     const expectedBackupPath = join(
       consumerRoot,
@@ -239,20 +269,22 @@ export async function inspectFoundationMode(
     };
   }
 
-  try {
-    await lstat(
-      join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP)
-    );
-    issues.push("An orphan registry backup requires detach recovery.");
-  } catch (error) {
-    if (
-      !(
-        error instanceof Error &&
-        "code" in error &&
-        (error as NodeJS.ErrnoException).code === "ENOENT"
-      )
-    ) {
-      issues.push("Registry backup state cannot be inspected.");
+  if (localStateDirectoryIsSafe) {
+    try {
+      await lstat(
+        join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP)
+      );
+      issues.push("An orphan registry backup requires detach recovery.");
+    } catch (error) {
+      if (
+        !(
+          error instanceof Error &&
+          "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+        )
+      ) {
+        issues.push("Registry backup state cannot be inspected.");
+      }
     }
   }
 

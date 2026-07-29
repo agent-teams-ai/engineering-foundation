@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   appendFile,
   lstat,
@@ -21,6 +20,7 @@ import {
   resolve,
   sep
 } from "node:path";
+import { lock } from "proper-lockfile";
 
 import { FoundationError } from "../errors.js";
 import { inspectFoundationMode, isExactVersion } from "./inspection.js";
@@ -38,20 +38,9 @@ import {
   LOCAL_STATE_FILE
 } from "./types.js";
 
-const LOCAL_OPERATION_LOCK_OWNER = "owner.json";
-const MAX_OPERATION_LOCK_AGE_MS = 10 * 60 * 1000;
-const PARTIAL_OPERATION_LOCK_GRACE_MS = 30 * 1000;
-
 interface PackageManifest {
   readonly name?: unknown;
   readonly version?: unknown;
-}
-
-interface OperationLock {
-  readonly schemaVersion: 1;
-  readonly token: string;
-  readonly pid: number;
-  readonly startedAt: string;
 }
 
 export interface FoundationLocalModeServiceOptions {
@@ -97,6 +86,51 @@ async function pathEntryExists(path: string): Promise<boolean> {
     }
     throw error;
   }
+}
+
+async function ensureLocalStateDirectory(consumerRoot: string): Promise<string> {
+  const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
+  try {
+    const entry = await lstat(directory);
+    if (!entry.isDirectory() || entry.isSymbolicLink()) {
+      throw new FoundationError(
+        "LOCAL_STATE_INVALID",
+        "Local foundation state path must be a real consumer-owned directory."
+      );
+    }
+    if ((await realpath(directory)) !== directory) {
+      throw new FoundationError(
+        "LOCAL_STATE_INVALID",
+        "Local foundation state directory resolves outside its expected path."
+      );
+    }
+    return directory;
+  } catch (error) {
+    if (
+      !(
+        error instanceof Error &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      )
+    ) {
+      throw error;
+    }
+  }
+
+  try {
+    await mkdir(directory);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "EEXIST"
+    ) {
+      return await ensureLocalStateDirectory(consumerRoot);
+    }
+    throw error;
+  }
+  await syncDirectory(consumerRoot);
+  return directory;
 }
 
 async function readPackageEntry(path: string): Promise<{
@@ -171,7 +205,7 @@ async function writeLinkState(
   const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
   const destination = join(directory, LOCAL_STATE_FILE);
   const temporary = `${destination}.${process.pid}.tmp`;
-  await mkdir(directory, { recursive: true });
+  await ensureLocalStateDirectory(consumerRoot);
   const handle = await open(temporary, "w", 0o600);
   try {
     await handle.writeFile(`${JSON.stringify(state, null, 2)}\n`, "utf8");
@@ -255,134 +289,43 @@ async function pruneLocalStateDirectory(consumerRoot: string): Promise<void> {
   }
 }
 
-function processIsAlive(pid: number): boolean {
+async function acquireOperationLock(
+  consumerRoot: string
+): Promise<() => Promise<void>> {
+  const directory = await ensureLocalStateDirectory(consumerRoot);
+  const lockPath = join(directory, LOCAL_OPERATION_LOCK);
+  if (await pathEntryExists(lockPath)) {
+    const lockEntry = await lstat(lockPath);
+    if (!lockEntry.isDirectory() || lockEntry.isSymbolicLink()) {
+      throw new FoundationError(
+        "LOCAL_STATE_INVALID",
+        "Foundation operation lock path must be a real local directory."
+      );
+    }
+  }
   try {
-    process.kill(pid, 0);
-    return true;
+    const release = await lock(directory, {
+      lockfilePath: lockPath,
+      onCompromised: (error) => {
+        throw error;
+      },
+      realpath: true,
+      retries: 0,
+      stale: 120_000,
+      update: 30_000
+    });
+    return async () => {
+      await release();
+      await syncDirectory(directory);
+      await pruneLocalStateDirectory(consumerRoot);
+    };
   } catch (error) {
-    return (
-      error instanceof Error &&
-      "code" in error &&
-      (error as NodeJS.ErrnoException).code === "EPERM"
+    throw new FoundationError(
+      "LOCAL_STATE_INVALID",
+      "Another foundation operation is active or its lock is not safely recoverable.",
+      { cause: error }
     );
   }
-}
-
-function parseOperationLock(value: unknown): OperationLock | undefined {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
-    !("schemaVersion" in value) ||
-    value.schemaVersion !== 1 ||
-    !("token" in value) ||
-    typeof value.token !== "string" ||
-    !("pid" in value) ||
-    typeof value.pid !== "number" ||
-    !Number.isSafeInteger(value.pid) ||
-    value.pid <= 0 ||
-    !("startedAt" in value) ||
-    typeof value.startedAt !== "string"
-  ) {
-    return undefined;
-  }
-  return {
-    schemaVersion: 1,
-    token: value.token,
-    pid: value.pid,
-    startedAt: value.startedAt
-  };
-}
-
-async function acquireOperationLock(
-  consumerRoot: string,
-  now: () => Date
-): Promise<() => Promise<void>> {
-  const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
-  const lockPath = join(directory, LOCAL_OPERATION_LOCK);
-  const ownerPath = join(lockPath, LOCAL_OPERATION_LOCK_OWNER);
-  await mkdir(directory, { recursive: true });
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const token = randomUUID();
-    try {
-      await mkdir(lockPath);
-    } catch (error) {
-      if (
-        !(
-          error instanceof Error &&
-          "code" in error &&
-          (error as NodeJS.ErrnoException).code === "EEXIST"
-        )
-      ) {
-        throw error;
-      }
-
-      const current = await readFile(ownerPath, "utf8")
-        .then((content) => parseOperationLock(JSON.parse(content) as unknown))
-        .catch(() => {});
-      const lockStat = await stat(lockPath);
-      const startedAt =
-        current === undefined ? lockStat.mtimeMs : Date.parse(current.startedAt);
-      const age = Math.max(
-        0,
-        now().getTime() - (Number.isFinite(startedAt) ? startedAt : lockStat.mtimeMs)
-      );
-      if (
-        (current !== undefined &&
-          processIsAlive(current.pid) &&
-          age < MAX_OPERATION_LOCK_AGE_MS) ||
-        (current === undefined && age < PARTIAL_OPERATION_LOCK_GRACE_MS)
-      ) {
-        throw new FoundationError(
-          "LOCAL_STATE_INVALID",
-          current === undefined
-            ? "Another foundation operation is initializing."
-            : `Another foundation operation is active in process ${current.pid}.`
-        );
-      }
-      await rm(lockPath, { force: true, recursive: true });
-      await syncDirectory(directory);
-      continue;
-    }
-
-    try {
-      const lock: OperationLock = {
-        schemaVersion: 1,
-        token,
-        pid: process.pid,
-        startedAt: now().toISOString()
-      };
-      const handle = await open(ownerPath, "wx", 0o600);
-      try {
-        await handle.writeFile(`${JSON.stringify(lock, null, 2)}\n`, "utf8");
-        await handle.sync();
-      } finally {
-        await handle.close();
-      }
-      await syncDirectory(lockPath);
-
-      return async () => {
-        const current = await readFile(ownerPath, "utf8")
-          .then((content) => parseOperationLock(JSON.parse(content) as unknown))
-          .catch(() => {});
-        if (current?.token === token) {
-          await rm(lockPath, { force: true, recursive: true });
-          await syncDirectory(directory);
-        }
-        await pruneLocalStateDirectory(consumerRoot);
-      };
-    } catch (error) {
-      await rm(lockPath, { force: true, recursive: true });
-      await syncDirectory(directory);
-      throw error;
-    }
-  }
-
-  throw new FoundationError(
-    "LOCAL_STATE_INVALID",
-    "Foundation operation lock could not be acquired."
-  );
 }
 
 export class FoundationLocalModeService {
@@ -534,7 +477,7 @@ export class FoundationLocalModeService {
     ) {
       throw new FoundationError(
         "CONSUMER_INVALID",
-        `Consumer must be in valid registry mode with an exact ${FOUNDATION_PACKAGE_NAME} version before attach.`
+        `Consumer must be in valid registry mode with an exact ${FOUNDATION_PACKAGE_NAME} version before attach: ${before.issues.join(" ") || before.mode}.`
       );
     }
 
@@ -613,7 +556,7 @@ export class FoundationLocalModeService {
       LOCAL_STATE_DIRECTORY,
       LOCAL_REGISTRY_BACKUP
     );
-    const releaseLock = await acquireOperationLock(consumerRoot, this.#now);
+    const releaseLock = await acquireOperationLock(consumerRoot);
     let state: FoundationLinkState | undefined;
     try {
       const current = await inspectFoundationMode(consumerRoot, {
@@ -749,10 +692,7 @@ export class FoundationLocalModeService {
         `Consumer must retain an exact ${FOUNDATION_PACKAGE_NAME} registry dependency.`
       );
     }
-    const releaseLock = await acquireOperationLock(
-      before.consumerRoot,
-      this.#now
-    );
+    const releaseLock = await acquireOperationLock(before.consumerRoot);
     try {
       const current = await inspectFoundationMode(before.consumerRoot, {
         ignoreOperationLock: true

@@ -5,6 +5,8 @@ import {
   readFile,
   rename,
   rm,
+  symlink,
+  utimes,
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -277,15 +279,7 @@ test("reclaims a dead operation lock", async () => {
       "foundation-operation.lock"
     );
     await mkdir(lockRoot, { recursive: true });
-    await writeJson(
-      join(lockRoot, "owner.json"),
-      {
-        schemaVersion: 1,
-        token: "stale-lock",
-        pid: 2_147_483_647,
-        startedAt: "2026-07-29T11:00:00.000Z"
-      }
-    );
+    await utimes(lockRoot, new Date(0), new Date(0));
 
     const attached = await fixture.service.attach(
       fixture.consumerRoot,
@@ -306,22 +300,13 @@ test("rejects a concurrent operation owned by a live process", async () => {
       "foundation-operation.lock"
     );
     await mkdir(lockRoot, { recursive: true });
-    await writeJson(
-      join(lockRoot, "owner.json"),
-      {
-        schemaVersion: 1,
-        token: "active-lock",
-        pid: process.pid,
-        startedAt: "2026-07-29T12:00:00.000Z"
-      }
-    );
 
     await assert.rejects(
       fixture.service.attach(
         fixture.consumerRoot,
         fixture.targetRepositoryRoot
       ),
-      /Another foundation operation is active/u
+      /operation is active or its lock is not safely recoverable/u
     );
     assert.equal((await inspectFoundationMode(fixture.consumerRoot)).mode, "INVALID");
   } finally {
@@ -329,16 +314,15 @@ test("rejects a concurrent operation owned by a live process", async () => {
   }
 });
 
-test("does not reclaim a lock while its owner is being written", async () => {
+test("rejects a local state directory redirected outside the consumer", async () => {
   const fixture = await createFixture();
   try {
-    await mkdir(
-      join(
-        fixture.consumerRoot,
-        ".agent-teams-local",
-        "foundation-operation.lock"
-      ),
-      { recursive: true }
+    const externalStateRoot = join(fixture.root, "external-state");
+    await mkdir(externalStateRoot, { recursive: true });
+    await symlink(
+      externalStateRoot,
+      join(fixture.consumerRoot, ".agent-teams-local"),
+      process.platform === "win32" ? "junction" : "dir"
     );
 
     await assert.rejects(
@@ -346,7 +330,7 @@ test("does not reclaim a lock while its owner is being written", async () => {
         fixture.consumerRoot,
         fixture.targetRepositoryRoot
       ),
-      /operation is initializing/u
+      /real consumer-owned directory/u
     );
   } finally {
     await rm(fixture.root, { force: true, recursive: true });

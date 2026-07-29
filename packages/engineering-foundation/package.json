@@ -41,5 +41,8 @@
   "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
   "bugs": {
     "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
+  },
+  "dependencies": {
+    "proper-lockfile": "catalog:"
   }
 }

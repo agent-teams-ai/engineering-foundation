@@ -27,6 +27,7 @@
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
     "@types/node": "catalog:",
+    "@types/proper-lockfile": "catalog:",
     "oxlint": "catalog:",
     "publint": "catalog:",
     "typescript": "catalog:"

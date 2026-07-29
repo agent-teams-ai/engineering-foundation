@@ -13,7 +13,11 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const pnpmExecutable = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const pnpmEntrypoint = process.env.npm_execpath;
+const pnpmExecutable =
+  pnpmEntrypoint === undefined ? "pnpm" : process.execPath;
+const pnpmArguments = (args) =>
+  pnpmEntrypoint === undefined ? args : [pnpmEntrypoint, ...args];
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(
   repositoryRoot,
@@ -39,7 +43,7 @@ const forbiddenEntries = [
 try {
   await execFileAsync(
     pnpmExecutable,
-    ["pack", "--pack-destination", temporaryRoot],
+    pnpmArguments(["pack", "--pack-destination", temporaryRoot]),
     { cwd: packageRoot }
   );
 
@@ -97,7 +101,7 @@ try {
 
   await execFileAsync(
     pnpmExecutable,
-    ["install", "--ignore-scripts", "--no-frozen-lockfile"],
+    pnpmArguments(["install", "--ignore-scripts", "--no-frozen-lockfile"]),
     { cwd: consumerRoot }
   );
   await execFileAsync(
@@ -120,7 +124,7 @@ try {
   );
   const { stdout: versionOutput } = await execFileAsync(
     pnpmExecutable,
-    ["exec", "agent-teams-foundation", "--version"],
+    pnpmArguments(["exec", "agent-teams-foundation", "--version"]),
     { cwd: consumerRoot }
   );
 
@@ -186,7 +190,7 @@ try {
   );
   await execFileAsync(
     pnpmExecutable,
-    ["install", "--ignore-scripts", "--no-frozen-lockfile"],
+    pnpmArguments(["install", "--ignore-scripts", "--no-frozen-lockfile"]),
     { cwd: localModeConsumerRoot }
   );
   await execFileAsync("git", ["init", "--quiet"], {
@@ -212,7 +216,7 @@ try {
 
   const { stdout: attachOutput } = await execFileAsync(
     pnpmExecutable,
-    [
+    pnpmArguments([
       "exec",
       "agent-teams-foundation",
       "attach",
@@ -220,7 +224,7 @@ try {
       "--consumer",
       localModeConsumerRoot,
       "--json"
-    ],
+    ]),
     { cwd: localModeConsumerRoot }
   );
   const attachStatus = JSON.parse(attachOutput);
@@ -242,14 +246,14 @@ try {
 
   const { stdout: detachOutput } = await execFileAsync(
     pnpmExecutable,
-    [
+    pnpmArguments([
       "exec",
       "agent-teams-foundation",
       "detach",
       "--consumer",
       localModeConsumerRoot,
       "--json"
-    ],
+    ]),
     { cwd: localModeConsumerRoot }
   );
   const detachStatus = JSON.parse(detachOutput);

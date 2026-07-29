@@ -9,14 +9,27 @@ Local development is explicit:
 foundation:attach <absolute-path>
 foundation:status
 foundation:detach
+foundation:assert-dev-only
 foundation:assert-registry
 ```
 
-Attach validates the consumer's exact registry dependency, the target package
-identity, built exports, and Git evidence before creating a package-manager-neutral
-directory link beneath consumer `node_modules`. Durable recovery state is synced
-before replacement: real package directories move to a local backup, while
-pnpm symlink/junction entries get an absolute recovery link. It does not modify
+`assert-dev-only` requires one exact version in `devDependencies` and rejects
+runtime, bundled, overridden, resolved, or patched declarations.
+
+`assert-registry` also parses `pnpm-lock.yaml` structurally. The root importer
+specifier and resolution must equal the manifest version. The lockfile must
+contain the exact npm package key, sha512 integrity, and snapshot, with no
+file/link/workspace/git/http source, override, patch, or non-npm tarball. The
+same provenance must be present in the installed pnpm virtual-store lockfile;
+this detects stale `node_modules` after a lockfile-only change.
+
+Attach validates that registry evidence first. It then validates the target
+package identity, versioned local-mode protocol and compatibility metadata,
+required exports and build outputs, resolvable runtime dependencies, real CLI
+self-check, and Git evidence before creating a package-manager-neutral directory
+link beneath consumer `node_modules`. Durable recovery state is synced before
+replacement: real package directories move to a local backup, while pnpm
+symlink/junction entries get an absolute recovery link. It does not modify
 `package.json`, `pnpm-workspace.yaml`, or the lockfile. Foundation-owned marker,
 backup, and operation-lock artifacts stay beneath `.agent-teams-local/`, which
 must be a real directory inside the consumer and is excluded through the
@@ -24,7 +37,8 @@ consumer's local Git exclude file.
 
 Status reports package version, source path, Git commit, dirty state, and one of:
 
-- `REGISTRY`: exact manifest version installed beneath consumer `node_modules`;
+- `REGISTRY`: exact development-only manifest and npm lockfile evidence match
+  the installed package identity and version beneath consumer `node_modules`;
 - `LOCAL`: installed package resolves to the recorded local target;
 - `INVALID`: marker, manifest, installed package, or source evidence disagree.
 
@@ -40,3 +54,8 @@ so Windows provides process-crash recovery but does not claim the same hard
 power-loss guarantee. The package gate exercises the real lifecycle
 against an isolated tarball consumer. CI, package, and release commands use
 `foundation:assert-registry` and reject local or ambiguous state.
+
+The registry assertion proves package-manager provenance from the consumer
+manifest and lockfile. It does not claim to cryptographically re-hash every
+expanded file beneath `node_modules`; clean frozen installs remain a release and
+CI requirement.

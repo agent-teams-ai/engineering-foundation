@@ -13,6 +13,11 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const pnpmEntrypoint = process.env.npm_execpath;
+const pnpmExecutable =
+  pnpmEntrypoint === undefined ? "pnpm" : process.execPath;
+const pnpmArguments = (args) =>
+  pnpmEntrypoint === undefined ? args : [pnpmEntrypoint, ...args];
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(
   repositoryRoot,
@@ -22,6 +27,8 @@ const packageRoot = join(
 const temporaryRoot = await mkdtemp(
   join(tmpdir(), "agent-teams-foundation-pack-")
 );
+const keepTemporaryRoot =
+  process.env.AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS === "1";
 
 const forbiddenEntries = [
   "/.git/",
@@ -35,8 +42,8 @@ const forbiddenEntries = [
 
 try {
   await execFileAsync(
-    "pnpm",
-    ["pack", "--pack-destination", temporaryRoot],
+    pnpmExecutable,
+    pnpmArguments(["pack", "--pack-destination", temporaryRoot]),
     { cwd: packageRoot }
   );
 
@@ -48,6 +55,7 @@ try {
   }
 
   const archivePath = join(temporaryRoot, archiveName);
+  const archiveFileSpecifier = `file:${archivePath.replaceAll("\\", "/")}`;
   const { stdout: listing } = await execFileAsync(
     "tar",
     ["-tzf", archivePath],
@@ -83,7 +91,7 @@ try {
         type: "module",
         packageManager: "pnpm@11.18.0",
         dependencies: {
-          "@agent-teams/engineering-foundation": `file:${archivePath}`
+          "@agent-teams/engineering-foundation": archiveFileSpecifier
         }
       },
       null,
@@ -93,8 +101,8 @@ try {
   );
 
   await execFileAsync(
-    "pnpm",
-    ["install", "--ignore-scripts", "--no-frozen-lockfile"],
+    pnpmExecutable,
+    pnpmArguments(["install", "--ignore-scripts", "--no-frozen-lockfile"]),
     { cwd: consumerRoot }
   );
   await execFileAsync(
@@ -116,8 +124,8 @@ try {
     { cwd: consumerRoot }
   );
   const { stdout: versionOutput } = await execFileAsync(
-    "pnpm",
-    ["exec", "agent-teams-foundation", "--version"],
+    pnpmExecutable,
+    pnpmArguments(["exec", "agent-teams-foundation", "--version"]),
     { cwd: consumerRoot }
   );
 
@@ -137,9 +145,142 @@ try {
     throw new Error("Packed CLI version differs from packed package version.");
   }
 
+  const localModeConsumerRoot = join(temporaryRoot, "local-mode-consumer");
+  await mkdir(localModeConsumerRoot, { recursive: true });
+  await writeFile(
+    join(localModeConsumerRoot, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "foundation-local-mode-consumer",
+        version: "0.0.0",
+        private: true,
+        type: "module",
+        packageManager: "pnpm@11.18.0",
+        devDependencies: {
+          "@agent-teams/engineering-foundation": packedManifest.version
+        }
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(localModeConsumerRoot, "pnpm-workspace.yaml"),
+    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": "${archiveFileSpecifier}"\n`,
+    "utf8"
+  );
+  const siblingPackageRoot = join(
+    localModeConsumerRoot,
+    "packages",
+    "sibling"
+  );
+  await mkdir(siblingPackageRoot, { recursive: true });
+  await writeFile(
+    join(siblingPackageRoot, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "foundation-local-mode-sibling",
+        version: "0.0.0",
+        private: true
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments(["install", "--ignore-scripts", "--no-frozen-lockfile"]),
+    { cwd: localModeConsumerRoot }
+  );
+  await execFileAsync("git", ["init", "--quiet"], {
+    cwd: localModeConsumerRoot
+  });
+
+  const localManifestPath = join(localModeConsumerRoot, "package.json");
+  const localLockfilePath = join(localModeConsumerRoot, "pnpm-lock.yaml");
+  const localWorkspacePath = join(
+    localModeConsumerRoot,
+    "pnpm-workspace.yaml"
+  );
+  const localManifestBefore = await readFile(localManifestPath, "utf8");
+  const localLockfileBefore = await readFile(localLockfilePath, "utf8");
+  const localWorkspaceBefore = await readFile(localWorkspacePath, "utf8");
+  const siblingSentinelPath = join(
+    siblingPackageRoot,
+    "node_modules",
+    "foundation-lifecycle-sentinel.txt"
+  );
+  await mkdir(join(siblingPackageRoot, "node_modules"), { recursive: true });
+  await writeFile(siblingSentinelPath, "preserve-me\n", "utf8");
+
+  const { stdout: attachOutput } = await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "attach",
+      repositoryRoot,
+      "--consumer",
+      localModeConsumerRoot,
+      "--json"
+    ]),
+    { cwd: localModeConsumerRoot }
+  );
+  const attachStatus = JSON.parse(attachOutput);
+  if (attachStatus.mode !== "LOCAL") {
+    throw new Error(`Local attach failed: ${attachOutput}`);
+  }
+  if ((await readFile(localManifestPath, "utf8")) !== localManifestBefore) {
+    throw new Error("Local attach changed the consumer package.json.");
+  }
+  if ((await readFile(localLockfilePath, "utf8")) !== localLockfileBefore) {
+    throw new Error("Local attach changed the consumer lockfile.");
+  }
+  if ((await readFile(localWorkspacePath, "utf8")) !== localWorkspaceBefore) {
+    throw new Error("Local attach changed the consumer workspace configuration.");
+  }
+  if ((await readFile(siblingSentinelPath, "utf8")) !== "preserve-me\n") {
+    throw new Error("Local attach changed a sibling workspace node_modules tree.");
+  }
+
+  const { stdout: detachOutput } = await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "detach",
+      "--consumer",
+      localModeConsumerRoot,
+      "--json"
+    ]),
+    { cwd: localModeConsumerRoot }
+  );
+  const detachStatus = JSON.parse(detachOutput);
+  if (detachStatus.mode !== "REGISTRY") {
+    throw new Error(`Registry restoration failed: ${detachOutput}`);
+  }
+  if ((await readFile(localManifestPath, "utf8")) !== localManifestBefore) {
+    throw new Error("Local detach changed the consumer package.json.");
+  }
+  if ((await readFile(localLockfilePath, "utf8")) !== localLockfileBefore) {
+    throw new Error("Local detach changed the consumer lockfile.");
+  }
+  if ((await readFile(localWorkspacePath, "utf8")) !== localWorkspaceBefore) {
+    throw new Error("Local detach changed the consumer workspace configuration.");
+  }
+  if ((await readFile(siblingSentinelPath, "utf8")) !== "preserve-me\n") {
+    throw new Error("Local detach changed a sibling workspace node_modules tree.");
+  }
+
   process.stdout.write(
-    `Package tarball verified: ${archiveName} (${packedManifest.version})\n`
+    `Package and local-mode lifecycle verified: ${archiveName} (${packedManifest.version})\n`
   );
 } finally {
-  await rm(temporaryRoot, { force: true, recursive: true });
+  if (keepTemporaryRoot) {
+    process.stderr.write(`Pack test artifacts: ${temporaryRoot}\n`);
+  } else {
+    await rm(temporaryRoot, { force: true, recursive: true });
+  }
 }

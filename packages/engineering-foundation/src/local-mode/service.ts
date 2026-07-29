@@ -1,14 +1,26 @@
 import {
   appendFile,
+  lstat,
   mkdir,
+  open,
   readFile,
+  readdir,
   realpath,
   rename,
   rm,
+  rmdir,
   stat,
-  writeFile
+  symlink
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import {
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep
+} from "node:path";
+import { lock } from "proper-lockfile";
 
 import { FoundationError } from "../errors.js";
 import { inspectFoundationMode, isExactVersion } from "./inspection.js";
@@ -20,6 +32,8 @@ import type {
 } from "./types.js";
 import {
   FOUNDATION_PACKAGE_NAME,
+  LOCAL_OPERATION_LOCK,
+  LOCAL_REGISTRY_BACKUP,
   LOCAL_STATE_DIRECTORY,
   LOCAL_STATE_FILE
 } from "./types.js";
@@ -58,6 +72,108 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
+async function pathEntryExists(path: string): Promise<boolean> {
+  try {
+    await lstat(path);
+    return true;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function ensureLocalStateDirectory(consumerRoot: string): Promise<string> {
+  const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
+  try {
+    const entry = await lstat(directory);
+    if (!entry.isDirectory() || entry.isSymbolicLink()) {
+      throw new FoundationError(
+        "LOCAL_STATE_INVALID",
+        "Local foundation state path must be a real consumer-owned directory."
+      );
+    }
+    if ((await realpath(directory)) !== directory) {
+      throw new FoundationError(
+        "LOCAL_STATE_INVALID",
+        "Local foundation state directory resolves outside its expected path."
+      );
+    }
+    return directory;
+  } catch (error) {
+    if (
+      !(
+        error instanceof Error &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      )
+    ) {
+      throw error;
+    }
+  }
+
+  try {
+    await mkdir(directory);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "EEXIST"
+    ) {
+      return await ensureLocalStateDirectory(consumerRoot);
+    }
+    throw error;
+  }
+  await syncDirectory(consumerRoot);
+  return directory;
+}
+
+async function readPackageEntry(path: string): Promise<{
+  readonly manifest: PackageManifest;
+  readonly packageRoot: string;
+}> {
+  const packageRoot = await realpath(path);
+  return {
+    manifest: await readPackageManifest(packageRoot),
+    packageRoot
+  };
+}
+
+function isWithin(parent: string, candidate: string): boolean {
+  const path = relative(parent, candidate);
+  return (
+    path === "" ||
+    (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path))
+  );
+}
+
+function assertRecoveryStatePaths(
+  consumerRoot: string,
+  state: FoundationLinkState
+): void {
+  const expectedBackupPath = join(
+    consumerRoot,
+    LOCAL_STATE_DIRECTORY,
+    LOCAL_REGISTRY_BACKUP
+  );
+  const nodeModulesRoot = join(consumerRoot, "node_modules");
+  if (
+    resolve(state.consumerRoot) !== consumerRoot ||
+    resolve(state.registryBackupPath) !== expectedBackupPath ||
+    !isWithin(nodeModulesRoot, resolve(state.registryPackageRoot))
+  ) {
+    throw new FoundationError(
+      "LOCAL_STATE_INVALID",
+      "Local recovery state contains paths outside its consumer-owned boundary."
+    );
+  }
+}
+
 async function resolveTargetPackageRoot(targetPath: string): Promise<string> {
   const root = await realpath(resolve(targetPath));
   const directManifest = join(root, "package.json");
@@ -89,12 +205,127 @@ async function writeLinkState(
   const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
   const destination = join(directory, LOCAL_STATE_FILE);
   const temporary = `${destination}.${process.pid}.tmp`;
-  await mkdir(directory, { recursive: true });
-  await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, {
-    encoding: "utf8",
-    mode: 0o600
-  });
+  await ensureLocalStateDirectory(consumerRoot);
+  const handle = await open(temporary, "w", 0o600);
+  try {
+    await handle.writeFile(`${JSON.stringify(state, null, 2)}\n`, "utf8");
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
   await rename(temporary, destination);
+  await syncDirectory(directory);
+}
+
+async function syncDirectory(path: string): Promise<void> {
+  try {
+    const handle = await open(path, "r");
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  } catch (error) {
+    if (
+      process.platform === "win32" &&
+      error instanceof Error &&
+      "code" in error &&
+      ["EACCES", "EINVAL", "EISDIR", "EPERM"].includes(
+        (error as NodeJS.ErrnoException).code ?? ""
+      )
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+async function removeLinkState(consumerRoot: string): Promise<void> {
+  const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
+  const destination = join(directory, LOCAL_STATE_FILE);
+  await rm(destination, { force: true });
+  const temporaryEntries = await readdir(directory).catch(() => []);
+  await Promise.all(
+    temporaryEntries
+      .filter(
+        (entry) =>
+          entry.startsWith(`${LOCAL_STATE_FILE}.`) && entry.endsWith(".tmp")
+      )
+      .map(async (entry) => {
+        await rm(join(directory, entry), { force: true });
+      })
+  );
+  await syncDirectory(directory);
+  try {
+    await rmdir(directory);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      ["ENOENT", "ENOTEMPTY"].includes(
+        (error as NodeJS.ErrnoException).code ?? ""
+      )
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+async function pruneLocalStateDirectory(consumerRoot: string): Promise<void> {
+  try {
+    await rmdir(join(consumerRoot, LOCAL_STATE_DIRECTORY));
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      ["ENOENT", "ENOTEMPTY"].includes(
+        (error as NodeJS.ErrnoException).code ?? ""
+      )
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+async function acquireOperationLock(
+  consumerRoot: string
+): Promise<() => Promise<void>> {
+  const directory = await ensureLocalStateDirectory(consumerRoot);
+  const lockPath = join(directory, LOCAL_OPERATION_LOCK);
+  if (await pathEntryExists(lockPath)) {
+    const lockEntry = await lstat(lockPath);
+    if (!lockEntry.isDirectory() || lockEntry.isSymbolicLink()) {
+      throw new FoundationError(
+        "LOCAL_STATE_INVALID",
+        "Foundation operation lock path must be a real local directory."
+      );
+    }
+  }
+  try {
+    const release = await lock(directory, {
+      lockfilePath: lockPath,
+      onCompromised: (error) => {
+        throw error;
+      },
+      realpath: true,
+      retries: 0,
+      stale: 120_000,
+      update: 30_000
+    });
+    return async () => {
+      await release();
+      await syncDirectory(directory);
+      await pruneLocalStateDirectory(consumerRoot);
+    };
+  } catch (error) {
+    throw new FoundationError(
+      "LOCAL_STATE_INVALID",
+      "Another foundation operation is active or its lock is not safely recoverable.",
+      { cause: error }
+    );
+  }
 }
 
 export class FoundationLocalModeService {
@@ -106,9 +337,84 @@ export class FoundationLocalModeService {
     this.#now = options.now ?? (() => new Date());
   }
 
-  async status(consumerPath: string): Promise<FoundationStatus> {
-    const status = await inspectFoundationMode(consumerPath);
-    if (status.linkState === undefined) {
+  async #restoreRegistryEntry(
+    consumerRoot: string,
+    dependencySpec: string,
+    state: FoundationLinkState | undefined
+  ): Promise<void> {
+    const installedPackagePath = join(
+      consumerRoot,
+      "node_modules",
+      FOUNDATION_PACKAGE_NAME
+    );
+    const registryBackupPath = join(
+      consumerRoot,
+      LOCAL_STATE_DIRECTORY,
+      LOCAL_REGISTRY_BACKUP
+    );
+    if (state !== undefined) {
+      assertRecoveryStatePaths(consumerRoot, state);
+    }
+
+    if (await pathEntryExists(registryBackupPath)) {
+      const backup = await readPackageEntry(registryBackupPath);
+      const nodeModulesRoot = join(consumerRoot, "node_modules");
+      const backupRootIsExpected =
+        state === undefined
+          ? backup.packageRoot === registryBackupPath ||
+            isWithin(nodeModulesRoot, backup.packageRoot)
+          : backup.packageRoot ===
+            (state.registryEntryKind === "directory"
+              ? registryBackupPath
+              : resolve(state.registryPackageRoot));
+      if (
+        backup.manifest.name !== FOUNDATION_PACKAGE_NAME ||
+        backup.manifest.version !== dependencySpec ||
+        !backupRootIsExpected
+      ) {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          "Registry backup identity, version, or location is invalid."
+        );
+      }
+      await rm(installedPackagePath, { force: true, recursive: true });
+      await mkdir(dirname(installedPackagePath), { recursive: true });
+      await rename(registryBackupPath, installedPackagePath);
+      await syncDirectory(dirname(installedPackagePath));
+      await syncDirectory(dirname(registryBackupPath));
+      return;
+    }
+
+    if (await pathEntryExists(installedPackagePath)) {
+      const installed = await readPackageEntry(installedPackagePath).catch(
+        () => {}
+      );
+      if (
+        installed !== undefined &&
+        (state === undefined
+          ? isWithin(join(consumerRoot, "node_modules"), installed.packageRoot)
+          : installed.packageRoot === resolve(state.registryPackageRoot)) &&
+        installed.manifest.name === FOUNDATION_PACKAGE_NAME &&
+        installed.manifest.version === dependencySpec
+      ) {
+        return;
+      }
+    }
+
+    throw new FoundationError(
+      "LOCAL_STATE_INVALID",
+      "Registry backup is unavailable and the installed package cannot be proven to be the original registry entry."
+    );
+  }
+
+  async #readStatus(
+    consumerPath: string,
+    ignoreOperationLock: boolean
+  ): Promise<FoundationStatus> {
+    const status = await inspectFoundationMode(consumerPath, {
+      ignoreOperationLock
+    });
+    if (status.mode !== "LOCAL" || status.linkState === undefined) {
       return status;
     }
 
@@ -153,11 +459,17 @@ export class FoundationLocalModeService {
     }
   }
 
+  async status(consumerPath: string): Promise<FoundationStatus> {
+    return await this.#readStatus(consumerPath, false);
+  }
+
   async attach(
     consumerPath: string,
     targetPath: string
   ): Promise<AttachResult> {
-    const before = await inspectFoundationMode(consumerPath);
+    const before = await inspectFoundationMode(consumerPath, {
+      ignoreOperationLock: true
+    });
     if (
       before.mode !== "REGISTRY" ||
       before.dependencySpec === undefined ||
@@ -165,7 +477,7 @@ export class FoundationLocalModeService {
     ) {
       throw new FoundationError(
         "CONSUMER_INVALID",
-        `Consumer must be in valid registry mode with an exact ${FOUNDATION_PACKAGE_NAME} version before attach.`
+        `Consumer must be in valid registry mode with an exact ${FOUNDATION_PACKAGE_NAME} version before attach: ${before.issues.join(" ") || before.mode}.`
       );
     }
 
@@ -234,40 +546,139 @@ export class FoundationLocalModeService {
       );
     }
 
-    await this.#runner.run({
-      command: "pnpm",
-      args: ["link", targetPackageRoot],
-      cwd: consumerRoot
-    });
-
-    const installedPackageRoot = await realpath(
-      join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME)
-    );
-    if (installedPackageRoot !== targetPackageRoot) {
-      throw new FoundationError(
-        "LOCAL_STATE_INVALID",
-        "pnpm link completed but the installed package does not resolve to the target."
-      );
-    }
-
-    await writeLinkState(consumerRoot, {
-      schemaVersion: 1,
+    const installedPackagePath = join(
       consumerRoot,
-      targetPackageRoot,
-      packageVersion: targetManifest.version,
-      gitCommit,
-      gitDirty,
-      attachedAt: this.#now().toISOString()
-    });
+      "node_modules",
+      FOUNDATION_PACKAGE_NAME
+    );
+    const registryBackupPath = join(
+      consumerRoot,
+      LOCAL_STATE_DIRECTORY,
+      LOCAL_REGISTRY_BACKUP
+    );
+    const releaseLock = await acquireOperationLock(consumerRoot);
+    let state: FoundationLinkState | undefined;
+    try {
+      const current = await inspectFoundationMode(consumerRoot, {
+        ignoreOperationLock: true
+      });
+      if (
+        current.mode !== "REGISTRY" ||
+        current.dependencySpec !== before.dependencySpec ||
+        current.installedPackageRoot === undefined
+      ) {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          "Consumer foundation state changed before attach acquired its operation lock."
+        );
+      }
+      if (await pathEntryExists(registryBackupPath)) {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          "A registry backup already exists; run detach to recover it before attaching."
+        );
+      }
+      const registryEntry = await lstat(installedPackagePath);
+      if (!registryEntry.isDirectory() && !registryEntry.isSymbolicLink()) {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          "Installed foundation entry is neither a directory nor a symbolic link."
+        );
+      }
+      state = {
+        schemaVersion: 1,
+        phase: "ATTACHING",
+        consumerRoot,
+        targetPackageRoot,
+        registryBackupPath,
+        registryEntryKind: registryEntry.isSymbolicLink()
+          ? "symbolic-link"
+          : "directory",
+        registryPackageRoot: current.installedPackageRoot,
+        packageVersion: targetManifest.version,
+        gitCommit,
+        gitDirty,
+        attachedAt: this.#now().toISOString()
+      };
+      await writeLinkState(consumerRoot, state);
+      if (state.registryEntryKind === "symbolic-link") {
+        await symlink(
+          state.registryPackageRoot,
+          registryBackupPath,
+          process.platform === "win32" ? "junction" : "dir"
+        );
+        await syncDirectory(dirname(registryBackupPath));
+        await rm(installedPackagePath, { force: true });
+      } else {
+        await rename(installedPackagePath, registryBackupPath);
+        await syncDirectory(dirname(registryBackupPath));
+      }
+      await syncDirectory(dirname(installedPackagePath));
+      await mkdir(dirname(installedPackagePath), { recursive: true });
+      await symlink(
+        targetPackageRoot,
+        installedPackagePath,
+        process.platform === "win32" ? "junction" : "dir"
+      );
+      const installedPackageRoot = await realpath(installedPackagePath);
+      if (installedPackageRoot !== targetPackageRoot) {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          "Local package link does not resolve to the requested target."
+        );
+      }
+      await syncDirectory(dirname(installedPackagePath));
 
-    const status = await this.status(consumerRoot);
-    if (status.mode !== "LOCAL") {
+      state = { ...state, phase: "LOCAL" };
+      await writeLinkState(consumerRoot, state);
+
+      const status = await this.#readStatus(consumerRoot, true);
+      if (status.mode !== "LOCAL") {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          `Local attach verification failed: ${status.issues.join(" ")}`
+        );
+      }
+      return { status, targetPackageRoot };
+    } catch (error) {
+      if (state === undefined) {
+        throw error;
+      }
+      const recoveryErrors: unknown[] = [];
+      try {
+        await this.#restoreRegistryEntry(
+          consumerRoot,
+          before.dependencySpec,
+          state
+        );
+      } catch (restoreError) {
+        recoveryErrors.push(restoreError);
+      }
+      try {
+        await removeLinkState(consumerRoot);
+      } catch (cleanupError) {
+        recoveryErrors.push(cleanupError);
+      }
+      if (recoveryErrors.length > 0) {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          "Local attach failed and its registry state could not be fully restored.",
+          {
+            cause: new AggregateError(
+              [error, ...recoveryErrors],
+              "Attach and one or more recovery operations failed."
+            )
+          }
+        );
+      }
       throw new FoundationError(
         "LOCAL_STATE_INVALID",
-        `Local attach verification failed: ${status.issues.join(" ")}`
+        "Local attach failed and the registry installation was restored.",
+        { cause: error }
       );
+    } finally {
+      await releaseLock();
     }
-    return { status, targetPackageRoot };
   }
 
   async detach(consumerPath: string): Promise<FoundationStatus> {
@@ -281,21 +692,29 @@ export class FoundationLocalModeService {
         `Consumer must retain an exact ${FOUNDATION_PACKAGE_NAME} registry dependency.`
       );
     }
-
-    await this.#runner.run({
-      command: "pnpm",
-      args: ["unlink", FOUNDATION_PACKAGE_NAME],
-      cwd: before.consumerRoot
-    });
-    await this.#runner.run({
-      command: "pnpm",
-      args: ["install", "--frozen-lockfile"],
-      cwd: before.consumerRoot
-    });
-    await rm(join(before.consumerRoot, LOCAL_STATE_DIRECTORY), {
-      force: true,
-      recursive: true
-    });
+    const releaseLock = await acquireOperationLock(before.consumerRoot);
+    try {
+      const current = await inspectFoundationMode(before.consumerRoot, {
+        ignoreOperationLock: true
+      });
+      if (current.mode === "REGISTRY") {
+        return current;
+      }
+      if (current.linkState !== undefined) {
+        await writeLinkState(before.consumerRoot, {
+          ...current.linkState,
+          phase: "DETACHING"
+        });
+      }
+      await this.#restoreRegistryEntry(
+        before.consumerRoot,
+        before.dependencySpec,
+        current.linkState
+      );
+      await removeLinkState(before.consumerRoot);
+    } finally {
+      await releaseLock();
+    }
 
     const after = await inspectFoundationMode(before.consumerRoot);
     if (after.mode !== "REGISTRY") {

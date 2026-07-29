@@ -1,2 +1,41 @@
-# engineering-foundation
-Versioned engineering policy, tooling, and conformance foundation for Agent Teams repositories.
+# Agent Teams Engineering Foundation
+
+Versioned engineering policy, tooling, and conformance for Agent Teams
+repositories.
+
+This repository contains reusable development tooling only. Product runtime code
+must not import it. Each consumer remains authoritative for its own domain model,
+package catalog, dependency permissions, security classifications, and ADRs.
+
+## Initial Scope
+
+- typed consumer configuration;
+- explicit registry and local-link modes;
+- deterministic attach, status, detach, and registry assertions;
+- isolated package-content and consumer verification;
+- release automation for immutable public npm versions.
+
+Capabilities such as documentation, lint, architecture, security, and reliability
+are extracted incrementally from proven repositories. A capability moves here only
+with parity fixtures and a consumer conformance test.
+
+## Commands
+
+```bash
+pnpm install
+pnpm check
+pnpm package:check
+```
+
+After the first public release, consumers use:
+
+```bash
+pnpm foundation:attach -- /absolute/path/to/engineering-foundation
+pnpm foundation:status
+pnpm foundation:detach
+pnpm foundation:assert-registry
+```
+
+See [ownership](docs/architecture/ownership.md),
+[local development](docs/development/local-mode.md), and
+[release procedure](docs/release.md).

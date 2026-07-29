@@ -1,0 +1,34 @@
+{
+  "name": "@agent-teams/engineering-foundation-repository",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Repository for the Agent Teams engineering foundation.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=11.17.0 <12"
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm package:check",
+    "changeset": "changeset",
+    "clean": "node scripts/clean.mjs",
+    "lint": "oxlint --config .oxlintrc.json --deny-warnings --disable-nested-config .",
+    "package:check": "pnpm build && node scripts/prepare-package.mjs && publint packages/engineering-foundation && attw --pack --profile esm-only packages/engineering-foundation && node scripts/pack-test.mjs",
+    "release:publish": "pnpm check && changeset publish",
+    "release:version": "changeset version",
+    "test": "pnpm build && node --test --test-concurrency=1 tests/*.test.mjs",
+    "typecheck": "tsc --build tsconfig.json --pretty false"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "catalog:",
+    "@changesets/changelog-github": "catalog:",
+    "@changesets/cli": "catalog:",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "publint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

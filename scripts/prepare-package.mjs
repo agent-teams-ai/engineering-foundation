@@ -1,0 +1,6 @@
+import { copyFile } from "node:fs/promises";
+
+await copyFile(
+  new URL("../LICENSE", import.meta.url),
+  new URL("../packages/engineering-foundation/LICENSE", import.meta.url)
+);

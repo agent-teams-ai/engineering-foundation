@@ -7,7 +7,11 @@ import { fileURLToPath } from "node:url";
 import { FoundationError } from "./errors.js";
 import { NodeProcessRunner } from "./local-mode/process-runner.js";
 import { FoundationLocalModeService } from "./local-mode/service.js";
-import type { FoundationStatus } from "./local-mode/types.js";
+import type {
+  FoundationDevOnlyStatus,
+  FoundationStatus
+} from "./local-mode/types.js";
+import { inspectFoundationPackage } from "./package-self-check.js";
 
 interface ParsedArguments {
   readonly command: string;
@@ -65,6 +69,12 @@ function printStatus(status: FoundationStatus, json: boolean): void {
   if (status.installedPackageRoot !== undefined) {
     process.stdout.write(`Installed path: ${status.installedPackageRoot}\n`);
   }
+  if (status.lockfilePath !== undefined) {
+    process.stdout.write(`Lockfile: ${status.lockfilePath}\n`);
+  }
+  if (status.lockfilePackageKey !== undefined) {
+    process.stdout.write(`Locked package: ${status.lockfilePackageKey}\n`);
+  }
   if (status.linkState !== undefined) {
     process.stdout.write(`Attached commit: ${status.linkState.gitCommit}\n`);
     process.stdout.write(
@@ -84,12 +94,29 @@ function printStatus(status: FoundationStatus, json: boolean): void {
   }
 }
 
+function printDevOnlyStatus(
+  status: FoundationDevOnlyStatus,
+  json: boolean
+): void {
+  if (json) {
+    process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
+    return;
+  }
+  process.stdout.write("Foundation dependency policy: DEV_ONLY\n");
+  process.stdout.write(`Consumer: ${status.consumerRoot}\n`);
+  if (status.dependencySpec !== undefined) {
+    process.stdout.write(`Declared version: ${status.dependencySpec}\n`);
+  }
+}
+
 function printHelp(): void {
   process.stdout.write(`Usage:
   agent-teams-foundation attach <path> [--consumer <path>]
   agent-teams-foundation status [--consumer <path>] [--json]
   agent-teams-foundation detach [--consumer <path>] [--json]
+  agent-teams-foundation assert-dev-only [--consumer <path>] [--json]
   agent-teams-foundation assert-registry [--consumer <path>] [--json]
+  agent-teams-foundation self-check [--json]
   agent-teams-foundation version
 `);
 }
@@ -127,6 +154,13 @@ async function main(): Promise<void> {
       printStatus(result.status, parsed.json);
       break;
     }
+    case "assert-dev-only": {
+      printDevOnlyStatus(
+        await service.assertDevOnly(parsed.consumerRoot),
+        parsed.json
+      );
+      break;
+    }
     case "assert-registry": {
       printStatus(
         await service.assertRegistry(parsed.consumerRoot),
@@ -150,6 +184,12 @@ async function main(): Promise<void> {
       if (status.mode === "INVALID") {
         process.exitCode = 1;
       }
+      break;
+    }
+    case "self-check": {
+      const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+      const result = await inspectFoundationPackage(packageRoot);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       break;
     }
     case "version":

@@ -4,6 +4,7 @@ export const LOCAL_STATE_DIRECTORY = ".agent-teams-local" as const;
 export const LOCAL_STATE_FILE = "foundation-link.json" as const;
 export const LOCAL_REGISTRY_BACKUP = "foundation-registry-backup" as const;
 export const LOCAL_OPERATION_LOCK = "foundation-operation.lock" as const;
+export const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION = 1 as const;
 
 export type FoundationMode = "INVALID" | "LOCAL" | "REGISTRY";
 export type FoundationLinkPhase = "ATTACHING" | "DETACHING" | "LOCAL";
@@ -28,10 +29,25 @@ export interface FoundationStatus {
   readonly dependencySpec?: string;
   readonly installedPackageRoot?: string;
   readonly installedVersion?: string;
+  readonly lockfilePath?: string;
+  readonly lockfilePackageKey?: string;
+  readonly registryIntegrity?: string;
   readonly linkState?: FoundationLinkState;
   readonly sourceGitCommit?: string;
   readonly sourceGitDirty?: boolean;
   readonly issues: readonly string[];
+}
+
+export interface FoundationDevOnlyStatus {
+  readonly consumerRoot: string;
+  readonly dependencySpec?: string;
+  readonly issues: readonly string[];
+}
+
+export interface FoundationRegistryProvenance {
+  readonly lockfilePath: string;
+  readonly packageKey: string;
+  readonly integrity: string;
 }
 
 export interface AttachResult {

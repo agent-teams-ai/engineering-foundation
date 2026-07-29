@@ -3,8 +3,8 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  rename,
   rm,
-  symlink,
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -38,10 +38,9 @@ async function replaceWithDirectory(path, version) {
 }
 
 class FakeProcessRunner {
-  constructor({ consumerRoot, registryVersion, targetPackageRoot }) {
-    this.consumerRoot = consumerRoot;
-    this.registryVersion = registryVersion;
-    this.targetPackageRoot = targetPackageRoot;
+  constructor({ failAttachedStatus = false }) {
+    this.failAttachedStatus = failAttachedStatus;
+    this.gitCommitRequests = 0;
     this.requests = [];
   }
 
@@ -51,52 +50,20 @@ class FakeProcessRunner {
       return { stdout: ".git/info/exclude\n", stderr: "" };
     }
     if (request.command === "git" && request.args.includes("rev-parse")) {
+      this.gitCommitRequests += 1;
+      if (this.failAttachedStatus && this.gitCommitRequests > 1) {
+        throw new Error("Simulated post-attach status failure.");
+      }
       return { stdout: `${COMMIT}\n`, stderr: "" };
     }
     if (request.command === "git" && request.args.includes("status")) {
-      return { stdout: "", stderr: "" };
-    }
-    if (request.command === "pnpm" && request.args[0] === "link") {
-      const installed = join(
-        this.consumerRoot,
-        "node_modules",
-        "@agent-teams",
-        "engineering-foundation"
-      );
-      await rm(installed, { force: true, recursive: true });
-      await mkdir(dirname(installed), { recursive: true });
-      await symlink(this.targetPackageRoot, installed, "dir");
-      return { stdout: "", stderr: "" };
-    }
-    if (request.command === "pnpm" && request.args[0] === "unlink") {
-      await rm(
-        join(
-          this.consumerRoot,
-          "node_modules",
-          "@agent-teams",
-          "engineering-foundation"
-        ),
-        { force: true, recursive: true }
-      );
-      return { stdout: "", stderr: "" };
-    }
-    if (request.command === "pnpm" && request.args[0] === "install") {
-      await replaceWithDirectory(
-        join(
-          this.consumerRoot,
-          "node_modules",
-          "@agent-teams",
-          "engineering-foundation"
-        ),
-        this.registryVersion
-      );
       return { stdout: "", stderr: "" };
     }
     throw new Error(`Unexpected process request: ${JSON.stringify(request)}`);
   }
 }
 
-async function createFixture() {
+async function createFixture({ failAttachedStatus = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), "foundation-local-mode-"));
   const consumerRoot = join(root, "consumer");
   const targetRepositoryRoot = join(root, "foundation");
@@ -134,9 +101,7 @@ async function createFixture() {
   await writeFile(join(targetPackageRoot, "dist", "index.js"), "", "utf8");
 
   const runner = new FakeProcessRunner({
-    consumerRoot,
-    registryVersion,
-    targetPackageRoot
+    failAttachedStatus
   });
   const service = new FoundationLocalModeService({
     runner,
@@ -156,6 +121,12 @@ async function createFixture() {
 test("attaches, reports local evidence, and restores registry mode", async () => {
   const fixture = await createFixture();
   try {
+    const unrelatedStatePath = join(
+      fixture.consumerRoot,
+      ".agent-teams-local",
+      "unrelated-capability.json"
+    );
+    await writeJson(unrelatedStatePath, { ownedBy: "another-capability" });
     assert.equal((await fixture.service.status(fixture.consumerRoot)).mode, "REGISTRY");
 
     const attached = await fixture.service.attach(
@@ -177,6 +148,14 @@ test("attaches, reports local evidence, and restores registry mode", async () =>
     const restored = await fixture.service.detach(fixture.consumerRoot);
     assert.equal(restored.mode, "REGISTRY");
     assert.equal(restored.installedVersion, "1.2.3");
+    assert.deepEqual(
+      JSON.parse(await readFile(unrelatedStatePath, "utf8")),
+      { ownedBy: "another-capability" }
+    );
+    assert.equal(
+      fixture.runner.requests.some((request) => request.command === "pnpm"),
+      false
+    );
   } finally {
     await rm(fixture.root, { force: true, recursive: true });
   }
@@ -224,6 +203,223 @@ test("rejects floating consumer dependency specifications", async () => {
         fixture.targetRepositoryRoot
       ),
       /must be in valid registry mode/u
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("restores registry mode when final attach verification fails", async () => {
+  const fixture = await createFixture({ failAttachedStatus: true });
+  try {
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      /registry installation was restored/u
+    );
+
+    const status = await inspectFoundationMode(fixture.consumerRoot);
+    assert.equal(status.mode, "REGISTRY");
+    assert.equal(status.installedVersion, "1.2.3");
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("finishes detach after a crash restored the registry entry", async () => {
+  const fixture = await createFixture();
+  try {
+    await fixture.service.attach(
+      fixture.consumerRoot,
+      fixture.targetRepositoryRoot
+    );
+    const statePath = join(
+      fixture.consumerRoot,
+      ".agent-teams-local",
+      "foundation-link.json"
+    );
+    const state = JSON.parse(await readFile(statePath, "utf8"));
+    state.phase = "DETACHING";
+    await writeJson(statePath, state);
+
+    const installedPackagePath = join(
+      fixture.consumerRoot,
+      "node_modules",
+      "@agent-teams",
+      "engineering-foundation"
+    );
+    await rm(installedPackagePath, { force: true, recursive: true });
+    await rename(
+      join(
+        fixture.consumerRoot,
+        ".agent-teams-local",
+        "foundation-registry-backup"
+      ),
+      installedPackagePath
+    );
+
+    const restored = await fixture.service.detach(fixture.consumerRoot);
+    assert.equal(restored.mode, "REGISTRY");
+    assert.equal(restored.installedVersion, "1.2.3");
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("reclaims a dead operation lock", async () => {
+  const fixture = await createFixture();
+  try {
+    const lockRoot = join(
+      fixture.consumerRoot,
+      ".agent-teams-local",
+      "foundation-operation.lock"
+    );
+    await mkdir(lockRoot, { recursive: true });
+    await writeJson(
+      join(lockRoot, "owner.json"),
+      {
+        schemaVersion: 1,
+        token: "stale-lock",
+        pid: 2_147_483_647,
+        startedAt: "2026-07-29T11:00:00.000Z"
+      }
+    );
+
+    const attached = await fixture.service.attach(
+      fixture.consumerRoot,
+      fixture.targetRepositoryRoot
+    );
+    assert.equal(attached.status.mode, "LOCAL");
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("rejects a concurrent operation owned by a live process", async () => {
+  const fixture = await createFixture();
+  try {
+    const lockRoot = join(
+      fixture.consumerRoot,
+      ".agent-teams-local",
+      "foundation-operation.lock"
+    );
+    await mkdir(lockRoot, { recursive: true });
+    await writeJson(
+      join(lockRoot, "owner.json"),
+      {
+        schemaVersion: 1,
+        token: "active-lock",
+        pid: process.pid,
+        startedAt: "2026-07-29T12:00:00.000Z"
+      }
+    );
+
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      /Another foundation operation is active/u
+    );
+    assert.equal((await inspectFoundationMode(fixture.consumerRoot)).mode, "INVALID");
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("does not reclaim a lock while its owner is being written", async () => {
+  const fixture = await createFixture();
+  try {
+    await mkdir(
+      join(
+        fixture.consumerRoot,
+        ".agent-teams-local",
+        "foundation-operation.lock"
+      ),
+      { recursive: true }
+    );
+
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      /operation is initializing/u
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("restores from backup when the local checkout disappears", async () => {
+  const fixture = await createFixture();
+  try {
+    await fixture.service.attach(
+      fixture.consumerRoot,
+      fixture.targetRepositoryRoot
+    );
+    await rm(fixture.targetRepositoryRoot, { force: true, recursive: true });
+
+    const restored = await fixture.service.detach(fixture.consumerRoot);
+    assert.equal(restored.mode, "REGISTRY");
+    assert.equal(restored.installedVersion, "1.2.3");
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("recovers an orphan backup without trusting an absent marker", async () => {
+  const fixture = await createFixture();
+  try {
+    await fixture.service.attach(
+      fixture.consumerRoot,
+      fixture.targetRepositoryRoot
+    );
+    await rm(
+      join(
+        fixture.consumerRoot,
+        ".agent-teams-local",
+        "foundation-link.json"
+      ),
+      { force: true }
+    );
+
+    const interrupted = await inspectFoundationMode(fixture.consumerRoot);
+    assert.equal(interrupted.mode, "INVALID");
+    assert.ok(
+      interrupted.issues.includes(
+        "An orphan registry backup requires detach recovery."
+      )
+    );
+
+    const restored = await fixture.service.detach(fixture.consumerRoot);
+    assert.equal(restored.mode, "REGISTRY");
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("rejects recovery paths outside the consumer boundary", async () => {
+  const fixture = await createFixture();
+  try {
+    await fixture.service.attach(
+      fixture.consumerRoot,
+      fixture.targetRepositoryRoot
+    );
+    const statePath = join(
+      fixture.consumerRoot,
+      ".agent-teams-local",
+      "foundation-link.json"
+    );
+    const state = JSON.parse(await readFile(statePath, "utf8"));
+    state.registryPackageRoot = fixture.targetPackageRoot;
+    await writeJson(statePath, state);
+
+    await assert.rejects(
+      fixture.service.detach(fixture.consumerRoot),
+      /paths outside its consumer-owned boundary/u
     );
   } finally {
     await rm(fixture.root, { force: true, recursive: true });

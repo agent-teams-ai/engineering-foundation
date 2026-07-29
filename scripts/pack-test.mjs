@@ -55,6 +55,7 @@ try {
   }
 
   const archivePath = join(temporaryRoot, archiveName);
+  const archiveFileSpecifier = `file:${archivePath.replaceAll("\\", "/")}`;
   const { stdout: listing } = await execFileAsync(
     "tar",
     ["-tzf", archivePath],
@@ -90,7 +91,7 @@ try {
         type: "module",
         packageManager: "pnpm@11.18.0",
         dependencies: {
-          "@agent-teams/engineering-foundation": `file:${archivePath}`
+          "@agent-teams/engineering-foundation": archiveFileSpecifier
         }
       },
       null,
@@ -166,7 +167,7 @@ try {
   );
   await writeFile(
     join(localModeConsumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": "file:${archivePath}"\n`,
+    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": "${archiveFileSpecifier}"\n`,
     "utf8"
   );
   const siblingPackageRoot = join(

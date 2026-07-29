@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -11,15 +12,28 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
   FOUNDATION_PACKAGE_NAME,
   FoundationLocalModeService,
+  NodeProcessRunner,
   inspectFoundationMode
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
+const REGISTRY_INTEGRITY =
+  "sha512-bIIjRzA6EHhga2N0sRQ1R5zZSnP3YJ9q8JcD1QmQf3uVn3f2r6q1aXJf0Hb2U5QG6QH0xBvM1nHqN9vQ9w==";
+const HOLDER_PATH = fileURLToPath(
+  new URL("./fixtures/operation-lock-holder.mjs", import.meta.url)
+);
+const SERVICE_MODULE_PATH = fileURLToPath(
+  new URL(
+    "../packages/engineering-foundation/dist/local-mode/service.js",
+    import.meta.url
+  )
+);
 
 async function writeJson(path, value) {
   await mkdir(dirname(path), { recursive: true });
@@ -34,6 +48,131 @@ async function createPackage(path, version) {
   });
 }
 
+async function writeRegistryLock(
+  consumerRoot,
+  version,
+  {
+    lockedSpecifier = version,
+    lockedVersion = version,
+    integrity = REGISTRY_INTEGRITY,
+    override = false,
+    patch = false,
+    writeVirtualStore = true
+  } = {}
+) {
+  const packageKey = `${FOUNDATION_PACKAGE_NAME}@${version}`;
+  const lines = [
+    "lockfileVersion: '9.0'",
+    "",
+    "settings:",
+    "  autoInstallPeers: true",
+    "  excludeLinksFromLockfile: false",
+    ""
+  ];
+  if (override) {
+    lines.push(
+      "overrides:",
+      `  ${JSON.stringify(FOUNDATION_PACKAGE_NAME)}: ${JSON.stringify(version)}`,
+      ""
+    );
+  }
+  if (patch) {
+    lines.push(
+      "patchedDependencies:",
+      `  ${JSON.stringify(packageKey)}:`,
+      '    path: "patches/foundation.patch"',
+      '    hash: "test-patch-hash"',
+      ""
+    );
+  }
+  lines.push(
+    "importers:",
+    "",
+    "  .:",
+    "    devDependencies:",
+    `      ${JSON.stringify(FOUNDATION_PACKAGE_NAME)}:`,
+    `        specifier: ${JSON.stringify(lockedSpecifier)}`,
+    `        version: ${JSON.stringify(lockedVersion)}`,
+    "",
+    "packages:",
+    "",
+    `  ${JSON.stringify(packageKey)}:`,
+    `    resolution: {integrity: ${JSON.stringify(integrity)}}`,
+    "",
+    "snapshots:",
+    "",
+    `  ${JSON.stringify(packageKey)}: {}`,
+    ""
+  );
+  const source = `${lines.join("\n")}\n`;
+  await writeFile(join(consumerRoot, "pnpm-lock.yaml"), source, "utf8");
+  if (writeVirtualStore) {
+    const virtualStoreRoot = join(consumerRoot, "node_modules", ".pnpm");
+    await mkdir(virtualStoreRoot, { recursive: true });
+    await writeFile(join(virtualStoreRoot, "lock.yaml"), source, "utf8");
+  }
+}
+
+async function createTargetPackage(path, version) {
+  const selfCheck = {
+    ok: true,
+    metadataSchemaVersion: 1,
+    packageName: FOUNDATION_PACKAGE_NAME,
+    packageVersion: version,
+    localModeProtocolVersion: 1,
+    compatibleLocalModeProtocolVersions: [1],
+    exportPaths: [".", "./local-mode", "./package.json"],
+    runtimeDependencies: {}
+  };
+  await writeJson(join(path, "package.json"), {
+    name: FOUNDATION_PACKAGE_NAME,
+    version,
+    type: "module",
+    bin: {
+      "agent-teams-foundation": "./dist/cli.js"
+    },
+    exports: {
+      ".": {
+        types: "./dist/index.d.ts",
+        import: "./dist/index.js"
+      },
+      "./local-mode": {
+        types: "./dist/local-mode/index.d.ts",
+        import: "./dist/local-mode/index.js"
+      },
+      "./package.json": "./package.json"
+    },
+    agentTeamsFoundation: {
+      metadataSchemaVersion: 1,
+      localModeProtocolVersion: 1,
+      compatibleLocalModeProtocolVersions: [1]
+    },
+    dependencies: {}
+  });
+  await mkdir(join(path, "dist", "local-mode"), { recursive: true });
+  await writeFile(
+    join(path, "dist", "cli.js"),
+    `process.stdout.write(${JSON.stringify(`${JSON.stringify(selfCheck)}\n`)});\n`,
+    "utf8"
+  );
+  for (const output of [
+    "dist/index.d.ts",
+    "dist/local-mode/index.d.ts",
+  ]) {
+    await writeFile(join(path, output), "", "utf8");
+  }
+  await writeFile(
+    join(path, "dist", "index.js"),
+    "export class FoundationError extends Error {}\nexport function defineFoundationConfig(value) { return value; }\nexport function parseFoundationConfig(value) { return value; }\n",
+    "utf8"
+  );
+  await writeFile(
+    join(path, "dist", "local-mode", "index.js"),
+    "export class FoundationLocalModeService {}\nexport function inspectFoundationMode() {}\n",
+    "utf8"
+  );
+}
+
 async function replaceWithDirectory(path, version) {
   await rm(path, { force: true, recursive: true });
   await createPackage(path, version);
@@ -44,6 +183,7 @@ class FakeProcessRunner {
     this.failAttachedStatus = failAttachedStatus;
     this.gitCommitRequests = 0;
     this.requests = [];
+    this.nodeRunner = new NodeProcessRunner();
   }
 
   async run(request) {
@@ -60,6 +200,9 @@ class FakeProcessRunner {
     }
     if (request.command === "git" && request.args.includes("status")) {
       return { stdout: "", stderr: "" };
+    }
+    if (request.command === process.execPath) {
+      return await this.nodeRunner.run(request);
     }
     throw new Error(`Unexpected process request: ${JSON.stringify(request)}`);
   }
@@ -85,6 +228,7 @@ async function createFixture({ failAttachedStatus = false } = {}) {
       [FOUNDATION_PACKAGE_NAME]: registryVersion
     }
   });
+  await writeRegistryLock(consumerRoot, registryVersion);
   await mkdir(join(consumerRoot, ".git", "info"), { recursive: true });
   await writeFile(join(consumerRoot, ".git", "info", "exclude"), "", "utf8");
   await replaceWithDirectory(
@@ -97,10 +241,7 @@ async function createFixture({ failAttachedStatus = false } = {}) {
     registryVersion
   );
 
-  await createPackage(targetPackageRoot, "1.3.0-dev.1");
-  await mkdir(join(targetPackageRoot, "dist"), { recursive: true });
-  await writeFile(join(targetPackageRoot, "dist", "cli.js"), "", "utf8");
-  await writeFile(join(targetPackageRoot, "dist", "index.js"), "", "utf8");
+  await createTargetPackage(targetPackageRoot, "1.3.0-dev.1");
 
   const runner = new FakeProcessRunner({
     failAttachedStatus
@@ -118,6 +259,44 @@ async function createFixture({ failAttachedStatus = false } = {}) {
     targetPackageRoot,
     targetRepositoryRoot
   };
+}
+
+async function startOperationLockHolder(consumerRoot) {
+  const child = spawn(
+    process.execPath,
+    [HOLDER_PATH, SERVICE_MODULE_PATH, consumerRoot],
+    { stdio: ["ignore", "pipe", "pipe"] }
+  );
+  await new Promise((resolve, reject) => {
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      if (chunk.includes("READY")) {
+        resolve();
+      }
+    });
+    child.once("exit", (code, signal) => {
+      reject(
+        new Error(
+          `Lock holder exited before ready: code=${String(code)} signal=${String(signal)} ${stderr}`
+        )
+      );
+    });
+  });
+  return child;
+}
+
+async function waitForExit(child) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+  await new Promise((resolve) => {
+    child.once("exit", resolve);
+  });
 }
 
 test("attaches, reports local evidence, and restores registry mode", async () => {
@@ -211,6 +390,210 @@ test("rejects floating consumer dependency specifications", async () => {
   }
 });
 
+test("enforces an exact development-only consumer dependency", async () => {
+  const fixture = await createFixture();
+  try {
+    const manifestPath = join(fixture.consumerRoot, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.dependencies = {
+      [FOUNDATION_PACKAGE_NAME]: manifest.devDependencies[FOUNDATION_PACKAGE_NAME]
+    };
+    await writeJson(manifestPath, manifest);
+
+    await assert.rejects(
+      fixture.service.assertDevOnly(fixture.consumerRoot),
+      /must not be declared in dependencies/u
+    );
+    assert.equal(
+      (await inspectFoundationMode(fixture.consumerRoot)).mode,
+      "INVALID"
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("rejects non-registry lockfile sources", async (context) => {
+  for (const lockedVersion of [
+    "file:../engineering-foundation.tgz",
+    "link:../engineering-foundation",
+    "workspace:../engineering-foundation",
+    "git+https://github.com/agent-teams-ai/engineering-foundation.git#main",
+    "https://example.test/engineering-foundation.tgz"
+  ]) {
+    await context.test(lockedVersion, async () => {
+      const fixture = await createFixture();
+      try {
+        await writeRegistryLock(fixture.consumerRoot, "1.2.3", {
+          lockedVersion
+        });
+        const status = await inspectFoundationMode(fixture.consumerRoot);
+        assert.equal(status.mode, "INVALID");
+        assert.ok(
+          status.issues.some((issue) =>
+            issue.includes("lockfile specifier and version")
+          )
+        );
+      } finally {
+        await rm(fixture.root, { force: true, recursive: true });
+      }
+    });
+  }
+});
+
+test("rejects foundation lockfile overrides and patches", async (context) => {
+  for (const option of [{ override: true }, { patch: true }]) {
+    await context.test(JSON.stringify(option), async () => {
+      const fixture = await createFixture();
+      try {
+        await writeRegistryLock(fixture.consumerRoot, "1.2.3", option);
+        const status = await inspectFoundationMode(fixture.consumerRoot);
+        assert.equal(status.mode, "INVALID");
+        assert.ok(
+          status.issues.some(
+            (issue) =>
+              issue.includes("lockfile overrides") ||
+              issue.includes("lockfile patches")
+          )
+        );
+      } finally {
+        await rm(fixture.root, { force: true, recursive: true });
+      }
+    });
+  }
+});
+
+test("rejects registry lock entries without sha512 integrity", async () => {
+  const fixture = await createFixture();
+  try {
+    await writeRegistryLock(fixture.consumerRoot, "1.2.3", {
+      integrity: "sha256-not-accepted"
+    });
+    const status = await inspectFoundationMode(fixture.consumerRoot);
+    assert.equal(status.mode, "INVALID");
+    assert.ok(
+      status.issues.some((issue) => issue.includes("sha512 registry integrity"))
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("rejects a stale local install hidden by only rewriting the root lockfile", async () => {
+  const fixture = await createFixture();
+  try {
+    await writeRegistryLock(fixture.consumerRoot, "1.2.3", {
+      writeVirtualStore: false
+    });
+    const virtualStoreLockPath = join(
+      fixture.consumerRoot,
+      "node_modules",
+      ".pnpm",
+      "lock.yaml"
+    );
+    await writeFile(
+      virtualStoreLockPath,
+      (await readFile(virtualStoreLockPath, "utf8")).replace(
+        /version: "1\.2\.3"/u,
+        'version: "file:../engineering-foundation.tgz"'
+      ),
+      "utf8"
+    );
+
+    const status = await inspectFoundationMode(fixture.consumerRoot);
+    assert.equal(status.mode, "INVALID");
+    assert.ok(
+      status.issues.some((issue) =>
+        issue.includes("installed pnpm virtual-store lockfile")
+      )
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("rejects a target whose real CLI self-check does not run", async () => {
+  const fixture = await createFixture();
+  try {
+    await writeFile(
+      join(fixture.targetPackageRoot, "dist", "cli.js"),
+      "",
+      "utf8"
+    );
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      /self-check did not return a valid result/u
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("rejects a target with broken runtime exports", async () => {
+  const fixture = await createFixture();
+  try {
+    await writeFile(
+      join(fixture.targetPackageRoot, "dist", "index.js"),
+      "",
+      "utf8"
+    );
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      /runtime export is unavailable/u
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("rejects incompatible target protocol metadata", async () => {
+  const fixture = await createFixture();
+  try {
+    const manifestPath = join(fixture.targetPackageRoot, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.agentTeamsFoundation.compatibleLocalModeProtocolVersions = [2];
+    await writeJson(manifestPath, manifest);
+
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      /does not support local-mode protocol 1/u
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("rejects unresolved target runtime dependencies", async () => {
+  const fixture = await createFixture();
+  try {
+    const manifestPath = join(fixture.targetPackageRoot, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.dependencies = {
+      "@agent-teams/definitely-missing": "1.0.0"
+    };
+    await writeJson(manifestPath, manifest);
+
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      /runtime dependency cannot be resolved/u
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
 test("restores registry mode when final attach verification fails", async () => {
   const fixture = await createFixture({ failAttachedStatus: true });
   try {
@@ -270,15 +653,18 @@ test("finishes detach after a crash restored the registry entry", async () => {
   }
 });
 
-test("reclaims a dead operation lock", async () => {
+test("reclaims an operation lock after its owner process is killed", async () => {
   const fixture = await createFixture();
+  let holder;
   try {
+    holder = await startOperationLockHolder(fixture.consumerRoot);
+    holder.kill("SIGKILL");
+    await waitForExit(holder);
     const lockRoot = join(
       fixture.consumerRoot,
       ".agent-teams-local",
       "foundation-operation.lock"
     );
-    await mkdir(lockRoot, { recursive: true });
     await utimes(lockRoot, new Date(0), new Date(0));
 
     const attached = await fixture.service.attach(
@@ -287,19 +673,19 @@ test("reclaims a dead operation lock", async () => {
     );
     assert.equal(attached.status.mode, "LOCAL");
   } finally {
+    if (holder !== undefined && holder.exitCode === null) {
+      holder.kill("SIGKILL");
+      await waitForExit(holder);
+    }
     await rm(fixture.root, { force: true, recursive: true });
   }
 });
 
 test("rejects a concurrent operation owned by a live process", async () => {
   const fixture = await createFixture();
+  let holder;
   try {
-    const lockRoot = join(
-      fixture.consumerRoot,
-      ".agent-teams-local",
-      "foundation-operation.lock"
-    );
-    await mkdir(lockRoot, { recursive: true });
+    holder = await startOperationLockHolder(fixture.consumerRoot);
 
     await assert.rejects(
       fixture.service.attach(
@@ -310,6 +696,10 @@ test("rejects a concurrent operation owned by a live process", async () => {
     );
     assert.equal((await inspectFoundationMode(fixture.consumerRoot)).mode, "INVALID");
   } finally {
+    if (holder !== undefined && holder.exitCode === null) {
+      holder.kill("SIGTERM");
+      await waitForExit(holder);
+    }
     await rm(fixture.root, { force: true, recursive: true });
   }
 });

@@ -20,12 +20,22 @@ import {
   resolve,
   sep
 } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { lock } from "proper-lockfile";
 
 import { FoundationError } from "../errors.js";
-import { inspectFoundationMode, isExactVersion } from "./inspection.js";
+import {
+  inspectFoundationPackage,
+  parseFoundationPackageSelfCheck
+} from "../package-self-check.js";
+import {
+  inspectFoundationDevOnly,
+  isExactVersion
+} from "./consumer-policy.js";
+import { inspectFoundationMode } from "./inspection.js";
 import type {
   AttachResult,
+  FoundationDevOnlyStatus,
   FoundationLinkState,
   FoundationStatus,
   ProcessRunner
@@ -289,7 +299,7 @@ async function pruneLocalStateDirectory(consumerRoot: string): Promise<void> {
   }
 }
 
-async function acquireOperationLock(
+export async function acquireFoundationOperationLock(
   consumerRoot: string
 ): Promise<() => Promise<void>> {
   const directory = await ensureLocalStateDirectory(consumerRoot);
@@ -490,23 +500,29 @@ export class FoundationLocalModeService {
       );
     }
 
-    const targetManifest = await readPackageManifest(targetPackageRoot);
-    if (
-      targetManifest.name !== FOUNDATION_PACKAGE_NAME ||
-      typeof targetManifest.version !== "string"
-    ) {
+    const expectedSelfCheck = await inspectFoundationPackage(targetPackageRoot);
+    const selfCheckResult = await this.#runner.run({
+      command: process.execPath,
+      args: [join(targetPackageRoot, "dist", "cli.js"), "self-check", "--json"],
+      cwd: targetPackageRoot
+    });
+    let actualSelfCheck;
+    try {
+      actualSelfCheck = parseFoundationPackageSelfCheck(
+        JSON.parse(selfCheckResult.stdout) as unknown
+      );
+    } catch (error) {
       throw new FoundationError(
         "PACKAGE_INVALID",
-        "Foundation target package identity or version is invalid."
+        "Foundation target CLI self-check did not return a valid result.",
+        { cause: error }
       );
     }
-    for (const output of ["dist/cli.js", "dist/index.js"]) {
-      if (!(await pathExists(join(targetPackageRoot, output)))) {
-        throw new FoundationError(
-          "PACKAGE_INVALID",
-          `Foundation target is not built: missing ${output}.`
-        );
-      }
+    if (!isDeepStrictEqual(actualSelfCheck, expectedSelfCheck)) {
+      throw new FoundationError(
+        "PACKAGE_INVALID",
+        "Foundation target CLI self-check disagrees with package metadata."
+      );
     }
 
     const gitCommit = (
@@ -556,7 +572,7 @@ export class FoundationLocalModeService {
       LOCAL_STATE_DIRECTORY,
       LOCAL_REGISTRY_BACKUP
     );
-    const releaseLock = await acquireOperationLock(consumerRoot);
+    const releaseLock = await acquireFoundationOperationLock(consumerRoot);
     let state: FoundationLinkState | undefined;
     try {
       const current = await inspectFoundationMode(consumerRoot, {
@@ -595,7 +611,7 @@ export class FoundationLocalModeService {
           ? "symbolic-link"
           : "directory",
         registryPackageRoot: current.installedPackageRoot,
-        packageVersion: targetManifest.version,
+        packageVersion: expectedSelfCheck.packageVersion,
         gitCommit,
         gitDirty,
         attachedAt: this.#now().toISOString()
@@ -692,7 +708,9 @@ export class FoundationLocalModeService {
         `Consumer must retain an exact ${FOUNDATION_PACKAGE_NAME} registry dependency.`
       );
     }
-    const releaseLock = await acquireOperationLock(before.consumerRoot);
+    const releaseLock = await acquireFoundationOperationLock(
+      before.consumerRoot
+    );
     try {
       const current = await inspectFoundationMode(before.consumerRoot, {
         ignoreOperationLock: true
@@ -732,6 +750,20 @@ export class FoundationLocalModeService {
       throw new FoundationError(
         "REGISTRY_MODE_REQUIRED",
         `Registry foundation mode required: ${status.issues.join(" ") || status.mode}`
+      );
+    }
+    return status;
+  }
+
+  async assertDevOnly(
+    consumerPath: string
+  ): Promise<FoundationDevOnlyStatus> {
+    const consumerRoot = await realpath(resolve(consumerPath));
+    const status = await inspectFoundationDevOnly(consumerRoot);
+    if (status.issues.length > 0) {
+      throw new FoundationError(
+        "CONSUMER_INVALID",
+        `Development-only foundation dependency required: ${status.issues.join(" ")}`
       );
     }
     return status;

@@ -42,7 +42,15 @@
   "bugs": {
     "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
   },
+  "agentTeamsFoundation": {
+    "metadataSchemaVersion": 1,
+    "localModeProtocolVersion": 1,
+    "compatibleLocalModeProtocolVersions": [
+      1
+    ]
+  },
   "dependencies": {
-    "proper-lockfile": "catalog:"
+    "proper-lockfile": "catalog:",
+    "yaml": "catalog:"
   }
 }

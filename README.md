@@ -33,8 +33,16 @@ After the first public release, consumers use:
 pnpm foundation:attach -- /absolute/path/to/engineering-foundation
 pnpm foundation:status
 pnpm foundation:detach
+pnpm foundation:assert-dev-only
 pnpm foundation:assert-registry
 ```
+
+`foundation:assert-dev-only` rejects runtime dependency placement.
+`foundation:assert-registry` additionally proves that the exact declared version
+has a matching pnpm lockfile importer, npm package entry, sha512 integrity, and
+snapshot without links, source URLs, overrides, or patches. The root and
+installed pnpm virtual-store lockfiles must agree, so a stale local installation
+cannot be hidden by editing only the repository lockfile.
 
 See [ownership](docs/architecture/ownership.md),
 [local development](docs/development/local-mode.md), and

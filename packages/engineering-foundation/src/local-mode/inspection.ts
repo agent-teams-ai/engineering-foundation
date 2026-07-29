@@ -6,6 +6,10 @@ import type {
   FoundationStatus
 } from "./types.js";
 import {
+  inspectFoundationDevOnly,
+  inspectFoundationRegistryProvenance
+} from "./consumer-policy.js";
+import {
   FOUNDATION_PACKAGE_NAME,
   LOCAL_OPERATION_LOCK,
   LOCAL_REGISTRY_BACKUP,
@@ -13,26 +17,12 @@ import {
   LOCAL_STATE_FILE
 } from "./types.js";
 
-interface PackageManifest {
-  readonly name?: unknown;
-  readonly version?: unknown;
-  readonly packageManager?: unknown;
-  readonly devDependencies?: Readonly<Record<string, unknown>>;
-}
-
-const EXACT_SEMVER_PATTERN =
-  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
-
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function parseManifest(value: unknown): PackageManifest | undefined {
-  return isRecord(value) ? value : undefined;
 }
 
 function parseLinkState(value: unknown): FoundationLinkState | undefined {
@@ -103,10 +93,6 @@ function isWithin(parent: string, candidate: string): boolean {
   return path === "" || (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path));
 }
 
-export function isExactVersion(value: string): boolean {
-  return EXACT_SEMVER_PATTERN.test(value);
-}
-
 export async function inspectFoundationMode(
   consumerPath: string,
   options: { readonly ignoreOperationLock?: boolean } = {}
@@ -141,10 +127,22 @@ export async function inspectFoundationMode(
       issues.push("Local foundation state directory cannot be inspected.");
     }
   }
-  const localEntries: string[] =
-    localStateDirectoryExists && localStateDirectoryIsSafe
-      ? await readdir(localStateDirectory)
-      : [];
+  let localEntries: string[] = [];
+  if (localStateDirectoryExists && localStateDirectoryIsSafe) {
+    try {
+      localEntries = await readdir(localStateDirectory);
+    } catch (error) {
+      if (
+        !(
+          error instanceof Error &&
+          "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+        )
+      ) {
+        issues.push("Local foundation state directory cannot be read.");
+      }
+    }
+  }
   if (
     options.ignoreOperationLock !== true &&
     localEntries.includes(LOCAL_OPERATION_LOCK)
@@ -160,36 +158,14 @@ export async function inspectFoundationMode(
     issues.push("An incomplete foundation state write requires recovery.");
   }
 
-  let consumerManifest: PackageManifest | undefined;
-  try {
-    consumerManifest = parseManifest(
-      await readJson(join(consumerRoot, "package.json"))
-    );
-  } catch {
-    issues.push("Consumer package.json cannot be read.");
-  }
-
-  const dependencyCandidate =
-    consumerManifest?.devDependencies?.[FOUNDATION_PACKAGE_NAME];
-  const dependencySpec =
-    typeof dependencyCandidate === "string" ? dependencyCandidate : undefined;
-
-  if (dependencySpec === undefined) {
-    issues.push(
-      `${FOUNDATION_PACKAGE_NAME} must be declared in devDependencies.`
-    );
-  } else if (!isExactVersion(dependencySpec)) {
-    issues.push(
-      `${FOUNDATION_PACKAGE_NAME} must use an exact registry version.`
-    );
-  }
-
-  if (
-    typeof consumerManifest?.packageManager !== "string" ||
-    !consumerManifest.packageManager.startsWith("pnpm@11.")
-  ) {
-    issues.push("Consumer packageManager must pin pnpm 11.");
-  }
+  const dependencyPolicy = await inspectFoundationDevOnly(consumerRoot);
+  issues.push(...dependencyPolicy.issues);
+  const dependencySpec = dependencyPolicy.dependencySpec;
+  const provenance = await inspectFoundationRegistryProvenance(
+    consumerRoot,
+    dependencySpec
+  );
+  issues.push(...provenance.issues);
 
   let installedPackageRoot: string | undefined;
   let installedVersion: string | undefined;
@@ -197,13 +173,17 @@ export async function inspectFoundationMode(
     installedPackageRoot = await realpath(
       join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME)
     );
-    const installedManifest = parseManifest(
-      await readJson(join(installedPackageRoot, "package.json"))
+    const installedManifest = await readJson(
+      join(installedPackageRoot, "package.json")
     );
-    if (typeof installedManifest?.version === "string") {
+    if (
+      isRecord(installedManifest) &&
+      installedManifest.name === FOUNDATION_PACKAGE_NAME &&
+      typeof installedManifest.version === "string"
+    ) {
       installedVersion = installedManifest.version;
     } else {
-      issues.push("Installed foundation package has no valid version.");
+      issues.push("Installed foundation package identity or version is invalid.");
     }
   } catch {
     issues.push("Installed foundation package cannot be resolved.");
@@ -264,6 +244,13 @@ export async function inspectFoundationMode(
       ...(dependencySpec === undefined ? {} : { dependencySpec }),
       ...(installedPackageRoot === undefined ? {} : { installedPackageRoot }),
       ...(installedVersion === undefined ? {} : { installedVersion }),
+      ...(provenance.provenance === undefined
+        ? {}
+        : {
+            lockfilePath: provenance.provenance.lockfilePath,
+            lockfilePackageKey: provenance.provenance.packageKey,
+            registryIntegrity: provenance.provenance.integrity
+          }),
       linkState,
       issues
     };
@@ -308,6 +295,19 @@ export async function inspectFoundationMode(
     ...(dependencySpec === undefined ? {} : { dependencySpec }),
     ...(installedPackageRoot === undefined ? {} : { installedPackageRoot }),
     ...(installedVersion === undefined ? {} : { installedVersion }),
+    ...(provenance.provenance === undefined
+      ? {}
+      : {
+          lockfilePath: provenance.provenance.lockfilePath,
+          lockfilePackageKey: provenance.provenance.packageKey,
+          registryIntegrity: provenance.provenance.integrity
+        }),
     issues
   };
 }
+
+export {
+  inspectFoundationDevOnly,
+  inspectFoundationRegistryProvenance
+} from "./consumer-policy.js";
+export { isExactVersion } from "./consumer-policy.js";

@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   mkdir,
   mkdtemp,
@@ -39,6 +40,34 @@ const forbiddenEntries = [
   "auth.json",
   "foundation-link.json"
 ];
+
+function registryLockfile(version, integrity) {
+  const packageName = "@agent-teams/engineering-foundation";
+  const packageKey = `${packageName}@${version}`;
+  return `lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '${packageName}':
+        specifier: ${version}
+        version: ${version}
+
+packages:
+
+  '${packageKey}':
+    resolution: {integrity: ${integrity}}
+
+snapshots:
+
+  '${packageKey}': {}
+`;
+}
 
 try {
   await execFileAsync(
@@ -90,7 +119,7 @@ try {
         private: true,
         type: "module",
         packageManager: "pnpm@11.18.0",
-        dependencies: {
+        devDependencies: {
           "@agent-teams/engineering-foundation": archiveFileSpecifier
         }
       },
@@ -143,6 +172,19 @@ try {
   );
   if (versionOutput.trim() !== packedManifest.version) {
     throw new Error("Packed CLI version differs from packed package version.");
+  }
+  const { stdout: selfCheckOutput } = await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments(["exec", "agent-teams-foundation", "self-check", "--json"]),
+    { cwd: consumerRoot }
+  );
+  const packedSelfCheck = JSON.parse(selfCheckOutput);
+  if (
+    packedSelfCheck.ok !== true ||
+    packedSelfCheck.packageVersion !== packedManifest.version ||
+    packedSelfCheck.localModeProtocolVersion !== 1
+  ) {
+    throw new Error("Packed CLI self-check did not validate the package.");
   }
 
   const localModeConsumerRoot = join(temporaryRoot, "local-mode-consumer");
@@ -197,6 +239,87 @@ try {
   await execFileAsync("git", ["init", "--quiet"], {
     cwd: localModeConsumerRoot
   });
+  let rejectedOverride = false;
+  try {
+    await execFileAsync(
+      pnpmExecutable,
+      pnpmArguments([
+        "exec",
+        "agent-teams-foundation",
+        "assert-registry",
+        "--consumer",
+        localModeConsumerRoot
+      ]),
+      { cwd: localModeConsumerRoot }
+    );
+  } catch {
+    rejectedOverride = true;
+  }
+  if (!rejectedOverride) {
+    throw new Error("Registry assertion accepted a local tarball override.");
+  }
+
+  const archiveIntegrity = `sha512-${createHash("sha512")
+    .update(await readFile(archivePath))
+    .digest("base64")}`;
+  await writeFile(
+    join(localModeConsumerRoot, "pnpm-workspace.yaml"),
+    `packages:\n  - "packages/*"\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(localModeConsumerRoot, "pnpm-lock.yaml"),
+    registryLockfile(packedManifest.version, archiveIntegrity),
+    "utf8"
+  );
+  let rejectedStaleInstall = false;
+  try {
+    await execFileAsync(
+      pnpmExecutable,
+      pnpmArguments([
+        "exec",
+        "agent-teams-foundation",
+        "assert-registry",
+        "--consumer",
+        localModeConsumerRoot
+      ]),
+      { cwd: localModeConsumerRoot }
+    );
+  } catch {
+    rejectedStaleInstall = true;
+  }
+  if (!rejectedStaleInstall) {
+    throw new Error(
+      "Registry assertion accepted a stale local virtual-store installation."
+    );
+  }
+  await writeFile(
+    join(localModeConsumerRoot, "node_modules", ".pnpm", "lock.yaml"),
+    registryLockfile(packedManifest.version, archiveIntegrity),
+    "utf8"
+  );
+  await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "assert-dev-only",
+      "--consumer",
+      localModeConsumerRoot
+    ]),
+    { cwd: localModeConsumerRoot }
+  );
+  await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "assert-registry",
+      "--consumer",
+      localModeConsumerRoot
+    ]),
+    { cwd: localModeConsumerRoot }
+  );
 
   const localManifestPath = join(localModeConsumerRoot, "package.json");
   const localLockfilePath = join(localModeConsumerRoot, "pnpm-lock.yaml");

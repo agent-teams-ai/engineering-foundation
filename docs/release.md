@@ -18,5 +18,13 @@ Before every publication:
 - run lint, typecheck, tests, publint, and Are The Types Wrong;
 - pack the real tarball;
 - install it into an isolated consumer;
-- verify public exports and CLI startup;
+- verify public exports, CLI startup, and package self-check;
+- verify that local tarball overrides are rejected as registry provenance;
+- verify development-only dependency placement;
 - reject unexpected or sensitive package contents.
+
+The test suite also exercises the production operation lock across real child
+processes, including live-owner rejection and stale-lock recovery after the
+owner is killed. Mutation-boundary recovery remains covered by deterministic
+state fixtures. Windows does not claim POSIX-equivalent hard power-loss
+durability because Node cannot portably fsync directories there.

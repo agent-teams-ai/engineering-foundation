@@ -1,0 +1,14 @@
+{
+  "name": "@agent-teams/source-dependency-parser-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node run.mjs --verify-only",
+    "spike": "node run.mjs"
+  },
+  "devDependencies": {
+    "oxc-parser": "catalog:",
+    "typescript": "catalog:parser-oracle"
+  }
+}

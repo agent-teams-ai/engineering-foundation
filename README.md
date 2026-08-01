@@ -20,9 +20,10 @@ package catalog, dependency permissions, security classifications, and ADRs.
 Capabilities are extracted incrementally from proven repositories. A capability
 moves here only with parity fixtures and a consumer conformance test. The first
 implemented capability is `workspace.dependency-declarations`;
-`architecture.source-dependencies` remains deferred until its parser spike. See
+`architecture.source-dependencies` remains deferred, while its parser spike is
+now reproducible evidence for the pending implementation decision. See
 [Executable capabilities](docs/architecture/executable-capabilities.md) and
-[ADR-0001](docs/decisions/0001-executable-capability-foundation.md).
+[the parser spike](docs/research/source-dependency-parser-spike.md).
 
 ## Commands
 

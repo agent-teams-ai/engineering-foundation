@@ -17,11 +17,16 @@ GitHub Actions to create pull requests. The organization allows this capability,
 but it is enabled at repository level only for `engineering-foundation`; other
 repositories keep it disabled unless they acquire an approved release workflow.
 All workflows still receive read-only permissions by default, and the foundation
-release workflow requests only the permissions it needs. If automatic pull
-request creation is unavailable, prepare the same version commit on a short
-`chore/release-*` branch, open a normal pull request, and let the unchanged
-release workflow publish its merge through npm Trusted Publishing. Never weaken
-branch protection or publish from a workstation to work around the policy.
+release workflow requests only the permissions it needs. Pull requests created
+with `GITHUB_TOKEN` do not recursively emit another workflow event, so the
+release workflow explicitly dispatches the read-only CI workflow against the
+generated release branch. The resulting Linux and Windows checks belong to the
+release commit and satisfy the same protected-branch gate as an ordinary pull
+request. If automatic pull request creation is unavailable, prepare the same
+version commit on a short `chore/release-*` branch, open a normal pull request,
+and let the unchanged release workflow publish its merge through npm Trusted
+Publishing. Never weaken branch protection or publish from a workstation to work
+around the policy.
 
 Before every publication:
 

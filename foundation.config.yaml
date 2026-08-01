@@ -2,5 +2,7 @@ schemaVersion: 1
 project:
   id: engineering-foundation
 capabilities:
+  architecture.source-dependencies:
+    configPath: architecture/foundation/source-dependencies.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml

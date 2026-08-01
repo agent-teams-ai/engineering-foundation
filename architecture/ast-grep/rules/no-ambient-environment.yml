@@ -1,0 +1,11 @@
+id: foundation-no-ambient-environment
+language: TypeScript
+severity: error
+message: Foundation source must not read process.env directly.
+note: Validate deployment configuration at composition and pass typed settings inward.
+files:
+  - "packages/engineering-foundation/src/**/*.ts"
+rule:
+  any:
+    - pattern: process.env.$KEY
+    - pattern: process.env[$KEY]

@@ -1,0 +1,4 @@
+ruleDirs:
+  - architecture/ast-grep/rules
+testConfigs:
+  - testDir: tests/fixtures/ast-grep

@@ -8,7 +8,7 @@ import type {
 } from "./check-contract.js";
 import { FOUNDATION_REPORT_SCHEMA_VERSION } from "./check-contract.js";
 
-export const OUTCOME_PRECEDENCE: Readonly<Record<FoundationOutcome, number>> = {
+const OUTCOME_PRECEDENCE: Readonly<Record<FoundationOutcome, number>> = {
   passed: 0,
   violations: 1,
   "invalid-input": 2,
@@ -38,11 +38,11 @@ export interface CapabilityDefinition {
   readonly run: (invocation: CapabilityInvocation) => Promise<CapabilityReport>;
 }
 
-export function emptySummary(): DiagnosticSummary {
+function emptySummary(): DiagnosticSummary {
   return { errors: 0, warnings: 0, infos: 0 };
 }
 
-export function summarizeDiagnostics(
+function summarizeDiagnostics(
   diagnostics: readonly FoundationDiagnostic[]
 ): DiagnosticSummary {
   return diagnostics.reduce<DiagnosticSummary>(
@@ -55,7 +55,7 @@ export function summarizeDiagnostics(
   );
 }
 
-export function sortDiagnostics(
+function sortDiagnostics(
   diagnostics: readonly FoundationDiagnostic[]
 ): readonly FoundationDiagnostic[] {
   return diagnostics.toSorted((left, right) => {

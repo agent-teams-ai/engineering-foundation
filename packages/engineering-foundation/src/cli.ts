@@ -6,8 +6,9 @@ import { fileURLToPath } from "node:url";
 
 import { exitCodeForOutcome } from "./capability-runtime.js";
 import { runFoundationCheck } from "./check-runner.js";
-import { RULES_BY_ID } from "./capabilities/workspace-dependency-declarations/application/rules.js";
+import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
+import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
 import { NodeProcessRunner } from "./local-mode/process-runner.js";
 import { FoundationLocalModeService } from "./local-mode/service.js";
 import type {
@@ -80,7 +81,11 @@ function parseArguments(args: readonly string[]): ParsedArguments {
       index += 1;
     } else if (!optionsEnded && value === "--") {
       optionsEnded = true;
-    } else if (!optionsEnded && value?.startsWith("-")) {
+    } else if (
+      !optionsEnded &&
+      value !== undefined &&
+      value.startsWith("-")
+    ) {
       throw new FoundationError(
         "CONSUMER_INVALID",
         `Unknown option: ${value}.`
@@ -197,7 +202,8 @@ async function main(): Promise<void> {
   const parsed = parseArguments(process.argv.slice(2));
   const json = parsed.format === "json";
   const service = new FoundationLocalModeService({
-    runner: new NodeProcessRunner()
+    runner: new NodeProcessRunner(),
+    now: systemNow
   });
 
   switch (parsed.command) {
@@ -233,7 +239,9 @@ async function main(): Promise<void> {
     }
     case "check": {
       const controller = new AbortController();
-      const cancel = () => controller.abort();
+      const cancel = () => {
+        controller.abort();
+      };
       process.once("SIGINT", cancel);
       try {
         const report = await runFoundationCheck({
@@ -260,7 +268,7 @@ async function main(): Promise<void> {
       if (ruleId === undefined) {
         throw new FoundationError("CONSUMER_INVALID", "explain requires a rule ID.");
       }
-      const metadata = RULES_BY_ID.get(ruleId);
+      const metadata = RULE_REGISTRY.get(ruleId);
       if (metadata === undefined) {
         throw new FoundationError("CONSUMER_INVALID", `Unknown rule ID: ${ruleId}.`);
       }

@@ -1,0 +1,66 @@
+schemaVersion: 1
+workspace:
+  kind: pnpm
+  manifest: pnpm-workspace.yaml
+governedRoots:
+  - packages/app/src
+  - packages/core/src
+boundaries:
+  - id: app.surface
+    roots:
+      - packages/app/src
+    allow:
+      boundaries:
+        - app.application
+        - app.infrastructure
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: app.application
+    roots:
+      - packages/app/src/application
+    allow:
+      boundaries:
+        - app.domain
+      packages:
+        - "@fixture/core"
+      builtins: []
+      runtimeReferences: []
+  - id: app.domain
+    roots:
+      - packages/app/src/domain
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: app.infrastructure
+    roots:
+      - packages/app/src/infrastructure
+    allow:
+      boundaries:
+        - app.application
+        - app.domain
+      packages:
+        - "@fixture/core"
+        - zod
+      builtins:
+        - node:path
+      runtimeReferences: []
+  - id: core.surface
+    roots:
+      - packages/core/src
+    allow:
+      boundaries:
+        - core.domain
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: core.domain
+    roots:
+      - packages/core/src/domain
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []

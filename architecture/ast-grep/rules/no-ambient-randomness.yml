@@ -1,0 +1,9 @@
+id: foundation-no-ambient-randomness
+language: TypeScript
+severity: error
+message: Foundation source must receive generated values explicitly.
+note: Use an injected ID or randomness port.
+files:
+  - "packages/engineering-foundation/src/**/*.ts"
+rule:
+  pattern: Math.random()

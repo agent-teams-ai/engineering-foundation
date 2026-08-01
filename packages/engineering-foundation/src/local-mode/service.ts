@@ -55,7 +55,7 @@ interface PackageManifest {
 
 export interface FoundationLocalModeServiceOptions {
   readonly runner: ProcessRunner;
-  readonly now?: () => Date;
+  readonly now: () => Date;
 }
 
 async function readPackageManifest(path: string): Promise<PackageManifest> {
@@ -344,7 +344,7 @@ export class FoundationLocalModeService {
 
   constructor(options: FoundationLocalModeServiceOptions) {
     this.#runner = options.runner;
-    this.#now = options.now ?? (() => new Date());
+    this.#now = options.now;
   }
 
   async #restoreRegistryEntry(

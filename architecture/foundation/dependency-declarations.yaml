@@ -9,12 +9,16 @@ policies:
   reservedScopes:
     - "@agent-teams/"
   developmentOnlyPackages:
+    - "@ast-grep/cli"
     - "@arethetypeswrong/cli"
     - "@changesets/changelog-github"
     - "@changesets/cli"
     - "@types/node"
     - "@types/proper-lockfile"
+    - knip
+    - nx
     - oxlint
+    - oxlint-tsgolint
     - publint
     - typescript
   exactRegistryDevelopmentOnlyPackages: []

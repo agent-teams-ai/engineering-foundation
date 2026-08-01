@@ -1,14 +1,9 @@
 import { assertSchema } from "../../../schema-catalog.js";
 import { loadStrictYamlFile } from "../../../strict-yaml.js";
+import type { WorkspaceDependencyPolicy } from "../application/model/workspace-dependency-policy.js";
 
 export const CAPABILITY_ID = "workspace.dependency-declarations" as const;
 export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
-
-export interface WorkspaceDependencyPolicy {
-  readonly reservedScopes: readonly string[];
-  readonly developmentOnlyPackages: readonly string[];
-  readonly exactRegistryDevelopmentOnlyPackages: readonly string[];
-}
 
 export interface WorkspaceDependencyDeclarationsSettings {
   readonly packageManagerKind: "pnpm";

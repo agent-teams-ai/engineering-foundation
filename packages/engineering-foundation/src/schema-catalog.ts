@@ -10,7 +10,8 @@ import {
 
 import { CapabilityInputError } from "./capability-runtime.js";
 
-export const FOUNDATION_SCHEMA_IDS = [
+const FOUNDATION_SCHEMA_IDS = [
+  "architecture-source-dependencies/v1",
   "foundation-config/v1",
   "foundation-check-report/v1",
   "workspace-dependency-declarations/v1"
@@ -25,7 +26,7 @@ export function isFoundationSchemaId(value: string): value is FoundationSchemaId
   return FOUNDATION_SCHEMA_IDS.some((candidate) => candidate === value);
 }
 
-export function schemaPath(schemaId: FoundationSchemaId): string {
+function schemaPath(schemaId: FoundationSchemaId): string {
   return join(packageRoot, "schemas", `${schemaId}.schema.json`);
 }
 

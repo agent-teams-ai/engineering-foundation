@@ -4,6 +4,8 @@ import {
   cp,
   mkdtemp,
   readFile,
+  readdir,
+  rename,
   rm,
   symlink,
   writeFile,
@@ -32,6 +34,13 @@ const fixtureRoot = join(
   "workspace-dependency-declarations",
   "valid",
 );
+const sourceFixtureRoot = join(
+  repositoryRoot,
+  "tests",
+  "fixtures",
+  "source-dependencies",
+  "valid",
+);
 const reportSchemaPath = join(
   repositoryRoot,
   "packages",
@@ -45,6 +54,16 @@ async function withFixture(callback) {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "foundation-capability-"));
   try {
     await cp(fixtureRoot, temporaryRoot, { recursive: true });
+    return await callback(temporaryRoot);
+  } finally {
+    await rm(temporaryRoot, { force: true, recursive: true });
+  }
+}
+
+async function withSourceFixture(callback) {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "foundation-source-capability-"));
+  try {
+    await cp(sourceFixtureRoot, temporaryRoot, { recursive: true });
     return await callback(temporaryRoot);
   } finally {
     await rm(temporaryRoot, { force: true, recursive: true });
@@ -72,6 +91,187 @@ test("passes a materialized pnpm workspace and emits the canonical report", asyn
     const schema = JSON.parse(await readFile(reportSchemaPath, "utf8"));
     const validate = new Ajv2020({ strict: true }).compile(schema);
     assert.equal(validate(report), true, JSON.stringify(validate.errors));
+  });
+});
+
+test("accepts an explicitly allowed source architecture graph", async () => {
+  await withSourceFixture(async (consumerRoot) => {
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 0);
+    assert.equal(report.outcome, "passed");
+    assert.deepEqual(
+      report.capabilities.map((capability) => capability.capabilityId),
+      ["architecture.source-dependencies"],
+    );
+  });
+});
+
+test("reports deterministic source boundary and resolution violations", async () => {
+  await withSourceFixture(async (consumerRoot) => {
+    await writeFile(
+      join(consumerRoot, "packages", "app", "src", "domain", "broken.ts"),
+      `// Unicode evidence before imports: agent-\u{1F916}\nimport { createAdapter } from "../infrastructure/adapter.js";\nimport { value } from "../../../core/src/domain/value.js";\nimport "@fixture/core/blocked";\nimport leftPad from "left-pad";\ndeclare const target: string;\nvoid import(target);\nvoid createAdapter;\nvoid value;\nvoid leftPad;\n`,
+      "utf8",
+    );
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    const ruleIds = report.capabilities[0].diagnostics.map(
+      (diagnostic) => diagnostic.ruleId,
+    );
+    assert.deepEqual(ruleIds, ruleIds.toSorted());
+    assert.deepEqual(
+      new Set(ruleIds),
+      new Set([
+        "architecture.source-dependencies.cross-package-relative-import",
+        "architecture.source-dependencies.forbidden-boundary-dependency",
+        "architecture.source-dependencies.forbidden-package-dependency",
+        "architecture.source-dependencies.package-subpath-not-exported",
+        "architecture.source-dependencies.undeclared-external-dependency",
+        "architecture.source-dependencies.unresolved-runtime-reference",
+      ]),
+    );
+    assert.equal(JSON.stringify(report).includes(consumerRoot), false);
+  });
+});
+
+test("discards partial dependency evidence when governed source is malformed", async () => {
+  await withSourceFixture(async (consumerRoot) => {
+    await writeFile(
+      join(consumerRoot, "packages", "app", "src", "domain", "malformed.ts"),
+      `import "@fixture/core/blocked";\nimport { broken from "left-pad";\n`,
+      "utf8",
+    );
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    const malformedDiagnostics = report.capabilities[0].diagnostics.filter(
+      (diagnostic) => diagnostic.location.path.endsWith("malformed.ts"),
+    );
+    assert.deepEqual(
+      malformedDiagnostics.map((diagnostic) => diagnostic.ruleId),
+      ["architecture.source-dependencies.source-parse-error"],
+    );
+  });
+});
+
+test("fails closed when AI-created source is outside every declared boundary", async () => {
+  await withSourceFixture(async (consumerRoot) => {
+    const configPath = join(
+      consumerRoot,
+      "architecture",
+      "foundation",
+      "source-dependencies.yaml",
+    );
+    const config = await readFile(configPath, "utf8");
+    await writeFile(
+      configPath,
+      config.replace(
+        "      - packages/app/src\n    allow:",
+        "      - packages/app/src/index.ts\n    allow:",
+      ),
+      "utf8",
+    );
+    await writeFile(
+      join(consumerRoot, "packages", "app", "src", "orphan.ts"),
+      "export const orphan = true;\n",
+      "utf8",
+    );
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.equal(
+      report.capabilities[0].diagnostics.some(
+        (diagnostic) =>
+          diagnostic.ruleId ===
+            "architecture.source-dependencies.unclassified-source-file" &&
+          diagnostic.location.path.endsWith("orphan.ts"),
+      ),
+      true,
+    );
+  });
+});
+
+test("treats an explicit empty package export map as blocking every subpath", async () => {
+  await withSourceFixture(async (consumerRoot) => {
+    const manifestPath = join(consumerRoot, "packages", "core", "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.exports = {};
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.equal(
+      report.capabilities[0].diagnostics.some(
+        (diagnostic) =>
+          diagnostic.ruleId ===
+          "architecture.source-dependencies.package-subpath-not-exported",
+      ),
+      true,
+    );
+  });
+});
+
+test("rejects source symlinks before parsing", async () => {
+  if (process.platform === "win32") {
+    return;
+  }
+  await withSourceFixture(async (consumerRoot) => {
+    await symlink(
+      join(consumerRoot, "packages", "core", "src", "index.ts"),
+      join(consumerRoot, "packages", "app", "src", "domain", "linked.ts"),
+    );
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 2);
+    assert.equal(
+      report.capabilities[0].problem.code,
+      "SOURCE_SYMLINK_PROHIBITED",
+    );
+  });
+});
+
+test("rejects governed roots and manifests that traverse symlinks", async () => {
+  if (process.platform === "win32") {
+    return;
+  }
+  await withSourceFixture(async (consumerRoot) => {
+    const packageRoot = join(consumerRoot, "packages", "app");
+    await rename(join(packageRoot, "src"), join(packageRoot, "source-real"));
+    await symlink(join(packageRoot, "source-real"), join(packageRoot, "src"));
+    const sourceResult = check(consumerRoot);
+    assert.equal(sourceResult.result.status, 2);
+    assert.equal(
+      sourceResult.report.capabilities[0].problem.code,
+      "SOURCE_SYMLINK_PROHIBITED",
+    );
+  });
+
+  await withSourceFixture(async (consumerRoot) => {
+    const manifestPath = join(consumerRoot, "packages", "core", "package.json");
+    const targetPath = join(consumerRoot, "packages", "core", "package.real.json");
+    await rename(manifestPath, targetPath);
+    await symlink(targetPath, manifestPath);
+    const manifestResult = check(consumerRoot);
+    assert.equal(manifestResult.result.status, 2);
+    assert.equal(
+      manifestResult.report.capabilities[0].problem.code,
+      "PACKAGE_MANIFEST_SYMLINK_PROHIBITED",
+    );
+  });
+});
+
+test("rejects case-folding collisions on case-sensitive filesystems", async () => {
+  await withSourceFixture(async (consumerRoot) => {
+    const domainRoot = join(consumerRoot, "packages", "app", "src", "domain");
+    await writeFile(join(domainRoot, "Collision.ts"), "export const upper = 1;\n");
+    await writeFile(join(domainRoot, "collision.ts"), "export const lower = 2;\n");
+    const entries = await readdir(domainRoot);
+    if (!entries.includes("Collision.ts") || !entries.includes("collision.ts")) {
+      return;
+    }
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 2);
+    assert.equal(
+      report.capabilities[0].problem.code,
+      "SOURCE_PATH_CASE_COLLISION",
+    );
   });
 });
 

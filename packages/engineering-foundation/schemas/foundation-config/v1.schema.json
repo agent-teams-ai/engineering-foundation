@@ -25,6 +25,16 @@
       "additionalProperties": false,
       "minProperties": 1,
       "properties": {
+        "architecture.source-dependencies": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configPath"],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
         "workspace.dependency-declarations": {
           "type": "object",
           "additionalProperties": false,

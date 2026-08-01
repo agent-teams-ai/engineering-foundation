@@ -11,6 +11,22 @@ import {
 } from "./local-mode/types.js";
 
 export const FOUNDATION_METADATA_SCHEMA_VERSION = 1 as const;
+export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
+  "dist/cli.js",
+  "dist/index.d.ts",
+  "dist/index.js",
+  "dist/local-mode/index.d.ts",
+  "dist/local-mode/index.js",
+  "presets/oxlint/base.json",
+  "presets/oxlint/node.json",
+  "presets/oxlint/type-aware.json",
+  "presets/typescript/base.json",
+  "presets/typescript/node.json",
+  "schemas/architecture-source-dependencies/v1.schema.json",
+  "schemas/foundation-check-report/v1.schema.json",
+  "schemas/foundation-config/v1.schema.json",
+  "schemas/workspace-dependency-declarations/v1.schema.json"
+] as const;
 
 export interface FoundationPackageSelfCheck {
   readonly ok: true;
@@ -190,20 +206,7 @@ export async function inspectFoundationPackage(
   validateExport(manifest.exports, "./schemas/*", "./schemas/*");
   validateExport(manifest.exports, "./presets/*", "./presets/*");
   validateExport(manifest.exports, "./package.json", "./package.json");
-  for (const outputPath of [
-    "dist/cli.js",
-    "dist/index.d.ts",
-    "dist/index.js",
-    "dist/local-mode/index.d.ts",
-    "dist/local-mode/index.js",
-    "presets/oxlint/base.json",
-    "presets/oxlint/node.json",
-    "presets/typescript/base.json",
-    "presets/typescript/node.json",
-    "schemas/foundation-config/v1.schema.json",
-    "schemas/foundation-check-report/v1.schema.json",
-    "schemas/workspace-dependency-declarations/v1.schema.json"
-  ]) {
+  for (const outputPath of FOUNDATION_REQUIRED_ARTIFACT_PATHS) {
     try {
       if (!(await stat(join(packageRoot, outputPath))).isFile()) {
         throw new Error("not a regular file");
@@ -216,22 +219,27 @@ export async function inspectFoundationPackage(
       );
     }
   }
-  const [rootExports, localModeExports] = await Promise.all([
-    import(pathToFileURL(join(packageRoot, "dist", "index.js")).href),
-    import(
-      pathToFileURL(
-        join(packageRoot, "dist", "local-mode", "index.js")
-      ).href
-    )
-  ]);
-  for (const [exportName, candidate] of [
+  const rootExports: unknown = await import(
+    pathToFileURL(join(packageRoot, "dist", "index.js")).href
+  );
+  const localModeExports: unknown = await import(
+    pathToFileURL(join(packageRoot, "dist", "local-mode", "index.js")).href
+  );
+  if (!isRecord(rootExports) || !isRecord(localModeExports)) {
+    throw new FoundationError(
+      "PACKAGE_INVALID",
+      "Foundation target runtime exports must be module objects."
+    );
+  }
+  const requiredRuntimeExports: readonly (readonly [string, unknown])[] = [
     ["FoundationError", rootExports.FoundationError],
     [
       "FoundationLocalModeService",
       localModeExports.FoundationLocalModeService
     ],
     ["inspectFoundationMode", localModeExports.inspectFoundationMode]
-  ]) {
+  ];
+  for (const [exportName, candidate] of requiredRuntimeExports) {
     if (typeof candidate !== "function") {
       throw new FoundationError(
         "PACKAGE_INVALID",

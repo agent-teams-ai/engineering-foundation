@@ -21,6 +21,7 @@ import {
   NodeProcessRunner,
   inspectFoundationMode
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
+import { FOUNDATION_REQUIRED_ARTIFACT_PATHS } from "../packages/engineering-foundation/dist/package-self-check.js";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const REGISTRY_INTEGRITY =
@@ -157,41 +158,24 @@ async function createTargetPackage(path, version) {
     },
     dependencies: {}
   });
-  await mkdir(join(path, "dist", "local-mode"), { recursive: true });
-  await mkdir(join(path, "presets", "oxlint"), { recursive: true });
-  await mkdir(join(path, "presets", "typescript"), { recursive: true });
-  await mkdir(join(path, "schemas", "foundation-config"), { recursive: true });
-  await mkdir(join(path, "schemas", "foundation-check-report"), { recursive: true });
-  await mkdir(
-    join(path, "schemas", "workspace-dependency-declarations"),
-    { recursive: true },
-  );
+  for (const artifactPath of FOUNDATION_REQUIRED_ARTIFACT_PATHS) {
+    const targetPath = join(path, artifactPath);
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(
+      targetPath,
+      artifactPath.endsWith(".json")
+        ? "{}\n"
+        : artifactPath.endsWith(".d.ts")
+          ? ""
+          : "export {};\n",
+      "utf8",
+    );
+  }
   await writeFile(
     join(path, "dist", "cli.js"),
     `process.stdout.write(${JSON.stringify(`${JSON.stringify(selfCheck)}\n`)});\n`,
     "utf8"
   );
-  for (const schema of [
-    "schemas/foundation-config/v1.schema.json",
-    "schemas/foundation-check-report/v1.schema.json",
-    "schemas/workspace-dependency-declarations/v1.schema.json",
-  ]) {
-    await writeFile(join(path, schema), "{}\n", "utf8");
-  }
-  for (const preset of [
-    "presets/oxlint/base.json",
-    "presets/oxlint/node.json",
-    "presets/typescript/base.json",
-    "presets/typescript/node.json",
-  ]) {
-    await writeFile(join(path, preset), "{}\n", "utf8");
-  }
-  for (const output of [
-    "dist/index.d.ts",
-    "dist/local-mode/index.d.ts",
-  ]) {
-    await writeFile(join(path, output), "", "utf8");
-  }
   await writeFile(
     join(path, "dist", "index.js"),
     "export class FoundationError extends Error {}\n",

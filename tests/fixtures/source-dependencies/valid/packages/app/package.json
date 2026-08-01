@@ -1,0 +1,13 @@
+{
+  "name": "@fixture/app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fixture/core": "workspace:*",
+    "zod": "catalog:"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  }
+}

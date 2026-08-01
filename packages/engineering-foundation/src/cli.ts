@@ -4,6 +4,9 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { exitCodeForOutcome } from "./capability-runtime.js";
+import { runFoundationCheck } from "./check-runner.js";
+import { RULES_BY_ID } from "./capabilities/workspace-dependency-declarations/application/rules.js";
 import { FoundationError } from "./errors.js";
 import { NodeProcessRunner } from "./local-mode/process-runner.js";
 import { FoundationLocalModeService } from "./local-mode/service.js";
@@ -12,18 +15,25 @@ import type {
   FoundationStatus
 } from "./local-mode/types.js";
 import { inspectFoundationPackage } from "./package-self-check.js";
+import { renderFoundationReportText } from "./report-renderer.js";
+import {
+  isFoundationSchemaId,
+  readFoundationSchema
+} from "./schema-catalog.js";
+
+type OutputFormat = "json" | "text";
 
 interface ParsedArguments {
   readonly command: string;
   readonly positional: readonly string[];
   readonly consumerRoot: string;
-  readonly json: boolean;
+  readonly format: OutputFormat;
 }
 
 function parseArguments(args: readonly string[]): ParsedArguments {
   const positional: string[] = [];
   let consumerRoot = process.cwd();
-  let json = false;
+  let format: OutputFormat = "text";
 
   for (let index = 1; index < args.length; index += 1) {
     const value = args[index];
@@ -38,7 +48,17 @@ function parseArguments(args: readonly string[]): ParsedArguments {
       consumerRoot = resolve(candidate);
       index += 1;
     } else if (value === "--json") {
-      json = true;
+      format = "json";
+    } else if (value === "--format") {
+      const candidate = args[index + 1];
+      if (candidate !== "json" && candidate !== "text") {
+        throw new FoundationError(
+          "CONSUMER_INVALID",
+          "--format requires json or text."
+        );
+      }
+      format = candidate;
+      index += 1;
     } else if (value === "--") {
       continue;
     } else if (value !== undefined) {
@@ -50,7 +70,7 @@ function parseArguments(args: readonly string[]): ParsedArguments {
     command: args[0] ?? "help",
     positional,
     consumerRoot,
-    json
+    format
   };
 }
 
@@ -113,6 +133,9 @@ function printDevOnlyStatus(
 
 function printHelp(): void {
   process.stdout.write(`Usage:
+  agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
+  agent-teams-foundation explain <rule-id> [--format text|json]
+  agent-teams-foundation schema <schema-id>
   agent-teams-foundation attach <path> [--consumer <path>]
   agent-teams-foundation status [--consumer <path>] [--json]
   agent-teams-foundation detach [--consumer <path>] [--json]
@@ -139,6 +162,7 @@ async function packageVersion(): Promise<string> {
 
 async function main(): Promise<void> {
   const parsed = parseArguments(process.argv.slice(2));
+  const json = parsed.format === "json";
   const service = new FoundationLocalModeService({
     runner: new NodeProcessRunner()
   });
@@ -153,25 +177,65 @@ async function main(): Promise<void> {
         );
       }
       const result = await service.attach(parsed.consumerRoot, target);
-      printStatus(result.status, parsed.json);
+      printStatus(result.status, json);
       break;
     }
     case "assert-dev-only": {
       printDevOnlyStatus(
         await service.assertDevOnly(parsed.consumerRoot),
-        parsed.json
+        json
       );
       break;
     }
     case "assert-registry": {
       printStatus(
         await service.assertRegistry(parsed.consumerRoot),
-        parsed.json
+        json
       );
       break;
     }
     case "detach": {
-      printStatus(await service.detach(parsed.consumerRoot), parsed.json);
+      printStatus(await service.detach(parsed.consumerRoot), json);
+      break;
+    }
+    case "check": {
+      const controller = new AbortController();
+      const cancel = () => controller.abort();
+      process.once("SIGINT", cancel);
+      try {
+        const report = await runFoundationCheck({
+          consumerRoot: parsed.consumerRoot,
+          foundationVersion: await packageVersion(),
+          ...(parsed.positional[0] === undefined
+            ? {}
+            : { capabilityId: parsed.positional[0] }),
+          signal: controller.signal
+        });
+        process.stdout.write(
+          json
+            ? `${JSON.stringify(report, null, 2)}\n`
+            : renderFoundationReportText(report)
+        );
+        process.exitCode = exitCodeForOutcome(report.outcome);
+      } finally {
+        process.removeListener("SIGINT", cancel);
+      }
+      break;
+    }
+    case "explain": {
+      const ruleId = parsed.positional[0];
+      if (ruleId === undefined) {
+        throw new FoundationError("CONSUMER_INVALID", "explain requires a rule ID.");
+      }
+      const metadata = RULES_BY_ID.get(ruleId);
+      if (metadata === undefined) {
+        throw new FoundationError("CONSUMER_INVALID", `Unknown rule ID: ${ruleId}.`);
+      }
+      process.stdout.write(
+        json
+          ? `${JSON.stringify(metadata, null, 2)}\n`
+          : `${metadata.id}\n${metadata.rationale}\nFix: ${metadata.remediation}\nDocs: ${metadata.documentation}\n`
+      );
       break;
     }
     case "help":
@@ -182,7 +246,7 @@ async function main(): Promise<void> {
     }
     case "status": {
       const status = await service.status(parsed.consumerRoot);
-      printStatus(status, parsed.json);
+      printStatus(status, json);
       if (status.mode === "INVALID") {
         process.exitCode = 1;
       }
@@ -192,6 +256,17 @@ async function main(): Promise<void> {
       const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
       const result = await inspectFoundationPackage(packageRoot);
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      break;
+    }
+    case "schema": {
+      const schemaId = parsed.positional[0];
+      if (schemaId === undefined || !isFoundationSchemaId(schemaId)) {
+        throw new FoundationError(
+          "CONSUMER_INVALID",
+          `Unknown schema ID: ${schemaId ?? "missing"}.`
+        );
+      }
+      process.stdout.write(await readFoundationSchema(schemaId));
       break;
     }
     case "version":

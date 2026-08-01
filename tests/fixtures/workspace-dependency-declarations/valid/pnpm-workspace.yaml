@@ -1,0 +1,9 @@
+packages:
+  - "packages/*"
+
+catalogMode: strict
+
+catalog:
+  ajv: 8.20.0
+  oxlint: 1.76.0
+  typescript: 7.0.2

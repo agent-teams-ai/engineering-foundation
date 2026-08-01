@@ -121,7 +121,13 @@ async function createTargetPackage(path, version) {
     packageVersion: version,
     localModeProtocolVersion: 1,
     compatibleLocalModeProtocolVersions: [1],
-    exportPaths: [".", "./local-mode", "./package.json"],
+    exportPaths: [
+      ".",
+      "./local-mode",
+      "./package.json",
+      "./presets/*",
+      "./schemas/*",
+    ],
     runtimeDependencies: {}
   };
   await writeJson(join(path, "package.json"), {
@@ -140,6 +146,8 @@ async function createTargetPackage(path, version) {
         types: "./dist/local-mode/index.d.ts",
         import: "./dist/local-mode/index.js"
       },
+      "./schemas/*": "./schemas/*",
+      "./presets/*": "./presets/*",
       "./package.json": "./package.json"
     },
     agentTeamsFoundation: {
@@ -150,11 +158,34 @@ async function createTargetPackage(path, version) {
     dependencies: {}
   });
   await mkdir(join(path, "dist", "local-mode"), { recursive: true });
+  await mkdir(join(path, "presets", "oxlint"), { recursive: true });
+  await mkdir(join(path, "presets", "typescript"), { recursive: true });
+  await mkdir(join(path, "schemas", "foundation-config"), { recursive: true });
+  await mkdir(join(path, "schemas", "foundation-check-report"), { recursive: true });
+  await mkdir(
+    join(path, "schemas", "workspace-dependency-declarations"),
+    { recursive: true },
+  );
   await writeFile(
     join(path, "dist", "cli.js"),
     `process.stdout.write(${JSON.stringify(`${JSON.stringify(selfCheck)}\n`)});\n`,
     "utf8"
   );
+  for (const schema of [
+    "schemas/foundation-config/v1.schema.json",
+    "schemas/foundation-check-report/v1.schema.json",
+    "schemas/workspace-dependency-declarations/v1.schema.json",
+  ]) {
+    await writeFile(join(path, schema), "{}\n", "utf8");
+  }
+  for (const preset of [
+    "presets/oxlint/base.json",
+    "presets/oxlint/node.json",
+    "presets/typescript/base.json",
+    "presets/typescript/node.json",
+  ]) {
+    await writeFile(join(path, preset), "{}\n", "utf8");
+  }
   for (const output of [
     "dist/index.d.ts",
     "dist/local-mode/index.d.ts",
@@ -163,7 +194,7 @@ async function createTargetPackage(path, version) {
   }
   await writeFile(
     join(path, "dist", "index.js"),
-    "export class FoundationError extends Error {}\nexport function defineFoundationConfig(value) { return value; }\nexport function parseFoundationConfig(value) { return value; }\n",
+    "export class FoundationError extends Error {}\n",
     "utf8"
   );
   await writeFile(

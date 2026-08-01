@@ -1,0 +1,12 @@
+{
+  "name": "@fixture/repository",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.18.0",
+  "devDependencies": {
+    "@agent-teams/engineering-foundation": "0.1.1",
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

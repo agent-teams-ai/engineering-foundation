@@ -32,8 +32,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
-  windows-local-mode:
-    name: windows-local-mode
+  windows-check:
+    name: windows-check
     runs-on: windows-2022
     timeout-minutes: 15
     steps:
@@ -48,5 +48,4 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
-      - run: pnpm package:check
+      - run: pnpm check

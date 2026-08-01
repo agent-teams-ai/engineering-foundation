@@ -17,10 +17,14 @@
       "types": "./dist/local-mode/index.d.ts",
       "import": "./dist/local-mode/index.js"
     },
+    "./schemas/*": "./schemas/*",
+    "./presets/*": "./presets/*",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
+    "presets",
+    "schemas",
     "LICENSE",
     "README.md"
   ],
@@ -50,6 +54,7 @@
     ]
   },
   "dependencies": {
+    "ajv": "catalog:",
     "proper-lockfile": "catalog:",
     "yaml": "catalog:"
   }

@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import {
   mkdir,
   mkdtemp,
@@ -9,11 +10,19 @@ import {
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const requireFromRepository = createRequire(import.meta.url);
+const oxlintRoot = dirname(requireFromRepository.resolve("oxlint/package.json"));
+const oxlintEntrypoint = join(oxlintRoot, "bin", "oxlint");
+const typescriptEntrypoint = join(
+  dirname(requireFromRepository.resolve("typescript/package.json")),
+  "lib",
+  "tsc.js"
+);
 const pnpmEntrypoint = process.env.npm_execpath;
 const pnpmExecutable =
   pnpmEntrypoint === undefined ? "pnpm" : process.execPath;
@@ -101,7 +110,14 @@ try {
     "package/README.md",
     "package/dist/index.js",
     "package/dist/index.d.ts",
-    "package/dist/cli.js"
+    "package/dist/cli.js",
+    "package/presets/oxlint/base.json",
+    "package/presets/oxlint/node.json",
+    "package/presets/typescript/base.json",
+    "package/presets/typescript/node.json",
+    "package/schemas/foundation-config/v1.schema.json",
+    "package/schemas/foundation-check-report/v1.schema.json",
+    "package/schemas/workspace-dependency-declarations/v1.schema.json"
   ]) {
     if (!listing.split(/\r?\n/u).includes(required)) {
       throw new Error(`Required package entry missing: ${required}`);
@@ -134,24 +150,6 @@ try {
     pnpmArguments(["install", "--ignore-scripts", "--no-frozen-lockfile"]),
     { cwd: consumerRoot }
   );
-  await execFileAsync(
-    "node",
-    [
-      "--input-type=module",
-      "--eval",
-      [
-        'import { defineFoundationConfig } from "@agent-teams/engineering-foundation";',
-        "const config = defineFoundationConfig({",
-        "  schemaVersion: 1,",
-        '  projectId: "pack-consumer",',
-        '  projectKind: "tooling",',
-        "  capabilities: { lint: { enabled: true } }",
-        "});",
-        'if (config.projectId !== "pack-consumer") process.exit(2);'
-      ].join("\n")
-    ],
-    { cwd: consumerRoot }
-  );
   const { stdout: versionOutput } = await execFileAsync(
     pnpmExecutable,
     pnpmArguments(["exec", "agent-teams-foundation", "--version"]),
@@ -173,6 +171,120 @@ try {
   if (versionOutput.trim() !== packedManifest.version) {
     throw new Error("Packed CLI version differs from packed package version.");
   }
+  await writeFile(
+    join(consumerRoot, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "foundation-pack-consumer",
+        version: "0.0.0",
+        private: true,
+        type: "module",
+        packageManager: "pnpm@11.18.0",
+        devDependencies: {
+          "@agent-teams/engineering-foundation": packedManifest.version
+        }
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "pnpm-workspace.yaml"),
+    `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog: {}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "foundation.config.yaml"),
+    `schemaVersion: 1\nproject:\n  id: pack-consumer\ncapabilities:\n  workspace.dependency-declarations:\n    configPath: architecture/foundation/dependency-declarations.yaml\n`,
+    "utf8"
+  );
+  await mkdir(join(consumerRoot, "architecture", "foundation"), {
+    recursive: true
+  });
+  await writeFile(
+    join(
+      consumerRoot,
+      "architecture",
+      "foundation",
+      "dependency-declarations.yaml"
+    ),
+    `schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - "@agent-teams/"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - "@agent-teams/engineering-foundation"\n`,
+    "utf8"
+  );
+  const { stdout: checkOutput } = await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "check",
+      "--consumer",
+      consumerRoot,
+      "--format",
+      "json"
+    ]),
+    { cwd: consumerRoot }
+  );
+  const packedCheck = JSON.parse(checkOutput);
+  if (
+    packedCheck.outcome !== "passed" ||
+    packedCheck.capabilities?.[0]?.capabilityId !==
+      "workspace.dependency-declarations"
+  ) {
+    throw new Error("Packed executable capability check did not pass.");
+  }
+  const consumerSourceRoot = join(consumerRoot, "src");
+  await mkdir(consumerSourceRoot, { recursive: true });
+  await writeFile(
+    join(consumerSourceRoot, "index.ts"),
+    `export function identity(value: string): string {\n  return value;\n}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "tsconfig.json"),
+    `${JSON.stringify(
+      {
+        extends:
+          "@agent-teams/engineering-foundation/presets/typescript/node.json",
+        compilerOptions: {
+          noEmit: true
+        },
+        include: ["src/**/*.ts"]
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await execFileAsync(
+    process.execPath,
+    [typescriptEntrypoint, "--project", join(consumerRoot, "tsconfig.json")],
+    { cwd: consumerRoot }
+  );
+  await writeFile(
+    join(consumerRoot, ".oxlintrc.json"),
+    `${JSON.stringify(
+      {
+        extends: [
+          "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json"
+        ]
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await execFileAsync(
+    process.execPath,
+    [
+      oxlintEntrypoint,
+      "--config",
+      join(consumerRoot, ".oxlintrc.json"),
+      "--deny-warnings",
+      join(consumerRoot, "src")
+    ],
+    { cwd: consumerRoot }
+  );
   const { stdout: selfCheckOutput } = await execFileAsync(
     pnpmExecutable,
     pnpmArguments(["exec", "agent-teams-foundation", "self-check", "--json"]),

@@ -28,6 +28,7 @@
     "@changesets/cli": "catalog:",
     "@types/node": "catalog:",
     "@types/proper-lockfile": "catalog:",
+    "ajv": "catalog:",
     "oxlint": "catalog:",
     "publint": "catalog:",
     "typescript": "catalog:"

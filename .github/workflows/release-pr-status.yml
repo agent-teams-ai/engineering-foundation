@@ -4,6 +4,8 @@ on:
   workflow_run:
     workflows:
       - CI
+    branches:
+      - changeset-release/main
     types:
       - completed
 
@@ -19,9 +21,6 @@ concurrency:
 jobs:
   attest:
     name: attest-release-pr-checks
-    if: >-
-      github.event.workflow_run.event == 'workflow_dispatch' &&
-      github.event.workflow_run.head_branch == 'changeset-release/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -31,8 +30,14 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SOURCE_EVENT: ${{ github.event.workflow_run.event }}
         run: |
           set -euo pipefail
+
+          if [[ "${SOURCE_EVENT}" != "workflow_dispatch" ]]; then
+            echo "Ignoring non-dispatched CI event: ${SOURCE_EVENT}"
+            exit 0
+          fi
 
           pr_head="$(gh api \
             "repos/${GITHUB_REPOSITORY}/pulls?state=open&head=${GITHUB_REPOSITORY_OWNER}:changeset-release/main" \

@@ -1,5 +1,14 @@
 # @agent-teams/engineering-foundation
 
+## 0.3.0
+
+### Minor Changes
+
+- [#20](https://github.com/agent-teams-ai/engineering-foundation/pull/20) [`0772e8d`](https://github.com/agent-teams-ai/engineering-foundation/commit/0772e8d4042116a347b6184cf998fd611e312d05) Thanks [@777genius](https://github.com/777genius)! - Add the source dependency architecture capability, type-aware Oxlint preset,
+  closed-world boundary conformance, and stronger package-consumer verification.
+  Programmatic local-mode service construction now requires an explicit clock;
+  the CLI supplies the system-clock adapter at its composition root.
+
 ## 0.2.1
 
 ### Patch Changes

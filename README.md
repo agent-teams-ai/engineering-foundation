@@ -45,5 +45,6 @@ installed pnpm virtual-store lockfiles must agree, so a stale local installation
 cannot be hidden by editing only the repository lockfile.
 
 See [ownership](docs/architecture/ownership.md),
+[consistency evidence gate](docs/architecture/consistency-evidence-gate.md),
 [local development](docs/development/local-mode.md), and
 [release procedure](docs/release.md).

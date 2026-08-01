@@ -17,6 +17,8 @@ Hard rules:
 Start with:
 
 - [README.md](README.md)
+- [Documentation index](docs/README.md)
 - [Ownership](docs/architecture/ownership.md)
+- [Executable capabilities](docs/architecture/executable-capabilities.md)
 - [Local mode](docs/development/local-mode.md)
 - [Release](docs/release.md)

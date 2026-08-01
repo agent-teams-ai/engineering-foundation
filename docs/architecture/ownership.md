@@ -19,5 +19,20 @@ A consumer owns business and repository facts:
 The consumer supplies those facts through a narrow configuration adapter. The
 foundation validates and executes them but cannot invent or override them.
 
+Capabilities are feature-owned policy surfaces with granular identifiers. Broad
+menu categories such as `architecture` or `documentation` are not capability
+boundaries. The built-in registry is static and private; consumers provide data,
+not executable plugins or rule functions.
+
+Package-manager files, source parsers, and other external formats are outbound
+adapter concerns. Their objects do not become capability policy models. The
+first accepted split is:
+
+- `workspace.dependency-declarations` for declared workspace dependency state;
+- `architecture.source-dependencies` for observed source relationships.
+
+The complete contract, compatibility, and migration rules are defined by
+[Executable capabilities](executable-capabilities.md).
+
 The foundation is not a production dependency and is not a shared business
 kernel.

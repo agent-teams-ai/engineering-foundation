@@ -19,6 +19,14 @@ Capabilities such as documentation, lint, architecture, security, and reliabilit
 are extracted incrementally from proven repositories. A capability moves here only
 with parity fixtures and a consumer conformance test.
 
+The accepted executable-capability architecture replaces those broad placeholder
+categories with granular policy surfaces. The first planned sequence is
+`workspace.dependency-declarations`, followed by
+`architecture.source-dependencies`. See
+[Executable capabilities](docs/architecture/executable-capabilities.md) and
+[ADR-0001](docs/decisions/0001-executable-capability-foundation.md). This target
+is not implemented in version 0.1.1.
+
 ## Commands
 
 ```bash
@@ -27,7 +35,7 @@ pnpm check
 pnpm package:check
 ```
 
-After the first public release, consumers use:
+Consumers use:
 
 ```bash
 pnpm foundation:attach -- /absolute/path/to/engineering-foundation
@@ -47,4 +55,5 @@ cannot be hidden by editing only the repository lockfile.
 See [ownership](docs/architecture/ownership.md),
 [consistency evidence gate](docs/architecture/consistency-evidence-gate.md),
 [local development](docs/development/local-mode.md), and
-[release procedure](docs/release.md).
+[release procedure](docs/release.md). The complete documentation index is
+[docs/README.md](docs/README.md).

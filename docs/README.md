@@ -14,6 +14,7 @@ not repeat their rules.
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
+| Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Completed; decision proposed |
 | Package release | [Release](release.md) | Active |
 | Architecture decisions | [Decision index](decisions/README.md) | Active |
 
@@ -26,6 +27,8 @@ not repeat their rules.
 - `development/` owns contributor workflows that are true today.
 - `reference/` explains stable executable rules. Immutable JSON schemas shipped
   by the package remain the source of truth for public data contracts.
+- `research/` records reproducible evidence for an open decision. Research may
+  recommend an option but cannot silently accept an ADR.
 
 Every target document must state whether it is implemented. A target design must
 not be presented as an available command or package API before conformance proves

@@ -5,7 +5,8 @@ target architecture.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
-dependency parser and its capability remain deferred.
+dependency capability remains deferred. Its parser spike is complete, but the
+production parser recommendation is not accepted until a dedicated decision.
 
 ## Goals
 
@@ -323,7 +324,7 @@ product graph.
 
 ## Deferred work
 
-- Oxc versus TypeScript source-parser selection;
+- acceptance and implementation of the proposed source-parser selection;
 - affected execution, persistent cache, and watch mode;
 - SARIF conversion and versioned partial fingerprints;
 - autofix and scaffolding;

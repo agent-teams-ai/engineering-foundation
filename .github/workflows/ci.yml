@@ -32,6 +32,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - run: pnpm parser-spike:check
 
   windows-check:
     name: windows-check
@@ -50,3 +51,4 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - run: pnpm parser-spike:check

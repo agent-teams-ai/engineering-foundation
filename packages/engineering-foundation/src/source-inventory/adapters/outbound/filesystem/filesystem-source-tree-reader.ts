@@ -1,13 +1,13 @@
 import { lstat, opendir, readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import { pathTraversesSymbolicLink } from "../../../../../filesystem-path-safety.js";
+import { CapabilityInputError } from "../../../../capability-runtime.js";
+import { pathTraversesSymbolicLink } from "../../../../filesystem-path-safety.js";
 import {
   assertNotCancelled,
   assertRepositoryRelativePath
-} from "../../../../../strict-yaml.js";
-import type { SourceFileSnapshot } from "../../../application/model/source-workspace.js";
+} from "../../../../strict-yaml.js";
+import type { SourceFileSnapshot } from "../../../application/model/source-file-snapshot.js";
 import type { SourceTreeReader } from "../../../application/ports/source-tree-reader.js";
 
 const SOURCE_EXTENSIONS = new Set([

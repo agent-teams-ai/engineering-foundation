@@ -16,3 +16,12 @@ architecture document. Changing an accepted decision requires a new ADR.
 - ADR-0002:
   [Oxc source dependency adapter](0002-oxc-source-dependency-adapter.md)
   - Accepted
+- ADR-0003:
+  [Governed inline suppressions](0003-governed-inline-suppressions.md)
+  - Proposed
+- ADR-0004:
+  [Released public API baselines](0004-released-public-api-baselines.md)
+  - Proposed
+- ADR-0005:
+  [Repository security baseline](0005-repository-security-baseline.md)
+  - Proposed

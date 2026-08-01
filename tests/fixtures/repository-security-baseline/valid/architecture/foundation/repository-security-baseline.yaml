@@ -1,0 +1,7 @@
+schemaVersion: 1
+workflowDirectory: .github/workflows
+dependencyReviewWorkflow: .github/workflows/dependency-review.yml
+sbomWorkflow: .github/workflows/ci.yml
+privilegedJobs: []
+publishablePackageManifests:
+  - packages/library/package.json

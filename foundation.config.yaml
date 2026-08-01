@@ -4,5 +4,11 @@ project:
 capabilities:
   architecture.source-dependencies:
     configPath: architecture/foundation/source-dependencies.yaml
+  package.public-api-compatibility:
+    configPath: architecture/foundation/public-api-compatibility.yaml
+  quality.suppression-governance:
+    configPath: architecture/foundation/suppression-governance.yaml
+  repository.security-baseline:
+    configPath: architecture/foundation/repository-security-baseline.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml

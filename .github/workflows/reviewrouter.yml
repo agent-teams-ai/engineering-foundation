@@ -12,9 +12,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
-  statuses: write
 
 concurrency:
   group: reviewrouter-${{ github.event.pull_request.number || inputs.pr_number || github.ref }}
@@ -23,6 +20,11 @@ concurrency:
 jobs:
   review:
     name: review
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ fromJSON(vars.REVIEW_ROUTER_TIMEOUT_MINUTES || '60') }}
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.draft == false || vars.REVIEW_ROUTER_REVIEW_DRAFTS == 'true')) }}

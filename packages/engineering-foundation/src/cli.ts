@@ -4,10 +4,12 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { exitCodeForOutcome } from "./capability-runtime.js";
+import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
+import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
 import { runFoundationCheck } from "./check-runner.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
+import { loadFoundationConfig } from "./foundation-config.js";
 import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
 import { NodeProcessRunner } from "./local-mode/process-runner.js";
 import { FoundationLocalModeService } from "./local-mode/service.js";
@@ -43,6 +45,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   detach: 0,
   explain: 1,
   help: 0,
+  "public-api-promote-release": 0,
   schema: 1,
   "self-check": 0,
   status: 0,
@@ -173,6 +176,7 @@ function printHelp(): void {
   process.stdout.write(`Usage:
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
+  agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
   agent-teams-foundation schema <schema-id>
   agent-teams-foundation attach <path> [--consumer <path>]
   agent-teams-foundation status [--consumer <path>] [--json]
@@ -285,6 +289,28 @@ async function main(): Promise<void> {
       printHelp();
       break;
     }
+    case "public-api-promote-release": {
+      const settings = await loadFoundationConfig(parsed.consumerRoot);
+      const declaration = settings.declaredCapabilities.find(
+        ({ id }) => id === "package.public-api-compatibility"
+      );
+      if (declaration === undefined) {
+        throw new FoundationError(
+          "CONSUMER_INVALID",
+          "package.public-api-compatibility must be declared before baseline promotion."
+        );
+      }
+      const snapshots = await promotePublicApiRelease({
+        consumerRoot: parsed.consumerRoot,
+        configPath: declaration.configPath
+      });
+      process.stdout.write(
+        json
+          ? `${JSON.stringify({ promoted: snapshots }, null, 2)}\n`
+          : `Promoted ${snapshots.length} public API baseline(s).\n`
+      );
+      break;
+    }
     case "status": {
       const status = await service.status(parsed.consumerRoot);
       printStatus(status, json);
@@ -328,7 +354,10 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error) {
-  if (error instanceof FoundationError) {
+  if (error instanceof CapabilityInputError) {
+    process.stderr.write(`${error.problem.code}: ${error.problem.message}\n`);
+    process.exitCode = 2;
+  } else if (error instanceof FoundationError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
     process.exitCode = error.code === "CONSUMER_INVALID" ? 2 : 1;
   } else {

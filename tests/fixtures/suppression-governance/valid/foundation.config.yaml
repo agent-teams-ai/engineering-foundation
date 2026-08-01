@@ -1,0 +1,6 @@
+schemaVersion: 1
+project:
+  id: suppression-governance-fixture
+capabilities:
+  quality.suppression-governance:
+    configPath: architecture/foundation/suppression-governance.yaml

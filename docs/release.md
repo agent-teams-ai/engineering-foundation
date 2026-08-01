@@ -12,6 +12,12 @@ manually with npm 2FA after `pnpm check` passes. After that release:
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
+`pnpm release:version` runs Changesets, rebuilds declarations, and invokes
+`public-api-promote-release`. Promotion requires a newer sufficient package
+version and accepted evidence for every breaking fingerprint. Existing API
+baselines are mutable only in `changeset-release/main`; first-time baseline
+creation is allowed during capability adoption.
+
 Automatic Changesets pull requests require the organization setting that permits
 GitHub Actions to create pull requests. The organization allows this capability,
 but it is enabled at repository level only for `engineering-foundation`; other
@@ -43,6 +49,8 @@ Before every publication:
 - verify that local tarball overrides are rejected as registry provenance;
 - verify development-only dependency placement;
 - reject unexpected or sensitive package contents.
+- retain the CI-generated SPDX JSON SBOM and npm Trusted Publishing provenance
+  as separate supply-chain evidence.
 
 The test suite also exercises the production operation lock across real child
 processes, including live-owner rejection and stale-lock recovery after the

@@ -9,7 +9,10 @@ not repeat their rules.
 | Subject | Document | State |
 | --- | --- | --- |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
-| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Dependency and source capabilities active |
+| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Five capabilities active |
+| Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Implemented; ADR proposed |
+| Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Implemented; ADR proposed |
+| Repository security | [Repository security baseline](security/repository-security-baseline.md) | Implemented; ADR proposed |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |

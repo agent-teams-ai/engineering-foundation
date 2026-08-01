@@ -1,0 +1,6 @@
+schemaVersion: 1
+project:
+  id: public-api-fixture
+capabilities:
+  package.public-api-compatibility:
+    configPath: architecture/foundation/public-api-compatibility.yaml

@@ -1,4 +1,5 @@
 import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
+import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 
 const SOURCE_DEPENDENCY_KINDS = [
   "commonjs",
@@ -31,11 +32,6 @@ export interface ParsedSourceDependencies {
   readonly parseErrorCount: number;
   readonly references: readonly SourceDependencyReference[];
   readonly unresolved: readonly UnresolvedSourceDependency[];
-}
-
-export interface SourceFileSnapshot {
-  readonly path: string;
-  readonly source: string;
 }
 
 interface ParsedSourceFile extends SourceFileSnapshot {

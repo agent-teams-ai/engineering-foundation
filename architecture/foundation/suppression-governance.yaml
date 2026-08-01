@@ -1,0 +1,6 @@
+schemaVersion: 1
+governedRoots:
+  - packages/engineering-foundation/src
+nonWaivableRulePrefixes:
+  - access-control.
+waivers: []

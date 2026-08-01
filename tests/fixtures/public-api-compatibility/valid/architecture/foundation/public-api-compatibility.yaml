@@ -1,0 +1,10 @@
+schemaVersion: 1
+changesetDirectory: .changeset
+packages:
+  - packageName: "@fixture/public-api"
+    packageRoot: packages/library
+    manifestPath: packages/library/package.json
+    declarationEntryPoint: packages/library/dist/index.d.ts
+    tsconfigPath: packages/library/tsconfig.json
+    releasedBaselinePath: architecture/public-api/library.json
+    approvedBreakingChanges: []

@@ -95,7 +95,7 @@ async function resolveContainedFile(
   return canonicalCandidate;
 }
 
-function parseStrictYaml(source: string, phase: string): unknown {
+export function parseStrictYamlSource(source: string, phase: string): unknown {
   const document = parseDocument(source, {
     customTags: [],
     merge: false,
@@ -152,5 +152,5 @@ export async function loadStrictYamlFile(
   const path = await resolveContainedFile(consumerRoot, repositoryPath, phase);
   const source = await readFile(path, "utf8");
   assertNotCancelled(signal);
-  return parseStrictYaml(source, phase);
+  return parseStrictYamlSource(source, phase);
 }

@@ -1,17 +1,17 @@
 import { CapabilityInputError } from "../../../../capability-runtime.js";
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
+import type { SourceTreeReader } from "../../../../source-inventory/application/ports/source-tree-reader.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type { WorkspaceInventoryReader } from "../../../../workspace-inventory/application/ports/workspace-inventory-reader.js";
 import type {
   ArchitectureBoundaryPolicy,
   ClassifiedSourceFile,
-  SourceArchitecturePolicy,
-  SourceFileSnapshot
+  SourceArchitecturePolicy
 } from "../model/source-workspace.js";
 import type { SourceDependencyParser } from "../ports/source-dependency-parser.js";
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
-import type { SourceTreeReader } from "../ports/source-tree-reader.js";
 import { evaluateSourceDependencies } from "../policies/evaluate-source-dependencies.js";
 
 export interface AnalyzeSourceDependenciesInput {

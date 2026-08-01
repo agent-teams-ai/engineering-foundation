@@ -11,7 +11,7 @@ weakening the merge gate.
 | Layer | Command | Purpose |
 | --- | --- | --- |
 | Fast | `pnpm check:fast` | Oxlint syntax/correctness plus pinned TypeScript 7 |
-| Architecture | `pnpm foundation:check` | Closed-world package and source dependency evidence |
+| Architecture | `pnpm foundation:check` | Dependency, source, suppression, API, and repository-security evidence |
 | Patterns | `pnpm architecture:patterns` | Consumer-owned deterministic AST prohibitions |
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance |
@@ -43,7 +43,11 @@ and export surfaces come from package manifests rather than duplicated YAML.
 The gate is fail closed: new unclassified files, parser errors, cross-package
 relative imports, undeclared packages, blocked exports, and unresolved imports
 fail CI. The repository dogfoods separate application, contract, adapter, and
-composition boundaries for both implemented capabilities.
+composition boundaries for every implemented capability.
+
+Suppression waivers, released API baselines, privileged workflow jobs, and
+publishable packages are also closed-world evidence. Existing API baselines are
+release-owned and cannot change in a normal pull request.
 
 ## Conformance
 
@@ -52,3 +56,6 @@ failures, local attach/detach recovery, parser parity, ast-grep rule tests, and 
 packed-tarball consumer. The tarball consumer installs its own exact Oxlint,
 oxlint-tsgolint, and TypeScript versions and proves the published type-aware
 preset and both executable capabilities.
+The tarball is extracted and searched for a source-owned secret canary. Linux CI
+also emits an SPDX JSON SBOM; Dependency Review runs as an independent required
+workflow.

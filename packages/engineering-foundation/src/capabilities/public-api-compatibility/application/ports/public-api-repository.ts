@@ -1,0 +1,33 @@
+import type {
+  PackageReleaseEvidence,
+  PublicApiPackagePolicy,
+  PublicApiSnapshot
+} from "../model/public-api.js";
+
+export interface PublicApiRepository {
+  readReleasedBaseline(
+    consumerRoot: string,
+    policy: PublicApiPackagePolicy,
+    signal?: AbortSignal
+  ): Promise<PublicApiSnapshot>;
+
+  readReleaseEvidence(
+    consumerRoot: string,
+    changesetDirectory: string,
+    policy: PublicApiPackagePolicy,
+    signal?: AbortSignal
+  ): Promise<PackageReleaseEvidence>;
+
+  isAcceptedDecision(
+    consumerRoot: string,
+    decisionPath: string,
+    signal?: AbortSignal
+  ): Promise<boolean>;
+
+  writeReleasedBaseline(
+    consumerRoot: string,
+    policy: PublicApiPackagePolicy,
+    snapshot: PublicApiSnapshot,
+    signal?: AbortSignal
+  ): Promise<void>;
+}

@@ -1,4 +1,4 @@
-import type { SourceFileSnapshot } from "../model/source-workspace.js";
+import type { SourceFileSnapshot } from "../model/source-file-snapshot.js";
 
 export interface SourceTreeReader {
   read(

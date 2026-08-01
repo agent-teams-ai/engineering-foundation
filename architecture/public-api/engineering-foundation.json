@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@agent-teams/engineering-foundation",
+  "packageVersion": "0.3.0",
+  "extractorVersion": "7.58.12",
+  "items": [
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FOUNDATION_METADATA_SCHEMA_VERSION:var",
+      "kind": "Variable",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "FOUNDATION_METADATA_SCHEMA_VERSION: 1"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationError#code:member",
+      "kind": "Property",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationError:class",
+      "parentKind": "Class",
+      "signature": "readonly code: FoundationErrorCode;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationError:class",
+      "kind": "Class",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export declare class FoundationError extends Error"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationError:constructor(1)",
+      "kind": "Constructor",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationError:class",
+      "parentKind": "Class",
+      "signature": "constructor(code: FoundationErrorCode, message: string, options?: ErrorOptions);"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationErrorCode:type",
+      "kind": "TypeAlias",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export type FoundationErrorCode = \"CONFIG_INVALID\" | \"CONSUMER_INVALID\" | \"LOCAL_STATE_INVALID\" | \"PACKAGE_INVALID\" | \"PROCESS_FAILED\" | \"REGISTRY_MODE_REQUIRED\";"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#compatibleLocalModeProtocolVersions:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "parentKind": "Interface",
+      "signature": "readonly compatibleLocalModeProtocolVersions: readonly number[];"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#exportPaths:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "parentKind": "Interface",
+      "signature": "readonly exportPaths: readonly string[];"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#localModeProtocolVersion:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "parentKind": "Interface",
+      "signature": "readonly localModeProtocolVersion: number;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#metadataSchemaVersion:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "parentKind": "Interface",
+      "signature": "readonly metadataSchemaVersion: typeof FOUNDATION_METADATA_SCHEMA_VERSION;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#ok:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "parentKind": "Interface",
+      "signature": "readonly ok: true;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#packageName:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "parentKind": "Interface",
+      "signature": "readonly packageName: \"@agent-teams/engineering-foundation\";"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#packageVersion:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "parentKind": "Interface",
+      "signature": "readonly packageVersion: string;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#runtimeDependencies:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "parentKind": "Interface",
+      "signature": "readonly runtimeDependencies: Readonly<Record<string, string>>;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
+      "kind": "Interface",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export interface FoundationPackageSelfCheck"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!inspectFoundationPackage:function(1)",
+      "kind": "Function",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export declare function inspectFoundationPackage(packageRoot: string): Promise<FoundationPackageSelfCheck>;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!parseFoundationPackageSelfCheck:function(1)",
+      "kind": "Function",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export declare function parseFoundationPackageSelfCheck(value: unknown): FoundationPackageSelfCheck;"
+    }
+  ]
+}

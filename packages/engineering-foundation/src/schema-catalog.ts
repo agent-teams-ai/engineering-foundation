@@ -9,15 +9,10 @@ import {
 } from "ajv/dist/2020.js";
 
 import { CapabilityInputError } from "./capability-runtime.js";
-
-const FOUNDATION_SCHEMA_IDS = [
-  "architecture-source-dependencies/v1",
-  "foundation-config/v1",
-  "foundation-check-report/v1",
-  "workspace-dependency-declarations/v1"
-] as const;
-
-export type FoundationSchemaId = (typeof FOUNDATION_SCHEMA_IDS)[number];
+import {
+  FOUNDATION_SCHEMA_IDS,
+  type FoundationSchemaId
+} from "./schema-ids.js";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const validators = new Map<FoundationSchemaId, ValidateFunction>();

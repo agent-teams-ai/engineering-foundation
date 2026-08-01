@@ -20,6 +20,7 @@ boundaries:
       - packages/engineering-foundation/src/cli.ts
     allow:
       boundaries:
+        - capability.public-api-compatibility.composition
         - foundation.composition
         - foundation.core
         - foundation.local-mode
@@ -37,7 +38,10 @@ boundaries:
       - packages/engineering-foundation/src/report-renderer.ts
     allow:
       boundaries:
+        - capability.public-api-compatibility.composition
+        - capability.repository-security.composition
         - capability.source-dependencies.composition
+        - capability.suppression-governance.composition
         - capability.workspace-dependencies.composition
         - foundation.core
       packages: []
@@ -50,6 +54,7 @@ boundaries:
       - packages/engineering-foundation/src/errors.ts
       - packages/engineering-foundation/src/filesystem-path-safety.ts
       - packages/engineering-foundation/src/schema-catalog.ts
+      - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
       - packages/engineering-foundation/src/strict-yaml.ts
     allow:
@@ -89,6 +94,26 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+  - id: foundation.source-inventory.application
+    roots:
+      - packages/engineering-foundation/src/source-inventory/application
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: foundation.source-inventory.adapters
+    roots:
+      - packages/engineering-foundation/src/source-inventory/adapters
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.source-inventory.application
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
   - id: foundation.workspace-inventory.adapters
     roots:
       - packages/engineering-foundation/src/workspace-inventory/adapters
@@ -107,7 +132,98 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.source-inventory.application
         - foundation.workspace-inventory.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.public-api-compatibility.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.repository-security.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.repository-security.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/contract
+    allow:
+      boundaries:
+        - capability.repository-security.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.repository-security.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters
+    allow:
+      boundaries:
+        - capability.repository-security.application
+        - foundation.core
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+  - id: capability.repository-security.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/module.ts
+    allow:
+      boundaries:
+        - capability.repository-security.adapters
+        - capability.repository-security.application
+        - capability.repository-security.contract
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.public-api-compatibility.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/contract
+    allow:
+      boundaries:
+        - capability.public-api-compatibility.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.public-api-compatibility.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters
+    allow:
+      boundaries:
+        - capability.public-api-compatibility.application
+        - foundation.core
+      packages:
+        - "@microsoft/api-extractor"
+        - "@microsoft/api-extractor-model"
+      builtins:
+        - node:crypto
+        - node:fs/promises
+        - node:os
+        - node:path
+      runtimeReferences: []
+  - id: capability.public-api-compatibility.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
+    allow:
+      boundaries:
+        - capability.public-api-compatibility.adapters
+        - capability.public-api-compatibility.application
+        - capability.public-api-compatibility.contract
+        - foundation.core
       packages: []
       builtins: []
       runtimeReferences: []
@@ -128,6 +244,7 @@ boundaries:
       boundaries:
         - capability.source-dependencies.application
         - foundation.core
+        - foundation.source-inventory.application
         - foundation.workspace-inventory.application
       packages:
         - oxc-parser
@@ -145,7 +262,52 @@ boundaries:
         - capability.source-dependencies.application
         - capability.source-dependencies.contract
         - foundation.core
+        - foundation.source-inventory.adapters
         - foundation.workspace-inventory.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.suppression-governance.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/suppression-governance/application
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.source-inventory.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.suppression-governance.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/suppression-governance/contract
+    allow:
+      boundaries:
+        - capability.suppression-governance.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.suppression-governance.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/suppression-governance/adapters
+    allow:
+      boundaries:
+        - capability.suppression-governance.application
+        - foundation.source-inventory.application
+      packages:
+        - oxc-parser
+      builtins: []
+      runtimeReferences: []
+  - id: capability.suppression-governance.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/suppression-governance/module.ts
+    allow:
+      boundaries:
+        - capability.suppression-governance.adapters
+        - capability.suppression-governance.application
+        - capability.suppression-governance.contract
+        - foundation.core
+        - foundation.source-inventory.adapters
       packages: []
       builtins: []
       runtimeReferences: []

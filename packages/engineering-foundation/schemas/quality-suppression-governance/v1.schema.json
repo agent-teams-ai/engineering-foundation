@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/quality-suppression-governance/v1",
+  "title": "Suppression governance capability configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "governedRoots", "nonWaivableRulePrefixes", "waivers"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "governedRoots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/repositoryPath" }
+    },
+    "nonWaivableRulePrefixes": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 100,
+        "pattern": "^[a-z0-9][a-z0-9./-]*[.-]$"
+      }
+    },
+    "waivers": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/waiver" }
+    }
+  },
+  "$defs": {
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[*?{}[\\]]).+$"
+    },
+    "waiverId": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 80,
+      "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$"
+    },
+    "ruleId": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 160,
+      "pattern": "^[a-z0-9@][a-zA-Z0-9@/._:-]*$"
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "line",
+        "directive",
+        "rules",
+        "owner",
+        "reason",
+        "createdOn",
+        "expiresOn",
+        "decisionRef"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/waiverId" },
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "line": { "type": "integer", "minimum": 1, "maximum": 10000000 },
+        "directive": {
+          "enum": [
+            "oxlint-disable-line",
+            "oxlint-disable-next-line",
+            "typescript-expect-error",
+            "ast-grep-ignore"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ruleId" }
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120,
+          "pattern": "^[a-z0-9][a-z0-9./-]*$"
+        },
+        "reason": { "type": "string", "minLength": 20, "maxLength": 500 },
+        "createdOn": { "$ref": "#/$defs/date" },
+        "expiresOn": { "$ref": "#/$defs/date" },
+        "decisionRef": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 240,
+          "pattern": "^[^\\s]+$"
+        }
+      }
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^20[0-9]{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])$"
+    }
+  }
+}

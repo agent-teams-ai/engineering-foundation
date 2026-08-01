@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { FoundationError } from "./errors.js";
+import { FOUNDATION_SCHEMA_IDS } from "./schema-ids.js";
 import { isExactVersion } from "./semantic-version.js";
 import {
   FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION,
@@ -22,16 +23,13 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "presets/oxlint/type-aware.json",
   "presets/typescript/base.json",
   "presets/typescript/node.json",
-  "schemas/architecture-source-dependencies/v1.schema.json",
-  "schemas/foundation-check-report/v1.schema.json",
-  "schemas/foundation-config/v1.schema.json",
-  "schemas/workspace-dependency-declarations/v1.schema.json"
+  ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`)
 ] as const;
 
 export interface FoundationPackageSelfCheck {
   readonly ok: true;
   readonly metadataSchemaVersion: typeof FOUNDATION_METADATA_SCHEMA_VERSION;
-  readonly packageName: typeof FOUNDATION_PACKAGE_NAME;
+  readonly packageName: "@agent-teams/engineering-foundation";
   readonly packageVersion: string;
   readonly localModeProtocolVersion: number;
   readonly compatibleLocalModeProtocolVersions: readonly number[];

@@ -53,8 +53,34 @@ const forbiddenEntries = [
   "/tests/",
   ".env",
   "auth.json",
-  "foundation-link.json"
+  "foundation-link.json",
+  "/secret-fixtures/"
 ];
+const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4";
+const secretPatterns = [
+  /-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/u,
+  /\bAKIA[0-9A-Z]{16}\b/u,
+  /\bghp_[A-Za-z0-9]{36,}\b/u,
+  /\bgithub_pat_[A-Za-z0-9_]{40,}\b/u
+];
+
+async function assertSecretCanaryAbsent(root) {
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      await assertSecretCanaryAbsent(path);
+    } else if (entry.isFile()) {
+      const content = await readFile(path);
+      const text = content.toString("utf8");
+      if (
+        content.includes(Buffer.from(secretCanary)) ||
+        secretPatterns.some((pattern) => pattern.test(text))
+      ) {
+        throw new Error(`Secret-like content leaked into package tarball: ${path}.`);
+      }
+    }
+  }
+}
 
 function registryLockfile(version, integrity) {
   const packageName = "@agent-teams/engineering-foundation";
@@ -120,6 +146,12 @@ try {
       throw new Error(`Required package entry missing: ${required}`);
     }
   }
+  const extractedRoot = join(temporaryRoot, "extracted");
+  await mkdir(extractedRoot, { recursive: true });
+  await execFileAsync("tar", ["-xzf", archivePath, "-C", extractedRoot], {
+    cwd: temporaryRoot
+  });
+  await assertSecretCanaryAbsent(extractedRoot);
 
   const consumerRoot = join(temporaryRoot, "consumer");
   await mkdir(consumerRoot, { recursive: true });

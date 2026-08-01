@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { runFoundationCheck } from "../packages/engineering-foundation/dist/check-runner.js";
 
@@ -161,13 +162,15 @@ test("fails closed when AI-created source is outside every declared boundary", a
       "foundation",
       "source-dependencies.yaml",
     );
-    const config = await readFile(configPath, "utf8");
+    const config = parseYaml(await readFile(configPath, "utf8"));
+    const surfaceBoundary = config.boundaries.find(
+      (boundary) => boundary.id === "app.surface",
+    );
+    assert.notEqual(surfaceBoundary, undefined);
+    surfaceBoundary.roots = ["packages/app/src/index.ts"];
     await writeFile(
       configPath,
-      config.replace(
-        "      - packages/app/src\n    allow:",
-        "      - packages/app/src/index.ts\n    allow:",
-      ),
+      stringifyYaml(config, { lineWidth: 0 }),
       "utf8",
     );
     await writeFile(

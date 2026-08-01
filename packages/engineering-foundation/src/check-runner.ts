@@ -48,11 +48,11 @@ export async function runFoundationCheck(
       invocation.consumerRoot,
       invocation.signal
     );
-    const declared = Object.entries(config.capabilities);
+    const declared = config.declaredCapabilities;
     const selected =
       invocation.capabilityId === undefined
         ? declared
-        : declared.filter(([id]) => id === invocation.capabilityId);
+        : declared.filter(({ id }) => id === invocation.capabilityId);
     if (invocation.capabilityId !== undefined && selected.length === 0) {
       throw new CapabilityInputError({
         code: "CAPABILITY_NOT_DECLARED",
@@ -63,7 +63,7 @@ export async function runFoundationCheck(
     }
 
     const reports = await Promise.all(
-      selected.map(async ([id, capabilityConfig]) => {
+      selected.map(async ({ id, configPath }) => {
         const capability = CAPABILITY_REGISTRY.get(id);
         if (capability === undefined) {
           throw new CapabilityInputError({
@@ -75,7 +75,7 @@ export async function runFoundationCheck(
         }
         return capability.run({
           consumerRoot: invocation.consumerRoot,
-          configPath: capabilityConfig.configPath,
+          configPath,
           ...(invocation.signal === undefined ? {} : { signal: invocation.signal })
         });
       })

@@ -146,8 +146,10 @@ The exact dependency-declaration schema is an implementation deliverable. It
 must separate package-manager input from consumer policy rather than expose pnpm
 objects as domain models.
 
-Schemas are the single source for public data shape. The package ships immutable
-versioned files, conceptually:
+Schemas are the single source for public data shape. Loaders validate unknown
+input against the schema before explicitly mapping it into a capability-owned
+normalized internal model. Internal models are not hand-maintained mirrors of the
+wire shape. The package ships immutable versioned files, conceptually:
 
 ```text
 schemas/
@@ -157,10 +159,10 @@ schemas/
 ```
 
 Explicit package exports and `agent-teams-foundation schema <schema-id>` expose
-the same files. TypeScript types and runtime validators are generated or proven
-against those schemas; independently maintained duplicate type definitions are
-not allowed. A convenient unversioned alias may exist for humans, but committed
-consumer configuration references a versioned schema.
+the same files. Any future public TypeScript contract types must be generated or
+mechanically proven against those schemas; independently maintained duplicate
+wire types are not allowed. A convenient unversioned alias may exist for humans,
+but committed consumer configuration references a versioned schema.
 
 ## Public report contract
 

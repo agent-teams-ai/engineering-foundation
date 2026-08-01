@@ -12,6 +12,17 @@ manually with npm 2FA after `pnpm check` passes. After that release:
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
+Automatic Changesets pull requests require the organization setting that permits
+GitHub Actions to create pull requests. The organization allows this capability,
+but it is enabled at repository level only for `engineering-foundation`; other
+repositories keep it disabled unless they acquire an approved release workflow.
+All workflows still receive read-only permissions by default, and the foundation
+release workflow requests only the permissions it needs. If automatic pull
+request creation is unavailable, prepare the same version commit on a short
+`chore/release-*` branch, open a normal pull request, and let the unchanged
+release workflow publish its merge through npm Trusted Publishing. Never weaken
+branch protection or publish from a workstation to work around the policy.
+
 Before every publication:
 
 - build from a clean checkout;

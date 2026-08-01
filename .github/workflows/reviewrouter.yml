@@ -1,0 +1,168 @@
+name: ReviewRouter
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: reviewrouter-${{ github.event.pull_request.number || inputs.pr_number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    name: review
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ fromJSON(vars.REVIEW_ROUTER_TIMEOUT_MINUTES || '60') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.draft == false || vars.REVIEW_ROUTER_REVIEW_DRAFTS == 'true')) }}
+    steps:
+      - name: Resolve pull request
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          pr_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+          head_sha="$(jq -r '.head.sha' <<<"$pr_json")"
+          head_repo="$(jq -r '.head.repo.full_name' <<<"$pr_json")"
+          changed_lines="$(jq -r '(.additions // 0) + (.deletions // 0)' <<<"$pr_json")"
+          {
+            if [ "$head_repo" != "$GITHUB_REPOSITORY" ]; then
+              echo "skip_reason=fork"
+            fi
+            echo "number=$PR_NUMBER"
+            echo "head_sha=$head_sha"
+            echo "changed_lines=$changed_lines"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Size guard
+        id: size_guard
+        if: ${{ steps.pr.outputs.skip_reason != 'fork' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          CHANGED_LINES: ${{ steps.pr.outputs.changed_lines }}
+          MAX_CHANGED_LINES: ${{ vars.REVIEW_ROUTER_MAX_CHANGED_LINES || '250000' }}
+        run: |
+          set -euo pipefail
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          if [ "$MAX_CHANGED_LINES" = "0" ] || [ "$CHANGED_LINES" -le "$MAX_CHANGED_LINES" ]; then
+            exit 0
+          fi
+
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          marker="<!-- reviewrouter:size-guard:$HEAD_SHA -->"
+          body_file="$(mktemp)"
+          cat > "$body_file" <<BODY
+          $marker
+
+          ## Review skipped ⚠️
+
+          ReviewRouter did not start Codex because this PR is larger than the configured safety limit.
+
+          | Field | Value |
+          |---|---:|
+          | Changed lines | $CHANGED_LINES |
+          | Configured limit | $MAX_CHANGED_LINES |
+          | Model calls | 0 |
+
+          <sub>No Codex tokens were consumed. Split the PR or raise REVIEW_ROUTER_MAX_CHANGED_LINES if this repository should review larger changes.</sub>
+          BODY
+          existing_id="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | contains(\"$marker\")) | .id" | tail -n 1 || true)"
+          body="$(cat "$body_file")"
+          if [ -n "$existing_id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing_id" -f body="$body" >/dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$body" >/dev/null
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD_SHA" \
+            -f state=failure \
+            -f context=ReviewRouter \
+            -f description="Review skipped: PR exceeds configured safety limit." \
+            -f target_url="$run_url" >/dev/null
+
+      - name: Stop after size guard
+        if: ${{ steps.size_guard.outputs.skip == 'true' }}
+        shell: bash
+        run: exit 1
+
+      - name: Checkout pull request code
+        if: ${{ steps.pr.outputs.skip_reason != 'fork' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        if: ${{ steps.pr.outputs.skip_reason != 'fork' }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.18.0
+
+      - name: Install Codex CLI
+        if: ${{ steps.pr.outputs.skip_reason != 'fork' }}
+        shell: bash
+        run: npm install -g @openai/codex@0.146.0
+
+      - name: Restore Codex OAuth config
+        if: ${{ steps.pr.outputs.skip_reason != 'fork' }}
+        shell: bash
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+          CODEX_CONFIG_TOML: ${{ secrets.CODEX_CONFIG_TOML }}
+        run: |
+          set -euo pipefail
+          test -n "$CODEX_AUTH_JSON"
+          export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+          mkdir -p "$CODEX_HOME"
+          chmod 700 "$CODEX_HOME"
+          printf '%s' "$CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"
+          chmod 600 "$CODEX_HOME/auth.json"
+          if [ -n "${CODEX_CONFIG_TOML:-}" ]; then
+            printf '%s' "$CODEX_CONFIG_TOML" > "$CODEX_HOME/config.toml"
+            chmod 600 "$CODEX_HOME/config.toml"
+          fi
+
+      - name: Run ReviewRouter
+        if: ${{ steps.pr.outputs.skip_reason != 'fork' }}
+        uses: 777genius/review-router@9865137c5c864d70cd204e8dcd2f0c6987abb009 # v1.0.50 legacy direct runtime
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+          REVIEW_ROUTER_LEDGER_KEY: ${{ secrets.REVIEW_ROUTER_LEDGER_KEY }}
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          CODEX_MODEL: ${{ vars.REVIEW_CODEX_MODEL || 'gpt-5.6-sol' }}
+          CODEX_REASONING_EFFORT: medium
+          CODEX_HEALTHCHECK_MODE: binary
+          CODEX_AGENTIC_CONTEXT: "true"
+          FAIL_ON_NO_HEALTHY_PROVIDERS: "true"
+          INLINE_MAX_COMMENTS: "5"
+          INLINE_MIN_SEVERITY: major
+          MIN_CONFIDENCE: "0.6"
+          CONSENSUS_REQUIRED_FOR_CRITICAL: "false"
+          UPDATE_PR_DESCRIPTION: "true"
+          FAIL_ON_CRITICAL: "true"
+          FAIL_ON_MAJOR: "false"
+          ENABLE_AST_ANALYSIS: "true"
+          ENABLE_SECURITY: "true"
+          ENABLE_AI_DETECTION: "false"
+          LEARNING_ENABLED: "false"
+          GRAPH_ENABLED: "false"

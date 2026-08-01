@@ -2,6 +2,12 @@
 
 Status: accepted target architecture; not yet implemented.
 
+This future capability is governed by the common configuration, report,
+registry, compatibility, and migration rules in
+[Executable capabilities](executable-capabilities.md). Its domain-specific
+commands and bundles cannot introduce a second capability runtime or report
+protocol.
+
 ## Purpose
 
 The Consistency Evidence Gate makes it impossible to ship a durable mutation
@@ -51,17 +57,24 @@ bundles cannot require the foundation at product runtime.
 ## Agent-first interface
 
 JSON Schema is an internal validation mechanism, not the primary human or agent
-interface. The target non-interactive commands are:
+interface. Checks and rule explanations use the common capability protocol. The
+consistency capability receives a granular identifier before implementation:
 
 ```text
-foundation context --changed [--format text|markdown|json]
-foundation create:mutation <context>/<feature>/<mutation>
-foundation consistency:list [--context <id>]
-foundation consistency:check [--changed] [--explain]
-foundation consistency:explain <capability-id> [--format text|markdown|json]
+agent-teams-foundation check <consistency-capability-id> [--format text|json]
+agent-teams-foundation explain <rule-id> [--format text|json]
 ```
 
-`context` and `consistency:explain` produce a bounded dossier containing:
+Domain-specific discovery and generation commands, if implemented, remain under
+one namespace and cannot create another check or report protocol:
+
+```text
+agent-teams-foundation consistency context
+agent-teams-foundation consistency create-mutation <context>/<feature>/<mutation>
+agent-teams-foundation consistency list [--context <id>]
+```
+
+`context` and rule explanation produce a bounded dossier containing:
 
 - the owning context and feature;
 - aggregate and invariant identities;
@@ -271,8 +284,8 @@ consumer command surface must remain stable across that internal move.
 - Build a custom lock manager, transaction engine, consensus protocol, test
   runner, or universal runtime concurrency DSL.
 - Treat a manifest or generated test as proof of semantic correctness.
-- Make Restate, Temporal, Dapr, Redis, etcd, PostgreSQL, or any other mechanism a
-  mandatory core dependency; they remain possible deployment bindings.
+- Make Restate, Temporal, Dapr, Redis, etcd, PostgreSQL, or any other mechanism
+  a mandatory core dependency; they remain possible deployment bindings.
 - Generate one global handler registry or require all contexts to rebuild for one
   context change.
 - Use process-local mutexes as hosted or multi-instance correctness mechanisms.

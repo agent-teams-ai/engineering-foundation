@@ -57,6 +57,8 @@
     ]
   },
   "dependencies": {
+    "@microsoft/api-extractor": "catalog:",
+    "@microsoft/api-extractor-model": "catalog:",
     "ajv": "catalog:",
     "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",

@@ -1,0 +1,6 @@
+schemaVersion: 1
+project:
+  id: repository-security-fixture
+capabilities:
+  repository.security-baseline:
+    configPath: architecture/foundation/repository-security-baseline.yaml

@@ -31,7 +31,7 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
 export interface FoundationPackageSelfCheck {
   readonly ok: true;
   readonly metadataSchemaVersion: typeof FOUNDATION_METADATA_SCHEMA_VERSION;
-  readonly packageName: typeof FOUNDATION_PACKAGE_NAME;
+  readonly packageName: "@agent-teams/engineering-foundation";
   readonly packageVersion: string;
   readonly localModeProtocolVersion: number;
   readonly compatibleLocalModeProtocolVersions: readonly number[];

@@ -2,14 +2,14 @@ import type {
   DiagnosticEvidence,
   FoundationDiagnostic
 } from "../../../../check-contract.js";
+import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 import type { WorkspaceInventory } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type {
   ArchitectureBoundaryPolicy,
   ClassifiedSourceFile,
   ResolvedSourceDependency,
   SourceArchitecturePolicy,
-  SourceDependencyReference,
-  SourceFileSnapshot
+  SourceDependencyReference
 } from "../model/source-workspace.js";
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 import {

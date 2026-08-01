@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-baseline/v1",
+  "title": "Released public API baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packageName",
+    "packageVersion",
+    "extractorVersion",
+    "items"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "packageName": { "type": "string", "minLength": 1, "maxLength": 214 },
+    "packageVersion": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "extractorVersion": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "items": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["canonicalReference", "kind", "parentKind", "signature"],
+        "properties": {
+          "canonicalReference": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "kind": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "parentReference": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "parentKind": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "signature": { "type": "string", "minLength": 1, "maxLength": 10000 }
+        }
+      }
+    }
+  }
+}

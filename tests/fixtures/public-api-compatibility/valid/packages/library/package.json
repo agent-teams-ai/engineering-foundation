@@ -1,0 +1,6 @@
+{
+  "name": "@fixture/public-api",
+  "version": "1.2.3",
+  "type": "module",
+  "types": "./dist/index.d.ts"
+}

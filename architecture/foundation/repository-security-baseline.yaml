@@ -1,0 +1,20 @@
+schemaVersion: 1
+workflowDirectory: .github/workflows
+dependencyReviewWorkflow: .github/workflows/dependency-review.yml
+sbomWorkflow: .github/workflows/ci.yml
+privilegedJobs:
+  - workflowPath: .github/workflows/release.yml
+    jobId: release
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
+  - workflowPath: .github/workflows/release.yml
+    jobId: attest-release-pr
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+      statuses: write
+publishablePackageManifests:
+  - packages/engineering-foundation/package.json

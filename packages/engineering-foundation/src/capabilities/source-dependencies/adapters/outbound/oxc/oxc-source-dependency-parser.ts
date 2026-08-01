@@ -1,10 +1,10 @@
 import { parseSync, Visitor } from "oxc-parser";
 
+import type { SourceFileSnapshot } from "../../../../../source-inventory/application/model/source-file-snapshot.js";
 import type {
   ParsedSourceDependencies,
   SourceDependencyKind,
   SourceDependencyReference,
-  SourceFileSnapshot,
   UnresolvedSourceDependency
 } from "../../../application/model/source-workspace.js";
 import type { SourceDependencyParser } from "../../../application/ports/source-dependency-parser.js";

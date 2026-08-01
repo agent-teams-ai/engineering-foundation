@@ -22,14 +22,15 @@ with `GITHUB_TOKEN` do not recursively emit another workflow event, so the
 release workflow explicitly dispatches the read-only CI workflow against the
 generated release branch. GitHub does not attach manually dispatched checks to
 the pull request's required-check rollup, so a separate trusted
-`workflow_run` bridge verifies the exact open release PR SHA and the conclusions
-of both expected CI jobs before publishing `check` and `windows-check` commit
-statuses. The bridge never checks out or executes release-branch code and is the
-only workflow granted `statuses: write`. If automatic pull request creation is
-unavailable, prepare the same version commit on a short `chore/release-*` branch,
-open a normal pull request, and let the unchanged release workflow publish its
-merge through npm Trusted Publishing. Never weaken branch protection or publish
-from a workstation to work around the policy.
+`workflow_run` bridge is branch-filtered to the release branch, ignores any
+non-dispatched CI event, and verifies the exact open release PR SHA plus both
+expected CI job conclusions before publishing `check` and `windows-check`
+commit statuses. The bridge never checks out or executes release-branch code and
+is the only workflow granted `statuses: write`. If automatic pull request
+creation is unavailable, prepare the same version commit on a short
+`chore/release-*` branch, open a normal pull request, and let the unchanged
+release workflow publish its merge through npm Trusted Publishing. Never weaken
+branch protection or publish from a workstation to work around the policy.
 
 Before every publication:
 

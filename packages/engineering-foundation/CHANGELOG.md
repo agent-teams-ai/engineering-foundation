@@ -1,5 +1,13 @@
 # @agent-teams/engineering-foundation
 
+## 0.2.1
+
+### Patch Changes
+
+- [#10](https://github.com/agent-teams-ai/engineering-foundation/pull/10) [`a98a948`](https://github.com/agent-teams-ai/engineering-foundation/commit/a98a948d884f05dba112d1146097f41008615d72) Thanks [@777genius](https://github.com/777genius)! - Reject malformed CLI invocations deterministically, classify an unavailable
+  consumer root as invalid input, and map schema-validated configuration into
+  capability-owned internal settings instead of maintaining mirror contract types.
+
 ## 0.2.0
 
 ### Minor Changes

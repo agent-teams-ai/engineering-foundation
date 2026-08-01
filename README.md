@@ -10,7 +10,7 @@ package catalog, dependency permissions, security classifications, and ADRs.
 ## Scope
 
 - strict data-only consumer configuration and versioned schemas;
-- executable `workspace.dependency-declarations` policy;
+- executable workspace declaration and source dependency policies;
 - shared Oxlint and TypeScript 7 baseline presets;
 - explicit registry and local-link modes;
 - deterministic attach, status, detach, and registry assertions;
@@ -18,10 +18,10 @@ package catalog, dependency permissions, security classifications, and ADRs.
 - release automation for immutable public npm versions.
 
 Capabilities are extracted incrementally from proven repositories. A capability
-moves here only with parity fixtures and a consumer conformance test. The first
-implemented capability is `workspace.dependency-declarations`;
-`architecture.source-dependencies` remains deferred, while its parser spike is
-now reproducible evidence for the pending implementation decision. See
+moves here only with parity fixtures and a consumer conformance test.
+`workspace.dependency-declarations` is active.
+`architecture.source-dependencies` is implemented and dogfooded while its Oxc
+adapter decision remains proposed pending explicit approval. See
 [Executable capabilities](docs/architecture/executable-capabilities.md) and
 [the parser spike](docs/research/source-dependency-parser-spike.md).
 
@@ -29,6 +29,7 @@ now reproducible evidence for the pending implementation decision. See
 
 ```bash
 pnpm install
+pnpm check:fast
 pnpm check
 pnpm package:check
 ```

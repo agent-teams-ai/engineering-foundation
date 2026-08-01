@@ -9,12 +9,13 @@ not repeat their rules.
 | Subject | Document | State |
 | --- | --- | --- |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
-| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | First capability active |
+| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | First active; source candidate implemented |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
-| Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Completed; decision proposed |
+| Quality gates | [Quality gates](development/quality-gates.md) | Active |
+| Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Candidate implemented; decision proposed |
 | Package release | [Release](release.md) | Active |
 | Architecture decisions | [Decision index](decisions/README.md) | Active |
 

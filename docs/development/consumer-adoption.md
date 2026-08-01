@@ -34,6 +34,8 @@ schemaVersion: 1
 project:
   id: consumer-id
 capabilities:
+  architecture.source-dependencies:
+    configPath: architecture/foundation/source-dependencies.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml
 ```
@@ -86,6 +88,10 @@ ignore patterns or project-specific additions in the consumer:
 
 Presets define reusable language correctness only. Feature boundaries, source
 roots, exceptions, browser rules, and business architecture remain local.
+Use `type-aware.json` in the complete lint gate and keep TypeScript as a separate
+typecheck. The source dependency capability configuration remains consumer-owned:
+it declares opaque boundary IDs and allowed edges while package manifests remain
+authoritative for package identities, dependencies, and exports.
 
 ## Upgrade procedure
 

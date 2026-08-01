@@ -6,10 +6,7 @@ on:
       - main
 
 permissions:
-  actions: write
-  contents: write
-  id-token: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: foundation-release
@@ -19,8 +16,14 @@ jobs:
   release:
     name: release
     if: ${{ vars.NPM_TRUSTED_PUBLISHING_ENABLED == 'true' }}
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      pullRequestNumber: ${{ steps.changesets.outputs.pullRequestNumber }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -43,8 +46,100 @@ jobs:
           commit: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Dispatch release pull request checks
-        if: ${{ steps.changesets.outputs.pullRequestNumber != '' }}
+
+  attest-release-pr:
+    name: attest-release-pr
+    needs: release
+    if: ${{ needs.release.outputs.pullRequestNumber != '' }}
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+      statuses: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Dispatch and attest release pull request checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run ci.yml --ref changeset-release/main
+          RELEASE_PULL_REQUEST: ${{ needs.release.outputs.pullRequestNumber }}
+          RELEASE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          read -r state head_ref head_sha base_ref < <(gh api \
+            "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}" \
+            --jq '[.state, .head.ref, .head.sha, .base.ref] | @tsv')
+          if [[ "${state}" != "open" || "${head_ref}" != "changeset-release/main" || "${base_ref}" != "main" ]]; then
+            echo "Changesets output does not identify the expected open release pull request." >&2
+            exit 1
+          fi
+
+          gh workflow run ci.yml --ref changeset-release/main
+
+          post_status() {
+            local context="$1"
+            local status_state="$2"
+            local description="$3"
+            local target_url="$4"
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
+              -f state="${status_state}" \
+              -f context="${context}" \
+              -f description="${description}" \
+              -f target_url="${target_url}" >/dev/null
+          }
+
+          for context in check windows-check; do
+            post_status "${context}" pending "Release PR ${context}: dispatched" "${RELEASE_RUN_URL}"
+          done
+
+          deadline=$((SECONDS + 600))
+          while (( SECONDS < deadline )); do
+            checks="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs?per_page=100")"
+            all_completed=1
+            for context in check windows-check; do
+              check_status="$(jq -r --arg context "${context}" \
+                '[.check_runs[] | select(.app.slug == "github-actions" and .name == $context)] | sort_by(.id) | last | .status // "missing"' \
+                <<<"${checks}")"
+              if [[ "${check_status}" != "completed" ]]; then
+                all_completed=0
+              fi
+            done
+            if (( all_completed == 1 )); then
+              break
+            fi
+            sleep 5
+          done
+
+          if (( all_completed != 1 )); then
+            for context in check windows-check; do
+              post_status "${context}" error "Release PR ${context}: CI timeout" "${RELEASE_RUN_URL}"
+            done
+            echo "Timed out waiting for release pull request CI." >&2
+            exit 1
+          fi
+
+          failed=0
+          for context in check windows-check; do
+            read -r conclusion target_url < <(jq -r --arg context "${context}" \
+              '[.check_runs[] | select(.app.slug == "github-actions" and .name == $context)] | sort_by(.id) | last | [.conclusion, .details_url] | @tsv' \
+              <<<"${checks}")
+            case "${conclusion}" in
+              success)
+                status_state=success
+                ;;
+              failure|cancelled|timed_out|startup_failure)
+                status_state=failure
+                failed=1
+                ;;
+              *)
+                status_state=error
+                failed=1
+                ;;
+            esac
+            post_status "${context}" "${status_state}" "Release PR ${context}: ${conclusion}" "${target_url}"
+          done
+
+          exit "${failed}"

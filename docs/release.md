@@ -21,16 +21,17 @@ release workflow requests only the permissions it needs. Pull requests created
 with `GITHUB_TOKEN` do not recursively emit another workflow event, so the
 release workflow explicitly dispatches the read-only CI workflow against the
 generated release branch. GitHub does not attach manually dispatched checks to
-the pull request's required-check rollup, so a separate trusted
-`workflow_run` bridge ignores any source run that is not a manual dispatch on the
-release branch, then verifies the exact open release PR SHA plus both expected
-CI job conclusions before publishing `check` and `windows-check` commit statuses.
-The bridge never checks out or executes release-branch code and is the only
-workflow granted `statuses: write`. If automatic pull request
-creation is unavailable, prepare the same version commit on a short
-`chore/release-*` branch, open a normal pull request, and let the unchanged
-release workflow publish its merge through npm Trusted Publishing. Never weaken
-branch protection or publish from a workstation to work around the policy.
+the pull request's required-check rollup. A separate attestation job therefore
+verifies the exact open release PR SHA, waits for both expected GitHub Actions
+jobs on that SHA, and publishes their real conclusions as `check` and
+`windows-check` commit statuses. It fails closed on an unexpected PR, missing
+job, timeout, or failed conclusion. The Changesets action does not receive status
+or Actions write permission, and no release-branch code runs with write
+credentials. If automatic pull request creation is unavailable, prepare the same
+version commit on a short `chore/release-*` branch, open a normal pull request,
+and let the unchanged release workflow publish its merge through npm Trusted
+Publishing. Never weaken branch protection or publish from a workstation to work
+around the policy.
 
 Before every publication:
 

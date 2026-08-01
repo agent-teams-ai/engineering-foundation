@@ -14,12 +14,13 @@ an outbound adapter; its model types do not cross into capability policy.
   conservatively breaking;
 - before `1.0.0`, breaking changes require a minor bump; after `1.0.0`, a major
   bump is required;
+- a package version cannot move behind its released baseline;
 - a breaking change also requires an exact SHA-256 fingerprint and an accepted
   ADR referenced by consumer configuration.
 
-The fingerprint contains old and new signatures, kinds, parents, additions, and
-removals. Approval of one break cannot authorize a different change to the same
-symbol.
+The fingerprint contains old and new signatures, kinds, parents, every addition,
+and every removal in the same change set. Approval of one break cannot authorize
+a different change to the same symbol or an extra additive export.
 
 ## Released baseline lifecycle
 
@@ -31,5 +32,6 @@ and require an explicitly reviewed migration.
 
 Changesets invokes promotion after versioning. CI permits creation of a new
 baseline during first adoption, but existing baselines can change only on
-`changeset-release/main`. This prevents a feature pull request from rewriting
-both implementation and expected evidence.
+the same-repository `changeset-release/main` branch. Renaming or moving protected
+baseline evidence is also a mutation. This prevents a feature pull request or a
+same-named fork branch from rewriting both implementation and expected evidence.

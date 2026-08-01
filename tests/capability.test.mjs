@@ -20,6 +20,8 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { runFoundationCheck } from "../packages/engineering-foundation/dist/check-runner.js";
+import { promotePublicApiBaselines } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/use-cases/promote-public-api-baselines.js";
+import { isExactVersion } from "../packages/engineering-foundation/dist/semantic-version.js";
 import { releaseOwnedFileViolations } from "../scripts/check-release-owned-files.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -140,6 +142,13 @@ function check(consumerRoot, ...args) {
   return { result, report: JSON.parse(result.stdout) };
 }
 
+test("accepts only exact SemVer versions", () => {
+  assert.equal(isExactVersion("0.3.0"), true);
+  assert.equal(isExactVersion("1.0.0-rc.4+build.7"), true);
+  assert.equal(isExactVersion("1.0.0-01"), false);
+  assert.equal(isExactVersion("1.0.0-."), false);
+});
+
 test("allows public API baseline mutation only in the Changesets release branch", () => {
   assert.deepEqual(
     releaseOwnedFileViolations(
@@ -149,6 +158,8 @@ test("allows public API baseline mutation only in the Changesets release branch"
         { status: "A", path: "architecture/public-api/new-library.json" },
       ],
       "feat/change-api",
+      "agent-teams-ai/engineering-foundation",
+      "agent-teams-ai/engineering-foundation",
     ),
     ["architecture/public-api/library.json"],
   );
@@ -156,8 +167,34 @@ test("allows public API baseline mutation only in the Changesets release branch"
     releaseOwnedFileViolations(
       [{ status: "M", path: "architecture/public-api/library.json" }],
       "changeset-release/main",
+      "agent-teams-ai/engineering-foundation",
+      "agent-teams-ai/engineering-foundation",
     ),
     [],
+  );
+  assert.deepEqual(
+    releaseOwnedFileViolations(
+      [
+        {
+          status: "R",
+          previousPath: "architecture/public-api/library.json",
+          path: "tmp/library.json",
+        },
+      ],
+      "feat/move-baseline",
+      "agent-teams-ai/engineering-foundation",
+      "agent-teams-ai/engineering-foundation",
+    ),
+    ["architecture/public-api/library.json"],
+  );
+  assert.deepEqual(
+    releaseOwnedFileViolations(
+      [{ status: "M", path: "architecture/public-api/library.json" }],
+      "changeset-release/main",
+      "attacker/engineering-foundation",
+      "agent-teams-ai/engineering-foundation",
+    ),
+    ["architecture/public-api/library.json"],
   );
 });
 
@@ -220,6 +257,33 @@ test("requires a minor Changeset for an additive public API", async () => {
   });
 });
 
+test("rejects a package version older than its released API baseline", async () => {
+  await withPublicApiFixture(async (consumerRoot) => {
+    const declarationPath = join(consumerRoot, "packages", "library", "dist", "index.d.ts");
+    await writeFile(
+      declarationPath,
+      "export declare function added(): void;\nexport declare function stable(value: string): string;\n",
+      "utf8",
+    );
+    const manifestPath = join(consumerRoot, "packages", "library", "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.version = "1.2.2";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    await writeFile(
+      join(consumerRoot, ".changeset", "downgrade-api.md"),
+      '---\n"@fixture/public-api": minor\n---\n\nAttempt a downgrade.\n',
+      "utf8",
+    );
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.deepEqual(
+      report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+      ["package.public-api-compatibility.baseline-version-mismatch"],
+    );
+  });
+});
+
 test("binds a breaking public API approval to its exact fingerprint and accepted ADR", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
     await writeFile(
@@ -242,6 +306,25 @@ test("binds a breaking public API approval to its exact fingerprint and accepted
     const fingerprint = approvalDiagnostic.evidence.find(
       ({ kind }) => kind === "change-fingerprint",
     ).value;
+
+    await writeFile(
+      join(consumerRoot, "packages", "library", "dist", "index.d.ts"),
+      "export declare function added(): void;\nexport declare function stable(value: number): string;\n",
+      "utf8",
+    );
+    const expandedBreak = check(consumerRoot);
+    const expandedFingerprint = expandedBreak.report.capabilities[0].diagnostics
+      .find(
+        ({ ruleId }) =>
+          ruleId === "package.public-api-compatibility.breaking-change-not-approved",
+      )
+      .evidence.find(({ kind }) => kind === "change-fingerprint").value;
+    assert.notEqual(expandedFingerprint, fingerprint);
+    await writeFile(
+      join(consumerRoot, "packages", "library", "dist", "index.d.ts"),
+      "export declare function stable(value: number): string;\n",
+      "utf8",
+    );
 
     const configPath = join(
       consumerRoot,
@@ -323,6 +406,71 @@ test("promotes a public API baseline only after a sufficient package release", a
   });
 });
 
+test("validates every public API promotion before writing any baseline", async () => {
+  const packagePolicies = ["first", "second"].map((name) => ({
+    packageName: `@fixture/${name}`,
+    packageRoot: `packages/${name}`,
+    manifestPath: `packages/${name}/package.json`,
+    declarationEntryPoint: `packages/${name}/dist/index.d.ts`,
+    tsconfigPath: `packages/${name}/tsconfig.json`,
+    releasedBaselinePath: `architecture/public-api/${name}.json`,
+    approvedBreakingChanges: [],
+  }));
+  const writes = [];
+
+  await assert.rejects(
+    promotePublicApiBaselines(
+      {
+        consumerRoot: "/fixture",
+        policy: {
+          schemaVersion: 1,
+          changesetDirectory: ".changeset",
+          packages: packagePolicies,
+        },
+      },
+      {
+        extractor: {
+          async extract(_consumerRoot, packagePolicy, packageVersion) {
+            if (packagePolicy.packageName === "@fixture/second") {
+              throw new Error("invalid second package declaration");
+            }
+            return {
+              schemaVersion: 1,
+              packageName: packagePolicy.packageName,
+              packageVersion,
+              extractorVersion: "7.58.12",
+              items: [],
+            };
+          },
+        },
+        fingerprint: { sha256: () => "a".repeat(64) },
+        repository: {
+          async readReleasedBaseline(_consumerRoot, packagePolicy) {
+            return {
+              schemaVersion: 1,
+              packageName: packagePolicy.packageName,
+              packageVersion: "1.0.0",
+              extractorVersion: "7.58.12",
+              items: [],
+            };
+          },
+          async readReleaseEvidence() {
+            return { packageVersion: "1.0.1" };
+          },
+          async isAcceptedDecision() {
+            return false;
+          },
+          async writeReleasedBaseline(...args) {
+            writes.push(args);
+          },
+        },
+      },
+    ),
+    /invalid second package declaration/u,
+  );
+  assert.deepEqual(writes, []);
+});
+
 test("accepts a closed-world repository security baseline", async () => {
   await withRepositorySecurityFixture(async (consumerRoot) => {
     const { result, report } = check(consumerRoot);
@@ -346,7 +494,7 @@ test("reports deterministic workflow and package supply-chain violations", async
         "    steps:",
         "      - uses: actions/checkout@v7",
         "      - uses: ./../outside-action",
-        '      - run: echo "${{github.event.pull_request.title }}"',
+        `      - run: echo "\${{ github['event'].pull_request.title }}"`,
         "",
       ].join("\n"),
       "utf8",
@@ -404,6 +552,72 @@ test("rejects stale privilege declarations and a missing dependency review actio
       new Set([
         "repository.security-baseline.dependency-review-missing",
         "repository.security-baseline.stale-privileged-job",
+      ]),
+    );
+  });
+});
+
+test("requires dependency and SBOM evidence on every pull request", async () => {
+  await withRepositorySecurityFixture(async (consumerRoot) => {
+    const dependencyReviewPath = join(
+      consumerRoot,
+      ".github",
+      "workflows",
+      "dependency-review.yml",
+    );
+    const dependencyReview = parseYaml(await readFile(dependencyReviewPath, "utf8"));
+    dependencyReview.jobs["dependency-review"].if = false;
+    await writeFile(
+      dependencyReviewPath,
+      stringifyYaml(dependencyReview, { lineWidth: 0 }),
+      "utf8",
+    );
+
+    const ciPath = join(consumerRoot, ".github", "workflows", "ci.yml");
+    const ci = parseYaml(await readFile(ciPath, "utf8"));
+    ci.on.pull_request = { paths: ["packages/**"] };
+    await writeFile(ciPath, stringifyYaml(ci, { lineWidth: 0 }), "utf8");
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.deepEqual(
+      new Set(report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId)),
+      new Set([
+        "repository.security-baseline.dependency-review-missing",
+        "repository.security-baseline.sbom-missing",
+      ]),
+    );
+  });
+});
+
+test("rejects advisory dependency review and partial SBOM evidence", async () => {
+  await withRepositorySecurityFixture(async (consumerRoot) => {
+    const dependencyReviewPath = join(
+      consumerRoot,
+      ".github",
+      "workflows",
+      "dependency-review.yml",
+    );
+    const dependencyReview = parseYaml(await readFile(dependencyReviewPath, "utf8"));
+    dependencyReview.jobs["dependency-review"].steps[0].with = { "warn-only": true };
+    await writeFile(
+      dependencyReviewPath,
+      stringifyYaml(dependencyReview, { lineWidth: 0 }),
+      "utf8",
+    );
+
+    const ciPath = join(consumerRoot, ".github", "workflows", "ci.yml");
+    const ci = parseYaml(await readFile(ciPath, "utf8"));
+    ci.jobs.check.steps[1].with = { path: "packages/library/package.json" };
+    await writeFile(ciPath, stringifyYaml(ci, { lineWidth: 0 }), "utf8");
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.deepEqual(
+      new Set(report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId)),
+      new Set([
+        "repository.security-baseline.dependency-review-missing",
+        "repository.security-baseline.sbom-missing",
       ]),
     );
   });

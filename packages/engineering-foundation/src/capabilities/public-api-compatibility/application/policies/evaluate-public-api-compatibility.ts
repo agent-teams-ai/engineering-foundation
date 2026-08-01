@@ -1,4 +1,5 @@
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import { semanticVersionBumpBetween } from "../../../../semantic-version.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import { compareCanonicalReferences } from "../model/public-api.js";
 import type {
@@ -105,7 +106,7 @@ export function classifyPublicApiChange(
     .map((item) => item.canonicalReference);
   const breaking = removed.length > 0 || changed.length > 0 || breakingAdded.length > 0;
   const changeEvidence = {
-    added: breakingAdded.map((reference) => current.get(reference)),
+    added: added.map((reference) => current.get(reference)),
     changed: changed.map((reference) => ({
       before: released.get(reference),
       after: current.get(reference)
@@ -147,6 +148,22 @@ export function evaluatePublicApiCompatibility(input: {
         subject,
         message: `Released baseline uses API Extractor ${input.released.extractorVersion}; current adapter uses ${input.current.extractorVersion}.`,
         path: input.policy.releasedBaselinePath
+      })
+    );
+    return diagnostics;
+  }
+  if (
+    semanticVersionBumpBetween(
+      input.releaseEvidence.packageVersion,
+      input.released.packageVersion
+    ) !== undefined
+  ) {
+    diagnostics.push(
+      diagnostic({
+        rule: PUBLIC_API_COMPATIBILITY_RULES.baselineVersionMismatch,
+        subject,
+        message: `Package version ${input.releaseEvidence.packageVersion} is older than released baseline ${input.released.packageVersion}.`,
+        path: input.policy.manifestPath
       })
     );
     return diagnostics;

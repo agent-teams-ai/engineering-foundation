@@ -1,11 +1,16 @@
 export type WorkflowPermission = "none" | "read" | "write";
 
 export interface WorkflowStepEvidence {
+  readonly conditional: boolean;
+  readonly nonBlocking: boolean;
+  readonly inputs: Readonly<Record<string, unknown>>;
   readonly uses?: string;
   readonly run?: string;
 }
 
 export interface WorkflowJobEvidence {
+  readonly conditional: boolean;
+  readonly nonBlocking: boolean;
   readonly id: string;
   readonly uses?: string;
   readonly permissions?: Readonly<Record<string, WorkflowPermission>> | "read-all" | "write-all";
@@ -15,6 +20,7 @@ export interface WorkflowJobEvidence {
 export interface WorkflowEvidence {
   readonly path: string;
   readonly triggers: readonly string[];
+  readonly unconditionalTriggers: readonly string[];
   readonly permissions?: Readonly<Record<string, WorkflowPermission>> | "read-all" | "write-all";
   readonly jobs: readonly WorkflowJobEvidence[];
 }

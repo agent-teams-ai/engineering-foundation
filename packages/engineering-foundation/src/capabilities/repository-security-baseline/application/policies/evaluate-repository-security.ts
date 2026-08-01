@@ -14,7 +14,8 @@ import {
 const FULL_SHA_ACTION = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_./-]+)?@[0-9a-fA-F]{40}$/u;
 const FULL_DIGEST_CONTAINER = /^docker:\/\/.+@sha256:[0-9a-fA-F]{64}$/u;
 const UNSAFE_PACKAGE_PATH = /(^|\/)(?:\.env(?:\.|$)|\.git(?:\/|$)|node_modules(?:\/|$)|src(?:\/|$)|tests?(?:\/|$)|auth\.json$)/iu;
-const UNTRUSTED_EXPRESSION_IN_RUN = /\$\{\{\s*github\.(?:event\.|head_ref\b)/u;
+const UNTRUSTED_EXPRESSION_IN_RUN =
+  /\$\{\{[^}]*github\s*(?:\.\s*(?:event|head_ref)\b|\[\s*["'](?:event|head_ref)["']\s*\])/iu;
 
 function diagnostic(input: {
   readonly rule: RepositorySecurityRuleMetadata;
@@ -71,6 +72,39 @@ function jobPermissions(
   workflowPermissions: RepositorySecurityEvidence["workflows"][number]["permissions"]
 ) {
   return job.permissions ?? workflowPermissions;
+}
+
+function inputIsEnabledOrAbsent(
+  step: WorkflowJobEvidence["steps"][number],
+  name: string
+): boolean {
+  const value = step.inputs[name];
+  return (
+    value === undefined ||
+    value === true ||
+    (typeof value === "string" && value.toLowerCase() === "true")
+  );
+}
+
+function inputIsDisabledOrAbsent(
+  step: WorkflowJobEvidence["steps"][number],
+  name: string
+): boolean {
+  const value = step.inputs[name];
+  return (
+    value === undefined ||
+    value === false ||
+    (typeof value === "string" && value.toLowerCase() === "false")
+  );
+}
+
+function scansRepositoryRoot(step: WorkflowJobEvidence["steps"][number]): boolean {
+  const path = step.inputs["path"];
+  return (
+    (path === undefined || path === "." || path === "./") &&
+    step.inputs["file"] === undefined &&
+    step.inputs["image"] === undefined
+  );
 }
 
 export function evaluateRepositorySecurity(
@@ -167,7 +201,13 @@ export function evaluateRepositorySecurity(
         }
         if (
           workflow.path === policy.dependencyReviewWorkflow &&
-          workflow.triggers.includes("pull_request") &&
+          workflow.unconditionalTriggers.includes("pull_request") &&
+          !job.conditional &&
+          !job.nonBlocking &&
+          !step.conditional &&
+          !step.nonBlocking &&
+          inputIsDisabledOrAbsent(step, "warn-only") &&
+          step.inputs["config-file"] === undefined &&
           step.uses?.startsWith("actions/dependency-review-action@") === true &&
           actionPinned(step.uses)
         ) {
@@ -175,7 +215,13 @@ export function evaluateRepositorySecurity(
         }
         if (
           workflow.path === policy.sbomWorkflow &&
-          workflow.triggers.includes("pull_request") &&
+          workflow.unconditionalTriggers.includes("pull_request") &&
+          !job.conditional &&
+          !job.nonBlocking &&
+          !step.conditional &&
+          !step.nonBlocking &&
+          inputIsEnabledOrAbsent(step, "upload-artifact") &&
+          scansRepositoryRoot(step) &&
           step.uses?.startsWith("anchore/sbom-action@") === true &&
           actionPinned(step.uses)
         ) {

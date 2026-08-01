@@ -54,6 +54,7 @@ boundaries:
       - packages/engineering-foundation/src/errors.ts
       - packages/engineering-foundation/src/filesystem-path-safety.ts
       - packages/engineering-foundation/src/schema-catalog.ts
+      - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
       - packages/engineering-foundation/src/strict-yaml.ts
     allow:

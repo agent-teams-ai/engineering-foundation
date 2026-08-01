@@ -33,7 +33,10 @@ export async function promotePublicApiBaselines(
     readonly repository: PublicApiRepository;
   }
 ): Promise<readonly PublicApiSnapshot[]> {
-  const promoted: PublicApiSnapshot[] = [];
+  const promotions: Array<{
+    readonly packagePolicy: PublicApiCompatibilityPolicy["packages"][number];
+    readonly snapshot: PublicApiSnapshot;
+  }> = [];
   for (const packagePolicy of input.policy.packages) {
     assertNotCancelled(input.signal);
     const [released, releaseEvidence] = await Promise.all([
@@ -107,13 +110,18 @@ export async function promotePublicApiBaselines(
         );
       }
     }
+    promotions.push({ packagePolicy, snapshot: current });
+  }
+
+  for (const promotion of promotions) {
+    assertNotCancelled(input.signal);
     await dependencies.repository.writeReleasedBaseline(
       input.consumerRoot,
-      packagePolicy,
-      current,
+      promotion.packagePolicy,
+      promotion.snapshot,
       input.signal
     );
-    promoted.push(current);
   }
-  return Object.freeze(promoted);
+
+  return Object.freeze(promotions.map(({ snapshot }) => snapshot));
 }

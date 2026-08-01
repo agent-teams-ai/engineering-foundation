@@ -223,11 +223,12 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
     }
     const items = itemsInput.map(mapItem);
     const references = items.map((item) => item.canonicalReference);
+    const sortedReferences = references.toSorted(compareCanonicalReferences);
     if (
       new Set(references).size !== references.length ||
       references.some(
         (value, index) =>
-          value !== references.toSorted(compareCanonicalReferences)[index]
+          value !== sortedReferences[index]
       )
     ) {
       inputError(
@@ -244,10 +245,18 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         "public-api-evidence"
       );
     }
+    const packageVersion = String(baseline["packageVersion"]);
+    if (!isExactVersion(packageVersion)) {
+      inputError(
+        "PUBLIC_API_BASELINE_INVALID",
+        `Released API baseline version is not exact SemVer: ${packageVersion}.`,
+        "public-api-evidence"
+      );
+    }
     return Object.freeze({
       schemaVersion: 1,
       packageName,
-      packageVersion: String(baseline["packageVersion"]),
+      packageVersion,
       extractorVersion: String(baseline["extractorVersion"]),
       items: Object.freeze(items)
     });

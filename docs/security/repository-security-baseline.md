@@ -14,9 +14,14 @@ and malformed YAML are invalid input rather than partial success.
 - a job can request `write` only when consumer policy declares its exact workflow,
   job ID, and complete permission map;
 - stale privilege declarations, `write-all`, `pull_request_target`, and direct
-  `${{ github.event.* }}` interpolation inside shell scripts fail;
+  dot or bracket access to `github.event` and `github.head_ref` inside shell
+  interpolation fail;
 - the declared workflows must run pinned Dependency Review and Anchore SBOM
-  actions.
+  actions on every pull request without job/step conditions or
+  `continue-on-error`;
+- Dependency Review cannot use advisory `warn-only` or an uninspected external
+  config file; the SBOM action scans the repository root and retains its
+  artifact.
 
 ## Package controls
 

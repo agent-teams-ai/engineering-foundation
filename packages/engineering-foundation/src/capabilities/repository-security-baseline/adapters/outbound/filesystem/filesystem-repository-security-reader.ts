@@ -112,6 +112,33 @@ function triggers(value: unknown): readonly string[] {
   return Object.freeze(Object.keys(record(value, "workflow.on")).toSorted());
 }
 
+function unconditionalTriggers(value: unknown): readonly string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return Object.freeze(
+      value.filter((entry): entry is string => typeof entry === "string").toSorted()
+    );
+  }
+  const input = record(value, "workflow.on");
+  return Object.freeze(
+    Object.entries(input)
+      .filter(([, configuration]) => {
+        if (configuration === null) {
+          return true;
+        }
+        return (
+          typeof configuration === "object" &&
+          !Array.isArray(configuration) &&
+          Object.keys(configuration).length === 0
+        );
+      })
+      .map(([trigger]) => trigger)
+      .toSorted()
+  );
+}
+
 function steps(value: unknown, field: string): readonly WorkflowStepEvidence[] {
   if (value === undefined) {
     return [];
@@ -122,7 +149,17 @@ function steps(value: unknown, field: string): readonly WorkflowStepEvidence[] {
   return Object.freeze(
     value.map((entry, index) => {
       const step = record(entry, `${field}[${index}]`);
+      const stepInputs = step["with"];
       return Object.freeze({
+        conditional: step["if"] !== undefined,
+        nonBlocking:
+          step["continue-on-error"] !== undefined &&
+          step["continue-on-error"] !== false,
+        inputs: Object.freeze(
+          stepInputs === undefined
+            ? {}
+            : record(stepInputs, `${field}[${index}].with`)
+        ),
         ...(typeof step["uses"] === "string" ? { uses: step["uses"] } : {}),
         ...(typeof step["run"] === "string" ? { run: step["run"] } : {})
       });
@@ -140,6 +177,10 @@ function workflow(path: string, source: string): WorkflowEvidence {
       `workflow ${path}.jobs.${id}.permissions`
     );
     return Object.freeze({
+      conditional: job["if"] !== undefined,
+      nonBlocking:
+        job["continue-on-error"] !== undefined &&
+        job["continue-on-error"] !== false,
       id,
       ...(typeof job["uses"] === "string" ? { uses: job["uses"] } : {}),
       ...(jobPermissions === undefined ? {} : { permissions: jobPermissions }),
@@ -150,6 +191,7 @@ function workflow(path: string, source: string): WorkflowEvidence {
   return Object.freeze({
     path,
     triggers: triggers(input["on"]),
+    unconditionalTriggers: unconditionalTriggers(input["on"]),
     ...(workflowPermissions === undefined ? {} : { permissions: workflowPermissions }),
     jobs: Object.freeze(jobs.toSorted((left, right) => left.id.localeCompare(right.id)))
   });

@@ -20,8 +20,8 @@ package catalog, dependency permissions, security classifications, and ADRs.
 Capabilities are extracted incrementally from proven repositories. A capability
 moves here only with parity fixtures and a consumer conformance test.
 `workspace.dependency-declarations` is active.
-`architecture.source-dependencies` is implemented and dogfooded while its Oxc
-adapter decision remains proposed pending explicit approval. See
+`architecture.source-dependencies` is active and dogfooded with its accepted
+Oxc adapter. See
 [Executable capabilities](docs/architecture/executable-capabilities.md) and
 [the parser spike](docs/research/source-dependency-parser-spike.md).
 

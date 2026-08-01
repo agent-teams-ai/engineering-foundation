@@ -1,6 +1,6 @@
 # Source Dependency Parser Spike
 
-Status: Completed evidence; candidate adapter implemented, ADR-0002 proposed
+Status: Completed evidence; adapter implemented, ADR-0002 accepted
 
 Date: 2026-08-01
 
@@ -60,10 +60,10 @@ fail-closed behavior parser-neutral. Retain TypeScript 6 only as an isolated
 test oracle during the observation window; it must not enter production runtime
 dependencies or consumer configuration.
 
-This proposed decision prioritizes current syntax coverage and a supported parser
-API over a modest synthetic throughput advantage. Before acceptance, GitHub CI
-must prove the native Oxc package on both Linux and Windows. Before the scanner
-becomes blocking, measure full-repository latency and memory against an explicit
+This decision prioritizes current syntax coverage and a supported parser API over
+a modest synthetic throughput advantage. GitHub CI proved the native Oxc package
+on both Linux and Windows before acceptance. Before the scanner becomes blocking
+in large consumers, measure full-repository latency and memory against an explicit
 budget; do not derive a pass threshold from this microbenchmark.
 
 ## Guardrails

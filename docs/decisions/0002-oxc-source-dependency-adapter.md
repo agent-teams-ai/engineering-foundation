@@ -1,10 +1,12 @@
 # ADR-0002: Oxc Source Dependency Adapter
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-08-01
 
 Decision owner: Product owner
+
+Accepted: 2026-08-02
 
 ## Context
 
@@ -13,7 +15,7 @@ JavaScript and TypeScript syntax without exposing parser-specific types through
 the capability contract. The executable parser spike compared Oxc 0.142.0 with
 an isolated TypeScript 6.0.3 oracle against independent expected fixtures.
 
-## Proposed decision
+## Decision
 
 1. Use exact `oxc-parser` 0.142.0 in the outbound parser adapter.
 2. Keep parsing, dependency resolution, workspace discovery, and policy
@@ -28,11 +30,11 @@ an isolated TypeScript 6.0.3 oracle against independent expected fixtures.
 
 ## Implementation evidence
 
-The candidate implementation is complete and dogfooded by this repository. It
+The implementation is complete and dogfooded by this repository. It
 has adversarial capability fixtures, parser parity evidence, macOS local
 verification, a real tarball consumer test, and required Linux and Windows jobs
-in the pull-request workflow. This implementation evidence does not change this
-ADR to Accepted.
+in the pull-request workflow. The product owner explicitly approved the decision
+after the required cross-platform checks passed.
 
 ## Consequences
 
@@ -42,11 +44,6 @@ ADR to Accepted.
 - Parser-native AST types never cross into application policy or public schemas.
 - Replacing Oxc requires the same corpus, package conformance, and a superseding
   decision.
-
-## Approval condition
-
-Change this ADR to Accepted only after explicit product-owner confirmation and
-green Linux and Windows pull-request checks.
 
 The reproducible evidence is recorded in
 [Source dependency parser spike](../research/source-dependency-parser-spike.md).

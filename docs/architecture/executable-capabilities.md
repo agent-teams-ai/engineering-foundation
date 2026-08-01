@@ -1,12 +1,12 @@
 # Executable Capabilities
 
-Status: Active for `workspace.dependency-declarations`; implementation candidate
-complete for `architecture.source-dependencies` pending ADR-0002 approval.
+Status: Active for `workspace.dependency-declarations` and
+`architecture.source-dependencies`.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
-dependency candidate is now implemented and dogfooded behind internal ports.
-Its Oxc selection remains proposed until ADR-0002 is explicitly accepted.
+dependency capability is implemented and dogfooded behind internal ports.
+ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
 
 ## Goals
 
@@ -79,7 +79,7 @@ The second implementation validates observed source relationships:
 - unsupported or unresolvable governed imports fail closed.
 
 The source scanner, resolver, source-tree reader, and workspace inventory sit
-behind separate internal ports. Exact Oxc 0.142.0 is the proposed outbound parser
+behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parser
 adapter after comparison with a TypeScript 6 oracle. Parser-native types never
 cross into application policy or public contracts.
 
@@ -337,7 +337,6 @@ product graph.
 
 ## Deferred work
 
-- acceptance of ADR-0002 after cross-platform pull-request evidence;
 - affected execution, persistent cache, and watch mode;
 - SARIF conversion and versioned partial fingerprints;
 - autofix and scaffolding;

@@ -15,4 +15,4 @@ architecture document. Changing an accepted decision requires a new ADR.
   - Accepted
 - ADR-0002:
   [Oxc source dependency adapter](0002-oxc-source-dependency-adapter.md)
-  - Proposed
+  - Accepted

@@ -4,8 +4,6 @@ on:
   workflow_run:
     workflows:
       - CI
-    branches:
-      - changeset-release/main
     types:
       - completed
 
@@ -30,12 +28,13 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch }}
           SOURCE_EVENT: ${{ github.event.workflow_run.event }}
         run: |
           set -euo pipefail
 
-          if [[ "${SOURCE_EVENT}" != "workflow_dispatch" ]]; then
-            echo "Ignoring non-dispatched CI event: ${SOURCE_EVENT}"
+          if [[ "${SOURCE_EVENT}" != "workflow_dispatch" || "${SOURCE_BRANCH}" != "changeset-release/main" ]]; then
+            echo "Ignoring CI event: ${SOURCE_EVENT} on ${SOURCE_BRANCH}"
             exit 0
           fi
 

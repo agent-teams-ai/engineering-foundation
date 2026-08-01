@@ -12,9 +12,10 @@
   },
   "scripts": {
     "build": "tsc --build tsconfig.json --pretty false",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm package:check",
+    "check": "pnpm lint && pnpm typecheck && pnpm foundation:check && pnpm test && pnpm package:check",
     "changeset": "changeset",
     "clean": "node scripts/clean.mjs",
+    "foundation:check": "pnpm build && node packages/engineering-foundation/dist/cli.js check --consumer .",
     "lint": "oxlint --config .oxlintrc.json --deny-warnings --disable-nested-config .",
     "package:check": "pnpm build && node scripts/prepare-package.mjs && publint packages/engineering-foundation && attw --pack --profile esm-only packages/engineering-foundation && node scripts/pack-test.mjs",
     "release:publish": "pnpm check && changeset publish",

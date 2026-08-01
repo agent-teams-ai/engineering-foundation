@@ -1,0 +1,6 @@
+schemaVersion: 1
+project:
+  id: engineering-foundation
+capabilities:
+  workspace.dependency-declarations:
+    configPath: architecture/foundation/dependency-declarations.yaml

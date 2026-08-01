@@ -15,9 +15,29 @@ test("ignores the package-manager argument separator", () => {
     encoding: "utf8",
   });
 
-  assert.equal(result.status, 1);
+  assert.equal(result.status, 2);
   assert.match(
     result.stderr,
-    /attach requires a foundation repository or package path\./u,
+    /^CONSUMER_INVALID: attach requires a foundation repository or package path\./u,
   );
+});
+
+test("uses the stable invalid-invocation exit code", () => {
+  for (const commandArguments of [
+    ["check", "--format", "xml"],
+    ["check", "workspace.dependency-declarations", "extra"],
+    ["check", "--unknown-option"],
+    ["unknown-command"],
+  ]) {
+    const result = spawnSync(process.execPath, [cliPath, ...commandArguments], {
+      encoding: "utf8",
+    });
+
+    assert.equal(
+      result.status,
+      2,
+      `${commandArguments.join(" ")}: ${result.stderr}`,
+    );
+    assert.match(result.stderr, /^CONSUMER_INVALID:/u);
+  }
 });

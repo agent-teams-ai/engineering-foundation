@@ -291,11 +291,12 @@ async function readManifestBatch(
 export class PnpmWorkspaceReader implements WorkspaceReader {
   async read(
     consumerRoot: string,
+    workspaceManifestPath: string,
     signal?: AbortSignal
   ): Promise<WorkspaceSnapshot> {
     const input = await loadStrictYamlFile(
       consumerRoot,
-      "pnpm-workspace.yaml",
+      workspaceManifestPath,
       "workspace-manifest",
       signal
     );

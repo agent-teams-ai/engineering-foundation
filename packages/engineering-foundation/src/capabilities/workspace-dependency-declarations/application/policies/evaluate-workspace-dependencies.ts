@@ -3,7 +3,7 @@ import type {
   FoundationDiagnostic
 } from "../../../../check-contract.js";
 import { isExactVersion } from "../../../../semantic-version.js";
-import type { WorkspaceDependencyDeclarationsConfig } from "../../contract/config.js";
+import type { WorkspaceDependencyPolicy } from "../../contract/config.js";
 import type {
   DependencyDeclaration,
   WorkspaceSnapshot
@@ -137,7 +137,7 @@ function evaluatePackageNames(snapshot: WorkspaceSnapshot): FoundationDiagnostic
 
 function evaluateDeclarations(
   snapshot: WorkspaceSnapshot,
-  config: WorkspaceDependencyDeclarationsConfig
+  policy: WorkspaceDependencyPolicy
 ): FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const workspaceNames = new Set(
@@ -145,9 +145,9 @@ function evaluateDeclarations(
       .map((entry) => entry.name)
       .filter((name) => !name.startsWith("<unnamed:"))
   );
-  const devOnly = new Set(config.policies.developmentOnlyPackages);
+  const devOnly = new Set(policy.developmentOnlyPackages);
   const exactRegistryDevOnly = new Set(
-    config.policies.exactRegistryDevelopmentOnlyPackages
+    policy.exactRegistryDevelopmentOnlyPackages
   );
   const allDevOnly = new Set([...devOnly, ...exactRegistryDevOnly]);
   const catalogKeys = new Set(
@@ -230,7 +230,7 @@ function evaluateDeclarations(
       if (
         isReservedPackage(
           dependency.dependencyName,
-          config.policies.reservedScopes
+          policy.reservedScopes
         )
       ) {
         diagnostics.push(
@@ -288,12 +288,12 @@ function evaluateDeclarations(
 
 export function evaluateWorkspaceDependencies(
   snapshot: WorkspaceSnapshot,
-  config: WorkspaceDependencyDeclarationsConfig
+  policy: WorkspaceDependencyPolicy
 ): readonly FoundationDiagnostic[] {
   return [
     ...evaluateCatalogs(snapshot),
     ...evaluatePackageManager(snapshot),
     ...evaluatePackageNames(snapshot),
-    ...evaluateDeclarations(snapshot, config)
+    ...evaluateDeclarations(snapshot, policy)
   ];
 }

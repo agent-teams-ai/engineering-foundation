@@ -1,0 +1,20 @@
+schemaVersion: 1
+packageManager:
+  kind: pnpm
+  workspaceManifest: pnpm-workspace.yaml
+policies:
+  externalDependencies: catalog
+  catalogVersions: exact
+  internalDependencies: workspace-protocol
+  reservedScopes:
+    - "@agent-teams/"
+  developmentOnlyPackages:
+    - "@arethetypeswrong/cli"
+    - "@changesets/changelog-github"
+    - "@changesets/cli"
+    - "@types/node"
+    - "@types/proper-lockfile"
+    - oxlint
+    - publint
+    - typescript
+  exactRegistryDevelopmentOnlyPackages: []

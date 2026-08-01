@@ -234,6 +234,15 @@ test("returns the stable cancellation outcome without reading consumer input", a
   assert.equal(report.problem.code, "EXECUTION_CANCELLED");
 });
 
+test("classifies an unavailable consumer root as invalid input", () => {
+  const { result, report } = check(
+    join(tmpdir(), "foundation-consumer-that-does-not-exist"),
+  );
+  assert.equal(result.status, 2);
+  assert.equal(report.outcome, "invalid-input");
+  assert.equal(report.problem.code, "CONSUMER_ROOT_UNAVAILABLE");
+});
+
 test("exposes immutable schemas and rule explanations through the CLI", () => {
   const schema = spawnSync(
     process.execPath,

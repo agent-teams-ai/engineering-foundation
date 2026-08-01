@@ -44,7 +44,27 @@ export async function resolveContainedFile(
   phase: string
 ): Promise<string> {
   assertRepositoryRelativePath(repositoryPath, phase);
-  const canonicalRoot = await realpath(consumerRoot);
+  let canonicalRoot: string;
+  try {
+    canonicalRoot = await realpath(consumerRoot);
+    const rootMetadata = await stat(canonicalRoot);
+    if (!rootMetadata.isDirectory()) {
+      inputError(
+        "CONSUMER_ROOT_INVALID",
+        "Consumer root must be an existing directory.",
+        phase
+      );
+    }
+  } catch (error) {
+    if (error instanceof CapabilityInputError) {
+      throw error;
+    }
+    inputError(
+      "CONSUMER_ROOT_UNAVAILABLE",
+      "Consumer root must be an existing accessible directory.",
+      phase
+    );
+  }
   const candidate = resolve(canonicalRoot, repositoryPath);
   let canonicalCandidate: string;
   try {

@@ -30,16 +30,35 @@ interface ParsedArguments {
   readonly format: OutputFormat;
 }
 
+const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze({
+  "--help": 0,
+  "--version": 0,
+  "-h": 0,
+  "-v": 0,
+  "assert-dev-only": 0,
+  "assert-registry": 0,
+  attach: 1,
+  check: 1,
+  detach: 0,
+  explain: 1,
+  help: 0,
+  schema: 1,
+  "self-check": 0,
+  status: 0,
+  version: 0
+});
+
 function parseArguments(args: readonly string[]): ParsedArguments {
   const positional: string[] = [];
   let consumerRoot = process.cwd();
   let format: OutputFormat = "text";
+  let optionsEnded = false;
 
   for (let index = 1; index < args.length; index += 1) {
     const value = args[index];
-    if (value === "--consumer") {
+    if (!optionsEnded && value === "--consumer") {
       const candidate = args[index + 1];
-      if (candidate === undefined) {
+      if (candidate === undefined || candidate.length === 0) {
         throw new FoundationError(
           "CONSUMER_INVALID",
           "--consumer requires a path."
@@ -47,9 +66,9 @@ function parseArguments(args: readonly string[]): ParsedArguments {
       }
       consumerRoot = resolve(candidate);
       index += 1;
-    } else if (value === "--json") {
+    } else if (!optionsEnded && value === "--json") {
       format = "json";
-    } else if (value === "--format") {
+    } else if (!optionsEnded && value === "--format") {
       const candidate = args[index + 1];
       if (candidate !== "json" && candidate !== "text") {
         throw new FoundationError(
@@ -59,15 +78,29 @@ function parseArguments(args: readonly string[]): ParsedArguments {
       }
       format = candidate;
       index += 1;
-    } else if (value === "--") {
-      continue;
+    } else if (!optionsEnded && value === "--") {
+      optionsEnded = true;
+    } else if (!optionsEnded && value?.startsWith("-")) {
+      throw new FoundationError(
+        "CONSUMER_INVALID",
+        `Unknown option: ${value}.`
+      );
     } else if (value !== undefined) {
       positional.push(value);
     }
   }
 
+  const command = args[0] ?? "help";
+  const maximum = MAX_POSITIONAL_ARGUMENTS[command];
+  if (maximum !== undefined && positional.length > maximum) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      `${command} accepts at most ${maximum} positional argument${maximum === 1 ? "" : "s"}.`
+    );
+  }
+
   return {
-    command: args[0] ?? "help",
+    command,
     positional,
     consumerRoot,
     format
@@ -172,7 +205,7 @@ async function main(): Promise<void> {
       const target = parsed.positional[0];
       if (target === undefined) {
         throw new FoundationError(
-          "PACKAGE_INVALID",
+          "CONSUMER_INVALID",
           "attach requires a foundation repository or package path."
         );
       }
@@ -289,10 +322,11 @@ try {
 } catch (error) {
   if (error instanceof FoundationError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
+    process.exitCode = error.code === "CONSUMER_INVALID" ? 2 : 1;
   } else {
     process.stderr.write(
       `UNEXPECTED: ${error instanceof Error ? error.message : String(error)}\n`
     );
+    process.exitCode = 1;
   }
-  process.exitCode = 1;
 }

@@ -26,12 +26,13 @@ export function createWorkspaceDependencyDeclarationsCapability(): CapabilityDef
         );
         const snapshot = await workspaceReader.read(
           invocation.consumerRoot,
+          config.workspaceManifestPath,
           invocation.signal
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          diagnostics: evaluateWorkspaceDependencies(snapshot, config)
+          diagnostics: evaluateWorkspaceDependencies(snapshot, config.policy)
         });
       } catch (error) {
         if (error instanceof CapabilityInputError) {

@@ -3,6 +3,13 @@ workflowDirectory: .github/workflows
 dependencyReviewWorkflow: .github/workflows/dependency-review.yml
 sbomWorkflow: .github/workflows/ci.yml
 privilegedJobs:
+  - workflowPath: .github/workflows/reviewrouter.yml
+    jobId: review
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
   - workflowPath: .github/workflows/release.yml
     jobId: release
     permissions:

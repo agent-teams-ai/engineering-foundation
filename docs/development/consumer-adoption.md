@@ -1,6 +1,6 @@
 # Consumer Adoption
 
-Status: Active for foundation version 0.2.
+Status: Active for the current foundation release.
 
 ## Registry baseline
 
@@ -36,6 +36,8 @@ project:
 capabilities:
   architecture.source-dependencies:
     configPath: architecture/foundation/source-dependencies.yaml
+  quality.suppression-governance:
+    configPath: architecture/foundation/suppression-governance.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml
 ```
@@ -64,6 +66,11 @@ The consumer owns scope and package identities. Foundation owns validation
 semantics. Configuration is strict data: unknown keys, aliases, merge keys,
 custom tags, duplicate keys, escaping paths, and executable interpolation are
 not accepted.
+
+Declare only capabilities that apply to the repository. Publishable packages
+add `package.public-api-compatibility` and `repository.security-baseline` with
+consumer-owned paths, privileged jobs, and release evidence. Their canonical
+schemas and architecture references define the complete closed-world shape.
 
 ## Shared presets
 

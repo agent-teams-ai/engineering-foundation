@@ -25,6 +25,12 @@ project:
 capabilities:
   architecture.source-dependencies:
     configPath: architecture/foundation/source-dependencies.yaml
+  package.public-api-compatibility:
+    configPath: architecture/foundation/public-api-compatibility.yaml
+  quality.suppression-governance:
+    configPath: architecture/foundation/suppression-governance.yaml
+  repository.security-baseline:
+    configPath: architecture/foundation/repository-security-baseline.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml
 ```
@@ -39,3 +45,7 @@ configuration extends the fast
 `./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json`
 or type-aware `type-aware.json` preset. TypeScript remains the separate typecheck
 authority.
+
+`agent-teams-foundation public-api-promote-release` is reserved for the
+Changesets version workflow. Normal feature checks never update released API
+baselines.

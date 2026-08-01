@@ -1,7 +1,7 @@
 # Executable Capabilities
 
-Status: Active for `workspace.dependency-declarations` and
-`architecture.source-dependencies`.
+Status: Active for workspace declarations, source dependencies, suppression
+governance, public API compatibility, and repository security.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
@@ -86,6 +86,17 @@ cross into application policy or public contracts.
 Documentation ownership, DDD feature layout, LikeC4, security classification,
 reliability catalogs, and scaffolding are separate capabilities or remain local
 consumer checks. They cannot be added to either dependency capability.
+
+### Governance capabilities
+
+- `quality.suppression-governance` owns exact temporary inline waivers;
+- `package.public-api-compatibility` owns released TypeScript API evidence,
+  Changeset classification, and breaking-change approval;
+- `repository.security-baseline` owns workflow least privilege, immutable action
+  references, dependency/SBOM gates, and publishable package metadata.
+
+Each remains an independent feature slice with its own model, ports, policies,
+adapters, schema, rules, and fixtures.
 
 ## Internal package shape
 
@@ -275,22 +286,18 @@ cannot consume another capability's report or rely on incidental execution order
 A shared read-only snapshot may be extracted internally only after repeated
 parsing cost or drift is measured.
 
-Version 0.2 performs complete checks only. Capability code is read-only and uses
-no network, shell, or subprocess. It accepts `AbortSignal`, applies file-count and
-file-size limits, detects case-folding collisions, uses bounded I/O concurrency,
-and sorts results independently of scheduling. Linux and Windows behavior must
-match.
+Normal capability checks are read-only and use no network, shell, or subprocess.
+The explicit release-only API baseline promotion command is the sole write path;
+it performs an atomic adapter-local replacement after release evidence passes.
+Checks accept `AbortSignal`, bound input, reject path ambiguity, and sort results
+independently of scheduling. Linux and Windows behavior must match.
 
 ## Exceptions and suppressions
 
-Version 0.2 has no inline suppression comments and no baseline file. If real
-adoption proves that waivers are necessary, one later data-only waiver contract
-must require at least a rule ID, semantic subject or narrow path, reason, owner,
-expiry, and architecture decision reference. Blanket, permanent, unexplained,
-or consumer-code suppressions remain prohibited.
-
-This reserved shape prevents ad hoc ignore mechanisms without prematurely adding
-waiver behavior to the first capability.
+Inline suppression governance is active. Its exact waiver contract and
+non-waivable rule classes are defined in
+[Suppression governance](suppression-governance.md). Capability diagnostics have
+no inline suppression mechanism.
 
 ## Compatibility and release policy
 

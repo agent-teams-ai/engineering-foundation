@@ -9,9 +9,11 @@ not repeat their rules.
 | Subject | Document | State |
 | --- | --- | --- |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
-| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Accepted target; implementation pending |
+| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | First capability active |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
 | Local package development | [Local mode](development/local-mode.md) | Active |
+| Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
+| Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
 | Package release | [Release](release.md) | Active |
 | Architecture decisions | [Decision index](decisions/README.md) | Active |
 
@@ -22,8 +24,8 @@ not repeat their rules.
   rather than silently rewriting them.
 - `architecture/` owns the current target design and engineering invariants.
 - `development/` owns contributor workflows that are true today.
-- reference schemas and generated material will be added only when executable
-  capabilities exist. Generated output is never a source of truth.
+- `reference/` explains stable executable rules. Immutable JSON schemas shipped
+  by the package remain the source of truth for public data contracts.
 
 Every target document must state whether it is implemented. A target design must
 not be presented as an available command or package API before conformance proves

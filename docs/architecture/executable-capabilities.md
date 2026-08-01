@@ -1,10 +1,11 @@
 # Executable Capabilities
 
-Status: Accepted target architecture; not yet implemented.
+Status: Active for `workspace.dependency-declarations`; later capabilities remain
+target architecture.
 
-ADR-0001 accepts this model. Version 0.1.1 still exposes
-`foundation.config.mjs`; implementation must migrate the package and every
-consumer before an executable capability becomes blocking.
+ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
+strict `foundation.config.yaml` and implements the first capability. The source
+dependency parser and its capability remain deferred.
 
 ## Goals
 
@@ -121,7 +122,7 @@ The target root is `foundation.config.yaml`:
 ```yaml
 schemaVersion: 1
 project:
-  id: agent-teams-orchestrator
+  id: consumer-repository
 capabilities:
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml

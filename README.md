@@ -7,25 +7,22 @@ This repository contains reusable development tooling only. Product runtime code
 must not import it. Each consumer remains authoritative for its own domain model,
 package catalog, dependency permissions, security classifications, and ADRs.
 
-## Initial Scope
+## Scope
 
-- typed consumer configuration;
+- strict data-only consumer configuration and versioned schemas;
+- executable `workspace.dependency-declarations` policy;
+- shared Oxlint and TypeScript 7 baseline presets;
 - explicit registry and local-link modes;
 - deterministic attach, status, detach, and registry assertions;
 - isolated package-content and consumer verification;
 - release automation for immutable public npm versions.
 
-Capabilities such as documentation, lint, architecture, security, and reliability
-are extracted incrementally from proven repositories. A capability moves here only
-with parity fixtures and a consumer conformance test.
-
-The accepted executable-capability architecture replaces those broad placeholder
-categories with granular policy surfaces. The first planned sequence is
-`workspace.dependency-declarations`, followed by
-`architecture.source-dependencies`. See
+Capabilities are extracted incrementally from proven repositories. A capability
+moves here only with parity fixtures and a consumer conformance test. The first
+implemented capability is `workspace.dependency-declarations`;
+`architecture.source-dependencies` remains deferred until its parser spike. See
 [Executable capabilities](docs/architecture/executable-capabilities.md) and
-[ADR-0001](docs/decisions/0001-executable-capability-foundation.md). This target
-is not implemented in version 0.1.1.
+[ADR-0001](docs/decisions/0001-executable-capability-foundation.md).
 
 ## Commands
 
@@ -38,12 +35,16 @@ pnpm package:check
 Consumers use:
 
 ```bash
+pnpm foundation:check
 pnpm foundation:attach -- /absolute/path/to/engineering-foundation
 pnpm foundation:status
 pnpm foundation:detach
 pnpm foundation:assert-dev-only
 pnpm foundation:assert-registry
 ```
+
+`foundation:check` emits one deterministic aggregate report and enforces every
+declared capability. See [consumer adoption](docs/development/consumer-adoption.md).
 
 `foundation:assert-dev-only` rejects runtime dependency placement.
 `foundation:assert-registry` additionally proves that the exact declared version

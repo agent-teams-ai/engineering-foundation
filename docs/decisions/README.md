@@ -13,3 +13,6 @@ architecture document. Changing an accepted decision requires a new ADR.
 - ADR-0001:
   [Executable capability foundation](0001-executable-capability-foundation.md)
   - Accepted
+- ADR-0002:
+  [Oxc source dependency adapter](0002-oxc-source-dependency-adapter.md)
+  - Accepted

@@ -5,6 +5,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false"
+  },
   "bin": {
     "agent-teams-foundation": "./dist/cli.js"
   },
@@ -55,6 +58,7 @@
   },
   "dependencies": {
     "ajv": "catalog:",
+    "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",
     "yaml": "catalog:"
   }

@@ -1,12 +1,12 @@
 # Executable Capabilities
 
-Status: Active for `workspace.dependency-declarations`; later capabilities remain
-target architecture.
+Status: Active for `workspace.dependency-declarations` and
+`architecture.source-dependencies`.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
-dependency capability remains deferred. Its parser spike is complete, but the
-production parser recommendation is not accepted until a dedicated decision.
+dependency capability is implemented and dogfooded behind internal ports.
+ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
 
 ## Goals
 
@@ -78,10 +78,10 @@ The second implementation validates observed source relationships:
 - imported package subpaths are exported;
 - unsupported or unresolvable governed imports fail closed.
 
-The source scanner sits behind an internal port. A spike must compare the
-TypeScript Compiler API and Oxc against one adversarial fixture corpus before an
-adapter is selected. The existing hand-written scanner is donor evidence, not a
-long-term parser.
+The source scanner, resolver, source-tree reader, and workspace inventory sit
+behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parser
+adapter after comparison with a TypeScript 6 oracle. Parser-native types never
+cross into application policy or public contracts.
 
 Documentation ownership, DDD feature layout, LikeC4, security classification,
 reliability catalogs, and scaffolding are separate capabilities or remain local
@@ -89,7 +89,7 @@ consumer checks. They cannot be added to either dependency capability.
 
 ## Internal package shape
 
-The first capability remains inside the existing public package:
+Capabilities remain feature-owned inside the existing public package:
 
 ```text
 src/
@@ -108,6 +108,18 @@ src/
         outbound/pnpm-workspace/
       testing/
       module.ts
+    source-dependencies/
+      contract/
+      application/
+        model/
+        policies/
+        ports/
+        use-cases/
+      adapters/outbound/
+      module.ts
+  workspace-inventory/
+    application/
+    adapters/outbound/
 ```
 
 Do not create a large shared `capability-runtime` hierarchy before a second
@@ -265,8 +277,9 @@ parsing cost or drift is measured.
 
 Version 0.2 performs complete checks only. Capability code is read-only and uses
 no network, shell, or subprocess. It accepts `AbortSignal`, applies file-count and
-file-size limits, uses bounded I/O concurrency, and sorts results independently
-of scheduling. Linux and Windows behavior must match.
+file-size limits, detects case-folding collisions, uses bounded I/O concurrency,
+and sorts results independently of scheduling. Linux and Windows behavior must
+match.
 
 ## Exceptions and suppressions
 
@@ -324,7 +337,6 @@ product graph.
 
 ## Deferred work
 
-- acceptance and implementation of the proposed source-parser selection;
 - affected execution, persistent cache, and watch mode;
 - SARIF conversion and versioned partial fingerprints;
 - autofix and scaffolding;

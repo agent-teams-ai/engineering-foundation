@@ -20,5 +20,6 @@ Start with:
 - [Documentation index](docs/README.md)
 - [Ownership](docs/architecture/ownership.md)
 - [Executable capabilities](docs/architecture/executable-capabilities.md)
+- [Quality gates](docs/development/quality-gates.md)
 - [Local mode](docs/development/local-mode.md)
 - [Release](docs/release.md)

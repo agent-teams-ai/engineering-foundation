@@ -38,7 +38,7 @@ export function assertRepositoryRelativePath(path: string, phase: string): void 
   }
 }
 
-export async function resolveContainedFile(
+async function resolveContainedFile(
   consumerRoot: string,
   repositoryPath: string,
   phase: string
@@ -95,7 +95,7 @@ export async function resolveContainedFile(
   return canonicalCandidate;
 }
 
-export function parseStrictYaml(source: string, phase: string): unknown {
+function parseStrictYaml(source: string, phase: string): unknown {
   const document = parseDocument(source, {
     customTags: [],
     merge: false,

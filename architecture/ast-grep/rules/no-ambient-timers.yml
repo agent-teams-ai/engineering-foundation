@@ -1,0 +1,12 @@
+id: foundation-no-ambient-timers
+language: TypeScript
+severity: error
+message: Foundation source must not schedule ambient timers.
+note: Model timers as commands or use a scheduler port.
+files:
+  - "packages/engineering-foundation/src/**/*.ts"
+rule:
+  any:
+    - pattern: setTimeout($$$ARGS)
+    - pattern: setInterval($$$ARGS)
+    - pattern: setImmediate($$$ARGS)

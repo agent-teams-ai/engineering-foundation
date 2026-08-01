@@ -9,12 +9,12 @@ export type FoundationOutcome =
 
 export type DiagnosticSeverity = "error" | "warning" | "info";
 
-export interface DiagnosticPosition {
+interface DiagnosticPosition {
   readonly line: number;
   readonly column: number;
 }
 
-export interface DiagnosticLocation {
+interface DiagnosticLocation {
   readonly path: string;
   readonly start?: DiagnosticPosition;
   readonly end?: DiagnosticPosition;

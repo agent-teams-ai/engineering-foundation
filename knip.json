@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/*.mjs",
+        "tests/*.test.mjs"
+      ],
+      "project": [
+        "scripts/*.mjs",
+        "tests/**/*.mjs"
+      ]
+    },
+    "packages/engineering-foundation": {
+      "project": ["src/**/*.ts"]
+    },
+    "spikes/source-dependency-parser": {
+      "project": ["*.mjs"]
+    }
+  }
+}

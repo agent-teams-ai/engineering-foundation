@@ -23,6 +23,8 @@ schemaVersion: 1
 project:
   id: consumer-repository
 capabilities:
+  architecture.source-dependencies:
+    configPath: architecture/foundation/source-dependencies.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml
 ```
@@ -33,5 +35,7 @@ and `agent-teams-foundation explain <rule-id>` for rule guidance.
 
 TypeScript consumers may extend
 `@agent-teams/engineering-foundation/presets/typescript/node.json`. Oxlint JSON
-configuration extends
-`./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json`.
+configuration extends the fast
+`./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json`
+or type-aware `type-aware.json` preset. TypeScript remains the separate typecheck
+authority.

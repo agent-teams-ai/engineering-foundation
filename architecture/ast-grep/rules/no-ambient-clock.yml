@@ -1,0 +1,13 @@
+id: foundation-no-ambient-clock
+language: TypeScript
+severity: error
+message: Foundation source must receive time through an explicit boundary.
+note: Pass an Instant or Clock port instead of reading the ambient wall clock.
+files:
+  - "packages/engineering-foundation/src/**/*.ts"
+ignores:
+  - "packages/engineering-foundation/src/**/adapters/outbound/time/system-clock.ts"
+rule:
+  any:
+    - pattern: Date.now()
+    - pattern: new Date()

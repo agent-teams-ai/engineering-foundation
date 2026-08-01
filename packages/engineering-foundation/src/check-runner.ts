@@ -4,10 +4,7 @@ import {
 } from "./capability-runtime.js";
 import type { FoundationCheckReport } from "./check-contract.js";
 import { CAPABILITY_REGISTRY } from "./composition/capability-registry.js";
-import {
-  loadFoundationConfig,
-  WORKSPACE_DEPENDENCY_DECLARATIONS_CAPABILITY
-} from "./foundation-config.js";
+import { loadFoundationConfig } from "./foundation-config.js";
 
 export interface FoundationCheckInvocation {
   readonly consumerRoot: string;
@@ -87,12 +84,4 @@ export async function runFoundationCheck(
   } catch (error) {
     return rootProblemReport(invocation.foundationVersion, error);
   }
-}
-
-export function supportedCapabilityIds(): readonly string[] {
-  return [...CAPABILITY_REGISTRY.keys()].toSorted();
-}
-
-export function defaultCapabilityId(): string {
-  return WORKSPACE_DEPENDENCY_DECLARATIONS_CAPABILITY;
 }

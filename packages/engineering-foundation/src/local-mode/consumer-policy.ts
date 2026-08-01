@@ -260,7 +260,7 @@ export async function inspectFoundationRegistryProvenance(
     }
 
     return {
-      ...(packageKey === undefined ? {} : { packageKey }),
+      packageKey,
       ...(integrity === undefined ? {} : { integrity }),
       issues
     };

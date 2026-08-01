@@ -14,15 +14,21 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { FOUNDATION_REQUIRED_ARTIFACT_PATHS } from "../packages/engineering-foundation/dist/package-self-check.js";
+
 const execFileAsync = promisify(execFile);
 const requireFromRepository = createRequire(import.meta.url);
-const oxlintRoot = dirname(requireFromRepository.resolve("oxlint/package.json"));
-const oxlintEntrypoint = join(oxlintRoot, "bin", "oxlint");
-const typescriptEntrypoint = join(
-  dirname(requireFromRepository.resolve("typescript/package.json")),
-  "lib",
-  "tsc.js"
-);
+async function installedVersion(packageName) {
+  return JSON.parse(
+    await readFile(requireFromRepository.resolve(`${packageName}/package.json`), "utf8")
+  ).version;
+}
+
+const toolingVersions = {
+  oxlint: await installedVersion("oxlint"),
+  oxlintTsgolint: await installedVersion("oxlint-tsgolint"),
+  typescript: await installedVersion("typescript")
+};
 const pnpmEntrypoint = process.env.npm_execpath;
 const pnpmExecutable =
   pnpmEntrypoint === undefined ? "pnpm" : process.execPath;
@@ -108,16 +114,7 @@ try {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    "package/dist/index.js",
-    "package/dist/index.d.ts",
-    "package/dist/cli.js",
-    "package/presets/oxlint/base.json",
-    "package/presets/oxlint/node.json",
-    "package/presets/typescript/base.json",
-    "package/presets/typescript/node.json",
-    "package/schemas/foundation-config/v1.schema.json",
-    "package/schemas/foundation-check-report/v1.schema.json",
-    "package/schemas/workspace-dependency-declarations/v1.schema.json"
+    ...FOUNDATION_REQUIRED_ARTIFACT_PATHS.map((path) => `package/${path}`)
   ]) {
     if (!listing.split(/\r?\n/u).includes(required)) {
       throw new Error(`Required package entry missing: ${required}`);
@@ -136,12 +133,20 @@ try {
         type: "module",
         packageManager: "pnpm@11.18.0",
         devDependencies: {
-          "@agent-teams/engineering-foundation": archiveFileSpecifier
+          "@agent-teams/engineering-foundation": archiveFileSpecifier,
+          oxlint: "catalog:",
+          "oxlint-tsgolint": "catalog:",
+          typescript: "catalog:"
         }
       },
       null,
       2
     )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "pnpm-workspace.yaml"),
+    `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog:\n  oxlint: ${toolingVersions.oxlint}\n  oxlint-tsgolint: ${toolingVersions.oxlintTsgolint}\n  typescript: ${toolingVersions.typescript}\n`,
     "utf8"
   );
 
@@ -171,6 +176,17 @@ try {
   if (versionOutput.trim() !== packedManifest.version) {
     throw new Error("Packed CLI version differs from packed package version.");
   }
+  const requireFromConsumer = createRequire(join(consumerRoot, "package.json"));
+  const consumerOxlintEntrypoint = join(
+    dirname(requireFromConsumer.resolve("oxlint/package.json")),
+    "bin",
+    "oxlint"
+  );
+  const consumerTypescriptEntrypoint = join(
+    dirname(requireFromConsumer.resolve("typescript/package.json")),
+    "lib",
+    "tsc.js"
+  );
   await writeFile(
     join(consumerRoot, "package.json"),
     `${JSON.stringify(
@@ -181,7 +197,10 @@ try {
         type: "module",
         packageManager: "pnpm@11.18.0",
         devDependencies: {
-          "@agent-teams/engineering-foundation": packedManifest.version
+          "@agent-teams/engineering-foundation": packedManifest.version,
+          oxlint: "catalog:",
+          "oxlint-tsgolint": "catalog:",
+          typescript: "catalog:"
         }
       },
       null,
@@ -190,13 +209,8 @@ try {
     "utf8"
   );
   await writeFile(
-    join(consumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog: {}\n`,
-    "utf8"
-  );
-  await writeFile(
     join(consumerRoot, "foundation.config.yaml"),
-    `schemaVersion: 1\nproject:\n  id: pack-consumer\ncapabilities:\n  workspace.dependency-declarations:\n    configPath: architecture/foundation/dependency-declarations.yaml\n`,
+    `schemaVersion: 1\nproject:\n  id: pack-consumer\ncapabilities:\n  architecture.source-dependencies:\n    configPath: architecture/foundation/source-dependencies.yaml\n  workspace.dependency-declarations:\n    configPath: architecture/foundation/dependency-declarations.yaml\n`,
     "utf8"
   );
   await mkdir(join(consumerRoot, "architecture", "foundation"), {
@@ -209,7 +223,24 @@ try {
       "foundation",
       "dependency-declarations.yaml"
     ),
-    `schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - "@agent-teams/"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - "@agent-teams/engineering-foundation"\n`,
+    `schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - "@agent-teams/"\n  developmentOnlyPackages:\n    - oxlint\n    - oxlint-tsgolint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - "@agent-teams/engineering-foundation"\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(
+      consumerRoot,
+      "architecture",
+      "foundation",
+      "source-dependencies.yaml"
+    ),
+    `schemaVersion: 1\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - src\nboundaries:\n  - id: pack-consumer.core\n    roots:\n      - src\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
+    "utf8"
+  );
+  const consumerSourceRoot = join(consumerRoot, "src");
+  await mkdir(consumerSourceRoot, { recursive: true });
+  await writeFile(
+    join(consumerSourceRoot, "index.ts"),
+    `export function identity(value: string): string {\n  return value;\n}\n`,
     "utf8"
   );
   const { stdout: checkOutput } = await execFileAsync(
@@ -228,13 +259,40 @@ try {
   const packedCheck = JSON.parse(checkOutput);
   if (
     packedCheck.outcome !== "passed" ||
-    packedCheck.capabilities?.[0]?.capabilityId !==
-      "workspace.dependency-declarations"
+    packedCheck.capabilities?.map((capability) => capability.capabilityId).join(",") !==
+      "architecture.source-dependencies,workspace.dependency-declarations"
   ) {
     throw new Error("Packed executable capability check did not pass.");
   }
-  const consumerSourceRoot = join(consumerRoot, "src");
-  await mkdir(consumerSourceRoot, { recursive: true });
+  await writeFile(
+    join(consumerSourceRoot, "index.ts"),
+    `import "node:fs";\nexport const invalidBoundary = true;\n`,
+    "utf8"
+  );
+  let packedViolation;
+  try {
+    await execFileAsync(
+      pnpmExecutable,
+      pnpmArguments([
+        "exec",
+        "agent-teams-foundation",
+        "check",
+        "--consumer",
+        consumerRoot,
+        "--format",
+        "json"
+      ]),
+      { cwd: consumerRoot }
+    );
+  } catch (error) {
+    packedViolation = JSON.parse(error.stdout ?? "null");
+  }
+  if (
+    packedViolation?.capabilities?.[0]?.diagnostics?.[0]?.ruleId !==
+    "architecture.source-dependencies.forbidden-builtin-dependency"
+  ) {
+    throw new Error("Packed source capability did not reject a forbidden builtin.");
+  }
   await writeFile(
     join(consumerSourceRoot, "index.ts"),
     `export function identity(value: string): string {\n  return value;\n}\n`,
@@ -258,7 +316,7 @@ try {
   );
   await execFileAsync(
     process.execPath,
-    [typescriptEntrypoint, "--project", join(consumerRoot, "tsconfig.json")],
+    [consumerTypescriptEntrypoint, "--project", join(consumerRoot, "tsconfig.json")],
     { cwd: consumerRoot }
   );
   await writeFile(
@@ -277,13 +335,57 @@ try {
   await execFileAsync(
     process.execPath,
     [
-      oxlintEntrypoint,
+      consumerOxlintEntrypoint,
       "--config",
       join(consumerRoot, ".oxlintrc.json"),
       "--deny-warnings",
+      "--disable-nested-config",
       join(consumerRoot, "src")
     ],
     { cwd: consumerRoot }
+  );
+  await writeFile(
+    join(consumerRoot, ".oxlintrc.type-aware.json"),
+    `${JSON.stringify(
+      {
+        extends: [
+          "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/type-aware.json"
+        ]
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(consumerSourceRoot, "index.ts"),
+    `async function execute(): Promise<void> {}\nexecute();\n`,
+    "utf8"
+  );
+  let typeAwareFailure = "";
+  try {
+    await execFileAsync(
+      process.execPath,
+      [
+        consumerOxlintEntrypoint,
+        "--config",
+        join(consumerRoot, ".oxlintrc.type-aware.json"),
+        "--deny-warnings",
+        "--disable-nested-config",
+        join(consumerRoot, "src")
+      ],
+      { cwd: consumerRoot }
+    );
+  } catch (error) {
+    typeAwareFailure = `${error.stdout ?? ""}${error.stderr ?? ""}`;
+  }
+  if (!typeAwareFailure.includes("typescript(no-floating-promises)")) {
+    throw new Error("Packed type-aware Oxlint preset did not reject a floating promise.");
+  }
+  await writeFile(
+    join(consumerSourceRoot, "index.ts"),
+    `export function identity(value: string): string {\n  return value;\n}\n`,
+    "utf8"
   );
   const { stdout: selfCheckOutput } = await execFileAsync(
     pnpmExecutable,

@@ -1,6 +1,6 @@
 # Source Dependency Parser Spike
 
-Status: Completed evidence; production selection remains proposed
+Status: Completed evidence; adapter implemented, ADR-0002 accepted
 
 Date: 2026-08-01
 
@@ -54,16 +54,16 @@ pnpm spike:source-parser
 
 ## Recommendation
 
-Use Oxc behind a foundation-owned internal `SourceDependencyParser` port when
-the capability is implemented. Keep the normalized model, expected corpus, and
+Use Oxc behind a foundation-owned internal `SourceDependencyParser` port. The
+candidate capability now does this. Keep the normalized model, expected corpus, and
 fail-closed behavior parser-neutral. Retain TypeScript 6 only as an isolated
 test oracle during the observation window; it must not enter production runtime
 dependencies or consumer configuration.
 
-This recommendation prioritizes current syntax coverage and a supported parser
-API over a modest synthetic throughput advantage. Before acceptance, GitHub CI
-must prove the native Oxc package on both Linux and Windows. Before the scanner
-becomes blocking, measure full-repository latency and memory against an explicit
+This decision prioritizes current syntax coverage and a supported parser API over
+a modest synthetic throughput advantage. GitHub CI proved the native Oxc package
+on both Linux and Windows before acceptance. Before the scanner becomes blocking
+in large consumers, measure full-repository latency and memory against an explicit
 budget; do not derive a pass threshold from this microbenchmark.
 
 ## Guardrails

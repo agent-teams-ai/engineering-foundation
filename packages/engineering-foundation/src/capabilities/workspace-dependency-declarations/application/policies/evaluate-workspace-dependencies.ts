@@ -3,7 +3,7 @@ import type {
   FoundationDiagnostic
 } from "../../../../check-contract.js";
 import { isExactVersion } from "../../../../semantic-version.js";
-import type { WorkspaceDependencyPolicy } from "../../contract/config.js";
+import type { WorkspaceDependencyPolicy } from "../model/workspace-dependency-policy.js";
 import type {
   DependencyDeclaration,
   WorkspaceSnapshot

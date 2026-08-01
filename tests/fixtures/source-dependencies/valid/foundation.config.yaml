@@ -1,0 +1,6 @@
+schemaVersion: 1
+project:
+  id: source-dependency-fixture
+capabilities:
+  architecture.source-dependencies:
+    configPath: architecture/foundation/source-dependencies.yaml

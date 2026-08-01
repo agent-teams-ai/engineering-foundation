@@ -1,0 +1,193 @@
+schemaVersion: 1
+workspace:
+  kind: pnpm
+  manifest: pnpm-workspace.yaml
+governedRoots:
+  - packages/engineering-foundation/src
+boundaries:
+  - id: foundation.public-api
+    roots:
+      - packages/engineering-foundation/src/index.ts
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.local-mode
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: foundation.cli
+    roots:
+      - packages/engineering-foundation/src/cli.ts
+    allow:
+      boundaries:
+        - foundation.composition
+        - foundation.core
+        - foundation.local-mode
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+        - node:url
+      runtimeReferences: []
+  - id: foundation.composition
+    roots:
+      - packages/engineering-foundation/src/check-runner.ts
+      - packages/engineering-foundation/src/composition
+      - packages/engineering-foundation/src/foundation-config.ts
+      - packages/engineering-foundation/src/report-renderer.ts
+    allow:
+      boundaries:
+        - capability.source-dependencies.composition
+        - capability.workspace-dependencies.composition
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: foundation.core
+    roots:
+      - packages/engineering-foundation/src/capability-runtime.ts
+      - packages/engineering-foundation/src/check-contract.ts
+      - packages/engineering-foundation/src/errors.ts
+      - packages/engineering-foundation/src/filesystem-path-safety.ts
+      - packages/engineering-foundation/src/schema-catalog.ts
+      - packages/engineering-foundation/src/semantic-version.ts
+      - packages/engineering-foundation/src/strict-yaml.ts
+    allow:
+      boundaries: []
+      packages:
+        - ajv
+        - yaml
+      builtins:
+        - node:fs/promises
+        - node:path
+        - node:url
+      runtimeReferences: []
+  - id: foundation.local-mode
+    roots:
+      - packages/engineering-foundation/src/local-mode
+      - packages/engineering-foundation/src/package-self-check.ts
+    allow:
+      boundaries:
+        - foundation.core
+      packages:
+        - proper-lockfile
+        - yaml
+      builtins:
+        - node:child_process
+        - node:fs/promises
+        - node:module
+        - node:path
+        - node:url
+        - node:util
+      runtimeReferences:
+        - dynamic
+  - id: foundation.workspace-inventory.application
+    roots:
+      - packages/engineering-foundation/src/workspace-inventory/application
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: foundation.workspace-inventory.adapters
+    roots:
+      - packages/engineering-foundation/src/workspace-inventory/adapters
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.workspace-inventory.application
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+  - id: capability.source-dependencies.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.workspace-inventory.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.source-dependencies.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/contract
+    allow:
+      boundaries:
+        - capability.source-dependencies.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.source-dependencies.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/adapters
+    allow:
+      boundaries:
+        - capability.source-dependencies.application
+        - foundation.core
+        - foundation.workspace-inventory.application
+      packages:
+        - oxc-parser
+      builtins:
+        - node:fs/promises
+        - node:module
+        - node:path
+      runtimeReferences: []
+  - id: capability.source-dependencies.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/module.ts
+    allow:
+      boundaries:
+        - capability.source-dependencies.adapters
+        - capability.source-dependencies.application
+        - capability.source-dependencies.contract
+        - foundation.core
+        - foundation.workspace-inventory.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.workspace-dependencies.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.workspace-inventory.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.workspace-dependencies.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/contract
+    allow:
+      boundaries:
+        - capability.workspace-dependencies.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.workspace-dependencies.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/adapters
+    allow:
+      boundaries:
+        - capability.workspace-dependencies.application
+        - foundation.workspace-inventory.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.workspace-dependencies.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/module.ts
+    allow:
+      boundaries:
+        - capability.workspace-dependencies.adapters
+        - capability.workspace-dependencies.application
+        - capability.workspace-dependencies.contract
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []

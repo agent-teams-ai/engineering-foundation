@@ -11,6 +11,9 @@ import {
   loadCapabilityConfig
 } from "./contract/config.js";
 import { evaluateWorkspaceDependencies } from "./application/policies/evaluate-workspace-dependencies.js";
+import { RULES_BY_ID } from "./application/rules.js";
+
+export { RULES_BY_ID };
 
 export function createWorkspaceDependencyDeclarationsCapability(): CapabilityDefinition {
   const workspaceReader = new PnpmWorkspaceReader();

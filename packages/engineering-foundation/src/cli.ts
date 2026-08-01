@@ -39,6 +39,8 @@ function parseArguments(args: readonly string[]): ParsedArguments {
       index += 1;
     } else if (value === "--json") {
       json = true;
+    } else if (value === "--") {
+      continue;
     } else if (value !== undefined) {
       positional.push(value);
     }

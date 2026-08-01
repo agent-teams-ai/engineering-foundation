@@ -29,9 +29,9 @@ import {
   parseFoundationPackageSelfCheck
 } from "../package-self-check.js";
 import {
-  inspectFoundationDevOnly,
-  isExactVersion
+  inspectFoundationDevOnly
 } from "./consumer-policy.js";
+import { isExactVersion } from "../semantic-version.js";
 import { inspectFoundationMode } from "./inspection.js";
 import type {
   AttachResult,

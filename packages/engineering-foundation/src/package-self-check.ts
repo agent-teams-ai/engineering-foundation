@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { FoundationError } from "./errors.js";
-import { isExactVersion } from "./local-mode/consumer-policy.js";
+import { isExactVersion } from "./semantic-version.js";
 import {
   FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION,
   FOUNDATION_PACKAGE_NAME
@@ -187,13 +187,22 @@ export async function inspectFoundationPackage(
     types: "./dist/local-mode/index.d.ts",
     import: "./dist/local-mode/index.js"
   });
+  validateExport(manifest.exports, "./schemas/*", "./schemas/*");
+  validateExport(manifest.exports, "./presets/*", "./presets/*");
   validateExport(manifest.exports, "./package.json", "./package.json");
   for (const outputPath of [
     "dist/cli.js",
     "dist/index.d.ts",
     "dist/index.js",
     "dist/local-mode/index.d.ts",
-    "dist/local-mode/index.js"
+    "dist/local-mode/index.js",
+    "presets/oxlint/base.json",
+    "presets/oxlint/node.json",
+    "presets/typescript/base.json",
+    "presets/typescript/node.json",
+    "schemas/foundation-config/v1.schema.json",
+    "schemas/foundation-check-report/v1.schema.json",
+    "schemas/workspace-dependency-declarations/v1.schema.json"
   ]) {
     try {
       if (!(await stat(join(packageRoot, outputPath))).isFile()) {
@@ -216,8 +225,6 @@ export async function inspectFoundationPackage(
     )
   ]);
   for (const [exportName, candidate] of [
-    ["defineFoundationConfig", rootExports.defineFoundationConfig],
-    ["parseFoundationConfig", rootExports.parseFoundationConfig],
     ["FoundationError", rootExports.FoundationError],
     [
       "FoundationLocalModeService",

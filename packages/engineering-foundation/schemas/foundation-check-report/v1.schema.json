@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/foundation-check-report/v1",
+  "title": "Agent Teams Engineering Foundation check report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reportSchemaVersion",
+    "foundationVersion",
+    "coverage",
+    "outcome",
+    "summary",
+    "capabilities"
+  ],
+  "properties": {
+    "reportSchemaVersion": { "const": 1 },
+    "foundationVersion": { "type": "string" },
+    "coverage": { "const": "full" },
+    "outcome": { "$ref": "#/$defs/outcome" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capabilityReport" }
+    },
+    "problem": { "$ref": "#/$defs/problem" }
+  },
+  "$defs": {
+    "outcome": {
+      "enum": ["passed", "violations", "invalid-input", "failed", "cancelled"]
+    },
+    "severity": {
+      "enum": ["error", "warning", "info"]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["errors", "warnings", "infos"],
+      "properties": {
+        "errors": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "infos": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "column"],
+      "properties": {
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "start": { "$ref": "#/$defs/position" },
+        "end": { "$ref": "#/$defs/position" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ruleId",
+        "severity",
+        "subject",
+        "message",
+        "location",
+        "relatedLocations",
+        "evidence",
+        "remediation",
+        "requiresArchitectureReview"
+      ],
+      "properties": {
+        "ruleId": { "type": "string", "minLength": 1 },
+        "severity": { "$ref": "#/$defs/severity" },
+        "subject": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "location": { "$ref": "#/$defs/location" },
+        "relatedLocations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/location" }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" }
+        },
+        "remediation": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "requiresArchitectureReview": { "type": "boolean" }
+      }
+    },
+    "problem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "phase", "retryable"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "phase": { "type": "string", "minLength": 1 },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "capabilityReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capabilityId",
+        "capabilityConfigSchemaVersion",
+        "outcome",
+        "summary",
+        "diagnostics"
+      ],
+      "properties": {
+        "capabilityId": { "type": "string", "minLength": 1 },
+        "capabilityConfigSchemaVersion": { "type": "integer", "minimum": 1 },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "problem": { "$ref": "#/$defs/problem" }
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { parseDocument } from "yaml";
 
+import { isExactVersion } from "../semantic-version.js";
 import type {
   FoundationDevOnlyStatus,
   FoundationRegistryProvenance
@@ -18,8 +19,6 @@ interface RegistryProvenanceInspection {
   readonly issues: readonly string[];
 }
 
-const EXACT_SEMVER_PATTERN =
-  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const SHA512_INTEGRITY_PATTERN = /^sha512-[A-Za-z0-9+/]+={0,2}$/;
 const RUNTIME_DEPENDENCY_FIELDS = [
   "dependencies",
@@ -54,10 +53,6 @@ function hasBundledFoundation(value: unknown): boolean {
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown;
-}
-
-export function isExactVersion(value: string): boolean {
-  return EXACT_SEMVER_PATTERN.test(value);
 }
 
 export async function inspectFoundationDevOnly(

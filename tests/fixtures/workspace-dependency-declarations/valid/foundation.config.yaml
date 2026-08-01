@@ -1,0 +1,6 @@
+schemaVersion: 1
+project:
+  id: foundation-fixture
+capabilities:
+  workspace.dependency-declarations:
+    configPath: architecture/foundation/dependency-declarations.yaml

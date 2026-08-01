@@ -310,4 +310,4 @@ export {
   inspectFoundationDevOnly,
   inspectFoundationRegistryProvenance
 } from "./consumer-policy.js";
-export { isExactVersion } from "./consumer-policy.js";
+export { isExactVersion } from "../semantic-version.js";

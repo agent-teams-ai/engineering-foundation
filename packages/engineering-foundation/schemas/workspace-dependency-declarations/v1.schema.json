@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/workspace-dependency-declarations/v1",
+  "title": "Workspace dependency declarations capability configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "packageManager", "policies"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "packageManager": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "workspaceManifest"],
+      "properties": {
+        "kind": { "const": "pnpm" },
+        "workspaceManifest": { "const": "pnpm-workspace.yaml" }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "externalDependencies",
+        "catalogVersions",
+        "internalDependencies",
+        "reservedScopes",
+        "developmentOnlyPackages",
+        "exactRegistryDevelopmentOnlyPackages"
+      ],
+      "properties": {
+        "externalDependencies": { "const": "catalog" },
+        "catalogVersions": { "const": "exact" },
+        "internalDependencies": { "const": "workspace-protocol" },
+        "reservedScopes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^@[a-z0-9][a-z0-9._-]*/$"
+          }
+        },
+        "developmentOnlyPackages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+          }
+        },
+        "exactRegistryDevelopmentOnlyPackages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+          }
+        }
+      }
+    }
+  }
+}

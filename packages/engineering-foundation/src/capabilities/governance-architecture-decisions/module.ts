@@ -9,6 +9,7 @@ import { NodeArchitectureDecisionFingerprint } from "./adapters/outbound/crypto/
 import { FilesystemArchitectureDecisionBaselineRepository } from "./adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";
 import { ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID } from "./application/rules.js";
 import { analyzeArchitectureDecisions } from "./application/use-cases/analyze-architecture-decisions.js";
+import { promoteArchitectureDecisionBaseline as promoteBaseline } from "./application/use-cases/promote-architecture-decision-baseline.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
   CAPABILITY_ID,
@@ -17,12 +18,36 @@ import {
 
 export { ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID };
 
-export function createArchitectureDecisionGovernanceCapability(): CapabilityDefinition {
-  const dependencies = Object.freeze({
+function createDependencies() {
+  return Object.freeze({
     baselineRepository: new FilesystemArchitectureDecisionBaselineRepository(),
     fingerprint: new NodeArchitectureDecisionFingerprint(),
     markdownRepository: new FilesystemMarkdownRepository()
   });
+}
+
+export async function promoteArchitectureDecisionBaseline(input: {
+  readonly consumerRoot: string;
+  readonly configPath: string;
+  readonly signal?: AbortSignal;
+}) {
+  const policy = await loadCapabilityConfig(
+    input.consumerRoot,
+    input.configPath,
+    input.signal
+  );
+  return promoteBaseline(
+    {
+      consumerRoot: input.consumerRoot,
+      policy,
+      ...(input.signal === undefined ? {} : { signal: input.signal })
+    },
+    createDependencies()
+  );
+}
+
+export function createArchitectureDecisionGovernanceCapability(): CapabilityDefinition {
+  const dependencies = createDependencies();
   return Object.freeze({
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     id: CAPABILITY_ID,

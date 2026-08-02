@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,11 +8,14 @@ import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
+import { CapabilityInputError } from "../packages/engineering-foundation/dist/capability-runtime.js";
 import { NodeArchitectureDecisionFingerprint } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/adapters/outbound/crypto/node-architecture-decision-fingerprint.js";
 import { FilesystemArchitectureDecisionBaselineRepository } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";
 import { immutableArchitectureDecisionPayload } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/model/architecture-decision.js";
 import { analyzeArchitectureDecisions } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/analyze-architecture-decisions.js";
+import { promoteArchitectureDecisionBaseline as promoteBaselineUseCase } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/promote-architecture-decision-baseline.js";
 import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/contract/config.js";
+import { promoteArchitectureDecisionBaseline } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/module.js";
 import { FilesystemMarkdownRepository } from "../packages/engineering-foundation/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -38,6 +42,17 @@ const baselineSchemaPath = join(
   "governance-architecture-decision-baseline",
   "v1.schema.json"
 );
+const cliPath = join(
+  repositoryRoot,
+  "packages",
+  "engineering-foundation",
+  "dist",
+  "cli.js"
+);
+
+function baselinePath(root) {
+  return join(root, "architecture", "accepted-decisions.json");
+}
 
 async function withFixture(callback) {
   const root = await mkdtemp(join(tmpdir(), "foundation-architecture-decisions-"));
@@ -63,6 +78,21 @@ async function analyze(root) {
 
 function ruleIds(diagnostics) {
   return diagnostics.map((diagnostic) => diagnostic.ruleId).toSorted();
+}
+
+function hasProblemCode(error, code) {
+  return error instanceof CapabilityInputError && error.problem.code === code;
+}
+
+async function writeFoundationConfig(root, declared = true) {
+  const capabilities = declared
+    ? "  governance.architecture-decisions:\n    configPath: governance-architecture-decisions.yaml\n"
+    : "  workspace.dependency-declarations:\n    configPath: architecture/foundation/dependency-declarations.yaml\n";
+  await writeFile(
+    join(root, "foundation.config.yaml"),
+    `schemaVersion: 1\nproject:\n  id: architecture-decision-fixture\ncapabilities:\n${capabilities}`,
+    "utf8"
+  );
 }
 
 test("accepts a complete ADR identity, lifecycle, index, and immutable baseline", async () => {
@@ -181,6 +211,273 @@ test("requires an available accepted-decision baseline", async () => {
       ruleIds(await analyze(root)).includes(
         "governance.architecture-decisions.accepted-baseline-unavailable"
       )
+    );
+  });
+});
+
+test("promotes a deterministic accepted and superseded ADR baseline, then replays without a write", async () => {
+  await withFixture(async (root) => {
+    await rm(baselinePath(root));
+
+    const first = await promoteArchitectureDecisionBaseline({
+      consumerRoot: root,
+      configPath: "governance-architecture-decisions.yaml"
+    });
+    assert.equal(first.writeResult, "created");
+    assert.deepEqual(
+      first.baseline.decisions.map((entry) => entry.id),
+      ["ADR-0002", "ADR-0003"]
+    );
+    const sourceAfterFirstPromotion = await readFile(baselinePath(root), "utf8");
+    assert.equal(sourceAfterFirstPromotion.endsWith("\n"), true);
+
+    const replay = await promoteArchitectureDecisionBaseline({
+      consumerRoot: root,
+      configPath: "governance-architecture-decisions.yaml"
+    });
+    assert.equal(replay.writeResult, "unchanged");
+    assert.equal(await readFile(baselinePath(root), "utf8"), sourceAfterFirstPromotion);
+    assert.deepEqual(await analyze(root), []);
+  });
+});
+
+test("does not rewrite an already canonical immutable baseline", async () => {
+  await withFixture(async (root) => {
+    const before = await readFile(baselinePath(root), "utf8");
+    const promotion = await promoteArchitectureDecisionBaseline({
+      consumerRoot: root,
+      configPath: "governance-architecture-decisions.yaml"
+    });
+    assert.equal(promotion.writeResult, "unchanged");
+    assert.equal(await readFile(baselinePath(root), "utf8"), before);
+  });
+});
+
+test("does not read or write a baseline until the complete ADR catalog is valid", async () => {
+  await withFixture(async (root) => {
+    await writeFile(
+      join(root, "docs", "decisions", "0004-invalid.md"),
+      "---\nid: ADR-0004\nstatus: accepted\n---\n\n# Wrong title\n",
+      "utf8"
+    );
+    const policy = await loadCapabilityConfig(root, "governance-architecture-decisions.yaml");
+    let reads = 0;
+    let writes = 0;
+
+    await assert.rejects(
+      promoteBaselineUseCase(
+        { consumerRoot: root, policy },
+        {
+          baselineRepository: {
+            async read() {
+              reads += 1;
+              return { kind: "missing" };
+            },
+            async write() {
+              writes += 1;
+              return "created";
+            }
+          },
+          fingerprint: new NodeArchitectureDecisionFingerprint(),
+          markdownRepository: new FilesystemMarkdownRepository()
+        }
+      ),
+      (error) =>
+        hasProblemCode(
+          error,
+          "ARCHITECTURE_DECISION_BASELINE_PROMOTION_CATALOG_INVALID"
+        )
+    );
+    assert.equal(reads, 0);
+    assert.equal(writes, 0);
+  });
+});
+
+test("refuses to delete a historical baseline entry during promotion", async () => {
+  await withFixture(async (root) => {
+    const originalBaseline = await readFile(baselinePath(root), "utf8");
+    await rm(join(root, "docs", "decisions", "0003-legacy-decision-history.md"));
+    const acceptedPath = join(
+      root,
+      "docs",
+      "decisions",
+      "0002-use-immutable-decision-baselines.md"
+    );
+    const acceptedSource = await readFile(acceptedPath, "utf8");
+    await writeFile(
+      acceptedPath,
+      acceptedSource.replace("supersedes:\n  - ADR-0003\n", ""),
+      "utf8"
+    );
+    await writeFile(
+      join(root, "docs", "decisions", "README.md"),
+      "# Architecture Decisions\n\n## Proposed Decisions\n\n- [ADR-0001: Keep the decision format](0001-keep-decision-format.md)\n\n## Accepted Decisions\n\n- [ADR-0002: Use immutable decision baselines](0002-use-immutable-decision-baselines.md)\n\n## Superseded Decisions\n",
+      "utf8"
+    );
+    await assert.rejects(
+      promoteArchitectureDecisionBaseline({
+        consumerRoot: root,
+        configPath: "governance-architecture-decisions.yaml"
+      }),
+      (error) =>
+        hasProblemCode(
+          error,
+          "ARCHITECTURE_DECISION_BASELINE_PROMOTION_HISTORICAL_ENTRY_MISSING"
+        )
+    );
+    assert.equal(await readFile(baselinePath(root), "utf8"), originalBaseline);
+  });
+});
+
+test("refuses to mutate a historical baseline entry during promotion", async () => {
+  await withFixture(async (root) => {
+    const originalBaseline = await readFile(baselinePath(root), "utf8");
+    const decisionPath = join(
+      root,
+      "docs",
+      "decisions",
+      "0002-use-immutable-decision-baselines.md"
+    );
+    const source = await readFile(decisionPath, "utf8");
+    await writeFile(
+      decisionPath,
+      source.replace("protected by a released immutable baseline", "mutated after acceptance"),
+      "utf8"
+    );
+    await assert.rejects(
+      promoteArchitectureDecisionBaseline({
+        consumerRoot: root,
+        configPath: "governance-architecture-decisions.yaml"
+      }),
+      (error) =>
+        hasProblemCode(
+          error,
+          "ARCHITECTURE_DECISION_BASELINE_PROMOTION_HISTORICAL_ENTRY_MUTATED"
+        )
+    );
+    assert.equal(await readFile(baselinePath(root), "utf8"), originalBaseline);
+  });
+});
+
+test("rejects baseline promotion paths that escape or traverse symbolic links", { skip: process.platform === "win32" }, async () => {
+  await withFixture(async (root) => {
+    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const baseline = {
+      algorithm: "sha256",
+      decisions: [],
+      schemaVersion: 1
+    };
+    await assert.rejects(
+      repository.write({
+        baseline,
+        consumerRoot: root,
+        expected: { kind: "missing" },
+        path: "../outside.json"
+      }),
+      (error) =>
+        hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_UNSAFE_TARGET")
+    );
+
+    const outside = await mkdtemp(join(tmpdir(), "foundation-architecture-outside-"));
+    try {
+      await rm(join(root, "architecture"), { force: true, recursive: true });
+      await symlink(outside, join(root, "architecture"));
+      await assert.rejects(
+        repository.write({
+          baseline,
+          consumerRoot: root,
+          expected: { kind: "missing" },
+          path: "architecture/accepted-decisions.json"
+        }),
+        (error) =>
+          hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_UNSAFE_TARGET")
+      );
+      await assert.rejects(readFile(join(outside, "accepted-decisions.json"), "utf8"));
+    } finally {
+      await rm(outside, { force: true, recursive: true });
+    }
+  });
+});
+
+test("rejects a baseline write when its expected revision changed concurrently", async () => {
+  await withFixture(async (root) => {
+    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const current = await repository.read({
+      consumerRoot: root,
+      path: "architecture/accepted-decisions.json"
+    });
+    assert.equal(current.kind, "valid");
+    if (current.kind !== "valid") {
+      return;
+    }
+    const original = await readFile(baselinePath(root), "utf8");
+    await writeFile(baselinePath(root), `${original}\n`, "utf8");
+    await assert.rejects(
+      repository.write({
+        baseline: current.value,
+        consumerRoot: root,
+        expected: { kind: "valid", revision: current.revision },
+        path: "architecture/accepted-decisions.json"
+      }),
+      (error) =>
+        hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT")
+    );
+    assert.equal(await readFile(baselinePath(root), "utf8"), `${original}\n`);
+  });
+});
+
+test("CLI keeps checks read-only and promotes only a declared ADR governance capability", async () => {
+  await withFixture(async (root) => {
+    await rm(baselinePath(root));
+    await writeFoundationConfig(root);
+
+    const check = spawnSync(
+      process.execPath,
+      [
+        cliPath,
+        "check",
+        "governance.architecture-decisions",
+        "--consumer",
+        root,
+        "--json"
+      ],
+      { encoding: "utf8" }
+    );
+    assert.equal(check.status, 1, check.stderr);
+    await assert.rejects(readFile(baselinePath(root), "utf8"));
+
+    const promotion = spawnSync(
+      process.execPath,
+      [
+        cliPath,
+        "architecture-decisions-promote-baseline",
+        "--consumer",
+        root,
+        "--json"
+      ],
+      { encoding: "utf8" }
+    );
+    assert.equal(promotion.status, 0, promotion.stderr);
+    assert.equal(JSON.parse(promotion.stdout).promotion.writeResult, "created");
+    assert.deepEqual(await analyze(root), []);
+
+    await rm(join(root, "foundation.config.yaml"));
+    await writeFoundationConfig(root, false);
+    const undeclared = spawnSync(
+      process.execPath,
+      [
+        cliPath,
+        "architecture-decisions-promote-baseline",
+        "--consumer",
+        root,
+        "--json"
+      ],
+      { encoding: "utf8" }
+    );
+    assert.equal(undeclared.status, 2);
+    assert.match(
+      undeclared.stderr,
+      /^CONSUMER_INVALID: governance\.architecture-decisions must be declared/u
     );
   });
 });

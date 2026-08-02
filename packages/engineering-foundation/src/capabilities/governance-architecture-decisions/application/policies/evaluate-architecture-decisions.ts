@@ -8,27 +8,34 @@ import type { MarkdownRepository } from "../../../../documentation-observation/a
 import {
   ARCHITECTURE_DECISION_STATUSES,
   immutableArchitectureDecisionPayload,
-  type AcceptedArchitectureDecisionBaseline,
-  type AcceptedArchitectureDecisionBaselineEntry,
   type ArchitectureDecision,
   type ArchitectureDecisionPolicy,
   type ArchitectureDecisionStatus
 } from "../model/architecture-decision.js";
 import type { ArchitectureDecisionFingerprint } from "../ports/architecture-decision-fingerprint.js";
 import type { ArchitectureDecisionBaselineReadResult } from "../ports/architecture-decision-baseline-repository.js";
+import { parseAcceptedArchitectureDecisionBaseline } from "./accepted-architecture-decision-baseline.js";
 import {
   ARCHITECTURE_DECISION_GOVERNANCE_RULES,
   type ArchitectureDecisionGovernanceRuleMetadata
 } from "../rules.js";
 
-interface EvaluationInput {
-  readonly baseline: ArchitectureDecisionBaselineReadResult;
+interface CatalogEvaluationInput {
   readonly consumerRoot: string;
-  readonly fingerprint: ArchitectureDecisionFingerprint;
   readonly observation: MarkdownRepositoryObservation;
   readonly policy: ArchitectureDecisionPolicy;
   readonly repository: MarkdownRepository;
   readonly signal?: AbortSignal;
+}
+
+interface EvaluationInput extends CatalogEvaluationInput {
+  readonly baseline: ArchitectureDecisionBaselineReadResult;
+  readonly fingerprint: ArchitectureDecisionFingerprint;
+}
+
+export interface ArchitectureDecisionCatalogEvaluation {
+  readonly decisions: readonly ArchitectureDecision[];
+  readonly diagnostics: readonly FoundationDiagnostic[];
 }
 
 interface ParsedDecision {
@@ -214,11 +221,13 @@ function parsedDecision(document: MarkdownDocumentObservation): ParsedDecision {
   }
 
   const topLevelHeadings = document.headings.filter((heading) => heading.depth === 1);
+  const topLevelHeading = topLevelHeadings[0];
   const expectedHeadingPrefix = `${id}: `;
   if (
     topLevelHeadings.length !== 1 ||
-    !topLevelHeadings[0]?.text.startsWith(expectedHeadingPrefix) ||
-    topLevelHeadings[0]?.text.slice(expectedHeadingPrefix.length).trim().length === 0
+    topLevelHeading === undefined ||
+    !topLevelHeading.text.startsWith(expectedHeadingPrefix) ||
+    topLevelHeading.text.slice(expectedHeadingPrefix.length).trim().length === 0
   ) {
     diagnostics.push(
       diagnostic({
@@ -474,47 +483,7 @@ function cycleDiagnostics(decisions: readonly ArchitectureDecision[]): readonly 
   return diagnostics;
 }
 
-function parseBaseline(value: unknown): AcceptedArchitectureDecisionBaseline | undefined {
-  const baseline = record(value);
-  if (
-    baseline?.["schemaVersion"] !== 1 ||
-    baseline["algorithm"] !== "sha256" ||
-    !Array.isArray(baseline["decisions"])
-  ) {
-    return undefined;
-  }
-  const ids = new Set<string>();
-  const paths = new Set<string>();
-  const decisions: AcceptedArchitectureDecisionBaselineEntry[] = [];
-  for (const candidate of baseline["decisions"]) {
-    const entry = record(candidate);
-    const id = entry?.["id"];
-    const path = entry?.["path"];
-    const immutableDigest = entry?.["immutableDigest"];
-    if (
-      typeof id !== "string" ||
-      !ADR_ID.test(id) ||
-      typeof path !== "string" ||
-      path.length === 0 ||
-      typeof immutableDigest !== "string" ||
-      !/^sha256:[a-f0-9]{64}$/u.test(immutableDigest) ||
-      ids.has(id) ||
-      paths.has(path)
-    ) {
-      return undefined;
-    }
-    ids.add(id);
-    paths.add(path);
-    decisions.push({ id, immutableDigest, path });
-  }
-  return {
-    algorithm: "sha256",
-    decisions: Object.freeze(decisions.toSorted((left, right) => left.id.localeCompare(right.id))),
-    schemaVersion: 1
-  };
-}
-
-function baselineDiagnostics(input: {
+export function evaluateArchitectureDecisionBaselineDiagnostics(input: {
   readonly baseline: ArchitectureDecisionBaselineReadResult;
   readonly decisions: readonly ArchitectureDecision[];
   readonly fingerprint: ArchitectureDecisionFingerprint;
@@ -541,7 +510,7 @@ function baselineDiagnostics(input: {
       })
     ];
   }
-  const baseline = parseBaseline(input.baseline.value);
+  const baseline = parseAcceptedArchitectureDecisionBaseline(input.baseline.value);
   if (baseline === undefined) {
     return [
       diagnostic({
@@ -584,7 +553,9 @@ function baselineDiagnostics(input: {
         })
       );
     }
-    const actualDigest = input.fingerprint.digest(immutableArchitectureDecisionPayload(decision));
+    const actualDigest = input.fingerprint.digest(
+      immutableArchitectureDecisionPayload(decision)
+    );
     if (entry.immutableDigest !== actualDigest) {
       diagnostics.push(
         diagnostic({
@@ -618,9 +589,9 @@ function baselineDiagnostics(input: {
   return diagnostics;
 }
 
-export async function evaluateArchitectureDecisions(
-  input: EvaluationInput
-): Promise<readonly FoundationDiagnostic[]> {
+export async function evaluateArchitectureDecisionCatalog(
+  input: CatalogEvaluationInput
+): Promise<ArchitectureDecisionCatalogEvaluation> {
   const diagnostics: FoundationDiagnostic[] = input.observation.issues.map(issueDiagnostic);
   const documents = input.observation.documents.filter(
     (document) => document.repositoryPath !== input.policy.index.path
@@ -728,15 +699,25 @@ export async function evaluateArchitectureDecisions(
 
   diagnostics.push(...lifecycleDiagnostics(decisions));
   diagnostics.push(...cycleDiagnostics(decisions));
-  diagnostics.push(
-    ...baselineDiagnostics({
+  return Object.freeze({
+    decisions: Object.freeze(decisions),
+    diagnostics: Object.freeze(diagnostics)
+  });
+}
+
+export async function evaluateArchitectureDecisions(
+  input: EvaluationInput
+): Promise<readonly FoundationDiagnostic[]> {
+  const catalog = await evaluateArchitectureDecisionCatalog(input);
+  return Object.freeze([
+    ...catalog.diagnostics,
+    ...evaluateArchitectureDecisionBaselineDiagnostics({
       baseline: input.baseline,
-      decisions,
+      decisions: catalog.decisions,
       fingerprint: input.fingerprint,
       path: input.policy.acceptedBaselinePath
     })
-  );
-  return diagnostics;
+  ]);
 }
 
 export function decisionIsInsideAdrRoots(

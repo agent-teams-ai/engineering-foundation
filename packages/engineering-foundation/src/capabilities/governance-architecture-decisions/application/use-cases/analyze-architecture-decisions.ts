@@ -4,7 +4,8 @@ import type { MarkdownRepository } from "../../../../documentation-observation/a
 import type { ArchitectureDecisionPolicy } from "../model/architecture-decision.js";
 import type { ArchitectureDecisionFingerprint } from "../ports/architecture-decision-fingerprint.js";
 import type { ArchitectureDecisionBaselineRepository } from "../ports/architecture-decision-baseline-repository.js";
-import { evaluateArchitectureDecisions } from "../policies/evaluate-architecture-decisions.js";
+import { evaluateArchitectureDecisionBaselineDiagnostics } from "../policies/evaluate-architecture-decisions.js";
+import { inspectArchitectureDecisionCatalog } from "./inspect-architecture-decision-catalog.js";
 
 export interface AnalyzeArchitectureDecisionsInput {
   readonly consumerRoot: string;
@@ -23,25 +24,28 @@ export async function analyzeArchitectureDecisions(
   dependencies: AnalyzeArchitectureDecisionsDependencies
 ): Promise<readonly FoundationDiagnostic[]> {
   assertNotCancelled(input.signal);
-  const [baseline, observation] = await Promise.all([
+  const [baseline, catalog] = await Promise.all([
     dependencies.baselineRepository.read({
       consumerRoot: input.consumerRoot,
       path: input.policy.acceptedBaselinePath,
       ...(input.signal === undefined ? {} : { signal: input.signal })
     }),
-    dependencies.markdownRepository.observe({
-      consumerRoot: input.consumerRoot,
-      roots: input.policy.adrRoots,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+    inspectArchitectureDecisionCatalog(
+      {
+        consumerRoot: input.consumerRoot,
+        policy: input.policy,
+        ...(input.signal === undefined ? {} : { signal: input.signal })
+      },
+      dependencies
+    )
+  ]);
+  return Object.freeze([
+    ...catalog.diagnostics,
+    ...evaluateArchitectureDecisionBaselineDiagnostics({
+      baseline,
+      decisions: catalog.decisions,
+      fingerprint: dependencies.fingerprint,
+      path: input.policy.acceptedBaselinePath
     })
   ]);
-  return evaluateArchitectureDecisions({
-    baseline,
-    consumerRoot: input.consumerRoot,
-    fingerprint: dependencies.fingerprint,
-    observation,
-    policy: input.policy,
-    repository: dependencies.markdownRepository,
-    ...(input.signal === undefined ? {} : { signal: input.signal })
-  });
 }

@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
+import { promoteArchitectureDecisionBaseline } from "./capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
 import { runFoundationCheck } from "./check-runner.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
@@ -40,6 +41,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   "-v": 0,
   "assert-dev-only": 0,
   "assert-registry": 0,
+  "architecture-decisions-promote-baseline": 0,
   attach: 1,
   check: 1,
   detach: 0,
@@ -176,6 +178,7 @@ function printHelp(): void {
   process.stdout.write(`Usage:
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
+  agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
   agent-teams-foundation schema <schema-id>
   agent-teams-foundation attach <path> [--consumer <path>]
@@ -234,6 +237,28 @@ async function main(): Promise<void> {
       printStatus(
         await service.assertRegistry(parsed.consumerRoot),
         json
+      );
+      break;
+    }
+    case "architecture-decisions-promote-baseline": {
+      const settings = await loadFoundationConfig(parsed.consumerRoot);
+      const declaration = settings.declaredCapabilities.find(
+        ({ id }) => id === "governance.architecture-decisions"
+      );
+      if (declaration === undefined) {
+        throw new FoundationError(
+          "CONSUMER_INVALID",
+          "governance.architecture-decisions must be declared before baseline promotion."
+        );
+      }
+      const promotion = await promoteArchitectureDecisionBaseline({
+        consumerRoot: parsed.consumerRoot,
+        configPath: declaration.configPath
+      });
+      process.stdout.write(
+        json
+          ? `${JSON.stringify({ promotion }, null, 2)}\n`
+          : `Architecture-decision baseline ${promotion.writeResult}.\n`
       );
       break;
     }

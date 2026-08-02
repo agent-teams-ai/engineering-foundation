@@ -49,7 +49,10 @@
               },
               "required": ["outcome"]
             },
-            "then": { "required": ["resultDigest"] }
+            "then": {
+              "properties": { "resultDigest": { "$ref": "#/$defs/digest" } },
+              "required": ["resultDigest"]
+            }
           },
           {
             "if": {
@@ -58,7 +61,7 @@
               },
               "required": ["outcome"]
             },
-            "then": { "not": { "required": ["resultDigest"] } }
+            "then": { "properties": { "resultDigest": false } }
           }
         ]
       }
@@ -69,7 +72,7 @@
   "$defs": {
     "id": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-    "repositoryPath": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@/-]+$" },
+    "repositoryPath": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$" },
     "diagnostic": {
       "type": "object",
       "additionalProperties": false,

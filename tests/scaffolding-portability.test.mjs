@@ -7,12 +7,14 @@ import test from "node:test";
 
 import {
   applyFilesystemScaffold,
+  MemoryScaffoldWorkspace,
   planScaffoldFromFile
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { loadScaffoldCompilationInput } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-input-loader.js";
 import { CONFORMANCE_FIXTURE_DEFINITIONS } from "../packages/engineering-foundation/dist/scaffolding/definitions/conformance-fixture.js";
 import { compileScaffoldPlan } from "../packages/engineering-foundation/dist/scaffolding/kernel/compiler.js";
 import { ScaffoldDefinitionRegistry } from "../packages/engineering-foundation/dist/scaffolding/kernel/definition-registry.js";
+import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixtureRoot = join(
@@ -48,23 +50,30 @@ test("produces the same Plan for LF and CRLF authority files", async () => {
 });
 
 test("reports a deleted authority file as a stale snapshot", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-scaffolding-stale-"));
-  await cp(fixtureRoot, root, { recursive: true });
-  try {
-    const scaffoldPlan = await plan(root);
-    await rm(join(root, "architecture", "package-catalog.yaml"));
-    const receipt = await applyFilesystemScaffold(root, scaffoldPlan);
-    assert.equal(receipt.outcome, "rejected");
-    assert.equal(
-      receipt.diagnostics[0]?.ruleId,
-      "scaffolding.apply.stale-authority-snapshot"
-    );
-    await assert.rejects(
-      stat(join(root, scaffoldPlan.operations[0].path)),
-      /ENOENT/u
-    );
-  } finally {
-    await rm(root, { recursive: true, force: true });
+  for (const authorityPath of [
+    "architecture/package-catalog.yaml",
+    "architecture/foundation/scaffolding.yaml"
+  ]) {
+    const root = await mkdtemp(join(tmpdir(), "foundation-scaffolding-stale-"));
+    await cp(fixtureRoot, root, { recursive: true });
+    try {
+      const scaffoldPlan = await plan(root);
+      await rm(join(root, ...authorityPath.split("/")));
+      const receipt = await applyFilesystemScaffold(root, scaffoldPlan);
+      assert.equal(receipt.outcome, "rejected", authorityPath);
+      assert.equal(
+        receipt.diagnostics[0]?.ruleId,
+        "scaffolding.apply.stale-authority-snapshot",
+        authorityPath
+      );
+      await assert.rejects(
+        stat(join(root, ...scaffoldPlan.operations[0].path.split("/"))),
+        /ENOENT/u,
+        authorityPath
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   }
 });
 
@@ -133,5 +142,19 @@ test("rejects a non-normalized target in programmatic compiler input", async () 
         new ScaffoldDefinitionRegistry(CONFORMANCE_FIXTURE_DEFINITIONS)
       ),
     /Target path must be normalized/u
+  );
+});
+
+test("rejects non-normalized receipt operation paths", async () => {
+  const receipt = await new MemoryScaffoldWorkspace().apply(await plan(fixtureRoot));
+  await assertSchema("scaffold-receipt/v1", receipt, "scaffold-receipt");
+
+  const invalidReceipt = structuredClone(receipt);
+  const operation = invalidReceipt.operations[0];
+  assert.ok(operation);
+  operation.path = `${operation.path}/`;
+  await assert.rejects(
+    assertSchema("scaffold-receipt/v1", invalidReceipt, "scaffold-receipt"),
+    /must match pattern/u
   );
 });

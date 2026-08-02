@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 0.4.1
+
+### Patch Changes
+
+- [#28](https://github.com/agent-teams-ai/engineering-foundation/pull/28) [`9e290d3`](https://github.com/agent-teams-ai/engineering-foundation/commit/9e290d32732d3494edb8300622d002310c145c54) Thanks [@777genius](https://github.com/777genius)! - Accept pnpm peer-context suffixes while preserving exact registry provenance checks.
+
 ## 0.4.0
 
 ### Minor Changes

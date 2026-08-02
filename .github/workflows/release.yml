@@ -76,9 +76,8 @@ jobs:
             exit 1
           fi
 
-          gh workflow run ci.yml \
-            --repo "${GITHUB_REPOSITORY}" \
-            --ref changeset-release/main
+          ci_contexts=(check windows-check)
+          required_contexts=(check "review / review" windows-check)
 
           post_status() {
             local context="$1"
@@ -93,16 +92,24 @@ jobs:
               -f target_url="${target_url}" >/dev/null
           }
 
-          for context in check windows-check; do
+          for context in "${required_contexts[@]}"; do
             post_status "${context}" pending "Release PR ${context}: dispatched" "${RELEASE_RUN_URL}"
           done
+
+          gh workflow run ci.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref changeset-release/main
+          gh workflow run reviewrouter.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f pr_number="${RELEASE_PULL_REQUEST}"
 
           deadline=$((SECONDS + 600))
           while (( SECONDS < deadline )); do
             checks="$(gh api -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs?per_page=100")"
             all_completed=1
-            for context in check windows-check; do
+            for context in "${ci_contexts[@]}"; do
               check_status="$(jq -r --arg context "${context}" \
                 '[.check_runs[] | select(.app.slug == "github-actions" and .name == $context)] | sort_by(.id) | last | .status // "missing"' \
                 <<<"${checks}")"
@@ -110,6 +117,12 @@ jobs:
                 all_completed=0
               fi
             done
+            review_state="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status" \
+              --jq '[.statuses[] | select(.context == "review / review")] | sort_by(.created_at) | last | .state // "missing"')"
+            if [[ "${review_state}" != "success" && "${review_state}" != "failure" && "${review_state}" != "error" ]]; then
+              all_completed=0
+            fi
             if (( all_completed == 1 )); then
               break
             fi
@@ -117,7 +130,7 @@ jobs:
           done
 
           if (( all_completed != 1 )); then
-            for context in check windows-check; do
+            for context in "${required_contexts[@]}"; do
               post_status "${context}" error "Release PR ${context}: CI timeout" "${RELEASE_RUN_URL}"
             done
             echo "Timed out waiting for release pull request CI." >&2
@@ -125,7 +138,7 @@ jobs:
           fi
 
           failed=0
-          for context in check windows-check; do
+          for context in "${ci_contexts[@]}"; do
             read -r conclusion target_url < <(jq -r --arg context "${context}" \
               '[.check_runs[] | select(.app.slug == "github-actions" and .name == $context)] | sort_by(.id) | last | [.conclusion, .details_url] | @tsv' \
               <<<"${checks}")
@@ -144,5 +157,13 @@ jobs:
             esac
             post_status "${context}" "${status_state}" "Release PR ${context}: ${conclusion}" "${target_url}"
           done
+
+          read -r review_state review_target_url < <(gh api \
+            "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status" \
+            --jq '[.statuses[] | select(.context == "review / review")] | sort_by(.created_at) | last | [.state, .target_url] | @tsv')
+          if [[ "${review_state}" != "success" ]]; then
+            failed=1
+            post_status "review / review" "${review_state}" "Release PR review / review: ${review_state}" "${review_target_url:-${RELEASE_RUN_URL}}"
+          fi
 
           exit "${failed}"

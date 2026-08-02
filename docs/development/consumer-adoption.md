@@ -125,6 +125,8 @@ exact Plan from its embedded normalized Intent and current consumer facts, takes
 the repository Foundation operation lock, rejects overwrite and path ambiguity,
 and records a recovery journal before the first file is published.
 `scaffold-recover` is mandatory after an interrupted transaction. The current
+consumer authority must remain available and reproduce the journal Plan exactly;
+otherwise recovery leaves the journal and outputs unchanged. The current
 built-in recipe is conformance-only and must not be used as a product
 architecture template.
 

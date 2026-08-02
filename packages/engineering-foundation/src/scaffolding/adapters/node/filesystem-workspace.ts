@@ -300,6 +300,7 @@ async function finishPlan(
   recovered: boolean,
   faultInjector?: ScaffoldFilesystemFaultInjector
 ): Promise<ScaffoldReceiptV1> {
+  await assertPlanMatchesConsumerAuthority(root, plan);
   for (const operation of plan.operations) {
     await removeTransactionTemporary(root, plan.planDigest, operation);
   }

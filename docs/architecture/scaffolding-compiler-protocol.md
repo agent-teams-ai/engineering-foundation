@@ -29,6 +29,9 @@ different repository-relative file. Apply executes only the exact final bytes
 in a saved immutable Plan. Before writing, it independently recompiles the
 expected Plan from the embedded normalized Intent and current consumer authority
 and requires an exact digest match.
+Recovery applies the same proof before it resumes a prepared journal. If the
+current authority is unavailable or cannot reproduce the journal Plan exactly,
+recovery fails without changing the journal or its outputs.
 
 ## Goals
 
@@ -267,6 +270,10 @@ recovery-required
 
 An operation with `not-applied` or `conflict` has no result digest. Receipts do
 not claim a desired post-image that was not observed or published.
+`failed-recovered` means a prepared transaction was finalized through the
+recovery path. It may contain only `already-satisfied` operations when the crash
+happened after every output was published but before the journal was removed;
+`recovered` is used only for an output actually published during recovery.
 
 The filesystem adapter reports journaled recoverability. The Nx adapter reports
 host-managed commit semantics and cannot claim Foundation-owned durable recovery.
@@ -281,16 +288,21 @@ Before applying, an authority-bearing durable adapter must:
 
 1. verify schemas, Plan and operation digests, and required capabilities;
 2. acquire the repository-scoped cooperative mutation lock;
-3. reconcile any nonterminal Foundation journal;
-4. recheck the authority read set and compile the exact expected Plan with the
+3. recompile any nonterminal Foundation journal from its embedded Intent and
+   current consumer authority before it can publish or recover output;
+4. preserve that journal and its outputs unchanged when this provenance cannot
+   be proven;
+5. reconcile only a journal whose exact Plan is reproduced by the closed
+   compiler;
+6. recheck the authority read set and compile the exact expected Plan with the
    installed compiler version from the embedded Intent, current consumer
    configuration, current catalog, and closed registry;
-5. reject the supplied Plan unless that expected Plan has the same digest;
-6. recheck every operation precondition;
-7. reject path traversal, symlink or reparse escape, case-fold collision,
+7. reject the supplied Plan unless that expected Plan has the same digest;
+8. recheck every operation precondition;
+9. reject path traversal, symlink or reparse escape, case-fold collision,
    protected roots, special files, and unsafe modes;
-8. recognize an exact desired post-image as idempotently satisfied;
-9. reject any third state rather than overwrite it.
+10. recognize an exact desired post-image as idempotently satisfied;
+11. reject any third state rather than overwrite it.
 
 The in-memory adapter is a non-durable conformance workspace without an external
 consumer authority boundary. It validates the self-contained Plan and adapter
@@ -305,8 +317,10 @@ For filesystem execution, a durable journal records preconditions and final
 images before publication. Writes use same-directory temporary files, digest
 verification, and deterministic order. A process crash may leave partial files
 until mandatory recovery; the system does not claim true multi-file atomicity.
-Recovery never overwrites a third-party edit that no longer matches the planned
-post-image.
+Recovery first reloads the journal's consumer authority and must reproduce the
+exact Plan through the closed compiler. If it cannot, the journal and outputs
+remain untouched. Recovery never overwrites a third-party edit that no longer
+matches the planned post-image.
 
 ## Security boundary
 

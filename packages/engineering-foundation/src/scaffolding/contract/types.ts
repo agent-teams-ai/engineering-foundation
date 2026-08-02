@@ -167,28 +167,175 @@ export type ScaffoldReceiptOutcome =
   | "recovery-required"
   | "rejected";
 
-export interface ScaffoldReceiptV1 {
+export interface ScaffoldReceiptCommonV1 {
   readonly schemaVersion: 1;
   readonly protocolVersion: 1;
   readonly planDigest: Sha256Digest;
-  readonly adapter: {
-    readonly id: "foundation.filesystem/v1" | "foundation.memory/v1";
-    readonly contractVersion: 1;
-  };
-  readonly outcome: ScaffoldReceiptOutcome;
-  readonly commit: {
-    readonly state:
-      | "committed"
-      | "host-managed"
-      | "recovered"
-      | "recovery-required"
-      | "rejected";
-    readonly atomicity: "journaled-recoverable" | "memory-atomic";
-  };
-  readonly operations: readonly ScaffoldOperationReceiptV1[];
   readonly diagnostics: readonly ScaffoldDiagnosticV1[];
   readonly receiptDigest: Sha256Digest;
 }
+
+// The schema and runtime validator additionally require an applied Receipt to
+// contain at least one `applied` operation at any array position.
+export type ScaffoldReceiptV1 =
+  | (ScaffoldReceiptCommonV1 &
+      {
+        readonly outcome: "applied";
+        readonly operations: readonly [
+          ScaffoldOperationReceiptV1 & {
+            readonly outcome: "already-satisfied" | "applied";
+            readonly resultDigest: Sha256Digest;
+          },
+          ...(ScaffoldOperationReceiptV1 & {
+            readonly outcome: "already-satisfied" | "applied";
+            readonly resultDigest: Sha256Digest;
+          })[]
+        ];
+      } & (
+        | {
+            readonly adapter: {
+              readonly id: "foundation.filesystem/v1";
+              readonly contractVersion: 1;
+            };
+            readonly commit: {
+              readonly state: "committed";
+              readonly atomicity: "journaled-recoverable";
+            };
+          }
+        | {
+            readonly adapter: {
+              readonly id: "foundation.memory/v1";
+              readonly contractVersion: 1;
+            };
+            readonly commit: {
+              readonly state: "committed";
+              readonly atomicity: "memory-atomic";
+            };
+          }
+      ))
+  | (ScaffoldReceiptCommonV1 &
+      {
+        readonly outcome: "already-applied";
+        readonly operations: readonly [
+          ScaffoldOperationReceiptV1 & {
+            readonly outcome: "already-satisfied";
+            readonly resultDigest: Sha256Digest;
+          },
+          ...(ScaffoldOperationReceiptV1 & {
+            readonly outcome: "already-satisfied";
+            readonly resultDigest: Sha256Digest;
+          })[]
+        ];
+      } & (
+        | {
+            readonly adapter: {
+              readonly id: "foundation.filesystem/v1";
+              readonly contractVersion: 1;
+            };
+            readonly commit: {
+              readonly state: "committed";
+              readonly atomicity: "journaled-recoverable";
+            };
+          }
+        | {
+            readonly adapter: {
+              readonly id: "foundation.memory/v1";
+              readonly contractVersion: 1;
+            };
+            readonly commit: {
+              readonly state: "committed";
+              readonly atomicity: "memory-atomic";
+            };
+          }
+      ))
+  | (ScaffoldReceiptCommonV1 & {
+      readonly adapter: {
+        readonly id: "foundation.filesystem/v1";
+        readonly contractVersion: 1;
+      };
+      readonly outcome: "failed-recovered";
+      readonly commit: {
+        readonly state: "recovered";
+        readonly atomicity: "journaled-recoverable";
+      };
+      readonly operations: readonly [
+        ScaffoldOperationReceiptV1 & {
+          readonly outcome: "already-satisfied" | "recovered";
+          readonly resultDigest: Sha256Digest;
+        },
+        ...(ScaffoldOperationReceiptV1 & {
+          readonly outcome: "already-satisfied" | "recovered";
+          readonly resultDigest: Sha256Digest;
+        })[]
+      ];
+    })
+  | (ScaffoldReceiptCommonV1 & {
+      readonly adapter: {
+        readonly id: "foundation.filesystem/v1";
+        readonly contractVersion: 1;
+      };
+      readonly outcome: "recovery-required";
+      readonly commit: {
+        readonly state: "recovery-required";
+        readonly atomicity: "journaled-recoverable";
+      };
+      // Schema and runtime additionally require at least one unresolved entry.
+      readonly operations: readonly [
+        | (ScaffoldOperationReceiptV1 & {
+            readonly outcome: "already-satisfied";
+            readonly resultDigest: Sha256Digest;
+          })
+        | (ScaffoldOperationReceiptV1 & {
+            readonly outcome: "conflict" | "not-applied";
+            readonly resultDigest?: never;
+          }),
+        ...(
+          | (ScaffoldOperationReceiptV1 & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (ScaffoldOperationReceiptV1 & {
+              readonly outcome: "conflict" | "not-applied";
+              readonly resultDigest?: never;
+            })
+        )[]
+      ];
+    })
+  | (ScaffoldReceiptCommonV1 &
+      {
+        readonly outcome: "rejected";
+        readonly operations: readonly (
+          | (ScaffoldOperationReceiptV1 & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (ScaffoldOperationReceiptV1 & {
+              readonly outcome: "conflict" | "not-applied";
+              readonly resultDigest?: never;
+            })
+        )[];
+      } & (
+        | {
+            readonly adapter: {
+              readonly id: "foundation.filesystem/v1";
+              readonly contractVersion: 1;
+            };
+            readonly commit: {
+              readonly state: "rejected";
+              readonly atomicity: "journaled-recoverable";
+            };
+          }
+        | {
+            readonly adapter: {
+              readonly id: "foundation.memory/v1";
+              readonly contractVersion: 1;
+            };
+            readonly commit: {
+              readonly state: "rejected";
+              readonly atomicity: "memory-atomic";
+            };
+          }
+      ));
 
 export interface ScaffoldCompilationInput {
   readonly foundationVersion: string;

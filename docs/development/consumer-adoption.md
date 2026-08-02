@@ -95,6 +95,15 @@ ignore patterns or project-specific additions in the consumer:
 }
 ```
 
+Maintainability budgets are deliberately opt-in. A production source config
+adds `presets/oxlint/maintainability.json`; test and fixture lint lanes use
+`presets/oxlint/maintainability-tests.json`. The production budgets are 500
+effective lines per file, 150 per function, complexity 20, nesting depth 4,
+and 5 parameters. The test budgets are 800, 250, 30, 5, and 6 respectively.
+Generated and vendored paths are excluded from these five budgets with a local
+override; they may remain subject to the consumer's other lint rules. Installing
+a new Foundation version never activates either preset automatically.
+
 Presets define reusable language correctness only. Feature boundaries, source
 roots, exceptions, browser rules, and business architecture remain local.
 Use `type-aware.json` in the complete lint gate and keep TypeScript as a separate
@@ -111,9 +120,9 @@ authoritative for package identities, dependencies, and exports.
    schemas for the documented migration window.
 4. A local foundation checkout may be attached for development, but a PR is not
    mergeable until registry mode is restored and proven.
-5. A package update never silently adds a capability declaration; capability
-   adoption is a separate reviewed change with positive and negative parity
-   evidence.
+5. A package update never silently adds a capability declaration or opt-in
+   preset; adoption is a separate reviewed change with positive and negative
+   parity evidence.
 
 Version 0.2 intentionally removes the executable `foundation.config.mjs`, broad
 placeholder capabilities, `enabled: false`, and `projectKind`.

@@ -1,9 +1,55 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": [
-    "./packages/engineering-foundation/presets/oxlint/node.json"
+    "./packages/engineering-foundation/presets/oxlint/node.json",
+    "./packages/engineering-foundation/presets/oxlint/maintainability.json"
   ],
   "ignorePatterns": [
-    "packages/engineering-foundation/dist/**"
+    "**/dist/**",
+    "**/node_modules/**"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "**/generated/**",
+        "**/vendor/**"
+      ],
+      "rules": {
+        "complexity": "off",
+        "max-depth": "off",
+        "max-lines": "off",
+        "max-lines-per-function": "off",
+        "max-params": "off"
+      }
+    },
+    {
+      "files": [
+        "scripts/pack-test.mjs",
+        "spikes/**",
+        "tests/**",
+        "packages/source-dependency-parser-spike/**"
+      ],
+      "rules": {
+        "complexity": ["error", 30],
+        "max-depth": ["error", 5],
+        "max-lines": [
+          "error",
+          {
+            "max": 800,
+            "skipBlankLines": true,
+            "skipComments": true
+          }
+        ],
+        "max-lines-per-function": [
+          "error",
+          {
+            "max": 250,
+            "skipBlankLines": true,
+            "skipComments": true
+          }
+        ],
+        "max-params": ["error", 6]
+      }
+    }
   ]
 }

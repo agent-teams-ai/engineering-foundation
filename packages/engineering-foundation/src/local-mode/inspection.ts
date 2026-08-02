@@ -93,70 +93,171 @@ function isWithin(parent: string, candidate: string): boolean {
   return path === "" || (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path));
 }
 
+function isMissing(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
+}
+
+async function inspectLocalStateDirectory(
+  consumerRoot: string,
+  ignoreOperationLock: boolean,
+  issues: string[]
+): Promise<boolean> {
+  const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
+  let exists = false;
+  try {
+    const entry = await lstat(directory);
+    exists = true;
+    if (!entry.isDirectory() || entry.isSymbolicLink() || (await realpath(directory)) !== directory) {
+      issues.push("Local foundation state path must be a real consumer-owned directory.");
+      return false;
+    }
+  } catch (error) {
+    if (!isMissing(error)) {
+      issues.push("Local foundation state directory cannot be inspected.");
+      return false;
+    }
+  }
+  if (!exists) {
+    return true;
+  }
+  let entries: string[] = [];
+  try {
+    entries = await readdir(directory);
+  } catch (error) {
+    if (!isMissing(error)) {
+      issues.push("Local foundation state directory cannot be read.");
+    }
+  }
+  if (!ignoreOperationLock && entries.includes(LOCAL_OPERATION_LOCK)) {
+    issues.push("A foundation operation is currently active or interrupted.");
+  }
+  if (entries.some((entry) => entry.startsWith(`${LOCAL_STATE_FILE}.`) && entry.endsWith(".tmp"))) {
+    issues.push("An incomplete foundation state write requires recovery.");
+  }
+  return true;
+}
+
+interface InstalledFoundation {
+  readonly root?: string;
+  readonly version?: string;
+}
+
+async function inspectInstalledFoundation(
+  consumerRoot: string,
+  issues: string[]
+): Promise<InstalledFoundation> {
+  try {
+    const root = await realpath(join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME));
+    const manifest = await readJson(join(root, "package.json"));
+    if (
+      isRecord(manifest) &&
+      manifest.name === FOUNDATION_PACKAGE_NAME &&
+      typeof manifest.version === "string"
+    ) {
+      return { root, version: manifest.version };
+    }
+    issues.push("Installed foundation package identity or version is invalid.");
+    return { root };
+  } catch {
+    issues.push("Installed foundation package cannot be resolved.");
+    return {};
+  }
+}
+
+async function inspectLinkStateConsistency(
+  consumerRoot: string,
+  state: FoundationLinkState,
+  installed: InstalledFoundation,
+  issues: string[]
+): Promise<void> {
+  const backupPath = join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP);
+  if (resolve(state.registryBackupPath) !== backupPath) {
+    issues.push("Local state registry backup path is invalid.");
+  }
+  if (!isWithin(join(consumerRoot, "node_modules"), resolve(state.registryPackageRoot))) {
+    issues.push("Local state registry package root is outside node_modules.");
+  }
+  try {
+    const expectedBackupRoot = state.registryEntryKind === "symbolic-link"
+      ? resolve(state.registryPackageRoot)
+      : backupPath;
+    if ((await realpath(backupPath)) !== expectedBackupRoot) {
+      issues.push("Registry backup does not match local state.");
+    }
+  } catch {
+    issues.push("Registry backup cannot be resolved.");
+  }
+  if (state.phase !== "LOCAL") {
+    issues.push(`Local foundation operation is incomplete: ${state.phase}.`);
+  }
+  if (resolve(state.consumerRoot) !== consumerRoot) {
+    issues.push("Local state belongs to a different consumer root.");
+  }
+  if (installed.root === undefined || resolve(state.targetPackageRoot) !== installed.root) {
+    issues.push("Installed foundation path does not match local state.");
+  }
+  if (installed.version !== undefined && state.packageVersion !== installed.version) {
+    issues.push("Installed foundation version does not match local state.");
+  }
+}
+
+async function inspectOrphanBackup(
+  consumerRoot: string,
+  issues: string[]
+): Promise<void> {
+  try {
+    await lstat(join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP));
+    issues.push("An orphan registry backup requires detach recovery.");
+  } catch (error) {
+    if (!isMissing(error)) {
+      issues.push("Registry backup state cannot be inspected.");
+    }
+  }
+}
+
+function buildStatus(input: {
+  readonly consumerRoot: string;
+  readonly dependencySpec?: string;
+  readonly installed: InstalledFoundation;
+  readonly provenance?: { readonly lockfilePath: string; readonly packageKey: string; readonly integrity: string };
+  readonly linkState?: FoundationLinkState;
+  readonly issues: readonly string[];
+}): FoundationStatus {
+  return {
+    mode: input.issues.length === 0
+      ? input.linkState === undefined ? "REGISTRY" : "LOCAL"
+      : "INVALID",
+    consumerRoot: input.consumerRoot,
+    ...(input.dependencySpec === undefined ? {} : { dependencySpec: input.dependencySpec }),
+    ...(input.installed.root === undefined ? {} : { installedPackageRoot: input.installed.root }),
+    ...(input.installed.version === undefined ? {} : { installedVersion: input.installed.version }),
+    ...(input.provenance === undefined
+      ? {}
+      : {
+          lockfilePath: input.provenance.lockfilePath,
+          lockfilePackageKey: input.provenance.packageKey,
+          registryIntegrity: input.provenance.integrity
+        }),
+    ...(input.linkState === undefined ? {} : { linkState: input.linkState }),
+    issues: input.issues
+  };
+}
+
 export async function inspectFoundationMode(
   consumerPath: string,
   options: { readonly ignoreOperationLock?: boolean } = {}
 ): Promise<FoundationStatus> {
   const consumerRoot = await realpath(resolve(consumerPath));
   const issues: string[] = [];
-  const localStateDirectory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
-  let localStateDirectoryIsSafe = true;
-  let localStateDirectoryExists = false;
-  try {
-    const stateEntry = await lstat(localStateDirectory);
-    localStateDirectoryExists = true;
-    if (
-      !stateEntry.isDirectory() ||
-      stateEntry.isSymbolicLink() ||
-      (await realpath(localStateDirectory)) !== localStateDirectory
-    ) {
-      localStateDirectoryIsSafe = false;
-      issues.push(
-        "Local foundation state path must be a real consumer-owned directory."
-      );
-    }
-  } catch (error) {
-    if (
-      !(
-        error instanceof Error &&
-        "code" in error &&
-        (error as NodeJS.ErrnoException).code === "ENOENT"
-      )
-    ) {
-      localStateDirectoryIsSafe = false;
-      issues.push("Local foundation state directory cannot be inspected.");
-    }
-  }
-  let localEntries: string[] = [];
-  if (localStateDirectoryExists && localStateDirectoryIsSafe) {
-    try {
-      localEntries = await readdir(localStateDirectory);
-    } catch (error) {
-      if (
-        !(
-          error instanceof Error &&
-          "code" in error &&
-          (error as NodeJS.ErrnoException).code === "ENOENT"
-        )
-      ) {
-        issues.push("Local foundation state directory cannot be read.");
-      }
-    }
-  }
-  if (
-    options.ignoreOperationLock !== true &&
-    localEntries.includes(LOCAL_OPERATION_LOCK)
-  ) {
-    issues.push("A foundation operation is currently active or interrupted.");
-  }
-  if (
-    localEntries.some(
-      (entry) =>
-        entry.startsWith(`${LOCAL_STATE_FILE}.`) && entry.endsWith(".tmp")
-    )
-  ) {
-    issues.push("An incomplete foundation state write requires recovery.");
-  }
+  const localStateDirectoryIsSafe = await inspectLocalStateDirectory(
+    consumerRoot,
+    options.ignoreOperationLock === true,
+    issues
+  );
 
   const dependencyPolicy = await inspectFoundationDevOnly(consumerRoot);
   issues.push(...dependencyPolicy.issues);
@@ -166,144 +267,45 @@ export async function inspectFoundationMode(
     dependencySpec
   );
   issues.push(...provenance.issues);
-
-  let installedPackageRoot: string | undefined;
-  let installedVersion: string | undefined;
-  try {
-    installedPackageRoot = await realpath(
-      join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME)
-    );
-    const installedManifest = await readJson(
-      join(installedPackageRoot, "package.json")
-    );
-    if (
-      isRecord(installedManifest) &&
-      installedManifest.name === FOUNDATION_PACKAGE_NAME &&
-      typeof installedManifest.version === "string"
-    ) {
-      installedVersion = installedManifest.version;
-    } else {
-      issues.push("Installed foundation package identity or version is invalid.");
-    }
-  } catch {
-    issues.push("Installed foundation package cannot be resolved.");
-  }
+  const installed = await inspectInstalledFoundation(consumerRoot, issues);
 
   const linkState = localStateDirectoryIsSafe
     ? await readOptionalLinkState(consumerRoot, issues)
     : undefined;
   if (linkState !== undefined) {
-    const expectedBackupPath = join(
-      consumerRoot,
-      LOCAL_STATE_DIRECTORY,
-      LOCAL_REGISTRY_BACKUP
-    );
-    if (resolve(linkState.registryBackupPath) !== expectedBackupPath) {
-      issues.push("Local state registry backup path is invalid.");
-    }
-    if (
-      !isWithin(
-        join(consumerRoot, "node_modules"),
-        resolve(linkState.registryPackageRoot)
-      )
-    ) {
-      issues.push("Local state registry package root is outside node_modules.");
-    }
-    try {
-      const expectedBackupRoot =
-        linkState.registryEntryKind === "symbolic-link"
-          ? resolve(linkState.registryPackageRoot)
-          : expectedBackupPath;
-      if ((await realpath(expectedBackupPath)) !== expectedBackupRoot) {
-        issues.push("Registry backup does not match local state.");
-      }
-    } catch {
-      issues.push("Registry backup cannot be resolved.");
-    }
-    if (linkState.phase !== "LOCAL") {
-      issues.push(`Local foundation operation is incomplete: ${linkState.phase}.`);
-    }
-    if (resolve(linkState.consumerRoot) !== consumerRoot) {
-      issues.push("Local state belongs to a different consumer root.");
-    }
-    if (
-      installedPackageRoot === undefined ||
-      resolve(linkState.targetPackageRoot) !== installedPackageRoot
-    ) {
-      issues.push("Installed foundation path does not match local state.");
-    }
-    if (
-      installedVersion !== undefined &&
-      linkState.packageVersion !== installedVersion
-    ) {
-      issues.push("Installed foundation version does not match local state.");
-    }
-    return {
-      mode: issues.length === 0 ? "LOCAL" : "INVALID",
+    await inspectLinkStateConsistency(consumerRoot, linkState, installed, issues);
+    return buildStatus({
       consumerRoot,
       ...(dependencySpec === undefined ? {} : { dependencySpec }),
-      ...(installedPackageRoot === undefined ? {} : { installedPackageRoot }),
-      ...(installedVersion === undefined ? {} : { installedVersion }),
-      ...(provenance.provenance === undefined
-        ? {}
-        : {
-            lockfilePath: provenance.provenance.lockfilePath,
-            lockfilePackageKey: provenance.provenance.packageKey,
-            registryIntegrity: provenance.provenance.integrity
-          }),
+      installed,
+      ...(provenance.provenance === undefined ? {} : { provenance: provenance.provenance }),
       linkState,
       issues
-    };
+    });
   }
 
   if (localStateDirectoryIsSafe) {
-    try {
-      await lstat(
-        join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP)
-      );
-      issues.push("An orphan registry backup requires detach recovery.");
-    } catch (error) {
-      if (
-        !(
-          error instanceof Error &&
-          "code" in error &&
-          (error as NodeJS.ErrnoException).code === "ENOENT"
-        )
-      ) {
-        issues.push("Registry backup state cannot be inspected.");
-      }
-    }
+    await inspectOrphanBackup(consumerRoot, issues);
   }
 
-  if (
-    installedPackageRoot !== undefined &&
-    !isWithin(join(consumerRoot, "node_modules"), installedPackageRoot)
-  ) {
+  if (installed.root !== undefined && !isWithin(join(consumerRoot, "node_modules"), installed.root)) {
     issues.push("Foundation resolves outside consumer node_modules without local state.");
   }
   if (
     dependencySpec !== undefined &&
-    installedVersion !== undefined &&
-    dependencySpec !== installedVersion
+    installed.version !== undefined &&
+    dependencySpec !== installed.version
   ) {
     issues.push("Installed foundation version differs from the manifest version.");
   }
 
-  return {
-    mode: issues.length === 0 ? "REGISTRY" : "INVALID",
+  return buildStatus({
     consumerRoot,
     ...(dependencySpec === undefined ? {} : { dependencySpec }),
-    ...(installedPackageRoot === undefined ? {} : { installedPackageRoot }),
-    ...(installedVersion === undefined ? {} : { installedVersion }),
-    ...(provenance.provenance === undefined
-      ? {}
-      : {
-          lockfilePath: provenance.provenance.lockfilePath,
-          lockfilePackageKey: provenance.provenance.packageKey,
-          registryIntegrity: provenance.provenance.integrity
-        }),
+    installed,
+    ...(provenance.provenance === undefined ? {} : { provenance: provenance.provenance }),
     issues
-  };
+  });
 }
 
 export {

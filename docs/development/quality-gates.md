@@ -41,6 +41,14 @@ Oxlint is the only JavaScript/TypeScript linter until a concrete missing rule
 proves that ESLint is required. The published presets enable correctness,
 suspicious, import, promise, Node, Unicorn, Oxc, and type-aware TypeScript rules.
 
+The repository also publishes opt-in production and test maintainability
+presets. Foundation dogfoods the production profile and applies the documented
+relaxed profile to tests, fixtures, the packed-consumer harness, and spikes.
+Generated and vendored paths are excluded from the five budgets without
+disabling unrelated lint rules; dependency and build output is ignored.
+Consumers own their path mapping and enable the presets only in a dedicated
+reviewed adoption change.
+
 `typeCheck` remains disabled in Oxlint. The pinned TypeScript 7 compiler is the
 single type-error authority, preventing duplicate and inconsistent diagnostics.
 ESLint disable comments do not suppress foundation rules, and unused Oxlint

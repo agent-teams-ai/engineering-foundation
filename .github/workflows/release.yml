@@ -99,7 +99,7 @@ jobs:
           gh workflow run ci.yml \
             --repo "${GITHUB_REPOSITORY}" \
             --ref changeset-release/main
-          gh workflow run reviewrouter.yml \
+          gh workflow run reviewrouter-codex.yml \
             --repo "${GITHUB_REPOSITORY}" \
             --ref main \
             -f pr_number="${RELEASE_PULL_REQUEST}"

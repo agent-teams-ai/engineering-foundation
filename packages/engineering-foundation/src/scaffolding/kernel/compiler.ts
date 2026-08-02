@@ -12,7 +12,12 @@ import type {
   ScaffoldTargetV1
 } from "../contract/types.js";
 import { ScaffoldError } from "../scaffold-error.js";
-import { canonicalJson, sha256Bytes, sha256Json } from "./canonical-json.js";
+import {
+  canonicalJson,
+  sha256Bytes,
+  sha256Json,
+  sha256Text
+} from "./canonical-json.js";
 import {
   ScaffoldDefinitionRegistry,
   type ScaffoldDefinition,
@@ -21,6 +26,7 @@ import {
 } from "./definition-registry.js";
 import {
   MAX_SCAFFOLD_FILE_BYTES,
+  MAX_SCAFFOLD_ID_LENGTH,
   MAX_SCAFFOLD_OPERATIONS,
   MAX_SCAFFOLD_TOTAL_BYTES
 } from "./limits.js";
@@ -232,8 +238,12 @@ function operationsFromContributions(
       );
     }
     totalBytes += bytes.byteLength;
+    const readableId = `materialize/${contribution.path}`;
     return Object.freeze({
-      id: `materialize/${contribution.path}`,
+      id:
+        readableId.length <= MAX_SCAFFOLD_ID_LENGTH
+          ? readableId
+          : `materialize/${sha256Text(contribution.path).slice("sha256:".length)}`,
       kind: "materialize-file" as const,
       path: contribution.path,
       precondition: Object.freeze({ state: "absent" as const }),

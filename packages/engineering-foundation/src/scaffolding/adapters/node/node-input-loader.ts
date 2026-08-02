@@ -90,11 +90,15 @@ async function readContainedRepositoryFile(
 }
 
 function assertion(file: LoadedRepositoryFile): ScaffoldReadAssertionV1 {
+  const canonicalBytes = Buffer.from(
+    file.source.replace(/\r\n?/gu, "\n"),
+    "utf8"
+  );
   return Object.freeze({
     path: file.path,
     state: "file" as const,
-    digest: sha256Bytes(file.bytes),
-    size: file.bytes.byteLength
+    digest: sha256Bytes(canonicalBytes),
+    size: canonicalBytes.byteLength
   });
 }
 
@@ -246,9 +250,10 @@ export async function inspectAuthorityReadSet(
       expected.path,
       "scaffold-apply-read-set"
     );
+    const observed = assertion(current);
     if (
-      current.bytes.byteLength !== expected.size ||
-      sha256Bytes(current.bytes) !== expected.digest
+      observed.size !== expected.size ||
+      observed.digest !== expected.digest
     ) {
       return false;
     }

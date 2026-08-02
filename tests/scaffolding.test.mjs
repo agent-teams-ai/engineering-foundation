@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import {
   cp,
   mkdir,
@@ -36,6 +37,12 @@ import { CONFORMANCE_FIXTURE_DEFINITIONS } from "../packages/engineering-foundat
 import { loadScaffoldCompilationInput } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-input-loader.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+const requireFromTest = createRequire(import.meta.url);
+const typescriptCliPath = join(
+  dirname(requireFromTest.resolve("typescript/package.json")),
+  "bin",
+  "tsc"
+);
 const fixtureRoot = join(
   repositoryRoot,
   "tests",
@@ -115,7 +122,15 @@ async function crashDuringApply(root, scaffoldPlan, phase, operationIndex) {
     { stdio: ["ignore", "pipe", "pipe"] }
   );
   const result = await waitForExit(child);
-  assert.equal(result.signal, "SIGKILL", `Crash worker exited with code ${result.code}.`);
+  if (process.platform === "win32") {
+    assert.equal(result.code, 86, `Crash worker exited with signal ${result.signal}.`);
+  } else {
+    assert.equal(
+      result.signal,
+      "SIGKILL",
+      `Crash worker exited with code ${result.code}.`
+    );
+  }
   await utimes(
     join(root, ".agent-teams-local", "foundation-operation.lock"),
     new Date(0),
@@ -137,8 +152,9 @@ test("compiles the same semantic Intent to one deterministic Plan", async () => 
     );
     assert.equal((await applyFilesystemScaffold(root, first)).outcome, "applied");
     const typecheck = spawnSync(
-      join(repositoryRoot, "node_modules", ".bin", "tsc"),
+      process.execPath,
       [
+        typescriptCliPath,
         "--project",
         join(root, "packages", "testing", "generated", "tsconfig.json"),
         "--pretty",
@@ -553,8 +569,9 @@ test("plans and applies the conformance package through the CLI", async () => {
     );
 
     const typecheck = spawnSync(
-      join(repositoryRoot, "node_modules", ".bin", "tsc"),
+      process.execPath,
       [
+        typescriptCliPath,
         "--project",
         join(root, "packages", "testing", "generated", "tsconfig.json"),
         "--pretty",

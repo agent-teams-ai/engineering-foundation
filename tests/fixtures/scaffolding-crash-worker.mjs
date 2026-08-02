@@ -29,6 +29,9 @@ await applyFilesystemScaffoldWithFaultInjection(
       point.phase === expectedPhase &&
       (expectedIndex === undefined || point.operationIndex === expectedIndex)
     ) {
+      if (process.platform === "win32") {
+        process.exit(86);
+      }
       process.kill(process.pid, "SIGKILL");
     }
   }

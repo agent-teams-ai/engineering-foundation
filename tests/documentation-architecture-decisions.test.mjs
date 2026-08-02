@@ -413,6 +413,21 @@ test("does not rewrite an already canonical immutable baseline", async () => {
   });
 });
 
+test("treats platform line endings as the same canonical immutable baseline", async () => {
+  await withFixture(async (root) => {
+    const path = baselinePath(root);
+    const canonical = await readFile(path, "utf8");
+    const platformSource = canonical.replaceAll("\n", "\r\n");
+    await writeFile(path, platformSource, "utf8");
+    const promotion = await promoteArchitectureDecisionBaseline({
+      consumerRoot: root,
+      configPath: "governance-architecture-decisions.yaml"
+    });
+    assert.equal(promotion.writeResult, "unchanged");
+    assert.equal(await readFile(path, "utf8"), platformSource);
+  });
+});
+
 test("does not read or write a baseline until the complete ADR catalog is valid", async () => {
   await withFixture(async (root) => {
     await writeFile(
@@ -466,7 +481,9 @@ test("refuses to delete a historical baseline entry during promotion", async () 
     const acceptedSource = await readFile(acceptedPath, "utf8");
     await writeFile(
       acceptedPath,
-      acceptedSource.replace("supersedes:\n  - ADR-0003\n", ""),
+      acceptedSource
+        .replaceAll("\r\n", "\n")
+        .replace("supersedes:\n  - ADR-0003\n", ""),
       "utf8"
     );
     await writeFile(

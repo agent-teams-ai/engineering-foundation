@@ -23,12 +23,14 @@ using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 
 public static class AgentTeamsFoundationJobRunner
 {
     private const uint CREATE_SUSPENDED = 0x00000004;
     private const uint STARTF_USESTDHANDLES = 0x00000100;
     private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
+    private const int JobObjectBasicAccountingInformation = 1;
     private const int JobObjectExtendedLimitInformation = 9;
     private const uint INFINITE = 0xffffffff;
     private const int STD_INPUT_HANDLE = -10;
@@ -82,6 +84,19 @@ public static class AgentTeamsFoundationJobRunner
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION
+    {
+        public long TotalUserTime;
+        public long TotalKernelTime;
+        public long ThisPeriodTotalUserTime;
+        public long ThisPeriodTotalKernelTime;
+        public uint TotalPageFaultCount;
+        public uint TotalProcesses;
+        public uint ActiveProcesses;
+        public uint TotalTerminatedProcesses;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct IO_COUNTERS
     {
         public ulong ReadOperationCount;
@@ -112,6 +127,17 @@ public static class AgentTeamsFoundationJobRunner
         int informationClass,
         IntPtr information,
         uint informationLength);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool QueryInformationJobObject(
+        IntPtr job,
+        int informationClass,
+        IntPtr information,
+        uint informationLength,
+        IntPtr returnLength);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool TerminateJobObject(IntPtr job, uint exitCode);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
@@ -176,6 +202,52 @@ public static class AgentTeamsFoundationJobRunner
         output.Append('\\', slashes * 2);
         output.Append('"');
         return output.ToString();
+    }
+
+    private static uint ActiveProcessCount(IntPtr job)
+    {
+        var accounting = new JOBOBJECT_BASIC_ACCOUNTING_INFORMATION();
+        var length = Marshal.SizeOf(accounting);
+        var pointer = Marshal.AllocHGlobal(length);
+        try
+        {
+            if (!QueryInformationJobObject(
+                job,
+                JobObjectBasicAccountingInformation,
+                pointer,
+                (uint)length,
+                IntPtr.Zero))
+            {
+                throw new Win32Exception(
+                    Marshal.GetLastWin32Error(),
+                    "QueryInformationJobObject failed");
+            }
+            accounting = (JOBOBJECT_BASIC_ACCOUNTING_INFORMATION)
+                Marshal.PtrToStructure(pointer, typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION));
+            return accounting.ActiveProcesses;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pointer);
+        }
+    }
+
+    private static void TerminateRemainingProcessesAndWait(IntPtr job)
+    {
+        if (ActiveProcessCount(job) > 0 && !TerminateJobObject(job, 1))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "TerminateJobObject failed");
+        }
+        var deadline = Environment.TickCount64 + 5000;
+        while (ActiveProcessCount(job) > 0)
+        {
+            if (Environment.TickCount64 >= deadline)
+            {
+                throw new TimeoutException(
+                    "Windows Job Object descendants did not terminate within 5000 ms");
+            }
+            Thread.Sleep(10);
+        }
     }
 
     public static int Run(
@@ -262,6 +334,7 @@ public static class AgentTeamsFoundationJobRunner
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "GetExitCodeProcess failed");
             }
+            TerminateRemainingProcessesAndWait(job);
             return unchecked((int)exitCode);
         }
         finally

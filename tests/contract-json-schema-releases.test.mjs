@@ -13,7 +13,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
@@ -274,7 +274,7 @@ test("fails closed when the named JSON file identity changes after descriptor va
           async stat(path) {
             const metadata = await stat(path);
             if (
-              !path.replaceAll("\\", "/").endsWith("/fixtures/identity.json") ||
+              basename(path).toLowerCase() !== "identity.json" ||
               ++candidateStats !== 2
             ) {
               return metadata;

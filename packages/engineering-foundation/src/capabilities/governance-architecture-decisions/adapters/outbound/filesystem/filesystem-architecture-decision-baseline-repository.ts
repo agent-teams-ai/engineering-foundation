@@ -82,6 +82,13 @@ function serializedBaseline(baseline: AcceptedArchitectureDecisionBaseline): str
   )}\n`;
 }
 
+function hasEquivalentSerializedBaseline(
+  observed: string | undefined,
+  expected: string
+): boolean {
+  return observed?.replaceAll("\r\n", "\n") === expected;
+}
+
 function writeError(code: string, message: string): never {
   throw new CapabilityInputError({
     code,
@@ -360,7 +367,7 @@ export class FilesystemArchitectureDecisionBaselineRepository
       await ensureSafeParent(target);
       const secondRead = await inspectBaseline(input);
       assertExpectedState(secondRead.result, input.expected);
-      if (secondRead.source === source) {
+      if (hasEquivalentSerializedBaseline(secondRead.source, source)) {
         return "unchanged";
       }
       assertNotCancelled(input.signal);
@@ -373,7 +380,7 @@ export class FilesystemArchitectureDecisionBaselineRepository
         assertNotCancelled(input.signal);
         const finalRead = await inspectBaseline(input);
         assertExpectedState(finalRead.result, input.expected);
-        if (finalRead.source === source) {
+        if (hasEquivalentSerializedBaseline(finalRead.source, source)) {
           return "unchanged";
         }
         if (await pathTraversesSymbolicLink(target.root, target.candidate)) {

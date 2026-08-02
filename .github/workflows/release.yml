@@ -67,33 +67,10 @@ jobs:
           fi
           printf 'head_sha=%s\n' "${head_sha}" >> "${GITHUB_OUTPUT}"
 
-  review-release-pr:
-    name: review-release-pr
-    needs: release
-    if: ${{ needs.release.outputs.pullRequestNumber != '' }}
-    permissions:
-      contents: read
-      pull-requests: read
-      id-token: write
-    uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@e982a5e3aebe71404dac948fd67cb7291e8be0fb
-    with:
-      runtime_ref: "e982a5e3aebe71404dac948fd67cb7291e8be0fb"
-      api_url: "https://api.reviewrouter.site"
-      runtime_config_mode: oidc
-      static_runtime_env_json: '{"SKIP_BOTS":"false"}'
-      pr_number: ${{ needs.release.outputs.pullRequestNumber }}
-      review_head_sha: ${{ needs.release.outputs.pullRequestHeadSha }}
-      provider_instance_id: "codex-rotating:1316243988"
-      workflow_schema_version: 2
-      max_changed_lines: ${{ vars.REVIEW_ROUTER_MAX_CHANGED_LINES }}
-      review_timeout_minutes: ${{ fromJSON(vars.REVIEW_ROUTER_TIMEOUT_MINUTES || '60') }}
-    secrets:
-      CODEX_AUTH_JSON: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON }}
-
   attest-release-pr:
     name: attest-release-pr
-    needs: [release, review-release-pr]
-    if: ${{ always() && needs.release.outputs.pullRequestNumber != '' }}
+    needs: release
+    if: ${{ needs.release.outputs.pullRequestNumber != '' }}
     permissions:
       actions: write
       contents: read
@@ -140,6 +117,11 @@ jobs:
           gh workflow run ci.yml \
             --repo "${GITHUB_REPOSITORY}" \
             --ref changeset-release/main
+          gh workflow run reviewrouter-release.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f pr_number="${RELEASE_PULL_REQUEST}" \
+            -f review_head_sha="${head_sha}"
 
           deadline=$((SECONDS + 600))
           while (( SECONDS < deadline )); do
@@ -154,12 +136,6 @@ jobs:
                 all_completed=0
               fi
             done
-            review_state="$(gh api \
-              "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status" \
-              --jq '[.statuses[] | select(.context == "ReviewRouter")] | sort_by(.created_at) | last | .state // "missing"')"
-            if [[ "${review_state}" != "success" && "${review_state}" != "failure" && "${review_state}" != "error" ]]; then
-              all_completed=0
-            fi
             if (( all_completed == 1 )); then
               break
             fi
@@ -194,13 +170,5 @@ jobs:
             esac
             post_status "${context}" "${status_state}" "Release PR ${context}: ${conclusion}" "${target_url}"
           done
-
-          read -r review_state review_target_url < <(gh api \
-            "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status" \
-            --jq '[.statuses[] | select(.context == "ReviewRouter")] | sort_by(.created_at) | last | [.state, .target_url] | @tsv')
-          if [[ "${review_state}" != "success" ]]; then
-            failed=1
-            echo "ReviewRouter finished with ${review_state}; its App-owned status is preserved (${review_target_url:-no target URL})." >&2
-          fi
 
           exit "${failed}"

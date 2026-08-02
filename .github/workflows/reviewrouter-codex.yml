@@ -23,6 +23,7 @@ jobs:
       pull-requests: read
     runs-on: ubuntu-24.04
     outputs:
+      head_sha: ${{ steps.pr.outputs.head_sha }}
       number: ${{ steps.pr.outputs.number }}
     steps:
       - name: Resolve pull request
@@ -38,11 +39,18 @@ jobs:
             echo "pr_number must be a positive integer" >&2
             exit 1
           }
-          state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" --jq .state)"
+          read -r state head_sha < <(gh api \
+            "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" \
+            --jq '[.state, .head.sha] | @tsv')
           [[ "${state}" == "open" ]] || {
             echo "Review target must be an open pull request." >&2
             exit 1
           }
+          [[ "${head_sha}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "Review target has an invalid head SHA." >&2
+            exit 1
+          }
+          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
           echo "number=${pr_number}" >> "${GITHUB_OUTPUT}"
 
   review:
@@ -70,8 +78,38 @@ jobs:
     if: ${{ always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.user.type != 'Bot') }}
     permissions:
       contents: read
+      statuses: write
     runs-on: ubuntu-24.04
     steps:
+      - name: Publish dispatched review result on the reviewed revision
+        if: ${{ github.event_name == 'workflow_dispatch' && needs.resolve.outputs.head_sha != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.resolve.outputs.number }}
+          RESOLVE_RESULT: ${{ needs.resolve.result }}
+          REVIEWED_HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+          REVIEW_RESULT: ${{ needs.review.result }}
+          REVIEW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          state=failure
+          description="Independent review failed"
+          current_head_sha="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+            --jq .head.sha)"
+          if [[ "${current_head_sha}" != "${REVIEWED_HEAD_SHA}" ]]; then
+            description="Review target changed during attestation"
+          elif [[ "${RESOLVE_RESULT}" == "success" && "${REVIEW_RESULT}" == "success" ]]; then
+            state=success
+            description="Independent review passed"
+          fi
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${REVIEWED_HEAD_SHA}" \
+            -f state="${state}" \
+            -f context="review / review" \
+            -f description="${description}" \
+            -f target_url="${REVIEW_RUN_URL}" >/dev/null
+
       - name: Require successful independent review
         env:
           RESOLVE_RESULT: ${{ needs.resolve.result }}

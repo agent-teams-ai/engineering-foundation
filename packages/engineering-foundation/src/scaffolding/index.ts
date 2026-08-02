@@ -13,6 +13,7 @@ export type {
   ScaffoldOperationReceiptV1,
   ScaffoldPlanV1,
   ScaffoldReadAssertionV1,
+  ScaffoldReceiptCommonV1,
   ScaffoldReceiptOutcome,
   ScaffoldReceiptV1,
   ScaffoldingConfigV1,

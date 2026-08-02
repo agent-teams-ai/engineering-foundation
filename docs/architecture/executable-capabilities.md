@@ -2,6 +2,8 @@
 
 Status: Implemented and released for workspace declarations, source dependencies,
 suppression governance, public API compatibility, and repository security.
+The separate closed scaffolding protocol is implemented in this repository and
+pending its first package release.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
@@ -374,7 +376,12 @@ product graph.
 
 - affected execution, persistent cache, and watch mode;
 - SARIF conversion and versioned partial fingerprints;
-- autofix and scaffolding;
+- autofix;
+- product scaffolding recipes, structured-update operations, and the optional Nx
+  adapter. The closed kernel, schemas, commands, memory/filesystem adapters, and
+  testing-only conformance vertical accepted in
+  [ADR-0006](../decisions/0006-closed-deterministic-scaffolding-compiler.md) are
+  implemented;
 - public programmatic evaluation API;
 - dynamic or third-party capabilities;
 - generated production registries.

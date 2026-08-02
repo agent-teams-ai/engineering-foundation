@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/scaffold-receipt/v1",
+  "title": "Scaffold Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocolVersion", "planDigest", "adapter", "outcome", "commit", "operations", "diagnostics", "receiptDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocolVersion": { "const": 1 },
+    "planDigest": { "$ref": "#/$defs/digest" },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "enum": ["foundation.filesystem/v1", "foundation.memory/v1"] },
+        "contractVersion": { "const": 1 }
+      }
+    },
+    "outcome": { "enum": ["already-applied", "applied", "failed-recovered", "recovery-required", "rejected"] },
+    "commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "atomicity"],
+      "properties": {
+        "state": { "enum": ["committed", "host-managed", "recovered", "recovery-required", "rejected"] },
+        "atomicity": { "enum": ["journaled-recoverable", "memory-atomic"] }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operationId", "path", "outcome"],
+        "properties": {
+          "operationId": { "$ref": "#/$defs/id" },
+          "path": { "$ref": "#/$defs/repositoryPath" },
+          "outcome": { "enum": ["already-satisfied", "applied", "conflict", "not-applied", "recovered"] },
+          "resultDigest": { "$ref": "#/$defs/digest" }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "outcome": { "enum": ["already-satisfied", "applied", "recovered"] }
+              },
+              "required": ["outcome"]
+            },
+            "then": { "required": ["resultDigest"] }
+          },
+          {
+            "if": {
+              "properties": {
+                "outcome": { "enum": ["conflict", "not-applied"] }
+              },
+              "required": ["outcome"]
+            },
+            "then": { "not": { "required": ["resultDigest"] } }
+          }
+        ]
+      }
+    },
+    "diagnostics": { "type": "array", "maxItems": 1024, "items": { "$ref": "#/$defs/diagnostic" } },
+    "receiptDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "repositoryPath": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@/-]+$" },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "severity", "phase", "subject", "message", "remediation"],
+      "properties": {
+        "ruleId": { "$ref": "#/$defs/id" },
+        "severity": { "enum": ["error", "info", "warning"] },
+        "phase": { "enum": ["apply", "composition", "input", "planning", "policy", "recovery"] },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "remediation": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    }
+  }
+}

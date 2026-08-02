@@ -19,6 +19,13 @@ A consumer owns business and repository facts:
 The consumer supplies those facts through a narrow configuration adapter. The
 foundation validates and executes them but cannot invent or override them.
 
+The accepted scaffolding boundary applies the same ownership rule to mutation.
+Foundation owns the closed deterministic compiler and execution protocol. A
+consumer owns approved compositions and resolves its catalog and architecture
+facts through data-only adapters. Templates remain private implementation
+details, while Nx is an optional workspace adapter. See
+[Scaffolding compiler protocol](scaffolding-compiler-protocol.md).
+
 Capabilities are feature-owned policy surfaces with granular identifiers. Broad
 menu categories such as `architecture` or `documentation` are not capability
 boundaries. The built-in registry is static and private; consumers provide data,

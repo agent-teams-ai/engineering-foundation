@@ -4,7 +4,7 @@ packages:
   - packageName: "@agent-teams/engineering-foundation"
     packageRoot: packages/engineering-foundation
     manifestPath: packages/engineering-foundation/package.json
-    declarationEntryPoint: packages/engineering-foundation/dist/index.d.ts
+    declarationEntryPoint: packages/engineering-foundation/dist/public-api-surface.d.ts
     tsconfigPath: packages/engineering-foundation/tsconfig.json
     releasedBaselinePath: architecture/public-api/engineering-foundation.json
     approvedBreakingChanges: []

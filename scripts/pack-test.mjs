@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import {
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -39,6 +40,12 @@ const packageRoot = join(
   repositoryRoot,
   "packages",
   "engineering-foundation"
+);
+const scaffoldingFixtureRoot = join(
+  repositoryRoot,
+  "tests",
+  "fixtures",
+  "scaffolding-consumer"
 );
 const temporaryRoot = await mkdtemp(
   join(tmpdir(), "agent-teams-foundation-pack-")
@@ -496,6 +503,65 @@ try {
     packedSelfCheck.localModeProtocolVersion !== 1
   ) {
     throw new Error("Packed CLI self-check did not validate the package.");
+  }
+
+  await cp(
+    join(scaffoldingFixtureRoot, "architecture", "foundation", "scaffolding.yaml"),
+    join(consumerRoot, "architecture", "foundation", "scaffolding.yaml")
+  );
+  await cp(
+    join(scaffoldingFixtureRoot, "architecture", "package-catalog.yaml"),
+    join(consumerRoot, "architecture", "package-catalog.yaml")
+  );
+  await mkdir(join(consumerRoot, "intents"), { recursive: true });
+  await cp(
+    join(scaffoldingFixtureRoot, "intents", "create-fixture.yaml"),
+    join(consumerRoot, "intents", "create-fixture.yaml")
+  );
+  const { stdout: scaffoldPlanOutput } = await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "scaffold-plan",
+      "intents/create-fixture.yaml",
+      "--consumer",
+      consumerRoot,
+      "--json"
+    ]),
+    { cwd: consumerRoot }
+  );
+  const scaffoldPlan = JSON.parse(scaffoldPlanOutput);
+  await mkdir(join(consumerRoot, "plans"));
+  await writeFile(
+    join(consumerRoot, "plans", "pack-fixture.json"),
+    `${JSON.stringify(scaffoldPlan, null, 2)}\n`
+  );
+  const { stdout: scaffoldReceiptOutput } = await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "scaffold-apply",
+      "plans/pack-fixture.json",
+      "--consumer",
+      consumerRoot,
+      "--json"
+    ]),
+    { cwd: consumerRoot }
+  );
+  const scaffoldReceipt = JSON.parse(scaffoldReceiptOutput);
+  if (scaffoldReceipt.outcome !== "applied") {
+    throw new Error("Packed scaffolding CLI did not apply its deterministic Plan.");
+  }
+  const generatedManifest = JSON.parse(
+    await readFile(
+      join(consumerRoot, "packages", "testing", "generated", "package.json"),
+      "utf8"
+    )
+  );
+  if (generatedManifest.name !== "@fixture/generated") {
+    throw new Error("Packed scaffolding CLI generated an unexpected package.");
   }
 
   const localModeConsumerRoot = join(temporaryRoot, "local-mode-consumer");

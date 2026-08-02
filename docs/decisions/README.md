@@ -25,3 +25,6 @@ architecture document. Changing an accepted decision requires a new ADR.
 - ADR-0005:
   [Repository security baseline](0005-repository-security-baseline.md)
   - Accepted
+- ADR-0006:
+  [Closed deterministic scaffolding compiler](0006-closed-deterministic-scaffolding-compiler.md)
+  - Accepted

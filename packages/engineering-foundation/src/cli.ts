@@ -20,6 +20,20 @@ import type {
 import { inspectFoundationPackage } from "./package-self-check.js";
 import { renderFoundationReportText } from "./report-renderer.js";
 import {
+  applyFilesystemScaffold,
+  readScaffoldPlanFile,
+  recoverFilesystemScaffold
+} from "./scaffolding/index.js";
+import type {
+  ScaffoldPlanV1,
+  ScaffoldReceiptV1
+} from "./scaffolding/contract/types.js";
+import { ScaffoldError } from "./scaffolding/scaffold-error.js";
+import {
+  DEFAULT_SCAFFOLDING_CONFIG_PATH,
+  planScaffoldFromFile
+} from "./scaffolding/service.js";
+import {
   isFoundationSchemaId,
   readFoundationSchema
 } from "./schema-catalog.js";
@@ -30,6 +44,7 @@ interface ParsedArguments {
   readonly command: string;
   readonly positional: readonly string[];
   readonly consumerRoot: string;
+  readonly configPath: string;
   readonly format: OutputFormat;
 }
 
@@ -46,6 +61,9 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   explain: 1,
   help: 0,
   "public-api-promote-release": 0,
+  "scaffold-apply": 1,
+  "scaffold-plan": 1,
+  "scaffold-recover": 0,
   schema: 1,
   "self-check": 0,
   status: 0,
@@ -54,6 +72,8 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
 
 interface ArgumentState {
   readonly positional: string[];
+  configPath: string;
+  configPathProvided: boolean;
   consumerRoot: string;
   format: OutputFormat;
   optionsEnded: boolean;
@@ -88,6 +108,18 @@ function consumeArgument(
     state.consumerRoot = resolve(candidate);
     return 1;
   }
+  if (value === "--config") {
+    const candidate = args[index + 1];
+    if (candidate === undefined || candidate.length === 0) {
+      throw new FoundationError(
+        "CONSUMER_INVALID",
+        "--config requires a repository-relative path."
+      );
+    }
+    state.configPath = candidate;
+    state.configPathProvided = true;
+    return 1;
+  }
   if (value === "--format") {
     const candidate = args[index + 1];
     if (candidate !== "json" && candidate !== "text") {
@@ -106,6 +138,8 @@ function consumeArgument(
 function parseArguments(args: readonly string[]): ParsedArguments {
   const state: ArgumentState = {
     positional: [],
+    configPath: DEFAULT_SCAFFOLDING_CONFIG_PATH,
+    configPathProvided: false,
     consumerRoot: process.cwd(),
     format: "text",
     optionsEnded: false
@@ -116,6 +150,12 @@ function parseArguments(args: readonly string[]): ParsedArguments {
   }
 
   const command = args[0] ?? "help";
+  if (state.configPathProvided && command !== "scaffold-plan") {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "--config is supported only by scaffold-plan."
+    );
+  }
   const maximum = MAX_POSITIONAL_ARGUMENTS[command];
   if (maximum !== undefined && state.positional.length > maximum) {
     throw new FoundationError(
@@ -128,6 +168,7 @@ function parseArguments(args: readonly string[]): ParsedArguments {
     command,
     positional: state.positional,
     consumerRoot: state.consumerRoot,
+    configPath: state.configPath,
     format: state.format
   };
 }
@@ -194,6 +235,9 @@ function printHelp(): void {
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
+  agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
+  agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
+  agent-teams-foundation scaffold-recover [--consumer <path>] [--json]
   agent-teams-foundation schema <schema-id>
   agent-teams-foundation attach <path> [--consumer <path>]
   agent-teams-foundation status [--consumer <path>] [--json]
@@ -203,6 +247,21 @@ function printHelp(): void {
   agent-teams-foundation self-check [--json]
   agent-teams-foundation version
 `);
+}
+
+function renderScaffoldPlan(plan: ScaffoldPlanV1): string {
+  return `Scaffold Plan: ${plan.planDigest}\nProject: ${plan.projectId}\nComposition: ${plan.composition.id}\nTarget: ${plan.target.id} -> ${plan.target.path}\nOperations: ${plan.operations.length}\n`;
+}
+
+function renderScaffoldReceipt(receipt: ScaffoldReceiptV1): string {
+  return `Scaffold Receipt: ${receipt.receiptDigest}\nPlan: ${receipt.planDigest}\nOutcome: ${receipt.outcome}\nOperations: ${receipt.operations.length}\n`;
+}
+
+function exitCodeForScaffoldReceipt(receipt: ScaffoldReceiptV1): number {
+  return receipt.outcome === "applied" || receipt.outcome === "already-applied" ||
+    receipt.outcome === "failed-recovered"
+    ? 0
+    : 1;
 }
 
 async function packageVersion(): Promise<string> {
@@ -350,7 +409,8 @@ async function runPolicyCommand(
 }
 
 async function runInformationCommand(
-  parsed: ParsedArguments
+  parsed: ParsedArguments,
+  json: boolean
 ): Promise<boolean> {
   switch (parsed.command) {
     case "help":
@@ -376,6 +436,60 @@ async function runInformationCommand(
       process.stdout.write(await readFoundationSchema(schemaId));
       return true;
     }
+    case "scaffold-apply": {
+      const planPath = parsed.positional[0];
+      if (planPath === undefined) {
+        throw new FoundationError(
+          "CONSUMER_INVALID",
+          "scaffold-apply requires a repository-relative Plan path."
+        );
+      }
+      const plan = await readScaffoldPlanFile(parsed.consumerRoot, planPath);
+      const receipt = await applyFilesystemScaffold(parsed.consumerRoot, plan);
+      process.stdout.write(
+        json
+          ? `${JSON.stringify(receipt, null, 2)}\n`
+          : renderScaffoldReceipt(receipt)
+      );
+      process.exitCode = exitCodeForScaffoldReceipt(receipt);
+      return true;
+    }
+    case "scaffold-plan": {
+      const intentPath = parsed.positional[0];
+      if (intentPath === undefined) {
+        throw new FoundationError(
+          "CONSUMER_INVALID",
+          "scaffold-plan requires a repository-relative Intent path."
+        );
+      }
+      const plan = await planScaffoldFromFile({
+        consumerRoot: parsed.consumerRoot,
+        intentPath,
+        configPath: parsed.configPath
+      });
+      process.stdout.write(
+        json ? `${JSON.stringify(plan, null, 2)}\n` : renderScaffoldPlan(plan)
+      );
+      return true;
+    }
+    case "scaffold-recover": {
+      const receipt = await recoverFilesystemScaffold(parsed.consumerRoot);
+      if (receipt === undefined) {
+        process.stdout.write(
+          json
+            ? `${JSON.stringify({ outcome: "no-pending-transaction" }, null, 2)}\n`
+            : "No pending scaffolding transaction.\n"
+        );
+      } else {
+        process.stdout.write(
+          json
+            ? `${JSON.stringify(receipt, null, 2)}\n`
+            : renderScaffoldReceipt(receipt)
+        );
+        process.exitCode = exitCodeForScaffoldReceipt(receipt);
+      }
+      return true;
+    }
     case "version":
     case "--version":
     case "-v": {
@@ -398,7 +512,7 @@ async function main(): Promise<void> {
     await runLocalModeCommand(parsed, service, json) ||
     await runCheckCommand(parsed, json) ||
     await runPolicyCommand(parsed, json) ||
-    await runInformationCommand(parsed)
+    await runInformationCommand(parsed, json)
   ) {
     return;
   }
@@ -411,7 +525,14 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error) {
-  if (error instanceof CapabilityInputError) {
+  if (error instanceof ScaffoldError) {
+    process.stderr.write(`${error.code}: ${error.message}\n`);
+    process.exitCode =
+      error.code === "SCAFFOLD_INPUT_INVALID" ||
+      error.code === "SCAFFOLD_PLAN_INVALID"
+        ? 2
+        : 1;
+  } else if (error instanceof CapabilityInputError) {
     process.stderr.write(`${error.problem.code}: ${error.problem.message}\n`);
     process.exitCode = 2;
   } else if (error instanceof FoundationError) {

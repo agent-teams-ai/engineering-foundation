@@ -28,6 +28,22 @@ interface LoadedRepositoryFile {
   readonly source: string;
 }
 
+function hasErrorCode(error: unknown, code: string): boolean {
+  const visited = new Set<Error>();
+  let candidate = error;
+  while (candidate instanceof Error && !visited.has(candidate)) {
+    visited.add(candidate);
+    if (
+      "code" in candidate &&
+      (candidate as NodeJS.ErrnoException).code === code
+    ) {
+      return true;
+    }
+    candidate = candidate.cause;
+  }
+  return false;
+}
+
 function isContained(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
   return (
@@ -245,11 +261,19 @@ export async function inspectAuthorityReadSet(
   readSet: readonly ScaffoldReadAssertionV1[]
 ): Promise<boolean> {
   for (const expected of readSet) {
-    const current = await readContainedRepositoryFile(
-      consumerRoot,
-      expected.path,
-      "scaffold-apply-read-set"
-    );
+    let current: LoadedRepositoryFile;
+    try {
+      current = await readContainedRepositoryFile(
+        consumerRoot,
+        expected.path,
+        "scaffold-apply-read-set"
+      );
+    } catch (error) {
+      if (hasErrorCode(error, "ENOENT")) {
+        return false;
+      }
+      throw error;
+    }
     const observed = assertion(current);
     if (
       observed.size !== expected.size ||

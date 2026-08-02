@@ -198,6 +198,17 @@ function assertContributionPath(
   target: ScaffoldTargetV1,
   contribution: ScaffoldFileContribution
 ): void {
+  if (
+    target.path.includes("\\") ||
+    target.path.split("/").some((segment) =>
+      segment === "" || segment === "." || segment === ".."
+    )
+  ) {
+    throw new ScaffoldError(
+      "SCAFFOLD_PLAN_INVALID",
+      `Target path must be normalized: ${target.path}.`
+    );
+  }
   const targetPrefix = `${target.path}/`;
   if (
     !contribution.path.startsWith(targetPrefix) ||

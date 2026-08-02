@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/index.js";
+import {
+  applyFilesystemScaffold,
+  planScaffoldFromFile
+} from "../packages/engineering-foundation/dist/scaffolding/index.js";
+import { loadScaffoldCompilationInput } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-input-loader.js";
+import { CONFORMANCE_FIXTURE_DEFINITIONS } from "../packages/engineering-foundation/dist/scaffolding/definitions/conformance-fixture.js";
+import { compileScaffoldPlan } from "../packages/engineering-foundation/dist/scaffolding/kernel/compiler.js";
+import { ScaffoldDefinitionRegistry } from "../packages/engineering-foundation/dist/scaffolding/kernel/definition-registry.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixtureRoot = join(
@@ -40,6 +47,27 @@ test("produces the same Plan for LF and CRLF authority files", async () => {
   }
 });
 
+test("reports a deleted authority file as a stale snapshot", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-scaffolding-stale-"));
+  await cp(fixtureRoot, root, { recursive: true });
+  try {
+    const scaffoldPlan = await plan(root);
+    await rm(join(root, "architecture", "package-catalog.yaml"));
+    const receipt = await applyFilesystemScaffold(root, scaffoldPlan);
+    assert.equal(receipt.outcome, "rejected");
+    assert.equal(
+      receipt.diagnostics[0]?.ruleId,
+      "scaffolding.apply.stale-authority-snapshot"
+    );
+    await assert.rejects(
+      stat(join(root, scaffoldPlan.operations[0].path)),
+      /ENOENT/u
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("bounds operation IDs independently of valid output path length", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-scaffolding-long-path-"));
   await cp(fixtureRoot, root, { recursive: true });
@@ -62,4 +90,48 @@ test("bounds operation IDs independently of valid output path length", async () 
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("rejects non-normalized target catalog paths", async () => {
+  for (const targetPath of [
+    "packages/testing/generated/",
+    "packages//testing/generated"
+  ]) {
+    const root = await mkdtemp(join(tmpdir(), "foundation-scaffolding-path-"));
+    await cp(fixtureRoot, root, { recursive: true });
+    try {
+      const catalogPath = join(root, "architecture", "package-catalog.yaml");
+      await writeFile(
+        catalogPath,
+        (await readFile(catalogPath, "utf8")).replace(
+          "packages/testing/generated",
+          targetPath
+        ),
+        "utf8"
+      );
+      await assert.rejects(plan(root), /must match pattern/u);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("rejects a non-normalized target in programmatic compiler input", async () => {
+  const input = structuredClone(
+    await loadScaffoldCompilationInput({
+      consumerRoot: fixtureRoot,
+      configPath: "architecture/foundation/scaffolding.yaml",
+      intentPath: "intents/facets-forward.yaml",
+      foundationVersion: "0.1.1"
+    })
+  );
+  input.catalog.packages[0].path = `${input.catalog.packages[0].path}/`;
+  assert.throws(
+    () =>
+      compileScaffoldPlan(
+        input,
+        new ScaffoldDefinitionRegistry(CONFORMANCE_FIXTURE_DEFINITIONS)
+      ),
+    /Target path must be normalized/u
+  );
 });

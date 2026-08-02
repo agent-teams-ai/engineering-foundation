@@ -130,20 +130,23 @@ function needs(value: unknown, field: string): readonly string[] {
   if (value === undefined) {
     return [];
   }
-  const entries = typeof value === "string" ? [value] : value;
-  if (!Array.isArray(entries) || !entries.every((entry) => typeof entry === "string" && entry.length > 0)) {
+  const entries: unknown = typeof value === "string" ? [value] : value;
+  if (!Array.isArray(entries)) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_WORKFLOW_INVALID",
       `${field} must be a non-empty job ID or an array of non-empty job IDs.`
     );
   }
-  if (new Set(entries).size !== entries.length) {
+  const normalized = entries.map((entry, index) =>
+    requiredString(entry, `${field}[${index}]`)
+  );
+  if (new Set(normalized).size !== normalized.length) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_WORKFLOW_INVALID",
       `${field} cannot declare duplicate job IDs.`
     );
   }
-  return Object.freeze(entries);
+  return Object.freeze(normalized);
 }
 
 function steps(value: unknown, field: string): readonly WorkflowStepEvidence[] {

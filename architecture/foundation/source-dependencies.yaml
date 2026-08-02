@@ -8,11 +8,13 @@ boundaries:
   - id: foundation.public-api
     roots:
       - packages/engineering-foundation/src/index.ts
+      - packages/engineering-foundation/src/public-api-surface.ts
     allow:
       boundaries:
         - foundation.core
         - foundation.local-mode
         - foundation.property-testing-support
+        - foundation.scaffolding.composition
       packages: []
       builtins: []
       runtimeReferences: []
@@ -28,6 +30,8 @@ boundaries:
         - foundation.core
         - foundation.local-mode
         - foundation.schema-validation
+        - foundation.scaffolding.composition
+        - foundation.scaffolding.core
       packages: []
       builtins:
         - node:fs/promises
@@ -127,6 +131,67 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/schema-catalog.ts
+  - id: foundation.scaffolding.core
+    roots:
+      - packages/engineering-foundation/src/scaffolding/contract
+      - packages/engineering-foundation/src/scaffolding/definitions
+      - packages/engineering-foundation/src/scaffolding/kernel
+      - packages/engineering-foundation/src/scaffolding/scaffold-error.ts
+    allow:
+      boundaries: []
+      packages:
+        - ajv
+      builtins:
+        - node:crypto
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/contract/types.ts
+      - packages/engineering-foundation/src/scaffolding/definitions/registry.ts
+      - packages/engineering-foundation/src/scaffolding/kernel/canonical-json.ts
+      - packages/engineering-foundation/src/scaffolding/kernel/compiler.ts
+      - packages/engineering-foundation/src/scaffolding/kernel/plan-validation.ts
+      - packages/engineering-foundation/src/scaffolding/kernel/receipt.ts
+      - packages/engineering-foundation/src/scaffolding/scaffold-error.ts
+  - id: foundation.scaffolding.adapters
+    roots:
+      - packages/engineering-foundation/src/scaffolding/adapters
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.local-mode
+        - foundation.repository-input
+        - foundation.schema-validation
+        - foundation.scaffolding.core
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+        - node:url
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/adapters/memory/memory-workspace.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-workspace.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/installed-foundation-version.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-input-loader.ts
+  - id: foundation.scaffolding.composition
+    roots:
+      - packages/engineering-foundation/src/scaffolding/cli-command.ts
+      - packages/engineering-foundation/src/scaffolding/index.ts
+      - packages/engineering-foundation/src/scaffolding/service.ts
+    allow:
+      boundaries:
+        - foundation.scaffolding.adapters
+        - foundation.scaffolding.core
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:url
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/cli-command.ts
+      - packages/engineering-foundation/src/scaffolding/index.ts
+      - packages/engineering-foundation/src/scaffolding/service.ts
   - id: foundation.local-mode
     roots:
       - packages/engineering-foundation/src/local-mode
@@ -134,6 +199,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.scaffolding.composition
       packages:
         - proper-lockfile
         - yaml

@@ -5,7 +5,8 @@
     ".": {
       "entry": [
         "scripts/*.mjs",
-        "tests/*.test.mjs"
+        "tests/*.test.mjs",
+        "tests/fixtures/scaffolding-crash-worker.mjs"
       ],
       "project": [
         "scripts/*.mjs",
@@ -15,7 +16,9 @@
     "packages/engineering-foundation": {
       "entry": [
         "src/capabilities/*/module.ts",
-        "src/capabilities/*/qualification/module.ts"
+        "src/capabilities/*/qualification/module.ts",
+        "src/public-api-surface.ts",
+        "src/scaffolding/adapters/node/filesystem-workspace.ts"
       ],
       "project": ["src/**/*.ts"]
     },

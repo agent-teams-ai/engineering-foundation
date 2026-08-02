@@ -6,6 +6,11 @@ The package exposes strict YAML configuration, deterministic policy checks,
 shared compiler/linter presets, and explicit local versus registry lifecycle
 tooling. It is not a production runtime dependency.
 
+It also exposes a closed deterministic scaffolding kernel through
+`@agent-teams/engineering-foundation/scaffolding`. Consumers provide strict
+data-only Intent, Composition, and target-catalog files. They cannot provide
+templates, hooks, callbacks, commands, or definition plugins.
+
 Consumer CI should run both policy gates:
 
 ```bash
@@ -50,3 +55,15 @@ mutation in required pull-request CI.
 
 Property suites may import deterministic seed and replay helpers from the package
 root while keeping `fast-check` in the consumer's development dependencies.
+
+Scaffolding commands use an immutable content-addressed Plan:
+
+```bash
+agent-teams-foundation scaffold-plan intents/example.yaml --consumer /repo --json
+agent-teams-foundation scaffold-apply plans/example.json --consumer /repo --json
+agent-teams-foundation scaffold-recover --consumer /repo --json
+```
+
+The current built-in Composition is a testing-only conformance fixture. Product
+package and feature recipes, structured updates, and Nx integration require
+separate qualification before they become available.

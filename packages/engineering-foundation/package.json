@@ -20,6 +20,10 @@
       "types": "./dist/local-mode/index.d.ts",
       "import": "./dist/local-mode/index.js"
     },
+    "./scaffolding": {
+      "types": "./dist/scaffolding/index.d.ts",
+      "import": "./dist/scaffolding/index.js"
+    },
     "./schemas/*": "./schemas/*",
     "./presets/*": "./presets/*",
     "./package.json": "./package.json"

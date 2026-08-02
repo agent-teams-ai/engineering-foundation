@@ -9,6 +9,7 @@ import { packAndInspectArtifact } from "./pack-artifact-e2e.mjs";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
+import { verifyPackedScaffolding } from "./packed-scaffolding-e2e.mjs";
 import {
   createPnpmRunner,
   localRegistryInstallQualification,
@@ -64,6 +65,7 @@ try {
     toolingVersions: await toolingVersions()
   });
   await verifyPackedConsumer({ fixture });
+  await verifyPackedScaffolding({ fixture, repositoryRoot });
   await verifyPackedLocalMode({
     ...artifact,
     packageVersion: fixture.packedManifest.version,

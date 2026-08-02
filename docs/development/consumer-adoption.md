@@ -111,6 +111,23 @@ typecheck. The source dependency capability configuration remains consumer-owned
 it declares opaque boundary IDs and allowed edges while package manifests remain
 authoritative for package identities, dependencies, and exports.
 
+## Deterministic scaffolding
+
+Scaffolding is opt-in through its own strict
+`architecture/foundation/scaffolding.yaml`; it is not a `foundation.config.yaml`
+capability and package upgrades never add a Composition automatically. The
+consumer owns target identities, paths, roles, owner documents, approved
+Compositions, and project-specific parameter constraints.
+
+Agents must save and review the generated Plan before Apply. Apply rechecks the
+consumer authority read set, proves that the closed compiler reproduces the
+exact Plan from its embedded normalized Intent and current consumer facts, takes
+the repository Foundation operation lock, rejects overwrite and path ambiguity,
+and records a recovery journal before the first file is published.
+`scaffold-recover` is mandatory after an interrupted transaction. The current
+built-in recipe is conformance-only and must not be used as a product
+architecture template.
+
 ## Upgrade procedure
 
 1. The consumer repository's configured dependency updater opens an exact-version

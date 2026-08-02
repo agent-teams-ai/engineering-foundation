@@ -16,6 +16,7 @@ package catalog, dependency permissions, security classifications, and ADRs.
 - shared Oxlint and TypeScript 7 baseline presets;
 - explicit registry and local-link modes;
 - deterministic attach, status, detach, and registry assertions;
+- closed deterministic `Intent -> Plan -> Apply -> Receipt` scaffolding;
 - isolated package-content and consumer verification;
 - release automation for immutable public npm versions.
 
@@ -61,6 +62,12 @@ has a matching pnpm lockfile importer, npm package entry, sha512 integrity, and
 snapshot without links, source URLs, overrides, or patches. The root and
 installed pnpm virtual-store lockfiles must agree, so a stale local installation
 cannot be hidden by editing only the repository lockfile.
+
+The scaffolding kernel exposes strict schemas and a journaled filesystem adapter.
+Its current built-in recipe is a testing-only conformance fixture; consumer
+business packages and feature slices are not generated until separately proven
+definitions are released. See the
+[scaffolding protocol](docs/architecture/scaffolding-compiler-protocol.md).
 
 See [ownership](docs/architecture/ownership.md),
 [consistency evidence gate](docs/architecture/consistency-evidence-gate.md),

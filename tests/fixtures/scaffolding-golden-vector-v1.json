@@ -1,0 +1,9 @@
+{
+  "foundationVersion": "1.0.0",
+  "configPath": "architecture/foundation/scaffolding.yaml",
+  "intentPath": "intents/facets-forward.yaml",
+  "intentDigest": "sha256:04a2b756bd848db308817df2e59a80e0989d37c543fb97c93f920c3137f293cb",
+  "authoritySnapshotDigest": "sha256:04fe98b676d0684b31fd99d69f44aa2eeca20abb127f93b66fc930f1bd4d74d4",
+  "planDigest": "sha256:a9af134a237349f2c687ef50a69df5edcb25620022d3e7326398019e15d70113",
+  "receiptDigest": "sha256:fc8ad70c69d85d76631efe033cbd42ea52d958b740a2f415bf63cb0d0e314931"
+}

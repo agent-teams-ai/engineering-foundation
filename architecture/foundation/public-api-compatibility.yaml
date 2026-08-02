@@ -10,6 +10,8 @@ packages:
         declarationEntryPoint: packages/engineering-foundation/dist/index.d.ts
       - exportPath: ./local-mode
         declarationEntryPoint: packages/engineering-foundation/dist/local-mode/index.d.ts
+      - exportPath: ./scaffolding
+        declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/index.d.ts
     nonTypeExports:
       - exportPath: ./package.json
         kind: data

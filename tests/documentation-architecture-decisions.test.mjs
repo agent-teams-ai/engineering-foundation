@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -49,6 +49,45 @@ const cliPath = join(
   "dist",
   "cli.js"
 );
+const baselineRepositoryModuleUrl = pathToFileURL(
+  join(
+    repositoryRoot,
+    "packages",
+    "engineering-foundation",
+    "dist",
+    "capabilities",
+    "governance-architecture-decisions",
+    "adapters",
+    "outbound",
+    "filesystem",
+    "filesystem-architecture-decision-baseline-repository.js"
+  )
+).href;
+const concurrentBaselineWriterScript = `
+import { FilesystemArchitectureDecisionBaselineRepository } from ${JSON.stringify(baselineRepositoryModuleUrl)};
+
+const input = JSON.parse(process.env.FOUNDATION_BASELINE_WRITE_INPUT ?? "");
+const repository = new FilesystemArchitectureDecisionBaselineRepository();
+process.stdout.write("READY\\n");
+process.stdin.resume();
+process.stdin.once("data", async () => {
+  try {
+    const writeResult = await repository.write(input);
+    process.stdout.write(JSON.stringify({ kind: "fulfilled", writeResult }) + "\\n");
+  } catch (error) {
+    const code =
+      typeof error === "object" &&
+      error !== null &&
+      "problem" in error &&
+      typeof error.problem === "object" &&
+      error.problem !== null &&
+      "code" in error.problem
+        ? error.problem.code
+        : "UNKNOWN";
+    process.stdout.write(JSON.stringify({ code, kind: "rejected" }) + "\\n");
+  }
+});
+`;
 
 function baselinePath(root) {
   return join(root, "architecture", "accepted-decisions.json");
@@ -82,6 +121,65 @@ function ruleIds(diagnostics) {
 
 function hasProblemCode(error, code) {
   return error instanceof CapabilityInputError && error.problem.code === code;
+}
+
+function startConcurrentBaselineWriter(input) {
+  const child = spawn(
+    process.execPath,
+    ["--input-type=module", "--eval", concurrentBaselineWriterScript],
+    {
+      env: { ...process.env, FOUNDATION_BASELINE_WRITE_INPUT: JSON.stringify(input) },
+      stdio: ["pipe", "pipe", "pipe"]
+    }
+  );
+  let stderr = "";
+  let stdout = "";
+  let ready = false;
+  let rejectReady;
+  let resolveReady;
+  const readyPromise = new Promise((resolve, reject) => {
+    rejectReady = reject;
+    resolveReady = resolve;
+  });
+  const result = new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code, signal) => {
+      if (!ready) {
+        rejectReady(
+          new Error(
+            `Concurrent baseline writer exited before ready: code=${String(code)} signal=${String(signal)} ${stderr}`
+          )
+        );
+      }
+      resolve({ code, signal, stderr, stdout });
+    });
+  });
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!ready && stdout.split(/\r?\n/u).includes("READY")) {
+      ready = true;
+      resolveReady();
+    }
+  });
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  return { child, ready: readyPromise, result };
+}
+
+function writerOutcome(result) {
+  assert.equal(result.code, 0, result.stderr);
+  const lastLine = result.stdout.trim().split(/\r?\n/u).at(-1);
+  assert.notEqual(lastLine, undefined);
+  return JSON.parse(lastLine);
+}
+
+function baselineWithDigest(baseline, digestCharacter) {
+  const candidate = structuredClone(baseline);
+  candidate.decisions[0].immutableDigest = `sha256:${digestCharacter.repeat(64)}`;
+  return candidate;
 }
 
 async function writeFoundationConfig(root, declared = true) {
@@ -423,6 +521,60 @@ test("rejects a baseline write when its expected revision changed concurrently",
         hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT")
     );
     assert.equal(await readFile(baselinePath(root), "utf8"), `${original}\n`);
+  });
+});
+
+test("serializes concurrent baseline writers across processes", async () => {
+  await withFixture(async (root) => {
+    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const current = await repository.read({
+      consumerRoot: root,
+      path: "architecture/accepted-decisions.json"
+    });
+    assert.equal(current.kind, "valid");
+    if (current.kind !== "valid") {
+      return;
+    }
+
+    const expected = { kind: "valid", revision: current.revision };
+    const first = startConcurrentBaselineWriter({
+      baseline: baselineWithDigest(current.value, "a"),
+      consumerRoot: root,
+      expected,
+      path: "architecture/accepted-decisions.json"
+    });
+    const second = startConcurrentBaselineWriter({
+      baseline: baselineWithDigest(current.value, "b"),
+      consumerRoot: root,
+      expected,
+      path: "architecture/accepted-decisions.json"
+    });
+
+    await Promise.all([first.ready, second.ready]);
+    first.child.stdin.end("go\n");
+    second.child.stdin.end("go\n");
+
+    const outcomes = [
+      writerOutcome(await first.result),
+      writerOutcome(await second.result)
+    ];
+    assert.deepEqual(
+      outcomes.map((outcome) => outcome.kind).toSorted(),
+      ["fulfilled", "rejected"]
+    );
+    assert.equal(
+      outcomes.find((outcome) => outcome.kind === "rejected")?.code,
+      "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT"
+    );
+
+    const persisted = JSON.parse(await readFile(baselinePath(root), "utf8"));
+    assert.ok(
+      ["a", "b"].some(
+        (digestCharacter) =>
+          persisted.decisions[0].immutableDigest ===
+          `sha256:${digestCharacter.repeat(64)}`
+      )
+    );
   });
 });
 

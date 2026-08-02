@@ -16,12 +16,12 @@ import {
 export { DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID };
 
 export function createDocumentationLocalReferencesCapability(): CapabilityDefinition {
-  const dependencies = Object.freeze({ repository: new FilesystemMarkdownRepository() });
   return Object.freeze({
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     id: CAPABILITY_ID,
     async run(invocation: CapabilityInvocation) {
       try {
+        const dependencies = Object.freeze({ repository: new FilesystemMarkdownRepository() });
         const policy = await loadCapabilityConfig(
           invocation.consumerRoot,
           invocation.configPath,

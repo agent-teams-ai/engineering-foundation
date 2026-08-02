@@ -3,14 +3,16 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   realpath,
   rename,
   rm,
-  stat,
-  writeFile
+  stat
 } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+
+import { lock } from "proper-lockfile";
 
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
 import { pathTraversesSymbolicLink } from "../../../../../filesystem-path-safety.js";
@@ -26,6 +28,17 @@ import type { AcceptedArchitectureDecisionBaseline } from "../../../application/
 
 const MAX_BASELINE_BYTES = 4 * 1024 * 1024;
 const WRITE_PHASE = "architecture-decision-baseline-write";
+const BASELINE_LOCK_OPTIONS = Object.freeze({
+  realpath: false,
+  retries: {
+    factor: 1.2,
+    maxTimeout: 100,
+    minTimeout: 25,
+    retries: 30
+  },
+  stale: 30_000,
+  update: 10_000
+});
 
 interface BaselineTarget {
   readonly candidate: string;
@@ -263,6 +276,34 @@ async function ensureSafeParent(target: BaselineTarget): Promise<void> {
   }
 }
 
+async function acquireBaselineWriteLock(
+  target: BaselineTarget
+): Promise<() => Promise<void>> {
+  try {
+    // This is a cooperative lock. The repeated revision check below still detects
+    // direct filesystem mutation that does not participate in the protocol.
+    return await lock(target.candidate, BASELINE_LOCK_OPTIONS);
+  } catch {
+    writeError(
+      "ARCHITECTURE_DECISION_BASELINE_WRITE_LOCK_UNAVAILABLE",
+      "Accepted-decision baseline is currently being promoted by another writer. Re-run promotion from the current repository state."
+    );
+  }
+}
+
+async function writeAndFlushTemporaryBaseline(input: {
+  readonly path: string;
+  readonly source: string;
+}): Promise<void> {
+  const handle = await open(input.path, "w", 0o644);
+  try {
+    await handle.writeFile(input.source, "utf8");
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
 export class FilesystemArchitectureDecisionBaselineRepository
   implements ArchitectureDecisionBaselineRepository
 {
@@ -300,34 +341,43 @@ export class FilesystemArchitectureDecisionBaselineRepository
     }
     await ensureSafeParent(target);
     const source = serializedBaseline(validatedBaseline);
-    const secondRead = await inspectBaseline(input);
-    assertExpectedState(secondRead.result, input.expected);
-    if (secondRead.source === source) {
-      return "unchanged";
-    }
-    assertNotCancelled(input.signal);
-    const temporaryDirectory = await mkdtemp(
-      join(target.parent, ".architecture-decision-baseline-")
-    );
+    const release = await acquireBaselineWriteLock(target);
     try {
-      const temporaryPath = join(temporaryDirectory, "baseline.json");
-      await writeFile(temporaryPath, source, { encoding: "utf8", mode: 0o644 });
-      assertNotCancelled(input.signal);
-      const finalRead = await inspectBaseline(input);
-      assertExpectedState(finalRead.result, input.expected);
-      if (finalRead.source === source) {
+      // The lock is held across the final revision check and atomic replacement.
+      // Otherwise two cooperative writers can both pass the check, then one
+      // silently replaces the other while both report success.
+      await ensureSafeParent(target);
+      const secondRead = await inspectBaseline(input);
+      assertExpectedState(secondRead.result, input.expected);
+      if (secondRead.source === source) {
         return "unchanged";
       }
-      if (await pathTraversesSymbolicLink(target.root, target.candidate)) {
-        writeError(
-          "ARCHITECTURE_DECISION_BASELINE_WRITE_SYMLINK_PROHIBITED",
-          "Accepted-decision baseline target traverses a symbolic link."
-        );
+      assertNotCancelled(input.signal);
+      const temporaryDirectory = await mkdtemp(
+        join(target.parent, ".architecture-decision-baseline-")
+      );
+      try {
+        const temporaryPath = join(temporaryDirectory, "baseline.json");
+        await writeAndFlushTemporaryBaseline({ path: temporaryPath, source });
+        assertNotCancelled(input.signal);
+        const finalRead = await inspectBaseline(input);
+        assertExpectedState(finalRead.result, input.expected);
+        if (finalRead.source === source) {
+          return "unchanged";
+        }
+        if (await pathTraversesSymbolicLink(target.root, target.candidate)) {
+          writeError(
+            "ARCHITECTURE_DECISION_BASELINE_WRITE_SYMLINK_PROHIBITED",
+            "Accepted-decision baseline target traverses a symbolic link."
+          );
+        }
+        await rename(temporaryPath, target.candidate);
+        return input.expected.kind === "missing" ? "created" : "updated";
+      } finally {
+        await rm(temporaryDirectory, { force: true, recursive: true });
       }
-      await rename(temporaryPath, target.candidate);
-      return input.expected.kind === "missing" ? "created" : "updated";
     } finally {
-      await rm(temporaryDirectory, { force: true, recursive: true });
+      await release();
     }
   }
 }

@@ -741,10 +741,6 @@ export class FilesystemMarkdownRepository implements MarkdownRepository {
     signal?: AbortSignal
   ): Promise<MarkdownDocumentObservation | undefined> {
     assertNotCancelled(signal);
-    const cached = this.#documents.get(absolutePath);
-    if (cached !== undefined) {
-      return cached;
-    }
     if (await pathTraversesSymbolicLink(context.canonicalRoot, absolutePath)) {
       return undefined;
     }
@@ -760,6 +756,12 @@ export class FilesystemMarkdownRepository implements MarkdownRepository {
     try {
       const source = await readFile(absolutePath, "utf8");
       assertNotCancelled(signal);
+      // A capability can be reused by a watch process. Re-read the source before
+      // accepting a parsed document so a path-only cache cannot survive a change.
+      const cached = this.#documents.get(absolutePath);
+      if (cached?.source === source) {
+        return cached;
+      }
       const document = observeMarkdownDocument(
         repositoryPath(context.canonicalRoot, absolutePath),
         source

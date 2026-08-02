@@ -47,12 +47,12 @@ export async function promoteArchitectureDecisionBaseline(input: {
 }
 
 export function createArchitectureDecisionGovernanceCapability(): CapabilityDefinition {
-  const dependencies = createDependencies();
   return Object.freeze({
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     id: CAPABILITY_ID,
     async run(invocation: CapabilityInvocation) {
       try {
+        const dependencies = createDependencies();
         const policy = await loadCapabilityConfig(
           invocation.consumerRoot,
           invocation.configPath,

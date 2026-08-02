@@ -58,6 +58,44 @@ test("accepts Markdown links, images, definitions, directory README targets, and
   });
 });
 
+test("re-reads changed Markdown between observations and checks", async () => {
+  await withFixture(async (root) => {
+    const repository = new FilesystemMarkdownRepository();
+    const policy = await loadCapabilityConfig(root, "documentation-local-references.yaml");
+    const initial = await analyzeDocumentationLocalReferences(
+      { consumerRoot: root, policy },
+      { repository }
+    );
+    assert.deepEqual(initial, []);
+
+    const readmePath = join(root, "docs", "README.md");
+    await writeFile(
+      readmePath,
+      "# Changed documentation\n\n[Missing target](missing.md)\n",
+      "utf8"
+    );
+
+    const observation = await repository.observe({
+      consumerRoot: root,
+      roots: ["docs"]
+    });
+    const changedDocument = observation.documents.find(
+      (document) => document.repositoryPath === "docs/README.md"
+    );
+    assert.equal(changedDocument?.source, "# Changed documentation\n\n[Missing target](missing.md)\n");
+
+    assert.deepEqual(
+      ruleIds(
+        await analyzeDocumentationLocalReferences(
+          { consumerRoot: root, policy },
+          { repository }
+        )
+      ),
+      ["documentation.local-references.broken-link"]
+    );
+  });
+});
+
 test("observes CommonMark and GFM links through the AST without scanning escaped or code content", async () => {
   await withFixture(async (root) => {
     const readmePath = join(root, "docs", "README.md");

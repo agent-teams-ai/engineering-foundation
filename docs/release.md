@@ -35,11 +35,14 @@ release workflow explicitly dispatches the read-only CI workflow against the
 generated release branch. GitHub does not attach manually dispatched checks to
 the pull request's required-check rollup. A separate attestation job therefore
 verifies the exact open release PR SHA, waits for both expected GitHub Actions
-jobs on that SHA, and publishes their real conclusions as `check` and
-`windows-check` commit statuses. It fails closed on an unexpected PR, missing
-job, timeout, or failed conclusion. The Changesets action does not receive status
-or Actions write permission, and no release-branch code runs with write
-credentials. If automatic pull request creation is unavailable, prepare the same
+jobs plus a separately dispatched ReviewRouter review, and publishes their real
+conclusions as `check`, `review / review`, and `windows-check` commit statuses.
+The dispatched reviewer resolves the immutable PR head before review and refuses
+to attest if the PR head changes before completion. The release attester fails
+closed on an unexpected PR, missing result, timeout, or failed conclusion. The
+Changesets action does not receive status or Actions write permission, and no
+release-branch code runs with write credentials. If automatic pull request
+creation is unavailable, prepare the same
 version commit on a short `chore/release-*` branch, open a normal pull request,
 and let the unchanged release workflow publish its merge through npm Trusted
 Publishing. Never weaken branch protection or publish from a workstation to work

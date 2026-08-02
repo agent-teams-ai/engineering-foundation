@@ -146,8 +146,8 @@ test("uses Ajv strict 2020-12 over an explicit local schema set and fixture corp
     const observation = await inspector.inspect(request(root));
     const reorderedObservation = await inspector.inspect({
       ...request(root),
-      schemaPaths: [...request(root).schemaPaths].reverse(),
-      fixtures: [...request(root).fixtures].reverse(),
+      schemaPaths: request(root).schemaPaths.toReversed(),
+      fixtures: request(root).fixtures.toReversed(),
     });
     assert.deepEqual(observation.schemaIds, [
       "https://schemas.example.test/agent/common.schema.json",

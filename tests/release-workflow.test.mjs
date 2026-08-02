@@ -39,6 +39,18 @@ test("release attestation dispatches the review workflow by its canonical file",
   assert.match(review.jobs.review.if, /workflow_dispatch/u);
   assert.match(review.jobs.review.if, /user\.type != 'Bot'/u);
   assert.equal(
+    review.jobs.resolve.outputs.head_sha,
+    "${{ steps.pr.outputs.head_sha }}",
+  );
+  const dispatchedReviewStatus = review.jobs["required-review"].steps.find(
+    ({ name }) =>
+      name === "Publish dispatched review result on the reviewed revision",
+  );
+  assert.equal(review.jobs["required-review"].permissions.statuses, "write");
+  assert.match(dispatchedReviewStatus.if, /workflow_dispatch/u);
+  assert.match(dispatchedReviewStatus.run, /statuses\/\$\{REVIEWED_HEAD_SHA\}/u);
+  assert.match(dispatchedReviewStatus.run, /context="review \/ review"/u);
+  assert.equal(
     policy.skip_bots,
     false,
     "Explicit release attestation must be allowed to review the Changesets bot PR.",

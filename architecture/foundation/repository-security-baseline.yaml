@@ -11,6 +11,11 @@ privilegedJobs:
       pull-requests: write
       statuses: write
   - workflowPath: .github/workflows/reviewrouter-codex.yml
+    jobId: required-review
+    permissions:
+      contents: read
+      statuses: write
+  - workflowPath: .github/workflows/reviewrouter-codex.yml
     jobId: codex-refresh
     permissions:
       id-token: write

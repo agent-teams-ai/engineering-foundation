@@ -4,7 +4,7 @@ dependencyReviewWorkflow: .github/workflows/dependency-review.yml
 sbomWorkflow: .github/workflows/ci.yml
 privilegedJobs:
   - workflowPath: .github/workflows/reviewrouter-codex.yml
-    jobId: review
+    jobId: codex-review
     permissions:
       contents: read
       pull-requests: read

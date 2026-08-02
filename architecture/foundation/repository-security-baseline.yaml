@@ -3,19 +3,23 @@ workflowDirectory: .github/workflows
 dependencyReviewWorkflow: .github/workflows/dependency-review.yml
 sbomWorkflow: .github/workflows/ci.yml
 privilegedJobs:
-  - workflowPath: .github/workflows/reviewrouter.yml
-    jobId: attest-dispatch
+  - workflowPath: .github/workflows/reviewrouter-codex.yml
+    jobId: codex-review
     permissions:
       contents: read
       pull-requests: read
-      statuses: write
-  - workflowPath: .github/workflows/reviewrouter.yml
-    jobId: review
+      id-token: write
+  - workflowPath: .github/workflows/reviewrouter-codex.yml
+    jobId: codex-refresh
+    permissions:
+      id-token: write
+  - workflowPath: .github/workflows/reviewrouter-interaction.yml
+    jobId: interaction
     permissions:
       contents: read
-      issues: write
-      pull-requests: write
-      statuses: write
+      issues: read
+      pull-requests: read
+      id-token: write
   - workflowPath: .github/workflows/release.yml
     jobId: release
     permissions:

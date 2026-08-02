@@ -26,12 +26,13 @@ privilegedJobs:
       contents: write
       id-token: write
       pull-requests: write
-  - workflowPath: .github/workflows/reviewrouter-release.yml
-    jobId: codex-review
+  - workflowPath: .github/workflows/review-gate.yml
+    jobId: review-gate
     permissions:
+      actions: read
       contents: read
       pull-requests: read
-      id-token: write
+      statuses: write
   - workflowPath: .github/workflows/release.yml
     jobId: attest-release-pr
     permissions:

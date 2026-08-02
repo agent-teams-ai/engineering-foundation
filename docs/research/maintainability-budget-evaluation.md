@@ -1,6 +1,6 @@
 # Maintainability Budget Evaluation
 
-Status: Research evidence; no size or complexity budget is active.
+Status: Accepted and implemented in Foundation; consumer adoption remains opt-in.
 
 Date: 2026-08-02
 
@@ -26,9 +26,9 @@ dry run with the proposed production profile below reported 13 diagnostics
 across six files. The largest case is `local-mode/service.ts`: 771 physical
 lines and 731 lines after blank and comment lines are excluded.
 
-## Recommended profile
+## Accepted profile
 
-The first implementation should be an explicitly extended maintainability
+The implementation is an explicitly extended maintainability
 preset, not an addition to `base.json` or `node.json`. Installing or upgrading
 Foundation must not silently activate a new maintainability policy in a
 consumer.
@@ -48,20 +48,19 @@ The recommended starting test profile is 800 file lines, 250 function lines,
 complexity 30, nesting depth 5, and 6 parameters. Generated and vendored output
 is excluded rather than waived line by line.
 
-## Activation gates
+## Activation evidence
 
-Before the profile becomes blocking:
+The profile became blocking in Foundation only after:
 
-1. Split every existing production violation; do not preserve an unbounded
-   grandfather baseline.
-2. Add positive and negative preset fixtures and dogfood the preset here.
-3. Pilot it in at least one real consumer without importing consumer-specific
-   paths or architecture into Foundation.
-4. Route temporary exceptions through suppression governance with an owner,
+1. Splitting every existing production violation without a grandfather baseline.
+2. Adding positive and negative preset fixtures and dogfooding the preset here.
+3. Proving the packed preset in a synthetic consumer without importing
+   consumer-specific paths or architecture into Foundation.
+4. Routing temporary exceptions through suppression governance with an owner,
    reason, exact rule and path, and expiry. Permanent inline disables are not an
    exception mechanism.
-5. Publish the preset and let each consumer enable it in a separate reviewed
-   adoption change.
+5. Keeping every external consumer disabled until it enables the published
+   preset in a separate reviewed adoption change.
 
 The likely first refactor boundaries are local-mode recovery state,
 installation verification, and attach/detach link transactions. This is a

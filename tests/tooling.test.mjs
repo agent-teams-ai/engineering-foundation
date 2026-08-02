@@ -22,6 +22,22 @@ const typeAwarePreset = join(
   "oxlint",
   "type-aware.json",
 );
+const maintainabilityPreset = join(
+  repositoryRoot,
+  "packages",
+  "engineering-foundation",
+  "presets",
+  "oxlint",
+  "maintainability.json",
+);
+const maintainabilityTestsPreset = join(
+  repositoryRoot,
+  "packages",
+  "engineering-foundation",
+  "presets",
+  "oxlint",
+  "maintainability-tests.json",
+);
 
 async function withTypeScriptProject(source, callback) {
   const projectRoot = await mkdtemp(join(tmpdir(), "foundation-oxlint-e2e-"));
@@ -67,6 +83,21 @@ function runTypeAwareLint(projectRoot) {
   );
 }
 
+function runMaintainabilityLint(projectRoot, preset = maintainabilityPreset) {
+  return spawnSync(
+    process.execPath,
+    [
+      oxlintEntrypoint,
+      "--config",
+      preset,
+      "--deny-warnings",
+      "--disable-nested-config",
+      join(projectRoot, "src"),
+    ],
+    { cwd: repositoryRoot, encoding: "utf8" },
+  );
+}
+
 test("type-aware Oxlint preset rejects unsafe promise handling", async () => {
   await withTypeScriptProject(
     `async function execute(): Promise<void> {}\nexecute();\n`,
@@ -103,4 +134,54 @@ test("Oxlint leaves compiler diagnostics to the pinned TypeScript gate", async (
       assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
     },
   );
+});
+
+test("production maintainability preset enforces all five budgets", async () => {
+  const source = `export function overBudget(a, b, c, d, e, f) {
+  let result = 0;
+  if (a) {
+    if (b) {
+      if (c) {
+        if (d) {
+          if (e) {
+            result = f;
+          }
+        }
+      }
+    }
+  }
+${Array.from({ length: 145 }, (_, index) => `  if (a === ${index}) result += ${index};`).join("\n")}
+  return result;
+}
+${Array.from({ length: 345 }, (_, index) => `export const line${index} = ${index};`).join("\n")}
+`;
+  await withTypeScriptProject(source, (projectRoot) => {
+    const result = runMaintainabilityLint(projectRoot);
+    const output = `${result.stdout}${result.stderr}`;
+    assert.notEqual(result.status, 0);
+    for (const rule of [
+      "complexity",
+      "max-depth",
+      "max-lines",
+      "max-lines-per-function",
+      "max-params",
+    ]) {
+      assert.match(output, new RegExp(`eslint\\(${rule}\\)`, "u"));
+    }
+  });
+});
+
+test("test maintainability preset applies the documented relaxed budgets", async () => {
+  const source = `export function testHelper(a, b, c, d, e, f) {
+  let result = a + b + c + d + e + f;
+${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}
+  return result;
+}
+`;
+  await withTypeScriptProject(source, (projectRoot) => {
+    const production = runMaintainabilityLint(projectRoot);
+    assert.notEqual(production.status, 0);
+    const tests = runMaintainabilityLint(projectRoot, maintainabilityTestsPreset);
+    assert.equal(tests.status, 0, `${tests.stdout}${tests.stderr}`);
+  });
 });

@@ -376,6 +376,71 @@ try {
     ],
     { cwd: consumerRoot }
   );
+  const maintainabilitySource = `export function packedHelper(a, b, c, d, e, f) {\n  let result = a + b + c + d + e + f;\n${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}\n  return result;\n}\n`;
+  await writeFile(
+    join(consumerRoot, ".oxlintrc.maintainability.json"),
+    `${JSON.stringify(
+      {
+        extends: [
+          "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json",
+          "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/maintainability.json"
+        ]
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await writeFile(join(consumerSourceRoot, "index.ts"), maintainabilitySource, "utf8");
+  let maintainabilityFailure = "";
+  try {
+    await execFileAsync(
+      process.execPath,
+      [
+        consumerOxlintEntrypoint,
+        "--config",
+        join(consumerRoot, ".oxlintrc.maintainability.json"),
+        "--deny-warnings",
+        "--disable-nested-config",
+        join(consumerRoot, "src")
+      ],
+      { cwd: consumerRoot }
+    );
+  } catch (error) {
+    maintainabilityFailure = `${error.stdout ?? ""}${error.stderr ?? ""}`;
+  }
+  if (
+    !maintainabilityFailure.includes("eslint(max-lines-per-function)") ||
+    !maintainabilityFailure.includes("eslint(max-params)")
+  ) {
+    throw new Error("Packed production maintainability preset did not enforce its budgets.");
+  }
+  await writeFile(
+    join(consumerRoot, ".oxlintrc.maintainability-tests.json"),
+    `${JSON.stringify(
+      {
+        extends: [
+          "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json",
+          "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/maintainability-tests.json"
+        ]
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await execFileAsync(
+    process.execPath,
+    [
+      consumerOxlintEntrypoint,
+      "--config",
+      join(consumerRoot, ".oxlintrc.maintainability-tests.json"),
+      "--deny-warnings",
+      "--disable-nested-config",
+      join(consumerRoot, "src")
+    ],
+    { cwd: consumerRoot }
+  );
   await writeFile(
     join(consumerRoot, ".oxlintrc.type-aware.json"),
     `${JSON.stringify(

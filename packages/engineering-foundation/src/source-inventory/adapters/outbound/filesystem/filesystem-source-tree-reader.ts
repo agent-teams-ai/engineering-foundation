@@ -104,25 +104,7 @@ async function discoverSourcePaths(
       for await (const entry of directory) {
         assertNotCancelled(signal);
         const absoluteEntry = join(directoryPath, entry.name);
-        if (entry.isSymbolicLink()) {
-          inputError(
-            "SOURCE_SYMLINK_PROHIBITED",
-            `Source trees cannot contain symbolic links: ${toPosixPath(relative(canonicalRoot, absoluteEntry))}.`,
-            "source-discovery"
-          );
-        }
-        if (entry.isDirectory()) {
-          directories.push(absoluteEntry);
-        } else if (entry.isFile() && SOURCE_EXTENSIONS.has(posix.extname(entry.name))) {
-          paths.push(toPosixPath(relative(canonicalRoot, absoluteEntry)));
-          if (paths.length > MAX_SOURCE_FILES) {
-            inputError(
-              "SOURCE_FILE_LIMIT_EXCEEDED",
-              `Governed source contains more than ${MAX_SOURCE_FILES} files.`,
-              "source-discovery"
-            );
-          }
-        }
+        inspectSourceEntry(canonicalRoot, absoluteEntry, entry, directories, paths);
       }
     }
   }
@@ -141,6 +123,37 @@ async function discoverSourcePaths(
     caseFoldedPaths.set(caseFolded, path);
   }
   return uniquePaths;
+}
+
+function inspectSourceEntry(
+  canonicalRoot: string,
+  absoluteEntry: string,
+  entry: { isDirectory(): boolean; isFile(): boolean; isSymbolicLink(): boolean; name: string },
+  directories: string[],
+  paths: string[]
+): void {
+  if (entry.isSymbolicLink()) {
+    inputError(
+      "SOURCE_SYMLINK_PROHIBITED",
+      `Source trees cannot contain symbolic links: ${toPosixPath(relative(canonicalRoot, absoluteEntry))}.`,
+      "source-discovery"
+    );
+  }
+  if (entry.isDirectory()) {
+    directories.push(absoluteEntry);
+    return;
+  }
+  if (!entry.isFile() || !SOURCE_EXTENSIONS.has(posix.extname(entry.name))) {
+    return;
+  }
+  paths.push(toPosixPath(relative(canonicalRoot, absoluteEntry)));
+  if (paths.length > MAX_SOURCE_FILES) {
+    inputError(
+      "SOURCE_FILE_LIMIT_EXCEEDED",
+      `Governed source contains more than ${MAX_SOURCE_FILES} files.`,
+      "source-discovery"
+    );
+  }
 }
 
 async function readSourceFiles(

@@ -72,6 +72,9 @@ fullScanPaths:
 Foundation always treats the instruction files, `foundation.config.yaml`, this
 capability's config, and `package.json` as control paths; consumers do not repeat
 them in `fullScanPaths`.
+Invoke the changed workflow through the configured pnpm package script. This
+also supplies the cross-platform pnpm entrypoint without invoking a shell or
+interpolating repository paths.
 Version 1 deliberately uses pnpm scripts. Another package manager requires a
 qualified execution adapter rather than consumer-side duplication.
 

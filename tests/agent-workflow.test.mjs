@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
+  mkdir,
+  mkdtemp,
   readFile,
   rename,
   rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -15,6 +18,7 @@ import {
   cliPath,
   withAgentWorkflowFixture,
 } from "./support/capability-fixtures.mjs";
+import { PnpmPackageScriptRunner } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/pnpm/pnpm-package-script-runner.js";
 
 function git(consumerRoot, ...args) {
   const result = spawnSync("git", args, { cwd: consumerRoot, encoding: "utf8" });
@@ -67,6 +71,33 @@ test("accepts one canonical instruction source with portable adapters", async ()
     assert.equal(report.outcome, "passed");
     assert.equal(report.capabilities[0].capabilityId, "repository.agent-workflow");
   });
+});
+
+test("executes pnpm through its shell-free package entrypoint", async () => {
+  const consumerRoot = await mkdtemp(join(tmpdir(), "foundation-pnpm-entrypoint-"));
+  try {
+    const pnpmHome = join(consumerRoot, "node_modules", ".bin");
+    const pnpmPackageRoot = join(consumerRoot, "node_modules", "pnpm", "bin");
+    await mkdir(pnpmHome, { recursive: true });
+    await mkdir(pnpmPackageRoot, { recursive: true });
+    await writeFile(
+      join(pnpmPackageRoot, "pnpm.cjs"),
+      `require("node:fs").writeFileSync(".fake-pnpm-args.json", JSON.stringify(process.argv.slice(2)));\n`,
+      "utf8",
+    );
+    const result = await new PnpmPackageScriptRunner({ pnpmHome }).run({
+      consumerRoot,
+      script: "lint:files",
+      paths: ["src/file with space.ts"],
+    });
+    assert.equal(result.exitCode, 0);
+    assert.deepEqual(
+      JSON.parse(await readFile(join(consumerRoot, ".fake-pnpm-args.json"), "utf8")),
+      ["run", "lint:files", "--", "src/file with space.ts"],
+    );
+  } finally {
+    await rm(consumerRoot, { force: true, recursive: true });
+  }
 });
 
 test("reports broken adapters, undocumented commands, and missing scripts", async () => {

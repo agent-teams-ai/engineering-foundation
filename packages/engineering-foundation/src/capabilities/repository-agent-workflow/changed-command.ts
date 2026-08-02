@@ -1,5 +1,6 @@
 import { GitRepositoryChangesReader } from "./adapters/outbound/git/git-repository-changes-reader.js";
 import { PnpmPackageScriptRunner } from "./adapters/outbound/pnpm/pnpm-package-script-runner.js";
+import type { PnpmProcessEnvironment } from "./adapters/outbound/pnpm/pnpm-package-script-runner.js";
 import { renderAgentWorkflowReport } from "./adapters/inbound/cli/report-renderer.js";
 import { runChangedAgentWorkflow } from "./application/use-cases/run-changed-agent-workflow.js";
 import { loadAgentWorkflowPolicy } from "./contract/config.js";
@@ -9,6 +10,7 @@ export async function runAgentWorkflowChangedCommand(input: {
   readonly format: "json" | "text";
   readonly baseRef?: string;
   readonly configPath: string;
+  readonly pnpmEnvironment: PnpmProcessEnvironment;
 }): Promise<void> {
   const controller = new AbortController();
   const cancel = () => {
@@ -28,7 +30,7 @@ export async function runAgentWorkflowChangedCommand(input: {
         signal: controller.signal
       },
       new GitRepositoryChangesReader(),
-      new PnpmPackageScriptRunner()
+      new PnpmPackageScriptRunner(input.pnpmEnvironment)
     );
     process.stdout.write(
       input.format === "json"

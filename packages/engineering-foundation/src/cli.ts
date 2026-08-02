@@ -202,7 +202,8 @@ async function runCheckCommand(
 }
 
 async function runAgentWorkflowCommand(
-  parsed: ParsedArguments
+  parsed: ParsedArguments,
+  environment: NodeJS.ProcessEnv
 ): Promise<boolean> {
   if (parsed.command !== "agent-workflow") {
     return false;
@@ -227,6 +228,17 @@ async function runAgentWorkflowCommand(
     consumerRoot: parsed.consumerRoot,
     configPath: declaration.configPath,
     format: parsed.format,
+    pnpmEnvironment: {
+      ...(environment.npm_execpath === undefined
+        ? {}
+        : { npmExecPath: environment.npm_execpath }),
+      ...(environment.PNPM_HOME === undefined
+        ? {}
+        : { pnpmHome: environment.PNPM_HOME }),
+      ...(environment.PATH === undefined
+        ? {}
+        : { pathValue: environment.PATH })
+    },
     ...(parsed.baseRef === undefined ? {} : { baseRef: parsed.baseRef })
   });
   return true;
@@ -322,7 +334,7 @@ async function runInformationCommand(
   }
 }
 
-async function main(): Promise<void> {
+async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   const parsed = parseArguments(process.argv.slice(2));
   const json = parsed.format === "json";
   const service = new FoundationLocalModeService({
@@ -331,7 +343,7 @@ async function main(): Promise<void> {
   });
   if (
     await runLocalModeCommand(parsed, service, json) ||
-    await runAgentWorkflowCommand(parsed) ||
+    await runAgentWorkflowCommand(parsed, environment) ||
     await runCheckCommand(parsed, json) ||
     await runPolicyCommand(parsed, json) ||
     await runInformationCommand(parsed, json)
@@ -345,7 +357,7 @@ async function main(): Promise<void> {
 }
 
 try {
-  await main();
+  await main(process.env);
 } catch (error) {
   if (error instanceof ScaffoldError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);

@@ -4,11 +4,12 @@ dependencyReviewWorkflow: .github/workflows/dependency-review.yml
 sbomWorkflow: .github/workflows/ci.yml
 privilegedJobs:
   - workflowPath: .github/workflows/reviewrouter-codex.yml
-    jobId: codex-review
+    jobId: review
     permissions:
       contents: read
-      pull-requests: read
-      id-token: write
+      issues: write
+      pull-requests: write
+      statuses: write
   - workflowPath: .github/workflows/reviewrouter-codex.yml
     jobId: codex-refresh
     permissions:

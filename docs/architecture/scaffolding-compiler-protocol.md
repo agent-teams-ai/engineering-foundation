@@ -270,6 +270,10 @@ recovery-required
 
 An operation with `not-applied` or `conflict` has no result digest. Receipts do
 not claim a desired post-image that was not observed or published.
+`failed-recovered` means a prepared transaction was finalized through the
+recovery path. It may contain only `already-satisfied` operations when the crash
+happened after every output was published but before the journal was removed;
+`recovered` is used only for an output actually published during recovery.
 
 The filesystem adapter reports journaled recoverability. The Nx adapter reports
 host-managed commit semantics and cannot claim Foundation-owned durable recovery.

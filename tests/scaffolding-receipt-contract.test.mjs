@@ -99,6 +99,13 @@ test("accepts every closed scaffold receipt v1 state", async () => {
       outcome: "recovered"
     }))
   });
+  const recoveredAfterPublication = withReceiptDigest({
+    ...failedRecovered,
+    operations: failedRecovered.operations.map((operation) => ({
+      ...operation,
+      outcome: "already-satisfied"
+    }))
+  });
   const recoveryRequired = withReceiptDigest({
     ...filesystemApplied,
     outcome: "recovery-required",
@@ -118,6 +125,7 @@ test("accepts every closed scaffold receipt v1 state", async () => {
     rejectedMemory,
     rejectedFilesystem,
     failedRecovered,
+    recoveredAfterPublication,
     recoveryRequired
   ]) {
     await assertValidReceipt(receipt, plan);

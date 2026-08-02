@@ -383,6 +383,8 @@ export function evaluateSourceDependencies(
       })
     );
   }
-  diagnostics.push(...evaluateSourceDependencyCycles(input.graph));
+  if (input.policy.schemaVersion === 2) {
+    diagnostics.push(...evaluateSourceDependencyCycles(input.graph));
+  }
   return diagnostics;
 }

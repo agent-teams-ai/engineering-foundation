@@ -313,6 +313,87 @@ test("blocks package-name imports back into the importing workspace package", ()
   );
 });
 
+test("preserves schema v1 cycle semantics while v2 rejects the same approved SCCs", () => {
+  const appPackage = workspacePackage("@fixture/app", "packages/app");
+  const v1A = boundary("app.a", ["packages/app/src/a"], {
+    boundaries: ["app.b"],
+  });
+  const v1B = boundary("app.b", ["packages/app/src/b"], {
+    boundaries: ["app.a"],
+  });
+  const v2A = boundary("app.a", ["packages/app/src/a"], {
+    boundaries: ["app.b"],
+    entrypoints: ["packages/app/src/a/index.ts"],
+  });
+  const v2B = boundary("app.b", ["packages/app/src/b"], {
+    boundaries: ["app.a"],
+    entrypoints: ["packages/app/src/b/index.ts"],
+  });
+  const aFile = classified(
+    "packages/app/src/a/index.ts",
+    v1A,
+    appPackage,
+    [
+      sourceReference("static", "../b/index.js", 0),
+      sourceReference("static-type", "../b/index.js", 30),
+    ],
+  );
+  const bFile = classified(
+    "packages/app/src/b/index.ts",
+    v1B,
+    appPackage,
+    [
+      sourceReference("static", "../a/index.js", 0),
+      sourceReference("static-type", "../a/index.js", 30),
+    ],
+  );
+  const graph = buildObservedSourceGraph({
+    inventory: { packages: [appPackage] },
+    allSourceFiles: sourceFiles([aFile, bFile]),
+    classifiedFiles: [aFile, bFile],
+    resolver: {
+      resolve({ reference }) {
+        return {
+          kind: "local-file",
+          path:
+            reference.specifier === "../b/index.js"
+              ? "packages/app/src/b/index.ts"
+              : "packages/app/src/a/index.ts",
+          workspacePackage: appPackage,
+        };
+      },
+    },
+  });
+
+  const v1Diagnostics = evaluateSourceDependencies({
+    policy: policy(1, [v1A, v1B]),
+    graph,
+  });
+  assert.deepEqual(v1Diagnostics, []);
+
+  const v2Diagnostics = evaluateSourceDependencies({
+    policy: policy(2, [v2A, v2B]),
+    graph,
+  });
+  assert.deepEqual(
+    v2Diagnostics
+      .filter((diagnostic) => diagnostic.ruleId.includes("-cycle"))
+      .map((diagnostic) => diagnostic.ruleId)
+      .toSorted(),
+    [
+      "architecture.source-dependencies.boundary-runtime-cycle",
+      "architecture.source-dependencies.boundary-type-only-cycle",
+    ],
+  );
+  assert.equal(
+    byRule(
+      v2Diagnostics,
+      "architecture.source-dependencies.cross-boundary-local-import-not-entrypoint",
+    ).length,
+    0,
+  );
+});
+
 test("reports separate deterministic boundary and package SCCs with canonical bounded witnesses", () => {
   const localPackage = workspacePackage("@fixture/local", "packages/local");
   const packageOne = workspacePackage(

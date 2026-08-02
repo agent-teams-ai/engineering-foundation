@@ -224,6 +224,22 @@ test("allows a secondary pull-request workflow with its own equivalent review ga
   );
 });
 
+test("allows immutable allowlisted external workflows without classifying them as repository code", async () => {
+  await withConsumer(
+    {
+      additionalAllowedUses: [EXTERNAL_REUSABLE_WORKFLOW],
+      additionalWorkflows: {
+        ".github/workflows/external-review.yml": reusableWorkflow("pull_request"),
+      },
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 0, JSON.stringify(report));
+      assert.equal(report.outcome, "passed");
+    },
+  );
+});
+
 test("rejects every pull-request route that can execute before review", async (t) => {
   const cases = [
     {
@@ -267,11 +283,33 @@ test("rejects every pull-request route that can execute before review", async (t
       execution: "run-step",
     },
     {
-      name: "external reusable workflow",
+      name: "local reusable workflow",
       options: {
-        additionalAllowedUses: [EXTERNAL_REUSABLE_WORKFLOW],
         additionalWorkflows: {
-          ".github/workflows/secondary.yml": reusableWorkflow("pull_request"),
+          ".github/workflows/secondary.yml": [
+            "name: Secondary",
+            "on:",
+            "  pull_request:",
+            "permissions:",
+            "  contents: read",
+            "jobs:",
+            "  execute:",
+            "    uses: ./.github/workflows/local-reusable.yml",
+            "",
+          ].join("\n"),
+          ".github/workflows/local-reusable.yml": [
+            "name: Local reusable",
+            "on:",
+            "  workflow_call:",
+            "permissions:",
+            "  contents: read",
+            "jobs:",
+            "  execute:",
+            "    runs-on: ubuntu-24.04",
+            "    steps:",
+            "      - run: node scripts/build.mjs",
+            "",
+          ].join("\n"),
         },
       },
       path: ".github/workflows/secondary.yml",

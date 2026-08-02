@@ -75,7 +75,7 @@ function repositoryCodeExecutionFromStep(
 function repositoryCodeExecutionFromJob(
   job: WorkflowJobEvidence
 ): RepositoryCodeExecution | undefined {
-  if (job.uses !== undefined) {
+  if (job.uses?.startsWith(".") === true) {
     return Object.freeze({ kind: "reusable-workflow", value: job.uses });
   }
   return undefined;

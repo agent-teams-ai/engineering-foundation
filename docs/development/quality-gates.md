@@ -10,6 +10,7 @@ weakening the merge gate.
 
 | Layer | Command | Purpose |
 | --- | --- | --- |
+| Changed | `pnpm check:changed` | Foundation-routed checks for the current Git delta |
 | Fast | `pnpm check:fast` | Oxlint syntax/correctness plus pinned TypeScript 7 |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
 | Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor qualification for all workflows and local actions |

@@ -9,9 +9,9 @@ dependencyReview:
 sbomWorkflow: .github/workflows/ci.yml
 allowedContainerImages: []
 allowedUses:
-  - uses: agent-teams-ai/.github/.github/workflows/reviewrouter-reusable.yml@0cb2fc11d001cd93f847199285f796da188f7ad8
+  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@e982a5e3aebe71404dac948fd67cb7291e8be0fb
     transitiveUses: []
-  - uses: 777genius/review-router@626739854b5c67d94b3f0118738c106b4a232c41
+  - uses: 777genius/review-router@e982a5e3aebe71404dac948fd67cb7291e8be0fb
     transitiveUses: []
   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
     transitiveUses: []
@@ -40,12 +40,11 @@ privilegedJobs:
       contents: read
       security-events: write
   - workflowPath: .github/workflows/reviewrouter-codex.yml
-    jobId: review
+    jobId: codex-review
     permissions:
       contents: read
-      issues: write
-      pull-requests: write
-      statuses: write
+      pull-requests: read
+      id-token: write
   - workflowPath: .github/workflows/reviewrouter-codex.yml
     jobId: codex-refresh
     permissions:
@@ -66,7 +65,6 @@ privilegedJobs:
   - workflowPath: .github/workflows/release.yml
     jobId: attest-release-pr
     permissions:
-      actions: write
       contents: read
       pull-requests: read
       statuses: write

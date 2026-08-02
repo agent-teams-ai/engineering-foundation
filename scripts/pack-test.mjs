@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { FOUNDATION_REQUIRED_ARTIFACT_PATHS } from "../packages/engineering-foundation/dist/package-self-check.js";
+import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
 import { packAndInspectArtifact } from "./pack-artifact-e2e.mjs";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
@@ -72,6 +73,10 @@ try {
     repositoryRoot,
     runPnpm,
     temporaryRoot
+  });
+  await testPackedAgentWorkflow({
+    consumerRoot: fixture.consumerRoot,
+    runPnpm
   });
   process.stdout.write(
     `Package and local-mode lifecycle verified: ${artifact.archiveName} (${fixture.packedManifest.version})\n`

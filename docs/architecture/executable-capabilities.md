@@ -1,9 +1,11 @@
 # Executable Capabilities
 
-Status: Five capabilities are implemented and released. Four additional
-documentation and contract capabilities, plus source graph schema v2, are
-implemented and dogfooded for the next release. The separate closed scaffolding
-protocol is also implemented and pending its first package release.
+Status: Implemented and released for workspace declarations, source dependencies,
+suppression governance, public API compatibility, and repository security.
+Four additional documentation and contract capabilities, source graph schema v2,
+and the portable repository agent workflow are implemented and dogfooded for the
+next release. The separate closed scaffolding protocol is also implemented and
+pending its first package release.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
@@ -37,6 +39,7 @@ These terms describe different facts and must not be used interchangeably:
 | `governance.architecture-decisions` | Yes | No, next release | Yes | Only by explicit declaration and baseline promotion |
 | `contract.protobuf-evolution` | Yes | No, next release | No contract owned here | Only by explicit declaration and qualification evidence |
 | `contract.json-schema-releases` | Yes | No, next release | No contract owned here | Only by explicit declaration and consumer evidence |
+| `repository.agent-workflow` | Yes | Pending this Changeset | Yes | Only by explicit declaration |
 
 Installing or upgrading the package changes none of the consumer activation
 cells. Each consumer records its own activation status in its repository.

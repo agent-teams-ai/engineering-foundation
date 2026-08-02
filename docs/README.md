@@ -20,6 +20,7 @@ not repeat their rules.
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
+| Portable agent workflow | [Agent workflow](reference/repository-agent-workflow.md) | Implemented and dogfooded; activation is explicit |
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
 | Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Research complete; policy not active |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |

@@ -15,6 +15,9 @@ const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
   "engineering-foundation",
   "dist",
 );
+const { compareBinaryStrings } = await import(
+  pathToFileURL(join(distRoot, "binary-string-comparator.js")).href
+);
 const protobufModule = await import(
   pathToFileURL(
     join(distRoot, "capabilities", "contract-protobuf-evolution", "module.js"),
@@ -79,7 +82,10 @@ function policy() {
       generatorVersions: [
         { name: "buf.build/connectrpc/es:v1.6.1", version: "1.6.1" },
         { name: "buf.build/bufbuild/es:v2.2.3", version: "2.2.3" },
-      ].toSorted((left, right) => `${left.name}\0${left.version}`.localeCompare(`${right.name}\0${right.version}`)),
+      ].toSorted((left, right) => compareBinaryStrings(
+        `${left.name}\0${left.version}`,
+        `${right.name}\0${right.version}`,
+      )),
       generatedOutputDigest: digest("c"),
     },
     current: {
@@ -93,7 +99,10 @@ function policy() {
       generatorVersions: [
         { name: "buf.build/connectrpc/es:v1.6.1", version: "1.6.1" },
         { name: "buf.build/bufbuild/es:v2.2.3", version: "2.2.3" },
-      ].toSorted((left, right) => `${left.name}\0${left.version}`.localeCompare(`${right.name}\0${right.version}`)),
+      ].toSorted((left, right) => compareBinaryStrings(
+        `${left.name}\0${left.version}`,
+        `${right.name}\0${right.version}`,
+      )),
       generationDrift: {
         expectedGeneratedOutputDigest: digest("c"),
         observedGeneratedOutputDigest: digest("c"),

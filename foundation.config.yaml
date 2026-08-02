@@ -12,6 +12,8 @@ capabilities:
     configPath: architecture/foundation/public-api-compatibility.yaml
   quality.suppression-governance:
     configPath: architecture/foundation/suppression-governance.yaml
+  repository.agent-workflow:
+    configPath: architecture/foundation/repository-agent-workflow.yaml
   repository.security-baseline:
     configPath: architecture/foundation/repository-security-baseline.yaml
   workspace.dependency-declarations:

@@ -27,6 +27,7 @@ const fixtureRoots = Object.freeze({
   source: join(repositoryRoot, "tests", "fixtures", "source-dependencies", "valid"),
   suppression: join(repositoryRoot, "tests", "fixtures", "suppression-governance", "valid"),
   publicApi: join(repositoryRoot, "tests", "fixtures", "public-api-compatibility", "valid"),
+  agentWorkflow: join(repositoryRoot, "tests", "fixtures", "repository-agent-workflow", "valid"),
   repositorySecurity: join(repositoryRoot, "tests", "fixtures", "repository-security-baseline", "valid")
 });
 
@@ -58,6 +59,10 @@ export async function withPublicApiFixture(callback) {
 
 export async function withRepositorySecurityFixture(callback) {
   return await withCopiedFixture("foundation-repository-security-", fixtureRoots.repositorySecurity, callback);
+}
+
+export async function withAgentWorkflowFixture(callback) {
+  return await withCopiedFixture("foundation-agent-workflow-", fixtureRoots.agentWorkflow, callback);
 }
 
 export function utcDateAfter(days) {

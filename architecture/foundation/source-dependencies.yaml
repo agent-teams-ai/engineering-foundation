@@ -21,11 +21,13 @@ boundaries:
     entrypoints: []
   - id: foundation.cli
     roots:
+      - packages/engineering-foundation/src/cli-arguments.ts
       - packages/engineering-foundation/src/cli.ts
     allow:
       boundaries:
         - capability.architecture-decisions.composition
         - capability.public-api-compatibility.composition
+        - capability.repository-agent-workflow.composition
         - foundation.composition
         - foundation.core
         - foundation.local-mode
@@ -52,6 +54,7 @@ boundaries:
         - capability.contract-protobuf.composition
         - capability.documentation-local-references.composition
         - capability.public-api-compatibility.composition
+        - capability.repository-agent-workflow.composition
         - capability.repository-security.composition
         - capability.source-dependencies.composition
         - capability.suppression-governance.composition
@@ -67,6 +70,73 @@ boundaries:
       - packages/engineering-foundation/src/composition/rule-registry.ts
       - packages/engineering-foundation/src/foundation-config.ts
       - packages/engineering-foundation/src/report-renderer.ts
+  - id: capability.repository-agent-workflow.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.repository-input
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/changed-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/repository-agent-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/changed-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/repository-agent-workflow-reader.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/use-cases/analyze-repository-agent-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/use-cases/run-changed-agent-workflow.ts
+  - id: capability.repository-agent-workflow.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/contract
+    allow:
+      boundaries:
+        - capability.repository-agent-workflow.application
+        - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/contract/config.ts
+  - id: capability.repository-agent-workflow.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters
+    allow:
+      boundaries:
+        - capability.repository-agent-workflow.application
+        - foundation.core
+        - foundation.repository-input
+      packages: []
+      builtins:
+        - node:child_process
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/report-renderer.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-repository-agent-workflow-reader.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/git/git-repository-changes-reader.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/pnpm-package-script-runner.ts
+  - id: capability.repository-agent-workflow.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/changed-command.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts
+    allow:
+      boundaries:
+        - capability.repository-agent-workflow.adapters
+        - capability.repository-agent-workflow.application
+        - capability.repository-agent-workflow.contract
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/changed-command.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts
   - id: foundation.core
     roots:
       - packages/engineering-foundation/src/binary-string-comparator.ts

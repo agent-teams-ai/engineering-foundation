@@ -17,11 +17,14 @@ export class GovernanceAcceptedDecisionEvidenceAcl
   async readAcceptedDecisionEvidence(
     input: ReadAcceptedDecisionEvidenceInput
   ): Promise<AcceptedDecisionEvidence> {
-    return readAcceptedArchitectureDecisionEvidence({
+    const evidence = await readAcceptedArchitectureDecisionEvidence({
       consumerRoot: input.consumerRoot,
       baselinePath: input.baselinePath,
       configPath: input.governanceConfigPath,
       ...(input.signal === undefined ? {} : { signal: input.signal })
+    });
+    return Object.freeze({
+      acceptedDecisionIds: evidence.acceptedDecisionIds
     });
   }
 }

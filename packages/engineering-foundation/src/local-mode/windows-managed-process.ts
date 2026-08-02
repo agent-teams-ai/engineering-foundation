@@ -10,10 +10,11 @@ export interface WindowsManagedProcessRequest {
 const PROCESS_HOST_PATH = fileURLToPath(
   new URL("./windows-process-host.js", import.meta.url)
 );
-const REQUEST_ENV = "AGENT_TEAMS_FOUNDATION_WINDOWS_PROCESS_REQUEST";
-const NODE_ENV = "AGENT_TEAMS_FOUNDATION_WINDOWS_NODE";
-const HOST_ENV = "AGENT_TEAMS_FOUNDATION_WINDOWS_HOST";
-const CWD_ENV = "AGENT_TEAMS_FOUNDATION_WINDOWS_CWD";
+const MAX_ENCODED_REQUEST_CHARACTERS = 24_000;
+
+function powerShellString(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
+}
 
 const WINDOWS_JOB_RUNNER = String.raw`
 $ErrorActionPreference = "Stop"
@@ -177,7 +178,11 @@ public static class AgentTeamsFoundationJobRunner
         return output.ToString();
     }
 
-    public static int Run(string executable, string hostPath, string currentDirectory)
+    public static int Run(
+        string executable,
+        string hostPath,
+        string currentDirectory,
+        string encodedRequest)
     {
         var job = CreateJobObject(IntPtr.Zero, null);
         if (job == IntPtr.Zero)
@@ -216,7 +221,8 @@ public static class AgentTeamsFoundationJobRunner
             startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
             startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
             startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-            var commandLine = new StringBuilder(Quote(executable) + " " + Quote(hostPath));
+            var commandLine = new StringBuilder(
+                Quote(executable) + " " + Quote(hostPath) + " " + Quote(encodedRequest));
             if (!CreateProcess(
                 executable,
                 commandLine,
@@ -269,10 +275,12 @@ public static class AgentTeamsFoundationJobRunner
 '@
 
 try {
+  $encodedRequest = [Console]::In.ReadToEnd()
   $exitCode = [AgentTeamsFoundationJobRunner]::Run(
-    $env:${NODE_ENV},
-    $env:${HOST_ENV},
-    $env:${CWD_ENV})
+    ${powerShellString(process.execPath)},
+    ${powerShellString(PROCESS_HOST_PATH)},
+    (Get-Location).Path,
+    $encodedRequest)
   exit $exitCode
 } catch {
   [Console]::Error.WriteLine("Windows Job Object runner failed: " + $_.Exception.Message)
@@ -299,7 +307,12 @@ export function spawnWindowsManagedProcess(
     args: [...request.args],
     cwd: request.cwd
   })).toString("base64url");
-  return spawn(
+  if (encodedRequest.length > MAX_ENCODED_REQUEST_CHARACTERS) {
+    throw new Error(
+      `The managed Windows process request exceeds ${MAX_ENCODED_REQUEST_CHARACTERS} encoded characters.`
+    );
+  }
+  const child = spawn(
     "powershell.exe",
     [
       "-NoLogo",
@@ -312,15 +325,13 @@ export function spawnWindowsManagedProcess(
     ],
     {
       cwd: request.cwd,
-      env: {
-        ...process.env,
-        [REQUEST_ENV]: encodedRequest,
-        [NODE_ENV]: process.execPath,
-        [HOST_ENV]: PROCESS_HOST_PATH,
-        [CWD_ENV]: request.cwd
-      },
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true
     }
   );
+  child.stdin.once("error", () => {
+    // The wrapper's process error is reported through its own error event.
+  });
+  child.stdin.end(encodedRequest);
+  return child;
 }

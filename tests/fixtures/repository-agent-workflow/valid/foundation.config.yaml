@@ -1,0 +1,6 @@
+schemaVersion: 1
+project:
+  id: agent-workflow-fixture
+capabilities:
+  repository.agent-workflow:
+    configPath: architecture/foundation/repository-agent-workflow.yaml

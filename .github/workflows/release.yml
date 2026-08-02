@@ -53,7 +53,6 @@ jobs:
     needs: release
     if: ${{ needs.release.outputs.pullRequestNumber != '' }}
     permissions:
-      actions: write
       contents: read
       pull-requests: read
       statuses: write
@@ -77,7 +76,7 @@ jobs:
           fi
 
           ci_contexts=(check windows-check)
-          required_contexts=(check "review / review" windows-check)
+          required_contexts=(check ReviewRouter windows-check)
 
           post_status() {
             local context="$1"
@@ -99,11 +98,6 @@ jobs:
           gh workflow run ci.yml \
             --repo "${GITHUB_REPOSITORY}" \
             --ref changeset-release/main
-          gh workflow run reviewrouter.yml \
-            --repo "${GITHUB_REPOSITORY}" \
-            --ref main \
-            -f pr_number="${RELEASE_PULL_REQUEST}"
-
           deadline=$((SECONDS + 600))
           while (( SECONDS < deadline )); do
             checks="$(gh api -H 'Accept: application/vnd.github+json' \
@@ -119,7 +113,7 @@ jobs:
             done
             review_state="$(gh api \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status" \
-              --jq '[.statuses[] | select(.context == "review / review")] | sort_by(.created_at) | last | .state // "missing"')"
+              --jq '[.statuses[] | select(.context == "ReviewRouter")] | sort_by(.created_at) | last | .state // "missing"')"
             if [[ "${review_state}" != "success" && "${review_state}" != "failure" && "${review_state}" != "error" ]]; then
               all_completed=0
             fi
@@ -160,10 +154,10 @@ jobs:
 
           read -r review_state review_target_url < <(gh api \
             "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status" \
-            --jq '[.statuses[] | select(.context == "review / review")] | sort_by(.created_at) | last | [.state, .target_url] | @tsv')
+            --jq '[.statuses[] | select(.context == "ReviewRouter")] | sort_by(.created_at) | last | [.state, .target_url] | @tsv')
           if [[ "${review_state}" != "success" ]]; then
             failed=1
-            post_status "review / review" "${review_state}" "Release PR review / review: ${review_state}" "${review_target_url:-${RELEASE_RUN_URL}}"
+            post_status "ReviewRouter" "${review_state}" "Release PR ReviewRouter: ${review_state}" "${review_target_url:-${RELEASE_RUN_URL}}"
           fi
 
           exit "${failed}"

@@ -19,6 +19,7 @@ Hard rules:
   agents may be evaluated independently, but they remain rebuildable caches and
   never become documentation sources of truth;
 - use conventional commits and short feature branches;
+- run `pnpm check:changed` while editing and `pnpm check:fast` before handoff;
 - run `pnpm check` before opening a pull request.
 
 Start with:

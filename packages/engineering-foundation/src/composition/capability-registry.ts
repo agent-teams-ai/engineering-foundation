@@ -4,6 +4,7 @@ import { createProtobufEvolutionCapability } from "../capabilities/contract-prot
 import { createDocumentationLocalReferencesCapability } from "../capabilities/documentation-local-references/module.js";
 import { createArchitectureDecisionGovernanceCapability } from "../capabilities/governance-architecture-decisions/module.js";
 import { createPublicApiCompatibilityCapability } from "../capabilities/public-api-compatibility/module.js";
+import { createRepositoryAgentWorkflowCapability } from "../capabilities/repository-agent-workflow/module.js";
 import { createRepositorySecurityBaselineCapability } from "../capabilities/repository-security-baseline/module.js";
 import { createSourceDependenciesCapability } from "../capabilities/source-dependencies/module.js";
 import { createSuppressionGovernanceCapability } from "../capabilities/suppression-governance/module.js";
@@ -15,6 +16,7 @@ const capabilities: readonly CapabilityDefinition[] = Object.freeze([
   createDocumentationLocalReferencesCapability(),
   createArchitectureDecisionGovernanceCapability(),
   createPublicApiCompatibilityCapability(),
+  createRepositoryAgentWorkflowCapability(),
   createRepositorySecurityBaselineCapability(),
   createSourceDependenciesCapability(),
   createSuppressionGovernanceCapability(),

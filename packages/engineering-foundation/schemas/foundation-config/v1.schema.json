@@ -75,6 +75,16 @@
             }
           }
         },
+        "repository.agent-workflow": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configPath"],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
         "quality.suppression-governance": {
           "type": "object",
           "additionalProperties": false,

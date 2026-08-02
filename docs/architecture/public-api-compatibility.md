@@ -61,6 +61,9 @@ prevents a newly exported path from bypassing compatibility evidence.
 The fingerprint contains old and new signatures, kinds, parents, every addition,
 and every removal in the same change set. Approval of one break cannot authorize
 a different change to the same symbol or an extra additive export.
+API Extractor namespace items have no declaration excerpt, so the adapter records
+the deterministic signature `namespace <displayName>`; every other empty
+declared-item signature fails closed.
 
 For `v2`, a breaking fingerprint also includes the export path and any added or
 removed export path. Reordering configuration or snapshot entrypoints cannot

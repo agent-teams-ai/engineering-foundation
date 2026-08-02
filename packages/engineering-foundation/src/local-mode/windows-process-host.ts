@@ -7,14 +7,6 @@ interface HostRequest {
   readonly cwd: string;
 }
 
-const REQUEST_ENV = "AGENT_TEAMS_FOUNDATION_WINDOWS_PROCESS_REQUEST";
-const INTERNAL_ENVIRONMENT_KEYS = [
-  REQUEST_ENV,
-  "AGENT_TEAMS_FOUNDATION_WINDOWS_NODE",
-  "AGENT_TEAMS_FOUNDATION_WINDOWS_HOST",
-  "AGENT_TEAMS_FOUNDATION_WINDOWS_CWD"
-] as const;
-
 function isHostRequest(value: unknown): value is HostRequest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
@@ -32,7 +24,7 @@ function isHostRequest(value: unknown): value is HostRequest {
 }
 
 function readRequest(): HostRequest {
-  const encoded = process.env[REQUEST_ENV];
+  const encoded = process.argv[2];
   if (encoded === undefined) {
     throw new Error("The managed Windows process host did not receive a request.");
   }
@@ -48,14 +40,6 @@ function readRequest(): HostRequest {
   return input;
 }
 
-function commandEnvironment(): NodeJS.ProcessEnv {
-  const environment = { ...process.env };
-  for (const key of INTERNAL_ENVIRONMENT_KEYS) {
-    delete environment[key];
-  }
-  return environment;
-}
-
 if (process.platform !== "win32") {
   process.stderr.write("The managed Windows process host can only run on Windows.\n");
   process.exitCode = 1;
@@ -65,7 +49,6 @@ if (process.platform !== "win32") {
     const child = spawn(request.command, [...request.args], {
       cwd: request.cwd,
       detached: false,
-      env: commandEnvironment(),
       shell: false,
       stdio: ["ignore", "inherit", "inherit"],
       windowsHide: true

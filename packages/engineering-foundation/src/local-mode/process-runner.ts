@@ -132,18 +132,18 @@ async function terminateProcessTree(child: ReturnType<typeof spawn>): Promise<vo
 async function waitForCloseWithinCleanupDeadline(
   closed: Promise<unknown>
 ): Promise<void> {
-  let cleanupTimer: NodeJS.Timeout | undefined;
-  const cleanupDeadline = new Promise<never>((_resolve, reject) => {
-    cleanupTimer = setTimeout(() => {
-      reject(new Error("Process streams did not close after tree termination."));
-    }, TERMINATION_GRACE_MS);
+  const cancellation = new AbortController();
+  const cleanupDeadline = delay(
+    TERMINATION_GRACE_MS,
+    undefined,
+    { signal: cancellation.signal }
+  ).then(() => {
+    throw new Error("Process streams did not close after tree termination.");
   });
   try {
     await Promise.race([closed, cleanupDeadline]);
   } finally {
-    if (cleanupTimer !== undefined) {
-      clearTimeout(cleanupTimer);
-    }
+    cancellation.abort();
   }
 }
 

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
+import { compareBinaryStrings } from "../packages/engineering-foundation/dist/binary-string-comparator.js";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cliPath = join(repositoryRoot, "packages", "engineering-foundation", "dist", "cli.js");
@@ -72,7 +73,7 @@ function digestWorkflows(workflows) {
   const hash = createHash("sha256");
   hash.update("repository-security-workflows-v1\0");
   for (const [path, source] of Object.entries(workflows).toSorted(([left], [right]) =>
-    left.localeCompare(right),
+    compareBinaryStrings(left, right),
   )) {
     const bytes = Buffer.from(source, "utf8");
     hash.update(path);

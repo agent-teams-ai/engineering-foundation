@@ -20,7 +20,7 @@ async function reviewPolicy() {
   );
 }
 
-test("release attestation dispatches the review workflow by its canonical file", async () => {
+test("release attestation relies on the canonical client-triggered review", async () => {
   const release = await workflow("release.yml");
   const review = await workflow("reviewrouter-codex.yml");
   const policy = await reviewPolicy();
@@ -28,31 +28,17 @@ test("release attestation dispatches the review workflow by its canonical file",
     ({ name }) => name === "Dispatch and attest release pull request checks",
   );
 
-  assert.match(
-    attestation.run,
-    /gh workflow run reviewrouter-codex\.yml[\s\S]*-f pr_number=/u,
-  );
+  assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-codex\.yml/u);
+  assert.match(attestation.run, /\.context == "ReviewRouter"/u);
   assert.equal(
-    review.on.workflow_dispatch.inputs.pr_number.required,
+    review.on.pull_request.types.includes("ready_for_review"),
     true,
   );
-  assert.match(review.jobs.review.if, /workflow_dispatch/u);
-  assert.match(review.jobs.review.if, /user\.type != 'Bot'/u);
-  assert.equal(
-    review.jobs.resolve.outputs.head_sha,
-    "${{ steps.pr.outputs.head_sha }}",
-  );
-  const dispatchedReviewStatus = review.jobs["required-review"].steps.find(
-    ({ name }) =>
-      name === "Publish dispatched review result on the reviewed revision",
-  );
-  assert.equal(review.jobs["required-review"].permissions.statuses, "write");
-  assert.match(dispatchedReviewStatus.if, /workflow_dispatch/u);
-  assert.match(dispatchedReviewStatus.run, /statuses\/\$\{REVIEWED_HEAD_SHA\}/u);
-  assert.match(dispatchedReviewStatus.run, /context="review \/ review"/u);
+  assert.equal(review.on.workflow_dispatch, undefined);
+  assert.equal(review.jobs["codex-review"].with.workflow_schema_version, 2);
   assert.equal(
     policy.skip_bots,
     false,
-    "Explicit release attestation must be allowed to review the Changesets bot PR.",
+    "Repository review policy remains explicit while T0 rejects bot-authored pull requests.",
   );
 });

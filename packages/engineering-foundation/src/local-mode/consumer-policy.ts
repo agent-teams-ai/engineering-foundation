@@ -145,6 +145,44 @@ function readLockfileObject(source: string): Record<string, unknown> {
   return value;
 }
 
+function hasValidPnpmPeerContext(
+  lockedVersion: unknown,
+  exactVersion: string
+): lockedVersion is string {
+  if (lockedVersion === exactVersion) {
+    return true;
+  }
+  if (
+    typeof lockedVersion !== "string" ||
+    !lockedVersion.startsWith(`${exactVersion}(`)
+  ) {
+    return false;
+  }
+
+  const suffix = lockedVersion.slice(exactVersion.length);
+  const contentByDepth: boolean[] = [];
+  for (const character of suffix) {
+    if (character === "(") {
+      contentByDepth.push(false);
+      continue;
+    }
+    if (character === ")") {
+      if (contentByDepth.pop() !== true) {
+        return false;
+      }
+      if (contentByDepth.length > 0) {
+        contentByDepth[contentByDepth.length - 1] = true;
+      }
+      continue;
+    }
+    if (contentByDepth.length === 0 || /\s/u.test(character)) {
+      return false;
+    }
+    contentByDepth[contentByDepth.length - 1] = true;
+  }
+  return contentByDepth.length === 0;
+}
+
 export async function inspectFoundationRegistryProvenance(
   consumerRoot: string,
   dependencySpec: string | undefined
@@ -154,6 +192,7 @@ export async function inspectFoundationRegistryProvenance(
     source: string
   ): {
     readonly packageKey?: string;
+    readonly snapshotKey?: string;
     readonly integrity?: string;
     readonly issues: readonly string[];
   } => {
@@ -199,15 +238,16 @@ export async function inspectFoundationRegistryProvenance(
     if (
       dependencySpec === undefined ||
       lockedDependency.specifier !== dependencySpec ||
-      lockedDependency.version !== dependencySpec
+      !hasValidPnpmPeerContext(lockedDependency.version, dependencySpec)
     ) {
       issues.push(
-        `${FOUNDATION_PACKAGE_NAME} ${source} specifier and version must equal the exact manifest version.`
+        `${FOUNDATION_PACKAGE_NAME} ${source} specifier must equal the exact manifest version and its version may contain only a valid pnpm peer context.`
       );
       return { issues };
     }
 
     const packageKey = `${FOUNDATION_PACKAGE_NAME}@${dependencySpec}`;
+    const snapshotKey = `${FOUNDATION_PACKAGE_NAME}@${lockedDependency.version}`;
     const packageEntry = isRecord(lockfile.packages)
       ? lockfile.packages[packageKey]
       : undefined;
@@ -252,7 +292,7 @@ export async function inspectFoundationRegistryProvenance(
     }
     if (
       !isRecord(lockfile.snapshots) ||
-      !isRecord(lockfile.snapshots[packageKey])
+      !isRecord(lockfile.snapshots[snapshotKey])
     ) {
       issues.push(
         `${FOUNDATION_PACKAGE_NAME} must have an exact snapshot entry in ${source}.`
@@ -261,6 +301,7 @@ export async function inspectFoundationRegistryProvenance(
 
     return {
       packageKey,
+      snapshotKey,
       ...(integrity === undefined ? {} : { integrity }),
       issues
     };
@@ -305,6 +346,7 @@ export async function inspectFoundationRegistryProvenance(
   issues.push(...installedProvenance.issues);
   if (
     rootProvenance.packageKey !== installedProvenance.packageKey ||
+    rootProvenance.snapshotKey !== installedProvenance.snapshotKey ||
     rootProvenance.integrity !== installedProvenance.integrity
   ) {
     issues.push(

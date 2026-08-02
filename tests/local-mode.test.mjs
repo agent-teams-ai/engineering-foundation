@@ -62,6 +62,7 @@ async function writeRegistryLock(
   } = {}
 ) {
   const packageKey = `${FOUNDATION_PACKAGE_NAME}@${version}`;
+  const snapshotKey = `${FOUNDATION_PACKAGE_NAME}@${lockedVersion}`;
   const lines = [
     "lockfileVersion: '9.0'",
     "",
@@ -102,7 +103,7 @@ async function writeRegistryLock(
     "",
     "snapshots:",
     "",
-    `  ${JSON.stringify(packageKey)}: {}`,
+    `  ${JSON.stringify(snapshotKey)}: {}`,
     ""
   );
   const source = `${lines.join("\n")}\n`;
@@ -446,13 +447,94 @@ test("rejects non-registry lockfile sources", async (context) => {
         assert.equal(status.mode, "INVALID");
         assert.ok(
           status.issues.some((issue) =>
-            issue.includes("lockfile specifier and version")
+            issue.includes("specifier must equal the exact manifest version")
           )
         );
       } finally {
         await rm(fixture.root, { force: true, recursive: true });
       }
     });
+  }
+});
+
+test("accepts exact registry versions with pnpm peer contexts", async (context) => {
+  for (const lockedVersion of [
+    "1.2.3(@types/node@24.13.3)",
+    "1.2.3(@scope/peer@2.0.0(transitive-peer@3.0.0))"
+  ]) {
+    await context.test(lockedVersion, async () => {
+      const fixture = await createFixture();
+      try {
+        await writeRegistryLock(fixture.consumerRoot, "1.2.3", {
+          lockedVersion
+        });
+        const status = await inspectFoundationMode(fixture.consumerRoot);
+        assert.equal(status.mode, "REGISTRY");
+      } finally {
+        await rm(fixture.root, { force: true, recursive: true });
+      }
+    });
+  }
+});
+
+test("rejects malformed pnpm peer contexts", async (context) => {
+  for (const lockedVersion of [
+    "1.2.30(@types/node@24.13.3)",
+    "1.2.3()",
+    "1.2.3(peer@2.0.0",
+    "1.2.3(peer @2.0.0)"
+  ]) {
+    await context.test(lockedVersion, async () => {
+      const fixture = await createFixture();
+      try {
+        await writeRegistryLock(fixture.consumerRoot, "1.2.3", {
+          lockedVersion
+        });
+        const status = await inspectFoundationMode(fixture.consumerRoot);
+        assert.equal(status.mode, "INVALID");
+        assert.ok(
+          status.issues.some((issue) =>
+            issue.includes("specifier must equal the exact manifest version")
+          )
+        );
+      } finally {
+        await rm(fixture.root, { force: true, recursive: true });
+      }
+    });
+  }
+});
+
+test("rejects peer-context drift in the installed lockfile", async () => {
+  const fixture = await createFixture();
+  try {
+    const rootVersion = "1.2.3(@types/node@24.13.3)";
+    await writeRegistryLock(fixture.consumerRoot, "1.2.3", {
+      lockedVersion: rootVersion
+    });
+    const virtualStoreLockPath = join(
+      fixture.consumerRoot,
+      "node_modules",
+      ".pnpm",
+      "lock.yaml"
+    );
+    await writeFile(
+      virtualStoreLockPath,
+      (await readFile(virtualStoreLockPath, "utf8")).replaceAll(
+        rootVersion,
+        "1.2.3(@types/node@24.14.0)"
+      ),
+      "utf8"
+    );
+
+    const status = await inspectFoundationMode(fixture.consumerRoot);
+    assert.equal(status.mode, "INVALID");
+    assert.ok(
+      status.issues.some((issue) =>
+        issue.includes("root and installed pnpm lockfile provenance")
+      )
+    );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
   }
 });
 

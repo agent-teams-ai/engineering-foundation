@@ -17,8 +17,10 @@ foundation:assert-registry
 runtime, bundled, overridden, resolved, or patched declarations.
 
 `assert-registry` also parses `pnpm-lock.yaml` structurally. The root importer
-specifier and resolution must equal the manifest version. The lockfile must
-contain the exact npm package key, sha512 integrity, and snapshot, with no
+specifier must equal the manifest version. Its resolution must be that exact
+version, optionally followed by pnpm's peer-context suffix, and the matching
+snapshot must exist. The lockfile must contain the exact npm package key and
+sha512 integrity, with no
 file/link/workspace/git/http source, override, patch, or non-npm tarball. The
 same provenance must be present in the installed pnpm virtual-store lockfile;
 this detects stale `node_modules` after a lockfile-only change.

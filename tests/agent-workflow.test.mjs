@@ -214,6 +214,67 @@ test("routes changed source files to path-aware and project-wide checks", async 
   });
 });
 
+test("matches configured multi-dot extensions", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    const configPath = join(
+      consumerRoot,
+      "architecture",
+      "foundation",
+      "repository-agent-workflow.yaml",
+    );
+    const source = await readFile(configPath, "utf8");
+    await writeFile(
+      configPath,
+      source.replace("extensions: [.js, .mjs, .ts, .tsx]", "extensions: [.d.ts]"),
+      "utf8",
+    );
+    initializeRepository(consumerRoot);
+    await writeFile(
+      join(consumerRoot, "src", "public-api.d.ts"),
+      "export declare const publicApi: true;\n",
+      "utf8",
+    );
+
+    const { result, report } = runChanged(consumerRoot);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(
+      report.steps.map(({ id, paths }) => ({ id, paths })),
+      [
+        { id: "lint", paths: ["src/public-api.d.ts"] },
+        { id: "typecheck", paths: [] },
+      ],
+    );
+  });
+});
+
+test("rejects a fast workflow that recursively invokes the changed workflow", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    const configPath = join(
+      consumerRoot,
+      "architecture",
+      "foundation",
+      "repository-agent-workflow.yaml",
+    );
+    const source = await readFile(configPath, "utf8");
+    await writeFile(
+      configPath,
+      source.replace("fast: check:fast", "fast: check:changed"),
+      "utf8",
+    );
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 2);
+    assert.equal(
+      report.capabilities[0].problem.code,
+      "REPOSITORY_AGENT_WORKFLOW_CONFIG_INVALID",
+    );
+    assert.match(
+      report.capabilities[0].problem.message,
+      /fast workflow script cannot be the changed workflow script/u,
+    );
+  });
+});
+
 test("escalates policy changes and deletions to the configured fast full gate", async () => {
   for (const mutate of [
     (consumerRoot) => writeFile(

@@ -137,6 +137,9 @@ export async function loadAgentWorkflowPolicy(
   if (scriptNames.includes(result.scripts.changed)) {
     inputError("The changed workflow script cannot invoke itself.");
   }
+  if (result.scripts.fast === result.scripts.changed) {
+    inputError("The fast workflow script cannot be the changed workflow script.");
+  }
   return Object.freeze({
     ...result,
     fullScanPaths: Object.freeze(

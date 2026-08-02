@@ -14,10 +14,8 @@ const MAX_PATH_ARGUMENTS = 200;
 const MAX_PATH_ARGUMENT_BYTES = 24 * 1024;
 const MAX_STEP_OUTPUT_CHARS = 128 * 1024;
 
-function extension(path: string): string {
-  const slash = path.lastIndexOf("/");
-  const dot = path.lastIndexOf(".");
-  return dot > slash ? path.slice(dot) : "";
+function pathMatchesExtension(path: string, extension: string): boolean {
+  return path.toLowerCase().endsWith(extension.toLowerCase());
 }
 
 function pathMatchesTrigger(path: string, trigger: string): boolean {
@@ -83,9 +81,8 @@ async function changedSteps(
 ): Promise<readonly AgentWorkflowStepReport[]> {
   const steps: AgentWorkflowStepReport[] = [];
   for (const check of input.policy.changedChecks) {
-    const extensions = new Set(check.extensions.map((suffix) => suffix.toLowerCase()));
     const paths = changes.existingPaths.filter((path) =>
-      extensions.has(extension(path).toLowerCase())
+      check.extensions.some((extension) => pathMatchesExtension(path, extension))
     );
     if (paths.length === 0) {
       continue;

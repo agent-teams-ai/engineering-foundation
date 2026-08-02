@@ -30,7 +30,9 @@ await applyFilesystemScaffoldWithFaultInjection(
       (expectedIndex === undefined || point.operationIndex === expectedIndex)
     ) {
       process.stdout.write("FOUNDATION_CRASH_POINT\n");
-      return new Promise(() => {});
+      return new Promise(() => {
+        setInterval(() => {}, 60_000);
+      });
     }
   }
 );

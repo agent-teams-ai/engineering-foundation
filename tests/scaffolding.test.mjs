@@ -97,11 +97,10 @@ function withRecomputedPlanDigest(planValue) {
   return { ...body, planDigest: sha256Json(body) };
 }
 
-async function terminateAtCrashPoint(child) {
+async function waitForCrashPoint(child) {
   return new Promise((resolve, reject) => {
     let output = "";
     let stderr = "";
-    let terminationRequested = false;
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
@@ -109,27 +108,26 @@ async function terminateAtCrashPoint(child) {
     });
     child.stdout.on("data", (chunk) => {
       output += chunk;
-      if (
-        !terminationRequested &&
-        output.includes("FOUNDATION_CRASH_POINT")
-      ) {
-        terminationRequested = child.kill("SIGKILL");
-        if (!terminationRequested) {
-          reject(new Error("Failed to terminate the crash worker."));
-        }
+      if (output.includes("FOUNDATION_CRASH_POINT")) {
+        resolve();
       }
     });
     child.once("exit", (code, signal) => {
-      if (!terminationRequested) {
-        reject(
-          new Error(
-            `Crash worker exited before the fault point: code=${String(code)} signal=${String(signal)} ${stderr}`
-          )
-        );
-        return;
-      }
-      resolve();
+      reject(
+        new Error(
+          `Crash worker exited before the fault point: code=${String(code)} signal=${String(signal)} ${stderr}`
+        )
+      );
     });
+  });
+}
+
+async function waitForExit(child) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+  await new Promise((resolve) => {
+    child.once("exit", resolve);
   });
 }
 
@@ -148,12 +146,14 @@ async function crashDuringApply(root, scaffoldPlan, phase, operationIndex) {
     ],
     { stdio: ["ignore", "pipe", "pipe"] }
   );
-  await terminateAtCrashPoint(child);
+  await waitForCrashPoint(child);
   await utimes(
     join(root, ".agent-teams-local", "foundation-operation.lock"),
     new Date(0),
     new Date(0)
   );
+  assert.equal(child.kill("SIGKILL"), true);
+  await waitForExit(child);
 }
 
 test("compiles the same semantic Intent to one deterministic Plan", async () => {

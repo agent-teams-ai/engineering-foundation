@@ -4,6 +4,7 @@ export type ScaffoldErrorCode =
   | "SCAFFOLD_APPLY_CONFLICT"
   | "SCAFFOLD_INPUT_INVALID"
   | "SCAFFOLD_PLAN_INVALID"
+  | "SCAFFOLD_RECEIPT_INVALID"
   | "SCAFFOLD_RECOVERY_REQUIRED";
 
 export class ScaffoldError extends Error {

@@ -14,10 +14,10 @@
       "required": ["id", "version"],
       "properties": {
         "id": { "const": "@agent-teams/engineering-foundation" },
-        "version": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$" }
+        "version": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$" }
       }
     },
-    "projectId": { "$ref": "#/$defs/id" },
+    "projectId": { "$ref": "#/$defs/authorityId" },
     "authority": {
       "type": "object",
       "additionalProperties": false,
@@ -35,7 +35,7 @@
       "additionalProperties": false,
       "required": ["id", "scaffoldProfile", "recipe", "facets", "policies"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
+        "id": { "$ref": "#/$defs/authorityId" },
         "scaffoldProfile": { "$ref": "#/$defs/definitionRef" },
         "recipe": { "$ref": "#/$defs/definitionRef" },
         "facets": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/definitionRef" } },
@@ -89,7 +89,18 @@
     "planDigest": { "$ref": "#/$defs/digest" }
   },
   "$defs": {
-    "id": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "authorityId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[a-z0-9][a-z0-9._/-]*$"
+    },
+    "artifactId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 214,
+      "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$"
+    },
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "repositoryPath": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$" },
     "definitionRef": {
@@ -97,7 +108,7 @@
       "additionalProperties": false,
       "required": ["id", "contractVersion"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
+        "id": { "$ref": "#/$defs/authorityId" },
         "contractVersion": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
       }
     },
@@ -116,8 +127,8 @@
       "required": ["schemaVersion", "compositionId", "targetRef"],
       "properties": {
         "schemaVersion": { "const": 1 },
-        "compositionId": { "$ref": "#/$defs/id" },
-        "targetRef": { "$ref": "#/$defs/id" },
+        "compositionId": { "$ref": "#/$defs/authorityId" },
+        "targetRef": { "$ref": "#/$defs/authorityId" },
         "recipeParameters": { "$ref": "#/$defs/jsonObject" },
         "facets": {
           "type": "array",
@@ -165,10 +176,15 @@
       "additionalProperties": false,
       "required": ["id", "role", "path", "packageName"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "role": { "$ref": "#/$defs/id" },
+        "id": { "$ref": "#/$defs/authorityId" },
+        "role": { "$ref": "#/$defs/authorityId" },
         "path": { "$ref": "#/$defs/repositoryPath" },
-        "packageName": { "type": "string", "minLength": 1, "maxLength": 214 },
+        "packageName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 214,
+          "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+        },
         "ownerDocument": {
           "type": "string",
           "minLength": 1,
@@ -193,7 +209,7 @@
       "additionalProperties": false,
       "required": ["id", "kind", "path", "precondition", "after", "causes"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
+        "id": { "$ref": "#/$defs/artifactId" },
         "kind": { "const": "materialize-file" },
         "path": { "$ref": "#/$defs/repositoryPath" },
         "precondition": {
@@ -214,7 +230,7 @@
             "contentBase64": { "type": "string", "maxLength": 1398104, "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$" }
           }
         },
-        "causes": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/id" } }
+        "causes": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/artifactId" } }
       }
     },
     "diagnostic": {
@@ -222,7 +238,7 @@
       "additionalProperties": false,
       "required": ["ruleId", "severity", "phase", "subject", "message", "remediation"],
       "properties": {
-        "ruleId": { "$ref": "#/$defs/id" },
+        "ruleId": { "$ref": "#/$defs/artifactId" },
         "severity": { "enum": ["error", "info", "warning"] },
         "phase": { "enum": ["apply", "composition", "input", "planning", "policy", "recovery"] },
         "subject": { "type": "string", "minLength": 1, "maxLength": 512 },

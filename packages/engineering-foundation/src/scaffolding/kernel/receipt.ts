@@ -19,7 +19,7 @@ interface ScaffoldReceiptCandidateV1 {
     readonly id: string;
     readonly contractVersion: number;
   };
-  readonly outcome: ScaffoldReceiptOutcome;
+  readonly outcome: string;
   readonly commit: {
     readonly state:
       | "committed"
@@ -118,14 +118,23 @@ function assertAdapterAndCommitContract(
     );
   }
 
-  const expectedCommitState =
-    receipt.outcome === "applied" || receipt.outcome === "already-applied"
-      ? "committed"
-      : receipt.outcome === "failed-recovered"
-        ? "recovered"
-        : receipt.outcome === "recovery-required"
-          ? "recovery-required"
-          : "rejected";
+  const expectedCommitState = (() => {
+    switch (receipt.outcome) {
+      case "applied":
+      case "already-applied":
+        return "committed";
+      case "failed-recovered":
+        return "recovered";
+      case "recovery-required":
+        return "recovery-required";
+      case "rejected":
+        return "rejected";
+      default:
+        return invalidReceipt(
+          "Scaffolding Receipt outcome is not supported by protocol v1."
+        );
+    }
+  })();
   if (receipt.commit.state !== expectedCommitState) {
     invalidReceipt(
       "Scaffolding Receipt outcome and commit state are incompatible."
@@ -202,6 +211,8 @@ function assertReceiptOutcomeEvidence(receipt: ScaffoldReceiptCandidateV1): void
         "not-applied"
       ]);
       break;
+    default:
+      invalidReceipt("Scaffolding Receipt outcome is not supported by protocol v1.");
   }
 }
 

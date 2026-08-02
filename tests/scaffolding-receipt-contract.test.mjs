@@ -175,6 +175,12 @@ test("rejects unsupported receipt protocol and adapter metadata", async () => {
     withReceiptDigest({ ...applied, protocolVersion: 2 }),
     withReceiptDigest({
       ...applied,
+      outcome: "forged-outcome",
+      commit: memoryCommit("rejected"),
+      operations: []
+    }),
+    withReceiptDigest({
+      ...applied,
       adapter: { id: "foundation.unknown/v1", contractVersion: 1 }
     }),
     withReceiptDigest({

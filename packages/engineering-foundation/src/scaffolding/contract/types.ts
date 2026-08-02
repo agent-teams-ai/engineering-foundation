@@ -279,7 +279,8 @@ export type ScaffoldReceiptV1 =
         readonly state: "recovery-required";
         readonly atomicity: "journaled-recoverable";
       };
-      readonly operations: readonly (
+      // Schema and runtime additionally require at least one unresolved entry.
+      readonly operations: readonly [
         | (ScaffoldOperationReceiptV1 & {
             readonly outcome: "already-satisfied";
             readonly resultDigest: Sha256Digest;
@@ -287,8 +288,18 @@ export type ScaffoldReceiptV1 =
         | (ScaffoldOperationReceiptV1 & {
             readonly outcome: "conflict" | "not-applied";
             readonly resultDigest?: never;
-          })
-      )[];
+          }),
+        ...(
+          | (ScaffoldOperationReceiptV1 & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (ScaffoldOperationReceiptV1 & {
+              readonly outcome: "conflict" | "not-applied";
+              readonly resultDigest?: never;
+            })
+        )[]
+      ];
     })
   | (ScaffoldReceiptCommonV1 &
       {

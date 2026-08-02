@@ -204,6 +204,23 @@ function assertReceiptOutcomeEvidence(receipt: ScaffoldReceiptCandidateV1): void
       assertOperationOutcomes(receipt, ["already-satisfied", "recovered"]);
       break;
     case "recovery-required":
+      assertOperationOutcomes(receipt, [
+        "already-satisfied",
+        "conflict",
+        "not-applied"
+      ]);
+      if (
+        !receipt.operations.some(
+          (operation) =>
+            operation.outcome === "conflict" ||
+            operation.outcome === "not-applied"
+        )
+      ) {
+        invalidReceipt(
+          "A recovery-required Scaffolding Receipt requires unresolved operation evidence."
+        );
+      }
+      break;
     case "rejected":
       assertOperationOutcomes(receipt, [
         "already-satisfied",

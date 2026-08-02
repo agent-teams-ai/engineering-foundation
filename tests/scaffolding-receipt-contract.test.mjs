@@ -170,7 +170,22 @@ test("rejects impossible receipt state combinations and empty completed receipts
       operations: []
     }),
     withReceiptDigest({ ...applied, operations: [] }),
-    withReceiptDigest({ ...failedRecovered, operations: [] })
+    withReceiptDigest({ ...failedRecovered, operations: [] }),
+    withReceiptDigest({
+      ...failedRecovered,
+      outcome: "recovery-required",
+      commit: filesystemCommit("recovery-required"),
+      operations: []
+    }),
+    withReceiptDigest({
+      ...failedRecovered,
+      outcome: "recovery-required",
+      commit: filesystemCommit("recovery-required"),
+      operations: failedRecovered.operations.map((operation) => ({
+        ...operation,
+        outcome: "already-satisfied"
+      }))
+    })
   ]) {
     await assertInvalidReceipt(receipt);
   }

@@ -417,7 +417,9 @@ test("treats platform line endings as the same canonical immutable baseline", as
   await withFixture(async (root) => {
     const path = baselinePath(root);
     const canonical = await readFile(path, "utf8");
-    const platformSource = canonical.replaceAll("\n", "\r\n");
+    const platformSource = canonical
+      .replaceAll("\r\n", "\n")
+      .replaceAll("\n", "\r\n");
     await writeFile(path, platformSource, "utf8");
     const promotion = await promoteArchitectureDecisionBaseline({
       consumerRoot: root,

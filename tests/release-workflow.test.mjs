@@ -14,9 +14,16 @@ async function workflow(name) {
   );
 }
 
+async function reviewPolicy() {
+  return parseYaml(
+    await readFile(join(repositoryRoot, ".github", "multi-review.yml"), "utf8"),
+  );
+}
+
 test("release attestation dispatches the review workflow by its canonical file", async () => {
   const release = await workflow("release.yml");
   const review = await workflow("reviewrouter-codex.yml");
+  const policy = await reviewPolicy();
   const attestation = release.jobs["attest-release-pr"].steps.find(
     ({ name }) => name === "Dispatch and attest release pull request checks",
   );
@@ -28,5 +35,12 @@ test("release attestation dispatches the review workflow by its canonical file",
   assert.equal(
     review.on.workflow_dispatch.inputs.pr_number.required,
     true,
+  );
+  assert.match(review.jobs.review.if, /workflow_dispatch/u);
+  assert.match(review.jobs.review.if, /user\.type != 'Bot'/u);
+  assert.equal(
+    policy.skip_bots,
+    false,
+    "Explicit release attestation must be allowed to review the Changesets bot PR.",
   );
 });

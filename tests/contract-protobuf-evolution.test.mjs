@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
+import { stringify as stringifyYaml } from "yaml";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
@@ -65,9 +67,19 @@ function policy() {
         expectedGeneratedOutputDigest: digest("c"),
         observedGeneratedOutputDigest: digest("c"),
       },
-      breaking: { status: "compatible" },
+      breaking: { status: "compatible", fingerprint: digest("d") },
     },
   };
+}
+
+async function withConfig(value, callback) {
+  const root = await mkdtemp(join(tmpdir(), "foundation-protobuf-evolution-"));
+  try {
+    await writeFile(join(root, "contract.yaml"), stringifyYaml(value), "utf8");
+    return await callback(root);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 }
 
 test("accepts released Buf evidence with exact baseline and clean generation", () => {
@@ -143,6 +155,53 @@ test("rejects breaking evidence that is not bound to a deterministic fingerprint
     () => protobufModule.evaluateProtobufEvolution(evidence),
     /requires a deterministic fingerprint/u,
   );
+});
+
+test("rejects public release versions with build metadata and detects prerelease regression", () => {
+  const buildMetadata = policy();
+  buildMetadata.current.publicContractVersion = "1.2.0+ci.1";
+  assert.throws(
+    () => protobufModule.evaluateProtobufEvolution(buildMetadata),
+    /without build metadata/u,
+  );
+
+  const prerelease = policy();
+  prerelease.current.publicContractVersion = "1.2.0-rc.1";
+  assert.deepEqual(
+    protobufModule
+      .evaluateProtobufEvolution(prerelease)
+      .map((diagnostic) => diagnostic.ruleId),
+    ["contract.protobuf-evolution.public-version-regressed"],
+  );
+});
+
+test("runs as a deterministic read-only Foundation capability with closed input handling", async () => {
+  await withConfig(policy(), async (root) => {
+    const moduleSource = await readFile(
+      join(distRoot, "capabilities", "contract-protobuf-evolution", "module.js"),
+      "utf8",
+    );
+    assert.doesNotMatch(moduleSource, /qualification|child_process|node:child_process/u);
+
+    const capability = protobufModule.createProtobufEvolutionCapability();
+    const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(first.outcome, "passed");
+    assert.deepEqual(second, first);
+
+    const cancelled = await capability.run({
+      consumerRoot: root,
+      configPath: "contract.yaml",
+      signal: AbortSignal.abort(),
+    });
+    assert.equal(cancelled.outcome, "cancelled");
+    assert.equal(cancelled.problem.code, "EXECUTION_CANCELLED");
+
+    await writeFile(join(root, "contract.yaml"), "released: []\n", "utf8");
+    const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(invalid.outcome, "invalid-input");
+    assert.equal(invalid.problem.code, "SCHEMA_INVALID");
+  });
 });
 
 test("checks the pinned Buf executable through an injected port", async () => {

@@ -14,6 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
+import { stringify as stringifyYaml } from "yaml";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
@@ -111,7 +112,9 @@ function policy(observation) {
         {
           consumerId: "orchestrator-sdk",
           consumerVersion: "1.0.0",
+          contractId: "agent-runtime-events",
           contractVersion: "1.0.0",
+          schemaSetDigest: observation.schemaSetDigest,
           fixtureCorpusDigest: observation.fixtureCorpusDigest,
           evidenceDigest: digest("a"),
           outcome: "passed",
@@ -122,13 +125,19 @@ function policy(observation) {
       {
         consumerId: "orchestrator-sdk",
         consumerVersion: "1.0.0",
+        contractId: "agent-runtime-events",
         contractVersion: "1.0.0",
+        schemaSetDigest: observation.schemaSetDigest,
         fixtureCorpusDigest: observation.fixtureCorpusDigest,
         evidenceDigest: digest("b"),
         outcome: "passed",
       },
     ],
   };
+}
+
+async function writeYaml(root, path, value) {
+  await writeFile(join(root, path), stringifyYaml(value), "utf8");
 }
 
 test("uses Ajv strict 2020-12 over an explicit local schema set and fixture corpus", async () => {
@@ -229,6 +238,96 @@ test("detects immutable same-version changes and missing supported-consumer evid
         "contract.json-schema-releases.consumer-evidence-incomplete",
       ],
     );
+  });
+});
+
+test("treats fixture corpus mutation as immutable same-version contract mutation", async () => {
+  await withContractFixture(async (root) => {
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const released = await inspector.inspect(request(root));
+    await writeJson(root, "fixtures/valid.json", {
+      id: "task-2",
+      details: { kind: "created" },
+    });
+    const current = await inspector.inspect(request(root));
+    assert.deepEqual(
+      jsonSchemaModule
+        .evaluateJsonSchemaRelease(policy(released), current)
+        .map((diagnostic) => diagnostic.ruleId),
+      [
+        "contract.json-schema-releases.immutable-version-mutated",
+        "contract.json-schema-releases.consumer-evidence-incomplete",
+      ],
+    );
+  });
+});
+
+test("binds consumer evidence to contract and schema digest and handles public SemVer ordering", async () => {
+  await withContractFixture(async (root) => {
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const observation = await inspector.inspect(request(root));
+    const incoherentReleased = policy(observation);
+    incoherentReleased.released.supportedConsumers[0].schemaSetDigest = digest("f");
+    assert.throws(
+      () => jsonSchemaModule.evaluateJsonSchemaRelease(incoherentReleased, observation),
+      /exact released contract evidence/u,
+    );
+
+    const prerelease = policy(observation);
+    prerelease.publicContractVersion = "1.0.0-rc.1";
+    prerelease.currentConsumerEvidence[0].contractVersion = "1.0.0-rc.1";
+    assert.deepEqual(
+      jsonSchemaModule
+        .evaluateJsonSchemaRelease(prerelease, observation)
+        .map((diagnostic) => diagnostic.ruleId),
+      ["contract.json-schema-releases.public-version-regressed"],
+    );
+
+    const buildMetadata = policy(observation);
+    buildMetadata.publicContractVersion = "1.0.0+ci.1";
+    assert.throws(
+      () => jsonSchemaModule.evaluateJsonSchemaRelease(buildMetadata, observation),
+      /without build metadata/u,
+    );
+  });
+});
+
+test("runs as a deterministic capability and closes unexpected inspector failures", async () => {
+  await withContractFixture(async (root) => {
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const observation = await inspector.inspect(request(root));
+    await writeYaml(root, "contract.yaml", policy(observation));
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
+    const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(first.outcome, "passed");
+    assert.deepEqual(second, first);
+
+    const cancelled = await capability.run({
+      consumerRoot: root,
+      configPath: "contract.yaml",
+      signal: AbortSignal.abort(),
+    });
+    assert.equal(cancelled.outcome, "cancelled");
+    assert.equal(cancelled.problem.code, "EXECUTION_CANCELLED");
+
+    await writeFile(join(root, "contract.yaml"), "contractId: invalid\n", "utf8");
+    const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(invalid.outcome, "invalid-input");
+    assert.equal(invalid.problem.code, "SCHEMA_INVALID");
+
+    await writeYaml(root, "contract.yaml", policy(observation));
+    const failedCapability = jsonSchemaModule.createJsonSchemaReleaseCapability({
+      inspector: {
+        async inspect() {
+          throw new Error("unexpected adapter failure");
+        },
+      },
+    });
+    const failed = await failedCapability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(failed.outcome, "failed");
+    assert.equal(failed.problem.code, "CAPABILITY_EXECUTION_FAILED");
+    assert.equal(failed.problem.message, "JSON Schema release capability execution failed.");
   });
 });
 

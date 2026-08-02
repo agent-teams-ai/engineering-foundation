@@ -12,7 +12,9 @@ export interface JsonSchemaFixture {
 export interface JsonSchemaConsumerEvidence {
   readonly consumerId: string;
   readonly consumerVersion: string;
+  readonly contractId: string;
   readonly contractVersion: string;
+  readonly schemaSetDigest: JsonSchemaDigest;
   readonly fixtureCorpusDigest: JsonSchemaDigest;
   readonly evidenceDigest: JsonSchemaDigest;
   readonly outcome: "passed" | "failed";

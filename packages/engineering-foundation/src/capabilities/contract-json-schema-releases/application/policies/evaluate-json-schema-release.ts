@@ -16,6 +16,14 @@ const SHA256_DIGEST = /^sha256:[a-f0-9]{64}$/u;
 const CONTRACT_ID = /^[a-z][a-z0-9.-]{1,119}$/u;
 const CONSUMER_ID = /^[a-z][a-z0-9.-]{1,119}$/u;
 
+function isPublishedContractVersion(value: string): boolean {
+  return isExactVersion(value) && !value.includes("+");
+}
+
+function isVersionRegressed(current: string, released: string): boolean {
+  return semanticVersionBumpBetween(current, released) !== undefined;
+}
+
 function inputError(message: string): never {
   throw new CapabilityInputError({
     code: "JSON_SCHEMA_RELEASE_EVIDENCE_INVALID",
@@ -68,21 +76,25 @@ function assertConsumerEvidence(
     const value = candidate as Record<string, unknown>;
     const consumerId = value["consumerId"];
     const consumerVersion = value["consumerVersion"];
+    const contractId = value["contractId"];
     const contractVersion = value["contractVersion"];
+    const schemaSetDigest = value["schemaSetDigest"];
     const fixtureCorpusDigest = value["fixtureCorpusDigest"];
     const evidenceDigest = value["evidenceDigest"];
     const outcome = value["outcome"];
     if (typeof consumerId !== "string" || !CONSUMER_ID.test(consumerId)) {
       inputError(`${item}.consumerId is invalid.`);
     }
-    if (
-      typeof consumerVersion !== "string" ||
-      typeof contractVersion !== "string" ||
-      !isExactVersion(consumerVersion) ||
-      !isExactVersion(contractVersion)
-    ) {
-      inputError(`${item} requires exact consumerVersion and contractVersion.`);
+    if (typeof consumerVersion !== "string" || !isExactVersion(consumerVersion)) {
+      inputError(`${item}.consumerVersion must be exact SemVer.`);
     }
+    if (typeof contractId !== "string" || !CONTRACT_ID.test(contractId)) {
+      inputError(`${item}.contractId is invalid.`);
+    }
+    if (typeof contractVersion !== "string" || !isPublishedContractVersion(contractVersion)) {
+      inputError(`${item}.contractVersion must be exact SemVer without build metadata.`);
+    }
+    assertDigest(schemaSetDigest, `${item}.schemaSetDigest`);
     assertDigest(fixtureCorpusDigest, `${item}.fixtureCorpusDigest`);
     assertDigest(evidenceDigest, `${item}.evidenceDigest`);
     if (outcome !== "passed" && outcome !== "failed") {
@@ -102,12 +114,14 @@ function assertPolicy(policy: JsonSchemaReleasePolicy, observation: JsonSchemaIn
   if (!CONTRACT_ID.test(policy.contractId) || policy.released.contractId !== policy.contractId) {
     inputError("Contract identity must match released JSON Schema evidence.");
   }
-  if (
-    policy.released.schemaVersion !== 1 ||
-    !isExactVersion(policy.publicContractVersion) ||
-    !isExactVersion(policy.released.publicContractVersion)
-  ) {
-    inputError("JSON Schema release evidence requires exact public contract versions.");
+  if (policy.released.schemaVersion !== 1) {
+    inputError("Released JSON Schema evidence has an unsupported schema version.");
+  }
+  if (!isPublishedContractVersion(policy.publicContractVersion)) {
+    inputError("Current JSON Schema publicContractVersion must be exact SemVer without build metadata.");
+  }
+  if (!isPublishedContractVersion(policy.released.publicContractVersion)) {
+    inputError("Released JSON Schema publicContractVersion must be exact SemVer without build metadata.");
   }
   assertDigest(policy.released.schemaSetDigest, "released.schemaSetDigest");
   assertDigest(policy.released.fixtureCorpusDigest, "released.fixtureCorpusDigest");
@@ -115,6 +129,27 @@ function assertPolicy(policy: JsonSchemaReleasePolicy, observation: JsonSchemaIn
   assertDigest(observation.fixtureCorpusDigest, "observation.fixtureCorpusDigest");
   assertConsumerEvidence(policy.released.supportedConsumers, "released.supportedConsumers", true);
   assertConsumerEvidence(policy.currentConsumerEvidence, "currentConsumerEvidence");
+  const releasedConsumerIds = new Set<string>();
+  for (const consumer of policy.released.supportedConsumers) {
+    if (
+      consumer.contractId !== policy.released.contractId ||
+      consumer.contractVersion !== policy.released.publicContractVersion ||
+      consumer.schemaSetDigest !== policy.released.schemaSetDigest ||
+      consumer.fixtureCorpusDigest !== policy.released.fixtureCorpusDigest
+    ) {
+      inputError(
+        `Released consumer evidence must bind ${consumer.consumerId} to the exact released contract evidence.`
+      );
+    }
+    releasedConsumerIds.add(consumer.consumerId);
+  }
+  for (const consumer of policy.currentConsumerEvidence) {
+    if (!releasedConsumerIds.has(consumer.consumerId)) {
+      inputError(
+        `Current consumer evidence is not declared by released support policy: ${consumer.consumerId}.`
+      );
+    }
+  }
   if (new Set(policy.schemaPaths).size !== policy.schemaPaths.length) {
     inputError("JSON Schema policy has duplicate schema paths.");
   }
@@ -138,12 +173,7 @@ export function evaluateJsonSchemaRelease(
   assertPolicy(policy, observation);
   const diagnostics: FoundationDiagnostic[] = [];
   const subject = policy.contractId;
-  if (
-    semanticVersionBumpBetween(
-      policy.publicContractVersion,
-      policy.released.publicContractVersion
-    ) !== undefined
-  ) {
+  if (isVersionRegressed(policy.publicContractVersion, policy.released.publicContractVersion)) {
     diagnostics.push(
       diagnostic({
         rule: JSON_SCHEMA_RELEASE_RULES.publicVersionRegressed,
@@ -154,16 +184,19 @@ export function evaluateJsonSchemaRelease(
   }
   if (
     policy.publicContractVersion === policy.released.publicContractVersion &&
-    observation.schemaSetDigest !== policy.released.schemaSetDigest
+    (observation.schemaSetDigest !== policy.released.schemaSetDigest ||
+      observation.fixtureCorpusDigest !== policy.released.fixtureCorpusDigest)
   ) {
     diagnostics.push(
       diagnostic({
         rule: JSON_SCHEMA_RELEASE_RULES.immutableVersionMutated,
         subject,
-        message: "Current schema digest differs from the released digest for the same public contract version.",
+        message: "Current schema or fixture corpus digest differs from released evidence for the same public contract version.",
         evidence: [
           { kind: "released-schema-digest", value: policy.released.schemaSetDigest },
-          { kind: "current-schema-digest", value: observation.schemaSetDigest }
+          { kind: "current-schema-digest", value: observation.schemaSetDigest },
+          { kind: "released-fixture-corpus", value: policy.released.fixtureCorpusDigest },
+          { kind: "current-fixture-corpus", value: observation.fixtureCorpusDigest }
         ]
       })
     );
@@ -186,7 +219,9 @@ export function evaluateJsonSchemaRelease(
     if (
       current === undefined ||
       current.outcome !== "passed" ||
+      current.contractId !== policy.contractId ||
       current.contractVersion !== policy.publicContractVersion ||
+      current.schemaSetDigest !== observation.schemaSetDigest ||
       current.fixtureCorpusDigest !== observation.fixtureCorpusDigest
     ) {
       diagnostics.push(

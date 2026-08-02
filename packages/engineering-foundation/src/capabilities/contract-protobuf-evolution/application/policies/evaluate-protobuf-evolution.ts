@@ -16,6 +16,14 @@ import {
 const SHA256_DIGEST = /^sha256:[a-f0-9]{64}$/u;
 const CONTRACT_ID = /^[a-z][a-z0-9.-]{1,119}$/u;
 
+function isPublishedContractVersion(value: string): boolean {
+  return isExactVersion(value) && !value.includes("+");
+}
+
+function isVersionRegressed(current: string, released: string): boolean {
+  return semanticVersionBumpBetween(current, released) !== undefined;
+}
+
 function hasControlCharacter(value: string): boolean {
   for (const character of value) {
     const code = character.codePointAt(0);
@@ -137,8 +145,11 @@ function assertBreakingEvidence(value: unknown): void {
   if (fingerprint !== undefined) {
     assertDigest(fingerprint, "current.breaking.fingerprint");
   }
-  if (status === "breaking" && fingerprint === undefined) {
-    inputError("Breaking Protobuf evidence requires a deterministic fingerprint.");
+  if ((status === "compatible" || status === "breaking") && fingerprint === undefined) {
+    inputError("Completed Protobuf breaking evidence requires a deterministic fingerprint.");
+  }
+  if (status === "not-run" && (fingerprint !== undefined || approvalReference !== undefined)) {
+    inputError("Unrun Protobuf breaking evidence cannot contain a fingerprint or approval reference.");
   }
 }
 
@@ -149,8 +160,8 @@ function assertReleasedEvidence(evidence: ReleasedProtobufContractEvidence): voi
   if (!CONTRACT_ID.test(evidence.contractId)) {
     inputError("Released Protobuf evidence contractId is invalid.");
   }
-  if (!isExactVersion(evidence.publicContractVersion)) {
-    inputError("Released Protobuf evidence publicContractVersion must be exact SemVer.");
+  if (!isPublishedContractVersion(evidence.publicContractVersion)) {
+    inputError("Released Protobuf evidence publicContractVersion must be exact SemVer without build metadata.");
   }
   assertNonEmpty(evidence.bufVersion, "released.bufVersion", 80);
   assertDigest(evidence.bufConfigDigest, "released.bufConfigDigest");
@@ -166,8 +177,8 @@ function assertCurrentEvidence(evidence: CurrentProtobufContractEvidence): void 
   if (!CONTRACT_ID.test(evidence.contractId)) {
     inputError("Current Protobuf evidence contractId is invalid.");
   }
-  if (!isExactVersion(evidence.publicContractVersion)) {
-    inputError("Current Protobuf evidence publicContractVersion must be exact SemVer.");
+  if (!isPublishedContractVersion(evidence.publicContractVersion)) {
+    inputError("Current Protobuf evidence publicContractVersion must be exact SemVer without build metadata.");
   }
   assertNonEmpty(evidence.bufVersion, "current.bufVersion", 80);
   assertDigest(evidence.bufConfigDigest, "current.bufConfigDigest");
@@ -207,12 +218,7 @@ export function evaluateProtobufEvolution(
 
   const subject = policy.current.contractId;
   const diagnostics: FoundationDiagnostic[] = [];
-  if (
-    semanticVersionBumpBetween(
-      policy.current.publicContractVersion,
-      policy.released.publicContractVersion
-    ) !== undefined
-  ) {
+  if (isVersionRegressed(policy.current.publicContractVersion, policy.released.publicContractVersion)) {
     diagnostics.push(
       diagnostic({
         rule: PROTOBUF_EVOLUTION_RULES.publicVersionRegressed,

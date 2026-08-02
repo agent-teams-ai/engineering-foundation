@@ -160,6 +160,34 @@ export interface ScaffoldOperationReceiptV1 {
   readonly resultDigest?: Sha256Digest;
 }
 
+type ScaffoldAlreadySatisfiedOperationReceiptV1 =
+  ScaffoldOperationReceiptV1 & {
+    readonly outcome: "already-satisfied";
+    readonly resultDigest: Sha256Digest;
+  };
+
+type ScaffoldAppliedOperationReceiptV1 = ScaffoldOperationReceiptV1 & {
+  readonly outcome: "applied";
+  readonly resultDigest: Sha256Digest;
+};
+
+type ScaffoldRecoveredOperationReceiptV1 =
+  ScaffoldOperationReceiptV1 & {
+    readonly outcome: "recovered";
+    readonly resultDigest: Sha256Digest;
+  };
+
+type ScaffoldConflictOperationReceiptV1 = ScaffoldOperationReceiptV1 & {
+  readonly outcome: "conflict";
+  readonly resultDigest?: never;
+};
+
+type ScaffoldNotAppliedOperationReceiptV1 =
+  ScaffoldOperationReceiptV1 & {
+    readonly outcome: "not-applied";
+    readonly resultDigest?: never;
+  };
+
 export type ScaffoldReceiptOutcome =
   | "already-applied"
   | "applied"
@@ -167,28 +195,119 @@ export type ScaffoldReceiptOutcome =
   | "recovery-required"
   | "rejected";
 
-export interface ScaffoldReceiptV1 {
+interface ScaffoldReceiptCommonV1 {
   readonly schemaVersion: 1;
   readonly protocolVersion: 1;
   readonly planDigest: Sha256Digest;
-  readonly adapter: {
-    readonly id: "foundation.filesystem/v1" | "foundation.memory/v1";
-    readonly contractVersion: 1;
-  };
-  readonly outcome: ScaffoldReceiptOutcome;
-  readonly commit: {
-    readonly state:
-      | "committed"
-      | "host-managed"
-      | "recovered"
-      | "recovery-required"
-      | "rejected";
-    readonly atomicity: "journaled-recoverable" | "memory-atomic";
-  };
-  readonly operations: readonly ScaffoldOperationReceiptV1[];
   readonly diagnostics: readonly ScaffoldDiagnosticV1[];
   readonly receiptDigest: Sha256Digest;
 }
+
+type ScaffoldFilesystemReceiptAdapterV1 = {
+  readonly adapter: {
+    readonly id: "foundation.filesystem/v1";
+    readonly contractVersion: 1;
+  };
+};
+
+type ScaffoldMemoryReceiptAdapterV1 = {
+  readonly adapter: {
+    readonly id: "foundation.memory/v1";
+    readonly contractVersion: 1;
+  };
+};
+
+type ScaffoldFilesystemCommittedReceiptV1 =
+  ScaffoldFilesystemReceiptAdapterV1 & {
+    readonly commit: {
+      readonly state: "committed";
+      readonly atomicity: "journaled-recoverable";
+    };
+  };
+
+type ScaffoldMemoryCommittedReceiptV1 = ScaffoldMemoryReceiptAdapterV1 & {
+  readonly commit: {
+    readonly state: "committed";
+    readonly atomicity: "memory-atomic";
+  };
+};
+
+type ScaffoldFilesystemRecoveredReceiptV1 =
+  ScaffoldFilesystemReceiptAdapterV1 & {
+    readonly commit: {
+      readonly state: "recovered";
+      readonly atomicity: "journaled-recoverable";
+    };
+  };
+
+type ScaffoldFilesystemRecoveryRequiredReceiptV1 =
+  ScaffoldFilesystemReceiptAdapterV1 & {
+    readonly commit: {
+      readonly state: "recovery-required";
+      readonly atomicity: "journaled-recoverable";
+    };
+  };
+
+type ScaffoldFilesystemRejectedReceiptV1 =
+  ScaffoldFilesystemReceiptAdapterV1 & {
+    readonly commit: {
+      readonly state: "rejected";
+      readonly atomicity: "journaled-recoverable";
+    };
+  };
+
+type ScaffoldMemoryRejectedReceiptV1 = ScaffoldMemoryReceiptAdapterV1 & {
+  readonly commit: {
+    readonly state: "rejected";
+    readonly atomicity: "memory-atomic";
+  };
+};
+
+type ScaffoldAppliedOperationReceiptsV1 = readonly [
+  ScaffoldAlreadySatisfiedOperationReceiptV1 | ScaffoldAppliedOperationReceiptV1,
+  ...(ScaffoldAlreadySatisfiedOperationReceiptV1 | ScaffoldAppliedOperationReceiptV1)[]
+];
+
+type ScaffoldAlreadyAppliedOperationReceiptsV1 = readonly [
+  ScaffoldAlreadySatisfiedOperationReceiptV1,
+  ...ScaffoldAlreadySatisfiedOperationReceiptV1[]
+];
+
+type ScaffoldFailedRecoveredOperationReceiptsV1 = readonly [
+  ScaffoldAlreadySatisfiedOperationReceiptV1 | ScaffoldRecoveredOperationReceiptV1,
+  ...(ScaffoldAlreadySatisfiedOperationReceiptV1 | ScaffoldRecoveredOperationReceiptV1)[]
+];
+
+type ScaffoldIncompleteOperationReceiptV1 =
+  | ScaffoldAlreadySatisfiedOperationReceiptV1
+  | ScaffoldConflictOperationReceiptV1
+  | ScaffoldNotAppliedOperationReceiptV1;
+
+export type ScaffoldReceiptV1 =
+  | (ScaffoldReceiptCommonV1 &
+      (ScaffoldFilesystemCommittedReceiptV1 | ScaffoldMemoryCommittedReceiptV1) & {
+        readonly outcome: "applied";
+        readonly operations: ScaffoldAppliedOperationReceiptsV1;
+      })
+  | (ScaffoldReceiptCommonV1 &
+      (ScaffoldFilesystemCommittedReceiptV1 | ScaffoldMemoryCommittedReceiptV1) & {
+        readonly outcome: "already-applied";
+        readonly operations: ScaffoldAlreadyAppliedOperationReceiptsV1;
+      })
+  | (ScaffoldReceiptCommonV1 & ScaffoldFilesystemRecoveredReceiptV1 & {
+      readonly outcome: "failed-recovered";
+      readonly operations: ScaffoldFailedRecoveredOperationReceiptsV1;
+    })
+  | (ScaffoldReceiptCommonV1 &
+      ScaffoldFilesystemRecoveryRequiredReceiptV1 & {
+        readonly outcome: "recovery-required";
+        readonly operations: readonly ScaffoldIncompleteOperationReceiptV1[];
+      })
+  | (ScaffoldReceiptCommonV1 &
+      (ScaffoldFilesystemRejectedReceiptV1 | ScaffoldMemoryRejectedReceiptV1) & {
+        readonly outcome: "rejected";
+        readonly operations: readonly ScaffoldIncompleteOperationReceiptV1[];
+      });
 
 export interface ScaffoldCompilationInput {
   readonly foundationVersion: string;

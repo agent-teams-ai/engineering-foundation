@@ -1,54 +1,275 @@
 import type {
   JsonValue,
   ScaffoldDiagnosticV1,
+  ScaffoldOperationOutcome,
   ScaffoldOperationReceiptV1,
   ScaffoldPlanV1,
   ScaffoldReceiptOutcome,
   ScaffoldReceiptV1
 } from "../contract/types.js";
+import { ScaffoldError } from "../scaffold-error.js";
 import { sha256Json } from "./canonical-json.js";
+import { assertScaffoldPlanDigest } from "./plan-validation.js";
 
-export function createScaffoldReceipt(options: {
+interface ScaffoldReceiptCandidateV1 {
+  readonly schemaVersion: 1;
+  readonly protocolVersion: 1;
+  readonly planDigest: string;
+  readonly adapter: {
+    readonly id: "foundation.filesystem/v1" | "foundation.memory/v1";
+    readonly contractVersion: number;
+  };
+  readonly outcome: ScaffoldReceiptOutcome;
+  readonly commit: {
+    readonly state:
+      | "committed"
+      | "recovered"
+      | "recovery-required"
+      | "rejected";
+    readonly atomicity: "journaled-recoverable" | "memory-atomic";
+  };
+  readonly operations: readonly ScaffoldOperationReceiptV1[];
+  readonly diagnostics: readonly ScaffoldDiagnosticV1[];
+  readonly receiptDigest: string;
+}
+
+interface CreateScaffoldReceiptOptions {
   readonly plan: ScaffoldPlanV1;
   readonly adapterId:
     | "foundation.filesystem/v1"
     | "foundation.memory/v1";
   readonly outcome: ScaffoldReceiptOutcome;
-  readonly commitState: ScaffoldReceiptV1["commit"]["state"];
-  readonly atomicity: ScaffoldReceiptV1["commit"]["atomicity"];
+  readonly commitState: ScaffoldReceiptCandidateV1["commit"]["state"];
+  readonly atomicity: ScaffoldReceiptCandidateV1["commit"]["atomicity"];
   readonly operations: readonly ScaffoldOperationReceiptV1[];
   readonly diagnostics?: readonly ScaffoldDiagnosticV1[];
-}): ScaffoldReceiptV1 {
-  const planOperations = new Map(
-    options.plan.operations.map((operation) => [operation.id, operation] as const)
+}
+
+const SHA_256_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
+
+function invalidReceipt(message: string): never {
+  throw new ScaffoldError("SCAFFOLD_RECEIPT_INVALID", message);
+}
+
+function isSha256Digest(value: string | undefined): boolean {
+  return value !== undefined && SHA_256_DIGEST_PATTERN.test(value);
+}
+
+function hasObservedPostImage(outcome: ScaffoldOperationOutcome): boolean {
+  return (
+    outcome === "already-satisfied" ||
+    outcome === "applied" ||
+    outcome === "recovered"
   );
-  const receiptOperationIds = new Set<string>();
-  for (const operation of options.operations) {
-    const planned = planOperations.get(operation.operationId);
+}
+
+function assertOperationOutcomes(
+  receipt: ScaffoldReceiptCandidateV1,
+  allowed: readonly ScaffoldOperationOutcome[],
+  required?: ScaffoldOperationOutcome
+): void {
+  if (
+    receipt.operations.some(
+      (operation) => !allowed.includes(operation.outcome)
+    )
+  ) {
+    invalidReceipt(
+      "Scaffolding Receipt operation outcome is incompatible with its Receipt outcome."
+    );
+  }
+  if (
+    required !== undefined &&
+    !receipt.operations.some((operation) => operation.outcome === required)
+  ) {
+    invalidReceipt(
+      "Scaffolding Receipt does not contain the required operation evidence."
+    );
+  }
+}
+
+function assertReceiptDigestShape(receipt: ScaffoldReceiptCandidateV1): void {
+  if (!isSha256Digest(receipt.planDigest)) {
+    invalidReceipt("Scaffolding Receipt Plan digest is invalid.");
+  }
+}
+
+function assertAdapterAndCommitContract(
+  receipt: ScaffoldReceiptCandidateV1
+): void {
+  const filesystemAdapter = receipt.adapter.id === "foundation.filesystem/v1";
+  const expectedAtomicity = filesystemAdapter
+    ? "journaled-recoverable"
+    : "memory-atomic";
+  if (receipt.commit.atomicity !== expectedAtomicity) {
+    invalidReceipt(
+      "Scaffolding Receipt adapter and commit atomicity are incompatible."
+    );
+  }
+
+  const expectedCommitState =
+    receipt.outcome === "applied" || receipt.outcome === "already-applied"
+      ? "committed"
+      : receipt.outcome === "failed-recovered"
+        ? "recovered"
+        : receipt.outcome === "recovery-required"
+          ? "recovery-required"
+          : "rejected";
+  if (receipt.commit.state !== expectedCommitState) {
+    invalidReceipt(
+      "Scaffolding Receipt outcome and commit state are incompatible."
+    );
+  }
+  if (
+    !filesystemAdapter &&
+    (receipt.outcome === "failed-recovered" ||
+      receipt.outcome === "recovery-required")
+  ) {
+    invalidReceipt(
+      "Scaffolding Receipt outcome requires a journaled filesystem adapter."
+    );
+  }
+}
+
+function assertReceiptOperationEvidence(receipt: ScaffoldReceiptCandidateV1): void {
+  const operationIds = new Set<string>();
+  const operationPaths = new Set<string>();
+  for (const operation of receipt.operations) {
     if (
-      planned === undefined ||
-      planned.path !== operation.path ||
-      receiptOperationIds.has(operation.operationId)
+      operationIds.has(operation.operationId) ||
+      operationPaths.has(operation.path)
     ) {
-      throw new Error(
-        `Receipt operation does not identify one unique Plan operation: ${operation.operationId}.`
+      invalidReceipt(
+        `Scaffolding Receipt operation evidence is duplicated: ${operation.operationId}.`
       );
     }
-    receiptOperationIds.add(operation.operationId);
-    const observedPostImage =
-      operation.outcome === "already-satisfied" ||
-      operation.outcome === "applied" ||
-      operation.outcome === "recovered";
-    if (
-      observedPostImage
-        ? operation.resultDigest !== planned.after.digest
-        : operation.resultDigest !== undefined
-    ) {
-      throw new Error(
-        `Receipt operation has inconsistent result evidence: ${operation.operationId}.`
+    operationIds.add(operation.operationId);
+    operationPaths.add(operation.path);
+    if (hasObservedPostImage(operation.outcome)) {
+      if (!isSha256Digest(operation.resultDigest)) {
+        invalidReceipt(
+          `Scaffolding Receipt operation lacks a result digest: ${operation.operationId}.`
+        );
+      }
+    } else if (operation.resultDigest !== undefined) {
+      invalidReceipt(
+        `Scaffolding Receipt operation claims an unobserved result: ${operation.operationId}.`
       );
     }
   }
+}
+
+function assertReceiptOutcomeEvidence(receipt: ScaffoldReceiptCandidateV1): void {
+  switch (receipt.outcome) {
+    case "applied":
+      if (receipt.operations.length === 0) {
+        invalidReceipt("An applied Scaffolding Receipt requires operation evidence.");
+      }
+      assertOperationOutcomes(receipt, ["already-satisfied", "applied"], "applied");
+      break;
+    case "already-applied":
+      if (receipt.operations.length === 0) {
+        invalidReceipt(
+          "An already-applied Scaffolding Receipt requires operation evidence."
+        );
+      }
+      assertOperationOutcomes(receipt, ["already-satisfied"]);
+      break;
+    case "failed-recovered":
+      if (receipt.operations.length === 0) {
+        invalidReceipt(
+          "A failed-recovered Scaffolding Receipt requires operation evidence."
+        );
+      }
+      assertOperationOutcomes(receipt, ["already-satisfied", "recovered"]);
+      break;
+    case "recovery-required":
+    case "rejected":
+      assertOperationOutcomes(receipt, [
+        "already-satisfied",
+        "conflict",
+        "not-applied"
+      ]);
+      break;
+  }
+}
+
+function assertReceiptContract(receipt: ScaffoldReceiptCandidateV1): void {
+  assertReceiptDigestShape(receipt);
+  assertAdapterAndCommitContract(receipt);
+  assertReceiptOperationEvidence(receipt);
+  assertReceiptOutcomeEvidence(receipt);
+}
+
+function assertPlanEvidence(
+  receipt: ScaffoldReceiptCandidateV1,
+  plan: ScaffoldPlanV1
+): void {
+  assertScaffoldPlanDigest(plan);
+  if (receipt.planDigest !== plan.planDigest) {
+    invalidReceipt("Scaffolding Receipt references a different Plan digest.");
+  }
+  const planOperations = new Map(
+    plan.operations.map((operation) => [operation.id, operation] as const)
+  );
+  for (const operation of receipt.operations) {
+    const planned = planOperations.get(operation.operationId);
+    if (planned === undefined || planned.path !== operation.path) {
+      invalidReceipt(
+        `Scaffolding Receipt operation does not match its Plan evidence: ${operation.operationId}.`
+      );
+    }
+    if (
+      hasObservedPostImage(operation.outcome) &&
+      operation.resultDigest !== planned.after.digest
+    ) {
+      invalidReceipt(
+        `Scaffolding Receipt result digest does not match its Plan evidence: ${operation.operationId}.`
+      );
+    }
+  }
+  if (
+    (receipt.outcome === "applied" ||
+      receipt.outcome === "already-applied" ||
+      receipt.outcome === "failed-recovered") &&
+    receipt.operations.length !== plan.operations.length
+  ) {
+    invalidReceipt(
+      "A completed Scaffolding Receipt must provide evidence for every Plan operation."
+    );
+  }
+}
+
+function assertScaffoldReceiptCandidateDigest(
+  receipt: ScaffoldReceiptCandidateV1,
+  plan?: ScaffoldPlanV1
+): void {
+  assertReceiptContract(receipt);
+  const { receiptDigest: _receiptDigest, ...body } = receipt;
+  const expected = sha256Json(body as unknown as JsonValue);
+  if (receipt.receiptDigest !== expected) {
+    invalidReceipt(
+      "Scaffolding Receipt digest does not match its canonical content."
+    );
+  }
+  if (plan !== undefined) {
+    assertPlanEvidence(receipt, plan);
+  }
+}
+
+/**
+ * Verifies the canonical receipt digest and closed v1 receipt contract.
+ * Passing the originating Plan additionally verifies per-operation evidence.
+ */
+export function assertScaffoldReceiptDigest(
+  receipt: ScaffoldReceiptV1,
+  plan?: ScaffoldPlanV1
+): void {
+  assertScaffoldReceiptCandidateDigest(receipt, plan);
+}
+
+export function createScaffoldReceipt(
+  options: CreateScaffoldReceiptOptions
+): ScaffoldReceiptV1 {
   const body = {
     schemaVersion: 1 as const,
     protocolVersion: 1 as const,
@@ -65,8 +286,10 @@ export function createScaffoldReceipt(options: {
     operations: Object.freeze([...options.operations]),
     diagnostics: Object.freeze([...(options.diagnostics ?? [])])
   };
-  return Object.freeze({
+  const receipt: ScaffoldReceiptCandidateV1 = {
     ...body,
     receiptDigest: sha256Json(body as unknown as JsonValue)
-  });
+  };
+  assertScaffoldReceiptCandidateDigest(receipt, options.plan);
+  return Object.freeze(receipt) as unknown as ScaffoldReceiptV1;
 }

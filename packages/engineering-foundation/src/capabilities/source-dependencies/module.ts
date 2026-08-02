@@ -37,7 +37,7 @@ export function createSourceDependenciesCapability(): CapabilityDefinition {
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
-          capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
+          capabilityConfigSchemaVersion: policy.schemaVersion,
           diagnostics: await analyzeSourceDependencies(
             {
               consumerRoot: invocation.consumerRoot,

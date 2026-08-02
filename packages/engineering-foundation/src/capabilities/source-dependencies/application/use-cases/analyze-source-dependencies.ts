@@ -10,9 +10,14 @@ import type {
   ClassifiedSourceFile,
   SourceArchitecturePolicy
 } from "../model/source-workspace.js";
+import {
+  normalizeRepositoryPath,
+  pathIsInside
+} from "../model/repository-path.js";
 import type { SourceDependencyParser } from "../ports/source-dependency-parser.js";
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 import { evaluateSourceDependencies } from "../policies/evaluate-source-dependencies.js";
+import { buildObservedSourceGraph } from "./build-observed-source-graph.js";
 
 export interface AnalyzeSourceDependenciesInput {
   readonly consumerRoot: string;
@@ -28,7 +33,7 @@ export interface AnalyzeSourceDependenciesDependencies {
 }
 
 function pathInside(path: string, root: string): boolean {
-  return path === root || path.startsWith(`${root}/`);
+  return pathIsInside(path, root);
 }
 
 function deepestBoundary(
@@ -72,16 +77,20 @@ function classifyFiles(
   const classified: ClassifiedSourceFile[] = [];
   for (const file of files) {
     assertNotCancelled(signal);
-    const boundary = deepestBoundary(file, policy.boundaries);
-    const workspacePackage = containingPackage(file.path, packages);
+    const normalizedFile: SourceFileSnapshot = {
+      ...file,
+      path: normalizeRepositoryPath(file.path)
+    };
+    const boundary = deepestBoundary(normalizedFile, policy.boundaries);
+    const workspacePackage = containingPackage(normalizedFile.path, packages);
     if (boundary === undefined || workspacePackage === undefined) {
       continue;
     }
     classified.push({
-      ...file,
+      ...normalizedFile,
       boundary,
       workspacePackage,
-      parsed: parser.parse(file)
+      parsed: parser.parse(normalizedFile)
     });
   }
   return classified;
@@ -128,11 +137,15 @@ export async function analyzeSourceDependencies(
     dependencies.parser,
     input.signal
   );
-  return evaluateSourceDependencies({
-    policy: input.policy,
+  const graph = buildObservedSourceGraph({
     inventory,
     allSourceFiles: sourceFiles,
     classifiedFiles,
-    resolver: dependencies.resolver
+    resolver: dependencies.resolver,
+    ...(input.signal === undefined ? {} : { signal: input.signal })
+  });
+  return evaluateSourceDependencies({
+    policy: input.policy,
+    graph
   });
 }

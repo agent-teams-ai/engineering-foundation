@@ -1,13 +1,29 @@
 import { CapabilityInputError } from "../../../capability-runtime.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { loadStrictYamlFile } from "../../../strict-yaml.js";
+import {
+  normalizeRepositoryPath,
+  pathIsInside
+} from "../application/model/repository-path.js";
 import type {
   ArchitectureBoundaryPolicy,
+  SourceArchitectureConfigSchemaVersion,
   SourceArchitecturePolicy
 } from "../application/model/source-workspace.js";
 
 export const CAPABILITY_ID = "architecture.source-dependencies" as const;
-export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
+export const CAPABILITY_CONFIG_SCHEMA_VERSION = 2 as const;
+
+type SourceArchitectureSchemaId =
+  | "architecture-source-dependencies/v1"
+  | "architecture-source-dependencies/v2";
+
+const SCHEMA_ID_BY_VERSION: Readonly<
+  Record<SourceArchitectureConfigSchemaVersion, SourceArchitectureSchemaId>
+> = Object.freeze({
+  1: "architecture-source-dependencies/v1",
+  2: "architecture-source-dependencies/v2"
+});
 
 function inputError(message: string): never {
   throw new CapabilityInputError({
@@ -50,13 +66,40 @@ function string(value: unknown, field: string): string {
   return value;
 }
 
-function pathInside(path: string, root: string): boolean {
-  return path === root || path.startsWith(`${root}/`);
+function schemaVersion(value: unknown): SourceArchitectureConfigSchemaVersion {
+  if (value === 1 || value === 2) {
+    return value;
+  }
+  inputError("schemaVersion must be either 1 or 2.");
+}
+
+async function assertSourceArchitectureSchema(
+  version: SourceArchitectureConfigSchemaVersion,
+  input: unknown
+): Promise<void> {
+  // Keep version selection closed so callers cannot select an arbitrary schema.
+  await assertSchema(
+    SCHEMA_ID_BY_VERSION[version] as Parameters<typeof assertSchema>[0],
+    input,
+    "source-architecture-config"
+  );
+}
+
+function sortedStrings(value: unknown, field: string): readonly string[] {
+  return Object.freeze(strings(value, field).toSorted());
 }
 
 function validatePolicy(policy: SourceArchitecturePolicy): void {
+  const governedRoots = new Set<string>();
   const boundaryIds = new Set<string>();
   const boundaryRoots = new Set<string>();
+  const boundaryEntrypoints = new Set<string>();
+  for (const root of policy.governedRoots) {
+    if (governedRoots.has(root)) {
+      inputError(`Governed root is duplicated after normalization: ${root}.`);
+    }
+    governedRoots.add(root);
+  }
   for (const boundary of policy.boundaries) {
     if (boundaryIds.has(boundary.id)) {
       inputError(`Architecture boundary ID is duplicated: ${boundary.id}.`);
@@ -66,10 +109,23 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
       if (boundaryRoots.has(root)) {
         inputError(`Architecture boundary root is duplicated: ${root}.`);
       }
-      if (!policy.governedRoots.some((governedRoot) => pathInside(root, governedRoot))) {
+      if (!policy.governedRoots.some((governedRoot) => pathIsInside(root, governedRoot))) {
         inputError(`Architecture boundary root is outside governed roots: ${root}.`);
       }
       boundaryRoots.add(root);
+    }
+    if (policy.schemaVersion === 2) {
+      for (const entrypoint of boundary.entrypoints) {
+        if (boundaryEntrypoints.has(entrypoint)) {
+          inputError(`Architecture boundary entrypoint is duplicated: ${entrypoint}.`);
+        }
+        if (!boundary.roots.some((root) => pathIsInside(entrypoint, root))) {
+          inputError(
+            `Architecture boundary entrypoint is outside its boundary roots: ${boundary.id}:${entrypoint}.`
+          );
+        }
+        boundaryEntrypoints.add(entrypoint);
+      }
     }
   }
   for (const boundary of policy.boundaries) {
@@ -80,33 +136,52 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
     }
   }
   for (const governedRoot of policy.governedRoots) {
-    if (![...boundaryRoots].some((root) => pathInside(root, governedRoot))) {
+    if (![...boundaryRoots].some((root) => pathIsInside(root, governedRoot))) {
       inputError(`Governed root has no architecture boundary: ${governedRoot}.`);
     }
   }
 }
 
-function mapBoundary(value: unknown, index: number): ArchitectureBoundaryPolicy {
+function mapBoundary(
+  value: unknown,
+  index: number,
+  version: SourceArchitectureConfigSchemaVersion
+): ArchitectureBoundaryPolicy {
   const boundary = record(value, `boundaries[${index}]`);
   const allow = record(boundary["allow"], `boundaries[${index}].allow`);
+  const entrypoints =
+    version === 1
+      ? Object.freeze([])
+      : Object.freeze(
+          sortedStrings(
+            boundary["entrypoints"],
+            `boundaries[${index}].entrypoints`
+          ).map(normalizeRepositoryPath)
+        );
   return Object.freeze({
     id: string(boundary["id"], `boundaries[${index}].id`),
-    roots: Object.freeze(strings(boundary["roots"], `boundaries[${index}].roots`)),
-    allowedBoundaries: Object.freeze(
-      strings(allow["boundaries"], `boundaries[${index}].allow.boundaries`)
+    roots: Object.freeze(
+      sortedStrings(boundary["roots"], `boundaries[${index}].roots`).map(
+        normalizeRepositoryPath
+      )
     ),
-    allowedPackages: Object.freeze(
-      strings(allow["packages"], `boundaries[${index}].allow.packages`)
+    entrypoints,
+    allowedBoundaries: sortedStrings(
+      allow["boundaries"],
+      `boundaries[${index}].allow.boundaries`
     ),
-    allowedBuiltins: Object.freeze(
-      strings(allow["builtins"], `boundaries[${index}].allow.builtins`)
+    allowedPackages: sortedStrings(
+      allow["packages"],
+      `boundaries[${index}].allow.packages`
     ),
-    allowedRuntimeReferences: Object.freeze(
-      strings(
-        allow["runtimeReferences"],
-        `boundaries[${index}].allow.runtimeReferences`
-      ) as readonly ("commonjs" | "dynamic" | "type-query")[]
-    )
+    allowedBuiltins: sortedStrings(
+      allow["builtins"],
+      `boundaries[${index}].allow.builtins`
+    ),
+    allowedRuntimeReferences: sortedStrings(
+      allow["runtimeReferences"],
+      `boundaries[${index}].allow.runtimeReferences`
+    ) as readonly ("commonjs" | "dynamic" | "type-query")[]
   });
 }
 
@@ -121,12 +196,9 @@ export async function loadCapabilityConfig(
     "source-architecture-config",
     signal
   );
-  await assertSchema(
-    "architecture-source-dependencies/v1",
-    input,
-    "source-architecture-config"
-  );
   const root = record(input, "source architecture config");
+  const version = schemaVersion(root["schemaVersion"]);
+  await assertSourceArchitectureSchema(version, input);
   const workspace = record(root["workspace"], "workspace");
   const boundaryInput = root["boundaries"];
   if (!Array.isArray(boundaryInput)) {
@@ -136,9 +208,16 @@ export async function loadCapabilityConfig(
     inputError("workspace must select pnpm-workspace.yaml.");
   }
   const policy: SourceArchitecturePolicy = Object.freeze({
+    schemaVersion: version,
     workspaceManifestPath: "pnpm-workspace.yaml",
-    governedRoots: Object.freeze(strings(root["governedRoots"], "governedRoots")),
-    boundaries: Object.freeze(boundaryInput.map(mapBoundary))
+    governedRoots: Object.freeze(
+      sortedStrings(root["governedRoots"], "governedRoots").map(normalizeRepositoryPath)
+    ),
+    boundaries: Object.freeze(
+      boundaryInput
+        .map((boundary, index) => mapBoundary(boundary, index, version))
+        .toSorted((left, right) => left.id.localeCompare(right.id))
+    )
   });
   validatePolicy(policy);
   return policy;

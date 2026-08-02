@@ -1,6 +1,11 @@
 import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 
+export const SOURCE_ARCHITECTURE_CONFIG_SCHEMA_VERSIONS = [1, 2] as const;
+
+export type SourceArchitectureConfigSchemaVersion =
+  (typeof SOURCE_ARCHITECTURE_CONFIG_SCHEMA_VERSIONS)[number];
+
 const SOURCE_DEPENDENCY_KINDS = [
   "commonjs",
   "dynamic",
@@ -41,6 +46,11 @@ interface ParsedSourceFile extends SourceFileSnapshot {
 export interface ArchitectureBoundaryPolicy {
   readonly id: string;
   readonly roots: readonly string[];
+  /**
+   * Explicit inbound local-import surface. Schema v1 always maps this to an
+   * empty list; schema v2 requires the consumer to declare it.
+   */
+  readonly entrypoints: readonly string[];
   readonly allowedBoundaries: readonly string[];
   readonly allowedPackages: readonly string[];
   readonly allowedBuiltins: readonly string[];
@@ -48,6 +58,7 @@ export interface ArchitectureBoundaryPolicy {
 }
 
 export interface SourceArchitecturePolicy {
+  readonly schemaVersion: SourceArchitectureConfigSchemaVersion;
   readonly workspaceManifestPath: "pnpm-workspace.yaml";
   readonly governedRoots: readonly string[];
   readonly boundaries: readonly ArchitectureBoundaryPolicy[];
@@ -87,4 +98,103 @@ export type ResolvedSourceDependency =
       readonly declaration: "development" | "runtime" | "undeclared";
       readonly exported: boolean;
       readonly subpath: string;
+    }
+  | {
+      /**
+       * This is intentionally distinct from workspace-package. A package-name
+       * import back into the importing package has no source-boundary target
+       * that the resolver can prove, so policies must fail closed.
+       */
+      readonly kind: "self-workspace-package";
+      readonly workspacePackage: WorkspacePackage;
+      readonly exported: boolean;
+      readonly subpath: string;
     };
+
+export type SourceDependencyEdgeMode = "runtime" | "type-only";
+
+export interface ObservedSourceNode {
+  readonly path: string;
+  readonly boundaryId: string;
+  readonly workspacePackageName: string;
+  readonly workspacePackageManifestPath: string;
+}
+
+export type ObservedSourceDependencyResolution =
+  | {
+      readonly kind: "builtin";
+      readonly specifier: string;
+    }
+  | {
+      readonly kind: "external-package";
+      readonly packageName: string;
+      readonly declaration: "development" | "runtime" | "undeclared";
+    }
+  | {
+      readonly kind: "local-file";
+      readonly path: string;
+      readonly workspacePackageName: string;
+      readonly workspacePackageManifestPath: string;
+      readonly targetBoundaryId: string | null;
+    }
+  | {
+      readonly kind: "unsupported";
+      readonly reason: string;
+    }
+  | {
+      readonly kind: "unresolved";
+      readonly reason: string;
+    }
+  | {
+      readonly kind: "workspace-package";
+      readonly workspacePackageName: string;
+      readonly workspacePackageManifestPath: string;
+      readonly declaration: "development" | "runtime" | "undeclared";
+      readonly exported: boolean;
+      readonly subpath: string;
+    }
+  | {
+      readonly kind: "self-workspace-package";
+      readonly workspacePackageName: string;
+      readonly workspacePackageManifestPath: string;
+      readonly exported: boolean;
+      readonly subpath: string;
+    };
+
+export interface ObservedSourceDependencyEdge {
+  readonly fromPath: string;
+  readonly fromBoundaryId: string;
+  readonly fromWorkspacePackageName: string;
+  readonly fromWorkspacePackageManifestPath: string;
+  readonly kind: SourceDependencyKind;
+  readonly mode: SourceDependencyEdgeMode;
+  readonly specifier: string;
+  readonly start: number;
+  readonly end: number;
+  readonly resolution: ObservedSourceDependencyResolution;
+}
+
+export interface ObservedSourceParseFailure {
+  readonly path: string;
+  readonly parseErrorCount: number;
+}
+
+export interface ObservedUnresolvedRuntimeReference {
+  readonly path: string;
+  readonly boundaryId: string;
+  readonly kind: UnresolvedSourceDependency["kind"];
+  readonly start: number;
+  readonly end: number;
+}
+
+/**
+ * Immutable normalized evidence collected before architecture policies run.
+ * It deliberately contains values only, never resolver-owned mutable objects.
+ */
+export interface ObservedSourceGraph {
+  readonly nodes: readonly ObservedSourceNode[];
+  readonly edges: readonly ObservedSourceDependencyEdge[];
+  readonly parseFailures: readonly ObservedSourceParseFailure[];
+  readonly unclassifiedSourcePaths: readonly string[];
+  readonly unresolvedRuntimeReferences: readonly ObservedUnresolvedRuntimeReference[];
+}

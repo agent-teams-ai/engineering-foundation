@@ -7,18 +7,26 @@ import {
 } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve, sep } from "node:path";
 
+import GithubSlugger from "github-slugger";
+import { toString } from "mdast-util-to-string";
+import remarkFrontmatter from "remark-frontmatter";
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
+import { unified } from "unified";
+import { visit as visitMarkdown } from "unist-util-visit";
 import {
   isAlias,
   isMap,
   isNode,
   isPair,
   parseDocument,
-  visit
+  visit as visitYaml
 } from "yaml";
 
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import { pathTraversesSymbolicLink } from "../../../../filesystem-path-safety.js";
 import type {
+  MarkdownAnchorObservation,
   MarkdownDocumentObservation,
   MarkdownFrontmatterObservation,
   MarkdownHeadingObservation,
@@ -37,20 +45,57 @@ import type {
 const MAX_MARKDOWN_BYTES = 4 * 1024 * 1024;
 const SKIPPED_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
 
-interface SourceLine {
-  readonly end: number;
-  readonly start: number;
-  readonly text: string;
+const markdownParser = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkFrontmatter, ["yaml"])
+  .freeze();
+
+interface AstPoint {
+  readonly column: number;
+  readonly line: number;
+  readonly offset: number;
 }
 
-interface Range {
-  readonly end: number;
-  readonly start: number;
+interface AstPosition {
+  readonly end: AstPoint;
+  readonly start: AstPoint;
 }
 
-interface ParsedDestination {
-  readonly end: number;
-  readonly rawTarget: string;
+interface AstNode {
+  readonly position?: unknown;
+  readonly type: string;
+}
+
+interface AstDefinitionNode extends AstNode {
+  readonly identifier: string;
+  readonly type: "definition";
+  readonly url: string;
+}
+
+interface AstHeadingNode extends AstNode {
+  readonly depth: number;
+  readonly type: "heading";
+}
+
+interface AstReferenceNode extends AstNode {
+  readonly identifier: string;
+  readonly type: "imageReference" | "linkReference";
+}
+
+interface AstUrlNode extends AstNode {
+  readonly type: "image" | "link";
+  readonly url: string;
+}
+
+interface AstYamlNode extends AstNode {
+  readonly type: "yaml";
+  readonly value: string;
+}
+
+interface ParsedMarkdown {
+  readonly sourceOffset: number;
+  readonly tree: ReturnType<typeof markdownParser.parse>;
 }
 
 interface RepositoryContext {
@@ -66,437 +111,326 @@ function withinRoot(root: string, candidate: string): boolean {
   return relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
 }
 
-function sourceLines(source: string): readonly SourceLine[] {
-  const lines: SourceLine[] = [];
-  let start = 0;
-  while (start < source.length) {
-    const lineBreak = source.indexOf("\n", start);
-    const end = lineBreak === -1 ? source.length : lineBreak;
-    const rawLine = source.slice(start, end);
-    lines.push({
-      end,
-      start,
-      text: rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine
-    });
-    if (lineBreak === -1) {
-      break;
-    }
-    start = lineBreak + 1;
-  }
-  return lines;
+function isAstNode(value: unknown): value is AstNode {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    typeof value.type === "string"
+  );
 }
 
-function positionForOffset(lines: readonly SourceLine[], offset: number): MarkdownPosition {
-  const lineIndex = lines.findIndex((line) => offset >= line.start && offset <= line.end);
-  const line = lines[lineIndex === -1 ? Math.max(lines.length - 1, 0) : lineIndex];
+function astProperty(value: AstNode, property: string): unknown {
+  return Reflect.get(value, property);
+}
+
+function isAstPoint(value: unknown): value is AstPoint {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "column" in value &&
+    typeof value.column === "number" &&
+    "line" in value &&
+    typeof value.line === "number" &&
+    "offset" in value &&
+    typeof value.offset === "number"
+  );
+}
+
+function isAstPosition(value: unknown): value is AstPosition {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "start" in value &&
+    isAstPoint(value.start) &&
+    "end" in value &&
+    isAstPoint(value.end)
+  );
+}
+
+function isDefinitionNode(value: unknown): value is AstDefinitionNode {
+  return (
+    isAstNode(value) &&
+    value.type === "definition" &&
+    typeof astProperty(value, "identifier") === "string" &&
+    typeof astProperty(value, "url") === "string"
+  );
+}
+
+function isHeadingNode(value: unknown): value is AstHeadingNode {
+  return (
+    isAstNode(value) &&
+    value.type === "heading" &&
+    typeof astProperty(value, "depth") === "number"
+  );
+}
+
+function isReferenceNode(value: unknown): value is AstReferenceNode {
+  return (
+    isAstNode(value) &&
+    (value.type === "imageReference" || value.type === "linkReference") &&
+    typeof astProperty(value, "identifier") === "string"
+  );
+}
+
+function isUrlNode(value: unknown): value is AstUrlNode {
+  return (
+    isAstNode(value) &&
+    (value.type === "image" || value.type === "link") &&
+    typeof astProperty(value, "url") === "string"
+  );
+}
+
+function isYamlNode(value: unknown): value is AstYamlNode {
+  return isAstNode(value) && value.type === "yaml" && typeof astProperty(value, "value") === "string";
+}
+
+function parsedMarkdown(source: string): ParsedMarkdown {
+  const sourceOffset = source.startsWith("\uFEFF") ? 1 : 0;
   return {
-    column: offset - (line?.start ?? 0) + 1,
-    line: (lineIndex === -1 ? lines.length : lineIndex + 1) || 1,
-    offset
+    sourceOffset,
+    tree: markdownParser.parse(source.slice(sourceOffset))
   };
 }
 
-function frontmatterFromSource(source: string, lines: readonly SourceLine[]): MarkdownFrontmatterObservation {
-  const first = lines[0];
-  if (first === undefined || first.text.replace(/^\uFEFF/u, "") !== "---") {
-    return { endOffset: 0, kind: "absent" };
+function astPosition(node: AstNode): AstPosition {
+  const position = node.position;
+  if (!isAstPosition(position)) {
+    throw new Error(`Markdown AST node ${node.type} has no source position.`);
   }
+  return position;
+}
 
-  for (let index = 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line !== undefined && /^(?:---|\.\.\.)\s*$/u.test(line.text)) {
-      const raw = source.slice(first.end + 1, line.start);
-      const document = parseDocument(raw, {
-        customTags: [],
-        merge: false,
-        schema: "core",
-        uniqueKeys: true
-      });
-      const errors = [...document.errors, ...document.warnings];
-      if (errors.length > 0) {
-        return {
-          endOffset: Math.min(source.length, line.end + 1),
-          kind: "invalid",
-          message: errors
-            .slice(0, 4)
-            .map((error) => error.message)
-            .join("; ")
-            .slice(0, 1000)
-        };
-      }
-
-      let forbidden: string | undefined;
-      visit(document, (_key, node) => {
-        if (forbidden !== undefined) {
-          return;
-        }
-        if (isAlias(node)) {
-          forbidden = "YAML aliases are prohibited.";
-          return;
-        }
-        if (isNode(node) && (node.anchor !== undefined || node.tag !== undefined)) {
-          forbidden = "YAML anchors and explicit tags are prohibited.";
-          return;
-        }
-        if (
-          isPair(node) &&
-          isNode(node.key) &&
-          "value" in node.key &&
-          node.key.value === "<<"
-        ) {
-          forbidden = "YAML merge keys are prohibited.";
-          return;
-        }
-        if (isMap(node) && node.items.length > 10_000) {
-          forbidden = "YAML mapping exceeds the supported size limit.";
-        }
-      });
-      if (forbidden !== undefined) {
-        return {
-          endOffset: Math.min(source.length, line.end + 1),
-          kind: "invalid",
-          message: forbidden
-        };
-      }
-      return {
-        endOffset: Math.min(source.length, line.end + 1),
-        kind: "valid",
-        value: document.toJS({ maxAliasCount: 0 }) as unknown
-      };
-    }
-  }
-
+function markdownPosition(node: AstNode, sourceOffset: number): MarkdownPosition {
+  const point = astPosition(node).start;
   return {
-    endOffset: source.length,
-    kind: "invalid",
-    message: "YAML frontmatter is missing a closing delimiter."
+    column: point.column + (point.line === 1 ? sourceOffset : 0),
+    line: point.line,
+    offset: point.offset + sourceOffset
   };
 }
 
-function codeFenceRanges(lines: readonly SourceLine[], frontmatterEnd: number): readonly Range[] {
-  const ranges: Range[] = [];
-  let open: { readonly length: number; readonly marker: string; readonly start: number } | undefined;
-
-  for (const line of lines) {
-    if (line.start < frontmatterEnd) {
-      continue;
-    }
-    if (open === undefined) {
-      const match = line.text.match(/^ {0,3}(`{3,}|~{3,})/u);
-      if (match?.[1] !== undefined) {
-        open = {
-          length: match[1].length,
-          marker: match[1][0] ?? "`",
-          start: line.start
-        };
-      }
-      continue;
-    }
-
-    const closing = new RegExp(
-      `^ {0,3}${open.marker}{${open.length},}[ \\t]*$`,
-      "u"
-    );
-    if (closing.test(line.text)) {
-      ranges.push({ end: line.end, start: open.start });
-      open = undefined;
-    }
-  }
-
-  if (open !== undefined) {
-    const last = lines.at(-1);
-    ranges.push({ end: last?.end ?? open.start, start: open.start });
-  }
-  return ranges;
-}
-
-function inRange(offset: number, ranges: readonly Range[]): boolean {
-  return ranges.some((range) => offset >= range.start && offset <= range.end);
-}
-
-function overlapsRange(start: number, end: number, ranges: readonly Range[]): boolean {
-  return ranges.some((range) => start <= range.end && end >= range.start);
-}
-
-function escaped(source: string, offset: number): boolean {
-  let slashes = 0;
-  for (let index = offset - 1; index >= 0 && source[index] === "\\"; index -= 1) {
-    slashes += 1;
-  }
-  return slashes % 2 === 1;
-}
-
-function findBracketClose(source: string, openOffset: number, ranges: readonly Range[]): number {
-  let depth = 1;
-  for (let index = openOffset + 1; index < source.length; index += 1) {
-    if (inRange(index, ranges)) {
-      return -1;
-    }
-    const character = source[index];
-    if (character === "\\") {
-      index += 1;
-      continue;
-    }
-    if (character === "[") {
-      depth += 1;
-    } else if (character === "]") {
-      depth -= 1;
-      if (depth === 0) {
-        return index;
-      }
-    }
-  }
-  return -1;
-}
-
-function skipInlineCode(source: string, start: number, ranges: readonly Range[]): number {
-  let ticks = 1;
-  while (source[start + ticks] === "`") {
-    ticks += 1;
-  }
-  const delimiter = "`".repeat(ticks);
-  for (let index = start + ticks; index < source.length; index += 1) {
-    if (inRange(index, ranges)) {
-      return start + ticks;
-    }
-    if (source.startsWith(delimiter, index)) {
-      return index + ticks;
-    }
-  }
-  return start + ticks;
-}
-
-function parseInlineDestination(
+function endOffsetAfterLineEnding(
   source: string,
-  openingParenthesis: number,
-  ranges: readonly Range[]
-): ParsedDestination | undefined {
-  let cursor = openingParenthesis + 1;
-  while (/[ \t\r\n]/u.test(source[cursor] ?? "")) {
-    cursor += 1;
+  node: AstNode,
+  sourceOffset: number
+): number {
+  const endOffset = astPosition(node).end.offset + sourceOffset;
+  if (source.startsWith("\r\n", endOffset)) {
+    return endOffset + 2;
   }
-  const targetStart = cursor;
-  if (source[cursor] === ")") {
-    return { end: cursor + 1, rawTarget: "" };
-  }
-  if (source[cursor] === "<") {
-    cursor += 1;
-    const destinationStart = cursor;
-    let rawTarget = "";
-    while (cursor < source.length) {
-      if (inRange(cursor, ranges)) {
-        return undefined;
-      }
-      if (source[cursor] === ">" && !escaped(source, cursor)) {
-        rawTarget = source.slice(destinationStart, cursor);
-        cursor += 1;
-        break;
-      }
-      cursor += 1;
-    }
-    if (cursor > source.length || source[cursor - 1] !== ">") {
-      return undefined;
-    }
-    while (cursor < source.length && source[cursor] !== ")") {
-      if (inRange(cursor, ranges)) {
-        return undefined;
-      }
-      cursor += 1;
-    }
-    return source[cursor] === ")" ? { end: cursor + 1, rawTarget } : undefined;
-  }
+  return source.startsWith("\n", endOffset) ? endOffset + 1 : endOffset;
+}
 
-  let nestedParentheses = 0;
-  while (cursor < source.length) {
-    if (inRange(cursor, ranges)) {
-      return undefined;
+function markdownText(node: AstNode): string {
+  return toString(node);
+}
+
+function hasOpeningYamlDelimiter(source: string): boolean {
+  const withoutByteOrderMark = source.startsWith("\uFEFF") ? source.slice(1) : source;
+  return /^---[ \t]*(?:\r?\n|$)/u.test(withoutByteOrderMark);
+}
+
+function frontmatterFromMarkdown(
+  source: string,
+  markdown: ParsedMarkdown
+): MarkdownFrontmatterObservation {
+  let yaml: AstYamlNode | undefined;
+  visitMarkdown(markdown.tree, (node) => {
+    if (yaml !== undefined || !isYamlNode(node)) {
+      return;
     }
-    const character = source[cursor];
-    if (character === "\\") {
-      cursor += 2;
-      continue;
+    if (astPosition(node).start.offset === 0) {
+      yaml = node;
     }
-    if (character === "(") {
-      nestedParentheses += 1;
-      cursor += 1;
-      continue;
-    }
-    if (character === ")") {
-      if (nestedParentheses === 0) {
-        return {
-          end: cursor + 1,
-          rawTarget: source.slice(targetStart, cursor).trim()
-        };
-      }
-      nestedParentheses -= 1;
-      cursor += 1;
-      continue;
-    }
-    if (/[ \t\r\n]/u.test(character ?? "")) {
-      const rawTarget = source.slice(targetStart, cursor);
-      while (cursor < source.length && source[cursor] !== ")") {
-        if (inRange(cursor, ranges)) {
-          return undefined;
+  });
+
+  if (yaml === undefined) {
+    return hasOpeningYamlDelimiter(source)
+      ? {
+          endOffset: source.length,
+          kind: "invalid",
+          message: "YAML frontmatter is missing a closing delimiter."
         }
-        cursor += 1;
-      }
-      return source[cursor] === ")" ? { end: cursor + 1, rawTarget } : undefined;
-    }
-    cursor += 1;
+      : { endOffset: 0, kind: "absent" };
   }
-  return undefined;
-}
 
-function parseDefinitionDestination(
-  line: SourceLine,
-  start: number
-): string | undefined {
-  let cursor = start;
-  while (/[ \t]/u.test(line.text[cursor - line.start] ?? "")) {
-    cursor += 1;
+  const endOffset = endOffsetAfterLineEnding(source, yaml, markdown.sourceOffset);
+  const document = parseDocument(yaml.value, {
+    customTags: [],
+    merge: false,
+    schema: "core",
+    uniqueKeys: true
+  });
+  const errors = [...document.errors, ...document.warnings];
+  if (errors.length > 0) {
+    return {
+      endOffset,
+      kind: "invalid",
+      message: errors
+        .slice(0, 4)
+        .map((error) => error.message)
+        .join("; ")
+        .slice(0, 1000)
+    };
   }
-  if (cursor >= line.end) {
-    return undefined;
-  }
-  if (line.text[cursor - line.start] === "<") {
-    const end = line.text.indexOf(">", cursor - line.start + 1);
-    return end === -1
-      ? undefined
-      : line.text.slice(cursor - line.start + 1, end).trim();
-  }
-  const remainder = line.text.slice(cursor - line.start);
-  const match = remainder.match(/^([^ \t]+)/u);
-  return match?.[1];
-}
 
-function inlineReferences(
-  source: string,
-  lines: readonly SourceLine[],
-  excludedRanges: readonly Range[]
-): readonly MarkdownReferenceObservation[] {
-  const references: MarkdownReferenceObservation[] = [];
-  for (let index = 0; index < source.length; index += 1) {
-    if (inRange(index, excludedRanges)) {
-      continue;
+  let forbidden: string | undefined;
+  visitYaml(document, (_key, node) => {
+    if (forbidden !== undefined) {
+      return;
     }
-    const character = source[index];
-    if (character === "`" && !escaped(source, index)) {
-      index = skipInlineCode(source, index, excludedRanges) - 1;
-      continue;
+    if (isAlias(node)) {
+      forbidden = "YAML aliases are prohibited.";
+      return;
     }
-    const image = character === "!" && source[index + 1] === "[";
-    const openingBracket = image ? index + 1 : index;
-    if (source[openingBracket] !== "[" || escaped(source, openingBracket)) {
-      continue;
+    if (isNode(node) && (node.anchor !== undefined || node.tag !== undefined)) {
+      forbidden = "YAML anchors and explicit tags are prohibited.";
+      return;
     }
-    const closingBracket = findBracketClose(source, openingBracket, excludedRanges);
-    if (closingBracket === -1 || source[closingBracket + 1] !== "(") {
-      continue;
-    }
-    const destination = parseInlineDestination(
-      source,
-      closingBracket + 1,
-      excludedRanges
-    );
-    if (destination === undefined || overlapsRange(index, destination.end, excludedRanges)) {
-      continue;
-    }
-    references.push({
-      kind: image ? "image" : "link",
-      location: positionForOffset(lines, index),
-      rawTarget: destination.rawTarget
-    });
-    index = destination.end - 1;
-  }
-  return references;
-}
-
-function definitionReferences(
-  source: string,
-  lines: readonly SourceLine[],
-  excludedRanges: readonly Range[]
-): readonly MarkdownReferenceObservation[] {
-  const references: MarkdownReferenceObservation[] = [];
-  for (const line of lines) {
-    if (inRange(line.start, excludedRanges)) {
-      continue;
-    }
-    const match = line.text.match(/^ {0,3}\[([^\]]+)\]:/u);
-    if (match?.[0] === undefined) {
-      continue;
-    }
-    const rawTarget = parseDefinitionDestination(line, line.start + match[0].length);
-    if (rawTarget === undefined) {
-      continue;
-    }
-    references.push({
-      kind: "definition",
-      location: positionForOffset(lines, line.start),
-      rawTarget
-    });
-  }
-  return references;
-}
-
-function headings(
-  lines: readonly SourceLine[],
-  excludedRanges: readonly Range[]
-): readonly MarkdownHeadingObservation[] {
-  const output: MarkdownHeadingObservation[] = [];
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line === undefined || inRange(line.start, excludedRanges)) {
-      continue;
-    }
-    const atx = line.text.match(/^ {0,3}(#{1,6})(?:[ \t]+(.*?)|[ \t]*)$/u);
-    if (atx?.[1] !== undefined) {
-      const rawText = atx[2] ?? "";
-      output.push({
-        depth: atx[1].length,
-        location: positionForOffset(lines, line.start),
-        text: rawText.replace(/[ \t]+#+[ \t]*$/u, "").trim()
-      });
-      continue;
-    }
-    const underline = lines[index + 1];
     if (
-      line.text.trim().length > 0 &&
-      underline !== undefined &&
-      !inRange(underline.start, excludedRanges)
+      isPair(node) &&
+      isNode(node.key) &&
+      "value" in node.key &&
+      node.key.value === "<<"
     ) {
-      const setext = underline.text.match(/^ {0,3}(=+|-+)[ \t]*$/u);
-      if (setext?.[1] !== undefined) {
-        output.push({
-          depth: setext[1][0] === "=" ? 1 : 2,
-          location: positionForOffset(lines, line.start),
-          text: line.text.trim()
-        });
-        index += 1;
-      }
+      forbidden = "YAML merge keys are prohibited.";
+      return;
+    }
+    if (isMap(node) && node.items.length > 10_000) {
+      forbidden = "YAML mapping exceeds the supported size limit.";
+    }
+  });
+  if (forbidden !== undefined) {
+    return { endOffset, kind: "invalid", message: forbidden };
+  }
+  return {
+    endOffset,
+    kind: "valid",
+    value: document.toJS({ maxAliasCount: 0 }) as unknown
+  };
+}
+
+function headingsFromMarkdown(
+  markdown: ParsedMarkdown
+): readonly MarkdownHeadingObservation[] {
+  const headings: MarkdownHeadingObservation[] = [];
+  visitMarkdown(markdown.tree, (node) => {
+    if (!isHeadingNode(node)) {
+      return;
+    }
+    headings.push({
+      depth: node.depth,
+      location: markdownPosition(node, markdown.sourceOffset),
+      text: markdownText(node)
+    });
+  });
+  return headings.toSorted((left, right) => left.location.offset - right.location.offset);
+}
+
+function githubAnchorObservation(
+  headings: readonly MarkdownHeadingObservation[]
+): MarkdownAnchorObservation {
+  const slugger = new GithubSlugger();
+  return {
+    ids: headings.map((heading) => slugger.slug(heading.text)),
+    profile: "github"
+  };
+}
+
+function referenceFromNode(
+  node: AstNode,
+  kind: "definition" | "image" | "link",
+  rawTarget: string,
+  sourceOffset: number
+): MarkdownReferenceObservation {
+  return {
+    kind,
+    location: markdownPosition(node, sourceOffset),
+    rawTarget
+  };
+}
+
+function referencesFromMarkdown(
+  markdown: ParsedMarkdown
+): readonly MarkdownReferenceObservation[] {
+  const definitions: AstDefinitionNode[] = [];
+  const directReferences: MarkdownReferenceObservation[] = [];
+  const referenceNodes: AstReferenceNode[] = [];
+
+  visitMarkdown(markdown.tree, (node) => {
+    if (isDefinitionNode(node)) {
+      definitions.push(node);
+      return;
+    }
+    if (isUrlNode(node)) {
+      directReferences.push(
+        referenceFromNode(node, node.type === "image" ? "image" : "link", node.url, markdown.sourceOffset)
+      );
+      return;
+    }
+    if (isReferenceNode(node)) {
+      referenceNodes.push(node);
+    }
+  });
+
+  const effectiveDefinitions = new Map<string, AstDefinitionNode>();
+  for (const definition of definitions) {
+    if (!effectiveDefinitions.has(definition.identifier)) {
+      effectiveDefinitions.set(definition.identifier, definition);
     }
   }
-  return output;
+
+  const referencedDefinitions = new Set<AstDefinitionNode>();
+  const resolvedReferenceUsages = referenceNodes.flatMap((node) => {
+    const definition = effectiveDefinitions.get(node.identifier);
+    if (definition === undefined) {
+      return [];
+    }
+    referencedDefinitions.add(definition);
+    return [
+      referenceFromNode(
+        node,
+        node.type === "imageReference" ? "image" : "link",
+        definition.url,
+        markdown.sourceOffset
+      )
+    ];
+  });
+
+  const unusedDefinitions = definitions.flatMap((definition) => {
+    if (
+      effectiveDefinitions.get(definition.identifier) !== definition ||
+      referencedDefinitions.has(definition)
+    ) {
+      return [];
+    }
+    return [
+      referenceFromNode(
+        definition,
+        "definition",
+        definition.url,
+        markdown.sourceOffset
+      )
+    ];
+  });
+
+  return [...directReferences, ...resolvedReferenceUsages, ...unusedDefinitions].toSorted(
+    (left, right) => left.location.offset - right.location.offset
+  );
 }
 
 function observeMarkdownDocument(
   documentRepositoryPath: string,
   source: string
 ): MarkdownDocumentObservation {
-  const lines = sourceLines(source);
-  const frontmatter = frontmatterFromSource(source, lines);
-  const excludedRanges = [
-    ...(frontmatter.endOffset > 0
-      ? [{ end: frontmatter.endOffset - 1, start: 0 }]
-      : []),
-    ...codeFenceRanges(lines, frontmatter.endOffset)
-  ];
+  const markdown = parsedMarkdown(source);
+  const headings = headingsFromMarkdown(markdown);
   return {
-    frontmatter,
-    headings: headings(lines, excludedRanges),
-    references: [
-      ...definitionReferences(source, lines, excludedRanges),
-      ...inlineReferences(source, lines, excludedRanges)
-    ].toSorted((left, right) => left.location.offset - right.location.offset),
+    anchorObservations: [githubAnchorObservation(headings)],
+    frontmatter: frontmatterFromMarkdown(source, markdown),
+    headings,
+    references: referencesFromMarkdown(markdown),
     repositoryPath: documentRepositoryPath,
     source
   };

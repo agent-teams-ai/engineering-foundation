@@ -8,6 +8,7 @@ import test from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
 
 import { FilesystemMarkdownRepository } from "../packages/engineering-foundation/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
+import { anchorsForMarkdownDocument } from "../packages/engineering-foundation/dist/documentation-observation/application/model/markdown-document.js";
 import { analyzeDocumentationLocalReferences } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/application/use-cases/analyze-documentation-local-references.js";
 import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/contract/config.js";
 
@@ -54,6 +55,100 @@ test("accepts Markdown links, images, definitions, directory README targets, and
   await withFixture(async (root) => {
     const diagnostics = await analyze(root);
     assert.deepEqual(diagnostics, []);
+  });
+});
+
+test("observes CommonMark and GFM links through the AST without scanning escaped or code content", async () => {
+  await withFixture(async (root) => {
+    const readmePath = join(root, "docs", "README.md");
+    const tick = "`";
+    const source = [
+      "\uFEFF---",
+      "title: Markdown AST coverage",
+      "---",
+      "",
+      "# C++ & C#",
+      "# C++ & C#",
+      `## API *guide* with ${tick}code${tick}`,
+      "",
+      "[Reference usage][guide-reference]",
+      "![Reference image][asset-reference]",
+      "[URI target](guide/space%20file.md#caf%C3%A9)",
+      "[Shortcut reference]",
+      "[Collapsed reference][]",
+      "[Escaped \\[label\\]](guide/README.md#install)",
+      "",
+      "| Guide |",
+      "| --- |",
+      "| [GFM table link](guide/README.md#install-1) |",
+      "",
+      "[guide-reference]: ./guide/README.md#install-1",
+      "[asset-reference]: ./assets/architecture.png",
+      "[shortcut reference]: ./guide/README.md#install",
+      "[collapsed reference]: ./guide/README.md#install",
+      "[unused-definition]: ./missing-definition.md",
+      "",
+      "\\[Escaped](also-missing.md)",
+      `${tick}[Inline code](inline-missing.md)${tick}`,
+      "",
+      `${tick.repeat(3)}md`,
+      "[Fenced code](fenced-missing.md)",
+      tick.repeat(3),
+      ""
+    ].join("\n");
+    await writeFile(readmePath, source, "utf8");
+    await writeFile(
+      join(root, "docs", "guide", "space file.md"),
+      "# Café\n",
+      "utf8"
+    );
+
+    const observation = await new FilesystemMarkdownRepository().observe({
+      consumerRoot: root,
+      roots: ["docs"]
+    });
+    const document = observation.documents.find(
+      (candidate) => candidate.repositoryPath === "docs/README.md"
+    );
+    assert.ok(document !== undefined);
+    assert.equal(document.frontmatter.kind, "valid");
+    if (document.frontmatter.kind !== "valid") {
+      return;
+    }
+    assert.deepEqual(document.frontmatter.value, { title: "Markdown AST coverage" });
+    assert.deepEqual(
+      document.headings.map((heading) => heading.text),
+      ["C++ & C#", "C++ & C#", "API guide with code"]
+    );
+    assert.deepEqual(anchorsForMarkdownDocument(document, "github"), [
+      "c--c",
+      "c--c-1",
+      "api-guide-with-code"
+    ]);
+    assert.deepEqual(
+      document.references.map((reference) => ({
+        kind: reference.kind,
+        rawTarget: reference.rawTarget
+      })),
+      [
+        { kind: "link", rawTarget: "./guide/README.md#install-1" },
+        { kind: "image", rawTarget: "./assets/architecture.png" },
+        { kind: "link", rawTarget: "guide/space%20file.md#caf%C3%A9" },
+        { kind: "link", rawTarget: "./guide/README.md#install" },
+        { kind: "link", rawTarget: "./guide/README.md#install" },
+        { kind: "link", rawTarget: "guide/README.md#install" },
+        { kind: "link", rawTarget: "guide/README.md#install-1" },
+        { kind: "definition", rawTarget: "./missing-definition.md" }
+      ]
+    );
+    assert.deepEqual(document.references[0]?.location, {
+      column: 1,
+      line: 9,
+      offset: source.indexOf("[Reference usage]")
+    });
+    assert.deepEqual(ruleIds(await analyze(root)), [
+      "documentation.local-references.broken-link"
+    ]);
   });
 });
 

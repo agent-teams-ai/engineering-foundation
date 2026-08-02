@@ -14,6 +14,11 @@ export interface MarkdownHeadingObservation {
   readonly text: string;
 }
 
+export interface MarkdownAnchorObservation {
+  readonly ids: readonly string[];
+  readonly profile: MarkdownAnchorProfile;
+}
+
 export interface MarkdownReferenceObservation {
   readonly kind: MarkdownReferenceKind;
   readonly location: MarkdownPosition;
@@ -37,6 +42,7 @@ export type MarkdownFrontmatterObservation =
     };
 
 export interface MarkdownDocumentObservation {
+  readonly anchorObservations: readonly MarkdownAnchorObservation[];
   readonly frontmatter: MarkdownFrontmatterObservation;
   readonly headings: readonly MarkdownHeadingObservation[];
   readonly references: readonly MarkdownReferenceObservation[];
@@ -86,23 +92,6 @@ export type MarkdownReferenceResolution =
         | "symbolic-link";
     };
 
-function removeMarkdownInlineSyntax(value: string): string {
-  return value
-    .replace(/!?(?:\[([^\]]*)\])(?:\([^)]*\)|\[[^\]]*\])?/gu, "$1")
-    .replace(/<[^>]*>/gu, "")
-    .replace(/[`*_~]/gu, "")
-    .replace(/\\(.)/gu, "$1")
-    .replace(/\s+/gu, " ")
-    .trim();
-}
-
-function githubSlug(value: string): string {
-  return removeMarkdownInlineSyntax(value)
-    .toLocaleLowerCase("en-US")
-    .replace(/[^\p{L}\p{N}\s-]/gu, "")
-    .replace(/\s+/gu, "-");
-}
-
 export function anchorsForMarkdownDocument(
   document: MarkdownDocumentObservation,
   profile: MarkdownAnchorProfile
@@ -111,13 +100,7 @@ export function anchorsForMarkdownDocument(
     return [];
   }
 
-  const counts = new Map<string, number>();
-  return document.headings.map((heading) => {
-    const base = githubSlug(heading.text);
-    const count = counts.get(base) ?? 0;
-    counts.set(base, count + 1);
-    return count === 0 ? base : `${base}-${count}`;
-  });
+  return document.anchorObservations.find((observation) => observation.profile === profile)?.ids ?? [];
 }
 
 export function markdownSourceWithoutFrontmatter(

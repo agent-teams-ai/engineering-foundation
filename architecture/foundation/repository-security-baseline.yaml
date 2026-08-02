@@ -27,8 +27,15 @@ privilegedJobs:
       id-token: write
       pull-requests: write
   - workflowPath: .github/workflows/release.yml
+    jobId: review-release-pr
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+  - workflowPath: .github/workflows/release.yml
     jobId: attest-release-pr
     permissions:
+      actions: write
       contents: read
       pull-requests: read
       statuses: write

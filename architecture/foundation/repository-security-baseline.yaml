@@ -62,8 +62,8 @@ privilegedJobs:
       contents: write
       id-token: write
       pull-requests: write
-  - workflowPath: .github/workflows/release.yml
-    jobId: review-release-pr
+  - workflowPath: .github/workflows/reviewrouter-release.yml
+    jobId: codex-review
     permissions:
       contents: read
       pull-requests: read

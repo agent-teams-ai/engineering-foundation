@@ -1,3 +1,4 @@
+import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import {
   markdownSourceWithoutFrontmatter,
   type MarkdownDocumentObservation
@@ -51,7 +52,7 @@ function canonicalize(value: unknown): unknown {
   if (typeof value === "object" && value !== null) {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
-        .toSorted(([left], [right]) => left.localeCompare(right))
+        .toSorted(([left], [right]) => compareBinaryStrings(left, right))
         .map(([key, nested]) => [key, canonicalize(nested)])
     );
   }

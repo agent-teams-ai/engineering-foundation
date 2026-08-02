@@ -11,7 +11,9 @@ export const FOUNDATION_SCHEMA_IDS = [
   "governance-architecture-decision-baseline/v1",
   "governance-architecture-decisions/v1",
   "package-public-api-baseline/v1",
+  "package-public-api-baseline/v2",
   "package-public-api-compatibility/v1",
+  "package-public-api-compatibility/v2",
   "quality-suppression-governance/v1",
   "repository-security-baseline/v1",
   "workspace-dependency-declarations/v1"

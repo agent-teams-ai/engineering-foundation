@@ -6,6 +6,7 @@ import type {
   PublicApiSnapshot
 } from "../model/public-api.js";
 import type { PublicApiExtractor } from "../ports/public-api-extractor.js";
+import type { AcceptedDecisionEvidencePort } from "../ports/accepted-decision-evidence.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import type { PublicApiRepository } from "../ports/public-api-repository.js";
 import { classifyPublicApiChange } from "../policies/evaluate-public-api-compatibility.js";
@@ -31,6 +32,7 @@ export async function promotePublicApiBaselines(
     readonly extractor: PublicApiExtractor;
     readonly fingerprint: ChangeFingerprint;
     readonly repository: PublicApiRepository;
+    readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
   }
 ): Promise<readonly PublicApiSnapshot[]> {
   const promotions: Array<{
@@ -106,12 +108,20 @@ export async function promotePublicApiBaselines(
           `Breaking API fingerprint is not approved: ${change.fingerprint ?? "missing"}.`
         );
       }
+      const baselinePath = input.policy.acceptedDecisionBaselinePath;
+      if (baselinePath === undefined) {
+        promotionError(
+          "PUBLIC_API_BASELINE_PROMOTION_DECISION_EVIDENCE_MISSING",
+          "Breaking API approval requires immutable accepted-decision evidence."
+        );
+      }
       if (
-        !(await dependencies.repository.isAcceptedDecision(
-          input.consumerRoot,
-          approval.decisionPath,
-          input.signal
-        ))
+        !(await dependencies.acceptedDecisionEvidence.hasAcceptedDecision({
+          consumerRoot: input.consumerRoot,
+          decisionPath: approval.decisionPath,
+          baselinePath,
+          ...(input.signal === undefined ? {} : { signal: input.signal })
+        }))
       ) {
         promotionError(
           "PUBLIC_API_BASELINE_PROMOTION_DECISION_NOT_ACCEPTED",

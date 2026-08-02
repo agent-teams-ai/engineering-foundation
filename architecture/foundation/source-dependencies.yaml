@@ -27,6 +27,7 @@ boundaries:
         - foundation.composition
         - foundation.core
         - foundation.local-mode
+        - foundation.schema-validation
       packages: []
       builtins:
         - node:fs/promises
@@ -52,6 +53,8 @@ boundaries:
         - capability.suppression-governance.composition
         - capability.workspace-dependencies.composition
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -62,33 +65,68 @@ boundaries:
       - packages/engineering-foundation/src/report-renderer.ts
   - id: foundation.core
     roots:
+      - packages/engineering-foundation/src/binary-string-comparator.ts
       - packages/engineering-foundation/src/capability-runtime.ts
       - packages/engineering-foundation/src/check-contract.ts
       - packages/engineering-foundation/src/errors.ts
-      - packages/engineering-foundation/src/filesystem-path-safety.ts
-      - packages/engineering-foundation/src/schema-catalog.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
-      - packages/engineering-foundation/src/strict-yaml.ts
     allow:
       boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/binary-string-comparator.ts
+      - packages/engineering-foundation/src/capability-runtime.ts
+      - packages/engineering-foundation/src/check-contract.ts
+      - packages/engineering-foundation/src/errors.ts
+      - packages/engineering-foundation/src/schema-ids.ts
+      - packages/engineering-foundation/src/semantic-version.ts
+  - id: foundation.cancellation
+    roots:
+      - packages/engineering-foundation/src/cancellation.ts
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/cancellation.ts
+  - id: foundation.repository-input
+    roots:
+      - packages/engineering-foundation/src/filesystem-path-safety.ts
+      - packages/engineering-foundation/src/strict-yaml.ts
+    allow:
+      boundaries:
+        - foundation.cancellation
+        - foundation.core
+      packages:
+        - yaml
+      builtins:
+        - node:fs
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/filesystem-path-safety.ts
+      - packages/engineering-foundation/src/strict-yaml.ts
+  - id: foundation.schema-validation
+    roots:
+      - packages/engineering-foundation/src/schema-catalog.ts
+    allow:
+      boundaries:
+        - foundation.core
       packages:
         - ajv
-        - yaml
       builtins:
         - node:fs/promises
         - node:path
         - node:url
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/capability-runtime.ts
-      - packages/engineering-foundation/src/check-contract.ts
-      - packages/engineering-foundation/src/errors.ts
-      - packages/engineering-foundation/src/filesystem-path-safety.ts
       - packages/engineering-foundation/src/schema-catalog.ts
-      - packages/engineering-foundation/src/schema-ids.ts
-      - packages/engineering-foundation/src/semantic-version.ts
-      - packages/engineering-foundation/src/strict-yaml.ts
   - id: foundation.local-mode
     roots:
       - packages/engineering-foundation/src/local-mode
@@ -101,14 +139,17 @@ boundaries:
         - yaml
       builtins:
         - node:child_process
+        - node:events
         - node:fs/promises
         - node:module
         - node:path
+        - node:timers/promises
         - node:url
         - node:util
       runtimeReferences:
         - dynamic
     entrypoints:
+      - packages/engineering-foundation/src/local-mode/index.ts
       - packages/engineering-foundation/src/local-mode/adapters/outbound/time/system-clock.ts
       - packages/engineering-foundation/src/local-mode/process-runner.ts
       - packages/engineering-foundation/src/local-mode/service.ts
@@ -142,6 +183,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.repository-input
         - foundation.source-inventory.application
       packages: []
       builtins:
@@ -156,6 +198,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.repository-input
         - foundation.workspace-inventory.application
       packages: []
       builtins:
@@ -169,12 +212,12 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/source-dependencies/application
     allow:
       boundaries:
+        - foundation.cancellation
         - foundation.core
         - foundation.source-inventory.application
         - foundation.workspace-inventory.application
       packages: []
-      builtins:
-        - node:path
+      builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/repository-path.ts
@@ -189,11 +232,14 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.repository-input
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/public-api.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-package-export-coverage.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/accepted-decision-evidence.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/change-fingerprint.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-extractor.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-repository.ts
@@ -206,6 +252,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.repository-input
       packages: []
       builtins: []
       runtimeReferences: []
@@ -221,6 +268,8 @@ boundaries:
       boundaries:
         - capability.repository-security.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -233,6 +282,7 @@ boundaries:
       boundaries:
         - capability.repository-security.application
         - foundation.core
+        - foundation.repository-input
       packages: []
       builtins:
         - node:fs/promises
@@ -261,6 +311,8 @@ boundaries:
       boundaries:
         - capability.public-api-compatibility.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -273,6 +325,8 @@ boundaries:
       boundaries:
         - capability.public-api-compatibility.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages:
         - "@microsoft/api-extractor"
         - "@microsoft/api-extractor-model"
@@ -286,6 +340,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/crypto/node-change-fingerprint.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/governance/governance-accepted-decision-evidence-acl.ts
   - id: capability.public-api-compatibility.composition
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
@@ -307,6 +362,8 @@ boundaries:
       boundaries:
         - capability.source-dependencies.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -353,6 +410,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.repository-input
         - foundation.source-inventory.application
       packages: []
       builtins: []
@@ -371,6 +429,8 @@ boundaries:
       boundaries:
         - capability.suppression-governance.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -382,6 +442,7 @@ boundaries:
     allow:
       boundaries:
         - capability.suppression-governance.application
+        - foundation.core
         - foundation.source-inventory.application
       packages:
         - oxc-parser
@@ -428,6 +489,8 @@ boundaries:
       boundaries:
         - capability.workspace-dependencies.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -477,6 +540,7 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.documentation-observation.application
+        - foundation.repository-input
       packages:
         - github-slugger
         - mdast-util-to-string
@@ -499,6 +563,7 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.documentation-observation.application
+        - foundation.repository-input
       packages: []
       builtins: []
       runtimeReferences: []
@@ -513,6 +578,8 @@ boundaries:
       boundaries:
         - capability.documentation-local-references.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -539,6 +606,7 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.documentation-observation.application
+        - foundation.repository-input
       packages: []
       builtins: []
       runtimeReferences: []
@@ -557,6 +625,8 @@ boundaries:
       boundaries:
         - capability.architecture-decisions.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -569,6 +639,7 @@ boundaries:
       boundaries:
         - capability.architecture-decisions.application
         - foundation.core
+        - foundation.repository-input
       packages:
         - proper-lockfile
       builtins:
@@ -616,6 +687,8 @@ boundaries:
       boundaries:
         - capability.contract-json-schema.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
@@ -628,6 +701,7 @@ boundaries:
       boundaries:
         - capability.contract-json-schema.application
         - foundation.core
+        - foundation.repository-input
       packages:
         - ajv
         - ajv-formats
@@ -658,13 +732,16 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.repository-input
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/model/protobuf-release-evidence.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/policies/evaluate-protobuf-evolution.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/ports/accepted-decision-evidence.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/use-cases/resolve-protobuf-evolution-policy.ts
   - id: capability.contract-protobuf.contract
     roots:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/contract
@@ -672,16 +749,34 @@ boundaries:
       boundaries:
         - capability.contract-protobuf.application
         - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/contract/config.ts
+  - id: capability.contract-protobuf.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters
+    allow:
+      boundaries:
+        - capability.architecture-decisions.composition
+        - capability.contract-protobuf.application
+        - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters/outbound/governance/governance-accepted-decision-evidence-acl.ts
   - id: capability.contract-protobuf.composition
     roots:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/module.ts
     allow:
       boundaries:
+        - capability.contract-protobuf.adapters
         - capability.contract-protobuf.application
         - capability.contract-protobuf.contract
         - foundation.core
@@ -697,6 +792,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.repository-input
       packages: []
       builtins: []
       runtimeReferences: []
@@ -710,6 +806,7 @@ boundaries:
       boundaries:
         - capability.contract-protobuf.qualification.application
         - foundation.core
+        - foundation.repository-input
       packages: []
       builtins:
         - node:child_process
@@ -739,4 +836,4 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/capabilities/property-testing-standard/test-support/deterministic-seed-bank.ts
+      - packages/engineering-foundation/src/capabilities/property-testing-standard/contract/deterministic-seed-bank.ts

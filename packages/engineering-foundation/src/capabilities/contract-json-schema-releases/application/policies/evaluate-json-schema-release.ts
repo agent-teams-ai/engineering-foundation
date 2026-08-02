@@ -62,6 +62,62 @@ function assertDigest(value: unknown, field: string): asserts value is JsonSchem
   }
 }
 
+function assertConsumerEvidenceObject(
+  candidate: unknown,
+  item: string
+): asserts candidate is Record<string, unknown> {
+  if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
+    inputError(`${item} must be an object.`);
+  }
+}
+
+function assertConsumerEvidenceIdentity(value: Record<string, unknown>, item: string): string {
+  const consumerId = value["consumerId"];
+  if (typeof consumerId !== "string" || !CONSUMER_ID.test(consumerId)) {
+    inputError(`${item}.consumerId is invalid.`);
+  }
+  if (typeof value["consumerVersion"] !== "string" || !isExactVersion(value["consumerVersion"])) {
+    inputError(`${item}.consumerVersion must be exact SemVer.`);
+  }
+  if (typeof value["contractId"] !== "string" || !CONTRACT_ID.test(value["contractId"])) {
+    inputError(`${item}.contractId is invalid.`);
+  }
+  if (
+    typeof value["contractVersion"] !== "string" ||
+    !isPublishedContractVersion(value["contractVersion"])
+  ) {
+    inputError(`${item}.contractVersion must be exact SemVer without build metadata.`);
+  }
+  return consumerId;
+}
+
+function assertConsumerEvidenceOutcome(
+  outcome: unknown,
+  item: string,
+  requirePassingEvidence: boolean
+): void {
+  if (outcome !== "passed" && outcome !== "failed") {
+    inputError(`${item}.outcome is invalid.`);
+  }
+  if (requirePassingEvidence && outcome !== "passed") {
+    inputError(`${item}.outcome must be passed for released supported consumer evidence.`);
+  }
+}
+
+function assertConsumerEvidenceItem(
+  candidate: unknown,
+  item: string,
+  requirePassingEvidence: boolean
+): string {
+  assertConsumerEvidenceObject(candidate, item);
+  const consumerId = assertConsumerEvidenceIdentity(candidate, item);
+  assertDigest(candidate["schemaSetDigest"], `${item}.schemaSetDigest`);
+  assertDigest(candidate["fixtureCorpusDigest"], `${item}.fixtureCorpusDigest`);
+  assertDigest(candidate["evidenceDigest"], `${item}.evidenceDigest`);
+  assertConsumerEvidenceOutcome(candidate["outcome"], item, requirePassingEvidence);
+  return consumerId;
+}
+
 function assertConsumerEvidence(
   values: unknown,
   field: string,
@@ -71,42 +127,12 @@ function assertConsumerEvidence(
     inputError(`${field} exceeds the supported consumer evidence limit.`);
   }
   const ids = new Set<string>();
-  const candidates: readonly unknown[] = values;
-  for (const [index, candidate] of candidates.entries()) {
-    const item = `${field}[${index}]`;
-    if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
-      inputError(`${item} must be an object.`);
-    }
-    const value = candidate as Record<string, unknown>;
-    const consumerId = value["consumerId"];
-    const consumerVersion = value["consumerVersion"];
-    const contractId = value["contractId"];
-    const contractVersion = value["contractVersion"];
-    const schemaSetDigest = value["schemaSetDigest"];
-    const fixtureCorpusDigest = value["fixtureCorpusDigest"];
-    const evidenceDigest = value["evidenceDigest"];
-    const outcome = value["outcome"];
-    if (typeof consumerId !== "string" || !CONSUMER_ID.test(consumerId)) {
-      inputError(`${item}.consumerId is invalid.`);
-    }
-    if (typeof consumerVersion !== "string" || !isExactVersion(consumerVersion)) {
-      inputError(`${item}.consumerVersion must be exact SemVer.`);
-    }
-    if (typeof contractId !== "string" || !CONTRACT_ID.test(contractId)) {
-      inputError(`${item}.contractId is invalid.`);
-    }
-    if (typeof contractVersion !== "string" || !isPublishedContractVersion(contractVersion)) {
-      inputError(`${item}.contractVersion must be exact SemVer without build metadata.`);
-    }
-    assertDigest(schemaSetDigest, `${item}.schemaSetDigest`);
-    assertDigest(fixtureCorpusDigest, `${item}.fixtureCorpusDigest`);
-    assertDigest(evidenceDigest, `${item}.evidenceDigest`);
-    if (outcome !== "passed" && outcome !== "failed") {
-      inputError(`${item}.outcome is invalid.`);
-    }
-    if (requirePassingEvidence && outcome !== "passed") {
-      inputError(`${item}.outcome must be passed for released supported consumer evidence.`);
-    }
+  for (const [index, candidate] of values.entries()) {
+    const consumerId = assertConsumerEvidenceItem(
+      candidate,
+      `${field}[${index}]`,
+      requirePassingEvidence
+    );
     if (ids.has(consumerId)) {
       inputError(`${field} has duplicate consumer evidence: ${consumerId}.`);
     }
@@ -160,6 +186,18 @@ function assertPolicy(policy: JsonSchemaReleasePolicy, observation: JsonSchemaIn
   const fixtureIds = policy.fixtures.map((fixture) => fixture.id);
   if (new Set(fixtureIds).size !== fixtureIds.length) {
     inputError("JSON Schema policy has duplicate fixture IDs.");
+  }
+  const expectations = new Set(policy.fixtures.map((fixture) => fixture.expectation));
+  if (!expectations.has("valid") || !expectations.has("invalid")) {
+    inputError("JSON Schema policy requires at least one valid and one invalid fixture.");
+  }
+  const observedFixtureIds = observation.fixtureResults.map((fixture) => fixture.id);
+  if (
+    new Set(observedFixtureIds).size !== observedFixtureIds.length ||
+    fixtureIds.toSorted(compareStrings).join("\u0000") !==
+      observedFixtureIds.toSorted(compareStrings).join("\u0000")
+  ) {
+    inputError("JSON Schema inspection must report every declared fixture exactly once.");
   }
 }
 

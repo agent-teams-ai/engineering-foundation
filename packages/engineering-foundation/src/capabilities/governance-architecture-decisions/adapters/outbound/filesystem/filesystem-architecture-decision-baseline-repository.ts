@@ -1,10 +1,8 @@
 import { createHash } from "node:crypto";
 import {
-  lstat,
   mkdir,
   mkdtemp,
   open,
-  readFile,
   realpath,
   rename,
   rm,
@@ -15,7 +13,11 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { lock } from "proper-lockfile";
 
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import { pathTraversesSymbolicLink } from "../../../../../filesystem-path-safety.js";
+import {
+  ContainedFileReadError,
+  pathTraversesSymbolicLink,
+  readContainedRegularFile
+} from "../../../../../filesystem-path-safety.js";
 import { assertNotCancelled } from "../../../../../strict-yaml.js";
 import { parseAcceptedArchitectureDecisionBaseline } from "../../../application/policies/accepted-architecture-decision-baseline.js";
 import type {
@@ -57,15 +59,6 @@ function contained(root: string, candidate: string): boolean {
   return (
     relation === "" ||
     (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`))
-  );
-}
-
-function isNotFound(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "ENOENT"
   );
 }
 
@@ -147,40 +140,39 @@ async function inspectBaseline(input: {
   if (targetIsReadResult(target)) {
     return { result: target };
   }
-  let metadata;
+  let bytes: Buffer;
   try {
-    metadata = await lstat(target.candidate);
+    bytes = await readContainedRegularFile({
+      candidate: target.candidate,
+      maxBytes: MAX_BASELINE_BYTES,
+      root: target.root
+    });
   } catch (error) {
-    return isNotFound(error)
-      ? { result: { kind: "missing" }, target }
-      : {
+    if (error instanceof ContainedFileReadError) {
+      if (error.failure === "missing") {
+        return { result: { kind: "missing" }, target };
+      }
+      if (error.failure === "invalid") {
+        return {
           result: {
-            kind: "unsafe",
-            message: "Accepted-decision baseline metadata is not available."
+            kind: "invalid",
+            message: `Accepted-decision baseline must be a regular JSON file no larger than ${MAX_BASELINE_BYTES} bytes.`
           },
           target
         };
-  }
-  if (metadata.isSymbolicLink()) {
-    return {
-      result: {
-        kind: "unsafe",
-        message: "Accepted-decision baseline must not be a symbolic link."
-      },
-      target
-    };
-  }
-  if (!metadata.isFile() || metadata.size > MAX_BASELINE_BYTES) {
-    return {
-      result: {
-        kind: "invalid",
-        message: `Accepted-decision baseline must be a regular JSON file no larger than ${MAX_BASELINE_BYTES} bytes.`
-      },
-      target
-    };
+      }
+      return {
+        result: {
+          kind: "unsafe",
+          message: "Accepted-decision baseline is unavailable, unsafe, or changed while reading."
+        },
+        target
+      };
+    }
+    throw error;
   }
   try {
-    const source = await readFile(target.candidate, "utf8");
+    const source = bytes.toString("utf8");
     assertNotCancelled(input.signal);
     return {
       result: {
@@ -304,6 +296,25 @@ async function writeAndFlushTemporaryBaseline(input: {
   }
 }
 
+async function flushParentDirectory(parent: string): Promise<void> {
+  if (process.platform === "win32") {
+    return;
+  }
+  try {
+    const handle = await open(parent, "r");
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    writeError(
+      "ARCHITECTURE_DECISION_BASELINE_WRITE_DURABILITY_FAILED",
+      "Accepted-decision baseline was replaced but its parent directory could not be flushed. Reconcile the baseline before retrying."
+    );
+  }
+}
+
 export class FilesystemArchitectureDecisionBaselineRepository
   implements ArchitectureDecisionBaselineRepository
 {
@@ -372,6 +383,7 @@ export class FilesystemArchitectureDecisionBaselineRepository
           );
         }
         await rename(temporaryPath, target.candidate);
+        await flushParentDirectory(target.parent);
         return input.expected.kind === "missing" ? "created" : "updated";
       } finally {
         await rm(temporaryDirectory, { force: true, recursive: true });

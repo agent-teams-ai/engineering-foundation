@@ -3,6 +3,7 @@ import { assertSchema } from "../../../schema-catalog.js";
 import { assertRepositoryRelativePath, loadStrictYamlFile } from "../../../strict-yaml.js";
 import type {
   AllowedWorkflowUse,
+  DependencyReviewPolicy,
   PrivilegedJobPolicy,
   RepositorySecurityPolicy,
   RepositorySecurityToolPolicies,
@@ -14,6 +15,7 @@ import type {
 import {
   configuredRepositorySecurityTools,
   flattenAllowedWorkflowUses,
+  isPinnedContainerImage,
   isPinnedExternalWorkflowUse
 } from "../application/model/repository-security.js";
 
@@ -150,6 +152,47 @@ function mapAllowedUses(value: unknown): readonly AllowedWorkflowUse[] {
   return Object.freeze(entries);
 }
 
+function mapAllowedContainerImages(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    inputError("allowedContainerImages must be an array.");
+  }
+  const images = value.map((entry, index) => {
+    const field = `allowedContainerImages[${index}]`;
+    const image = string(entry, field);
+    if (!isPinnedContainerImage(image)) {
+      inputError(`${field} must be an immutable container image digest.`);
+    }
+    return image;
+  });
+  if (new Set(images).size !== images.length) {
+    inputError("allowedContainerImages entries must be unique.");
+  }
+  return Object.freeze(images);
+}
+
+function mapDependencyReview(value: unknown): DependencyReviewPolicy {
+  const input = record(value, "dependencyReview");
+  const baseRef = string(input["baseRef"], "dependencyReview.baseRef");
+  const headRef = string(input["headRef"], "dependencyReview.headRef");
+  if (baseRef.trim().length === 0 || headRef.trim().length === 0 || baseRef === headRef) {
+    inputError("dependencyReview baseRef and headRef must be distinct non-empty expressions.");
+  }
+  const failOnSeverity = string(
+    input["failOnSeverity"],
+    "dependencyReview.failOnSeverity"
+  );
+  if (failOnSeverity !== "low" && failOnSeverity !== "moderate") {
+    inputError("dependencyReview.failOnSeverity must be low or moderate.");
+  }
+  return Object.freeze({
+    baseRef,
+    failOnSeverity,
+    headRef,
+    jobId: string(input["jobId"], "dependencyReview.jobId"),
+    workflowPath: path(input["workflowPath"], "dependencyReview.workflowPath")
+  });
+}
+
 function mapPrivilegedJob(value: unknown, index: number): PrivilegedJobPolicy {
   const field = `privilegedJobs[${index}]`;
   const input = record(value, field);
@@ -185,12 +228,9 @@ export async function loadCapabilityConfig(
   await assertSchema("repository-security-baseline/v1", input, "repository-security-config");
   const root = record(input, "repository security config");
   const workflowDirectory = path(root["workflowDirectory"], "workflowDirectory");
-  const dependencyReviewWorkflow = path(
-    root["dependencyReviewWorkflow"],
-    "dependencyReviewWorkflow"
-  );
+  const dependencyReview = mapDependencyReview(root["dependencyReview"]);
   const sbomWorkflow = path(root["sbomWorkflow"], "sbomWorkflow");
-  for (const governedWorkflow of [dependencyReviewWorkflow, sbomWorkflow]) {
+  for (const governedWorkflow of [dependencyReview.workflowPath, sbomWorkflow]) {
     if (!governedWorkflow.startsWith(`${workflowDirectory}/`)) {
       inputError(`${governedWorkflow} must be inside workflowDirectory.`);
     }
@@ -210,24 +250,22 @@ export async function loadCapabilityConfig(
       inputError(`Privileged workflow must be inside ${workflowDirectory}: ${privileged.workflowPath}.`);
     }
   }
-  const allowedUses =
-    root["allowedUses"] === undefined ? undefined : mapAllowedUses(root["allowedUses"]);
+  const allowedUses = mapAllowedUses(root["allowedUses"]);
+  const allowedContainerImages = mapAllowedContainerImages(root["allowedContainerImages"]);
   const toolEvidence =
     root["toolEvidence"] === undefined
       ? undefined
       : mapToolEvidencePolicies(root["toolEvidence"]);
-  if (toolEvidence !== undefined && allowedUses === undefined) {
-    inputError("toolEvidence requires an explicit allowedUses declaration.");
-  }
   for (const tool of configuredRepositorySecurityTools(toolEvidence)) {
     if (!tool.policy.workflowPath.startsWith(`${workflowDirectory}/`)) {
       inputError(`${tool.policy.workflowPath} must be inside workflowDirectory.`);
     }
   }
   return Object.freeze({
-    ...(allowedUses === undefined ? {} : { allowedUses }),
+    allowedContainerImages,
+    allowedUses,
     workflowDirectory,
-    dependencyReviewWorkflow,
+    dependencyReview,
     sbomWorkflow,
     privilegedJobs: Object.freeze(privilegedJobs),
     publishablePackageManifests: Object.freeze(

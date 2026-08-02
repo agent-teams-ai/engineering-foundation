@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
-import { readFile, realpath, stat } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { realpath, stat } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
+import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import { pathTraversesSymbolicLink } from "../../../../../filesystem-path-safety.js";
+import {
+  ContainedFileReadError,
+  readContainedRegularFile
+} from "../../../../../filesystem-path-safety.js";
 import { assertNotCancelled, assertRepositoryRelativePath } from "../../../../../strict-yaml.js";
 import type {
   JsonSchemaDigest,
@@ -46,11 +50,6 @@ function hasControlCharacter(value: string): boolean {
   return false;
 }
 
-function contained(root: string, candidate: string): boolean {
-  const relation = relative(root, candidate);
-  return relation === "" || (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`));
-}
-
 function record(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     inputError("JSON_SCHEMA_DOCUMENT_INVALID", `${field} must be a JSON object.`);
@@ -60,10 +59,6 @@ function record(value: unknown, field: string): Record<string, unknown> {
 
 function digest(value: string): JsonSchemaDigest {
   return `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
-}
-
-function compareStrings(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function canonicalJson(value: unknown): string {
@@ -84,7 +79,7 @@ function canonicalJson(value: unknown): string {
   }
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>).toSorted(([left], [right]) =>
-      compareStrings(left, right)
+      compareBinaryStrings(left, right)
     );
     return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
   }
@@ -96,25 +91,33 @@ async function safeJsonFile(root: string, repositoryPath: string): Promise<unkno
   if (!repositoryPath.endsWith(".json")) {
     inputError("JSON_SCHEMA_PATH_INVALID", `JSON evidence path must end with .json: ${repositoryPath}.`);
   }
-  const candidate = resolve(root, repositoryPath);
-  if (await pathTraversesSymbolicLink(root, candidate)) {
-    inputError(
-      "JSON_SCHEMA_SYMLINK_PROHIBITED",
-      `JSON evidence cannot traverse a symbolic link: ${repositoryPath}.`
-    );
-  }
-  const canonical = await realpath(candidate).catch(() =>
-    inputError("JSON_SCHEMA_FILE_UNAVAILABLE", `JSON evidence is unavailable: ${repositoryPath}.`)
-  );
-  if (!contained(root, canonical)) {
-    inputError("JSON_SCHEMA_PATH_ESCAPE", `JSON evidence escapes the consumer root: ${repositoryPath}.`);
-  }
-  const metadata = await stat(canonical);
-  if (!metadata.isFile() || metadata.size > MAX_JSON_BYTES) {
-    inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is not a supported file: ${repositoryPath}.`);
+  let bytes: Buffer;
+  try {
+    bytes = await readContainedRegularFile({
+      candidate: resolve(root, repositoryPath),
+      maxBytes: MAX_JSON_BYTES,
+      root
+    });
+  } catch (error) {
+    if (error instanceof ContainedFileReadError) {
+      if (error.failure === "escape") {
+        inputError("JSON_SCHEMA_PATH_ESCAPE", `JSON evidence escapes the consumer root: ${repositoryPath}.`);
+      }
+      if (error.failure === "symlink") {
+        inputError(
+          "JSON_SCHEMA_SYMLINK_PROHIBITED",
+          `JSON evidence cannot traverse a symbolic link: ${repositoryPath}.`
+        );
+      }
+      if (error.failure === "invalid") {
+        inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is not a supported file: ${repositoryPath}.`);
+      }
+      inputError("JSON_SCHEMA_FILE_UNAVAILABLE", `JSON evidence is unavailable: ${repositoryPath}.`);
+    }
+    throw error;
   }
   try {
-    return JSON.parse(await readFile(canonical, "utf8")) as unknown;
+    return JSON.parse(bytes.toString("utf8")) as unknown;
   } catch {
     inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is invalid: ${repositoryPath}.`);
   }
@@ -186,6 +189,7 @@ function assertLocalReferences(
 
 function assertFixtures(fixtures: readonly JsonSchemaFixture[]): void {
   const ids = new Set<string>();
+  const expectations = new Set<JsonSchemaFixture["expectation"]>();
   for (const fixture of fixtures) {
     if (!FIXTURE_ID.test(fixture.id) || ids.has(fixture.id)) {
       inputError("JSON_SCHEMA_FIXTURE_INVALID", "Fixture IDs must be unique normalized identifiers.");
@@ -196,9 +200,16 @@ function assertFixtures(fixtures: readonly JsonSchemaFixture[]): void {
     if (expectation !== "valid" && expectation !== "invalid") {
       inputError("JSON_SCHEMA_FIXTURE_INVALID", `Fixture expectation is invalid: ${fixture.id}.`);
     }
+    expectations.add(expectation);
     if (typeof fixture.schemaId !== "string" || fixture.schemaId.length === 0) {
       inputError("JSON_SCHEMA_FIXTURE_INVALID", `Fixture schemaId is invalid: ${fixture.id}.`);
     }
+  }
+  if (!expectations.has("valid") || !expectations.has("invalid")) {
+    inputError(
+      "JSON_SCHEMA_FIXTURE_CORPUS_INCOMPLETE",
+      "Fixture corpus must contain at least one valid and one invalid example."
+    );
   }
 }
 
@@ -228,7 +239,7 @@ function schemaSetDigest(documents: readonly SchemaDocument[]): JsonSchemaDigest
     canonicalJson(
       documents
         .map((document) => ({ id: document.id, schema: document.value }))
-        .toSorted((left, right) => compareStrings(left.id, right.id))
+        .toSorted((left, right) => compareBinaryStrings(left.id, right.id))
     )
   );
 }
@@ -246,7 +257,7 @@ function fixtureCorpusDigest(
           expectation: fixture.expectation,
           value: values.get(fixture.id)
         }))
-        .toSorted((left, right) => left.id.localeCompare(right.id))
+        .toSorted((left, right) => compareBinaryStrings(left.id, right.id))
     )
   );
 }
@@ -273,7 +284,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
       inputError("CONSUMER_ROOT_INVALID", "Consumer root must be a directory.");
     }
     const documents: SchemaDocument[] = [];
-    for (const path of input.schemaPaths.toSorted(compareStrings)) {
+    for (const path of input.schemaPaths.toSorted(compareBinaryStrings)) {
       assertNotCancelled(input.signal);
       const value = record(await safeJsonFile(root, path), `schema ${path}`);
       if (value["$schema"] !== DRAFT_2020_12) {
@@ -295,7 +306,9 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     const ajv = compileSchemas(documents);
     const fixtureValues = new Map<string, unknown>();
     const fixtureResults: JsonSchemaFixtureResult[] = [];
-    for (const fixture of input.fixtures.toSorted((left, right) => compareStrings(left.id, right.id))) {
+    for (const fixture of input.fixtures.toSorted((left, right) =>
+      compareBinaryStrings(left.id, right.id)
+    )) {
       assertNotCancelled(input.signal);
       const value = await safeJsonFile(root, fixture.path);
       fixtureValues.set(fixture.id, value);
@@ -316,7 +329,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     const output = {
       schemaSetDigest: schemaSetDigest(documents),
       fixtureCorpusDigest: fixtureCorpusDigest(input.fixtures, fixtureValues),
-      schemaIds: Object.freeze(schemaIds.toSorted(compareStrings)),
+      schemaIds: Object.freeze(schemaIds.toSorted(compareBinaryStrings)),
       fixtureResults: Object.freeze(fixtureResults.map((result) => Object.freeze(result)))
     } as const;
     if (!SHA256_DIGEST.test(output.schemaSetDigest) || !SHA256_DIGEST.test(output.fixtureCorpusDigest)) {

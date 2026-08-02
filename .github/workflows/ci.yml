@@ -15,8 +15,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-review:
+    name: dependency-review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          base-ref: ${{ github.event.pull_request.base.sha || github.event.before || github.event.repository.default_branch }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fail-on-severity: moderate
+          vulnerability-check: true
+          warn-only: false
+
   check:
     name: check
+    needs: dependency-review
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -31,17 +50,10 @@ jobs:
         with:
           node-version-file: .node-version
           cache: pnpm
-      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
-        with:
-          aqua_version: v2.62.3
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Validate GitHub Actions
         run: pnpm security:workflows
-      - run: pnpm install --frozen-lockfile
-      - name: Review dependency changes
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
-        with:
-          base-ref: ${{ github.event.before || github.event.repository.default_branch }}
-          head-ref: ${{ github.sha }}
+      - run: pnpm rebuild
       - run: pnpm check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
@@ -56,6 +68,7 @@ jobs:
 
   windows-check:
     name: windows-check
+    needs: dependency-review
     runs-on: windows-2022
     timeout-minutes: 15
     steps:

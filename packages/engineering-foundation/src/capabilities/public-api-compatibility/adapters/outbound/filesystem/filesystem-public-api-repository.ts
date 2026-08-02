@@ -19,9 +19,17 @@ import {
   assertNotCancelled,
   parseStrictYamlSource
 } from "../../../../../strict-yaml.js";
-import { compareCanonicalReferences } from "../../../application/model/public-api.js";
+import {
+  compareCanonicalReferences,
+  publicApiBaselineAnchorPath
+} from "../../../application/model/public-api.js";
+import {
+  assertPackageExportCoverage,
+  PackageExportCoverageError
+} from "../../../application/policies/validate-package-export-coverage.js";
 import type {
   PackageReleaseEvidence,
+  PublicApiEntrypointSnapshot,
   PublicApiItem,
   PublicApiPackagePolicy,
   PublicApiSnapshot,
@@ -119,6 +127,148 @@ function mapItem(value: unknown, index: number): PublicApiItem {
   });
 }
 
+function baselineSchemaId(policy: PublicApiPackagePolicy):
+  | "package-public-api-baseline/v1"
+  | "package-public-api-baseline/v2" {
+  return "entrypoints" in policy
+    ? "package-public-api-baseline/v2"
+    : "package-public-api-baseline/v1";
+}
+
+function validateSortedItems(items: readonly PublicApiItem[]): void {
+  const references = items.map((item) => item.canonicalReference);
+  const sortedReferences = references.toSorted(compareCanonicalReferences);
+  if (
+    new Set(references).size !== references.length ||
+    references.some((value, index) => value !== sortedReferences[index])
+  ) {
+    inputError(
+      "PUBLIC_API_BASELINE_INVALID",
+      "Released API baseline items must have unique sorted canonical references.",
+      "public-api-evidence"
+    );
+  }
+}
+
+function mapEntrypoint(value: unknown, index: number): PublicApiEntrypointSnapshot {
+  const entrypoint = record(value, `entrypoints[${index}]`);
+  const itemsInput = entrypoint["items"];
+  if (!Array.isArray(itemsInput)) {
+    inputError(
+      "PUBLIC_API_BASELINE_INVALID",
+      `Released API baseline entrypoints[${index}].items must be an array.`,
+      "public-api-evidence"
+    );
+  }
+  const items = itemsInput.map(mapItem);
+  validateSortedItems(items);
+  return Object.freeze({
+    exportPath: String(entrypoint["exportPath"]),
+    items: Object.freeze(items)
+  });
+}
+
+function validateSortedEntrypoints(
+  entrypoints: readonly PublicApiEntrypointSnapshot[]
+): void {
+  const paths = entrypoints.map((entrypoint) => entrypoint.exportPath);
+  const sortedPaths = paths.toSorted(compareCanonicalReferences);
+  if (
+    new Set(paths).size !== paths.length ||
+    paths.some((value, index) => value !== sortedPaths[index])
+  ) {
+    inputError(
+      "PUBLIC_API_BASELINE_INVALID",
+      "Released API baseline entrypoints must have unique sorted export paths.",
+      "public-api-evidence"
+    );
+  }
+}
+
+function baselineIdentity(
+  baseline: Record<string, unknown>,
+  policy: PublicApiPackagePolicy
+): { readonly packageName: string; readonly packageVersion: string } {
+  const packageName = String(baseline["packageName"]);
+  if (packageName !== policy.packageName) {
+    inputError(
+      "PUBLIC_API_BASELINE_INVALID",
+      `Released API baseline package does not match ${policy.packageName}.`,
+      "public-api-evidence"
+    );
+  }
+  const packageVersion = String(baseline["packageVersion"]);
+  if (!isExactVersion(packageVersion)) {
+    inputError(
+      "PUBLIC_API_BASELINE_INVALID",
+      `Released API baseline version is not exact SemVer: ${packageVersion}.`,
+      "public-api-evidence"
+    );
+  }
+  return Object.freeze({ packageName, packageVersion });
+}
+
+function mapReleasedBaseline(
+  input: unknown,
+  policy: PublicApiPackagePolicy
+): PublicApiSnapshot {
+  const baseline = record(input, "released API baseline");
+  const identity = baselineIdentity(baseline, policy);
+  const extractorVersion = String(baseline["extractorVersion"]);
+  if ("entrypoints" in policy) {
+    const entrypointsInput = baseline["entrypoints"];
+    if (!Array.isArray(entrypointsInput)) {
+      inputError(
+        "PUBLIC_API_BASELINE_INVALID",
+        "Released API baseline entrypoints must be an array.",
+        "public-api-evidence"
+      );
+    }
+    const entrypoints = entrypointsInput.map(mapEntrypoint);
+    validateSortedEntrypoints(entrypoints);
+    return Object.freeze({
+      schemaVersion: 2,
+      ...identity,
+      extractorVersion,
+      entrypoints: Object.freeze(entrypoints)
+    });
+  }
+  const itemsInput = baseline["items"];
+  if (!Array.isArray(itemsInput)) {
+    inputError(
+      "PUBLIC_API_BASELINE_INVALID",
+      "Released API baseline items must be an array.",
+      "public-api-evidence"
+    );
+  }
+  const items = itemsInput.map(mapItem);
+  validateSortedItems(items);
+  return Object.freeze({
+    schemaVersion: 1,
+    ...identity,
+    extractorVersion,
+    items: Object.freeze(items)
+  });
+}
+
+function baselineMatchesPolicy(
+  snapshot: PublicApiSnapshot,
+  policy: PublicApiPackagePolicy
+): boolean {
+  return ("entrypoints" in policy) === (snapshot.schemaVersion === 2);
+}
+
+function assertBaselineAnchor(policy: PublicApiPackagePolicy): void {
+  const expected = publicApiBaselineAnchorPath(policy.packageName);
+  if (policy.releasedBaselinePath !== expected) {
+    inputError(
+      "PUBLIC_API_BASELINE_ANCHOR_INVALID",
+      `Released baseline path must use the stable package anchor: ${expected}.`,
+      "public-api-evidence"
+    );
+  }
+}
+
 function strongerBump(
   current: ReleaseBump | undefined,
   candidate: unknown
@@ -195,6 +345,7 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
     signal?: AbortSignal
   ): Promise<PublicApiSnapshot> {
     assertNotCancelled(signal);
+    assertBaselineAnchor(policy);
     const root = await canonicalRoot(consumerRoot);
     const baselinePath = await safePath(root, policy.releasedBaselinePath, "file");
     let input: unknown;
@@ -207,59 +358,8 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         "public-api-evidence"
       );
     }
-    await assertSchema(
-      "package-public-api-baseline/v1",
-      input,
-      "public-api-baseline"
-    );
-    const baseline = record(input, "released API baseline");
-    const itemsInput = baseline["items"];
-    if (!Array.isArray(itemsInput)) {
-      inputError(
-        "PUBLIC_API_BASELINE_INVALID",
-        "Released API baseline items must be an array.",
-        "public-api-evidence"
-      );
-    }
-    const items = itemsInput.map(mapItem);
-    const references = items.map((item) => item.canonicalReference);
-    const sortedReferences = references.toSorted(compareCanonicalReferences);
-    if (
-      new Set(references).size !== references.length ||
-      references.some(
-        (value, index) =>
-          value !== sortedReferences[index]
-      )
-    ) {
-      inputError(
-        "PUBLIC_API_BASELINE_INVALID",
-        "Released API baseline items must have unique sorted canonical references.",
-        "public-api-evidence"
-      );
-    }
-    const packageName = String(baseline["packageName"]);
-    if (packageName !== policy.packageName) {
-      inputError(
-        "PUBLIC_API_BASELINE_INVALID",
-        `Released API baseline package does not match ${policy.packageName}.`,
-        "public-api-evidence"
-      );
-    }
-    const packageVersion = String(baseline["packageVersion"]);
-    if (!isExactVersion(packageVersion)) {
-      inputError(
-        "PUBLIC_API_BASELINE_INVALID",
-        `Released API baseline version is not exact SemVer: ${packageVersion}.`,
-        "public-api-evidence"
-      );
-    }
-    return Object.freeze({
-      schemaVersion: 1,
-      packageName,
-      packageVersion,
-      extractorVersion: String(baseline["extractorVersion"]),
-      items: Object.freeze(items)
-    });
+    await assertSchema(baselineSchemaId(policy), input, "public-api-baseline");
+    return mapReleasedBaseline(input, policy);
   }
 
   async readReleaseEvidence(
@@ -298,35 +398,24 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         "public-api-evidence"
       );
     }
+    try {
+      assertPackageExportCoverage({ manifest, policy });
+    } catch (error) {
+      if (error instanceof PackageExportCoverageError) {
+        inputError(
+          "PUBLIC_API_PACKAGE_EXPORTS_INVALID",
+          error.message,
+          "public-api-evidence"
+        );
+      }
+      throw error;
+    }
     const bump = await declaredBump(changesetPath, policy.packageName, signal);
     return {
       packageName: policy.packageName,
       packageVersion,
       ...(bump === undefined ? {} : { declaredBump: bump })
     };
-  }
-
-  async isAcceptedDecision(
-    consumerRoot: string,
-    decisionPath: string,
-    signal?: AbortSignal
-  ): Promise<boolean> {
-    assertNotCancelled(signal);
-    const root = await canonicalRoot(consumerRoot);
-    const source = await readFile(await safePath(root, decisionPath, "file"), "utf8");
-    const metadataLines = source.replaceAll("\r\n", "\n").split("\n").slice(0, 30);
-    const heading = metadataLines[0] ?? "";
-    const sectionBoundary = metadataLines.findIndex(
-      (line, index) => index > 0 && line.startsWith("## ")
-    );
-    const firstSection = metadataLines.slice(
-      0,
-      sectionBoundary === -1 ? metadataLines.length : sectionBoundary
-    );
-    return (
-      /^# ADR-[0-9]{4}:/u.test(heading) &&
-      firstSection.some((line) => line.trim() === "Status: Accepted")
-    );
   }
 
   async writeReleasedBaseline(
@@ -336,10 +425,18 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
     signal?: AbortSignal
   ): Promise<void> {
     assertNotCancelled(signal);
+    assertBaselineAnchor(policy);
     const root = await canonicalRoot(consumerRoot);
     const baselinePath = await safePath(root, policy.releasedBaselinePath, "file");
+    if (!baselineMatchesPolicy(snapshot, policy)) {
+      inputError(
+        "PUBLIC_API_BASELINE_INVALID",
+        "Public API snapshot schema does not match the configured package policy.",
+        "public-api-baseline-promotion"
+      );
+    }
     await assertSchema(
-      "package-public-api-baseline/v1",
+      baselineSchemaId(policy),
       snapshot,
       "public-api-baseline-promotion"
     );

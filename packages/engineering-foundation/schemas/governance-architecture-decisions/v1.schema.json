@@ -32,7 +32,7 @@
         }
       }
     },
-    "acceptedBaselinePath": { "$ref": "#/$defs/repositoryJsonPath" }
+    "acceptedBaselinePath": { "const": "architecture/decisions/accepted-decisions.json" }
   },
   "$defs": {
     "repositoryDirectory": {

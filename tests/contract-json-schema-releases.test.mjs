@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import {
   mkdir,
   mkdtemp,
+  lstat,
+  open,
   readFile,
+  realpath,
   rm,
+  stat,
   symlink,
   unlink,
   writeFile,
@@ -28,9 +32,27 @@ const jsonSchemaModule = await import(
     join(distRoot, "capabilities", "contract-json-schema-releases", "module.js"),
   ).href,
 );
+const jsonSchemaConfig = await import(
+  pathToFileURL(
+    join(
+      distRoot,
+      "capabilities",
+      "contract-json-schema-releases",
+      "contract",
+      "config.js",
+    ),
+  ).href,
+);
+const filesystemPathSafety = await import(
+  pathToFileURL(join(distRoot, "filesystem-path-safety.js")).href,
+);
 
 function digest(character) {
   return `sha256:${character.repeat(64)}`;
+}
+
+function containedFileReadOperations(overrides = {}) {
+  return { lstat, open, realpath, stat, ...overrides };
 }
 
 async function writeJson(root, path, value) {
@@ -144,7 +166,7 @@ function releasedBaseline(observation) {
   return policy(observation).released;
 }
 
-function capabilityConfig(observation, releasedBaselinePath = "baselines/released.yaml") {
+function capabilityConfig(observation, releasedBaselinePath = "architecture/contracts/released.yaml") {
   const normalized = policy(observation);
   return {
     schemaVersion: normalized.schemaVersion,
@@ -166,7 +188,7 @@ async function writeYaml(root, path, value) {
 async function writeSeparatedPolicy(
   root,
   observation,
-  releasedBaselinePath = "baselines/released.yaml",
+  releasedBaselinePath = "architecture/contracts/released.yaml",
 ) {
   if (releasedBaselinePath.endsWith(".json")) {
     await writeJson(root, releasedBaselinePath, releasedBaseline(observation));
@@ -200,6 +222,111 @@ test("uses Ajv strict 2020-12 over an explicit local schema set and fixture corp
       inspector,
     );
     assert.deepEqual(result.diagnostics, []);
+  });
+});
+
+test("fails closed when a contained JSON file grows after descriptor validation", async () => {
+  await withContractFixture(async (root) => {
+    const candidate = join(root, "fixtures", "mutable.json");
+    await writeFile(candidate, "{}", "utf8");
+    let mutated = false;
+
+    await assert.rejects(
+      filesystemPathSafety.readContainedRegularFile(
+        { candidate, maxBytes: 8, root },
+        containedFileReadOperations({
+          async open(path, flags) {
+            const handle = await open(path, flags);
+            return {
+              close: () => handle.close(),
+              async read(...arguments_) {
+                if (!mutated) {
+                  mutated = true;
+                  await writeFile(candidate, "123456789", "utf8");
+                }
+                return handle.read(...arguments_);
+              },
+              stat: () => handle.stat(),
+            };
+          },
+        }),
+      ),
+      (error) => {
+        assert.ok(error instanceof filesystemPathSafety.ContainedFileReadError);
+        assert.equal(error.failure, "changed");
+        return true;
+      },
+    );
+    assert.equal(mutated, true);
+  });
+});
+
+test("fails closed when the named JSON file identity changes after descriptor validation", async () => {
+  await withContractFixture(async (root) => {
+    const candidate = join(root, "fixtures", "identity.json");
+    await writeFile(candidate, "{}", "utf8");
+    let candidateStats = 0;
+
+    await assert.rejects(
+      filesystemPathSafety.readContainedRegularFile(
+        { candidate, maxBytes: 8, root },
+        containedFileReadOperations({
+          async stat(path) {
+            const metadata = await stat(path);
+            if (
+              !path.replaceAll("\\", "/").endsWith("/fixtures/identity.json") ||
+              ++candidateStats !== 2
+            ) {
+              return metadata;
+            }
+            return Object.create(metadata, {
+              ino: { configurable: true, value: metadata.ino + 1 },
+            });
+          },
+        }),
+      ),
+      (error) => {
+        assert.ok(error instanceof filesystemPathSafety.ContainedFileReadError);
+        assert.equal(error.failure, "changed");
+        return true;
+      },
+    );
+    assert.equal(candidateStats, 2);
+  });
+});
+
+test("requires both positive and negative JSON Schema release fixtures", async () => {
+  await withContractFixture(async (root) => {
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const observation = await inspector.inspect(request(root));
+    await assert.rejects(
+      inspector.inspect({ ...request(root), fixtures: [] }),
+      /at least one valid and one invalid example/u,
+    );
+    await assert.rejects(
+      inspector.inspect({ ...request(root), fixtures: [request(root).fixtures[1]] }),
+      /at least one valid and one invalid example/u,
+    );
+    const directPolicy = policy(observation);
+    directPolicy.fixtures = [];
+    assert.throws(
+      () => jsonSchemaModule.evaluateJsonSchemaRelease(directPolicy, observation),
+      /at least one valid and one invalid fixture/u,
+    );
+  });
+});
+
+test("rejects a JSON Schema released-baseline pointer outside the release-owned anchor", async () => {
+  await withContractFixture(async (root) => {
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const observation = await inspector.inspect(request(root));
+    await writeSeparatedPolicy(root, observation);
+    const config = capabilityConfig(observation, "tmp/reset-history.yaml");
+    await writeYaml(root, "contract.yaml", config);
+    await assert.rejects(
+      jsonSchemaConfig.loadCapabilityConfig(root, "contract.yaml"),
+      /releasedBaselinePath must match pattern/u,
+    );
   });
 });
 
@@ -340,7 +467,7 @@ test("runs as a deterministic capability and closes unexpected inspector failure
   await withContractFixture(async (root) => {
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
     const observation = await inspector.inspect(request(root));
-    await writeSeparatedPolicy(root, observation, "baselines/released.json");
+    await writeSeparatedPolicy(root, observation, "architecture/contracts/released.json");
     const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -501,20 +628,20 @@ test("rejects missing, escaping, and invalid released JSON Schema baselines", as
     const external = await mkdtemp(join(tmpdir(), "foundation-json-schema-baseline-external-"));
     try {
       await writeYaml(external, "released.yaml", releasedBaseline(observation));
-      await mkdir(join(root, "baselines"), { recursive: true });
+      await mkdir(join(root, "architecture", "contracts"), { recursive: true });
       await symlink(
         join(external, "released.yaml"),
-        join(root, "baselines", "released.yaml"),
+        join(root, "architecture", "contracts", "released.yaml"),
       );
       const unsafe = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
       assert.equal(unsafe.outcome, "invalid-input");
-      assert.equal(unsafe.problem.code, "CONFIG_PATH_ESCAPE");
-      await unlink(join(root, "baselines", "released.yaml"));
+      assert.equal(unsafe.problem.code, "CONFIG_SYMLINK_PROHIBITED");
+      await unlink(join(root, "architecture", "contracts", "released.yaml"));
     } finally {
       await rm(external, { force: true, recursive: true });
     }
 
-    await writeYaml(root, "baselines/released.yaml", { schemaVersion: 1 });
+    await writeYaml(root, "architecture/contracts/released.yaml", { schemaVersion: 1 });
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(invalid.outcome, "invalid-input");
     assert.equal(invalid.problem.code, "SCHEMA_INVALID");

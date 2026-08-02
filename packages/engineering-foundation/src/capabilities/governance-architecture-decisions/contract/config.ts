@@ -118,8 +118,10 @@ export async function loadCapabilityConfig(
     acceptedBaselinePath,
     "architecture-decision-governance-config"
   );
-  if (!acceptedBaselinePath.endsWith(".json")) {
-    inputError("acceptedBaselinePath must name a JSON file.");
+  if (acceptedBaselinePath !== "architecture/decisions/accepted-decisions.json") {
+    inputError(
+      "acceptedBaselinePath must use the stable architecture/decisions/accepted-decisions.json anchor."
+    );
   }
   return Object.freeze({
     acceptedBaselinePath,

@@ -32,7 +32,7 @@
     "parser-spike:check": "pnpm --filter @agent-teams/source-dependency-parser-spike run check",
     "release:publish": "pnpm check && changeset publish",
     "release-owned-files:check": "node scripts/check-release-owned-files.mjs",
-    "security:workflows": "aqua exec -- actionlint && aqua exec -- zizmor --offline --strict-collection --persona pedantic --min-severity medium --min-confidence medium .",
+    "security:workflows": "node scripts/security-toolchain.mjs",
     "release:version": "changeset version && pnpm build && node packages/engineering-foundation/dist/cli.js public-api-promote-release --consumer .",
     "spike:source-parser": "pnpm --filter @agent-teams/source-dependency-parser-spike run spike",
     "test": "pnpm build && pnpm test:built",

@@ -17,6 +17,7 @@ async function loadDistModule(path) {
 
 const [
   { buildObservedSourceGraph },
+  { analyzeSourceDependencies },
   { evaluateSourceDependencies },
   { evaluateSourceDependencyCycles },
   { NodeSourceDependencyResolver },
@@ -24,6 +25,9 @@ const [
 ] = await Promise.all([
   loadDistModule(
     "capabilities/source-dependencies/application/use-cases/build-observed-source-graph.js",
+  ),
+  loadDistModule(
+    "capabilities/source-dependencies/application/use-cases/analyze-source-dependencies.js",
   ),
   loadDistModule(
     "capabilities/source-dependencies/application/policies/evaluate-source-dependencies.js",
@@ -100,6 +104,31 @@ function sourceReference(kind, specifier, start) {
 
 function byRule(diagnostics, ruleId) {
   return diagnostics.filter((diagnostic) => diagnostic.ruleId === ruleId);
+}
+
+function sourceAnalysisDependencies({ files, parsedSource, resolution, workspacePackage: packageValue }) {
+  return Object.freeze({
+    inventoryReader: Object.freeze({
+      async read() {
+        return Object.freeze({ packages: Object.freeze([packageValue]) });
+      },
+    }),
+    parser: Object.freeze({
+      parse() {
+        return parsedSource;
+      },
+    }),
+    resolver: Object.freeze({
+      resolve() {
+        return resolution;
+      },
+    }),
+    sourceReader: Object.freeze({
+      async read() {
+        return files;
+      },
+    }),
+  });
 }
 
 function evidence(diagnostic, kind) {
@@ -310,6 +339,79 @@ test("blocks package-name imports back into the importing workspace package", ()
       "architecture.source-dependencies.self-package-import-boundary-unresolved",
     ).length,
     1,
+  );
+});
+
+test("classifies a multi-root boundary from only roots that match the file", async () => {
+  const appPackage = workspacePackage("@fixture/app", "packages/app");
+  const broadBoundary = boundary("app.surface", [
+    "packages/app/src",
+    "packages/unrelated/deeply/nested/nonmatching",
+  ]);
+  const specificBoundary = boundary("app.feature", ["packages/app/src/feature"], {
+    builtins: ["node:path"],
+  });
+  const files = Object.freeze([
+    Object.freeze({
+      path: "packages/app/src/feature/handler.ts",
+      source: 'import { join } from "node:path";\nvoid join;\n',
+    }),
+  ]);
+
+  const diagnostics = await analyzeSourceDependencies(
+    {
+      consumerRoot: ".",
+      policy: policy(2, [broadBoundary, specificBoundary]),
+    },
+    sourceAnalysisDependencies({
+      files,
+      parsedSource: parsed([sourceReference("static", "node:path", 0)]),
+      resolution: Object.freeze({ kind: "builtin", specifier: "node:path" }),
+      workspacePackage: appPackage,
+    }),
+  );
+
+  assert.deepEqual(diagnostics, []);
+});
+
+test("keeps schema v1's lexical tie fallback but rejects a v2 boundary tie", async () => {
+  const appPackage = workspacePackage("@fixture/app", "packages/app");
+  const alpha = boundary("app.alpha", ["packages/app/src"], {
+    builtins: ["node:path"],
+  });
+  const zulu = boundary("app.zulu", ["packages/app/src"]);
+  const files = Object.freeze([
+    Object.freeze({
+      path: "packages/app/src/handler.ts",
+      source: 'import { join } from "node:path";\nvoid join;\n',
+    }),
+  ]);
+  const dependencies = sourceAnalysisDependencies({
+    files,
+    parsedSource: parsed([sourceReference("static", "node:path", 0)]),
+    resolution: Object.freeze({ kind: "builtin", specifier: "node:path" }),
+    workspacePackage: appPackage,
+  });
+
+  const v1Diagnostics = await analyzeSourceDependencies(
+    {
+      consumerRoot: ".",
+      policy: policy(1, [zulu, alpha]),
+    },
+    dependencies,
+  );
+  assert.deepEqual(v1Diagnostics, []);
+
+  await assert.rejects(
+    () =>
+      analyzeSourceDependencies(
+        {
+          consumerRoot: ".",
+          policy: policy(2, [zulu, alpha]),
+        },
+        dependencies,
+      ),
+    (error) => error?.problem?.code === "SOURCE_BOUNDARY_AMBIGUOUS",
   );
 });
 

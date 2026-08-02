@@ -1,3 +1,7 @@
+import {
+  compareBinaryStrings,
+  compareBinaryStringSequences
+} from "../../../../binary-string-comparator.js";
 import type { DiagnosticEvidence, FoundationDiagnostic } from "../../../../check-contract.js";
 import type {
   ObservedSourceDependencyEdge,
@@ -50,10 +54,10 @@ function diagnostic(input: {
 
 function compareLogicalEdges(left: LogicalEdge, right: LogicalEdge): number {
   return (
-    left.from.localeCompare(right.from) ||
-    left.to.localeCompare(right.to) ||
-    left.sourcePath.localeCompare(right.sourcePath) ||
-    (left.targetPath ?? "").localeCompare(right.targetPath ?? "")
+    compareBinaryStrings(left.from, right.from) ||
+    compareBinaryStrings(left.to, right.to) ||
+    compareBinaryStrings(left.sourcePath, right.sourcePath) ||
+    compareBinaryStrings(left.targetPath ?? "", right.targetPath ?? "")
   );
 }
 
@@ -224,7 +228,7 @@ function stronglyConnectedComponents(
     }
   }
   return Object.freeze(
-    components.toSorted((left, right) => left.join("\u0000").localeCompare(right.join("\u0000")))
+    components.toSorted(compareBinaryStringSequences)
   );
 }
 
@@ -248,23 +252,31 @@ function shortestPath(
       }
       previous.set(edge.to, edge);
       if (edge.to === target) {
-        const path: LogicalEdge[] = [];
-        let cursor = target;
-        while (cursor !== start) {
-          const step = previous.get(cursor);
-          if (step === undefined) {
-            return undefined;
-          }
-          path.push(step);
-          cursor = step.from;
-        }
-        return Object.freeze(path.toReversed());
+        return reconstructPath(previous, start, target);
       }
       visited.add(edge.to);
       queue.push(edge.to);
     }
   }
   return undefined;
+}
+
+function reconstructPath(
+  previous: ReadonlyMap<string, LogicalEdge>,
+  start: string,
+  target: string
+): readonly LogicalEdge[] | undefined {
+  const path: LogicalEdge[] = [];
+  let cursor = target;
+  while (cursor !== start) {
+    const step = previous.get(cursor);
+    if (step === undefined) {
+      return undefined;
+    }
+    path.push(step);
+    cursor = step.from;
+  }
+  return Object.freeze(path.toReversed());
 }
 
 function canonicalWitness(
@@ -329,7 +341,7 @@ function cycleEvidence(
   }
   return Object.freeze(
     cycles.toSorted((left, right) =>
-      left.members.join("\u0000").localeCompare(right.members.join("\u0000"))
+      compareBinaryStringSequences(left.members, right.members)
     )
   );
 }

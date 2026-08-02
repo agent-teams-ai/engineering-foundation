@@ -3,8 +3,10 @@ import type { MarkdownRepository } from "../../../../documentation-observation/a
 import type { ArchitectureDecisionPolicy } from "../model/architecture-decision.js";
 import {
   evaluateArchitectureDecisionCatalog,
+  parseArchitectureDecisionCatalog,
   type ArchitectureDecisionCatalogEvaluation
 } from "../policies/evaluate-architecture-decisions.js";
+import { resolveArchitectureDecisionIndexMemberships } from "./resolve-architecture-decision-index-memberships.js";
 
 export interface InspectArchitectureDecisionCatalogInput {
   readonly consumerRoot: string;
@@ -30,11 +32,17 @@ export async function inspectArchitectureDecisionCatalog(
     roots: input.policy.adrRoots,
     ...(input.signal === undefined ? {} : { signal: input.signal })
   });
-  return evaluateArchitectureDecisionCatalog({
+  const catalog = parseArchitectureDecisionCatalog(observation, input.policy);
+  const memberships = await resolveArchitectureDecisionIndexMemberships({
     consumerRoot: input.consumerRoot,
-    observation,
-    policy: input.policy,
+    decisions: catalog.decisions,
+    index: catalog.index,
     repository: dependencies.markdownRepository,
     ...(input.signal === undefined ? {} : { signal: input.signal })
+  });
+  return evaluateArchitectureDecisionCatalog({
+    catalog,
+    memberships,
+    policy: input.policy,
   });
 }

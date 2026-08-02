@@ -44,6 +44,17 @@ export interface FoundationDevOnlyStatus {
   readonly issues: readonly string[];
 }
 
+/** Public result of inspecting the consumer dependency policy. */
+export interface ConsumerPolicyInspection extends FoundationDevOnlyStatus {
+  readonly packageManager?: string;
+}
+
+/** Public result of inspecting the installed registry provenance. */
+export interface RegistryProvenanceInspection {
+  readonly provenance?: FoundationRegistryProvenance;
+  readonly issues: readonly string[];
+}
+
 export interface FoundationRegistryProvenance {
   readonly lockfilePath: string;
   readonly packageKey: string;
@@ -59,6 +70,10 @@ export interface ProcessRequest {
   readonly command: string;
   readonly args: readonly string[];
   readonly cwd: string;
+  /** Maximum wall-clock duration for this process. NodeProcessRunner applies a safe default. */
+  readonly timeoutMs?: number;
+  /** Cancels the process and its descendants when aborted. */
+  readonly signal?: AbortSignal;
 }
 
 export interface ProcessResult {

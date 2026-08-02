@@ -7,6 +7,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { parse as parseYaml } from "yaml";
+
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cliPath = join(repositoryRoot, "packages", "engineering-foundation", "dist", "cli.js");
 
@@ -15,6 +17,8 @@ const DEPENDENCY_REVIEW_SHA = "2222222222222222222222222222222222222222";
 const SBOM_SHA = "3333333333333333333333333333333333333333";
 const REUSABLE_WORKFLOW_SHA = "4444444444444444444444444444444444444444";
 const CONTAINER_DIGEST = "a".repeat(64);
+const JOB_CONTAINER_IMAGE = `ghcr.io/example/build@sha256:${CONTAINER_DIGEST}`;
+const SERVICE_CONTAINER_IMAGE = `ghcr.io/example/database@sha256:${"b".repeat(64)}`;
 const COMPOSITE_ACTION_SHA = "b".repeat(40);
 const TRANSITIVE_ACTION_SHA = "c".repeat(40);
 const ACTIONLINT_RUNNER_SHA = "d".repeat(40);
@@ -83,22 +87,45 @@ function digestWorkflows(workflows) {
 
 function ciWorkflow({
   actionlintNonBlocking = false,
+  actionlintStepConditional = false,
+  actionlintStepNonBlocking = false,
   dependencyReview = true,
   extraStep = "",
+  installBeforeDependencyReview = false,
+  jobContainerImage,
+  pullRequest = true,
+  serviceContainerImage,
 }) {
   return [
     "name: CI",
     "on:",
-    "  pull_request:",
+    ...(pullRequest ? ["  pull_request:"] : ["  push:"]),
     "permissions:",
     "  contents: read",
     "jobs:",
     "  check:",
     "    runs-on: ubuntu-24.04",
+    ...(jobContainerImage === undefined ? [] : [`    container: ${jobContainerImage}`]),
+    ...(serviceContainerImage === undefined
+      ? []
+      : [
+          "    services:",
+          "      database:",
+          `        image: ${serviceContainerImage}`,
+        ]),
     "    steps:",
     `      - uses: actions/checkout@${ACTION_SHA}`,
+    ...(installBeforeDependencyReview ? ["      - run: pnpm install --frozen-lockfile"] : []),
     ...(dependencyReview
-      ? [`      - uses: actions/dependency-review-action@${DEPENDENCY_REVIEW_SHA}`]
+      ? [
+          `      - uses: actions/dependency-review-action@${DEPENDENCY_REVIEW_SHA}`,
+          "        with:",
+          "          base-ref: refs/heads/main",
+          "          head-ref: refs/pull/current/head",
+          "          fail-on-severity: moderate",
+          "          vulnerability-check: true",
+          "          warn-only: false",
+        ]
       : []),
     `      - uses: anchore/sbom-action@${SBOM_SHA}`,
     `      - uses: docker://ghcr.io/example/workflow-tool@sha256:${CONTAINER_DIGEST}`,
@@ -110,7 +137,16 @@ function ciWorkflow({
     "    runs-on: ubuntu-24.04",
     ...(actionlintNonBlocking ? ["    continue-on-error: true"] : []),
     "    steps:",
-    `      - uses: ${TOOL_CONFIGS.actionlint.invocationUse}`,
+    ...(actionlintStepConditional ? ["      - if: always()"] : []),
+    ...(actionlintStepConditional
+      ? [
+          `        uses: ${TOOL_CONFIGS.actionlint.invocationUse}`,
+          ...(actionlintStepNonBlocking ? ["        continue-on-error: true"] : []),
+        ]
+      : [
+          `      - uses: ${TOOL_CONFIGS.actionlint.invocationUse}`,
+          ...(actionlintStepNonBlocking ? ["        continue-on-error: true"] : []),
+        ]),
     "  zizmor:",
     "    runs-on: ubuntu-24.04",
     "    steps:",
@@ -119,13 +155,14 @@ function ciWorkflow({
   ].join("\n");
 }
 
-function compositeAction(use) {
+function compositeAction(use, run) {
   return [
     "name: Checked-in action",
     "runs:",
     "  using: composite",
     "  steps:",
     `    - uses: ${use}`,
+    ...(run === undefined ? [] : [`    - run: ${run}`]),
     "",
   ].join("\n");
 }
@@ -176,12 +213,26 @@ function allowedUseYaml(entries, indent) {
   return lines;
 }
 
-function capabilityConfig({ allowedUses, actionlintInvocationUse, actionlintRollout, includeTools }) {
+function capabilityConfig({
+  allowedContainerImages,
+  allowedUses,
+  actionlintInvocationUse,
+  actionlintRollout,
+  includeTools,
+}) {
   return [
     "schemaVersion: 1",
     "workflowDirectory: .github/workflows",
-    "dependencyReviewWorkflow: .github/workflows/ci.yml",
+    "dependencyReview:",
+    "  workflowPath: .github/workflows/ci.yml",
+    "  jobId: check",
+    "  baseRef: refs/heads/main",
+    "  headRef: refs/pull/current/head",
+    "  failOnSeverity: moderate",
     "sbomWorkflow: .github/workflows/ci.yml",
+    ...(allowedContainerImages.length === 0
+      ? ["allowedContainerImages: []"]
+      : ["allowedContainerImages:", ...allowedContainerImages.map((image) => `  - ${image}`)]),
     "privilegedJobs: []",
     "publishablePackageManifests:",
     "  - packages/library/package.json",
@@ -231,11 +282,18 @@ async function withConsumer(options, callback) {
     ".github/workflows/ci.yml": ciWorkflow({
       actionlintNonBlocking:
         options.actionlintNonBlocking ?? options.actionlintRollout === "advisory",
+      actionlintStepConditional: options.actionlintStepConditional,
+      actionlintStepNonBlocking: options.actionlintStepNonBlocking,
       dependencyReview: options.dependencyReview ?? true,
       extraStep: options.extraStep,
+      installBeforeDependencyReview: options.installBeforeDependencyReview,
+      jobContainerImage: options.jobContainerImage,
+      pullRequest: options.pullRequest,
+      serviceContainerImage: options.serviceContainerImage,
     }),
     ".github/actions/checked-in-action/action.yml": compositeAction(
       options.compositeUse ?? `example/inside-composite@${COMPOSITE_ACTION_SHA}`,
+      options.compositeRun,
     ),
   };
   try {
@@ -273,6 +331,7 @@ async function withConsumer(options, callback) {
       root,
       "architecture/foundation/repository-security-baseline.yaml",
       `${capabilityConfig({
+        allowedContainerImages: options.allowedContainerImages ?? [],
         allowedUses: options.allowedUses ?? ALLOWED_USES,
         actionlintInvocationUse: options.actionlintInvocationUse,
         actionlintRollout: options.actionlintRollout,
@@ -332,6 +391,20 @@ test("requires Dependency Review in the declared required CI workflow", async ()
   );
 });
 
+test("rejects pull-request package installs that can run before Dependency Review", async () => {
+  await withConsumer(
+    { includeTools: false, installBeforeDependencyReview: true },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        securityDiagnostics(report).map(({ ruleId }) => ruleId),
+        ["repository.security-baseline.dependency-review-ordering"],
+      );
+    },
+  );
+});
+
 test("repository CI runs workflow qualification under pinned Node and scans the full repository", async () => {
   const [workflow, manifest, policy] = await Promise.all([
     readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
@@ -343,15 +416,92 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   ]);
   const scripts = JSON.parse(manifest).scripts;
   const securityScript = scripts["security:workflows"];
+  const ci = parseYaml(workflow);
 
   assert.ok(
     workflow.indexOf("uses: actions/setup-node@") < workflow.indexOf("run: pnpm security:workflows"),
   );
+  assert.match(
+    ci.jobs["dependency-review"].steps[1].uses,
+    /^actions\/dependency-review-action@[a-f0-9]{40}$/u,
+  );
+  assert.equal(ci.jobs.check.needs, "dependency-review");
+  assert.equal(ci.jobs["windows-check"].needs, "dependency-review");
+  assert.ok(
+    workflow.indexOf("uses: actions/dependency-review-action@") <
+      workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts"),
+  );
+  assert.ok(
+    workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts") <
+      workflow.indexOf("run: pnpm security:workflows"),
+  );
+  assert.ok(
+    workflow.indexOf("run: pnpm security:workflows") < workflow.indexOf("run: pnpm rebuild"),
+  );
   assert.match(workflow, /uses: actions\/dependency-review-action@[a-f0-9]{40}/u);
-  assert.match(policy, /dependencyReviewWorkflow: \.github\/workflows\/ci\.yml/u);
-  assert.match(securityScript, /^aqua exec -- actionlint && /u);
-  assert.doesNotMatch(securityScript, /\.github\/workflows\/\*\.yml/u);
-  assert.match(securityScript, /zizmor .* --strict-collection .* \.$/u);
+  assert.match(policy, /workflowPath: \.github\/workflows\/ci\.yml/u);
+  assert.equal(securityScript, "node scripts/security-toolchain.mjs");
+  assert.doesNotMatch(workflow, /aquaproj\/aqua-installer/u);
+  assert.doesNotMatch(policy, /aquaproj\/aqua-installer/u);
+});
+
+test("rejects mutable job containers and unallowlisted service containers", async () => {
+  await withConsumer(
+    {
+      includeTools: false,
+      jobContainerImage: "ghcr.io/example/build:latest",
+      serviceContainerImage: SERVICE_CONTAINER_IMAGE,
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        new Set(securityDiagnostics(report).map(({ ruleId }) => ruleId)),
+        new Set([
+          "repository.security-baseline.container-not-allowlisted",
+          "repository.security-baseline.container-not-pinned",
+        ]),
+      );
+    },
+  );
+});
+
+test("rejects stale container-image trust declarations", async () => {
+  await withConsumer(
+    {
+      allowedContainerImages: [JOB_CONTAINER_IMAGE],
+      includeTools: false,
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        securityDiagnostics(report).map(({ ruleId }) => ruleId),
+        ["repository.security-baseline.stale-allowed-container-image"],
+      );
+    },
+  );
+});
+
+test("rejects direct event interpolation inside checked-in composite actions", async () => {
+  await withConsumer(
+    {
+      compositeRun: "echo ${{ github.event.pull_request.title }}",
+      includeTools: false,
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        securityDiagnostics(report).map(({ ruleId }) => ruleId),
+        ["repository.security-baseline.event-interpolation-in-run"],
+      );
+      assert.equal(
+        securityDiagnostics(report)[0].location.path,
+        ".github/actions/checked-in-action/action.yml",
+      );
+    },
+  );
 });
 
 test("rejects a trusted SHA reference that is absent from allowedUses", async () => {
@@ -393,6 +543,22 @@ test("rejects an unallowlisted action reached through a checked-in composite act
       );
     },
   );
+});
+
+test("rejects local Node and Docker actions until their runtime evidence is governed", async () => {
+  await withConsumer({ includeTools: false }, async (consumerRoot) => {
+    await writeRepositoryFile(
+      consumerRoot,
+      ".github/actions/checked-in-action/action.yml",
+      "name: Opaque local action\nruns:\n  using: node24\n  main: dist/index.js\n",
+    );
+    const { result, report } = runCheck(consumerRoot);
+    assert.equal(result.status, 2);
+    assert.equal(
+      report.capabilities[0].problem.code,
+      "REPOSITORY_SECURITY_LOCAL_ACTION_RUNTIME_UNSUPPORTED",
+    );
+  });
 });
 
 test("rejects a stale allowedUses entry", async () => {
@@ -449,6 +615,49 @@ test("requires a blocking actionlint declaration to target a blocking external C
       assert.deepEqual(
         securityDiagnostics(report).map(({ ruleId }) => ruleId),
         ["repository.security-baseline.tool-evidence-rollout-mismatch"],
+      );
+    },
+  );
+});
+
+test("requires a blocking actionlint invocation to be unconditional", async () => {
+  await withConsumer(
+    { actionlintStepConditional: true, includeTools: true },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        securityDiagnostics(report).map(({ ruleId }) => ruleId),
+        ["repository.security-baseline.tool-evidence-invocation-missing"],
+      );
+    },
+  );
+});
+
+test("requires a blocking actionlint invocation to fail the job", async () => {
+  await withConsumer(
+    { actionlintStepNonBlocking: true, includeTools: true },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        securityDiagnostics(report).map(({ ruleId }) => ruleId),
+        ["repository.security-baseline.tool-evidence-invocation-missing"],
+      );
+    },
+  );
+});
+
+test("requires a blocking external tool job to run for every pull request", async () => {
+  await withConsumer(
+    { includeTools: true, pullRequest: false },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.ok(
+        securityDiagnostics(report).some(
+          ({ ruleId }) => ruleId === "repository.security-baseline.tool-evidence-rollout-mismatch",
+        ),
       );
     },
   );

@@ -87,6 +87,9 @@ function releasedBaselinePath(value: unknown): string {
   if (!/\.(?:json|ya?ml)$/u.test(repositoryPath)) {
     inputError("releasedBaselinePath must name a JSON or YAML file.");
   }
+  if (!repositoryPath.startsWith("architecture/contracts/")) {
+    inputError("releasedBaselinePath must be inside the release-owned architecture/contracts directory.");
+  }
   return repositoryPath;
 }
 

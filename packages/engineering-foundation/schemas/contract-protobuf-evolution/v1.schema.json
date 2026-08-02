@@ -9,6 +9,7 @@
     "schemaVersion": { "const": 1 },
     "releasedBaselinePath": { "$ref": "#/$defs/releasedBaselinePath" },
     "acceptedDecisionBaselinePath": { "$ref": "#/$defs/acceptedDecisionBaselinePath" },
+    "governanceConfigPath": { "$ref": "#/$defs/governanceConfigPath" },
     "approvedBreakingChanges": {
       "type": "array",
       "maxItems": 100,
@@ -29,13 +30,16 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 300,
-      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+\\.(?:json|ya?ml)$"
+      "pattern": "^architecture/contracts/(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+\\.(?:json|ya?ml)$"
     },
     "acceptedDecisionBaselinePath": {
+      "const": "architecture/decisions/accepted-decisions.json"
+    },
+    "governanceConfigPath": {
       "type": "string",
       "minLength": 1,
       "maxLength": 300,
-      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+\\.json$"
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.ya?ml$"
     },
     "breakingApproval": {
       "type": "object",

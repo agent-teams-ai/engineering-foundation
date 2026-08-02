@@ -1,0 +1,45 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: daily
+      time: "06:00"
+      timezone: Europe/Kyiv
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+    groups:
+      api-extractor:
+        patterns:
+          - "@microsoft/api-extractor"
+          - "@microsoft/api-extractor-model"
+        update-types:
+          - minor
+          - patch
+      oxc-toolchain:
+        patterns:
+          - oxc-parser
+          - oxlint
+          - oxlint-tsgolint
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+      time: "06:00"
+      timezone: Europe/Kyiv
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 10

@@ -1,6 +1,7 @@
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { PublicApiCompatibilityPolicy } from "../model/public-api.js";
+import type { AcceptedDecisionEvidencePort } from "../ports/accepted-decision-evidence.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import type { PublicApiExtractor } from "../ports/public-api-extractor.js";
 import type { PublicApiRepository } from "../ports/public-api-repository.js";
@@ -19,6 +20,7 @@ export async function analyzePublicApiCompatibility(
     readonly extractor: PublicApiExtractor;
     readonly fingerprint: ChangeFingerprint;
     readonly repository: PublicApiRepository;
+    readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
   }
 ): Promise<readonly FoundationDiagnostic[]> {
   const diagnostics: FoundationDiagnostic[] = [];
@@ -55,13 +57,14 @@ export async function analyzePublicApiCompatibility(
           )
         : undefined;
     const acceptedDecision =
-      approval === undefined
+      approval === undefined || input.policy.acceptedDecisionBaselinePath === undefined
         ? undefined
-        : await dependencies.repository.isAcceptedDecision(
-            input.consumerRoot,
-            approval.decisionPath,
-            input.signal
-          );
+        : await dependencies.acceptedDecisionEvidence.hasAcceptedDecision({
+            consumerRoot: input.consumerRoot,
+            decisionPath: approval.decisionPath,
+            baselinePath: input.policy.acceptedDecisionBaselinePath,
+            ...(input.signal === undefined ? {} : { signal: input.signal })
+          });
     diagnostics.push(
       ...evaluatePublicApiCompatibility({
         policy: packagePolicy,

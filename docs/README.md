@@ -9,7 +9,7 @@ not repeat their rules.
 | Subject | Document | State |
 | --- | --- | --- |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
-| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Nine capabilities active |
+| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Nine implemented; five already released; consumer activation is explicit |
 | Documentation integrity | [Executable capabilities](architecture/executable-capabilities.md#documentation-governance) | Accepted and implemented |
 | Contract evolution | [Executable capabilities](architecture/executable-capabilities.md#contract-evolution) | Accepted and implemented |
 | Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Accepted and implemented |
@@ -20,6 +20,7 @@ not repeat their rules.
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
+| Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Research complete; policy not active |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |
 | Package release | [Release](release.md) | Active |

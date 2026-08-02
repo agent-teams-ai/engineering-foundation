@@ -18,7 +18,7 @@ Decision owner: Product owner
 Large agent-maintained repositories need rare local suppressions without
 allowing permanent or invisible quality-policy bypasses.
 
-## Proposed decision
+## Decision
 
 Adopt the exact, expiring, owner-backed waiver model in
 [Suppression governance](../architecture/suppression-governance.md). Keep

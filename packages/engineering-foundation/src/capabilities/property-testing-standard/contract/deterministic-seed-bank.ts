@@ -5,14 +5,14 @@ const MIN_SEED = -2_147_483_648;
 const MAX_SEED = 2_147_483_647;
 
 export interface DeterministicSeedBank {
-  readonly schemaVersion: number;
+  readonly schemaVersion: 1;
   readonly propertyId: string;
   readonly numRuns: number;
   readonly seeds: readonly number[];
 }
 
 export interface PropertyReplayEvidence {
-  readonly schemaVersion: number;
+  readonly schemaVersion: 1;
   readonly propertyId: string;
   readonly seed: number;
   readonly numRuns: number;
@@ -37,6 +37,10 @@ export class PropertyTestingEvidenceError extends Error {
 
 function inputError(message: string): never {
   throw new PropertyTestingEvidenceError(message);
+}
+
+function readSchemaVersion(input: object): unknown {
+  return Reflect.get(input, "schemaVersion");
 }
 
 function assertPropertyId(value: string): void {
@@ -65,7 +69,7 @@ function assertNumRuns(value: number, field: string): void {
 export function normalizeDeterministicSeedBank(
   input: DeterministicSeedBank
 ): DeterministicSeedBank {
-  if (input.schemaVersion !== 1) {
+  if (readSchemaVersion(input) !== 1) {
     inputError("Seed bank schemaVersion is unsupported.");
   }
   assertPropertyId(input.propertyId);
@@ -94,7 +98,7 @@ export function normalizeDeterministicSeedBank(
 export function normalizePropertyReplayEvidence(
   input: PropertyReplayEvidence
 ): PropertyReplayEvidence {
-  if (input.schemaVersion !== 1) {
+  if (readSchemaVersion(input) !== 1) {
     inputError("Replay evidence schemaVersion is unsupported.");
   }
   assertPropertyId(input.propertyId);

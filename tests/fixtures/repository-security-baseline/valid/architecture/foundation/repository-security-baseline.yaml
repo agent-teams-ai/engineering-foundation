@@ -1,7 +1,20 @@
 schemaVersion: 1
 workflowDirectory: .github/workflows
-dependencyReviewWorkflow: .github/workflows/dependency-review.yml
+dependencyReview:
+  workflowPath: .github/workflows/dependency-review.yml
+  jobId: dependency-review
+  baseRef: refs/heads/main
+  headRef: refs/pull/current/head
+  failOnSeverity: moderate
 sbomWorkflow: .github/workflows/ci.yml
+allowedContainerImages: []
+allowedUses:
+  - uses: actions/checkout@1111111111111111111111111111111111111111
+    transitiveUses: []
+  - uses: actions/dependency-review-action@2222222222222222222222222222222222222222
+    transitiveUses: []
+  - uses: anchore/sbom-action@3333333333333333333333333333333333333333
+    transitiveUses: []
 privilegedJobs: []
 publishablePackageManifests:
   - packages/library/package.json

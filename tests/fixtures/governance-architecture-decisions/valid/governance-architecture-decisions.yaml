@@ -7,4 +7,4 @@ index:
     proposed: Proposed Decisions
     accepted: Accepted Decisions
     superseded: Superseded Decisions
-acceptedBaselinePath: architecture/accepted-decisions.json
+acceptedBaselinePath: architecture/decisions/accepted-decisions.json

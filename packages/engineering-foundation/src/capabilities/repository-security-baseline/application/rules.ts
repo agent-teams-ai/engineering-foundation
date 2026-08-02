@@ -45,6 +45,21 @@ export const REPOSITORY_SECURITY_RULES = Object.freeze({
     "Dependency changes need a pull-request vulnerability gate.",
     "Run the pinned actions/dependency-review-action from the declared workflow."
   ),
+  dependencyReviewOrdering: rule(
+    "dependency-review-ordering",
+    "A pull-request-controlled package install can execute before Dependency Review completes.",
+    "Make the install job depend on the declared Dependency Review job, or run the governed review step before the install in the same job."
+  ),
+  containerNotAllowlisted: rule(
+    "container-not-allowlisted",
+    "A pinned container image is not automatically an approved supply-chain dependency.",
+    "Add the exact immutable container image to allowedContainerImages after reviewing its owner, digest, and purpose."
+  ),
+  containerNotPinned: rule(
+    "container-not-pinned",
+    "Mutable job and service container references can change without repository review.",
+    "Pin every job and service container image to an immutable sha256 digest."
+  ),
   dangerousTrigger: rule(
     "dangerous-trigger",
     "pull_request_target executes privileged base-branch code around untrusted pull-request data.",
@@ -89,6 +104,11 @@ export const REPOSITORY_SECURITY_RULES = Object.freeze({
     "stale-allowed-use",
     "An unused trust declaration can conceal action ownership drift.",
     "Remove the unused allowedUses entry or restore the reviewed workflow reference."
+  ),
+  staleAllowedContainerImage: rule(
+    "stale-allowed-container-image",
+    "An unused container trust declaration can conceal supply-chain ownership drift.",
+    "Remove the declaration or restore the exact reviewed job or service container image."
   ),
   toolEvidenceFailed: rule(
     "tool-evidence-failed",

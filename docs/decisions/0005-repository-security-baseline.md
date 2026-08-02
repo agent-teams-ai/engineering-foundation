@@ -19,7 +19,7 @@ Reusable tooling repositories execute third-party Actions and publish packages,
 so workflow and package security cannot depend on reviewers remembering every
 rule.
 
-## Proposed decision
+## Decision
 
 Adopt the closed-world repository security capability described in
 [Repository security baseline](../security/repository-security-baseline.md), with

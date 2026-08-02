@@ -20,6 +20,34 @@ const protobufModule = await import(
     join(distRoot, "capabilities", "contract-protobuf-evolution", "module.js"),
   ).href,
 );
+const protobufConfig = await import(
+  pathToFileURL(
+    join(distRoot, "capabilities", "contract-protobuf-evolution", "contract", "config.js"),
+  ).href,
+);
+const protobufGovernanceAcl = await import(
+  pathToFileURL(
+    join(
+      distRoot,
+      "capabilities",
+      "contract-protobuf-evolution",
+      "adapters",
+      "outbound",
+      "governance",
+      "governance-accepted-decision-evidence-acl.js",
+    ),
+  ).href,
+);
+const governanceModule = await import(
+  pathToFileURL(
+    join(
+      distRoot,
+      "capabilities",
+      "governance-architecture-decisions",
+      "module.js",
+    ),
+  ).href,
+);
 const protobufQualification = await import(
   pathToFileURL(
     join(
@@ -79,7 +107,7 @@ function releasedBaseline() {
   return policy().released;
 }
 
-function capabilityConfig(releasedBaselinePath = "baselines/released.yaml") {
+function capabilityConfig(releasedBaselinePath = "architecture/contracts/released.yaml") {
   return {
     schemaVersion: 1,
     releasedBaselinePath,
@@ -98,17 +126,90 @@ async function withConfig(value, callback, baseline = releasedBaseline()) {
   const root = await mkdtemp(join(tmpdir(), "foundation-protobuf-evolution-"));
   try {
     await writeYaml(root, "contract.yaml", value);
-    await writeYaml(root, "baselines/released.yaml", baseline);
+    await writeYaml(root, "architecture/contracts/released.yaml", baseline);
     return await callback(root);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
 }
 
+const governanceConfigPath =
+  "architecture/foundation/governance-architecture-decisions.yaml";
+const acceptedDecisionBaselinePath =
+  "architecture/decisions/accepted-decisions.json";
+
+async function writeGovernedDecisionEvidence(root, decisionId = "ADR-0042") {
+  const number = decisionId.slice("ADR-".length);
+  const slug = `${number}-approve-protobuf-contract-break`;
+  const decisionPath = `docs/decisions/${slug}.md`;
+  await writeYaml(root, governanceConfigPath, {
+    schemaVersion: 1,
+    adrRoots: ["docs/decisions"],
+    index: {
+      path: "docs/decisions/README.md",
+      sections: {
+        proposed: "Proposed",
+        accepted: "Accepted",
+        superseded: "Superseded",
+      },
+    },
+    acceptedBaselinePath: acceptedDecisionBaselinePath,
+  });
+  await mkdir(join(root, "docs", "decisions"), { recursive: true });
+  await writeFile(
+    join(root, "docs", "decisions", "README.md"),
+    `# Architecture Decisions\n\n## Proposed\n\n## Accepted\n\n- [${decisionId}: Approve Protobuf contract break](${slug}.md)\n\n## Superseded\n`,
+    "utf8",
+  );
+  await writeFile(
+    join(root, decisionPath),
+    `---\nid: ${decisionId}\nstatus: accepted\nsupersedes: []\nsuperseded_by: []\n---\n\n# ${decisionId}: Approve Protobuf Contract Break\n\nThe breaking Protobuf contract change is explicitly reviewed.\n`,
+    "utf8",
+  );
+  await governanceModule.promoteArchitectureDecisionBaseline({
+    consumerRoot: root,
+    configPath: governanceConfigPath,
+  });
+}
+
 test("accepts released Buf evidence with exact baseline and clean generation", () => {
   assert.deepEqual(protobufModule.evaluateProtobufEvolution(policy()), []);
   assert.equal(Object.hasOwn(protobufModule, "ProcessBufExecutable"), false);
   assert.equal(Object.hasOwn(protobufModule, "verifyPinnedBufVersion"), false);
+});
+
+test("rejects Protobuf baseline pointers outside stable governance anchors", async () => {
+  await withConfig(capabilityConfig(), async (root) => {
+    const releasedReset = capabilityConfig("tmp/reset-history.yaml");
+    await writeYaml(root, "contract.yaml", releasedReset);
+    await assert.rejects(
+      protobufConfig.loadCapabilityConfig(root, "contract.yaml"),
+      /releasedBaselinePath must match pattern/u,
+    );
+
+    const decisionReset = capabilityConfig();
+    decisionReset.approvedBreakingChanges = [
+      { decisionId: "ADR-0001", fingerprint: digest("a") },
+    ];
+    decisionReset.acceptedDecisionBaselinePath = "architecture/decisions/reset-history.json";
+    await writeYaml(root, "contract.yaml", decisionReset);
+    await assert.rejects(
+      protobufConfig.loadCapabilityConfig(root, "contract.yaml"),
+      /acceptedDecisionBaselinePath must be equal to constant/u,
+    );
+
+    const incompleteGovernanceEvidence = capabilityConfig();
+    incompleteGovernanceEvidence.approvedBreakingChanges = [
+      { decisionId: "ADR-0001", fingerprint: digest("a") },
+    ];
+    incompleteGovernanceEvidence.acceptedDecisionBaselinePath =
+      acceptedDecisionBaselinePath;
+    await writeYaml(root, "contract.yaml", incompleteGovernanceEvidence);
+    await assert.rejects(
+      protobufConfig.loadCapabilityConfig(root, "contract.yaml"),
+      /acceptedDecisionBaselinePath and governanceConfigPath must be declared together/u,
+    );
+  });
 });
 
 test("reports only explicit violations for stale baseline, toolchain drift, generation drift, and unapproved break", () => {
@@ -199,7 +300,7 @@ test("binds a breaking fingerprint to an immutable accepted architecture decisio
   assert.deepEqual(protobufModule.evaluateProtobufEvolution(evidence), []);
 });
 
-test("loads breaking approval only from a validated accepted-decision baseline", async () => {
+test("keeps governance evidence as an opaque protobuf configuration reference", async () => {
   const config = capabilityConfig();
   config.current.breaking = {
     status: "breaking",
@@ -208,9 +309,91 @@ test("loads breaking approval only from a validated accepted-decision baseline",
   config.approvedBreakingChanges = [
     { decisionId: "ADR-0042", fingerprint: digest("f") },
   ];
-  config.acceptedDecisionBaselinePath = "architecture/accepted-decisions.json";
+  config.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
+  config.governanceConfigPath = governanceConfigPath;
+
   await withConfig(config, async (root) => {
-    const baselinePath = join(root, "architecture", "accepted-decisions.json");
+    const configuration = await protobufConfig.loadCapabilityConfig(root, "contract.yaml");
+    assert.equal(
+      configuration.acceptedDecisionBaselinePath,
+      acceptedDecisionBaselinePath,
+    );
+    assert.equal(configuration.governanceConfigPath, governanceConfigPath);
+    assert.equal(Object.hasOwn(configuration, "acceptedDecisionIds"), false);
+  });
+});
+
+test("resolves accepted decision evidence through the consumer-owned port", async () => {
+  const config = capabilityConfig();
+  config.current.breaking = {
+    status: "breaking",
+    fingerprint: digest("f"),
+  };
+  config.approvedBreakingChanges = [
+    { decisionId: "ADR-0042", fingerprint: digest("f") },
+  ];
+  config.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
+  config.governanceConfigPath = governanceConfigPath;
+  const calls = [];
+  let consumerRoot;
+
+  await withConfig(config, async (root) => {
+    consumerRoot = root;
+    const capability = protobufModule.createProtobufEvolutionCapability({
+      acceptedDecisionEvidence: {
+        async readAcceptedDecisionEvidence(input) {
+          calls.push(input);
+          return { acceptedDecisionIds: ["ADR-0042"] };
+        },
+      },
+    });
+    const result = await capability.run({
+      consumerRoot: root,
+      configPath: "contract.yaml",
+    });
+    assert.equal(result.outcome, "passed");
+  });
+
+  assert.deepEqual(calls, [
+    {
+      consumerRoot,
+      baselinePath: acceptedDecisionBaselinePath,
+      governanceConfigPath,
+    },
+  ]);
+});
+
+test("rejects a fabricated accepted-decision baseline without immutable governance evidence", async () => {
+  const config = capabilityConfig();
+  config.current.breaking = {
+    status: "breaking",
+    fingerprint: digest("f"),
+  };
+  config.approvedBreakingChanges = [
+    { decisionId: "ADR-0042", fingerprint: digest("f") },
+  ];
+  config.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
+  config.governanceConfigPath = governanceConfigPath;
+  await withConfig(config, async (root) => {
+    await writeYaml(root, governanceConfigPath, {
+      schemaVersion: 1,
+      adrRoots: ["docs/decisions"],
+      index: {
+        path: "docs/decisions/README.md",
+        sections: {
+          proposed: "Proposed",
+          accepted: "Accepted",
+          superseded: "Superseded",
+        },
+      },
+      acceptedBaselinePath: acceptedDecisionBaselinePath,
+    });
+    const baselinePath = join(
+      root,
+      "architecture",
+      "decisions",
+      "accepted-decisions.json",
+    );
     await mkdir(dirname(baselinePath), { recursive: true });
     await writeFile(
       baselinePath,
@@ -232,8 +415,78 @@ test("loads breaking approval only from a validated accepted-decision baseline",
       consumerRoot: root,
       configPath: "contract.yaml",
     });
+    assert.equal(result.outcome, "invalid-input");
+    assert.equal(
+      result.problem?.code,
+      "ARCHITECTURE_DECISION_EVIDENCE_INVALID",
+    );
+  });
+});
+
+test("loads a breaking approval only from a complete immutable governance catalog", async () => {
+  const config = capabilityConfig();
+  config.current.breaking = {
+    status: "breaking",
+    fingerprint: digest("f"),
+  };
+  config.approvedBreakingChanges = [
+    { decisionId: "ADR-0042", fingerprint: digest("f") },
+  ];
+  config.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
+  config.governanceConfigPath = governanceConfigPath;
+  await withConfig(config, async (root) => {
+    await writeGovernedDecisionEvidence(root);
+    const result = await protobufModule.createProtobufEvolutionCapability().run({
+      consumerRoot: root,
+      configPath: "contract.yaml",
+    });
     assert.equal(result.outcome, "passed");
   });
+});
+
+test("governance evidence ACL preserves deterministic mapping, cancellation, and containment", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-protobuf-governance-acl-"));
+  const external = await mkdtemp(join(tmpdir(), "foundation-protobuf-governance-external-"));
+  try {
+    await writeGovernedDecisionEvidence(root);
+    const acl = new protobufGovernanceAcl.GovernanceAcceptedDecisionEvidenceAcl();
+    assert.deepEqual(
+      await acl.readAcceptedDecisionEvidence({
+        consumerRoot: root,
+        baselinePath: acceptedDecisionBaselinePath,
+        governanceConfigPath,
+      }),
+      { acceptedDecisionIds: ["ADR-0042"] },
+    );
+    await assert.rejects(
+      acl.readAcceptedDecisionEvidence({
+        consumerRoot: root,
+        baselinePath: acceptedDecisionBaselinePath,
+        governanceConfigPath,
+        signal: AbortSignal.abort(),
+      }),
+      (error) => error?.problem?.code === "EXECUTION_CANCELLED",
+    );
+
+    const externalBaselinePath = join(external, "accepted-decisions.json");
+    await writeFile(
+      externalBaselinePath,
+      await readFile(join(root, acceptedDecisionBaselinePath), "utf8"),
+    );
+    await unlink(join(root, acceptedDecisionBaselinePath));
+    await symlink(externalBaselinePath, join(root, acceptedDecisionBaselinePath));
+    await assert.rejects(
+      acl.readAcceptedDecisionEvidence({
+        consumerRoot: root,
+        baselinePath: acceptedDecisionBaselinePath,
+        governanceConfigPath,
+      }),
+      (error) => error?.problem?.code === "ARCHITECTURE_DECISION_EVIDENCE_INVALID",
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+    await rm(external, { force: true, recursive: true });
+  }
 });
 
 test("rejects public release versions with build metadata and detects prerelease regression", () => {
@@ -278,7 +531,7 @@ test("runs as a deterministic read-only Foundation capability with closed input 
 
     await writeFile(
       join(root, "contract.yaml"),
-      "schemaVersion: 1\nreleasedBaselinePath: baselines/released.yaml\nreleased: []\n",
+      "schemaVersion: 1\nreleasedBaselinePath: architecture/contracts/released.yaml\nreleased: []\n",
       "utf8",
     );
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -412,7 +665,7 @@ test("loads a separate released Protobuf baseline deterministically and rejects 
 test("rejects missing, escaping, and invalid released Protobuf baselines", async () => {
   await withConfig(capabilityConfig(), async (root) => {
     const capability = protobufModule.createProtobufEvolutionCapability();
-    await unlink(join(root, "baselines", "released.yaml"));
+    await unlink(join(root, "architecture", "contracts", "released.yaml"));
     const missing = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(missing.outcome, "invalid-input");
     assert.equal(missing.problem.code, "CONFIG_FILE_UNAVAILABLE");
@@ -422,17 +675,17 @@ test("rejects missing, escaping, and invalid released Protobuf baselines", async
       await writeYaml(external, "released.yaml", releasedBaseline());
       await symlink(
         join(external, "released.yaml"),
-        join(root, "baselines", "released.yaml"),
+        join(root, "architecture", "contracts", "released.yaml"),
       );
       const unsafe = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
       assert.equal(unsafe.outcome, "invalid-input");
-      assert.equal(unsafe.problem.code, "CONFIG_PATH_ESCAPE");
-      await unlink(join(root, "baselines", "released.yaml"));
+      assert.equal(unsafe.problem.code, "CONFIG_SYMLINK_PROHIBITED");
+      await unlink(join(root, "architecture", "contracts", "released.yaml"));
     } finally {
       await rm(external, { force: true, recursive: true });
     }
 
-    await writeYaml(root, "baselines/released.yaml", { schemaVersion: 1 });
+    await writeYaml(root, "architecture/contracts/released.yaml", { schemaVersion: 1 });
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(invalid.outcome, "invalid-input");
     assert.equal(invalid.problem.code, "SCHEMA_INVALID");

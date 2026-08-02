@@ -26,8 +26,27 @@
     },
     "fixtures": {
       "type": "array",
+      "minItems": 2,
       "maxItems": 10000,
-      "items": { "$ref": "#/$defs/fixture" }
+      "items": { "$ref": "#/$defs/fixture" },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["expectation"],
+            "properties": { "expectation": { "const": "valid" } }
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["expectation"],
+            "properties": { "expectation": { "const": "invalid" } }
+          },
+          "minContains": 1
+        }
+      ]
     },
     "releasedBaselinePath": { "$ref": "#/$defs/releasedBaselinePath" },
     "currentConsumerEvidence": {
@@ -55,7 +74,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 300,
-      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+\\.(?:json|ya?ml)$"
+      "pattern": "^architecture/contracts/(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+\\.(?:json|ya?ml)$"
     },
     "fixture": {
       "type": "object",

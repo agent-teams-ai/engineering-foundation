@@ -31,6 +31,19 @@ export interface ApprovedProtobufBreakingChange {
   readonly fingerprint: Sha256Digest;
 }
 
+/**
+ * Protobuf-owned configuration before external acceptance evidence is resolved.
+ * The referenced baseline is a versioned published language of another feature,
+ * so its interpretation stays behind an application port.
+ */
+export interface ProtobufEvolutionConfiguration {
+  readonly acceptedDecisionBaselinePath?: string;
+  readonly governanceConfigPath?: string;
+  readonly approvedBreakingChanges: readonly ApprovedProtobufBreakingChange[];
+  readonly released: ReleasedProtobufContractEvidence;
+  readonly current: CurrentProtobufContractEvidence;
+}
+
 export interface CurrentProtobufContractEvidence {
   readonly schemaVersion: number;
   readonly contractId: string;

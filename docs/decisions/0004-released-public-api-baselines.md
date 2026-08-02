@@ -18,7 +18,7 @@ Decision owner: Product owner
 The shared foundation package needs machine-enforced TypeScript compatibility
 without treating a feature branch's current output as authoritative.
 
-## Proposed decision
+## Decision
 
 Use normalized API Extractor snapshots as release-owned evidence. Require
 Changesets for additive changes and exact fingerprint plus accepted ADR evidence

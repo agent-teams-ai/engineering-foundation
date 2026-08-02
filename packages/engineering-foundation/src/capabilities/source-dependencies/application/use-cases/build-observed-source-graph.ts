@@ -1,5 +1,6 @@
+import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
+import { assertNotCancelled } from "../../../../cancellation.js";
 import { CapabilityInputError } from "../../../../capability-runtime.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 import type { WorkspaceInventory } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import {
@@ -74,7 +75,7 @@ function normalizedClassifiedFile(file: ClassifiedSourceFile): ClassifiedSourceF
 }
 
 function compareNodes(left: ObservedSourceNode, right: ObservedSourceNode): number {
-  return left.path.localeCompare(right.path);
+  return compareBinaryStrings(left.path, right.path);
 }
 
 function resolutionKey(resolution: ObservedSourceDependencyResolution): string {
@@ -100,13 +101,13 @@ function compareEdges(
   right: ObservedSourceDependencyEdge
 ): number {
   return (
-    left.fromPath.localeCompare(right.fromPath) ||
-    left.mode.localeCompare(right.mode) ||
-    left.kind.localeCompare(right.kind) ||
-    left.specifier.localeCompare(right.specifier) ||
+    compareBinaryStrings(left.fromPath, right.fromPath) ||
+    compareBinaryStrings(left.mode, right.mode) ||
+    compareBinaryStrings(left.kind, right.kind) ||
+    compareBinaryStrings(left.specifier, right.specifier) ||
     left.start - right.start ||
     left.end - right.end ||
-    resolutionKey(left.resolution).localeCompare(resolutionKey(right.resolution))
+    compareBinaryStrings(resolutionKey(left.resolution), resolutionKey(right.resolution))
   );
 }
 
@@ -193,7 +194,7 @@ export function buildObservedSourceGraph(
   const governedFilePaths = new Set(sourcePaths);
   const normalizedClassified = input.classifiedFiles
     .map(normalizedClassifiedFile)
-    .toSorted((left, right) => left.path.localeCompare(right.path));
+    .toSorted((left, right) => compareBinaryStrings(left.path, right.path));
   const nodes: ObservedSourceNode[] = [];
   const nodesByPath = new Map<string, ObservedSourceNode>();
 
@@ -281,7 +282,8 @@ export function buildObservedSourceGraph(
     parseFailures: Object.freeze(
       parseFailures.toSorted(
         (left, right) =>
-          left.path.localeCompare(right.path) || left.parseErrorCount - right.parseErrorCount
+          compareBinaryStrings(left.path, right.path) ||
+          left.parseErrorCount - right.parseErrorCount
       )
     ),
     unclassifiedSourcePaths: Object.freeze(
@@ -290,9 +292,9 @@ export function buildObservedSourceGraph(
     unresolvedRuntimeReferences: Object.freeze(
       unresolvedRuntimeReferences.toSorted(
         (left, right) =>
-          left.path.localeCompare(right.path) ||
+          compareBinaryStrings(left.path, right.path) ||
           left.start - right.start ||
-          left.kind.localeCompare(right.kind) ||
+          compareBinaryStrings(left.kind, right.kind) ||
           left.end - right.end
       )
     )

@@ -7,9 +7,11 @@ import {
 import { MicrosoftPublicApiExtractor } from "./adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
 import { NodeChangeFingerprint } from "./adapters/outbound/crypto/node-change-fingerprint.js";
 import { FilesystemPublicApiRepository } from "./adapters/outbound/filesystem/filesystem-public-api-repository.js";
+import { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";
 import { PUBLIC_API_COMPATIBILITY_RULES_BY_ID } from "./application/rules.js";
 import { analyzePublicApiCompatibility } from "./application/use-cases/analyze-public-api-compatibility.js";
 import { promotePublicApiBaselines } from "./application/use-cases/promote-public-api-baselines.js";
+import { publicApiPolicySchemaVersion } from "./application/model/public-api.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
   CAPABILITY_ID,
@@ -22,7 +24,8 @@ function createDependencies() {
   return Object.freeze({
     extractor: new MicrosoftPublicApiExtractor(),
     fingerprint: new NodeChangeFingerprint(),
-    repository: new FilesystemPublicApiRepository()
+    repository: new FilesystemPublicApiRepository(),
+    acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl()
   });
 }
 
@@ -60,7 +63,7 @@ export function createPublicApiCompatibilityCapability(): CapabilityDefinition {
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
-          capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
+          capabilityConfigSchemaVersion: publicApiPolicySchemaVersion(policy),
           diagnostics: await analyzePublicApiCompatibility(
             {
               consumerRoot: invocation.consumerRoot,

@@ -12,7 +12,10 @@ import { CapabilityInputError } from "../packages/engineering-foundation/dist/ca
 import { NodeArchitectureDecisionFingerprint } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/adapters/outbound/crypto/node-architecture-decision-fingerprint.js";
 import { FilesystemArchitectureDecisionBaselineRepository } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";
 import { immutableArchitectureDecisionPayload } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/model/architecture-decision.js";
-import { analyzeArchitectureDecisions } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/analyze-architecture-decisions.js";
+import {
+  analyzeArchitectureDecisionEvidence,
+  analyzeArchitectureDecisions,
+} from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/analyze-architecture-decisions.js";
 import { promoteArchitectureDecisionBaseline as promoteBaselineUseCase } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/promote-architecture-decision-baseline.js";
 import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/contract/config.js";
 import { promoteArchitectureDecisionBaseline } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/module.js";
@@ -90,7 +93,7 @@ process.stdin.once("data", async () => {
 `;
 
 function baselinePath(root) {
-  return join(root, "architecture", "accepted-decisions.json");
+  return join(root, "architecture", "decisions", "accepted-decisions.json");
 }
 
 async function withFixture(callback) {
@@ -106,6 +109,18 @@ async function withFixture(callback) {
 async function analyze(root) {
   const policy = await loadCapabilityConfig(root, "governance-architecture-decisions.yaml");
   return analyzeArchitectureDecisions(
+    { consumerRoot: root, policy },
+    {
+      baselineRepository: new FilesystemArchitectureDecisionBaselineRepository(),
+      fingerprint: new NodeArchitectureDecisionFingerprint(),
+      markdownRepository: new FilesystemMarkdownRepository()
+    }
+  );
+}
+
+async function analyzeEvidence(root) {
+  const policy = await loadCapabilityConfig(root, "governance-architecture-decisions.yaml");
+  return analyzeArchitectureDecisionEvidence(
     { consumerRoot: root, policy },
     {
       baselineRepository: new FilesystemArchitectureDecisionBaselineRepository(),
@@ -199,6 +214,15 @@ test("accepts a complete ADR identity, lifecycle, index, and immutable baseline"
   });
 });
 
+test("returns the exact accepted ADR baseline snapshot it validates", async () => {
+  await withFixture(async (root) => {
+    const evidence = await analyzeEvidence(root);
+    assert.deepEqual(evidence.diagnostics, []);
+    assert.equal(evidence.baseline.kind, "valid");
+    assert.equal(evidence.baseline.revision.startsWith("sha256:"), true);
+  });
+});
+
 test("validates capability configuration and accepted baseline schemas", async () => {
   const ajv = new Ajv2020({ strict: true });
   const configSchema = JSON.parse(await readFile(configSchemaPath, "utf8"));
@@ -208,7 +232,7 @@ test("validates capability configuration and accepted baseline schemas", async (
   await withFixture(async (root) => {
     const config = await loadCapabilityConfig(root, "governance-architecture-decisions.yaml");
     const baseline = JSON.parse(
-      await readFile(join(root, "architecture", "accepted-decisions.json"), "utf8")
+      await readFile(join(root, "architecture", "decisions", "accepted-decisions.json"), "utf8")
     );
     assert.equal(validateConfig({
       schemaVersion: 1,
@@ -217,6 +241,25 @@ test("validates capability configuration and accepted baseline schemas", async (
       acceptedBaselinePath: config.acceptedBaselinePath
     }), true, JSON.stringify(validateConfig.errors));
     assert.equal(validateBaseline(baseline), true, JSON.stringify(validateBaseline.errors));
+  });
+});
+
+test("rejects redirecting accepted ADR history away from its stable anchor", async () => {
+  await withFixture(async (root) => {
+    const configPath = join(root, "governance-architecture-decisions.yaml");
+    const source = await readFile(configPath, "utf8");
+    await writeFile(
+      configPath,
+      source.replace(
+        "architecture/decisions/accepted-decisions.json",
+        "architecture/decisions/reset-history.json",
+      ),
+      "utf8",
+    );
+    await assert.rejects(
+      loadCapabilityConfig(root, "governance-architecture-decisions.yaml"),
+      /acceptedBaselinePath must be equal to constant/u,
+    );
   });
 });
 
@@ -304,7 +347,7 @@ test("does not treat lifecycle status and successor references as immutable deci
 
 test("requires an available accepted-decision baseline", async () => {
   await withFixture(async (root) => {
-    await rm(join(root, "architecture", "accepted-decisions.json"));
+    await rm(baselinePath(root));
     assert.ok(
       ruleIds(await analyze(root)).includes(
         "governance.architecture-decisions.accepted-baseline-unavailable"
@@ -485,7 +528,7 @@ test("rejects baseline promotion paths that escape or traverse symbolic links", 
           baseline,
           consumerRoot: root,
           expected: { kind: "missing" },
-          path: "architecture/accepted-decisions.json"
+          path: "architecture/decisions/accepted-decisions.json"
         }),
         (error) =>
           hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_UNSAFE_TARGET")
@@ -502,7 +545,7 @@ test("rejects a baseline write when its expected revision changed concurrently",
     const repository = new FilesystemArchitectureDecisionBaselineRepository();
     const current = await repository.read({
       consumerRoot: root,
-      path: "architecture/accepted-decisions.json"
+      path: "architecture/decisions/accepted-decisions.json"
     });
     assert.equal(current.kind, "valid");
     if (current.kind !== "valid") {
@@ -515,7 +558,7 @@ test("rejects a baseline write when its expected revision changed concurrently",
         baseline: current.value,
         consumerRoot: root,
         expected: { kind: "valid", revision: current.revision },
-        path: "architecture/accepted-decisions.json"
+        path: "architecture/decisions/accepted-decisions.json"
       }),
       (error) =>
         hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT")
@@ -529,7 +572,7 @@ test("serializes concurrent baseline writers across processes", async () => {
     const repository = new FilesystemArchitectureDecisionBaselineRepository();
     const current = await repository.read({
       consumerRoot: root,
-      path: "architecture/accepted-decisions.json"
+      path: "architecture/decisions/accepted-decisions.json"
     });
     assert.equal(current.kind, "valid");
     if (current.kind !== "valid") {
@@ -541,13 +584,13 @@ test("serializes concurrent baseline writers across processes", async () => {
       baseline: baselineWithDigest(current.value, "a"),
       consumerRoot: root,
       expected,
-      path: "architecture/accepted-decisions.json"
+      path: "architecture/decisions/accepted-decisions.json"
     });
     const second = startConcurrentBaselineWriter({
       baseline: baselineWithDigest(current.value, "b"),
       consumerRoot: root,
       expected,
-      path: "architecture/accepted-decisions.json"
+      path: "architecture/decisions/accepted-decisions.json"
     });
 
     await Promise.all([first.ready, second.ready]);

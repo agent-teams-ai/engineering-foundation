@@ -7,28 +7,24 @@
   "required": [
     "schemaVersion",
     "workflowDirectory",
-    "dependencyReviewWorkflow",
+    "dependencyReview",
     "sbomWorkflow",
+    "allowedContainerImages",
+    "allowedUses",
     "privilegedJobs",
     "publishablePackageManifests"
-  ],
-  "allOf": [
-    {
-      "if": {
-        "properties": { "toolEvidence": true },
-        "required": ["toolEvidence"]
-      },
-      "then": {
-        "properties": { "allowedUses": true },
-        "required": ["allowedUses"]
-      }
-    }
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
     "workflowDirectory": { "$ref": "#/$defs/repositoryPath" },
-    "dependencyReviewWorkflow": { "$ref": "#/$defs/repositoryPath" },
+    "dependencyReview": { "$ref": "#/$defs/dependencyReviewPolicy" },
     "sbomWorkflow": { "$ref": "#/$defs/repositoryPath" },
+    "allowedContainerImages": {
+      "type": "array",
+      "maxItems": 500,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/pinnedContainerImage" }
+    },
     "allowedUses": {
       "type": "array",
       "maxItems": 500,
@@ -93,6 +89,11 @@
         }
       ]
     },
+    "pinnedContainerImage": {
+      "type": "string",
+      "maxLength": 1000,
+      "pattern": "^(?!docker://)[A-Za-z0-9][A-Za-z0-9._/-]*(?::[A-Za-z0-9][A-Za-z0-9._.-]*)?@sha256:[a-fA-F0-9]{64}$"
+    },
     "allowedWorkflowUse": {
       "type": "object",
       "additionalProperties": false,
@@ -104,6 +105,18 @@
           "maxItems": 100,
           "items": { "$ref": "#/$defs/allowedWorkflowUse" }
         }
+      }
+    },
+    "dependencyReviewPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workflowPath", "jobId", "baseRef", "headRef", "failOnSeverity"],
+      "properties": {
+        "workflowPath": { "$ref": "#/$defs/repositoryPath" },
+        "jobId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,100}$" },
+        "baseRef": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "headRef": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "failOnSeverity": { "enum": ["low", "moderate"] }
       }
     },
     "toolEvidencePolicy": {

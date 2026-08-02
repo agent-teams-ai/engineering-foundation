@@ -30,12 +30,20 @@ export interface WorkflowStepEvidence {
   readonly run?: string;
 }
 
+export interface WorkflowContainerEvidence {
+  readonly image: string;
+  readonly scope: "job" | "service";
+  readonly name: string;
+}
+
 export interface WorkflowJobEvidence {
   readonly conditional: boolean;
   readonly nonBlocking: boolean;
+  readonly needs: readonly string[];
   readonly id: string;
   readonly uses?: string;
   readonly permissions?: Readonly<Record<string, WorkflowPermission>> | "read-all" | "write-all";
+  readonly containers: readonly WorkflowContainerEvidence[];
   readonly steps: readonly WorkflowStepEvidence[];
 }
 
@@ -53,6 +61,11 @@ export interface WorkflowUseEvidence {
   readonly uses: string;
 }
 
+export interface CompositeActionEvidence {
+  readonly path: string;
+  readonly steps: readonly WorkflowStepEvidence[];
+}
+
 export interface PublishablePackageEvidence {
   readonly manifestPath: string;
   readonly packageName: string;
@@ -61,6 +74,7 @@ export interface PublishablePackageEvidence {
 }
 
 export interface RepositorySecurityEvidence {
+  readonly compositeActions: readonly CompositeActionEvidence[];
   readonly workflows: readonly WorkflowEvidence[];
   readonly workflowUses: readonly WorkflowUseEvidence[];
   readonly workflowDigest: string;
@@ -159,12 +173,28 @@ export interface PrivilegedJobPolicy {
   readonly permissions: Readonly<Record<string, WorkflowPermission>>;
 }
 
+export interface DependencyReviewPolicy {
+  readonly baseRef: string;
+  readonly failOnSeverity: "low" | "moderate";
+  readonly headRef: string;
+  readonly jobId: string;
+  readonly workflowPath: string;
+}
+
 export interface RepositorySecurityPolicy {
-  readonly allowedUses?: readonly AllowedWorkflowUse[];
+  readonly allowedContainerImages: readonly string[];
+  readonly allowedUses: readonly AllowedWorkflowUse[];
   readonly workflowDirectory: string;
-  readonly dependencyReviewWorkflow: string;
+  readonly dependencyReview: DependencyReviewPolicy;
   readonly sbomWorkflow: string;
   readonly privilegedJobs: readonly PrivilegedJobPolicy[];
   readonly publishablePackageManifests: readonly string[];
   readonly toolEvidence?: RepositorySecurityToolPolicies;
+}
+
+const FULL_DIGEST_CONTAINER_IMAGE =
+  /^(?!docker:\/\/)[A-Za-z0-9][A-Za-z0-9._/-]*(?::[A-Za-z0-9][A-Za-z0-9._.-]*)?@sha256:[a-fA-F0-9]{64}$/u;
+
+export function isPinnedContainerImage(value: string): boolean {
+  return FULL_DIGEST_CONTAINER_IMAGE.test(value);
 }

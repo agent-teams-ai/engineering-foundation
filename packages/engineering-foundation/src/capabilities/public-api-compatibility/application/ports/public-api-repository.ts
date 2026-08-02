@@ -18,12 +18,6 @@ export interface PublicApiRepository {
     signal?: AbortSignal
   ): Promise<PackageReleaseEvidence>;
 
-  isAcceptedDecision(
-    consumerRoot: string,
-    decisionPath: string,
-    signal?: AbortSignal
-  ): Promise<boolean>;
-
   writeReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,

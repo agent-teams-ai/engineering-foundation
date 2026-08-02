@@ -1,3 +1,4 @@
+import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../capability-runtime.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { loadStrictYamlFile } from "../../../strict-yaml.js";
@@ -216,7 +217,7 @@ export async function loadCapabilityConfig(
     boundaries: Object.freeze(
       boundaryInput
         .map((boundary, index) => mapBoundary(boundary, index, version))
-        .toSorted((left, right) => left.id.localeCompare(right.id))
+        .toSorted((left, right) => compareBinaryStrings(left.id, right.id))
     )
   });
   validatePolicy(policy);

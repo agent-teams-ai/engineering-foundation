@@ -1,6 +1,7 @@
 import { builtinModules } from "node:module";
 import { posix } from "node:path";
 
+import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type {
   DependencyDeclaration,
   PackageExportEntry,
@@ -103,7 +104,7 @@ function containingPackage(
     .toSorted(
       (left, right) =>
         right.rootPath.length - left.rootPath.length ||
-        left.name.localeCompare(right.name)
+        compareBinaryStrings(left.name, right.name)
     )[0];
 }
 

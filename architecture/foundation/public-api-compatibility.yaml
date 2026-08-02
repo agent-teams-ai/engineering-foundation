@@ -1,10 +1,22 @@
-schemaVersion: 1
+schemaVersion: 2
+acceptedDecisionBaselinePath: architecture/decisions/accepted-decisions.json
 changesetDirectory: .changeset
 packages:
   - packageName: "@agent-teams/engineering-foundation"
     packageRoot: packages/engineering-foundation
     manifestPath: packages/engineering-foundation/package.json
-    declarationEntryPoint: packages/engineering-foundation/dist/index.d.ts
+    entrypoints:
+      - exportPath: .
+        declarationEntryPoint: packages/engineering-foundation/dist/index.d.ts
+      - exportPath: ./local-mode
+        declarationEntryPoint: packages/engineering-foundation/dist/local-mode/index.d.ts
+    nonTypeExports:
+      - exportPath: ./package.json
+        kind: data
+      - exportPath: ./presets/*
+        kind: wildcard
+      - exportPath: ./schemas/*
+        kind: wildcard
     tsconfigPath: packages/engineering-foundation/tsconfig.json
     releasedBaselinePath: architecture/public-api/engineering-foundation.json
     approvedBreakingChanges: []

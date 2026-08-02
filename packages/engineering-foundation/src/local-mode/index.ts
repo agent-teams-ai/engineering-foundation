@@ -17,6 +17,7 @@ export {
 } from "./types.js";
 export type {
   AttachResult,
+  ConsumerPolicyInspection,
   FoundationDevOnlyStatus,
   FoundationLinkPhase,
   FoundationLinkState,
@@ -25,5 +26,6 @@ export type {
   FoundationStatus,
   ProcessRequest,
   ProcessResult,
-  ProcessRunner
+  ProcessRunner,
+  RegistryProvenanceInspection
 } from "./types.js";

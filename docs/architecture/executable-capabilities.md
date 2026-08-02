@@ -1,7 +1,8 @@
 # Executable Capabilities
 
-Status: Active for nine independently declared capabilities covering workspace
-and source dependencies, governance, contracts, and repository security.
+Status: Five capabilities are implemented and released. Four additional
+documentation and contract capabilities, plus source graph schema v2, are
+implemented and dogfooded for the next release.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
@@ -11,6 +12,33 @@ ADR-0003 through ADR-0009 accept the governance, source-graph,
 documentation, contract-evolution, and workflow-security capabilities.
 Package installation never activates them: the consumer declares each applicable
 capability and supplies its own policy and qualification evidence.
+
+## Capability lifecycle status
+
+These terms describe different facts and must not be used interchangeably:
+
+- **implemented** means executable code and conformance fixtures exist in this
+  repository;
+- **released** means the implementation is present in the current published npm
+  package;
+- **dogfooded** means this repository declares and executes the capability;
+- **consumer-enabled** means a consuming repository declares the capability in
+  its own `foundation.config.yaml` with consumer-owned policy and evidence.
+
+| Capability | Implemented | Released | Dogfooded here | Consumer activation |
+| --- | --- | --- | --- | --- |
+| `workspace.dependency-declarations` | Yes | Yes | Yes | Only by explicit declaration |
+| `architecture.source-dependencies` | Yes | Yes | Yes | Only by explicit declaration |
+| `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
+| `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
+| `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
+| `documentation.local-references` | Yes | No, next release | Yes | Only by explicit declaration |
+| `governance.architecture-decisions` | Yes | No, next release | Yes | Only by explicit declaration and baseline promotion |
+| `contract.protobuf-evolution` | Yes | No, next release | No contract owned here | Only by explicit declaration and qualification evidence |
+| `contract.json-schema-releases` | Yes | No, next release | No contract owned here | Only by explicit declaration and consumer evidence |
+
+Installing or upgrading the package changes none of the consumer activation
+cells. Each consumer records its own activation status in its repository.
 
 ## Goals
 
@@ -326,6 +354,10 @@ parsing cost or drift is measured.
 Normal capability checks are read-only and use no network, shell, or subprocess.
 Explicit baseline-promotion commands are separate write paths; they perform
 atomic adapter-local replacement only after complete evidence passes.
+Their Git ownership differs by semantic owner: accepted-decision baselines are
+promoted in the reviewed architecture change that accepts the ADR, while
+released contract and public-API baselines remain writable only by the trusted
+release workflow. Historical ADR digests still prohibit mutation or deletion.
 Checks accept `AbortSignal`, bound input, reject path ambiguity, and sort results
 independently of scheduling. Linux and Windows behavior must match.
 

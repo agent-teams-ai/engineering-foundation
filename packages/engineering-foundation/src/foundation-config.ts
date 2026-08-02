@@ -1,3 +1,4 @@
+import { compareBinaryStrings } from "./binary-string-comparator.js";
 import { CapabilityInputError } from "./capability-runtime.js";
 import { assertSchema } from "./schema-catalog.js";
 import { loadStrictYamlFile } from "./strict-yaml.js";
@@ -105,7 +106,7 @@ export async function loadFoundationConfig(
   return Object.freeze({
     projectId: string(project["id"], "project.id"),
     declaredCapabilities: Object.freeze(
-      declaredCapabilities.toSorted((left, right) => left.id.localeCompare(right.id))
+      declaredCapabilities.toSorted((left, right) => compareBinaryStrings(left.id, right.id))
     )
   });
 }

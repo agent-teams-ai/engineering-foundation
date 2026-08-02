@@ -31,7 +31,7 @@
           "kind": { "type": "string", "minLength": 1, "maxLength": 80 },
           "parentReference": { "type": "string", "minLength": 1, "maxLength": 1000 },
           "parentKind": { "type": "string", "minLength": 1, "maxLength": 80 },
-          "signature": { "type": "string", "minLength": 1, "maxLength": 10000 }
+          "signature": { "type": "string", "maxLength": 10000 }
         }
       }
     }

@@ -16,11 +16,14 @@ import {
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
 import { pathTraversesSymbolicLink } from "../../../../../filesystem-path-safety.js";
 import { assertNotCancelled } from "../../../../../strict-yaml.js";
-import { compareCanonicalReferences } from "../../../application/model/public-api.js";
-import type {
-  PublicApiItem,
-  PublicApiPackagePolicy,
-  PublicApiSnapshot
+import {
+  compareCanonicalReferences,
+  publicApiEntrypoints,
+  type PublicApiEntrypointPolicy,
+  type PublicApiEntrypointSnapshot,
+  type PublicApiItem,
+  type PublicApiPackagePolicy,
+  type PublicApiSnapshot
 } from "../../../application/model/public-api.js";
 import type { PublicApiExtractor } from "../../../application/ports/public-api-extractor.js";
 
@@ -92,6 +95,110 @@ function collectItems(item: ApiItem, output: PublicApiItem[]): void {
   }
 }
 
+function sortedItems(items: readonly PublicApiItem[]): readonly PublicApiItem[] {
+  const output = items.toSorted((left, right) =>
+    compareCanonicalReferences(left.canonicalReference, right.canonicalReference)
+  );
+  if (
+    output.some(
+      (item, index) =>
+        index > 0 && output[index - 1]?.canonicalReference === item.canonicalReference
+    )
+  ) {
+    inputError(
+      "PUBLIC_API_EXTRACTION_FAILED",
+      "API Extractor produced duplicate canonical references for one export path.",
+      "public-api-extraction"
+    );
+  }
+  return Object.freeze(output);
+}
+
+async function extractEntrypoint(input: {
+  readonly entrypoint: PublicApiEntrypointPolicy;
+  readonly entryPointPath: string;
+  readonly manifestPath: string;
+  readonly packageRoot: string;
+  readonly signal?: AbortSignal;
+  readonly tsconfigPath: string;
+}): Promise<PublicApiEntrypointSnapshot> {
+  const outputRoot = await mkdtemp(join(tmpdir(), "agent-teams-api-extractor-"));
+  try {
+    const apiJsonPath = join(outputRoot, "surface.api.json");
+    const config = ExtractorConfig.prepare({
+      configObject: {
+        projectFolder: input.packageRoot,
+        mainEntryPointFilePath: input.entryPointPath,
+        compiler: { tsconfigFilePath: input.tsconfigPath },
+        apiReport: { enabled: false },
+        docModel: {
+          enabled: true,
+          apiJsonFilePath: apiJsonPath,
+          includeForgottenExports: false
+        },
+        dtsRollup: { enabled: false },
+        tsdocMetadata: { enabled: false },
+        newlineKind: "lf",
+        testMode: true,
+        messages: {
+          compilerMessageReporting: {
+            default: { logLevel: ExtractorLogLevel.Error }
+          },
+          extractorMessageReporting: {
+            default: { logLevel: ExtractorLogLevel.Warning },
+            "ae-forgotten-export": { logLevel: ExtractorLogLevel.Error },
+            "ae-missing-release-tag": { logLevel: ExtractorLogLevel.None },
+            "ae-undocumented": { logLevel: ExtractorLogLevel.None }
+          },
+          tsdocMessageReporting: {
+            default: { logLevel: ExtractorLogLevel.Warning }
+          }
+        }
+      },
+      configObjectFullPath: undefined,
+      packageJsonFullPath: input.manifestPath,
+      projectFolderLookupToken: input.packageRoot
+    });
+    const errors: string[] = [];
+    const result = Extractor.invoke(config, {
+      localBuild: true,
+      showVerboseMessages: false,
+      messageCallback(message) {
+        if (message.logLevel === ExtractorLogLevel.Error) {
+          errors.push(message.messageId);
+        }
+        message.handled = true;
+      }
+    });
+    assertNotCancelled(input.signal);
+    if (!result.succeeded || errors.length > 0) {
+      inputError(
+        "PUBLIC_API_EXTRACTION_FAILED",
+        `API Extractor failed with message(s): ${[...new Set(errors)].toSorted().join(", ") || "unknown"}.`,
+        "public-api-extraction"
+      );
+    }
+    const apiJsonSource = await readFile(apiJsonPath, "utf8");
+    if (apiJsonSource.length > 32 * 1024 * 1024) {
+      inputError(
+        "PUBLIC_API_SURFACE_TOO_LARGE",
+        "Generated public API surface exceeds 32 MiB.",
+        "public-api-extraction"
+      );
+    }
+    const model = new ApiModel();
+    const apiPackage = model.loadPackage(apiJsonPath);
+    const items: PublicApiItem[] = [];
+    collectItems(apiPackage, items);
+    return Object.freeze({
+      exportPath: input.entrypoint.exportPath,
+      items: sortedItems(items)
+    });
+  } finally {
+    await rm(outputRoot, { recursive: true, force: true });
+  }
+}
+
 export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
   async extract(
     consumerRoot: string,
@@ -107,10 +214,9 @@ export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
         "public-api-extraction"
       )
     );
-    const [packageRoot, manifestPath, entryPoint, tsconfigPath] = await Promise.all([
+    const [packageRoot, manifestPath, tsconfigPath] = await Promise.all([
       safePath(canonicalRoot, policy.packageRoot, "directory"),
       safePath(canonicalRoot, policy.manifestPath, "file"),
-      safePath(canonicalRoot, policy.declarationEntryPoint, "file"),
       safePath(canonicalRoot, policy.tsconfigPath, "file")
     ]);
     let manifest: { readonly name?: unknown };
@@ -132,85 +238,49 @@ export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
         "public-api-extraction"
       );
     }
-    const outputRoot = await mkdtemp(join(tmpdir(), "agent-teams-api-extractor-"));
-    try {
-      const apiJsonPath = join(outputRoot, "surface.api.json");
-      const config = ExtractorConfig.prepare({
-        configObject: {
-          projectFolder: packageRoot,
-          mainEntryPointFilePath: entryPoint,
-          compiler: { tsconfigFilePath: tsconfigPath },
-          apiReport: { enabled: false },
-          docModel: {
-            enabled: true,
-            apiJsonFilePath: apiJsonPath,
-            includeForgottenExports: false
-          },
-          dtsRollup: { enabled: false },
-          tsdocMetadata: { enabled: false },
-          newlineKind: "lf",
-          testMode: true,
-          messages: {
-            compilerMessageReporting: {
-              default: { logLevel: ExtractorLogLevel.Error }
-            },
-            extractorMessageReporting: {
-              default: { logLevel: ExtractorLogLevel.Warning },
-              "ae-forgotten-export": { logLevel: ExtractorLogLevel.Error },
-              "ae-missing-release-tag": { logLevel: ExtractorLogLevel.None },
-              "ae-undocumented": { logLevel: ExtractorLogLevel.None }
-            },
-            tsdocMessageReporting: {
-              default: { logLevel: ExtractorLogLevel.Warning }
-            }
-          }
-        },
-        configObjectFullPath: undefined,
-        packageJsonFullPath: manifestPath,
-        projectFolderLookupToken: packageRoot
-      });
-      const errors: string[] = [];
-      const result = Extractor.invoke(config, {
-        localBuild: true,
-        showVerboseMessages: false,
-        messageCallback(message) {
-          if (message.logLevel === ExtractorLogLevel.Error) {
-            errors.push(message.messageId);
-          }
-          message.handled = true;
-        }
-      });
+    const entrypoints: PublicApiEntrypointSnapshot[] = [];
+    for (const entrypoint of publicApiEntrypoints(policy).toSorted((left, right) =>
+      compareCanonicalReferences(left.exportPath, right.exportPath)
+    )) {
       assertNotCancelled(signal);
-      if (!result.succeeded || errors.length > 0) {
-        inputError(
-          "PUBLIC_API_EXTRACTION_FAILED",
-          `API Extractor failed with message(s): ${[...new Set(errors)].toSorted().join(", ") || "unknown"}.`,
-          "public-api-extraction"
-        );
-      }
-      const apiJsonSource = await readFile(apiJsonPath, "utf8");
-      if (apiJsonSource.length > 32 * 1024 * 1024) {
-        inputError(
-          "PUBLIC_API_SURFACE_TOO_LARGE",
-          "Generated public API surface exceeds 32 MiB.",
-          "public-api-extraction"
-        );
-      }
-      const model = new ApiModel();
-      const apiPackage = model.loadPackage(apiJsonPath);
-      const items: PublicApiItem[] = [];
-      collectItems(apiPackage, items);
-      return {
-        schemaVersion: 1,
+      entrypoints.push(
+        await extractEntrypoint({
+          entrypoint,
+          entryPointPath: await safePath(
+            canonicalRoot,
+            entrypoint.declarationEntryPoint,
+            "file"
+          ),
+          manifestPath,
+          packageRoot,
+          ...(signal === undefined ? {} : { signal }),
+          tsconfigPath
+        })
+      );
+    }
+    if ("entrypoints" in policy) {
+      return Object.freeze({
+        schemaVersion: 2,
         packageName: policy.packageName,
         packageVersion,
         extractorVersion: Extractor.version,
-        items: items.toSorted((left, right) =>
-          compareCanonicalReferences(left.canonicalReference, right.canonicalReference)
-        )
-      };
-    } finally {
-      await rm(outputRoot, { recursive: true, force: true });
+        entrypoints: Object.freeze(entrypoints)
+      });
     }
+    const entrypoint = entrypoints[0];
+    if (entrypoint === undefined) {
+      inputError(
+        "PUBLIC_API_EXTRACTION_FAILED",
+        "Public API configuration has no declaration entry point.",
+        "public-api-extraction"
+      );
+    }
+    return Object.freeze({
+      schemaVersion: 1,
+      packageName: policy.packageName,
+      packageVersion,
+      extractorVersion: Extractor.version,
+      items: entrypoint.items
+    });
   }
 }

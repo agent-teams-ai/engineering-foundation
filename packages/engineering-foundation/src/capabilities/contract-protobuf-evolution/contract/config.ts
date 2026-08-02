@@ -10,7 +10,7 @@ import type {
   BufBreakingEvidence,
   BufGeneratorVersionEvidence,
   CurrentProtobufContractEvidence,
-  ProtobufEvolutionPolicy,
+  ProtobufEvolutionConfiguration,
   ReleasedProtobufContractEvidence,
   Sha256Digest
 } from "../application/model/protobuf-release-evidence.js";
@@ -21,7 +21,6 @@ export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 type ProtobufEvolutionConfigSchemaVersion = typeof CAPABILITY_CONFIG_SCHEMA_VERSION;
 type ProtobufEvolutionSchemaId = "contract-protobuf-evolution/v1";
 type ProtobufReleasedBaselineSchemaId = "contract-protobuf-evolution-baseline/v1";
-type ArchitectureDecisionBaselineSchemaId = "governance-architecture-decision-baseline/v1";
 
 const SCHEMA_ID_BY_VERSION: Readonly<
   Record<ProtobufEvolutionConfigSchemaVersion, ProtobufEvolutionSchemaId>
@@ -90,14 +89,28 @@ function releasedBaselinePath(value: unknown): string {
   if (!/\.(?:json|ya?ml)$/u.test(repositoryPath)) {
     inputError("releasedBaselinePath must name a JSON or YAML file.");
   }
+  if (!repositoryPath.startsWith("architecture/contracts/")) {
+    inputError("releasedBaselinePath must be inside the release-owned architecture/contracts directory.");
+  }
   return repositoryPath;
 }
 
 function acceptedDecisionBaselinePath(value: unknown): string {
   const repositoryPath = string(value, "acceptedDecisionBaselinePath");
   assertRepositoryRelativePath(repositoryPath, "protobuf-evolution-config");
-  if (!repositoryPath.endsWith(".json")) {
-    inputError("acceptedDecisionBaselinePath must name a JSON file.");
+  if (repositoryPath !== "architecture/decisions/accepted-decisions.json") {
+    inputError(
+      "acceptedDecisionBaselinePath must use the stable architecture/decisions/accepted-decisions.json anchor."
+    );
+  }
+  return repositoryPath;
+}
+
+function governanceConfigPath(value: unknown): string {
+  const repositoryPath = string(value, "governanceConfigPath");
+  assertRepositoryRelativePath(repositoryPath, "protobuf-evolution-config");
+  if (!/\.ya?ml$/u.test(repositoryPath)) {
+    inputError("governanceConfigPath must name a YAML governance configuration file.");
   }
   return repositoryPath;
 }
@@ -178,39 +191,6 @@ async function loadReleasedBaseline(
   return mapReleased(source);
 }
 
-async function loadAcceptedDecisionIds(
-  consumerRoot: string,
-  repositoryPath: string,
-  signal: AbortSignal | undefined
-): Promise<readonly `ADR-${string}`[]> {
-  const input = await loadStrictYamlFile(
-    consumerRoot,
-    repositoryPath,
-    "protobuf-breaking-approval-baseline",
-    signal
-  );
-  assertNotCancelled(signal);
-  const source = record(input, "accepted architecture decision baseline");
-  const schemaVersion = source["schemaVersion"];
-  if (schemaVersion !== 1) {
-    inputError("accepted architecture decision baseline schemaVersion must be 1.");
-  }
-  await assertSchema(
-    "governance-architecture-decision-baseline/v1" satisfies ArchitectureDecisionBaselineSchemaId,
-    input,
-    "protobuf-breaking-approval-baseline"
-  );
-  const decisions = list(source["decisions"], "accepted architecture decision baseline.decisions");
-  return Object.freeze(
-    decisions
-      .map((decision, index) => {
-        const entry = record(decision, `accepted architecture decision baseline.decisions[${index}]`);
-        return string(entry["id"], `accepted architecture decision baseline.decisions[${index}].id`) as `ADR-${string}`;
-      })
-      .toSorted()
-  );
-}
-
 function mapCurrent(value: unknown): CurrentProtobufContractEvidence {
   const source = record(value, "current");
   const generationDrift = record(source["generationDrift"], "current.generationDrift");
@@ -244,7 +224,7 @@ export async function loadCapabilityConfig(
   consumerRoot: string,
   configPath: string,
   signal?: AbortSignal
-): Promise<ProtobufEvolutionPolicy> {
+): Promise<ProtobufEvolutionConfiguration> {
   const input = await loadStrictYamlFile(
     consumerRoot,
     configPath,
@@ -264,21 +244,31 @@ export async function loadCapabilityConfig(
     list(source["approvedBreakingChanges"], "approvedBreakingChanges").map(mapBreakingApproval)
   );
   const decisionBaselinePathValue = source["acceptedDecisionBaselinePath"];
-  if (approvals.length > 0 && decisionBaselinePathValue === undefined) {
-    inputError("acceptedDecisionBaselinePath is required when breaking approvals are declared.");
-  }
-  const [released, acceptedDecisionIds] = await Promise.all([
-    loadReleasedBaseline(consumerRoot, baselinePath, signal),
+  const decisionBaselinePath =
     decisionBaselinePathValue === undefined
-      ? Promise.resolve(Object.freeze([]) as readonly `ADR-${string}`[])
-      : loadAcceptedDecisionIds(
-          consumerRoot,
-          acceptedDecisionBaselinePath(decisionBaselinePathValue),
-          signal
-        )
-  ]);
+      ? undefined
+      : acceptedDecisionBaselinePath(decisionBaselinePathValue);
+  const governanceConfigPathValue = source["governanceConfigPath"];
+  const governancePath =
+    governanceConfigPathValue === undefined
+      ? undefined
+      : governanceConfigPath(governanceConfigPathValue);
+  if ((decisionBaselinePath === undefined) !== (governancePath === undefined)) {
+    inputError(
+      "acceptedDecisionBaselinePath and governanceConfigPath must be declared together."
+    );
+  }
+  if (approvals.length > 0 && decisionBaselinePath === undefined) {
+    inputError(
+      "acceptedDecisionBaselinePath and governanceConfigPath are required when breaking approvals are declared."
+    );
+  }
+  const released = await loadReleasedBaseline(consumerRoot, baselinePath, signal);
   return Object.freeze({
-    acceptedDecisionIds,
+    ...(decisionBaselinePath === undefined
+      ? {}
+      : { acceptedDecisionBaselinePath: decisionBaselinePath }),
+    ...(governancePath === undefined ? {} : { governanceConfigPath: governancePath }),
     approvedBreakingChanges: approvals,
     released,
     current: mapCurrent(source["current"])

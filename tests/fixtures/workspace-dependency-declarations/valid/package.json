@@ -7,6 +7,7 @@
   "devDependencies": {
     "@agent-teams/engineering-foundation": "0.1.1",
     "oxlint": "catalog:",
+    "previous-ajv": "catalog:",
     "typescript": "catalog:"
   }
 }

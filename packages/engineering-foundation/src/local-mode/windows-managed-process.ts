@@ -21,6 +21,7 @@ $ErrorActionPreference = "Stop"
 Add-Type -TypeDefinition @'
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -238,10 +239,10 @@ public static class AgentTeamsFoundationJobRunner
         {
             throw new Win32Exception(Marshal.GetLastWin32Error(), "TerminateJobObject failed");
         }
-        var deadline = Environment.TickCount64 + 5000;
+        var stopwatch = Stopwatch.StartNew();
         while (ActiveProcessCount(job) > 0)
         {
-            if (Environment.TickCount64 >= deadline)
+            if (stopwatch.ElapsedMilliseconds >= 5000)
             {
                 throw new TimeoutException(
                     "Windows Job Object descendants did not terminate within 5000 ms");

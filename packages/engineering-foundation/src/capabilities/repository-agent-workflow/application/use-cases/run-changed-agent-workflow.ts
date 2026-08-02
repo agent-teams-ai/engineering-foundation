@@ -69,6 +69,7 @@ function shouldRunFastFull(
     changes.changedPaths.some((path) =>
       input.policy.fullScanPaths.some((trigger) => pathMatchesTrigger(path, trigger))
     ) ||
+    changes.deletedPaths.length > 0 ||
     changes.changedPaths.length !== changes.existingPaths.length ||
     exceedsArgumentBudget(changes.existingPaths)
   );

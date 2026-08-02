@@ -109,28 +109,62 @@ async function changedPathGroups(
   root: string,
   baselineCommit: string | null,
   signal?: AbortSignal
-): Promise<readonly (readonly string[])[]> {
+): Promise<{
+  readonly changed: readonly (readonly string[])[];
+  readonly deleted: readonly (readonly string[])[];
+}> {
   const common = [
     "--no-renames",
     "--name-only",
-    "--diff-filter=ACMRDTUXB",
     "-z"
   ] as const;
-  const commands: readonly (readonly string[])[] = [
+  const trackedCommands: readonly (readonly string[])[] = [
     ...(baselineCommit === null
       ? []
       : [["diff", ...common, `${baselineCommit}..HEAD`] as const]),
     ["diff", ...common],
-    ["diff", "--cached", ...common],
-    ["ls-files", "--others", "--exclude-standard", "-z"]
+    ["diff", "--cached", ...common]
   ];
-  const results = await Promise.all(commands.map((args) => git(root, args, signal)));
-  for (const result of results) {
+  const commands: readonly {
+    readonly kind: "changed" | "deleted";
+    readonly args: readonly string[];
+  }[] = [
+    ...trackedCommands.map((args) => ({
+      kind: "changed" as const,
+      args: [...args.slice(0, 2), "--diff-filter=ACMRDTUXB", ...args.slice(2)]
+    })),
+    ...trackedCommands.map((args) => ({
+      kind: "deleted" as const,
+      args: [...args.slice(0, 2), "--diff-filter=D", ...args.slice(2)]
+    })),
+    {
+      kind: "changed",
+      args: ["ls-files", "--others", "--exclude-standard", "-z"]
+    }
+  ];
+  const results = await Promise.all(
+    commands.map(async ({ kind, args }) => ({
+      kind,
+      result: await git(root, args, signal)
+    }))
+  );
+  for (const { result } of results) {
     if (result.exitCode !== 0) {
       invalid(`Unable to inspect repository changes: ${result.stderr.trim() || "git failed"}.`);
     }
   }
-  return results.map(({ stdout }) => parseNullDelimited(stdout));
+  return Object.freeze({
+    changed: Object.freeze(
+      results
+        .filter(({ kind }) => kind === "changed")
+        .map(({ result }) => parseNullDelimited(result.stdout))
+    ),
+    deleted: Object.freeze(
+      results
+        .filter(({ kind }) => kind === "deleted")
+        .map(({ result }) => parseNullDelimited(result.stdout))
+    )
+  });
 }
 
 export class GitRepositoryChangesReader implements RepositoryChangesReader {
@@ -155,12 +189,14 @@ export class GitRepositoryChangesReader implements RepositoryChangesReader {
     }
     const baseline = await resolveBaseline(root, input.baseRef, input.signal);
     const groups = await changedPathGroups(root, baseline.commit, input.signal);
-    const changedPaths = [...new Set(groups.flat())].toSorted();
-    changedPaths.forEach(assertSafeRepositoryPath);
+    const changedPaths = [...new Set(groups.changed.flat())].toSorted();
+    const deletedPaths = [...new Set(groups.deleted.flat())].toSorted();
+    [...changedPaths, ...deletedPaths].forEach(assertSafeRepositoryPath);
     return Object.freeze({
       baselineRef: baseline.ref,
       baselineCommit: baseline.commit,
       changedPaths: Object.freeze(changedPaths),
+      deletedPaths: Object.freeze(deletedPaths),
       existingPaths: await existingFiles(root, changedPaths)
     });
   }

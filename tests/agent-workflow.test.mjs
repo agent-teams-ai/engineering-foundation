@@ -315,6 +315,19 @@ test("treats a staged rename as deletion plus addition", async () => {
   });
 });
 
+test("does not let an untracked replacement mask a staged deletion", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    initializeRepository(consumerRoot);
+    git(consumerRoot, "rm", "--cached", "src/index.ts");
+
+    const { result, report } = runChanged(consumerRoot);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(report.coverage, "fast-full");
+    assert.deepEqual(report.changedPaths, ["src/index.ts"]);
+    assert.deepEqual(await invocations(consumerRoot), [{ kind: "fast", paths: [] }]);
+  });
+});
+
 test("returns a stable violation result from a changed-file check", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
     initializeRepository(consumerRoot);

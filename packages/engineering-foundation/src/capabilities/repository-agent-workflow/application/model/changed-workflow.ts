@@ -4,6 +4,7 @@ export interface RepositoryChanges {
   readonly baselineRef: string;
   readonly baselineCommit: string | null;
   readonly changedPaths: readonly string[];
+  readonly deletedPaths: readonly string[];
   readonly existingPaths: readonly string[];
 }
 

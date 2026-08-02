@@ -10,11 +10,11 @@ import type {
 } from "./types.js";
 import { FOUNDATION_PACKAGE_NAME } from "./types.js";
 
-interface ConsumerPolicyInspection extends FoundationDevOnlyStatus {
+export interface ConsumerPolicyInspection extends FoundationDevOnlyStatus {
   readonly packageManager?: string;
 }
 
-interface RegistryProvenanceInspection {
+export interface RegistryProvenanceInspection {
   readonly provenance?: FoundationRegistryProvenance;
   readonly issues: readonly string[];
 }

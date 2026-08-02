@@ -6,6 +6,11 @@ export const FOUNDATION_SCHEMA_IDS = [
   "package-public-api-compatibility/v1",
   "quality-suppression-governance/v1",
   "repository-security-baseline/v1",
+  "scaffold-intent/v1",
+  "scaffold-plan/v1",
+  "scaffold-receipt/v1",
+  "scaffold-target-catalog/v1",
+  "scaffolding-config/v1",
   "workspace-dependency-declarations/v1"
 ] as const;
 

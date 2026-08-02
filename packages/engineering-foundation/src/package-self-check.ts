@@ -16,8 +16,11 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "dist/cli.js",
   "dist/index.d.ts",
   "dist/index.js",
+  "dist/public-api-surface.d.ts",
   "dist/local-mode/index.d.ts",
   "dist/local-mode/index.js",
+  "dist/scaffolding/index.d.ts",
+  "dist/scaffolding/index.js",
   "presets/oxlint/base.json",
   "presets/oxlint/node.json",
   "presets/oxlint/type-aware.json",
@@ -201,6 +204,10 @@ export async function inspectFoundationPackage(
     types: "./dist/local-mode/index.d.ts",
     import: "./dist/local-mode/index.js"
   });
+  validateExport(manifest.exports, "./scaffolding", {
+    types: "./dist/scaffolding/index.d.ts",
+    import: "./dist/scaffolding/index.js"
+  });
   validateExport(manifest.exports, "./schemas/*", "./schemas/*");
   validateExport(manifest.exports, "./presets/*", "./presets/*");
   validateExport(manifest.exports, "./package.json", "./package.json");
@@ -223,7 +230,14 @@ export async function inspectFoundationPackage(
   const localModeExports: unknown = await import(
     pathToFileURL(join(packageRoot, "dist", "local-mode", "index.js")).href
   );
-  if (!isRecord(rootExports) || !isRecord(localModeExports)) {
+  const scaffoldingExports: unknown = await import(
+    pathToFileURL(join(packageRoot, "dist", "scaffolding", "index.js")).href
+  );
+  if (
+    !isRecord(rootExports) ||
+    !isRecord(localModeExports) ||
+    !isRecord(scaffoldingExports)
+  ) {
     throw new FoundationError(
       "PACKAGE_INVALID",
       "Foundation target runtime exports must be module objects."
@@ -235,6 +249,8 @@ export async function inspectFoundationPackage(
       "FoundationLocalModeService",
       localModeExports.FoundationLocalModeService
     ],
+    ["planScaffoldFromFile", scaffoldingExports.planScaffoldFromFile],
+    ["applyFilesystemScaffold", scaffoldingExports.applyFilesystemScaffold],
     ["inspectFoundationMode", localModeExports.inspectFoundationMode]
   ];
   for (const [exportName, candidate] of requiredRuntimeExports) {

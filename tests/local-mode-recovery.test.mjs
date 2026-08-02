@@ -128,6 +128,7 @@ async function createTargetPackage(path, version) {
       "./local-mode",
       "./package.json",
       "./presets/*",
+      "./scaffolding",
       "./schemas/*",
     ],
     runtimeDependencies: {}
@@ -147,6 +148,10 @@ async function createTargetPackage(path, version) {
       "./local-mode": {
         types: "./dist/local-mode/index.d.ts",
         import: "./dist/local-mode/index.js"
+      },
+      "./scaffolding": {
+        types: "./dist/scaffolding/index.d.ts",
+        import: "./dist/scaffolding/index.js"
       },
       "./schemas/*": "./schemas/*",
       "./presets/*": "./presets/*",
@@ -185,6 +190,11 @@ async function createTargetPackage(path, version) {
   await writeFile(
     join(path, "dist", "local-mode", "index.js"),
     "export class FoundationLocalModeService {}\nexport function inspectFoundationMode() {}\n",
+    "utf8"
+  );
+  await writeFile(
+    join(path, "dist", "scaffolding", "index.js"),
+    "export function planScaffoldFromFile() {}\nexport function applyFilesystemScaffold() {}\n",
     "utf8"
   );
 }

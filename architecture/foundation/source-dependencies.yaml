@@ -8,10 +8,12 @@ boundaries:
   - id: foundation.public-api
     roots:
       - packages/engineering-foundation/src/index.ts
+      - packages/engineering-foundation/src/public-api-surface.ts
     allow:
       boundaries:
         - foundation.core
         - foundation.local-mode
+        - foundation.scaffolding.composition
       packages: []
       builtins: []
       runtimeReferences: []
@@ -24,6 +26,8 @@ boundaries:
         - foundation.composition
         - foundation.core
         - foundation.local-mode
+        - foundation.scaffolding.composition
+        - foundation.scaffolding.core
       packages: []
       builtins:
         - node:fs/promises
@@ -67,6 +71,48 @@ boundaries:
         - node:path
         - node:url
       runtimeReferences: []
+  - id: foundation.scaffolding.core
+    roots:
+      - packages/engineering-foundation/src/scaffolding/contract
+      - packages/engineering-foundation/src/scaffolding/definitions
+      - packages/engineering-foundation/src/scaffolding/kernel
+      - packages/engineering-foundation/src/scaffolding/scaffold-error.ts
+    allow:
+      boundaries: []
+      packages:
+        - ajv
+      builtins:
+        - node:crypto
+        - node:path
+      runtimeReferences: []
+  - id: foundation.scaffolding.adapters
+    roots:
+      - packages/engineering-foundation/src/scaffolding/adapters
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.local-mode
+        - foundation.scaffolding.core
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+        - node:url
+      runtimeReferences: []
+  - id: foundation.scaffolding.composition
+    roots:
+      - packages/engineering-foundation/src/scaffolding/cli-command.ts
+      - packages/engineering-foundation/src/scaffolding/index.ts
+      - packages/engineering-foundation/src/scaffolding/service.ts
+    allow:
+      boundaries:
+        - foundation.scaffolding.adapters
+        - foundation.scaffolding.core
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:url
+      runtimeReferences: []
   - id: foundation.local-mode
     roots:
       - packages/engineering-foundation/src/local-mode
@@ -74,6 +120,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.scaffolding.composition
       packages:
         - proper-lockfile
         - yaml

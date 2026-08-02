@@ -110,7 +110,12 @@ async function changedPathGroups(
   baselineCommit: string | null,
   signal?: AbortSignal
 ): Promise<readonly (readonly string[])[]> {
-  const common = ["--name-only", "--diff-filter=ACMRDTUXB", "-z"] as const;
+  const common = [
+    "--no-renames",
+    "--name-only",
+    "--diff-filter=ACMRDTUXB",
+    "-z"
+  ] as const;
   const commands: readonly (readonly string[])[] = [
     ...(baselineCommit === null
       ? []

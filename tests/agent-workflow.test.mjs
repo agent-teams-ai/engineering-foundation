@@ -238,6 +238,22 @@ test("escalates policy changes and deletions to the configured fast full gate", 
   }
 });
 
+test("treats a staged rename as deletion plus addition", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    initializeRepository(consumerRoot);
+    await rename(
+      join(consumerRoot, "src", "index.ts"),
+      join(consumerRoot, "src", "renamed.ts"),
+    );
+    git(consumerRoot, "add", "--all");
+    const { result, report } = runChanged(consumerRoot);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(report.coverage, "fast-full");
+    assert.deepEqual(report.changedPaths, ["src/index.ts", "src/renamed.ts"]);
+    assert.deepEqual(await invocations(consumerRoot), [{ kind: "fast", paths: [] }]);
+  });
+});
+
 test("returns a stable violation result from a changed-file check", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
     initializeRepository(consumerRoot);

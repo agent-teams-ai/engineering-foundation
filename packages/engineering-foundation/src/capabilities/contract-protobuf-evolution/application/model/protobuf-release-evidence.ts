@@ -23,8 +23,12 @@ export interface GenerationDriftEvidence {
 
 export interface BufBreakingEvidence {
   readonly status: "compatible" | "breaking" | "not-run";
-  readonly approvalReference?: string;
   readonly fingerprint?: Sha256Digest;
+}
+
+export interface ApprovedProtobufBreakingChange {
+  readonly decisionId: `ADR-${string}`;
+  readonly fingerprint: Sha256Digest;
 }
 
 export interface CurrentProtobufContractEvidence {
@@ -41,6 +45,8 @@ export interface CurrentProtobufContractEvidence {
 }
 
 export interface ProtobufEvolutionPolicy {
+  readonly acceptedDecisionIds: readonly `ADR-${string}`[];
+  readonly approvedBreakingChanges: readonly ApprovedProtobufBreakingChange[];
   readonly released: ReleasedProtobufContractEvidence;
   readonly current: CurrentProtobufContractEvidence;
 }

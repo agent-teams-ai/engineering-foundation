@@ -64,6 +64,37 @@ const secretPatterns = [
   /\bgithub_pat_[A-Za-z0-9_]{40,}\b/u
 ];
 
+function compareStrings(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function canonicalJson(value) {
+  if (value === null) {
+    return "null";
+  }
+  if (typeof value === "string" || typeof value === "boolean" || typeof value === "number") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  const entries = Object.entries(value).toSorted(([left], [right]) => compareStrings(left, right));
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+}
+
+function canonicalDigest(value) {
+  return `sha256:${createHash("sha256").update(canonicalJson(value), "utf8").digest("hex")}`;
+}
+
+function syntheticDigest(character) {
+  return `sha256:${character.repeat(64)}`;
+}
+
+async function writeJson(path, value) {
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
 async function assertSecretCanaryAbsent(root) {
   for (const entry of await readdir(root, { withFileTypes: true })) {
     const path = join(root, entry.name);
@@ -242,7 +273,7 @@ try {
   );
   await writeFile(
     join(consumerRoot, "foundation.config.yaml"),
-    `schemaVersion: 1\nproject:\n  id: pack-consumer\ncapabilities:\n  architecture.source-dependencies:\n    configPath: architecture/foundation/source-dependencies.yaml\n  workspace.dependency-declarations:\n    configPath: architecture/foundation/dependency-declarations.yaml\n`,
+    `schemaVersion: 1\nproject:\n  id: pack-consumer\ncapabilities:\n  architecture.source-dependencies:\n    configPath: architecture/foundation/source-dependencies.yaml\n  contract.json-schema-releases:\n    configPath: architecture/foundation/json-schema-releases.yaml\n  contract.protobuf-evolution:\n    configPath: architecture/foundation/protobuf-evolution.yaml\n  documentation.local-references:\n    configPath: architecture/foundation/documentation-local-references.yaml\n  governance.architecture-decisions:\n    configPath: architecture/foundation/governance-architecture-decisions.yaml\n  workspace.dependency-declarations:\n    configPath: architecture/foundation/dependency-declarations.yaml\n`,
     "utf8"
   );
   await mkdir(join(consumerRoot, "architecture", "foundation"), {
@@ -265,8 +296,182 @@ try {
       "foundation",
       "source-dependencies.yaml"
     ),
-    `schemaVersion: 1\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - src\nboundaries:\n  - id: pack-consumer.core\n    roots:\n      - src\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
+    `schemaVersion: 2\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - src\nboundaries:\n  - id: pack-consumer.core\n    roots:\n      - src\n    entrypoints:\n      - src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
     "utf8"
+  );
+  await writeJson(
+    join(consumerRoot, "architecture", "foundation", "documentation-local-references.yaml"),
+    {
+      schemaVersion: 1,
+      markdownRoots: ["docs"],
+      anchorProfile: "github"
+    }
+  );
+  await writeJson(
+    join(consumerRoot, "architecture", "foundation", "governance-architecture-decisions.yaml"),
+    {
+      schemaVersion: 1,
+      adrRoots: ["docs/decisions"],
+      index: {
+        path: "docs/decisions/README.md",
+        sections: {
+          proposed: "Proposed",
+          accepted: "Accepted",
+          superseded: "Superseded"
+        }
+      },
+      acceptedBaselinePath: "architecture/decisions/accepted-decisions.json"
+    }
+  );
+  await mkdir(join(consumerRoot, "docs", "decisions"), { recursive: true });
+  await writeFile(
+    join(consumerRoot, "docs", "README.md"),
+    "# Packaged Consumer\n\nSee the [guide](guide.md#packaged-guide) and [decisions](decisions/README.md).\n",
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "docs", "guide.md"),
+    "# Packaged Guide\n\nThe installed Foundation package governs this clean consumer.\n",
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "docs", "decisions", "README.md"),
+    "# Architecture Decisions\n\n## Proposed\n\n## Accepted\n\n- [ADR-0001: Verify packaged capabilities](0001-verify-packaged-capabilities.md)\n\n## Superseded\n",
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "docs", "decisions", "0001-verify-packaged-capabilities.md"),
+    "---\nid: ADR-0001\nstatus: accepted\nsupersedes: []\nsuperseded_by: []\n---\n\n# ADR-0001: Verify Packaged Capabilities\n\nStatus: Accepted\n\n## Decision\n\nThe clean consumer executes capabilities from the packed artifact.\n",
+    "utf8"
+  );
+
+  const schemaId = "https://schemas.example.test/pack-consumer/event.schema.json";
+  const eventSchema = {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: schemaId,
+    type: "object",
+    additionalProperties: false,
+    required: ["contact"],
+    properties: {
+      contact: { type: "string", format: "email" }
+    }
+  };
+  const validFixture = { contact: "runtime@example.test" };
+  const invalidFixture = { contact: "not-an-email" };
+  const jsonFixtures = [
+    {
+      id: "invalid-payload",
+      path: "contracts/json-schema/fixtures/invalid.json",
+      schemaId,
+      expectation: "invalid"
+    },
+    {
+      id: "valid-payload",
+      path: "contracts/json-schema/fixtures/valid.json",
+      schemaId,
+      expectation: "valid"
+    }
+  ];
+  const schemaSetDigest = canonicalDigest([{ id: schemaId, schema: eventSchema }]);
+  const fixtureCorpusDigest = canonicalDigest([
+    {
+      id: "invalid-payload",
+      schemaId,
+      expectation: "invalid",
+      value: invalidFixture
+    },
+    {
+      id: "valid-payload",
+      schemaId,
+      expectation: "valid",
+      value: validFixture
+    }
+  ]);
+  const consumerEvidence = {
+    consumerId: "pack-consumer",
+    consumerVersion: "1.0.0",
+    contractId: "pack-consumer.events",
+    contractVersion: "1.0.0",
+    schemaSetDigest,
+    fixtureCorpusDigest,
+    evidenceDigest: `sha256:${"e".repeat(64)}`,
+    outcome: "passed"
+  };
+  await writeJson(
+    join(consumerRoot, "contracts", "json-schema", "event.schema.json"),
+    eventSchema
+  );
+  await writeJson(
+    join(consumerRoot, "contracts", "json-schema", "fixtures", "valid.json"),
+    validFixture
+  );
+  await writeJson(
+    join(consumerRoot, "contracts", "json-schema", "fixtures", "invalid.json"),
+    invalidFixture
+  );
+  await writeJson(
+    join(consumerRoot, "contracts", "json-schema", "released-baseline.json"),
+    {
+      schemaVersion: 1,
+      contractId: "pack-consumer.events",
+      publicContractVersion: "1.0.0",
+      schemaSetDigest,
+      fixtureCorpusDigest,
+      supportedConsumers: [consumerEvidence]
+    }
+  );
+  await writeJson(
+    join(consumerRoot, "architecture", "foundation", "json-schema-releases.yaml"),
+    {
+      schemaVersion: 1,
+      contractId: "pack-consumer.events",
+      publicContractVersion: "1.0.0",
+      schemaPaths: ["contracts/json-schema/event.schema.json"],
+      fixtures: jsonFixtures,
+      releasedBaselinePath: "contracts/json-schema/released-baseline.json",
+      currentConsumerEvidence: [consumerEvidence]
+    }
+  );
+
+  const protobufReleased = {
+    schemaVersion: 1,
+    contractId: "pack-consumer.control",
+    publicContractVersion: "1.0.0",
+    bufVersion: "1.72.0",
+    bufConfigDigest: syntheticDigest("a"),
+    descriptorImageDigest: syntheticDigest("b"),
+    generatorVersions: [],
+    generatedOutputDigest: syntheticDigest("c")
+  };
+  await writeJson(
+    join(consumerRoot, "contracts", "protobuf", "released-baseline.json"),
+    protobufReleased
+  );
+  await writeJson(
+    join(consumerRoot, "architecture", "foundation", "protobuf-evolution.yaml"),
+    {
+      schemaVersion: 1,
+      releasedBaselinePath: "contracts/protobuf/released-baseline.json",
+      approvedBreakingChanges: [],
+      current: {
+        schemaVersion: 1,
+        contractId: protobufReleased.contractId,
+        publicContractVersion: protobufReleased.publicContractVersion,
+        bufVersion: protobufReleased.bufVersion,
+        bufConfigDigest: protobufReleased.bufConfigDigest,
+        descriptorImageDigest: protobufReleased.descriptorImageDigest,
+        releasedDescriptorImageDigest: protobufReleased.descriptorImageDigest,
+        generatorVersions: [],
+        generationDrift: {
+          expectedGeneratedOutputDigest: protobufReleased.generatedOutputDigest,
+          observedGeneratedOutputDigest: protobufReleased.generatedOutputDigest
+        },
+        breaking: {
+          status: "compatible",
+          fingerprint: syntheticDigest("d")
+        }
+      }
+    }
   );
   const consumerSourceRoot = join(consumerRoot, "src");
   await mkdir(consumerSourceRoot, { recursive: true });
@@ -275,6 +480,38 @@ try {
     `export function identity(value: string): string {\n  return value;\n}\n`,
     "utf8"
   );
+  const { stdout: initialPromotionOutput } = await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "architecture-decisions-promote-baseline",
+      "--consumer",
+      consumerRoot,
+      "--json"
+    ]),
+    { cwd: consumerRoot }
+  );
+  const initialPromotion = JSON.parse(initialPromotionOutput);
+  if (initialPromotion.promotion?.writeResult !== "created") {
+    throw new Error("Packed ADR baseline promotion did not create an immutable baseline.");
+  }
+  const { stdout: replayPromotionOutput } = await execFileAsync(
+    pnpmExecutable,
+    pnpmArguments([
+      "exec",
+      "agent-teams-foundation",
+      "architecture-decisions-promote-baseline",
+      "--consumer",
+      consumerRoot,
+      "--json"
+    ]),
+    { cwd: consumerRoot }
+  );
+  const replayPromotion = JSON.parse(replayPromotionOutput);
+  if (replayPromotion.promotion?.writeResult !== "unchanged") {
+    throw new Error("Packed ADR baseline promotion was not idempotent.");
+  }
   const { stdout: checkOutput } = await execFileAsync(
     pnpmExecutable,
     pnpmArguments([
@@ -292,7 +529,7 @@ try {
   if (
     packedCheck.outcome !== "passed" ||
     packedCheck.capabilities?.map((capability) => capability.capabilityId).join(",") !==
-      "architecture.source-dependencies,workspace.dependency-declarations"
+      "architecture.source-dependencies,contract.json-schema-releases,contract.protobuf-evolution,documentation.local-references,governance.architecture-decisions,workspace.dependency-declarations"
   ) {
     throw new Error("Packed executable capability check did not pass.");
   }
@@ -329,6 +566,43 @@ try {
     join(consumerSourceRoot, "index.ts"),
     `export function identity(value: string): string {\n  return value;\n}\n`,
     "utf8"
+  );
+  await writeJson(
+    join(consumerRoot, "contracts", "json-schema", "fixtures", "valid.json"),
+    invalidFixture
+  );
+  let packedContractViolation;
+  try {
+    await execFileAsync(
+      pnpmExecutable,
+      pnpmArguments([
+        "exec",
+        "agent-teams-foundation",
+        "check",
+        "--consumer",
+        consumerRoot,
+        "--format",
+        "json"
+      ]),
+      { cwd: consumerRoot }
+    );
+  } catch (error) {
+    packedContractViolation = JSON.parse(error.stdout ?? "null");
+  }
+  const jsonSchemaReport = packedContractViolation?.capabilities?.find(
+    (capability) => capability.capabilityId === "contract.json-schema-releases"
+  );
+  if (
+    jsonSchemaReport?.diagnostics?.some(
+      (diagnostic) =>
+        diagnostic.ruleId === "contract.json-schema-releases.fixture-expectation-mismatch"
+    ) !== true
+  ) {
+    throw new Error("Packed JSON Schema capability did not reject a mismatched fixture.");
+  }
+  await writeJson(
+    join(consumerRoot, "contracts", "json-schema", "fixtures", "valid.json"),
+    validFixture
   );
   await writeFile(
     join(consumerRoot, "tsconfig.json"),

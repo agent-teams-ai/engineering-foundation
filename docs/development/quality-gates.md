@@ -67,7 +67,8 @@ The test suite includes positive and negative capability fixtures, real lint
 failures, local attach/detach recovery, parser parity, ast-grep rule tests, and a
 packed-tarball consumer. The tarball consumer installs its own exact Oxlint,
 oxlint-tsgolint, and TypeScript versions and proves the published type-aware
-preset and both executable capabilities.
+preset, source graph v2, documentation links and anchors, idempotent ADR baseline
+promotion, and both contract-evolution capabilities.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI
 also emits an SPDX JSON SBOM and runs Dependency Review inside its required
 `check` job.

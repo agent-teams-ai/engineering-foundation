@@ -1,7 +1,7 @@
 import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 
-export const SOURCE_ARCHITECTURE_CONFIG_SCHEMA_VERSIONS = [1, 2] as const;
+const SOURCE_ARCHITECTURE_CONFIG_SCHEMA_VERSIONS = [1, 2] as const;
 
 export type SourceArchitectureConfigSchemaVersion =
   (typeof SOURCE_ARCHITECTURE_CONFIG_SCHEMA_VERSIONS)[number];
@@ -174,7 +174,7 @@ export interface ObservedSourceDependencyEdge {
   readonly resolution: ObservedSourceDependencyResolution;
 }
 
-export interface ObservedSourceParseFailure {
+interface ObservedSourceParseFailure {
   readonly path: string;
   readonly parseErrorCount: number;
 }

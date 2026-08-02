@@ -28,11 +28,6 @@ interface CatalogEvaluationInput {
   readonly signal?: AbortSignal;
 }
 
-interface EvaluationInput extends CatalogEvaluationInput {
-  readonly baseline: ArchitectureDecisionBaselineReadResult;
-  readonly fingerprint: ArchitectureDecisionFingerprint;
-}
-
 export interface ArchitectureDecisionCatalogEvaluation {
   readonly decisions: readonly ArchitectureDecision[];
   readonly diagnostics: readonly FoundationDiagnostic[];
@@ -255,10 +250,6 @@ function parsedDecision(document: MarkdownDocumentObservation): ParsedDecision {
 
 function normalizedSection(value: string): string {
   return value.trim().replace(/\s+/gu, " ").toLocaleLowerCase("en-US");
-}
-
-function pathInside(path: string, root: string): boolean {
-  return path === root || path.startsWith(`${root}/`);
 }
 
 function decisionByPath(
@@ -703,26 +694,4 @@ export async function evaluateArchitectureDecisionCatalog(
     decisions: Object.freeze(decisions),
     diagnostics: Object.freeze(diagnostics)
   });
-}
-
-export async function evaluateArchitectureDecisions(
-  input: EvaluationInput
-): Promise<readonly FoundationDiagnostic[]> {
-  const catalog = await evaluateArchitectureDecisionCatalog(input);
-  return Object.freeze([
-    ...catalog.diagnostics,
-    ...evaluateArchitectureDecisionBaselineDiagnostics({
-      baseline: input.baseline,
-      decisions: catalog.decisions,
-      fingerprint: input.fingerprint,
-      path: input.policy.acceptedBaselinePath
-    })
-  ]);
-}
-
-export function decisionIsInsideAdrRoots(
-  policy: ArchitectureDecisionPolicy,
-  path: string
-): boolean {
-  return policy.adrRoots.some((root) => pathInside(path, root));
 }

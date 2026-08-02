@@ -2,6 +2,7 @@ import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import { CapabilityInputError } from "../../../../capability-runtime.js";
 import { isExactVersion, semanticVersionBumpBetween } from "../../../../semantic-version.js";
 import type {
+  ApprovedProtobufBreakingChange,
   BufGeneratorVersionEvidence,
   CurrentProtobufContractEvidence,
   ProtobufEvolutionPolicy,
@@ -15,6 +16,7 @@ import {
 
 const SHA256_DIGEST = /^sha256:[a-f0-9]{64}$/u;
 const CONTRACT_ID = /^[a-z][a-z0-9.-]{1,119}$/u;
+const ADR_ID = /^ADR-[0-9]{4}$/u;
 
 function isPublishedContractVersion(value: string): boolean {
   return isExactVersion(value) && !value.includes("+");
@@ -137,10 +139,6 @@ function assertBreakingEvidence(value: unknown): void {
   if (status !== "compatible" && status !== "breaking" && status !== "not-run") {
     inputError("Current Protobuf breaking status is invalid.");
   }
-  const approvalReference = evidence["approvalReference"];
-  if (approvalReference !== undefined) {
-    assertNonEmpty(approvalReference, "current.breaking.approvalReference", 240);
-  }
   const fingerprint = evidence["fingerprint"];
   if (fingerprint !== undefined) {
     assertDigest(fingerprint, "current.breaking.fingerprint");
@@ -148,8 +146,37 @@ function assertBreakingEvidence(value: unknown): void {
   if ((status === "compatible" || status === "breaking") && fingerprint === undefined) {
     inputError("Completed Protobuf breaking evidence requires a deterministic fingerprint.");
   }
-  if (status === "not-run" && (fingerprint !== undefined || approvalReference !== undefined)) {
-    inputError("Unrun Protobuf breaking evidence cannot contain a fingerprint or approval reference.");
+  if (status === "not-run" && fingerprint !== undefined) {
+    inputError("Unrun Protobuf breaking evidence cannot contain a fingerprint.");
+  }
+}
+
+function approvalKey(value: ApprovedProtobufBreakingChange): string {
+  return `${value.fingerprint}\u0000${value.decisionId}`;
+}
+
+function assertBreakingApprovals(policy: ProtobufEvolutionPolicy): void {
+  const approvalKeys = policy.approvedBreakingChanges.map((approval, index) => {
+    assertDigest(approval.fingerprint, `approvedBreakingChanges[${index}].fingerprint`);
+    if (!ADR_ID.test(approval.decisionId)) {
+      inputError(`approvedBreakingChanges[${index}].decisionId must match ADR-NNNN.`);
+    }
+    return approvalKey(approval);
+  });
+  if (
+    new Set(approvalKeys).size !== approvalKeys.length ||
+    approvalKeys.some((value, index) => value !== approvalKeys.toSorted()[index])
+  ) {
+    inputError("approvedBreakingChanges must be unique and sorted by fingerprint and decision ID.");
+  }
+  if (
+    policy.acceptedDecisionIds.some((decisionId) => !ADR_ID.test(decisionId)) ||
+    new Set(policy.acceptedDecisionIds).size !== policy.acceptedDecisionIds.length ||
+    policy.acceptedDecisionIds.some(
+      (decisionId, index) => decisionId !== policy.acceptedDecisionIds.toSorted()[index]
+    )
+  ) {
+    inputError("acceptedDecisionIds must be unique sorted ADR-NNNN identifiers.");
   }
 }
 
@@ -210,6 +237,7 @@ function generatorVersionsEqual(
 export function evaluateProtobufEvolution(
   policy: ProtobufEvolutionPolicy
 ): readonly FoundationDiagnostic[] {
+  assertBreakingApprovals(policy);
   assertReleasedEvidence(policy.released);
   assertCurrentEvidence(policy.current);
   if (policy.released.contractId !== policy.current.contractId) {
@@ -309,19 +337,32 @@ export function evaluateProtobufEvolution(
       })
     );
   }
-  if (
-    policy.current.breaking.status === "breaking" &&
-    policy.current.breaking.approvalReference === undefined
-  ) {
+  if (policy.current.breaking.status === "breaking") {
+    const fingerprint = policy.current.breaking.fingerprint;
+    const approval = policy.approvedBreakingChanges.find(
+      (candidate) => candidate.fingerprint === fingerprint
+    );
+    const accepted =
+      approval !== undefined && policy.acceptedDecisionIds.includes(approval.decisionId);
+    if (accepted) {
+      return Object.freeze(diagnostics);
+    }
     diagnostics.push(
       diagnostic({
         rule: PROTOBUF_EVOLUTION_RULES.breakingChangeNotApproved,
         subject,
-        message: "Breaking Buf evidence has no architecture decision reference.",
-        evidence:
-          policy.current.breaking.fingerprint === undefined
+        message:
+          approval === undefined
+            ? "Breaking Buf evidence has no exact fingerprint approval."
+            : `Breaking Buf approval ${approval.decisionId} is not present in the immutable accepted-decision baseline.`,
+        evidence: [
+          ...(fingerprint === undefined
             ? []
-            : [{ kind: "breaking-fingerprint", value: policy.current.breaking.fingerprint }]
+            : [{ kind: "breaking-fingerprint", value: fingerprint }]),
+          ...(approval === undefined
+            ? []
+            : [{ kind: "approval-decision", value: approval.decisionId }])
+        ]
       })
     );
   }

@@ -149,11 +149,13 @@ test("accepts only exact SemVer versions", () => {
   assert.equal(isExactVersion("1.0.0-."), false);
 });
 
-test("allows public API baseline mutation only in the Changesets release branch", () => {
+test("allows released baseline mutation only in the Changesets release branch", () => {
   assert.deepEqual(
     releaseOwnedFileViolations(
       [
         { status: "M", path: "architecture/public-api/library.json" },
+        { status: "M", path: "architecture/decisions/accepted-decisions.json" },
+        { status: "A", path: "architecture/contracts/new-contract.json" },
         { status: "M", path: "packages/library/src/index.ts" },
         { status: "A", path: "architecture/public-api/new-library.json" },
       ],
@@ -161,7 +163,10 @@ test("allows public API baseline mutation only in the Changesets release branch"
       "agent-teams-ai/engineering-foundation",
       "agent-teams-ai/engineering-foundation",
     ),
-    ["architecture/public-api/library.json"],
+    [
+      "architecture/decisions/accepted-decisions.json",
+      "architecture/public-api/library.json",
+    ],
   );
   assert.deepEqual(
     releaseOwnedFileViolations(

@@ -44,6 +44,7 @@
     "@arethetypeswrong/cli": "catalog:",
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
+    "@openai/codex": "catalog:",
     "@types/node": "catalog:",
     "@types/proper-lockfile": "catalog:",
     "ajv": "catalog:",

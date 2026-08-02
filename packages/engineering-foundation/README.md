@@ -27,11 +27,10 @@ capabilities:
     configPath: architecture/foundation/dependency-declarations.yaml
 ```
 
-Capability presence means enabled. Add source dependencies, suppression
-governance, public API compatibility, or the publishing-repository security
-profile only in separate reviewed adoption changes with consumer-owned policy
-and qualification evidence. Installing or upgrading this package never enables
-them automatically.
+Capability presence means enabled. Source architecture, documentation, ADR,
+contract-evolution, suppression, public API, and repository-security checks are
+adopted independently with consumer-owned policy and qualification evidence.
+Installing or upgrading this package never enables them automatically.
 
 The root file is `foundation.config.yaml`. Use
 `agent-teams-foundation schema foundation-config/v1` for its canonical schema
@@ -48,3 +47,6 @@ authority.
 Changesets version workflow. Normal feature checks never update released API
 baselines. Publishing consumers must also enforce release-owned baseline
 mutation in required pull-request CI.
+
+Property suites may import deterministic seed and replay helpers from the package
+root while keeping `fast-check` in the consumer's development dependencies.

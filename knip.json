@@ -1,5 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreBinaries": ["aqua"],
+  "ignoreDependencies": ["@openai/codex"],
   "workspaces": {
     ".": {
       "entry": [
@@ -12,6 +14,10 @@
       ]
     },
     "packages/engineering-foundation": {
+      "entry": [
+        "src/capabilities/*/module.ts",
+        "src/capabilities/*/qualification/module.ts"
+      ],
       "project": ["src/**/*.ts"]
     },
     "spikes/source-dependency-parser": {

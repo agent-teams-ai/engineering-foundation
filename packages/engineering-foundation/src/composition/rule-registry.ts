@@ -1,3 +1,7 @@
+import { JSON_SCHEMA_RELEASE_RULES_BY_ID } from "../capabilities/contract-json-schema-releases/module.js";
+import { PROTOBUF_EVOLUTION_RULES_BY_ID } from "../capabilities/contract-protobuf-evolution/module.js";
+import { DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID } from "../capabilities/documentation-local-references/module.js";
+import { ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID } from "../capabilities/governance-architecture-decisions/module.js";
 import { PUBLIC_API_COMPATIBILITY_RULES_BY_ID } from "../capabilities/public-api-compatibility/module.js";
 import { REPOSITORY_SECURITY_RULES_BY_ID } from "../capabilities/repository-security-baseline/module.js";
 import { SOURCE_DEPENDENCY_RULES_BY_ID } from "../capabilities/source-dependencies/module.js";
@@ -12,6 +16,10 @@ export interface RuleExplanation {
 }
 
 export const RULE_REGISTRY: ReadonlyMap<string, RuleExplanation> = new Map([
+  ...JSON_SCHEMA_RELEASE_RULES_BY_ID,
+  ...PROTOBUF_EVOLUTION_RULES_BY_ID,
+  ...DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID,
+  ...ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID,
   ...PUBLIC_API_COMPATIBILITY_RULES_BY_ID,
   ...REPOSITORY_SECURITY_RULES_BY_ID,
   ...SOURCE_DEPENDENCY_RULES_BY_ID,

@@ -17,8 +17,8 @@ capability decision.
 - every external action and reusable workflow uses a full 40-character commit
   SHA; local actions are allowed, and container actions require a SHA-256 digest;
 - every direct external `uses` entry appears in a closed consumer allowlist;
-  reviewed transitive dependencies are represented separately and cannot be
-  substituted for a direct repository use;
+  a remote action or reusable workflow pinned by SHA is treated as one reviewed
+  opaque trust root, not as proof of its internal dependency graph;
 - local composite actions are traversed recursively so they cannot hide an
   unpinned or unapproved dependency;
 - root `permissions` is an explicit object containing only `read` or `none`;
@@ -44,6 +44,11 @@ revision, and cross-platform artifact checksums. CodeQL runs independently with
 the minimum job-level `security-events: write` permission. Normal capability
 execution only validates repository state and optional deterministic tool
 evidence; it never invokes these tools itself.
+
+The offline capability cannot fetch and recursively attest remote reusable
+workflow internals. Producer-owned qualification is required before claiming
+that a remote trust root also pins every transitive action. Empty
+`transitiveUses` declarations are therefore not interpreted as such proof.
 
 ## Package controls
 

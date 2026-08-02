@@ -1,6 +1,6 @@
 export type MarkdownAnchorProfile = "github" | "none";
 
-export type MarkdownReferenceKind = "definition" | "image" | "link";
+type MarkdownReferenceKind = "definition" | "image" | "link";
 
 export interface MarkdownPosition {
   readonly column: number;
@@ -50,7 +50,7 @@ export interface MarkdownDocumentObservation {
   readonly source: string;
 }
 
-export type MarkdownObservationIssueKind =
+type MarkdownObservationIssueKind =
   | "root-missing"
   | "root-not-directory"
   | "source-too-large"

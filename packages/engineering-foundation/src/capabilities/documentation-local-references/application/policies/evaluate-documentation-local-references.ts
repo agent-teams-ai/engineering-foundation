@@ -2,22 +2,20 @@ import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import {
   anchorsForMarkdownDocument,
   type MarkdownObservationIssue,
-  type MarkdownReferenceResolution,
-  type MarkdownRepositoryObservation
+  type MarkdownReferenceResolution
 } from "../../../../documentation-observation/application/model/markdown-document.js";
-import type { MarkdownRepository } from "../../../../documentation-observation/application/ports/markdown-repository.js";
-import type { DocumentationLocalReferencesPolicy } from "../model/documentation-local-references.js";
+import type {
+  DocumentationLocalReferencesObservation,
+  DocumentationLocalReferencesPolicy
+} from "../model/documentation-local-references.js";
 import {
   DOCUMENTATION_LOCAL_REFERENCE_RULES,
   type DocumentationLocalReferencesRuleMetadata
 } from "../rules.js";
 
 interface EvaluationInput {
-  readonly consumerRoot: string;
-  readonly observation: MarkdownRepositoryObservation;
+  readonly observation: DocumentationLocalReferencesObservation;
   readonly policy: DocumentationLocalReferencesPolicy;
-  readonly repository: MarkdownRepository;
-  readonly signal?: AbortSignal;
 }
 
 function diagnostic(input: {
@@ -122,62 +120,55 @@ function resolutionDiagnostic(input: {
   });
 }
 
-export async function evaluateDocumentationLocalReferences(
+export function evaluateDocumentationLocalReferences(
   input: EvaluationInput
-): Promise<readonly FoundationDiagnostic[]> {
-  const diagnostics: FoundationDiagnostic[] = input.observation.issues.map(issueDiagnostic);
+): readonly FoundationDiagnostic[] {
+  const diagnostics: FoundationDiagnostic[] = input.observation.repository.issues.map(issueDiagnostic);
 
-  for (const document of input.observation.documents) {
-    for (const reference of document.references) {
-      const resolution = await input.repository.resolveReference({
-        consumerRoot: input.consumerRoot,
-        rawTarget: reference.rawTarget,
-        ...(input.signal === undefined ? {} : { signal: input.signal }),
-        source: document
-      });
-      if (resolution.kind === "external") {
-        continue;
-      }
-      if (resolution.kind !== "file") {
-        diagnostics.push(
-          resolutionDiagnostic({
-            path: document.repositoryPath,
-            rawTarget: reference.rawTarget,
-            resolution,
-            sourceColumn: reference.location.column,
-            sourceLine: reference.location.line
-          })
-        );
-        continue;
-      }
-      if (
-        input.policy.anchorProfile === "none" ||
-        resolution.fragment.length === 0 ||
-        resolution.markdownDocument === undefined
-      ) {
-        continue;
-      }
-      const anchors = anchorsForMarkdownDocument(
-        resolution.markdownDocument,
-        input.policy.anchorProfile
+  for (const observedReference of input.observation.resolvedReferences) {
+    const { reference, resolution, sourcePath } = observedReference;
+    if (resolution.kind === "external") {
+      continue;
+    }
+    if (resolution.kind !== "file") {
+      diagnostics.push(
+        resolutionDiagnostic({
+          path: sourcePath,
+          rawTarget: reference.rawTarget,
+          resolution,
+          sourceColumn: reference.location.column,
+          sourceLine: reference.location.line
+        })
       );
-      if (!anchors.includes(resolution.fragment)) {
-        diagnostics.push(
-          diagnostic({
-            column: reference.location.column,
-            evidence: [
-              { kind: "raw-target", value: reference.rawTarget },
-              { kind: "fragment", value: resolution.fragment }
-            ],
-            line: reference.location.line,
-            message: `Anchor #${resolution.fragment} is missing in ${resolution.repositoryPath}.`,
-            path: document.repositoryPath,
-            relatedPath: resolution.repositoryPath,
-            rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.missingAnchor,
-            subject: `${document.repositoryPath}:${reference.location.line}`
-          })
-        );
-      }
+      continue;
+    }
+    if (
+      input.policy.anchorProfile === "none" ||
+      resolution.fragment.length === 0 ||
+      resolution.markdownDocument === undefined
+    ) {
+      continue;
+    }
+    const anchors = anchorsForMarkdownDocument(
+      resolution.markdownDocument,
+      input.policy.anchorProfile
+    );
+    if (!anchors.includes(resolution.fragment)) {
+      diagnostics.push(
+        diagnostic({
+          column: reference.location.column,
+          evidence: [
+            { kind: "raw-target", value: reference.rawTarget },
+            { kind: "fragment", value: resolution.fragment }
+          ],
+          line: reference.location.line,
+          message: `Anchor #${resolution.fragment} is missing in ${resolution.repositoryPath}.`,
+          path: sourcePath,
+          relatedPath: resolution.repositoryPath,
+          rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.missingAnchor,
+          subject: `${sourcePath}:${reference.location.line}`
+        })
+      );
     }
   }
   return diagnostics;

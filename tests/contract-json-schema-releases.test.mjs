@@ -55,18 +55,21 @@ async function withContractFixture(callback) {
       $id: "https://schemas.example.test/agent/root.schema.json",
       type: "object",
       additionalProperties: false,
-      required: ["id", "details"],
+      required: ["id", "contact", "details"],
       properties: {
         id: { type: "string" },
+        contact: { type: "string", format: "email" },
         details: { $ref: "https://schemas.example.test/agent/common.schema.json" },
       },
     });
     await writeJson(root, "fixtures/valid.json", {
       id: "task-1",
+      contact: "runtime@example.test",
       details: { kind: "created" },
     });
     await writeJson(root, "fixtures/invalid.json", {
       id: 42,
+      contact: "not-an-email",
       details: { kind: 7 },
     });
     return await callback(root);
@@ -259,9 +262,10 @@ test("detects immutable same-version changes and missing supported-consumer evid
       $id: "https://schemas.example.test/agent/root.schema.json",
       type: "object",
       additionalProperties: false,
-      required: ["id", "details"],
+      required: ["id", "contact", "details"],
       properties: {
         id: { type: "string", minLength: 1 },
+        contact: { type: "string", format: "email" },
         details: { $ref: "https://schemas.example.test/agent/common.schema.json" },
       },
     });
@@ -286,6 +290,7 @@ test("treats fixture corpus mutation as immutable same-version contract mutation
     const released = await inspector.inspect(request(root));
     await writeJson(root, "fixtures/valid.json", {
       id: "task-2",
+      contact: "runtime-2@example.test",
       details: { kind: "created" },
     });
     const current = await inspector.inspect(request(root));

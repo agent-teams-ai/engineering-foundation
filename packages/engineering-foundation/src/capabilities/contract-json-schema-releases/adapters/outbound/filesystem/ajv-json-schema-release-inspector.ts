@@ -3,6 +3,7 @@ import { readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
 import { pathTraversesSymbolicLink } from "../../../../../filesystem-path-safety.js";
@@ -205,8 +206,9 @@ function compileSchemas(documents: readonly SchemaDocument[]): Ajv2020 {
   const ajv = new Ajv2020({
     allErrors: true,
     strict: true,
-    validateFormats: false
+    validateFormats: true
   });
+  addFormats.default(ajv);
   try {
     for (const document of documents) {
       ajv.addSchema(document.value, document.id);

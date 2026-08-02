@@ -39,6 +39,8 @@ function digest(character) {
 function policy() {
   return {
     schemaVersion: 1,
+    acceptedDecisionIds: [],
+    approvedBreakingChanges: [],
     released: {
       schemaVersion: 1,
       contractId: "agent-runtime-control",
@@ -81,6 +83,7 @@ function capabilityConfig(releasedBaselinePath = "baselines/released.yaml") {
   return {
     schemaVersion: 1,
     releasedBaselinePath,
+    approvedBreakingChanges: [],
     current: policy().current,
   };
 }
@@ -168,13 +171,69 @@ test("rejects breaking evidence that is not bound to a deterministic fingerprint
   const evidence = policy();
   evidence.current.breaking = {
     status: "breaking",
-    approvalReference: "ADR-0042",
   };
 
   assert.throws(
     () => protobufModule.evaluateProtobufEvolution(evidence),
     /requires a deterministic fingerprint/u,
   );
+});
+
+test("binds a breaking fingerprint to an immutable accepted architecture decision", () => {
+  const evidence = policy();
+  evidence.current.breaking = {
+    status: "breaking",
+    fingerprint: digest("f"),
+  };
+  evidence.approvedBreakingChanges = [
+    { decisionId: "ADR-0042", fingerprint: digest("f") },
+  ];
+  assert.deepEqual(
+    protobufModule
+      .evaluateProtobufEvolution(evidence)
+      .map((diagnostic) => diagnostic.ruleId),
+    ["contract.protobuf-evolution.breaking-change-not-approved"],
+  );
+
+  evidence.acceptedDecisionIds = ["ADR-0042"];
+  assert.deepEqual(protobufModule.evaluateProtobufEvolution(evidence), []);
+});
+
+test("loads breaking approval only from a validated accepted-decision baseline", async () => {
+  const config = capabilityConfig();
+  config.current.breaking = {
+    status: "breaking",
+    fingerprint: digest("f"),
+  };
+  config.approvedBreakingChanges = [
+    { decisionId: "ADR-0042", fingerprint: digest("f") },
+  ];
+  config.acceptedDecisionBaselinePath = "architecture/accepted-decisions.json";
+  await withConfig(config, async (root) => {
+    const baselinePath = join(root, "architecture", "accepted-decisions.json");
+    await mkdir(dirname(baselinePath), { recursive: true });
+    await writeFile(
+      baselinePath,
+      `${JSON.stringify({
+        schemaVersion: 1,
+        algorithm: "sha256",
+        decisions: [
+          {
+            id: "ADR-0042",
+            path: "docs/decisions/0042-approve-runtime-contract-break.md",
+            immutableDigest: digest("e"),
+          },
+        ],
+      })}\n`,
+      "utf8",
+    );
+    const capability = protobufModule.createProtobufEvolutionCapability();
+    const result = await capability.run({
+      consumerRoot: root,
+      configPath: "contract.yaml",
+    });
+    assert.equal(result.outcome, "passed");
+  });
 });
 
 test("rejects public release versions with build metadata and detects prerelease regression", () => {

@@ -1,4 +1,4 @@
-schemaVersion: 1
+schemaVersion: 2
 workspace:
   kind: pnpm
   manifest: pnpm-workspace.yaml
@@ -12,14 +12,17 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.local-mode
+        - foundation.property-testing-support
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints: []
   - id: foundation.cli
     roots:
       - packages/engineering-foundation/src/cli.ts
     allow:
       boundaries:
+        - capability.architecture-decisions.composition
         - capability.public-api-compatibility.composition
         - foundation.composition
         - foundation.core
@@ -30,6 +33,7 @@ boundaries:
         - node:path
         - node:url
       runtimeReferences: []
+    entrypoints: []
   - id: foundation.composition
     roots:
       - packages/engineering-foundation/src/check-runner.ts
@@ -38,6 +42,10 @@ boundaries:
       - packages/engineering-foundation/src/report-renderer.ts
     allow:
       boundaries:
+        - capability.architecture-decisions.composition
+        - capability.contract-json-schema.composition
+        - capability.contract-protobuf.composition
+        - capability.documentation-local-references.composition
         - capability.public-api-compatibility.composition
         - capability.repository-security.composition
         - capability.source-dependencies.composition
@@ -47,6 +55,11 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/check-runner.ts
+      - packages/engineering-foundation/src/composition/rule-registry.ts
+      - packages/engineering-foundation/src/foundation-config.ts
+      - packages/engineering-foundation/src/report-renderer.ts
   - id: foundation.core
     roots:
       - packages/engineering-foundation/src/capability-runtime.ts
@@ -67,6 +80,15 @@ boundaries:
         - node:path
         - node:url
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capability-runtime.ts
+      - packages/engineering-foundation/src/check-contract.ts
+      - packages/engineering-foundation/src/errors.ts
+      - packages/engineering-foundation/src/filesystem-path-safety.ts
+      - packages/engineering-foundation/src/schema-catalog.ts
+      - packages/engineering-foundation/src/schema-ids.ts
+      - packages/engineering-foundation/src/semantic-version.ts
+      - packages/engineering-foundation/src/strict-yaml.ts
   - id: foundation.local-mode
     roots:
       - packages/engineering-foundation/src/local-mode
@@ -86,6 +108,12 @@ boundaries:
         - node:util
       runtimeReferences:
         - dynamic
+    entrypoints:
+      - packages/engineering-foundation/src/local-mode/adapters/outbound/time/system-clock.ts
+      - packages/engineering-foundation/src/local-mode/process-runner.ts
+      - packages/engineering-foundation/src/local-mode/service.ts
+      - packages/engineering-foundation/src/local-mode/types.ts
+      - packages/engineering-foundation/src/package-self-check.ts
   - id: foundation.workspace-inventory.application
     roots:
       - packages/engineering-foundation/src/workspace-inventory/application
@@ -94,6 +122,9 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/workspace-inventory/application/model/workspace-inventory.ts
+      - packages/engineering-foundation/src/workspace-inventory/application/ports/workspace-inventory-reader.ts
   - id: foundation.source-inventory.application
     roots:
       - packages/engineering-foundation/src/source-inventory/application
@@ -102,6 +133,9 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/source-inventory/application/model/source-file-snapshot.ts
+      - packages/engineering-foundation/src/source-inventory/application/ports/source-tree-reader.ts
   - id: foundation.source-inventory.adapters
     roots:
       - packages/engineering-foundation/src/source-inventory/adapters
@@ -114,6 +148,8 @@ boundaries:
         - node:fs/promises
         - node:path
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/source-inventory/adapters/outbound/filesystem/filesystem-source-tree-reader.ts
   - id: foundation.workspace-inventory.adapters
     roots:
       - packages/engineering-foundation/src/workspace-inventory/adapters
@@ -126,6 +162,8 @@ boundaries:
         - node:fs/promises
         - node:path
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.ts
   - id: capability.source-dependencies.application
     roots:
       - packages/engineering-foundation/src/capabilities/source-dependencies/application
@@ -135,8 +173,16 @@ boundaries:
         - foundation.source-inventory.application
         - foundation.workspace-inventory.application
       packages: []
-      builtins: []
+      builtins:
+        - node:path
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/repository-path.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-workspace.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-dependency-parser.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-dependency-resolver.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/analyze-source-dependencies.ts
   - id: capability.public-api-compatibility.application
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application
@@ -146,6 +192,14 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/public-api.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/change-fingerprint.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-extractor.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-repository.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/analyze-public-api-compatibility.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/promote-public-api-baselines.ts
   - id: capability.repository-security.application
     roots:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application
@@ -155,6 +209,11 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/model/repository-security.ts
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/ports/repository-security-reader.ts
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/use-cases/analyze-repository-security.ts
   - id: capability.repository-security.contract
     roots:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/contract
@@ -165,6 +224,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/contract/config.ts
   - id: capability.repository-security.adapters
     roots:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters
@@ -177,6 +238,8 @@ boundaries:
         - node:fs/promises
         - node:path
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters/outbound/filesystem/filesystem-repository-security-reader.ts
   - id: capability.repository-security.composition
     roots:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/module.ts
@@ -189,6 +252,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/module.ts
   - id: capability.public-api-compatibility.contract
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/contract
@@ -199,6 +264,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/contract/config.ts
   - id: capability.public-api-compatibility.adapters
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters
@@ -215,6 +282,10 @@ boundaries:
         - node:os
         - node:path
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/crypto/node-change-fingerprint.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.ts
   - id: capability.public-api-compatibility.composition
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
@@ -227,6 +298,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
   - id: capability.source-dependencies.contract
     roots:
       - packages/engineering-foundation/src/capabilities/source-dependencies/contract
@@ -237,6 +310,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/contract/config.ts
   - id: capability.source-dependencies.adapters
     roots:
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters
@@ -253,6 +328,9 @@ boundaries:
         - node:module
         - node:path
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/oxc/oxc-source-dependency-parser.ts
   - id: capability.source-dependencies.composition
     roots:
       - packages/engineering-foundation/src/capabilities/source-dependencies/module.ts
@@ -267,6 +345,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/module.ts
   - id: capability.suppression-governance.application
     roots:
       - packages/engineering-foundation/src/capabilities/suppression-governance/application
@@ -277,6 +357,13 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/suppression-governance/application/model/iso-date.ts
+      - packages/engineering-foundation/src/capabilities/suppression-governance/application/model/suppression-governance.ts
+      - packages/engineering-foundation/src/capabilities/suppression-governance/application/ports/calendar-clock.ts
+      - packages/engineering-foundation/src/capabilities/suppression-governance/application/ports/suppression-scanner.ts
+      - packages/engineering-foundation/src/capabilities/suppression-governance/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/suppression-governance/application/use-cases/analyze-suppression-governance.ts
   - id: capability.suppression-governance.contract
     roots:
       - packages/engineering-foundation/src/capabilities/suppression-governance/contract
@@ -287,6 +374,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/suppression-governance/contract/config.ts
   - id: capability.suppression-governance.adapters
     roots:
       - packages/engineering-foundation/src/capabilities/suppression-governance/adapters
@@ -298,6 +387,9 @@ boundaries:
         - oxc-parser
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/suppression-governance/adapters/outbound/oxc/oxc-suppression-scanner.ts
+      - packages/engineering-foundation/src/capabilities/suppression-governance/adapters/outbound/time/system-clock.ts
   - id: capability.suppression-governance.composition
     roots:
       - packages/engineering-foundation/src/capabilities/suppression-governance/module.ts
@@ -311,6 +403,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/suppression-governance/module.ts
   - id: capability.workspace-dependencies.application
     roots:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application
@@ -321,6 +415,12 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/model/workspace-dependency-policy.ts
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/model/workspace-snapshot.ts
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/policies/evaluate-workspace-dependencies.ts
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/ports/workspace-reader.ts
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/rules.ts
   - id: capability.workspace-dependencies.contract
     roots:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/contract
@@ -331,6 +431,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/contract/config.ts
   - id: capability.workspace-dependencies.adapters
     roots:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/adapters
@@ -341,6 +443,8 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/adapters/outbound/pnpm-workspace/pnpm-workspace-reader.ts
   - id: capability.workspace-dependencies.composition
     roots:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/module.ts
@@ -353,3 +457,286 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/module.ts
+  - id: foundation.documentation-observation.application
+    roots:
+      - packages/engineering-foundation/src/documentation-observation/application
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/documentation-observation/application/model/markdown-document.ts
+      - packages/engineering-foundation/src/documentation-observation/application/ports/markdown-repository.ts
+  - id: foundation.documentation-observation.adapters
+    roots:
+      - packages/engineering-foundation/src/documentation-observation/adapters
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.documentation-observation.application
+      packages:
+        - github-slugger
+        - mdast-util-to-string
+        - remark-frontmatter
+        - remark-gfm
+        - remark-parse
+        - unified
+        - unist-util-visit
+        - yaml
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.ts
+  - id: capability.documentation-local-references.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/application
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.documentation-observation.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/application/model/documentation-local-references.ts
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/application/use-cases/analyze-documentation-local-references.ts
+  - id: capability.documentation-local-references.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/contract
+    allow:
+      boundaries:
+        - capability.documentation-local-references.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/contract/config.ts
+  - id: capability.documentation-local-references.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/module.ts
+    allow:
+      boundaries:
+        - capability.documentation-local-references.application
+        - capability.documentation-local-references.contract
+        - foundation.core
+        - foundation.documentation-observation.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/module.ts
+  - id: capability.architecture-decisions.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.documentation-observation.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/model/architecture-decision.ts
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/policies/accepted-architecture-decision-baseline.ts
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/ports/architecture-decision-baseline-repository.ts
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/ports/architecture-decision-fingerprint.ts
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/use-cases/analyze-architecture-decisions.ts
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/use-cases/promote-architecture-decision-baseline.ts
+  - id: capability.architecture-decisions.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/contract
+    allow:
+      boundaries:
+        - capability.architecture-decisions.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/contract/config.ts
+  - id: capability.architecture-decisions.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/adapters
+    allow:
+      boundaries:
+        - capability.architecture-decisions.application
+        - foundation.core
+      packages:
+        - proper-lockfile
+      builtins:
+        - node:crypto
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/adapters/outbound/crypto/node-architecture-decision-fingerprint.ts
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.ts
+  - id: capability.architecture-decisions.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/module.ts
+    allow:
+      boundaries:
+        - capability.architecture-decisions.adapters
+        - capability.architecture-decisions.application
+        - capability.architecture-decisions.contract
+        - foundation.core
+        - foundation.documentation-observation.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/module.ts
+  - id: capability.contract-json-schema.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/model/json-schema-release.ts
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/policies/evaluate-json-schema-release.ts
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/ports/json-schema-release-inspector.ts
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/use-cases/verify-json-schema-release.ts
+  - id: capability.contract-json-schema.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/contract
+    allow:
+      boundaries:
+        - capability.contract-json-schema.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/contract/config.ts
+  - id: capability.contract-json-schema.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/adapters
+    allow:
+      boundaries:
+        - capability.contract-json-schema.application
+        - foundation.core
+      packages:
+        - ajv
+        - ajv-formats
+      builtins:
+        - node:crypto
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/adapters/outbound/filesystem/ajv-json-schema-release-inspector.ts
+  - id: capability.contract-json-schema.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/module.ts
+    allow:
+      boundaries:
+        - capability.contract-json-schema.adapters
+        - capability.contract-json-schema.application
+        - capability.contract-json-schema.contract
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/module.ts
+  - id: capability.contract-protobuf.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/model/protobuf-release-evidence.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/policies/evaluate-protobuf-evolution.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/rules.ts
+  - id: capability.contract-protobuf.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/contract
+    allow:
+      boundaries:
+        - capability.contract-protobuf.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/contract/config.ts
+  - id: capability.contract-protobuf.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/module.ts
+    allow:
+      boundaries:
+        - capability.contract-protobuf.application
+        - capability.contract-protobuf.contract
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/module.ts
+  - id: capability.contract-protobuf.qualification.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/ports
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/ports/buf-executable.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases/verify-pinned-buf-version.ts
+  - id: capability.contract-protobuf.qualification.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters
+    allow:
+      boundaries:
+        - capability.contract-protobuf.qualification.application
+        - foundation.core
+      packages: []
+      builtins:
+        - node:child_process
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/process/process-buf-executable.ts
+  - id: capability.contract-protobuf.qualification.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/module.ts
+    allow:
+      boundaries:
+        - capability.contract-protobuf.qualification.adapters
+        - capability.contract-protobuf.qualification.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints: []
+  - id: foundation.property-testing-support
+    roots:
+      - packages/engineering-foundation/src/capabilities/property-testing-standard
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/property-testing-standard/test-support/deterministic-seed-bank.ts

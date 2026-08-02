@@ -1,3 +1,10 @@
+---
+id: ADR-0005
+status: accepted
+supersedes: []
+superseded_by: []
+---
+
 # ADR-0005: Repository Security Baseline
 
 Status: Accepted

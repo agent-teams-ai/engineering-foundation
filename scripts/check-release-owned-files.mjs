@@ -5,7 +5,11 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const RELEASE_BRANCH = "changeset-release/main";
-const RELEASE_OWNED_PREFIXES = ["architecture/public-api/"];
+const RELEASE_OWNED_PREFIXES = [
+  "architecture/contracts/",
+  "architecture/decisions/",
+  "architecture/public-api/",
+];
 
 function protectedPaths(change) {
   return change.status === "R" && change.previousPath !== undefined
@@ -82,7 +86,7 @@ async function main() {
   );
   if (violations.length > 0) {
     throw new Error(
-      `Release-owned public API baselines changed outside ${RELEASE_BRANCH}: ${violations.join(", ")}.`
+      `Release-owned baselines changed outside ${RELEASE_BRANCH}: ${violations.join(", ")}.`
     );
   }
 }

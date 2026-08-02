@@ -1,4 +1,5 @@
 import { CapabilityInputError } from "../../../capability-runtime.js";
+import { assertSchema } from "../../../schema-catalog.js";
 import { assertRepositoryRelativePath, loadStrictYamlFile } from "../../../strict-yaml.js";
 import type {
   ArchitectureDecisionIndexPolicy,
@@ -82,6 +83,11 @@ export async function loadCapabilityConfig(
     configPath,
     "architecture-decision-governance-config",
     signal
+  );
+  await assertSchema(
+    "governance-architecture-decisions/v1",
+    input,
+    "architecture-decision-governance-config"
   );
   const root = record(input, "architecture decision governance config");
   onlyKeys(root, ["schemaVersion", "adrRoots", "index", "acceptedBaselinePath"], "config");

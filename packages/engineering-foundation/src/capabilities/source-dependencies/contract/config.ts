@@ -79,7 +79,7 @@ async function assertSourceArchitectureSchema(
 ): Promise<void> {
   // Keep version selection closed so callers cannot select an arbitrary schema.
   await assertSchema(
-    SCHEMA_ID_BY_VERSION[version] as Parameters<typeof assertSchema>[0],
+    SCHEMA_ID_BY_VERSION[version],
     input,
     "source-architecture-config"
   );

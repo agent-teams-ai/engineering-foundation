@@ -6,7 +6,7 @@ const FULL_SHA_ACTION =
   /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_./-]+)?@[0-9a-fA-F]{40}$/u;
 const FULL_DIGEST_CONTAINER = /^docker:\/\/.+@sha256:[0-9a-fA-F]{64}$/u;
 
-export function isLocalWorkflowUse(value: string): boolean {
+function isLocalWorkflowUse(value: string): boolean {
   return value.startsWith("./");
 }
 
@@ -106,7 +106,7 @@ interface BaseRepositorySecurityToolEvidence {
   readonly tool: SecurityToolName;
 }
 
-export interface MissingRepositorySecurityToolEvidence
+interface MissingRepositorySecurityToolEvidence
   extends BaseRepositorySecurityToolEvidence {
   readonly kind: "missing";
   readonly missing: "evidence" | "result";

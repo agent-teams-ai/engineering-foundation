@@ -15,6 +15,7 @@ export {
   evaluateProtobufEvolution
 } from "./application/policies/evaluate-protobuf-evolution.js";
 export type {
+  ApprovedProtobufBreakingChange,
   BufBreakingEvidence,
   BufGeneratorVersionEvidence,
   CurrentProtobufContractEvidence,

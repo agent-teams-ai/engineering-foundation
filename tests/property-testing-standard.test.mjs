@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+import {
+  assert as assertProperty,
+  integer,
+  property,
+  uniqueArray,
+} from "fast-check";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
@@ -10,17 +16,7 @@ const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
   "engineering-foundation",
   "dist",
 );
-const propertyTesting = await import(
-  pathToFileURL(
-    join(
-      distRoot,
-      "capabilities",
-      "property-testing-standard",
-      "test-support",
-      "deterministic-seed-bank.js",
-    ),
-  ).href,
-);
+const propertyTesting = await import(pathToFileURL(join(distRoot, "index.js")).href);
 
 function seedBank() {
   return {
@@ -54,7 +50,16 @@ test("normalizes a deterministic seed bank and produces fast-check-compatible re
 test("rejects duplicate seeds, unsafe replay paths, and detached replay evidence", () => {
   assert.throws(
     () => propertyTesting.normalizeDeterministicSeedBank({ ...seedBank(), seeds: [1, 1] }),
-    /duplicate seeds/u,
+    (error) => {
+      assert.match(error.message, /duplicate seeds/u);
+      assert.equal(error.name, "PropertyTestingEvidenceError");
+      assert.equal(
+        error instanceof propertyTesting.PropertyTestingEvidenceError,
+        true,
+      );
+      assert.equal(error.code, "PROPERTY_TESTING_EVIDENCE_INVALID");
+      return true;
+    },
   );
   assert.throws(
     () =>
@@ -77,4 +82,32 @@ test("rejects duplicate seeds, unsafe replay paths, and detached replay evidence
       }),
     /must bind to the same property/u,
   );
+});
+
+test("replays normalization properties with the declared deterministic seed bank", () => {
+  const bank = propertyTesting.normalizeDeterministicSeedBank(seedBank());
+  for (const seed of bank.seeds) {
+    assertProperty(
+      property(
+        uniqueArray(integer({ min: -2_147_483_648, max: 2_147_483_647 }), {
+          minLength: 1,
+          maxLength: 64,
+        }),
+        (seeds) => {
+          const normalized = propertyTesting.normalizeDeterministicSeedBank({
+            schemaVersion: 1,
+            propertyId: bank.propertyId,
+            numRuns: bank.numRuns,
+            seeds,
+          });
+          assert.deepEqual(normalized.seeds, seeds.toSorted((left, right) => left - right));
+          assert.deepEqual(
+            propertyTesting.normalizeDeterministicSeedBank(normalized),
+            normalized,
+          );
+        },
+      ),
+      propertyTesting.createFastCheckParameters(bank, seed),
+    );
+  }
 });

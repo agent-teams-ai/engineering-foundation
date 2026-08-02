@@ -1,4 +1,5 @@
 import { CapabilityInputError } from "../../../capability-runtime.js";
+import { assertSchema } from "../../../schema-catalog.js";
 import { assertRepositoryRelativePath, loadStrictYamlFile } from "../../../strict-yaml.js";
 import type { DocumentationLocalReferencesPolicy } from "../application/model/documentation-local-references.js";
 
@@ -53,6 +54,11 @@ export async function loadCapabilityConfig(
     configPath,
     "documentation-local-references-config",
     signal
+  );
+  await assertSchema(
+    "documentation-local-references/v1",
+    input,
+    "documentation-local-references-config"
   );
   const root = record(input, "documentation local references config");
   onlyKeys(root, ["schemaVersion", "markdownRoots", "anchorProfile"], "config");

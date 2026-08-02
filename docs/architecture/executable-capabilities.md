@@ -1,13 +1,14 @@
 # Executable Capabilities
 
-Status: Active for workspace declarations, source dependencies, suppression
-governance, public API compatibility, and repository security.
+Status: Active for nine independently declared capabilities covering workspace
+and source dependencies, governance, contracts, and repository security.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
 dependency capability is implemented and dogfooded behind internal ports.
 ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
-ADR-0003, ADR-0004, and ADR-0005 accept the three governance capabilities.
+ADR-0003 through ADR-0009 accept the governance, source-graph,
+documentation, contract-evolution, and workflow-security capabilities.
 Package installation never activates them: the consumer declares each applicable
 capability and supplies its own policy and qualification evidence.
 
@@ -80,6 +81,10 @@ The second implementation validates observed source relationships:
 - cross-package relative imports cannot bypass package boundaries;
 - imported package subpaths are exported;
 - unsupported or unresolvable governed imports fail closed.
+- schema v2 permits cross-boundary local imports only through declared target
+  entrypoints;
+- boundary and package cycles are checked separately for runtime and type-only
+  edges over one normalized immutable observed graph.
 
 The source scanner, resolver, source-tree reader, and workspace inventory sit
 behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parser
@@ -102,6 +107,33 @@ consumer checks. They cannot be added to either dependency capability.
 
 Each remains an independent feature slice with its own model, ports, policies,
 adapters, schema, rules, and fixtures.
+
+### Documentation governance
+
+- `documentation.local-references` validates CommonMark/GFM links, images,
+  definitions, directory indexes, GitHub anchors, containment, and symlink
+  safety;
+- `governance.architecture-decisions` validates ADR identity, lifecycle,
+  supersession, index membership, and immutable accepted-decision baselines.
+
+The Markdown AST and slugger live only in an outbound adapter. Product-specific
+headings, terminology, code anchors, catalogs, and diagrams remain in the
+consumer repository. A documentation website or visual search surface is not a
+foundation concern and requires explicit product-owner approval.
+
+### Contract evolution
+
+- `contract.protobuf-evolution` validates deterministic Buf release evidence;
+- `contract.json-schema-releases` validates strict draft 2020-12 schemas,
+  local-only references, positive and negative fixtures, immutable release
+  digests, and supported-consumer evidence.
+
+Normal checks never start Buf, a shell, or a network request. Qualification tools
+run in explicit pinned CI boundaries and produce evidence consumed by the pure
+capability. The capability proves evidence consistency, while the consumer's
+protected qualification workflow owns evidence provenance. Breaking Protobuf
+evidence must bind its exact fingerprint to an ADR in the immutable accepted
+decision baseline.
 
 ## Internal package shape
 
@@ -292,8 +324,8 @@ A shared read-only snapshot may be extracted internally only after repeated
 parsing cost or drift is measured.
 
 Normal capability checks are read-only and use no network, shell, or subprocess.
-The explicit release-only API baseline promotion command is the sole write path;
-it performs an atomic adapter-local replacement after release evidence passes.
+Explicit baseline-promotion commands are separate write paths; they perform
+atomic adapter-local replacement only after complete evidence passes.
 Checks accept `AbortSignal`, bound input, reject path ambiguity, and sort results
 independently of scheduling. Linux and Windows behavior must match.
 

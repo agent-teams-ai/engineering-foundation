@@ -1,5 +1,3 @@
-import { CapabilityInputError } from "../../../capability-runtime.js";
-
 const PROPERTY_ID = /^[a-z][a-z0-9.-]{1,159}$/u;
 const REPLAY_PATH = /^[0-9:._-]{1,1024}$/u;
 const SHA256_DIGEST = /^sha256:[a-f0-9]{64}$/u;
@@ -28,13 +26,17 @@ export interface FastCheckParameters {
   readonly path?: string;
 }
 
+export class PropertyTestingEvidenceError extends Error {
+  readonly code = "PROPERTY_TESTING_EVIDENCE_INVALID" as const;
+
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "PropertyTestingEvidenceError";
+  }
+}
+
 function inputError(message: string): never {
-  throw new CapabilityInputError({
-    code: "PROPERTY_TESTING_EVIDENCE_INVALID",
-    message,
-    phase: "property-testing-standard",
-    retryable: false
-  });
+  throw new PropertyTestingEvidenceError(message);
 }
 
 function assertPropertyId(value: string): void {

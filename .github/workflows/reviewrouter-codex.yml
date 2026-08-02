@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       number: ${{ steps.pr.outputs.number }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
     steps:
       - name: Resolve pull request
         id: pr
@@ -38,28 +39,42 @@ jobs:
             echo "pr_number must be a positive integer" >&2
             exit 1
           }
-          state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" --jq .state)"
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}")"
+          state="$(jq -r '.state' <<<"${pr_json}")"
           [[ "${state}" == "open" ]] || {
             echo "Review target must be an open pull request." >&2
             exit 1
           }
-          echo "number=${pr_number}" >> "${GITHUB_OUTPUT}"
+          head_repo="$(jq -r '.head.repo.full_name' <<<"${pr_json}")"
+          [[ "${head_repo}" == "${GITHUB_REPOSITORY}" ]] || {
+            echo "Review target must come from this repository." >&2
+            exit 1
+          }
+          head_sha="$(jq -r '.head.sha' <<<"${pr_json}")"
+          [[ "${head_sha}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "Review target head must be a full commit SHA." >&2
+            exit 1
+          }
+          {
+            echo "number=${pr_number}"
+            echo "head_sha=${head_sha}"
+          } >> "${GITHUB_OUTPUT}"
 
   review:
     needs: resolve
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.user.type != 'Bot' }}
     permissions:
       contents: read
-      issues: write
-      pull-requests: write
-      statuses: write
-    uses: agent-teams-ai/.github/.github/workflows/reviewrouter-reusable.yml@0cb2fc11d001cd93f847199285f796da188f7ad8
+      pull-requests: read
+      id-token: write
+    uses: agent-teams-ai/.github/.github/workflows/reviewrouter-reusable.yml@b93ce0a25ccb950117b0a273596b9b5091301739
     with:
       pr_number: ${{ needs.resolve.outputs.number }}
+      review_head_sha: ${{ needs.resolve.outputs.head_sha }}
+      provider_instance_id: "codex-rotating:1316243988"
       review_drafts: ${{ vars.REVIEW_ROUTER_REVIEW_DRAFTS == 'true' }}
       timeout_minutes: ${{ fromJSON(vars.REVIEW_ROUTER_TIMEOUT_MINUTES || '60') }}
       max_changed_lines: ${{ fromJSON(vars.REVIEW_ROUTER_MAX_CHANGED_LINES || '250000') }}
-      codex_model: ${{ vars.REVIEW_CODEX_MODEL || 'gpt-5.6-sol' }}
     secrets:
       CODEX_AUTH_JSON: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON }}
       REVIEW_ROUTER_LEDGER_KEY: ${{ secrets.REVIEW_ROUTER_LEDGER_KEY }}
@@ -89,7 +104,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: ReviewRouter Codex OAuth refresh
-        uses: 777genius/review-router@626739854b5c67d94b3f0118738c106b4a232c41
+        uses: 777genius/review-router@e982a5e3aebe71404dac948fd67cb7291e8be0fb
         with:
           mode: codex-oauth-refresh
           api-url: "https://api.reviewrouter.site"

@@ -7,9 +7,8 @@ privilegedJobs:
     jobId: review
     permissions:
       contents: read
-      issues: write
-      pull-requests: write
-      statuses: write
+      pull-requests: read
+      id-token: write
   - workflowPath: .github/workflows/reviewrouter-codex.yml
     jobId: codex-refresh
     permissions:

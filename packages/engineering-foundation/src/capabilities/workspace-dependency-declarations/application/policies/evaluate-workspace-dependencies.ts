@@ -10,6 +10,17 @@ import type {
 } from "../model/workspace-snapshot.js";
 import { RULES, type RuleMetadata } from "../rules.js";
 
+const EXACT_NPM_ALIAS_PATTERN =
+  /^npm:(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*@(.+)$/u;
+
+function isExactCatalogVersion(value: string): boolean {
+  if (isExactVersion(value)) {
+    return true;
+  }
+  const alias = EXACT_NPM_ALIAS_PATTERN.exec(value);
+  return alias?.[1] !== undefined && isExactVersion(alias[1]);
+}
+
 function diagnostic(input: {
   readonly rule: RuleMetadata;
   readonly subject: string;
@@ -64,7 +75,7 @@ function evaluateCatalogs(snapshot: WorkspaceSnapshot): FoundationDiagnostic[] {
     );
   }
   for (const entry of snapshot.catalogs) {
-    if (!isExactVersion(entry.version)) {
+    if (!isExactCatalogVersion(entry.version)) {
       diagnostics.push(
         diagnostic({
           rule: RULES.catalogVersionNotExact,

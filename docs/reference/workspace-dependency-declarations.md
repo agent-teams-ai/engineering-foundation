@@ -11,6 +11,8 @@ The capability enforces:
 - unique, non-empty workspace package names;
 - exact root `pnpm` version and strict catalog mode;
 - exact versions in default and named catalogs;
+- exact pnpm npm aliases such as `npm:package@1.2.3`, while aliases targeting
+  ranges or tags remain prohibited;
 - `workspace:` for internal package dependencies;
 - `catalog:` or `catalog:<name>` for external dependencies;
 - reserved-scope references resolving only to local workspace packages;

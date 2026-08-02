@@ -1137,7 +1137,7 @@ test("supports a root-only pnpm workspace", async () => {
   await withFixture(async (consumerRoot) => {
     await writeFile(
       join(consumerRoot, "pnpm-workspace.yaml"),
-      `catalogMode: strict\ncatalog:\n  ajv: 8.20.0\n  oxlint: 1.76.0\n  typescript: 7.0.2\n`,
+      `catalogMode: strict\ncatalog:\n  ajv: 8.20.0\n  previous-ajv: npm:ajv@8.19.0\n  oxlint: 1.76.0\n  typescript: 7.0.2\n`,
       "utf8",
     );
     const { result, report } = check(consumerRoot);
@@ -1146,11 +1146,28 @@ test("supports a root-only pnpm workspace", async () => {
   });
 });
 
+test("rejects npm catalog aliases with non-exact target versions", async () => {
+  await withFixture(async (consumerRoot) => {
+    await writeFile(
+      join(consumerRoot, "pnpm-workspace.yaml"),
+      `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog:\n  ajv: 8.20.0\n  previous-ajv: npm:ajv@^8.19.0\n  oxlint: 1.76.0\n  typescript: 7.0.2\n`,
+      "utf8",
+    );
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.equal(report.outcome, "violations");
+    assert.deepEqual(
+      report.capabilities[0].diagnostics.map((diagnostic) => diagnostic.ruleId),
+      ["workspace.dependency-declarations.catalog-version-not-exact"],
+    );
+  });
+});
+
 test("collects deterministic dependency policy violations", async () => {
   await withFixture(async (consumerRoot) => {
     await writeFile(
       join(consumerRoot, "pnpm-workspace.yaml"),
-      `packages:\n  - "packages/*"\ncatalogMode: manual\ncatalog:\n  ajv: ^8.20.0\n  oxlint: 1.76.0\n  typescript: 7.0.2\n`,
+      `packages:\n  - "packages/*"\ncatalogMode: manual\ncatalog:\n  ajv: ^8.20.0\n  previous-ajv: npm:ajv@8.19.0\n  oxlint: 1.76.0\n  typescript: 7.0.2\n`,
       "utf8",
     );
     await writeFile(

@@ -58,9 +58,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          read -r state head_ref head_sha base_ref < <(gh api \
+          read -r state head_ref head_sha base_ref base_sha < <(gh api \
             "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}" \
-            --jq '[.state, .head.ref, .head.sha, .base.ref] | @tsv')
+            --jq '[.state, .head.ref, .head.sha, .base.ref, .base.sha] | @tsv')
           if [[ "${state}" != "open" || "${head_ref}" != "changeset-release/main" || "${base_ref}" != "main" ]]; then
             echo "Changesets output does not identify the expected open release pull request." >&2
             exit 1
@@ -79,6 +79,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Dispatch and attest release pull request checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,6 +99,7 @@ jobs:
           fi
 
           ci_contexts=(check windows-check)
+          release_gate_context=ReviewGate
 
           post_status() {
             local context="$1"
@@ -113,15 +117,19 @@ jobs:
           for context in "${ci_contexts[@]}"; do
             post_status "${context}" pending "Release PR ${context}: dispatched" "${RELEASE_RUN_URL}"
           done
+          post_status "${release_gate_context}" pending "Validating generated release evidence" "${RELEASE_RUN_URL}"
+
+          git fetch --no-tags origin "${base_sha}" "${head_sha}"
+          if ! gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}/files?per_page=100" | \
+            node scripts/check-release-pr-files.mjs --base "${base_sha}" --head "${head_sha}"; then
+            post_status "${release_gate_context}" failure "Release PR contains unreviewed changes" "${RELEASE_RUN_URL}"
+            exit 1
+          fi
 
           gh workflow run ci.yml \
             --repo "${GITHUB_REPOSITORY}" \
             --ref changeset-release/main
-          gh workflow run reviewrouter-release.yml \
-            --repo "${GITHUB_REPOSITORY}" \
-            --ref main \
-            -f pr_number="${RELEASE_PULL_REQUEST}" \
-            -f review_head_sha="${head_sha}"
 
           deadline=$((SECONDS + 600))
           while (( SECONDS < deadline )); do
@@ -146,6 +154,7 @@ jobs:
             for context in "${ci_contexts[@]}"; do
               post_status "${context}" error "Release PR ${context}: CI timeout" "${RELEASE_RUN_URL}"
             done
+            post_status "${release_gate_context}" error "Release PR CI timed out" "${RELEASE_RUN_URL}"
             echo "Timed out waiting for release pull request CI." >&2
             exit 1
           fi
@@ -170,5 +179,11 @@ jobs:
             esac
             post_status "${context}" "${status_state}" "Release PR ${context}: ${conclusion}" "${target_url}"
           done
+
+          if (( failed == 0 )); then
+            post_status "${release_gate_context}" success "Generated release evidence and CI passed" "${RELEASE_RUN_URL}"
+          else
+            post_status "${release_gate_context}" failure "Generated release CI failed" "${RELEASE_RUN_URL}"
+          fi
 
           exit "${failed}"

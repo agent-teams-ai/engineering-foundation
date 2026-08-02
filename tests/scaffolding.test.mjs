@@ -97,12 +97,39 @@ function withRecomputedPlanDigest(planValue) {
   return { ...body, planDigest: sha256Json(body) };
 }
 
-async function waitForExit(child) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return { code: child.exitCode, signal: child.signalCode };
-  }
-  return new Promise((resolve) => {
-    child.once("exit", (code, signal) => resolve({ code, signal }));
+async function terminateAtCrashPoint(child) {
+  return new Promise((resolve, reject) => {
+    let output = "";
+    let stderr = "";
+    let terminationRequested = false;
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.stdout.on("data", (chunk) => {
+      output += chunk;
+      if (
+        !terminationRequested &&
+        output.includes("FOUNDATION_CRASH_POINT")
+      ) {
+        terminationRequested = child.kill("SIGKILL");
+        if (!terminationRequested) {
+          reject(new Error("Failed to terminate the crash worker."));
+        }
+      }
+    });
+    child.once("exit", (code, signal) => {
+      if (!terminationRequested) {
+        reject(
+          new Error(
+            `Crash worker exited before the fault point: code=${String(code)} signal=${String(signal)} ${stderr}`
+          )
+        );
+        return;
+      }
+      resolve();
+    });
   });
 }
 
@@ -121,16 +148,7 @@ async function crashDuringApply(root, scaffoldPlan, phase, operationIndex) {
     ],
     { stdio: ["ignore", "pipe", "pipe"] }
   );
-  const result = await waitForExit(child);
-  if (process.platform === "win32") {
-    assert.equal(result.code, 86, `Crash worker exited with signal ${result.signal}.`);
-  } else {
-    assert.equal(
-      result.signal,
-      "SIGKILL",
-      `Crash worker exited with code ${result.code}.`
-    );
-  }
+  await terminateAtCrashPoint(child);
   await utimes(
     join(root, ".agent-teams-local", "foundation-operation.lock"),
     new Date(0),

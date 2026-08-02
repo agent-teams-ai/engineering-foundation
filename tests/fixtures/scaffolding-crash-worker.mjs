@@ -29,10 +29,8 @@ await applyFilesystemScaffoldWithFaultInjection(
       point.phase === expectedPhase &&
       (expectedIndex === undefined || point.operationIndex === expectedIndex)
     ) {
-      if (process.platform === "win32") {
-        process.exit(86);
-      }
-      process.kill(process.pid, "SIGKILL");
+      process.stdout.write("FOUNDATION_CRASH_POINT\n");
+      return new Promise(() => {});
     }
   }
 );

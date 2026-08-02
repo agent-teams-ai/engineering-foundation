@@ -19,10 +19,12 @@ boundaries:
       runtimeReferences: []
   - id: foundation.cli
     roots:
+      - packages/engineering-foundation/src/cli-arguments.ts
       - packages/engineering-foundation/src/cli.ts
     allow:
       boundaries:
         - capability.public-api-compatibility.composition
+        - capability.repository-agent-workflow.composition
         - foundation.composition
         - foundation.core
         - foundation.local-mode
@@ -43,10 +45,56 @@ boundaries:
     allow:
       boundaries:
         - capability.public-api-compatibility.composition
+        - capability.repository-agent-workflow.composition
         - capability.repository-security.composition
         - capability.source-dependencies.composition
         - capability.suppression-governance.composition
         - capability.workspace-dependencies.composition
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.repository-agent-workflow.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.repository-agent-workflow.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/contract
+    allow:
+      boundaries:
+        - capability.repository-agent-workflow.application
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.repository-agent-workflow.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters
+    allow:
+      boundaries:
+        - capability.repository-agent-workflow.application
+        - foundation.core
+      packages: []
+      builtins:
+        - node:child_process
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+  - id: capability.repository-agent-workflow.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/changed-command.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts
+    allow:
+      boundaries:
+        - capability.repository-agent-workflow.adapters
+        - capability.repository-agent-workflow.application
+        - capability.repository-agent-workflow.contract
         - foundation.core
       packages: []
       builtins: []

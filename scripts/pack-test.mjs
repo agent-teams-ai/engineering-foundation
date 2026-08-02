@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { FOUNDATION_REQUIRED_ARTIFACT_PATHS } from "../packages/engineering-foundation/dist/package-self-check.js";
+import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
 
 const execFileAsync = promisify(execFile);
 const requireFromRepository = createRequire(import.meta.url);
@@ -303,6 +304,11 @@ try {
   ) {
     throw new Error("Packed executable capability check did not pass.");
   }
+  await testPackedAgentWorkflow({
+    consumerRoot,
+    pnpmExecutable,
+    pnpmArguments,
+  });
   await writeFile(
     join(consumerSourceRoot, "index.ts"),
     `import "node:fs";\nexport const invalidBoundary = true;\n`,

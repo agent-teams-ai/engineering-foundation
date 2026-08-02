@@ -1,0 +1,13 @@
+{
+  "name": "@fixture/agent-workflow",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:changed": "agent-teams-foundation agent-workflow changed --consumer .",
+    "check:fast": "node scripts/record-check.mjs fast",
+    "check": "node scripts/record-check.mjs full",
+    "lint:fast:files": "node scripts/record-check.mjs lint",
+    "typecheck": "node scripts/record-check.mjs typecheck"
+  }
+}

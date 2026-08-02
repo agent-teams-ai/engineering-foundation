@@ -21,6 +21,13 @@ Required scripts:
 }
 ```
 
+For portable coding-agent feedback, explicitly adopt
+`repository.agent-workflow`, keep `AGENTS.md` canonical, add import/pointer
+adapters for supported agents, and expose `check:changed`, `check:fast`, and
+`check`. The shared command implementation remains in Foundation; the consumer
+keeps only its policy mapping and existing required CI call. See the
+[agent workflow reference](../reference/repository-agent-workflow.md).
+
 Blocking CI runs the full check plus registry assertions. Local source work uses
 the guarded attach/status/detach lifecycle; manifests and lockfiles keep the
 published exact version throughout.

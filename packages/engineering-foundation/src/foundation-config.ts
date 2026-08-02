@@ -5,6 +5,8 @@ import { loadStrictYamlFile } from "./strict-yaml.js";
 const FOUNDATION_CONFIG_PATH = "foundation.config.yaml";
 const PUBLIC_API_COMPATIBILITY_CAPABILITY =
   "package.public-api-compatibility" as const;
+const REPOSITORY_AGENT_WORKFLOW_CAPABILITY =
+  "repository.agent-workflow" as const;
 const SUPPRESSION_GOVERNANCE_CAPABILITY =
   "quality.suppression-governance" as const;
 const REPOSITORY_SECURITY_BASELINE_CAPABILITY =
@@ -15,6 +17,7 @@ const WORKSPACE_DEPENDENCY_DECLARATIONS_CAPABILITY =
   "workspace.dependency-declarations" as const;
 const SUPPORTED_CAPABILITY_IDS = [
   PUBLIC_API_COMPATIBILITY_CAPABILITY,
+  REPOSITORY_AGENT_WORKFLOW_CAPABILITY,
   REPOSITORY_SECURITY_BASELINE_CAPABILITY,
   SUPPRESSION_GOVERNANCE_CAPABILITY,
   SOURCE_DEPENDENCIES_CAPABILITY,

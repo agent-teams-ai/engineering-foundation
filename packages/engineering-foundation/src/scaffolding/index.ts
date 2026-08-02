@@ -26,6 +26,7 @@ export {
   recoverFilesystemScaffold
 } from "./adapters/node/filesystem-workspace.js";
 export { readScaffoldPlanFile } from "./adapters/node/node-input-loader.js";
+export { validateScaffoldReceipt } from "./adapters/node/node-receipt-validator.js";
 export { MemoryScaffoldWorkspace } from "./adapters/memory/memory-workspace.js";
 export { assertScaffoldPlanDigest } from "./kernel/plan-validation.js";
 export { assertScaffoldReceiptDigest } from "./kernel/receipt.js";

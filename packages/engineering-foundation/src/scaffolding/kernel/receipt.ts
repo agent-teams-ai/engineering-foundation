@@ -281,8 +281,8 @@ function assertScaffoldReceiptCandidateDigest(
 }
 
 /**
- * Verifies the canonical receipt digest and closed v1 receipt contract.
- * Passing the originating Plan additionally verifies per-operation evidence.
+ * Verifies digest and semantic evidence for a schema-validated Receipt.
+ * Use `validateScaffoldReceipt` when the value comes from an untrusted source.
  */
 export function assertScaffoldReceiptDigest(
   receipt: ScaffoldReceiptV1,

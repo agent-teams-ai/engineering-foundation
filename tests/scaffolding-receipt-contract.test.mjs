@@ -6,7 +6,8 @@ import test from "node:test";
 import {
   assertScaffoldReceiptDigest,
   MemoryScaffoldWorkspace,
-  planScaffoldFromFile
+  planScaffoldFromFile,
+  validateScaffoldReceipt
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
@@ -45,6 +46,7 @@ function memoryCommit(state) {
 
 async function assertValidReceipt(receipt, plan) {
   await assertSchema("scaffold-receipt/v1", receipt, "scaffold-receipt-contract");
+  assert.equal(await validateScaffoldReceipt(receipt, plan), receipt);
   assert.doesNotThrow(() => assertScaffoldReceiptDigest(receipt));
   assert.doesNotThrow(() => assertScaffoldReceiptDigest(receipt, plan));
 }
@@ -231,4 +233,26 @@ test("rejects digest tampering and validates receipt evidence against its Plan",
     () => assertScaffoldReceiptDigest(selfConsistentReceipt, plan),
     /Plan evidence/u
   );
+});
+
+test("rejects undeclared properties on untrusted receipts", async () => {
+  const plan = await scaffoldPlan();
+  const applied = await new MemoryScaffoldWorkspace().apply(plan);
+  const forgedReceipts = [
+    withReceiptDigest({ ...applied, extension: true }),
+    withReceiptDigest({
+      ...applied,
+      adapter: { ...applied.adapter, extension: true }
+    }),
+    withReceiptDigest({
+      ...applied,
+      operations: applied.operations.map((operation, index) =>
+        index === 0 ? { ...operation, extension: true } : operation
+      )
+    })
+  ];
+
+  for (const receipt of forgedReceipts) {
+    await assert.rejects(validateScaffoldReceipt(receipt, plan));
+  }
 });

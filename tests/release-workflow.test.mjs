@@ -14,19 +14,19 @@ async function workflow(name) {
   );
 }
 
-test("release attestation dispatches the review workflow by its canonical file", async () => {
+test("release attestation relies on the canonical client-triggered review", async () => {
   const release = await workflow("release.yml");
   const review = await workflow("reviewrouter-codex.yml");
   const attestation = release.jobs["attest-release-pr"].steps.find(
     ({ name }) => name === "Dispatch and attest release pull request checks",
   );
 
-  assert.match(
-    attestation.run,
-    /gh workflow run reviewrouter-codex\.yml[\s\S]*-f pr_number=/u,
-  );
+  assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-codex\.yml/u);
+  assert.match(attestation.run, /\.context == "ReviewRouter"/u);
   assert.equal(
-    review.on.workflow_dispatch.inputs.pr_number.required,
+    review.on.pull_request.types.includes("ready_for_review"),
     true,
   );
+  assert.equal(review.on.workflow_dispatch, undefined);
+  assert.equal(review.jobs["codex-review"].with.workflow_schema_version, 2);
 });

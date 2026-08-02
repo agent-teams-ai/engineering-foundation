@@ -1,6 +1,6 @@
 # ADR-0004: Released Public API Baselines
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-08-02
 
@@ -16,6 +16,12 @@ without treating a feature branch's current output as authoritative.
 Use normalized API Extractor snapshots as release-owned evidence. Require
 Changesets for additive changes and exact fingerprint plus accepted ADR evidence
 for breaking changes. Promote baselines only through the version workflow.
+
+Adding a member below an already released interface, class, or namespace is
+conservatively breaking. Promotion validates every configured package before
+writing, is replay-safe after partial failure, and fails on same-version drift.
+A consumer cannot enable the capability until required PR CI enforces its
+release-owned baseline mutation rule.
 
 ## Consequences
 

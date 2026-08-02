@@ -59,3 +59,8 @@ preset and both executable capabilities.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI
 also emits an SPDX JSON SBOM; Dependency Review runs as an independent required
 workflow.
+
+That tarball check qualifies this repository's published package. The static
+`repository.security-baseline` capability does not manufacture equivalent
+evidence for a consumer; each publishing consumer needs its own real packed-
+artifact gate until a separate reusable package capability is accepted.

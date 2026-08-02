@@ -18,10 +18,10 @@ architecture document. Changing an accepted decision requires a new ADR.
   - Accepted
 - ADR-0003:
   [Governed inline suppressions](0003-governed-inline-suppressions.md)
-  - Proposed
+  - Accepted
 - ADR-0004:
   [Released public API baselines](0004-released-public-api-baselines.md)
-  - Proposed
+  - Accepted
 - ADR-0005:
   [Repository security baseline](0005-repository-security-baseline.md)
-  - Proposed
+  - Accepted

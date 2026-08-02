@@ -36,8 +36,6 @@ project:
 capabilities:
   architecture.source-dependencies:
     configPath: architecture/foundation/source-dependencies.yaml
-  quality.suppression-governance:
-    configPath: architecture/foundation/suppression-governance.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml
 ```
@@ -67,10 +65,14 @@ semantics. Configuration is strict data: unknown keys, aliases, merge keys,
 custom tags, duplicate keys, escaping paths, and executable interpolation are
 not accepted.
 
-Declare only capabilities that apply to the repository. Publishable packages
-add `package.public-api-compatibility` and `repository.security-baseline` with
-consumer-owned paths, privileged jobs, and release evidence. Their canonical
-schemas and architecture references define the complete closed-world shape.
+Declare only capabilities that apply to the repository. Package installation or
+upgrade does not enable a capability. Suppression governance requires a
+consumer-owned waiver and protected-rule policy. A versioned TypeScript package
+may add `package.public-api-compatibility` only after required PR CI protects
+existing baselines as release-owned evidence. A publishing tooling repository
+may add `repository.security-baseline` with consumer-owned paths, privileged
+jobs, release evidence, and a separate real-tarball E2E gate. Non-publishing
+repositories do not fabricate package evidence.
 
 ## Shared presets
 
@@ -108,6 +110,9 @@ authoritative for package identities, dependencies, and exports.
    schemas for the documented migration window.
 4. A local foundation checkout may be attached for development, but a PR is not
    mergeable until registry mode is restored and proven.
+5. A package update never silently adds a capability declaration; capability
+   adoption is a separate reviewed change with positive and negative parity
+   evidence.
 
 Version 0.2 intentionally removes the executable `foundation.config.mjs`, broad
 placeholder capabilities, `enabled: false`, and `projectKind`.

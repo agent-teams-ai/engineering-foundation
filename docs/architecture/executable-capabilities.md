@@ -7,6 +7,9 @@ ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
 dependency capability is implemented and dogfooded behind internal ports.
 ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
+ADR-0003, ADR-0004, and ADR-0005 accept the three governance capabilities.
+Package installation never activates them: the consumer declares each applicable
+capability and supplies its own policy and qualification evidence.
 
 ## Goals
 
@@ -93,7 +96,9 @@ consumer checks. They cannot be added to either dependency capability.
 - `package.public-api-compatibility` owns released TypeScript API evidence,
   Changeset classification, and breaking-change approval;
 - `repository.security-baseline` owns workflow least privilege, immutable action
-  references, dependency/SBOM gates, and publishable package metadata.
+  references, dependency/SBOM gates, and static publishable-package metadata for
+  repositories that publish packages. Real tarball qualification is a separate
+  consumer publication gate.
 
 Each remains an independent feature slice with its own model, ports, policies,
 adapters, schema, rules, and fixtures.

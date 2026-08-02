@@ -1,6 +1,7 @@
 # Public API Compatibility
 
-Status: Implemented; ADR-0004 is proposed.
+Status: Accepted and implemented by ADR-0004. Consumer activation remains gated
+on release-owned baseline mutation enforcement in that repository.
 
 `package.public-api-compatibility` compares a built declaration entry point
 with a committed snapshot of the last released TypeScript API. API Extractor is
@@ -26,12 +27,21 @@ a different change to the same symbol or an extra additive export.
 
 The baseline is released evidence, not an editable expected-output fixture.
 Normal checks never write it. `public-api-promote-release` writes it atomically
-only after the manifest version advances enough for the observed change and any
-breaking fingerprint has an accepted decision. Extractor-version changes fail
-and require an explicitly reviewed migration.
+per package only after every configured package validates, the manifest version
+advances enough for the observed change, and any breaking fingerprint has an
+accepted decision. A replay after a process failure skips an already-promoted
+unchanged package and finishes the remaining packages. Same-version API drift
+fails closed. Extractor-version changes fail and require an explicitly reviewed
+migration.
 
 Changesets invokes promotion after versioning. CI permits creation of a new
 baseline during first adoption, but existing baselines can change only on
 the same-repository `changeset-release/main` branch. Renaming or moving protected
 baseline evidence is also a mutation. This prevents a feature pull request or a
 same-named fork branch from rewriting both implementation and expected evidence.
+
+The package comparison alone cannot prove who changed a Git file. A consumer
+must therefore install an equivalent release-owned mutation check in required PR
+CI before enabling this capability. Until Foundation exposes that check as a
+reusable consumer command, the Foundation repository's own check is the donor
+oracle and other consumers remain unqualified for activation.

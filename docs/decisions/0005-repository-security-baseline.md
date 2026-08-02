@@ -1,6 +1,6 @@
 # ADR-0005: Repository Security Baseline
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-08-02
 
@@ -17,7 +17,13 @@ rule.
 Adopt the closed-world repository security capability described in
 [Repository security baseline](../security/repository-security-baseline.md), with
 full-SHA actions, least privilege, dependency review, SBOM generation, npm
-provenance, and real tarball canary checks.
+provenance, and literal package allowlists. Real tarball canary verification is
+a separate mandatory publication qualification gate; the static repository
+capability must not claim that evidence.
+
+This combined profile applies only to publishing repositories. A non-publishing
+application does not fabricate package evidence; a future workflow-only profile
+requires a separate capability decision.
 
 ## Consequences
 

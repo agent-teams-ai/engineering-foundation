@@ -12,11 +12,11 @@ import { sha256Json } from "./canonical-json.js";
 import { assertScaffoldPlanDigest } from "./plan-validation.js";
 
 interface ScaffoldReceiptCandidateV1 {
-  readonly schemaVersion: 1;
-  readonly protocolVersion: 1;
+  readonly schemaVersion: number;
+  readonly protocolVersion: number;
   readonly planDigest: string;
   readonly adapter: {
-    readonly id: "foundation.filesystem/v1" | "foundation.memory/v1";
+    readonly id: string;
     readonly contractVersion: number;
   };
   readonly outcome: ScaffoldReceiptOutcome;
@@ -87,6 +87,12 @@ function assertOperationOutcomes(
   }
 }
 
+function assertReceiptVersionContract(receipt: ScaffoldReceiptCandidateV1): void {
+  if (receipt.schemaVersion !== 1 || receipt.protocolVersion !== 1) {
+    invalidReceipt("Scaffolding Receipt does not use protocol v1.");
+  }
+}
+
 function assertReceiptDigestShape(receipt: ScaffoldReceiptCandidateV1): void {
   if (!isSha256Digest(receipt.planDigest)) {
     invalidReceipt("Scaffolding Receipt Plan digest is invalid.");
@@ -96,10 +102,16 @@ function assertReceiptDigestShape(receipt: ScaffoldReceiptCandidateV1): void {
 function assertAdapterAndCommitContract(
   receipt: ScaffoldReceiptCandidateV1
 ): void {
+  if (receipt.adapter.contractVersion !== 1) {
+    invalidReceipt("Scaffolding Receipt adapter contract version is not supported.");
+  }
+  const expectedAtomicity =
+    receipt.adapter.id === "foundation.filesystem/v1"
+      ? "journaled-recoverable"
+      : receipt.adapter.id === "foundation.memory/v1"
+        ? "memory-atomic"
+        : invalidReceipt("Scaffolding Receipt adapter is not supported by protocol v1.");
   const filesystemAdapter = receipt.adapter.id === "foundation.filesystem/v1";
-  const expectedAtomicity = filesystemAdapter
-    ? "journaled-recoverable"
-    : "memory-atomic";
   if (receipt.commit.atomicity !== expectedAtomicity) {
     invalidReceipt(
       "Scaffolding Receipt adapter and commit atomicity are incompatible."
@@ -194,6 +206,7 @@ function assertReceiptOutcomeEvidence(receipt: ScaffoldReceiptCandidateV1): void
 }
 
 function assertReceiptContract(receipt: ScaffoldReceiptCandidateV1): void {
+  assertReceiptVersionContract(receipt);
   assertReceiptDigestShape(receipt);
   assertAdapterAndCommitContract(receipt);
   assertReceiptOperationEvidence(receipt);

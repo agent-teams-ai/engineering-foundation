@@ -160,7 +160,36 @@ test("rejects impossible receipt state combinations and empty completed receipts
       operations: []
     }),
     withReceiptDigest({ ...applied, operations: [] }),
-    withReceiptDigest({ ...failedRecovered, operations: [] }),
+    withReceiptDigest({ ...failedRecovered, operations: [] })
+  ]) {
+    await assertInvalidReceipt(receipt);
+  }
+});
+
+test("rejects unsupported receipt protocol and adapter metadata", async () => {
+  const plan = await scaffoldPlan();
+  const applied = await new MemoryScaffoldWorkspace().apply(plan);
+
+  for (const receipt of [
+    withReceiptDigest({ ...applied, schemaVersion: 2 }),
+    withReceiptDigest({ ...applied, protocolVersion: 2 }),
+    withReceiptDigest({
+      ...applied,
+      adapter: { id: "foundation.unknown/v1", contractVersion: 1 }
+    }),
+    withReceiptDigest({
+      ...applied,
+      adapter: { ...applied.adapter, contractVersion: 2 }
+    })
+  ]) {
+    await assertInvalidReceipt(receipt);
+  }
+});
+
+test("requires applied operation evidence for an applied receipt", async () => {
+  const plan = await scaffoldPlan();
+  const applied = await new MemoryScaffoldWorkspace().apply(plan);
+  await assertInvalidReceipt(
     withReceiptDigest({
       ...applied,
       operations: applied.operations.map((operation) => ({
@@ -168,9 +197,7 @@ test("rejects impossible receipt state combinations and empty completed receipts
         outcome: "already-satisfied"
       }))
     })
-  ]) {
-    await assertInvalidReceipt(receipt);
-  }
+  );
 });
 
 test("rejects digest tampering and validates receipt evidence against its Plan", async () => {

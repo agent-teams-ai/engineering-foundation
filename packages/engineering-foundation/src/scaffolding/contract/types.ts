@@ -263,6 +263,8 @@ type ScaffoldMemoryRejectedReceiptV1 = ScaffoldMemoryReceiptAdapterV1 & {
   };
 };
 
+// Schema and runtime require an "applied" entry; this tuple stays non-empty to
+// avoid recursive types that would reject a valid middle-position entry.
 type ScaffoldAppliedOperationReceiptsV1 = readonly [
   ScaffoldAlreadySatisfiedOperationReceiptV1 | ScaffoldAppliedOperationReceiptV1,
   ...(ScaffoldAlreadySatisfiedOperationReceiptV1 | ScaffoldAppliedOperationReceiptV1)[]

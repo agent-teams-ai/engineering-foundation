@@ -26,7 +26,7 @@ export {
 } from "./adapters/node/filesystem-workspace.js";
 export { readScaffoldPlanFile } from "./adapters/node/node-input-loader.js";
 export { MemoryScaffoldWorkspace } from "./adapters/memory/memory-workspace.js";
-export { assertScaffoldPlanDigest } from "./kernel/compiler.js";
+export { assertScaffoldPlanDigest } from "./kernel/plan-validation.js";
 export { ScaffoldError } from "./scaffold-error.js";
 export type { ScaffoldErrorCode } from "./scaffold-error.js";
 export {

@@ -19,10 +19,11 @@ import {
   type ScaffoldDefinitionContext,
   type ScaffoldFacetDefinition
 } from "./definition-registry.js";
-
-const MAX_FILE_BYTES = 1024 * 1024;
-const MAX_TOTAL_BYTES = 16 * 1024 * 1024;
-const MAX_OPERATIONS = 4096;
+import {
+  MAX_SCAFFOLD_FILE_BYTES,
+  MAX_SCAFFOLD_OPERATIONS,
+  MAX_SCAFFOLD_TOTAL_BYTES
+} from "./limits.js";
 
 function refKey(ref: DefinitionRef): string {
   return `${ref.id}@${ref.contractVersion}`;
@@ -210,7 +211,10 @@ function operationsFromContributions(
   target: ScaffoldTargetV1,
   contributions: readonly ScaffoldFileContribution[]
 ): readonly MaterializeFileOperationV1[] {
-  if (contributions.length === 0 || contributions.length > MAX_OPERATIONS) {
+  if (
+    contributions.length === 0 ||
+    contributions.length > MAX_SCAFFOLD_OPERATIONS
+  ) {
     throw new ScaffoldError(
       "SCAFFOLD_PLAN_INVALID",
       "A scaffolding Plan must contain a bounded non-empty operation set."
@@ -221,10 +225,10 @@ function operationsFromContributions(
   const operations = contributions.map((contribution) => {
     assertContributionPath(target, contribution);
     const bytes = Buffer.from(contribution.content, "utf8");
-    if (bytes.byteLength > MAX_FILE_BYTES) {
+    if (bytes.byteLength > MAX_SCAFFOLD_FILE_BYTES) {
       throw new ScaffoldError(
         "SCAFFOLD_PLAN_INVALID",
-        `Generated file exceeds ${MAX_FILE_BYTES} bytes: ${contribution.path}.`
+        `Generated file exceeds ${MAX_SCAFFOLD_FILE_BYTES} bytes: ${contribution.path}.`
       );
     }
     totalBytes += bytes.byteLength;
@@ -243,10 +247,10 @@ function operationsFromContributions(
       causes: Object.freeze([...contribution.causes].toSorted(compareStrings))
     });
   });
-  if (totalBytes > MAX_TOTAL_BYTES) {
+  if (totalBytes > MAX_SCAFFOLD_TOTAL_BYTES) {
     throw new ScaffoldError(
       "SCAFFOLD_PLAN_INVALID",
-      `Generated output exceeds ${MAX_TOTAL_BYTES} bytes.`
+      `Generated output exceeds ${MAX_SCAFFOLD_TOTAL_BYTES} bytes.`
     );
   }
   return Object.freeze(
@@ -276,10 +280,10 @@ function definitionEvidence(
   );
 }
 
-export function compileScaffoldPlan(
-  input: ScaffoldCompilationInput,
-  registry: ScaffoldDefinitionRegistry
-): ScaffoldPlanV1 {
+function resolveAuthoritySelection(input: ScaffoldCompilationInput): {
+  readonly composition: ScaffoldCompositionV1;
+  readonly target: ScaffoldTargetV1;
+} {
   assertUnique(input.config.compositions, ({ id }) => id, "Composition ID");
   assertUnique(input.catalog.packages, ({ id }) => id, "target ID");
   assertUnique(input.catalog.packages, ({ path }) => path, "target path");
@@ -294,7 +298,6 @@ export function compileScaffoldPlan(
     "target package name"
   );
   assertUnique(input.authorityReadSet, ({ path }) => path, "authority read path");
-
   const composition = findExactlyOne(
     input.config.compositions,
     ({ id }) => id === input.intent.compositionId,
@@ -312,6 +315,28 @@ export function compileScaffoldPlan(
       `Target role ${target.role} is not admitted by composition ${composition.id}.`
     );
   }
+  return { composition, target };
+}
+
+function assertFacetCompatibility(
+  facets: readonly { readonly definition: ScaffoldFacetDefinition }[],
+  recipeId: string
+): void {
+  for (const { definition } of facets) {
+    if (!definition.allowedRecipeIds.includes(recipeId)) {
+      throw new ScaffoldError(
+        "SCAFFOLD_INPUT_INVALID",
+        `Facet ${refKey(definition.ref)} is incompatible with Recipe ${recipeId}.`
+      );
+    }
+  }
+}
+
+export function compileScaffoldPlan(
+  input: ScaffoldCompilationInput,
+  registry: ScaffoldDefinitionRegistry
+): ScaffoldPlanV1 {
+  const { composition, target } = resolveAuthoritySelection(input);
 
   const profile = registry.resolve(
     composition.scaffoldProfile.ref,
@@ -337,14 +362,7 @@ export function compileScaffoldPlan(
   }
 
   const facets = selectFacets(registry, composition, input.intent.facets);
-  for (const { definition } of facets) {
-    if (!definition.allowedRecipeIds.includes(recipe.ref.id)) {
-      throw new ScaffoldError(
-        "SCAFFOLD_INPUT_INVALID",
-        `Facet ${refKey(definition.ref)} is incompatible with Recipe ${refKey(recipe.ref)}.`
-      );
-    }
-  }
+  assertFacetCompatibility(facets, recipe.ref.id);
 
   const baseContext: ScaffoldDefinitionContext = Object.freeze({
     target,
@@ -462,69 +480,4 @@ export function compileScaffoldPlan(
   };
   const planDigest = sha256Json(planBody as unknown as JsonValue);
   return Object.freeze({ ...planBody, planDigest });
-}
-
-export function assertScaffoldPlanDigest(plan: ScaffoldPlanV1): void {
-  const { planDigest: _planDigest, ...body } = plan;
-  const expected = sha256Json(body as unknown as JsonValue);
-  if (plan.planDigest !== expected) {
-    throw new ScaffoldError(
-      "SCAFFOLD_PLAN_INVALID",
-      "Scaffolding Plan digest does not match its canonical content."
-    );
-  }
-  if (plan.operations.length === 0 || plan.operations.length > MAX_OPERATIONS) {
-    throw new ScaffoldError(
-      "SCAFFOLD_PLAN_INVALID",
-      "Scaffolding Plan must contain a bounded non-empty operation set."
-    );
-  }
-  const adapterCapabilities = plan.requiredAdapterCapabilities as readonly string[];
-  if (
-    adapterCapabilities.length !== 1 ||
-    adapterCapabilities[0] !== "materialize-file/v1"
-  ) {
-    throw new ScaffoldError(
-      "SCAFFOLD_PLAN_INVALID",
-      "Scaffolding Plan requires unsupported adapter capabilities."
-    );
-  }
-  const operationIds = new Set<string>();
-  const operationPaths = new Set<string>();
-  const targetPrefix = `${plan.target.path}/`;
-  let totalBytes = 0;
-  for (const operation of plan.operations) {
-    const bytes = Buffer.from(operation.after.contentBase64, "base64");
-    if (
-      bytes.toString("base64") !== operation.after.contentBase64 ||
-      bytes.byteLength !== operation.after.size ||
-      sha256Bytes(bytes) !== operation.after.digest
-    ) {
-      throw new ScaffoldError(
-        "SCAFFOLD_PLAN_INVALID",
-        `Scaffolding operation content is invalid: ${operation.id}.`
-      );
-    }
-    if (!operation.path.startsWith(targetPrefix)) {
-      throw new ScaffoldError(
-        "SCAFFOLD_PLAN_INVALID",
-        `Scaffolding operation escapes target ${plan.target.id}: ${operation.path}.`
-      );
-    }
-    if (operationIds.has(operation.id) || operationPaths.has(operation.path)) {
-      throw new ScaffoldError(
-        "SCAFFOLD_PLAN_INVALID",
-        `Scaffolding operation identity or path is duplicated: ${operation.id}.`
-      );
-    }
-    operationIds.add(operation.id);
-    operationPaths.add(operation.path);
-    totalBytes += bytes.byteLength;
-  }
-  if (totalBytes > MAX_TOTAL_BYTES) {
-    throw new ScaffoldError(
-      "SCAFFOLD_PLAN_INVALID",
-      `Scaffolding Plan output exceeds ${MAX_TOTAL_BYTES} bytes.`
-    );
-  }
 }

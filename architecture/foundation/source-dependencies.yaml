@@ -101,6 +101,7 @@ boundaries:
       runtimeReferences: []
   - id: foundation.scaffolding.composition
     roots:
+      - packages/engineering-foundation/src/scaffolding/cli-command.ts
       - packages/engineering-foundation/src/scaffolding/index.ts
       - packages/engineering-foundation/src/scaffolding/service.ts
     allow:

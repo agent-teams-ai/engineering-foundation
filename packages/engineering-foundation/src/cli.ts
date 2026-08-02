@@ -19,20 +19,9 @@ import type {
 } from "./local-mode/types.js";
 import { inspectFoundationPackage } from "./package-self-check.js";
 import { renderFoundationReportText } from "./report-renderer.js";
-import {
-  applyFilesystemScaffold,
-  readScaffoldPlanFile,
-  recoverFilesystemScaffold
-} from "./scaffolding/index.js";
-import type {
-  ScaffoldPlanV1,
-  ScaffoldReceiptV1
-} from "./scaffolding/contract/types.js";
+import { runScaffoldingCliCommand } from "./scaffolding/cli-command.js";
 import { ScaffoldError } from "./scaffolding/scaffold-error.js";
-import {
-  DEFAULT_SCAFFOLDING_CONFIG_PATH,
-  planScaffoldFromFile
-} from "./scaffolding/service.js";
+import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffolding/service.js";
 import {
   isFoundationSchemaId,
   readFoundationSchema
@@ -249,21 +238,6 @@ function printHelp(): void {
 `);
 }
 
-function renderScaffoldPlan(plan: ScaffoldPlanV1): string {
-  return `Scaffold Plan: ${plan.planDigest}\nProject: ${plan.projectId}\nComposition: ${plan.composition.id}\nTarget: ${plan.target.id} -> ${plan.target.path}\nOperations: ${plan.operations.length}\n`;
-}
-
-function renderScaffoldReceipt(receipt: ScaffoldReceiptV1): string {
-  return `Scaffold Receipt: ${receipt.receiptDigest}\nPlan: ${receipt.planDigest}\nOutcome: ${receipt.outcome}\nOperations: ${receipt.operations.length}\n`;
-}
-
-function exitCodeForScaffoldReceipt(receipt: ScaffoldReceiptV1): number {
-  return receipt.outcome === "applied" || receipt.outcome === "already-applied" ||
-    receipt.outcome === "failed-recovered"
-    ? 0
-    : 1;
-}
-
 async function packageVersion(): Promise<string> {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const manifest = JSON.parse(
@@ -412,6 +386,9 @@ async function runInformationCommand(
   parsed: ParsedArguments,
   json: boolean
 ): Promise<boolean> {
+  if (await runScaffoldingCliCommand(parsed, json)) {
+    return true;
+  }
   switch (parsed.command) {
     case "help":
     case "--help":
@@ -434,60 +411,6 @@ async function runInformationCommand(
         );
       }
       process.stdout.write(await readFoundationSchema(schemaId));
-      return true;
-    }
-    case "scaffold-apply": {
-      const planPath = parsed.positional[0];
-      if (planPath === undefined) {
-        throw new FoundationError(
-          "CONSUMER_INVALID",
-          "scaffold-apply requires a repository-relative Plan path."
-        );
-      }
-      const plan = await readScaffoldPlanFile(parsed.consumerRoot, planPath);
-      const receipt = await applyFilesystemScaffold(parsed.consumerRoot, plan);
-      process.stdout.write(
-        json
-          ? `${JSON.stringify(receipt, null, 2)}\n`
-          : renderScaffoldReceipt(receipt)
-      );
-      process.exitCode = exitCodeForScaffoldReceipt(receipt);
-      return true;
-    }
-    case "scaffold-plan": {
-      const intentPath = parsed.positional[0];
-      if (intentPath === undefined) {
-        throw new FoundationError(
-          "CONSUMER_INVALID",
-          "scaffold-plan requires a repository-relative Intent path."
-        );
-      }
-      const plan = await planScaffoldFromFile({
-        consumerRoot: parsed.consumerRoot,
-        intentPath,
-        configPath: parsed.configPath
-      });
-      process.stdout.write(
-        json ? `${JSON.stringify(plan, null, 2)}\n` : renderScaffoldPlan(plan)
-      );
-      return true;
-    }
-    case "scaffold-recover": {
-      const receipt = await recoverFilesystemScaffold(parsed.consumerRoot);
-      if (receipt === undefined) {
-        process.stdout.write(
-          json
-            ? `${JSON.stringify({ outcome: "no-pending-transaction" }, null, 2)}\n`
-            : "No pending scaffolding transaction.\n"
-        );
-      } else {
-        process.stdout.write(
-          json
-            ? `${JSON.stringify(receipt, null, 2)}\n`
-            : renderScaffoldReceipt(receipt)
-        );
-        process.exitCode = exitCodeForScaffoldReceipt(receipt);
-      }
       return true;
     }
     case "version":

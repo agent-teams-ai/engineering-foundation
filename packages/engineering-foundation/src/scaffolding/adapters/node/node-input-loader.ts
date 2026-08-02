@@ -10,7 +10,7 @@ import type {
   ScaffoldTargetCatalogV1
 } from "../../contract/types.js";
 import { sha256Bytes } from "../../kernel/canonical-json.js";
-import { assertScaffoldPlanDigest } from "../../kernel/compiler.js";
+import { assertScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { pathTraversesSymbolicLink } from "../../../filesystem-path-safety.js";
 import { assertSchema } from "../../../schema-catalog.js";

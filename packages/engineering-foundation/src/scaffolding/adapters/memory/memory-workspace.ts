@@ -5,7 +5,7 @@ import type {
   ScaffoldReceiptV1
 } from "../../contract/types.js";
 import { sha256Bytes } from "../../kernel/canonical-json.js";
-import { assertScaffoldPlanDigest } from "../../kernel/compiler.js";
+import { assertScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { createScaffoldReceipt } from "../../kernel/receipt.js";
 import { assertSchema } from "../../../schema-catalog.js";
 

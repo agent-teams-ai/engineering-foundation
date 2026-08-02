@@ -81,7 +81,11 @@ function digestWorkflows(workflows) {
   return `sha256:${hash.digest("hex")}`;
 }
 
-function ciWorkflow({ actionlintNonBlocking = false, extraStep = "" }) {
+function ciWorkflow({
+  actionlintNonBlocking = false,
+  dependencyReview = true,
+  extraStep = "",
+}) {
   return [
     "name: CI",
     "on:",
@@ -93,6 +97,9 @@ function ciWorkflow({ actionlintNonBlocking = false, extraStep = "" }) {
     "    runs-on: ubuntu-24.04",
     "    steps:",
     `      - uses: actions/checkout@${ACTION_SHA}`,
+    ...(dependencyReview
+      ? [`      - uses: actions/dependency-review-action@${DEPENDENCY_REVIEW_SHA}`]
+      : []),
     `      - uses: anchore/sbom-action@${SBOM_SHA}`,
     `      - uses: docker://ghcr.io/example/workflow-tool@sha256:${CONTAINER_DIGEST}`,
     "      - uses: ./.github/actions/checked-in-action",
@@ -119,22 +126,6 @@ function compositeAction(use) {
     "  using: composite",
     "  steps:",
     `    - uses: ${use}`,
-    "",
-  ].join("\n");
-}
-
-function dependencyReviewWorkflow() {
-  return [
-    "name: Dependency Review",
-    "on:",
-    "  pull_request:",
-    "permissions:",
-    "  contents: read",
-    "jobs:",
-    "  dependency-review:",
-    "    runs-on: ubuntu-24.04",
-    "    steps:",
-    `      - uses: actions/dependency-review-action@${DEPENDENCY_REVIEW_SHA}`,
     "",
   ].join("\n");
 }
@@ -189,7 +180,7 @@ function capabilityConfig({ allowedUses, actionlintInvocationUse, actionlintRoll
   return [
     "schemaVersion: 1",
     "workflowDirectory: .github/workflows",
-    "dependencyReviewWorkflow: .github/workflows/dependency-review.yml",
+    "dependencyReviewWorkflow: .github/workflows/ci.yml",
     "sbomWorkflow: .github/workflows/ci.yml",
     "privilegedJobs: []",
     "publishablePackageManifests:",
@@ -240,9 +231,9 @@ async function withConsumer(options, callback) {
     ".github/workflows/ci.yml": ciWorkflow({
       actionlintNonBlocking:
         options.actionlintNonBlocking ?? options.actionlintRollout === "advisory",
+      dependencyReview: options.dependencyReview ?? true,
       extraStep: options.extraStep,
     }),
-    ".github/workflows/dependency-review.yml": dependencyReviewWorkflow(),
     ".github/actions/checked-in-action/action.yml": compositeAction(
       options.compositeUse ?? `example/inside-composite@${COMPOSITE_ACTION_SHA}`,
     ),
@@ -319,6 +310,48 @@ test("allows a private or offline consumer to omit optional hosted CodeQL eviden
     assert.equal(report.outcome, "passed");
     assert.deepEqual(securityDiagnostics(report), []);
   });
+});
+
+test("requires Dependency Review in the declared required CI workflow", async () => {
+  await withConsumer(
+    {
+      allowedUses: ALLOWED_USES.filter(
+        ({ uses }) => uses !== `actions/dependency-review-action@${DEPENDENCY_REVIEW_SHA}`,
+      ),
+      dependencyReview: false,
+      includeTools: false,
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        securityDiagnostics(report).map(({ ruleId }) => ruleId),
+        ["repository.security-baseline.dependency-review-missing"],
+      );
+    },
+  );
+});
+
+test("repository CI runs workflow qualification under pinned Node and scans the full repository", async () => {
+  const [workflow, manifest, policy] = await Promise.all([
+    readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
+    readFile(join(repositoryRoot, "package.json"), "utf8"),
+    readFile(
+      join(repositoryRoot, "architecture", "foundation", "repository-security-baseline.yaml"),
+      "utf8",
+    ),
+  ]);
+  const scripts = JSON.parse(manifest).scripts;
+  const securityScript = scripts["security:workflows"];
+
+  assert.ok(
+    workflow.indexOf("uses: actions/setup-node@") < workflow.indexOf("run: pnpm security:workflows"),
+  );
+  assert.match(workflow, /uses: actions\/dependency-review-action@[a-f0-9]{40}/u);
+  assert.match(policy, /dependencyReviewWorkflow: \.github\/workflows\/ci\.yml/u);
+  assert.match(securityScript, /^aqua exec -- actionlint && /u);
+  assert.doesNotMatch(securityScript, /\.github\/workflows\/\*\.yml/u);
+  assert.match(securityScript, /zizmor .* --strict-collection .* \.$/u);
 });
 
 test("rejects a trusted SHA reference that is absent from allowedUses", async () => {

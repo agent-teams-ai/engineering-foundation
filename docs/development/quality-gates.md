@@ -11,7 +11,8 @@ weakening the merge gate.
 | Layer | Command | Purpose |
 | --- | --- | --- |
 | Fast | `pnpm check:fast` | Oxlint syntax/correctness plus pinned TypeScript 7 |
-| Architecture | `pnpm foundation:check` | Dependency, source, suppression, API, and repository-security evidence |
+| Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
+| Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor qualification for all workflows and local actions |
 | Patterns | `pnpm architecture:patterns` | Consumer-owned deterministic AST prohibitions |
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance |
@@ -21,6 +22,14 @@ local loop. Nx supplies project discovery, affected builds, and caching; it does
 not define architecture policy. Ast-grep owns narrow syntax patterns such as
 ambient clock, environment, randomness, and timer access. The foundation source
 dependency capability is the only authority for package and architecture edges.
+Actionlint and zizmor are independent external gates installed through Aqua with
+committed cross-platform checksums. They run only after the Linux job installs
+the pinned Node version. Actionlint discovers all workflow YAML files without a
+shell glob; Zizmor scans the repository root with strict collection, including
+local composite actions outside `.github`. Dependency Review runs inside the
+existing required Linux `check` job, so it cannot become an optional parallel
+status. CodeQL runs as a separate hosted analysis; none of these tools execute
+inside a normal capability check.
 
 ## Lint contract
 
@@ -45,6 +54,9 @@ relative imports, undeclared packages, blocked exports, and unresolved imports
 fail CI. The repository dogfoods separate application, contract, adapter, and
 composition boundaries for every implemented capability.
 
+Schema v2 additionally requires explicit target entrypoints and rejects runtime
+or type-only dependency cycles between packages and architecture boundaries.
+
 Suppression waivers, released API baselines, privileged workflow jobs, and
 publishable packages are also closed-world evidence. Existing API baselines are
 release-owned and cannot change in a normal pull request.
@@ -57,8 +69,8 @@ packed-tarball consumer. The tarball consumer installs its own exact Oxlint,
 oxlint-tsgolint, and TypeScript versions and proves the published type-aware
 preset and both executable capabilities.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI
-also emits an SPDX JSON SBOM; Dependency Review runs as an independent required
-workflow.
+also emits an SPDX JSON SBOM and runs Dependency Review inside its required
+`check` job.
 
 That tarball check qualifies this repository's published package. The static
 `repository.security-baseline` capability does not manufacture equivalent

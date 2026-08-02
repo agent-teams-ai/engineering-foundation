@@ -1,7 +1,7 @@
 # Executable Capabilities
 
-Status: Active for workspace declarations, source dependencies, suppression
-governance, public API compatibility, and repository security.
+Status: Implemented and released for workspace declarations, source dependencies,
+suppression governance, public API compatibility, and repository security.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
@@ -10,6 +10,29 @@ ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
 ADR-0003, ADR-0004, and ADR-0005 accept the three governance capabilities.
 Package installation never activates them: the consumer declares each applicable
 capability and supplies its own policy and qualification evidence.
+
+## Capability lifecycle status
+
+These terms describe different facts and must not be used interchangeably:
+
+- **implemented** means executable code and conformance fixtures exist in this
+  repository;
+- **released** means the implementation is present in the current published npm
+  package;
+- **dogfooded** means this repository declares and executes the capability;
+- **consumer-enabled** means a consuming repository declares the capability in
+  its own `foundation.config.yaml` with consumer-owned policy and evidence.
+
+| Capability | Implemented | Released | Dogfooded here | Consumer activation |
+| --- | --- | --- | --- | --- |
+| `workspace.dependency-declarations` | Yes | Yes | Yes | Only by explicit declaration |
+| `architecture.source-dependencies` | Yes | Yes | Yes | Only by explicit declaration |
+| `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
+| `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
+| `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
+
+Installing or upgrading the package changes none of the consumer activation
+cells. Each consumer records its own activation status in its repository.
 
 ## Goals
 

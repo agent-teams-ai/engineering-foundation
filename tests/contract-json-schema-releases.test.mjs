@@ -144,6 +144,11 @@ test("uses Ajv strict 2020-12 over an explicit local schema set and fixture corp
   await withContractFixture(async (root) => {
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
     const observation = await inspector.inspect(request(root));
+    const reorderedObservation = await inspector.inspect({
+      ...request(root),
+      schemaPaths: [...request(root).schemaPaths].reverse(),
+      fixtures: [...request(root).fixtures].reverse(),
+    });
     assert.deepEqual(observation.schemaIds, [
       "https://schemas.example.test/agent/common.schema.json",
       "https://schemas.example.test/agent/root.schema.json",
@@ -152,6 +157,7 @@ test("uses Ajv strict 2020-12 over an explicit local schema set and fixture corp
       { id: "invalid-payload", expectation: "invalid", matched: true },
       { id: "valid-payload", expectation: "valid", matched: true },
     ]);
+    assert.deepEqual(reorderedObservation, observation);
 
     const result = await jsonSchemaModule.verifyJsonSchemaRelease(
       { consumerRoot: root, policy: policy(observation) },

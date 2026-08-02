@@ -24,6 +24,10 @@ function isVersionRegressed(current: string, released: string): boolean {
   return semanticVersionBumpBetween(current, released) !== undefined;
 }
 
+function compareStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function inputError(message: string): never {
   throw new CapabilityInputError({
     code: "JSON_SCHEMA_RELEASE_EVIDENCE_INVALID",
@@ -213,7 +217,7 @@ export function evaluateJsonSchemaRelease(
     }
   }
   for (const required of policy.released.supportedConsumers.toSorted((left, right) =>
-    left.consumerId.localeCompare(right.consumerId)
+    compareStrings(left.consumerId, right.consumerId)
   )) {
     const current = matchingCurrentEvidence(required, policy.currentConsumerEvidence);
     if (

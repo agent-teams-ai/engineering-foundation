@@ -61,6 +61,10 @@ function digest(value: string): JsonSchemaDigest {
   return `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
 }
 
+function compareStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function canonicalJson(value: unknown): string {
   if (value === null) {
     return "null";
@@ -79,7 +83,7 @@ function canonicalJson(value: unknown): string {
   }
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>).toSorted(([left], [right]) =>
-      left.localeCompare(right)
+      compareStrings(left, right)
     );
     return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
   }
@@ -222,7 +226,7 @@ function schemaSetDigest(documents: readonly SchemaDocument[]): JsonSchemaDigest
     canonicalJson(
       documents
         .map((document) => ({ id: document.id, schema: document.value }))
-        .toSorted((left, right) => left.id.localeCompare(right.id))
+        .toSorted((left, right) => compareStrings(left.id, right.id))
     )
   );
 }
@@ -267,7 +271,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
       inputError("CONSUMER_ROOT_INVALID", "Consumer root must be a directory.");
     }
     const documents: SchemaDocument[] = [];
-    for (const path of input.schemaPaths.toSorted((left, right) => left.localeCompare(right))) {
+    for (const path of input.schemaPaths.toSorted(compareStrings)) {
       assertNotCancelled(input.signal);
       const value = record(await safeJsonFile(root, path), `schema ${path}`);
       if (value["$schema"] !== DRAFT_2020_12) {
@@ -289,7 +293,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     const ajv = compileSchemas(documents);
     const fixtureValues = new Map<string, unknown>();
     const fixtureResults: JsonSchemaFixtureResult[] = [];
-    for (const fixture of input.fixtures.toSorted((left, right) => left.id.localeCompare(right.id))) {
+    for (const fixture of input.fixtures.toSorted((left, right) => compareStrings(left.id, right.id))) {
       assertNotCancelled(input.signal);
       const value = await safeJsonFile(root, fixture.path);
       fixtureValues.set(fixture.id, value);
@@ -310,8 +314,8 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     const output = {
       schemaSetDigest: schemaSetDigest(documents),
       fixtureCorpusDigest: fixtureCorpusDigest(input.fixtures, fixtureValues),
-      schemaIds: Object.freeze(schemaIds.toSorted((left, right) => left.localeCompare(right))),
-      fixtureResults: Object.freeze(fixtureResults)
+      schemaIds: Object.freeze(schemaIds.toSorted(compareStrings)),
+      fixtureResults: Object.freeze(fixtureResults.map((result) => Object.freeze(result)))
     } as const;
     if (!SHA256_DIGEST.test(output.schemaSetDigest) || !SHA256_DIGEST.test(output.fixtureCorpusDigest)) {
       inputError("JSON_SCHEMA_DIGEST_INVALID", "Internal JSON Schema digest generation failed.");

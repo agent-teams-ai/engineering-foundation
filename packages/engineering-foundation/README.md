@@ -38,6 +38,11 @@ profile only in separate reviewed adoption changes with consumer-owned policy
 and qualification evidence. Installing or upgrading this package never enables
 them automatically.
 
+Repositories may also declare `repository.agent-workflow` and expose
+`agent-teams-foundation agent-workflow changed`. Foundation then discovers the
+current Git delta and invokes the consumer's configured pnpm scripts. This local
+preflight is portable across agents and never replaces the complete CI gate.
+
 The root file is `foundation.config.yaml`. Use
 `agent-teams-foundation schema foundation-config/v1` for its canonical schema
 and `agent-teams-foundation explain <rule-id>` for rule guidance.

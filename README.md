@@ -13,6 +13,7 @@ package catalog, dependency permissions, security classifications, and ADRs.
 - executable workspace declaration and source dependency policies;
 - governed inline suppressions and released public API compatibility;
 - repository workflow, SBOM, provenance, and package-content security policy;
+- portable agent instructions and changed-file preflight routing;
 - shared Oxlint and TypeScript 7 baseline presets;
 - explicit registry and local-link modes;
 - deterministic attach, status, detach, and registry assertions;
@@ -37,6 +38,7 @@ activate policy.
 
 ```bash
 pnpm install
+pnpm check:changed
 pnpm check:fast
 pnpm check
 pnpm package:check
@@ -55,6 +57,9 @@ pnpm foundation:assert-registry
 
 `foundation:check` emits one deterministic aggregate report and enforces every
 declared capability. See [consumer adoption](docs/development/consumer-adoption.md).
+The optional `repository.agent-workflow` capability keeps `AGENTS.md` canonical
+across coding agents and routes `check:changed` through the shared Foundation
+implementation; required CI still runs the complete `check` command.
 
 `foundation:assert-dev-only` rejects runtime dependency placement.
 `foundation:assert-registry` additionally proves that the exact declared version

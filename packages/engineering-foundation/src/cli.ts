@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 
 import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
 import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
+import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
 import { runFoundationCheck } from "./check-runner.js";
+import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
 import { loadFoundationConfig } from "./foundation-config.js";
@@ -21,146 +23,10 @@ import { inspectFoundationPackage } from "./package-self-check.js";
 import { renderFoundationReportText } from "./report-renderer.js";
 import { runScaffoldingCliCommand } from "./scaffolding/cli-command.js";
 import { ScaffoldError } from "./scaffolding/scaffold-error.js";
-import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffolding/service.js";
 import {
   isFoundationSchemaId,
   readFoundationSchema
 } from "./schema-catalog.js";
-
-type OutputFormat = "json" | "text";
-
-interface ParsedArguments {
-  readonly command: string;
-  readonly positional: readonly string[];
-  readonly consumerRoot: string;
-  readonly configPath: string;
-  readonly format: OutputFormat;
-}
-
-const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze({
-  "--help": 0,
-  "--version": 0,
-  "-h": 0,
-  "-v": 0,
-  "assert-dev-only": 0,
-  "assert-registry": 0,
-  attach: 1,
-  check: 1,
-  detach: 0,
-  explain: 1,
-  help: 0,
-  "public-api-promote-release": 0,
-  "scaffold-apply": 1,
-  "scaffold-plan": 1,
-  "scaffold-recover": 0,
-  schema: 1,
-  "self-check": 0,
-  status: 0,
-  version: 0
-});
-
-interface ArgumentState {
-  readonly positional: string[];
-  configPath: string;
-  configPathProvided: boolean;
-  consumerRoot: string;
-  format: OutputFormat;
-  optionsEnded: boolean;
-}
-
-function consumeArgument(
-  args: readonly string[],
-  index: number,
-  state: ArgumentState
-): number {
-  const value = args[index];
-  if (value === undefined) {
-    return 0;
-  }
-  if (state.optionsEnded) {
-    state.positional.push(value);
-    return 0;
-  }
-  if (value === "--") {
-    state.optionsEnded = true;
-    return 0;
-  }
-  if (value === "--json") {
-    state.format = "json";
-    return 0;
-  }
-  if (value === "--consumer") {
-    const candidate = args[index + 1];
-    if (candidate === undefined || candidate.length === 0) {
-      throw new FoundationError("CONSUMER_INVALID", "--consumer requires a path.");
-    }
-    state.consumerRoot = resolve(candidate);
-    return 1;
-  }
-  if (value === "--config") {
-    const candidate = args[index + 1];
-    if (candidate === undefined || candidate.length === 0) {
-      throw new FoundationError(
-        "CONSUMER_INVALID",
-        "--config requires a repository-relative path."
-      );
-    }
-    state.configPath = candidate;
-    state.configPathProvided = true;
-    return 1;
-  }
-  if (value === "--format") {
-    const candidate = args[index + 1];
-    if (candidate !== "json" && candidate !== "text") {
-      throw new FoundationError("CONSUMER_INVALID", "--format requires json or text.");
-    }
-    state.format = candidate;
-    return 1;
-  }
-  if (value.startsWith("-")) {
-    throw new FoundationError("CONSUMER_INVALID", `Unknown option: ${value}.`);
-  }
-  state.positional.push(value);
-  return 0;
-}
-
-function parseArguments(args: readonly string[]): ParsedArguments {
-  const state: ArgumentState = {
-    positional: [],
-    configPath: DEFAULT_SCAFFOLDING_CONFIG_PATH,
-    configPathProvided: false,
-    consumerRoot: process.cwd(),
-    format: "text",
-    optionsEnded: false
-  };
-
-  for (let index = 1; index < args.length; index += 1) {
-    index += consumeArgument(args, index, state);
-  }
-
-  const command = args[0] ?? "help";
-  if (state.configPathProvided && command !== "scaffold-plan") {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--config is supported only by scaffold-plan."
-    );
-  }
-  const maximum = MAX_POSITIONAL_ARGUMENTS[command];
-  if (maximum !== undefined && state.positional.length > maximum) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      `${command} accepts at most ${maximum} positional argument${maximum === 1 ? "" : "s"}.`
-    );
-  }
-
-  return {
-    command,
-    positional: state.positional,
-    consumerRoot: state.consumerRoot,
-    configPath: state.configPath,
-    format: state.format
-  };
-}
 
 function printStatus(status: FoundationStatus, json: boolean): void {
   if (json) {
@@ -222,6 +88,7 @@ function printDevOnlyStatus(
 function printHelp(): void {
   process.stdout.write(`Usage:
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
+  agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
@@ -334,6 +201,49 @@ async function runCheckCommand(
   return true;
 }
 
+async function runAgentWorkflowCommand(
+  parsed: ParsedArguments,
+  environment: NodeJS.ProcessEnv
+): Promise<boolean> {
+  if (parsed.command !== "agent-workflow") {
+    return false;
+  }
+  if (parsed.positional[0] !== "changed") {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "agent-workflow requires the changed subcommand."
+    );
+  }
+  const settings = await loadFoundationConfig(parsed.consumerRoot);
+  const declaration = settings.declaredCapabilities.find(
+    ({ id }) => id === "repository.agent-workflow"
+  );
+  if (declaration === undefined) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "The consumer must declare repository.agent-workflow before running changed checks."
+    );
+  }
+  await runAgentWorkflowChangedCommand({
+    consumerRoot: parsed.consumerRoot,
+    configPath: declaration.configPath,
+    format: parsed.format,
+    pnpmEnvironment: {
+      ...(environment.npm_execpath === undefined
+        ? {}
+        : { npmExecPath: environment.npm_execpath }),
+      ...(environment.PNPM_HOME === undefined
+        ? {}
+        : { pnpmHome: environment.PNPM_HOME }),
+      ...(environment.PATH === undefined
+        ? {}
+        : { pathValue: environment.PATH })
+    },
+    ...(parsed.baseRef === undefined ? {} : { baseRef: parsed.baseRef })
+  });
+  return true;
+}
+
 async function runPolicyCommand(
   parsed: ParsedArguments,
   json: boolean
@@ -424,7 +334,7 @@ async function runInformationCommand(
   }
 }
 
-async function main(): Promise<void> {
+async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   const parsed = parseArguments(process.argv.slice(2));
   const json = parsed.format === "json";
   const service = new FoundationLocalModeService({
@@ -433,6 +343,7 @@ async function main(): Promise<void> {
   });
   if (
     await runLocalModeCommand(parsed, service, json) ||
+    await runAgentWorkflowCommand(parsed, environment) ||
     await runCheckCommand(parsed, json) ||
     await runPolicyCommand(parsed, json) ||
     await runInformationCommand(parsed, json)
@@ -446,7 +357,7 @@ async function main(): Promise<void> {
 }
 
 try {
-  await main();
+  await main(process.env);
 } catch (error) {
   if (error instanceof ScaffoldError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);

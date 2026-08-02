@@ -9,6 +9,7 @@ policies:
   reservedScopes:
     - "@agent-teams/"
   developmentOnlyPackages:
+    - "@agent-teams/engineering-foundation"
     - "@ast-grep/cli"
     - "@arethetypeswrong/cli"
     - "@changesets/changelog-github"

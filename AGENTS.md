@@ -12,6 +12,7 @@ Hard rules:
 - keep registry mode reproducible and local mode explicit;
 - never commit local-link state or floating dependency ranges;
 - use conventional commits and short feature branches;
+- run `pnpm check:changed` while editing and `pnpm check:fast` before handoff;
 - run `pnpm check` before opening a pull request.
 
 Start with:

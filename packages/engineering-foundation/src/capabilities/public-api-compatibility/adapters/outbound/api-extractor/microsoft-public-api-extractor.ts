@@ -10,6 +10,7 @@ import {
 import {
   ApiDeclaredItem,
   ApiModel,
+  ApiNamespace,
   type ApiItem
 } from "@microsoft/api-extractor-model";
 
@@ -74,6 +75,21 @@ async function safePath(
   return canonical;
 }
 
+function declaredSignature(item: ApiDeclaredItem): string {
+  const excerpt = item.excerpt.text.replaceAll("\r\n", "\n").trim();
+  if (excerpt.length > 0) {
+    return excerpt;
+  }
+  if (item instanceof ApiNamespace) {
+    return `namespace ${item.displayName}`;
+  }
+  inputError(
+    "PUBLIC_API_SIGNATURE_EMPTY",
+    `API Extractor returned an empty signature for ${item.canonicalReference.toString()}.`,
+    "public-api-extraction"
+  );
+}
+
 function collectItems(item: ApiItem, output: PublicApiItem[]): void {
   if (item instanceof ApiDeclaredItem) {
     const parent = item.parent;
@@ -84,7 +100,7 @@ function collectItems(item: ApiItem, output: PublicApiItem[]): void {
         ? {}
         : { parentReference: parent.canonicalReference.toString() }),
       parentKind: parent?.kind ?? "None",
-      signature: item.excerpt.text.replaceAll("\r\n", "\n").trim()
+      signature: declaredSignature(item)
     });
   }
   for (const member of item.members) {

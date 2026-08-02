@@ -4,6 +4,8 @@ Status: Implemented and released for workspace declarations, source dependencies
 suppression governance, public API compatibility, and repository security.
 The separate closed scaffolding protocol is implemented in this repository and
 pending its first package release.
+The portable repository agent workflow is implemented and dogfooded; its package
+release is delivered by this change's Changeset.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
@@ -32,6 +34,7 @@ These terms describe different facts and must not be used interchangeably:
 | `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
 | `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
+| `repository.agent-workflow` | Yes | Pending this Changeset | Yes | Only by explicit declaration |
 
 Installing or upgrading the package changes none of the consumer activation
 cells. Each consumer records its own activation status in its repository.

@@ -5,7 +5,8 @@
       "entry": [
         "scripts/*.mjs",
         "tests/*.test.mjs",
-        "tests/fixtures/scaffolding-crash-worker.mjs"
+        "tests/fixtures/scaffolding-crash-worker.mjs",
+        "tests/fixtures/**/scripts/*.mjs"
       ],
       "project": [
         "scripts/*.mjs",

@@ -471,6 +471,143 @@ test("validates every public API promotion before writing any baseline", async (
   assert.deepEqual(writes, []);
 });
 
+test("replays public API promotion after a partially written multi-package release", async () => {
+  const packagePolicies = ["first", "second"].map((name) => ({
+    packageName: `@fixture/${name}`,
+    packageRoot: `packages/${name}`,
+    manifestPath: `packages/${name}/package.json`,
+    declarationEntryPoint: `packages/${name}/dist/index.d.ts`,
+    tsconfigPath: `packages/${name}/tsconfig.json`,
+    releasedBaselinePath: `architecture/public-api/${name}.json`,
+    approvedBreakingChanges: [],
+  }));
+  const writes = [];
+  const item = {
+    canonicalReference: "@fixture/api!stable:function(1)",
+    kind: "Function",
+    parentKind: "EntryPoint",
+    signature: "export declare function stable(): void;",
+  };
+
+  const promoted = await promotePublicApiBaselines(
+    {
+      consumerRoot: "/fixture",
+      policy: {
+        schemaVersion: 1,
+        changesetDirectory: ".changeset",
+        packages: packagePolicies,
+      },
+    },
+    {
+      extractor: {
+        async extract(_consumerRoot, packagePolicy, packageVersion) {
+          return {
+            schemaVersion: 1,
+            packageName: packagePolicy.packageName,
+            packageVersion,
+            extractorVersion: "7.58.12",
+            items: [item],
+          };
+        },
+      },
+      fingerprint: { sha256: () => "a".repeat(64) },
+      repository: {
+        async readReleasedBaseline(_consumerRoot, packagePolicy) {
+          const alreadyPromoted = packagePolicy.packageName === "@fixture/first";
+          return {
+            schemaVersion: 1,
+            packageName: packagePolicy.packageName,
+            packageVersion: alreadyPromoted ? "1.1.0" : "1.0.0",
+            extractorVersion: "7.58.12",
+            items: alreadyPromoted ? [item] : [],
+          };
+        },
+        async readReleaseEvidence(_consumerRoot, _changesetDirectory, packagePolicy) {
+          return { packageName: packagePolicy.packageName, packageVersion: "1.1.0" };
+        },
+        async isAcceptedDecision() {
+          return false;
+        },
+        async writeReleasedBaseline(_consumerRoot, packagePolicy) {
+          writes.push(packagePolicy.packageName);
+        },
+      },
+    },
+  );
+
+  assert.deepEqual(writes, ["@fixture/second"]);
+  assert.deepEqual(promoted.map(({ packageName }) => packageName), ["@fixture/second"]);
+});
+
+test("rejects public API drift after a package version was already promoted", async () => {
+  const packagePolicy = {
+    packageName: "@fixture/library",
+    packageRoot: "packages/library",
+    manifestPath: "packages/library/package.json",
+    declarationEntryPoint: "packages/library/dist/index.d.ts",
+    tsconfigPath: "packages/library/tsconfig.json",
+    releasedBaselinePath: "architecture/public-api/library.json",
+    approvedBreakingChanges: [],
+  };
+  const writes = [];
+
+  await assert.rejects(
+    promotePublicApiBaselines(
+      {
+        consumerRoot: "/fixture",
+        policy: {
+          schemaVersion: 1,
+          changesetDirectory: ".changeset",
+          packages: [packagePolicy],
+        },
+      },
+      {
+        extractor: {
+          async extract() {
+            return {
+              schemaVersion: 1,
+              packageName: packagePolicy.packageName,
+              packageVersion: "1.1.0",
+              extractorVersion: "7.58.12",
+              items: [
+                {
+                  canonicalReference: "@fixture/api!added:function(1)",
+                  kind: "Function",
+                  parentKind: "EntryPoint",
+                  signature: "export declare function added(): void;",
+                },
+              ],
+            };
+          },
+        },
+        fingerprint: { sha256: () => "a".repeat(64) },
+        repository: {
+          async readReleasedBaseline() {
+            return {
+              schemaVersion: 1,
+              packageName: packagePolicy.packageName,
+              packageVersion: "1.1.0",
+              extractorVersion: "7.58.12",
+              items: [],
+            };
+          },
+          async readReleaseEvidence() {
+            return { packageName: packagePolicy.packageName, packageVersion: "1.1.0" };
+          },
+          async isAcceptedDecision() {
+            return false;
+          },
+          async writeReleasedBaseline(...args) {
+            writes.push(args);
+          },
+        },
+      },
+    ),
+    (error) => error?.problem?.code === "PUBLIC_API_BASELINE_PROMOTION_RELEASE_DRIFT",
+  );
+  assert.deepEqual(writes, []);
+});
+
 test("accepts a closed-world repository security baseline", async () => {
   await withRepositorySecurityFixture(async (consumerRoot) => {
     const { result, report } = check(consumerRoot);
@@ -501,7 +638,7 @@ test("reports deterministic workflow and package supply-chain violations", async
     );
     const manifestPath = join(consumerRoot, "packages", "library", "package.json");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    manifest.files = [".", "src"];
+    manifest.files = [".", "src", "*", "dist/..", "dist\\private"];
     manifest.publishConfig.provenance = false;
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
@@ -519,6 +656,13 @@ test("reports deterministic workflow and package supply-chain violations", async
         "repository.security-baseline.privileged-job-mismatch",
         "repository.security-baseline.sbom-missing",
       ]),
+    );
+    const filesDiagnostic = report.capabilities[0].diagnostics.find(
+      ({ ruleId }) => ruleId === "repository.security-baseline.package-files-unsafe",
+    );
+    assert.deepEqual(
+      filesDiagnostic.evidence.map(({ value }) => value),
+      [".", "src", "*", "dist/..", "dist\\private"],
     );
   });
 });

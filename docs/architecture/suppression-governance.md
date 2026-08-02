@@ -1,6 +1,6 @@
 # Suppression Governance
 
-Status: Implemented; ADR-0003 is proposed.
+Status: Accepted and implemented by ADR-0003.
 
 `quality.suppression-governance` treats every inline suppression as temporary
 accountable evidence. It scans parser comments, so directive-like text inside a

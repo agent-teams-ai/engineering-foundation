@@ -26,6 +26,11 @@ moves here only with parity fixtures and a consumer conformance test.
 Oxc adapter. See
 [Executable capabilities](docs/architecture/executable-capabilities.md) and
 [the parser spike](docs/research/source-dependency-parser-spike.md).
+Suppression governance, released public API compatibility, and the publishing-
+repository security baseline are accepted and dogfooded capabilities in the
+unreleased `0.4.0` line. Consumers still enable each capability explicitly and
+must satisfy its consumer-owned adoption gates; installing a package version
+does not activate policy.
 
 ## Commands
 
@@ -59,6 +64,7 @@ cannot be hidden by editing only the repository lockfile.
 
 See [ownership](docs/architecture/ownership.md),
 [consistency evidence gate](docs/architecture/consistency-evidence-gate.md),
+[governance capability acceptance review](docs/research/governance-capability-acceptance-review.md),
 [local development](docs/development/local-mode.md), and
 [release procedure](docs/release.md). The complete documentation index is
 [docs/README.md](docs/README.md).

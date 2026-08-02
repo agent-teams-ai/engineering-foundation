@@ -23,17 +23,15 @@ schemaVersion: 1
 project:
   id: consumer-repository
 capabilities:
-  architecture.source-dependencies:
-    configPath: architecture/foundation/source-dependencies.yaml
-  package.public-api-compatibility:
-    configPath: architecture/foundation/public-api-compatibility.yaml
-  quality.suppression-governance:
-    configPath: architecture/foundation/suppression-governance.yaml
-  repository.security-baseline:
-    configPath: architecture/foundation/repository-security-baseline.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml
 ```
+
+Capability presence means enabled. Add source dependencies, suppression
+governance, public API compatibility, or the publishing-repository security
+profile only in separate reviewed adoption changes with consumer-owned policy
+and qualification evidence. Installing or upgrading this package never enables
+them automatically.
 
 The root file is `foundation.config.yaml`. Use
 `agent-teams-foundation schema foundation-config/v1` for its canonical schema
@@ -48,4 +46,5 @@ authority.
 
 `agent-teams-foundation public-api-promote-release` is reserved for the
 Changesets version workflow. Normal feature checks never update released API
-baselines.
+baselines. Publishing consumers must also enforce release-owned baseline
+mutation in required pull-request CI.

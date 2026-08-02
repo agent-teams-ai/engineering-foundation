@@ -52,16 +52,6 @@ export async function promotePublicApiBaselines(
         input.signal
       )
     ]);
-    const actualBump = semanticVersionBumpBetween(
-      released.packageVersion,
-      releaseEvidence.packageVersion
-    );
-    if (actualBump === undefined) {
-      promotionError(
-        "PUBLIC_API_BASELINE_PROMOTION_NOT_RELEASE",
-        `Package ${packagePolicy.packageName} must have a version newer than released baseline ${released.packageVersion}.`
-      );
-    }
     const current = await dependencies.extractor.extract(
       input.consumerRoot,
       packagePolicy,
@@ -75,6 +65,25 @@ export async function promotePublicApiBaselines(
       );
     }
     const change = classifyPublicApiChange(released, current, dependencies.fingerprint);
+    if (released.packageVersion === releaseEvidence.packageVersion) {
+      if (change.classification !== "none") {
+        promotionError(
+          "PUBLIC_API_BASELINE_PROMOTION_RELEASE_DRIFT",
+          `Package ${packagePolicy.packageName} changed after baseline ${released.packageVersion} was promoted.`
+        );
+      }
+      continue;
+    }
+    const actualBump = semanticVersionBumpBetween(
+      released.packageVersion,
+      releaseEvidence.packageVersion
+    );
+    if (actualBump === undefined) {
+      promotionError(
+        "PUBLIC_API_BASELINE_PROMOTION_NOT_RELEASE",
+        `Package ${packagePolicy.packageName} must have a version newer than released baseline ${released.packageVersion}.`
+      );
+    }
     const requiredBump =
       change.classification === "none"
         ? "patch"

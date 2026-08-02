@@ -1,6 +1,6 @@
 # ADR-0003: Governed Inline Suppressions
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-08-02
 
@@ -17,6 +17,10 @@ Adopt the exact, expiring, owner-backed waiver model in
 [Suppression governance](../architecture/suppression-governance.md). Keep
 security and tenant-isolation rules non-waivable and prohibit broad or legacy
 directives.
+
+The organization maximum waiver lifetime is 90 calendar days. Consumers may
+require shorter lifetimes and may add protected rule prefixes, but cannot remove
+the built-in security, tenancy, and tenant-isolation protection.
 
 ## Consequences
 

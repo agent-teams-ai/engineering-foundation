@@ -12,11 +12,17 @@ manually with npm 2FA after `pnpm check` passes. After that release:
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
+Publication packages accepted implementations; it does not activate a capability
+inside any consumer. Consumers retain exact pins and adopt a capability in a
+separate reviewed change after its consumer-owned gates pass.
+
 `pnpm release:version` runs Changesets, rebuilds declarations, and invokes
 `public-api-promote-release`. Promotion requires a newer sufficient package
 version and accepted evidence for every breaking fingerprint. Existing API
 baselines are mutable only in `changeset-release/main`; first-time baseline
-creation is allowed during capability adoption.
+creation is allowed during capability adoption. Multi-package promotion is
+validation-first and replay-safe after a partial process failure: an unchanged
+already-promoted package is skipped, while same-version API drift fails closed.
 
 Automatic Changesets pull requests require the organization setting that permits
 GitHub Actions to create pull requests. The organization allows this capability,

@@ -13,7 +13,8 @@ import {
 
 const FULL_SHA_ACTION = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_./-]+)?@[0-9a-fA-F]{40}$/u;
 const FULL_DIGEST_CONTAINER = /^docker:\/\/.+@sha256:[0-9a-fA-F]{64}$/u;
-const UNSAFE_PACKAGE_PATH = /(^|\/)(?:\.env(?:\.|$)|\.git(?:\/|$)|node_modules(?:\/|$)|src(?:\/|$)|tests?(?:\/|$)|auth\.json$)/iu;
+const UNSAFE_PACKAGE_SEGMENT = /^(?:\.env(?:\..*)?|\.git|node_modules|src|tests?|auth\.json)$/iu;
+const PACKAGE_PATH_META = /[*?{}[\]\\]/u;
 const UNTRUSTED_EXPRESSION_IN_RUN =
   /\$\{\{[^}]*github\s*(?:\.\s*(?:event|head_ref)\b|\[\s*["'](?:event|head_ref)["']\s*\])/iu;
 
@@ -104,6 +105,25 @@ function scansRepositoryRoot(step: WorkflowJobEvidence["steps"][number]): boolea
     (path === undefined || path === "." || path === "./") &&
     step.inputs["file"] === undefined &&
     step.inputs["image"] === undefined
+  );
+}
+
+function unsafePackagePath(entry: string): boolean {
+  if (
+    entry.length === 0 ||
+    entry.startsWith("/") ||
+    entry.includes("//") ||
+    PACKAGE_PATH_META.test(entry)
+  ) {
+    return true;
+  }
+  const segments = entry.split("/");
+  return segments.some(
+    (segment) =>
+      segment.length === 0 ||
+      segment === "." ||
+      segment === ".." ||
+      UNSAFE_PACKAGE_SEGMENT.test(segment)
   );
 }
 
@@ -275,15 +295,7 @@ export function evaluateRepositorySecurity(
         })
       );
     }
-    const unsafeFiles = packageEvidence.files?.filter(
-      (entry) =>
-        entry === "." ||
-        entry === ".." ||
-        entry.startsWith("/") ||
-        entry.includes("**") ||
-        entry.includes("../") ||
-        UNSAFE_PACKAGE_PATH.test(entry)
-    );
+    const unsafeFiles = packageEvidence.files?.filter(unsafePackagePath);
     if (
       packageEvidence.files === undefined ||
       packageEvidence.files.length === 0 ||

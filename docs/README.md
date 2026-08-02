@@ -10,15 +10,16 @@ not repeat their rules.
 | --- | --- | --- |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
 | Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Five capabilities active |
-| Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Implemented; ADR proposed |
-| Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Implemented; ADR proposed |
-| Repository security | [Repository security baseline](security/repository-security-baseline.md) | Implemented; ADR proposed |
+| Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Accepted and implemented |
+| Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; consumer mutation gate required |
+| Repository security | [Repository security baseline](security/repository-security-baseline.md) | Accepted and implemented for publishing repositories |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
+| Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |
 | Package release | [Release](release.md) | Active |
 | Architecture decisions | [Decision index](decisions/README.md) | Active |
 

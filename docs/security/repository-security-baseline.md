@@ -1,10 +1,15 @@
 # Repository Security Baseline
 
-Status: Implemented; ADR-0005 is proposed.
+Status: Accepted and implemented for publishing repositories by ADR-0005.
 
 `repository.security-baseline` discovers every regular YAML file in the declared
 workflow directory. Symlinks, unsupported entries, missing required workflows,
 and malformed YAML are invalid input rather than partial success.
+
+The combined profile applies to repositories that both run governed workflows
+and publish at least one package. A non-publishing application does not invent a
+package manifest to satisfy it; a future workflow-only profile is a separate
+capability decision.
 
 ## Workflow controls
 
@@ -25,11 +30,13 @@ and malformed YAML are invalid input rather than partial success.
 
 ## Package controls
 
-Every declared publishable package enables npm provenance and uses a narrow
-`files` allowlist. Root, parent, recursive, source, test, Git, environment, and
-known local-auth paths are prohibited. The package E2E test packs and extracts
-the real tarball, proves required files, rejects forbidden paths, and searches
-all packed content for a source-owned secret canary.
+Every declared publishable package enables npm provenance and uses a narrow,
+literal `files` allowlist. Root, parent, glob, source, test, Git, environment,
+and known local-auth paths are prohibited. This static capability does not
+prove the produced tarball contents. A publishing consumer must separately run
+a real tarball E2E check that proves required files, rejects forbidden paths,
+and searches packed content for a source-owned secret canary before it may treat
+package publication as qualified.
 
 Dependency Review blocks newly introduced vulnerable dependencies. Anchore
 generates an SPDX JSON SBOM in Linux CI. npm Trusted Publishing provides the

@@ -22,6 +22,9 @@ an outbound adapter; its model types do not cross into capability policy.
 The fingerprint contains old and new signatures, kinds, parents, every addition,
 and every removal in the same change set. Approval of one break cannot authorize
 a different change to the same symbol or an extra additive export.
+API Extractor namespace items have no declaration excerpt, so the adapter records
+the deterministic signature `namespace <displayName>`; every other empty
+declared-item signature fails closed.
 
 ## Released baseline lifecycle
 

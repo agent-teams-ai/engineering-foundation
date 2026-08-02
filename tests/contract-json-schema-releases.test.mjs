@@ -137,8 +137,40 @@ function policy(observation) {
   };
 }
 
+function releasedBaseline(observation) {
+  return policy(observation).released;
+}
+
+function capabilityConfig(observation, releasedBaselinePath = "baselines/released.yaml") {
+  const normalized = policy(observation);
+  return {
+    schemaVersion: normalized.schemaVersion,
+    contractId: normalized.contractId,
+    publicContractVersion: normalized.publicContractVersion,
+    schemaPaths: normalized.schemaPaths,
+    fixtures: normalized.fixtures,
+    releasedBaselinePath,
+    currentConsumerEvidence: normalized.currentConsumerEvidence,
+  };
+}
+
 async function writeYaml(root, path, value) {
-  await writeFile(join(root, path), stringifyYaml(value), "utf8");
+  const file = join(root, path);
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, stringifyYaml(value), "utf8");
+}
+
+async function writeSeparatedPolicy(
+  root,
+  observation,
+  releasedBaselinePath = "baselines/released.yaml",
+) {
+  if (releasedBaselinePath.endsWith(".json")) {
+    await writeJson(root, releasedBaselinePath, releasedBaseline(observation));
+  } else {
+    await writeYaml(root, releasedBaselinePath, releasedBaseline(observation));
+  }
+  await writeYaml(root, "contract.yaml", capabilityConfig(observation, releasedBaselinePath));
 }
 
 test("uses Ajv strict 2020-12 over an explicit local schema set and fixture corpus", async () => {
@@ -303,7 +335,7 @@ test("runs as a deterministic capability and closes unexpected inspector failure
   await withContractFixture(async (root) => {
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
     const observation = await inspector.inspect(request(root));
-    await writeYaml(root, "contract.yaml", policy(observation));
+    await writeSeparatedPolicy(root, observation, "baselines/released.json");
     const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -327,7 +359,7 @@ test("runs as a deterministic capability and closes unexpected inspector failure
     assert.equal(invalid.outcome, "invalid-input");
     assert.equal(invalid.problem.code, "SCHEMA_INVALID");
 
-    await writeYaml(root, "contract.yaml", policy(observation));
+    await writeSeparatedPolicy(root, observation);
     const failedCapability = jsonSchemaModule.createJsonSchemaReleaseCapability({
       inspector: {
         async inspect() {
@@ -348,14 +380,14 @@ test("requires an explicitly supported root configuration schema version", async
     const observation = await inspector.inspect(request(root));
     const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
 
-    const missingVersion = policy(observation);
+    const missingVersion = capabilityConfig(observation);
     delete missingVersion.schemaVersion;
     await writeYaml(root, "contract.yaml", missingVersion);
     const missing = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(missing.outcome, "invalid-input");
     assert.equal(missing.problem.code, "JSON_SCHEMA_RELEASE_CONFIG_INVALID");
 
-    const unknownVersion = policy(observation);
+    const unknownVersion = capabilityConfig(observation);
     unknownVersion.schemaVersion = 2;
     await writeYaml(root, "contract.yaml", unknownVersion);
     const unknown = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -377,7 +409,7 @@ test("rejects a released consumer baseline that was never proven passing", async
   });
 });
 
-test("JSON Schema release evidence schema accepts the verified policy shape", async () => {
+test("JSON Schema contract config and released baseline schemas accept verified shapes", async () => {
   await withContractFixture(async (root) => {
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
     const observation = await inspector.inspect(request(root));
@@ -393,14 +425,93 @@ test("JSON Schema release evidence schema accepts the verified policy shape", as
       "utf8",
     );
     const validate = new Ajv2020({ strict: true }).compile(JSON.parse(source));
-    assert.equal(validate(policy(observation)), true, JSON.stringify(validate.errors));
+    const config = capabilityConfig(observation);
+    assert.equal(validate(config), true, JSON.stringify(validate.errors));
 
-    const missingVersion = policy(observation);
+    const baselineSource = await readFile(
+      join(
+        repositoryRoot,
+        "packages",
+        "engineering-foundation",
+        "schemas",
+        "contract-json-schema-release-baseline",
+        "v1.schema.json",
+      ),
+      "utf8",
+    );
+    const validateBaseline = new Ajv2020({ strict: true }).compile(
+      JSON.parse(baselineSource),
+    );
+    assert.equal(
+      validateBaseline(releasedBaseline(observation)),
+      true,
+      JSON.stringify(validateBaseline.errors),
+    );
+
+    const missingVersion = capabilityConfig(observation);
     delete missingVersion.schemaVersion;
     assert.equal(validate(missingVersion), false);
 
-    const unknownVersion = policy(observation);
+    const unknownVersion = capabilityConfig(observation);
     unknownVersion.schemaVersion = 2;
     assert.equal(validate(unknownVersion), false);
+  });
+});
+
+test("loads a separate released baseline deterministically and rejects inline substitution", async () => {
+  await withContractFixture(async (root) => {
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const observation = await inspector.inspect(request(root));
+    await writeSeparatedPolicy(root, observation);
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
+
+    const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(first.outcome, "passed");
+    assert.deepEqual(second, first);
+
+    const substituted = {
+      ...capabilityConfig(observation),
+      released: releasedBaseline(observation),
+    };
+    await writeYaml(root, "contract.yaml", substituted);
+    const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(result.outcome, "invalid-input");
+    assert.equal(result.problem.code, "SCHEMA_INVALID");
+  });
+});
+
+test("rejects missing, escaping, and invalid released JSON Schema baselines", async () => {
+  await withContractFixture(async (root) => {
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const observation = await inspector.inspect(request(root));
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
+    const config = capabilityConfig(observation);
+    await writeYaml(root, "contract.yaml", config);
+
+    const missing = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(missing.outcome, "invalid-input");
+    assert.equal(missing.problem.code, "CONFIG_FILE_UNAVAILABLE");
+
+    const external = await mkdtemp(join(tmpdir(), "foundation-json-schema-baseline-external-"));
+    try {
+      await writeYaml(external, "released.yaml", releasedBaseline(observation));
+      await mkdir(join(root, "baselines"), { recursive: true });
+      await symlink(
+        join(external, "released.yaml"),
+        join(root, "baselines", "released.yaml"),
+      );
+      const unsafe = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+      assert.equal(unsafe.outcome, "invalid-input");
+      assert.equal(unsafe.problem.code, "CONFIG_PATH_ESCAPE");
+      await unlink(join(root, "baselines", "released.yaml"));
+    } finally {
+      await rm(external, { force: true, recursive: true });
+    }
+
+    await writeYaml(root, "baselines/released.yaml", { schemaVersion: 1 });
+    const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(invalid.outcome, "invalid-input");
+    assert.equal(invalid.problem.code, "SCHEMA_INVALID");
   });
 });

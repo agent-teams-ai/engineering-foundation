@@ -4,10 +4,10 @@
   "title": "Protobuf contract evolution release evidence",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "released", "current"],
+  "required": ["schemaVersion", "releasedBaselinePath", "current"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "released": { "$ref": "#/$defs/released" },
+    "releasedBaselinePath": { "$ref": "#/$defs/releasedBaselinePath" },
     "current": { "$ref": "#/$defs/current" }
   },
   "$defs": {
@@ -19,6 +19,12 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9.-]{1,119}$"
     },
+    "releasedBaselinePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+\\.(?:json|ya?ml)$"
+    },
     "generator": {
       "type": "object",
       "additionalProperties": false,
@@ -26,34 +32,6 @@
       "properties": {
         "name": { "type": "string", "minLength": 1, "maxLength": 240 },
         "version": { "type": "string", "minLength": 1, "maxLength": 240 }
-      }
-    },
-    "released": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "schemaVersion",
-        "contractId",
-        "publicContractVersion",
-        "bufVersion",
-        "bufConfigDigest",
-        "descriptorImageDigest",
-        "generatorVersions",
-        "generatedOutputDigest"
-      ],
-      "properties": {
-        "schemaVersion": { "const": 1 },
-        "contractId": { "$ref": "#/$defs/contractId" },
-        "publicContractVersion": { "$ref": "#/$defs/semver" },
-        "bufVersion": { "type": "string", "minLength": 1, "maxLength": 80 },
-        "bufConfigDigest": { "$ref": "#/$defs/digest" },
-        "descriptorImageDigest": { "$ref": "#/$defs/digest" },
-        "generatorVersions": {
-          "type": "array",
-          "maxItems": 100,
-          "items": { "$ref": "#/$defs/generator" }
-        },
-        "generatedOutputDigest": { "$ref": "#/$defs/digest" }
       }
     },
     "current": {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -73,10 +73,29 @@ function policy() {
   };
 }
 
-async function withConfig(value, callback) {
+function releasedBaseline() {
+  return policy().released;
+}
+
+function capabilityConfig(releasedBaselinePath = "baselines/released.yaml") {
+  return {
+    schemaVersion: 1,
+    releasedBaselinePath,
+    current: policy().current,
+  };
+}
+
+async function writeYaml(root, path, value) {
+  const file = join(root, path);
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, stringifyYaml(value), "utf8");
+}
+
+async function withConfig(value, callback, baseline = releasedBaseline()) {
   const root = await mkdtemp(join(tmpdir(), "foundation-protobuf-evolution-"));
   try {
-    await writeFile(join(root, "contract.yaml"), stringifyYaml(value), "utf8");
+    await writeYaml(root, "contract.yaml", value);
+    await writeYaml(root, "baselines/released.yaml", baseline);
     return await callback(root);
   } finally {
     await rm(root, { force: true, recursive: true });
@@ -177,7 +196,7 @@ test("rejects public release versions with build metadata and detects prerelease
 });
 
 test("runs as a deterministic read-only Foundation capability with closed input handling", async () => {
-  await withConfig(policy(), async (root) => {
+  await withConfig(capabilityConfig(), async (root) => {
     const moduleSource = await readFile(
       join(distRoot, "capabilities", "contract-protobuf-evolution", "module.js"),
       "utf8",
@@ -198,7 +217,11 @@ test("runs as a deterministic read-only Foundation capability with closed input 
     assert.equal(cancelled.outcome, "cancelled");
     assert.equal(cancelled.problem.code, "EXECUTION_CANCELLED");
 
-    await writeFile(join(root, "contract.yaml"), "schemaVersion: 1\nreleased: []\n", "utf8");
+    await writeFile(
+      join(root, "contract.yaml"),
+      "schemaVersion: 1\nreleasedBaselinePath: baselines/released.yaml\nreleased: []\n",
+      "utf8",
+    );
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(invalid.outcome, "invalid-input");
     assert.equal(invalid.problem.code, "SCHEMA_INVALID");
@@ -208,7 +231,7 @@ test("runs as a deterministic read-only Foundation capability with closed input 
 test("requires an explicitly supported root configuration schema version", async () => {
   const capability = protobufModule.createProtobufEvolutionCapability();
 
-  const missingVersion = policy();
+  const missingVersion = capabilityConfig();
   delete missingVersion.schemaVersion;
   await withConfig(missingVersion, async (root) => {
     const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -216,7 +239,7 @@ test("requires an explicitly supported root configuration schema version", async
     assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
   });
 
-  const unknownVersion = policy();
+  const unknownVersion = capabilityConfig();
   unknownVersion.schemaVersion = 2;
   await withConfig(unknownVersion, async (root) => {
     const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -271,7 +294,7 @@ test("Buf process adapter rejects relative executables and control-character arg
   );
 });
 
-test("Protobuf evidence JSON Schema accepts the valid release proof shape", async () => {
+test("Protobuf contract config and released baseline schemas accept verified shapes", async () => {
   const source = await readFile(
     join(
       repositoryRoot,
@@ -284,13 +307,75 @@ test("Protobuf evidence JSON Schema accepts the valid release proof shape", asyn
     "utf8",
   );
   const validate = new Ajv2020({ strict: true }).compile(JSON.parse(source));
-  assert.equal(validate(policy()), true, JSON.stringify(validate.errors));
+  assert.equal(validate(capabilityConfig()), true, JSON.stringify(validate.errors));
 
-  const missingVersion = policy();
+  const baselineSource = await readFile(
+    join(
+      repositoryRoot,
+      "packages",
+      "engineering-foundation",
+      "schemas",
+      "contract-protobuf-evolution-baseline",
+      "v1.schema.json",
+    ),
+    "utf8",
+  );
+  const validateBaseline = new Ajv2020({ strict: true }).compile(JSON.parse(baselineSource));
+  assert.equal(validateBaseline(releasedBaseline()), true, JSON.stringify(validateBaseline.errors));
+
+  const missingVersion = capabilityConfig();
   delete missingVersion.schemaVersion;
   assert.equal(validate(missingVersion), false);
 
-  const unknownVersion = policy();
+  const unknownVersion = capabilityConfig();
   unknownVersion.schemaVersion = 2;
   assert.equal(validate(unknownVersion), false);
+});
+
+test("loads a separate released Protobuf baseline deterministically and rejects inline substitution", async () => {
+  await withConfig(capabilityConfig(), async (root) => {
+    const capability = protobufModule.createProtobufEvolutionCapability();
+    const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(first.outcome, "passed");
+    assert.deepEqual(second, first);
+
+    await writeYaml(root, "contract.yaml", {
+      ...capabilityConfig(),
+      released: releasedBaseline(),
+    });
+    const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(result.outcome, "invalid-input");
+    assert.equal(result.problem.code, "SCHEMA_INVALID");
+  });
+});
+
+test("rejects missing, escaping, and invalid released Protobuf baselines", async () => {
+  await withConfig(capabilityConfig(), async (root) => {
+    const capability = protobufModule.createProtobufEvolutionCapability();
+    await unlink(join(root, "baselines", "released.yaml"));
+    const missing = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(missing.outcome, "invalid-input");
+    assert.equal(missing.problem.code, "CONFIG_FILE_UNAVAILABLE");
+
+    const external = await mkdtemp(join(tmpdir(), "foundation-protobuf-baseline-external-"));
+    try {
+      await writeYaml(external, "released.yaml", releasedBaseline());
+      await symlink(
+        join(external, "released.yaml"),
+        join(root, "baselines", "released.yaml"),
+      );
+      const unsafe = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+      assert.equal(unsafe.outcome, "invalid-input");
+      assert.equal(unsafe.problem.code, "CONFIG_PATH_ESCAPE");
+      await unlink(join(root, "baselines", "released.yaml"));
+    } finally {
+      await rm(external, { force: true, recursive: true });
+    }
+
+    await writeYaml(root, "baselines/released.yaml", { schemaVersion: 1 });
+    const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(invalid.outcome, "invalid-input");
+    assert.equal(invalid.problem.code, "SCHEMA_INVALID");
+  });
 });

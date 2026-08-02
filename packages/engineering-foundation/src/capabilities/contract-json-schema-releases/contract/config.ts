@@ -1,6 +1,10 @@
 import { CapabilityInputError } from "../../../capability-runtime.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { assertNotCancelled, loadStrictYamlFile } from "../../../strict-yaml.js";
+import {
+  assertNotCancelled,
+  assertRepositoryRelativePath,
+  loadStrictYamlFile
+} from "../../../strict-yaml.js";
 import type {
   JsonSchemaConsumerEvidence,
   JsonSchemaDigest,
@@ -14,6 +18,7 @@ export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 
 type JsonSchemaReleaseConfigSchemaVersion = typeof CAPABILITY_CONFIG_SCHEMA_VERSION;
 type JsonSchemaReleaseSchemaId = "contract-json-schema-releases/v1";
+type JsonSchemaReleasedBaselineSchemaId = "contract-json-schema-release-baseline/v1";
 
 const SCHEMA_ID_BY_VERSION: Readonly<
   Record<JsonSchemaReleaseConfigSchemaVersion, JsonSchemaReleaseSchemaId>
@@ -58,6 +63,13 @@ function configSchemaId(value: unknown): JsonSchemaReleaseSchemaId {
   inputError(`schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}.`);
 }
 
+function releasedBaselineSchemaId(value: unknown): JsonSchemaReleasedBaselineSchemaId {
+  if (value === 1) {
+    return "contract-json-schema-release-baseline/v1";
+  }
+  inputError("released baseline schemaVersion must be 1.");
+}
+
 function list(value: unknown, field: string): readonly unknown[] {
   if (!Array.isArray(value)) {
     inputError(`${field} must be an array.`);
@@ -67,6 +79,15 @@ function list(value: unknown, field: string): readonly unknown[] {
 
 function digest(value: unknown, field: string): JsonSchemaDigest {
   return string(value, field) as JsonSchemaDigest;
+}
+
+function releasedBaselinePath(value: unknown): string {
+  const repositoryPath = string(value, "releasedBaselinePath");
+  assertRepositoryRelativePath(repositoryPath, "json-schema-release-config");
+  if (!/\.(?:json|ya?ml)$/u.test(repositoryPath)) {
+    inputError("releasedBaselinePath must name a JSON or YAML file.");
+  }
+  return repositoryPath;
 }
 
 function mapFixture(value: unknown, field: string): JsonSchemaFixture {
@@ -101,20 +122,45 @@ function mapConsumerEvidence(value: unknown, field: string): JsonSchemaConsumerE
   });
 }
 
-function mapReleased(value: unknown): ReleasedJsonSchemaContractEvidence {
-  const source = record(value, "released");
+function mapReleased(
+  value: unknown,
+  field = "released baseline"
+): ReleasedJsonSchemaContractEvidence {
+  const source = record(value, field);
   return Object.freeze({
-    schemaVersion: number(source["schemaVersion"], "released.schemaVersion"),
-    contractId: string(source["contractId"], "released.contractId"),
-    publicContractVersion: string(source["publicContractVersion"], "released.publicContractVersion"),
-    schemaSetDigest: digest(source["schemaSetDigest"], "released.schemaSetDigest"),
-    fixtureCorpusDigest: digest(source["fixtureCorpusDigest"], "released.fixtureCorpusDigest"),
+    schemaVersion: number(source["schemaVersion"], `${field}.schemaVersion`),
+    contractId: string(source["contractId"], `${field}.contractId`),
+    publicContractVersion: string(source["publicContractVersion"], `${field}.publicContractVersion`),
+    schemaSetDigest: digest(source["schemaSetDigest"], `${field}.schemaSetDigest`),
+    fixtureCorpusDigest: digest(source["fixtureCorpusDigest"], `${field}.fixtureCorpusDigest`),
     supportedConsumers: Object.freeze(
-      list(source["supportedConsumers"], "released.supportedConsumers").map((entry, index) =>
-        mapConsumerEvidence(entry, `released.supportedConsumers[${index}]`)
+      list(source["supportedConsumers"], `${field}.supportedConsumers`).map((entry, index) =>
+        mapConsumerEvidence(entry, `${field}.supportedConsumers[${index}]`)
       )
     )
   });
+}
+
+async function loadReleasedBaseline(
+  consumerRoot: string,
+  repositoryPath: string,
+  signal: AbortSignal | undefined
+): Promise<ReleasedJsonSchemaContractEvidence> {
+  const input = await loadStrictYamlFile(
+    consumerRoot,
+    repositoryPath,
+    "json-schema-release-baseline",
+    signal
+  );
+  assertNotCancelled(signal);
+  const source = record(input, "JSON Schema released baseline");
+  await assertSchema(
+    releasedBaselineSchemaId(source["schemaVersion"]),
+    input,
+    "json-schema-release-baseline"
+  );
+  assertNotCancelled(signal);
+  return mapReleased(source);
 }
 
 export async function loadCapabilityConfig(
@@ -136,6 +182,8 @@ export async function loadCapabilityConfig(
     "json-schema-release-config"
   );
   assertNotCancelled(signal);
+  const baselinePath = releasedBaselinePath(source["releasedBaselinePath"]);
+  const released = await loadReleasedBaseline(consumerRoot, baselinePath, signal);
   return Object.freeze({
     contractId: string(source["contractId"], "contractId"),
     publicContractVersion: string(source["publicContractVersion"], "publicContractVersion"),
@@ -149,7 +197,7 @@ export async function loadCapabilityConfig(
         mapFixture(entry, `fixtures[${index}]`)
       )
     ),
-    released: mapReleased(source["released"]),
+    released,
     currentConsumerEvidence: Object.freeze(
       list(source["currentConsumerEvidence"], "currentConsumerEvidence").map((entry, index) =>
         mapConsumerEvidence(entry, `currentConsumerEvidence[${index}]`)

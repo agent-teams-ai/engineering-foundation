@@ -1,6 +1,10 @@
 import { CapabilityInputError } from "../../../capability-runtime.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { assertNotCancelled, loadStrictYamlFile } from "../../../strict-yaml.js";
+import {
+  assertNotCancelled,
+  assertRepositoryRelativePath,
+  loadStrictYamlFile
+} from "../../../strict-yaml.js";
 import type {
   BufBreakingEvidence,
   BufGeneratorVersionEvidence,
@@ -15,6 +19,7 @@ export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 
 type ProtobufEvolutionConfigSchemaVersion = typeof CAPABILITY_CONFIG_SCHEMA_VERSION;
 type ProtobufEvolutionSchemaId = "contract-protobuf-evolution/v1";
+type ProtobufReleasedBaselineSchemaId = "contract-protobuf-evolution-baseline/v1";
 
 const SCHEMA_ID_BY_VERSION: Readonly<
   Record<ProtobufEvolutionConfigSchemaVersion, ProtobufEvolutionSchemaId>
@@ -59,6 +64,13 @@ function configSchemaId(value: unknown): ProtobufEvolutionSchemaId {
   inputError(`schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}.`);
 }
 
+function releasedBaselineSchemaId(value: unknown): ProtobufReleasedBaselineSchemaId {
+  if (value === 1) {
+    return "contract-protobuf-evolution-baseline/v1";
+  }
+  inputError("released baseline schemaVersion must be 1.");
+}
+
 function list(value: unknown, field: string): readonly unknown[] {
   if (!Array.isArray(value)) {
     inputError(`${field} must be an array.`);
@@ -76,6 +88,15 @@ function optionalString(
 
 function digest(value: unknown, field: string): Sha256Digest {
   return string(value, field) as Sha256Digest;
+}
+
+function releasedBaselinePath(value: unknown): string {
+  const repositoryPath = string(value, "releasedBaselinePath");
+  assertRepositoryRelativePath(repositoryPath, "protobuf-evolution-config");
+  if (!/\.(?:json|ya?ml)$/u.test(repositoryPath)) {
+    inputError("releasedBaselinePath must name a JSON or YAML file.");
+  }
+  return repositoryPath;
 }
 
 function mapGenerator(value: unknown, field: string): BufGeneratorVersionEvidence {
@@ -105,18 +126,43 @@ function mapBreaking(value: unknown): BufBreakingEvidence {
   });
 }
 
-function mapReleased(value: unknown): ReleasedProtobufContractEvidence {
-  const source = record(value, "released");
+function mapReleased(
+  value: unknown,
+  field = "released baseline"
+): ReleasedProtobufContractEvidence {
+  const source = record(value, field);
   return Object.freeze({
-    schemaVersion: number(source["schemaVersion"], "released.schemaVersion"),
-    contractId: string(source["contractId"], "released.contractId"),
-    publicContractVersion: string(source["publicContractVersion"], "released.publicContractVersion"),
-    bufVersion: string(source["bufVersion"], "released.bufVersion"),
-    bufConfigDigest: digest(source["bufConfigDigest"], "released.bufConfigDigest"),
-    descriptorImageDigest: digest(source["descriptorImageDigest"], "released.descriptorImageDigest"),
-    generatorVersions: mapGenerators(source["generatorVersions"], "released.generatorVersions"),
-    generatedOutputDigest: digest(source["generatedOutputDigest"], "released.generatedOutputDigest")
+    schemaVersion: number(source["schemaVersion"], `${field}.schemaVersion`),
+    contractId: string(source["contractId"], `${field}.contractId`),
+    publicContractVersion: string(source["publicContractVersion"], `${field}.publicContractVersion`),
+    bufVersion: string(source["bufVersion"], `${field}.bufVersion`),
+    bufConfigDigest: digest(source["bufConfigDigest"], `${field}.bufConfigDigest`),
+    descriptorImageDigest: digest(source["descriptorImageDigest"], `${field}.descriptorImageDigest`),
+    generatorVersions: mapGenerators(source["generatorVersions"], `${field}.generatorVersions`),
+    generatedOutputDigest: digest(source["generatedOutputDigest"], `${field}.generatedOutputDigest`)
   });
+}
+
+async function loadReleasedBaseline(
+  consumerRoot: string,
+  repositoryPath: string,
+  signal: AbortSignal | undefined
+): Promise<ReleasedProtobufContractEvidence> {
+  const input = await loadStrictYamlFile(
+    consumerRoot,
+    repositoryPath,
+    "protobuf-evolution-baseline",
+    signal
+  );
+  assertNotCancelled(signal);
+  const source = record(input, "Protobuf released baseline");
+  await assertSchema(
+    releasedBaselineSchemaId(source["schemaVersion"]),
+    input,
+    "protobuf-evolution-baseline"
+  );
+  assertNotCancelled(signal);
+  return mapReleased(source);
 }
 
 function mapCurrent(value: unknown): CurrentProtobufContractEvidence {
@@ -167,8 +213,10 @@ export async function loadCapabilityConfig(
     "protobuf-evolution-config"
   );
   assertNotCancelled(signal);
+  const baselinePath = releasedBaselinePath(source["releasedBaselinePath"]);
+  const released = await loadReleasedBaseline(consumerRoot, baselinePath, signal);
   return Object.freeze({
-    released: mapReleased(source["released"]),
+    released,
     current: mapCurrent(source["current"])
   });
 }

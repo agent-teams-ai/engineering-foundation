@@ -1,5 +1,9 @@
 export const FOUNDATION_SCHEMA_IDS = [
   "architecture-source-dependencies/v1",
+  "contract-json-schema-release-baseline/v1",
+  "contract-json-schema-releases/v1",
+  "contract-protobuf-evolution-baseline/v1",
+  "contract-protobuf-evolution/v1",
   "foundation-config/v1",
   "foundation-check-report/v1",
   "package-public-api-baseline/v1",

@@ -24,6 +24,7 @@ export { ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID };
 
 export interface AcceptedArchitectureDecisionEvidence {
   readonly acceptedDecisionIds: readonly `ADR-${string}`[];
+  readonly acceptedDecisionPaths: readonly string[];
 }
 
 function createDependencies() {
@@ -56,8 +57,9 @@ export async function promoteArchitectureDecisionBaseline(input: {
 
 /**
  * Provides a narrow, validated view of accepted ADR history to another
- * capability. The caller receives IDs only; the governance catalog, baseline,
- * immutable digests, and lifecycle validation remain owned here.
+ * capability. The caller receives only stable IDs and immutable historical
+ * paths; the governance catalog, baseline, immutable digests, and lifecycle
+ * validation remain owned here.
  */
 export async function readAcceptedArchitectureDecisionEvidence(input: {
   readonly baselinePath: string;
@@ -114,10 +116,27 @@ export async function readAcceptedArchitectureDecisionEvidence(input: {
       retryable: false
     });
   }
+  const baselineById = new Map(parsed.decisions.map((entry) => [entry.id, entry]));
+  const acceptedDecisions = analysis.decisions
+    .filter((decision) => decision.status === "accepted")
+    .map((decision) => {
+      const baselineEntry = baselineById.get(decision.id);
+      if (
+        baselineEntry === undefined ||
+        baselineEntry.path !== decision.document.repositoryPath
+      ) {
+        throw new CapabilityInputError({
+          code: "ARCHITECTURE_DECISION_EVIDENCE_INVALID",
+          message: `Accepted ADR ${decision.id} is not represented by the validated immutable governance baseline.`,
+          phase: "architecture-decision-evidence",
+          retryable: false
+        });
+      }
+      return Object.freeze({ id: decision.id as `ADR-${string}`, path: baselineEntry.path });
+    });
   return Object.freeze({
-    acceptedDecisionIds: Object.freeze(
-      parsed.decisions.map((decision) => decision.id as `ADR-${string}`)
-    )
+    acceptedDecisionIds: Object.freeze(acceptedDecisions.map((decision) => decision.id)),
+    acceptedDecisionPaths: Object.freeze(acceptedDecisions.map((decision) => decision.path))
   });
 }
 

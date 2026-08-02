@@ -7,10 +7,11 @@ on release-owned baseline mutation enforcement in that repository.
 a committed snapshot of the last released TypeScript API. API Extractor is an
 outbound adapter; its model types do not cross into capability policy.
 
-Configuration schema `v1` retains the original single declaration entry point
-and baseline shape. A `v1` policy that declares a breaking-change approval must
-also declare the stable accepted-decision baseline path. Schema `v2` supports all
-public export paths of one package:
+Configuration schema `v1` retains the original single declaration entry point,
+baseline shape, and `decisionPath` approval contract. When a legacy `v1` policy
+declares an approval, omitted evidence paths resolve to the stable governance
+anchors. Schema `v2` supports all public export paths of one package and uses
+stable `decisionId` approvals:
 
 ```yaml
 schemaVersion: 2
@@ -51,8 +52,10 @@ prevents a newly exported path from bypassing compatibility evidence.
 - before `1.0.0`, breaking changes require a minor bump; after `1.0.0`, a major
   bump is required;
 - a package version cannot move behind its released baseline;
-- a breaking change also requires an exact SHA-256 fingerprint and a decision
-  path present in the immutable accepted-decision baseline;
+- a breaking change also requires an exact SHA-256 fingerprint and an approval
+  reference to a currently accepted ADR whose identity and immutable path are
+  verified against the accepted-decision baseline (`decisionPath` in `v1`,
+  `decisionId` in `v2`);
 - raw ADR Markdown, including `Status: Accepted`, is not approval evidence.
 
 The fingerprint contains old and new signatures, kinds, parents, every addition,
@@ -90,10 +93,12 @@ snapshot. Duplicate anchors are rejected, and the repository release gate still
 protects creation, replacement, movement, and deletion under
 `architecture/public-api/`.
 
-Moving a consumer from `v1` to `v2` is a release-owned adoption: promote a
-complete `v2` baseline from the exact current public surfaces, then change the
-config and baseline together on the trusted release path. No normal feature PR
-may silently reset the pointer or reuse a `v1` baseline as `v2` evidence.
+Moving a consumer from `v1` to `v2` is a release-owned adoption. On the trusted
+release path, change the policy to `v2` and run `public-api-promote-release`;
+the command writes a complete `v2` baseline only when the previously governed
+root API is unchanged. A root change must be released under `v1` first. Normal
+checks never accept a `v1` baseline as `v2` evidence, and no feature PR may
+silently reset the baseline pointer.
 
 Changesets invokes promotion after versioning. CI permits creation of a new
 baseline during first adoption, but existing baselines can change only on

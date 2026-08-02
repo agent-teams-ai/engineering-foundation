@@ -13,6 +13,10 @@ import {
   isSafeLocalWorkflowUse
 } from "../model/repository-security.js";
 import { REPOSITORY_SECURITY_RULES } from "../rules.js";
+import {
+  inspectDependencyReviewOrdering,
+  isDependencyReviewEvidence
+} from "./dependency-review-ordering.js";
 import { evaluateRepositorySecurityTools } from "./evaluate-repository-security-tools.js";
 import { evaluateRepositoryWorkflowUses } from "./evaluate-repository-workflow-uses.js";
 import { repositorySecurityDiagnostic as diagnostic } from "./repository-security-diagnostic.js";
@@ -21,7 +25,6 @@ const UNSAFE_PACKAGE_SEGMENT = /^(?:\.env(?:\..*)?|\.git|node_modules|src|tests?
 const PACKAGE_PATH_META = /[*?{}[\]\\]/u;
 const UNTRUSTED_EXPRESSION_IN_RUN =
   /\$\{\{[^}]*github\s*(?:\.\s*(?:event|head_ref)\b|\[\s*["'](?:event|head_ref)["']\s*\])/iu;
-const PACKAGE_INSTALL_COMMAND = /\b(?:pnpm|npm|yarn|bun)\s+(?:ci|install)\b/iu;
 
 function exactPermissions(
   actual: Readonly<Record<string, WorkflowPermission>>,
@@ -143,34 +146,6 @@ function inspectContainerImage(
       })
     );
   }
-}
-
-function isDependencyReviewEvidence(
-  policy: RepositorySecurityPolicy,
-  workflow: WorkflowEvidence,
-  job: WorkflowEvidence["jobs"][number],
-  step: WorkflowEvidence["jobs"][number]["steps"][number]
-): boolean {
-  return (
-    workflow.path === policy.dependencyReview.workflowPath &&
-    job.id === policy.dependencyReview.jobId &&
-    workflow.unconditionalTriggers.includes("pull_request") &&
-    !job.conditional &&
-    !job.nonBlocking &&
-    !step.conditional &&
-    !step.nonBlocking &&
-    step.inputs["base-ref"] === policy.dependencyReview.baseRef &&
-    step.inputs["head-ref"] === policy.dependencyReview.headRef &&
-    step.inputs["fail-on-severity"] === policy.dependencyReview.failOnSeverity &&
-    (step.inputs["vulnerability-check"] === true ||
-      step.inputs["vulnerability-check"] === "true") &&
-    (step.inputs["warn-only"] === false || step.inputs["warn-only"] === "false") &&
-    step.inputs["config-file"] === undefined &&
-    step.inputs["fail-on-scopes"] === undefined &&
-    step.inputs["allow-ghsas"] === undefined &&
-    step.uses?.startsWith("actions/dependency-review-action@") === true &&
-    actionPinned(step.uses)
-  );
 }
 
 function isSbomEvidence(
@@ -306,51 +281,6 @@ function inspectWorkflowJob(
   }
   for (const step of job.steps) {
     inspectWorkflowStep(policy, workflow, job, step, state);
-  }
-}
-
-function isPackageInstall(step: WorkflowJobEvidence["steps"][number]): boolean {
-  return step.run !== undefined && PACKAGE_INSTALL_COMMAND.test(step.run);
-}
-
-function inspectDependencyReviewOrdering(
-  policy: RepositorySecurityPolicy,
-  workflow: WorkflowEvidence,
-  job: WorkflowEvidence["jobs"][number],
-  diagnostics: FoundationDiagnostic[]
-): void {
-  if (
-    workflow.path !== policy.dependencyReview.workflowPath ||
-    !workflow.unconditionalTriggers.includes("pull_request")
-  ) {
-    return;
-  }
-  const dependsOnBlockingReview =
-    !job.conditional && job.needs.includes(policy.dependencyReview.jobId);
-  let reviewHasRunInJob = false;
-  for (const step of job.steps) {
-    if (isDependencyReviewEvidence(policy, workflow, job, step)) {
-      reviewHasRunInJob = true;
-    }
-    if (
-      isPackageInstall(step) &&
-      !reviewHasRunInJob &&
-      !dependsOnBlockingReview
-    ) {
-      diagnostics.push(
-        diagnostic({
-          rule: REPOSITORY_SECURITY_RULES.dependencyReviewOrdering,
-          subject: `${workflow.path}:${job.id}`,
-          path: workflow.path,
-          message: "Package install can run before the declared Dependency Review gate.",
-          evidence: [
-            { kind: "dependency-review-job", value: policy.dependencyReview.jobId },
-            { kind: "install-command", value: step.run ?? "" }
-          ]
-        })
-      );
-      return;
-    }
   }
 }
 

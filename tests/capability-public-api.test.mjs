@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import {
-  mkdir,
-  readFile,
-  writeFile,
-} from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -18,11 +14,13 @@ import {
   withPublicApiFixture
 } from "./support/capability-fixtures.mjs";
 import {
+  ACCEPTED_DECISION_BASELINE_PATH,
+  GOVERNANCE_CONFIG_PATH,
   ROOT_STABLE_ITEM,
   configureV2PublicApiFixture,
   sha256,
   v2Baseline,
-  writeAcceptedDecisionBaseline
+  writeGovernedDecisionEvidence
 } from "./support/public-api-fixtures.mjs";
 
 test("accepts a public API identical to its released baseline", async () => {
@@ -201,57 +199,72 @@ test("requires an accepted exact fingerprint for a schema v2 breaking subpath ch
     ).value;
 
     const config = parseYaml(await readFile(configPath, "utf8"));
+    config.governanceConfigPath = GOVERNANCE_CONFIG_PATH;
     config.packages[0].approvedBreakingChanges = [
       {
         fingerprint,
-        decisionPath: "docs/decisions/ADR-0001-local-mode-break.md",
+        decisionId: "ADR-0001",
       },
     ];
     await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
-    await mkdir(join(consumerRoot, "docs", "decisions"), { recursive: true });
+    const missingGovernanceEvidence = check(consumerRoot);
+    assert.equal(missingGovernanceEvidence.result.status, 2);
+    assert.equal(
+      missingGovernanceEvidence.report.capabilities[0].problem?.code,
+      "CONFIG_FILE_UNAVAILABLE",
+    );
+
+    await writeGovernedDecisionEvidence(consumerRoot);
+    const validBaselinePath = join(consumerRoot, ACCEPTED_DECISION_BASELINE_PATH);
+    const validBaseline = await readFile(validBaselinePath, "utf8");
+    const fabricatedBaseline = JSON.parse(validBaseline);
+    fabricatedBaseline.decisions[0].immutableDigest = `sha256:${"a".repeat(64)}`;
     await writeFile(
-      join(consumerRoot, "docs", "decisions", "ADR-0001-local-mode-break.md"),
-      "# ADR-0001: Local mode API break\n\nStatus: Accepted\n\n## Context\nApproved fixture.\n",
+      validBaselinePath,
+      `${JSON.stringify(fabricatedBaseline, null, 2)}\n`,
       "utf8",
     );
-    await writeAcceptedDecisionBaseline(consumerRoot, []);
 
-    const rawMarkdownOnly = check(consumerRoot);
-    assert.equal(rawMarkdownOnly.result.status, 1);
+    const fabricatedEvidence = check(consumerRoot);
+    assert.equal(fabricatedEvidence.result.status, 2);
     assert.equal(
-      rawMarkdownOnly.report.capabilities[0].diagnostics.some(
-        ({ ruleId }) => ruleId === "package.public-api-compatibility.decision-not-accepted",
-      ),
-      true,
+      fabricatedEvidence.report.capabilities[0].problem?.code,
+      "ARCHITECTURE_DECISION_EVIDENCE_INVALID",
     );
 
-    await writeAcceptedDecisionBaseline(consumerRoot, [
-      {
-        id: "ADR-0001",
-        path: "docs/decisions/ADR-0001-local-mode-break.md",
-        immutableDigest: `sha256:${"a".repeat(64)}`,
-      },
-      {
-        id: "ADR-0001",
-        path: "docs/decisions/ADR-0001-other.md",
-        immutableDigest: `sha256:${"b".repeat(64)}`,
-      },
-    ]);
+    await writeFile(validBaselinePath, validBaseline, "utf8");
+    assert.equal(check(consumerRoot).result.status, 0);
+
+    await writeFile(
+      validBaselinePath,
+      `${JSON.stringify({
+        schemaVersion: 1,
+        algorithm: "sha256",
+        decisions: [
+          {
+            id: "ADR-0001",
+            path: "docs/decisions/0001-approve-public-api-break.md",
+            immutableDigest: `sha256:${"b".repeat(64)}`,
+          },
+          {
+            id: "ADR-0001",
+            path: "docs/decisions/0001-other.md",
+            immutableDigest: `sha256:${"c".repeat(64)}`,
+          },
+        ],
+      }, null, 2)}\n`,
+      "utf8",
+    );
     const malformedBaseline = check(consumerRoot);
     assert.equal(malformedBaseline.result.status, 2);
     assert.equal(
       malformedBaseline.report.capabilities[0].problem?.code,
-      "PUBLIC_API_ACCEPTED_DECISION_EVIDENCE_INVALID",
+      "ARCHITECTURE_DECISION_EVIDENCE_INVALID",
     );
 
-    await writeAcceptedDecisionBaseline(consumerRoot, [
-      {
-        id: "ADR-0001",
-        path: "docs/decisions/ADR-0001-local-mode-break.md",
-        immutableDigest: `sha256:${"a".repeat(64)}`,
-      },
-    ]);
-    assert.equal(check(consumerRoot).result.status, 0);
+    await writeFile(validBaselinePath, validBaseline, "utf8");
+    const accepted = check(consumerRoot);
+    assert.equal(accepted.result.status, 0);
   });
 });
 
@@ -380,7 +393,7 @@ test("rejects a package version older than its released API baseline", async () 
   });
 });
 
-test("binds a breaking public API approval to its exact fingerprint and accepted ADR", async () => {
+test("binds a legacy breaking approval to its exact fingerprint and immutable ADR path", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
     await writeFile(
       join(consumerRoot, "packages", "library", "dist", "index.d.ts"),
@@ -429,36 +442,14 @@ test("binds a breaking public API approval to its exact fingerprint and accepted
       "public-api-compatibility.yaml",
     );
     const config = parseYaml(await readFile(configPath, "utf8"));
-    config.acceptedDecisionBaselinePath = "architecture/decisions/accepted-decisions.json";
+    const decision = await writeGovernedDecisionEvidence(consumerRoot);
     config.packages[0].approvedBreakingChanges = [
       {
         fingerprint,
-        decisionPath: "docs/decisions/ADR-0001-api-break.md",
+        decisionPath: decision.decisionPath,
       },
     ];
     await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
-    await mkdir(join(consumerRoot, "docs", "decisions"), { recursive: true });
-    await writeFile(
-      join(consumerRoot, "docs", "decisions", "ADR-0001-api-break.md"),
-      "# ADR-0001: API break\n\nStatus: Accepted\n\n## Context\nApproved fixture.\n",
-      "utf8",
-    );
-    await writeAcceptedDecisionBaseline(consumerRoot, []);
-    const rawMarkdownOnly = check(consumerRoot);
-    assert.equal(rawMarkdownOnly.result.status, 1);
-    assert.equal(
-      rawMarkdownOnly.report.capabilities[0].diagnostics.some(
-        ({ ruleId }) => ruleId === "package.public-api-compatibility.decision-not-accepted",
-      ),
-      true,
-    );
-    await writeAcceptedDecisionBaseline(consumerRoot, [
-      {
-        id: "ADR-0001",
-        path: "docs/decisions/ADR-0001-api-break.md",
-        immutableDigest: `sha256:${"b".repeat(64)}`,
-      },
-    ]);
     const accepted = check(consumerRoot);
     assert.equal(accepted.result.status, 0);
 
@@ -509,7 +500,7 @@ test("requires immutable decision evidence before promoting a breaking public AP
   const fingerprint = classifyPublicApiChange(released, current, { sha256 }).fingerprint;
   packagePolicy.approvedBreakingChanges.push({
     fingerprint,
-    decisionPath: "docs/decisions/ADR-0001-api-break.md",
+    decisionPath: "docs/decisions/0001-approve-public-api-break.md",
   });
   const evidenceRequests = [];
 
@@ -520,6 +511,7 @@ test("requires immutable decision evidence before promoting a breaking public AP
         policy: {
           schemaVersion: 1,
           acceptedDecisionBaselinePath: "architecture/decisions/accepted-decisions.json",
+          governanceConfigPath: GOVERNANCE_CONFIG_PATH,
           changesetDirectory: ".changeset",
           packages: [packagePolicy],
         },
@@ -543,9 +535,9 @@ test("requires immutable decision evidence before promoting a breaking public AP
           },
         },
         acceptedDecisionEvidence: {
-          async hasAcceptedDecision(request) {
+          async readAcceptedDecisionEvidence(request) {
             evidenceRequests.push(request);
-            return false;
+            return { acceptedDecisionIds: [], acceptedDecisionPaths: [] };
           },
         },
       },
@@ -555,8 +547,8 @@ test("requires immutable decision evidence before promoting a breaking public AP
   assert.deepEqual(evidenceRequests, [
     {
       consumerRoot: "/fixture",
-      decisionPath: "docs/decisions/ADR-0001-api-break.md",
       baselinePath: "architecture/decisions/accepted-decisions.json",
+      governanceConfigPath: GOVERNANCE_CONFIG_PATH,
     },
   ]);
 });
@@ -694,8 +686,8 @@ test("validates every public API promotion before writing any baseline", async (
           },
         },
         acceptedDecisionEvidence: {
-          async hasAcceptedDecision() {
-            return false;
+          async readAcceptedDecisionEvidence() {
+            return { acceptedDecisionIds: [], acceptedDecisionPaths: [] };
           },
         },
       },
@@ -764,8 +756,8 @@ test("replays public API promotion after a partially written multi-package relea
         },
       },
       acceptedDecisionEvidence: {
-        async hasAcceptedDecision() {
-          return false;
+        async readAcceptedDecisionEvidence() {
+          return { acceptedDecisionIds: [], acceptedDecisionPaths: [] };
         },
       },
     },
@@ -835,8 +827,8 @@ test("rejects public API drift after a package version was already promoted", as
           },
         },
         acceptedDecisionEvidence: {
-          async hasAcceptedDecision() {
-            return false;
+          async readAcceptedDecisionEvidence() {
+            return { acceptedDecisionIds: [], acceptedDecisionPaths: [] };
           },
         },
       },

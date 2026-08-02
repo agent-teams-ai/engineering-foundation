@@ -14,6 +14,7 @@ import type {
   ReleaseBump
 } from "../model/public-api.js";
 import {
+  approvedBreakingChangeReference,
   compareCanonicalReferences,
   publicApiDeclarationEntryPoint,
   publicApiSnapshotEntrypoints
@@ -458,8 +459,8 @@ export function evaluatePublicApiCompatibility(input: {
         diagnostic({
           rule: PUBLIC_API_COMPATIBILITY_RULES.decisionNotAccepted,
           subject,
-          message: `Breaking change references a decision that is not accepted: ${approval.decisionPath}.`,
-          path: approval.decisionPath,
+          message: `Breaking change references a decision that is not accepted: ${approvedBreakingChangeReference(approval)}.`,
+          path: publicApiDeclarationEntryPoint(input.policy),
           evidence: [{ kind: "change-fingerprint", value: approval.fingerprint }]
         })
       );

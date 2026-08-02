@@ -8,6 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 2 },
     "acceptedDecisionBaselinePath": { "$ref": "#/$defs/repositoryPath" },
+    "governanceConfigPath": { "$ref": "#/$defs/repositoryPath" },
     "changesetDirectory": { "$ref": "#/$defs/repositoryPath" },
     "packages": {
       "type": "array",
@@ -96,10 +97,13 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["fingerprint", "decisionPath"],
+            "required": ["fingerprint", "decisionId"],
             "properties": {
               "fingerprint": { "$ref": "#/$defs/fingerprint" },
-              "decisionPath": { "$ref": "#/$defs/repositoryPath" }
+              "decisionId": {
+                "type": "string",
+                "pattern": "^ADR-[0-9]{4}$"
+              }
             }
           }
         }

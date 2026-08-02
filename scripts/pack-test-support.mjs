@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+import { spawnWindowsManagedProcess } from "../packages/engineering-foundation/dist/local-mode/windows-managed-process.js";
+
 const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4";
 const commandMaxBufferBytes = 16 * 1024 * 1024;
 const commandTerminationSignal = "SIGKILL";
@@ -78,12 +80,13 @@ class CommandExecutionError extends Error {
   }
 }
 
-function appendOutput(output, chunk, streamName) {
-  const nextLength = output.length + chunk.length;
+function appendOutput(output, chunk, streamName, currentBytes) {
+  const nextLength = currentBytes + chunk.length;
   if (nextLength > commandMaxBufferBytes) {
     throw new Error(`${streamName} exceeded ${commandMaxBufferBytes} bytes.`);
   }
   output.push(chunk);
+  return nextLength;
 }
 
 function commandError(input) {
@@ -107,6 +110,22 @@ function waitForClose(child) {
   });
 }
 
+async function waitForBoundedClose(close) {
+  let timeout;
+  try {
+    await Promise.race([
+      close,
+      new Promise((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error("Command streams did not close after process-tree termination."));
+        }, 2_000);
+      })
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function waitForExit(child) {
   return new Promise((resolve) => {
     child.once("exit", (code, signal) => {
@@ -118,15 +137,10 @@ function waitForExit(child) {
   });
 }
 
-async function terminateWindowsProcessTree(pid) {
-  await new Promise((resolve) => {
-    const terminator = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
-      stdio: "ignore",
-      windowsHide: true
-    });
-    terminator.once("error", resolve);
-    terminator.once("close", resolve);
-  });
+function terminateWindowsProcessTree(child) {
+  if (child.exitCode === null && child.signalCode === null) {
+    child.kill("SIGKILL");
+  }
 }
 
 async function terminateCommandTree(child) {
@@ -134,7 +148,7 @@ async function terminateCommandTree(child) {
     return;
   }
   if (process.platform === "win32") {
-    await terminateWindowsProcessTree(child.pid);
+    terminateWindowsProcessTree(child);
     return;
   }
   try {
@@ -143,6 +157,12 @@ async function terminateCommandTree(child) {
     if (error?.code !== "ESRCH") {
       throw error;
     }
+  }
+}
+
+async function cleanUpAfterNormalExit(child) {
+  if (process.platform !== "win32") {
+    await terminateCommandTree(child);
   }
 }
 
@@ -165,21 +185,30 @@ export async function runCommand(command, args, cwd, options = {}) {
       timeoutMs
     });
   }
+  let resolveForcedTermination;
+  const forcedTermination = new Promise((_resolve) => {
+    resolveForcedTermination = _resolve;
+  });
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd,
-      detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true
-    });
+    const child =
+      process.platform === "win32"
+        ? spawnWindowsManagedProcess({ command, args, cwd })
+        : spawn(command, args, {
+            cwd,
+            detached: true,
+            stdio: ["ignore", "pipe", "pipe"],
+            windowsHide: true
+          });
     const stdout = [];
     const stderr = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
     const close = waitForClose(child);
     const exit = waitForExit(child);
     let cause;
     let completing = false;
     let forceTerminationRequested = false;
-    let terminationRequested = false;
+    let terminationPromise;
     let timedOut = false;
 
     const timeout = setTimeout(() => {
@@ -194,19 +223,26 @@ export async function runCommand(command, args, cwd, options = {}) {
     function requestForcedTermination(error) {
       forceTerminationRequested = true;
       cause ??= error;
-      void requestTermination();
+      void finishForcedTermination();
     }
 
-    async function requestTermination() {
-      if (terminationRequested) {
-        return;
+    async function finishForcedTermination() {
+      await requestTermination();
+      resolveForcedTermination({ code: null, signal: "SIGKILL" });
+    }
+
+    function requestTermination() {
+      if (terminationPromise !== undefined) {
+        return terminationPromise;
       }
-      terminationRequested = true;
-      try {
-        await terminateCommandTree(child);
-      } catch (error) {
-        cause ??= error;
-      }
+      terminationPromise = (async () => {
+        try {
+          await terminateCommandTree(child);
+        } catch (error) {
+          cause ??= error;
+        }
+      })();
+      return terminationPromise;
     }
 
     async function complete() {
@@ -214,11 +250,19 @@ export async function runCommand(command, args, cwd, options = {}) {
         return;
       }
       completing = true;
-      const result = await exit;
+      const result = await Promise.race([exit, forcedTermination]);
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", onAbort);
-      await requestTermination();
-      await close;
+      if (forceTerminationRequested) {
+        await requestTermination();
+      } else {
+        await cleanUpAfterNormalExit(child);
+      }
+      try {
+        await waitForBoundedClose(close);
+      } catch (error) {
+        cause ??= error;
+      }
       const text = {
         stderr: Buffer.concat(stderr).toString("utf8"),
         stdout: Buffer.concat(stdout).toString("utf8")
@@ -244,14 +288,14 @@ export async function runCommand(command, args, cwd, options = {}) {
 
     child.stdout.on("data", (chunk) => {
       try {
-        appendOutput(stdout, chunk, "stdout");
+        stdoutBytes = appendOutput(stdout, chunk, "stdout", stdoutBytes);
       } catch (error) {
         requestForcedTermination(error);
       }
     });
     child.stderr.on("data", (chunk) => {
       try {
-        appendOutput(stderr, chunk, "stderr");
+        stderrBytes = appendOutput(stderr, chunk, "stderr", stderrBytes);
       } catch (error) {
         requestForcedTermination(error);
       }

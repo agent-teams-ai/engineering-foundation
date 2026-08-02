@@ -4,6 +4,13 @@ import { join } from "node:path";
 
 import { stringify as stringifyYaml } from "yaml";
 
+import { promoteArchitectureDecisionBaseline } from "../../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/module.js";
+
+export const GOVERNANCE_CONFIG_PATH =
+  "architecture/foundation/governance-architecture-decisions.yaml";
+export const ACCEPTED_DECISION_BASELINE_PATH =
+  "architecture/decisions/accepted-decisions.json";
+
 export const ROOT_STABLE_ITEM = Object.freeze({
   canonicalReference: "@fixture/public-api!stable:function(1)",
   kind: "Function",
@@ -29,23 +36,47 @@ export function v2Baseline(localItem = ROOT_STABLE_ITEM) {
   };
 }
 
-export async function writeAcceptedDecisionBaseline(consumerRoot, decisions) {
-  const baselinePath = join(
-    consumerRoot,
-    "architecture",
-    "decisions",
-    "accepted-decisions.json"
-  );
-  await mkdir(join(consumerRoot, "architecture", "decisions"), { recursive: true });
+export async function writeGovernedDecisionEvidence(
+  consumerRoot,
+  decisionId = "ADR-0001"
+) {
+  const number = decisionId.slice("ADR-".length);
+  const slug = `${number}-approve-public-api-break`;
+  const decisionPath = `docs/decisions/${slug}.md`;
+  await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
   await writeFile(
-    baselinePath,
-    `${JSON.stringify({
+    join(consumerRoot, GOVERNANCE_CONFIG_PATH),
+    stringifyYaml({
       schemaVersion: 1,
-      algorithm: "sha256",
-      decisions
-    }, null, 2)}\n`,
+      adrRoots: ["docs/decisions"],
+      index: {
+        path: "docs/decisions/README.md",
+        sections: {
+          proposed: "Proposed",
+          accepted: "Accepted",
+          superseded: "Superseded"
+        }
+      },
+      acceptedBaselinePath: ACCEPTED_DECISION_BASELINE_PATH
+    }, { lineWidth: 0 }),
     "utf8"
   );
+  await mkdir(join(consumerRoot, "docs", "decisions"), { recursive: true });
+  await writeFile(
+    join(consumerRoot, "docs", "decisions", "README.md"),
+    `# Architecture Decisions\n\n## Proposed\n\n## Accepted\n\n- [${decisionId}: Approve public API break](${slug}.md)\n\n## Superseded\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, decisionPath),
+    `---\nid: ${decisionId}\nstatus: accepted\nsupersedes: []\nsuperseded_by: []\n---\n\n# ${decisionId}: Approve public API break\n\nThe breaking package API change is explicitly reviewed.\n`,
+    "utf8"
+  );
+  await promoteArchitectureDecisionBaseline({
+    consumerRoot,
+    configPath: GOVERNANCE_CONFIG_PATH
+  });
+  return Object.freeze({ decisionId, decisionPath });
 }
 
 export async function configureV2PublicApiFixture(consumerRoot) {

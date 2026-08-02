@@ -28,8 +28,10 @@ capability decision.
 - stale privilege declarations, `write-all`, `pull_request_target`, and direct
   dot or bracket access to `github.event` and `github.head_ref` inside shell
   interpolation fail;
-- a separate pinned Dependency Review job runs directly after checkout and is
-  an unconditional prerequisite for both Linux and Windows install jobs;
+- every pull-request workflow that contains a `run` step, local action, or
+  reusable workflow has a same-workflow pinned Dependency Review job before
+  that execution; the primary CI gate is an unconditional prerequisite for
+  both Linux and Windows install jobs;
 - the required Linux `check` job runs Anchore SBOM without job/step conditions
   or `continue-on-error`;
 - Dependency Review is bound to one declared required job, exact non-equal
@@ -59,6 +61,21 @@ The offline capability cannot fetch and recursively attest remote reusable
 workflow internals. Producer-owned qualification is required before claiming
 that a remote trust root also pins every transitive action. Empty
 `transitiveUses` declarations are therefore not interpreted as such proof.
+
+## Merge authority boundary
+
+Repository-owned workflows are evidence, not their own root of trust. A pull
+request can change a workflow or script while preserving a required check name;
+GitHub status contexts alone therefore do not prove that the reviewed gate ran.
+
+The current one-writer bootstrap profile relies on the platform-enforced
+repository write boundary and an explicit owner merge decision. Before a second
+writer, merge bot, or autonomous release actor is authorized, the repository
+must add an independent control that the pull request cannot rewrite: an
+external GitHub App check, an organization-managed required workflow, or a
+platform-enforced approval from a distinct trusted reviewer. The required check
+must be bound to its expected App source. Adding another repository-local
+self-check does not satisfy this requirement.
 
 ## Package controls
 

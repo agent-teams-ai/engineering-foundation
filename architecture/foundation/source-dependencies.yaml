@@ -390,6 +390,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters
     allow:
       boundaries:
+        - capability.architecture-decisions.composition
         - capability.public-api-compatibility.application
         - foundation.core
         - foundation.repository-input

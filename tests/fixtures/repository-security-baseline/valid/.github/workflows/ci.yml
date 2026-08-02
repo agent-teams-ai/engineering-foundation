@@ -4,7 +4,18 @@ on:
 permissions:
   contents: read
 jobs:
+  dependency-review:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/dependency-review-action@2222222222222222222222222222222222222222
+        with:
+          base-ref: refs/heads/main
+          head-ref: refs/pull/current/head
+          fail-on-severity: moderate
+          vulnerability-check: true
+          warn-only: false
   check:
+    needs: dependency-review
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@1111111111111111111111111111111111111111

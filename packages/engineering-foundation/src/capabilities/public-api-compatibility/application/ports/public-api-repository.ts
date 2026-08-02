@@ -8,7 +8,8 @@ export interface PublicApiRepository {
   readReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    purpose?: "compatibility-check" | "release-promotion"
   ): Promise<PublicApiSnapshot>;
 
   readReleaseEvidence(

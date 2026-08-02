@@ -1,7 +1,7 @@
 schemaVersion: 1
 workflowDirectory: .github/workflows
 dependencyReview:
-  workflowPath: .github/workflows/dependency-review.yml
+  workflowPath: .github/workflows/ci.yml
   jobId: dependency-review
   baseRef: refs/heads/main
   headRef: refs/pull/current/head

@@ -47,8 +47,8 @@ export const REPOSITORY_SECURITY_RULES = Object.freeze({
   ),
   dependencyReviewOrdering: rule(
     "dependency-review-ordering",
-    "A pull-request-controlled package install can execute before Dependency Review completes.",
-    "Make the install job depend on the declared Dependency Review job, or run the governed review step before the install in the same job."
+    "A pull-request workflow can execute a run step, local action, or reusable workflow before Dependency Review completes.",
+    "Make each pull-request job with a run step, local action, or reusable workflow depend on the declared Dependency Review job, or run the governed review step first in that same job."
   ),
   containerNotAllowlisted: rule(
     "container-not-allowlisted",

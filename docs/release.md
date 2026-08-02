@@ -50,6 +50,9 @@ around the policy.
 
 Before every publication:
 
+- verify that the repository still satisfies the independent merge-authority
+  prerequisite in the security baseline; the one-writer bootstrap profile is
+  not valid after another writer or merge automation is enabled;
 - build from a clean checkout;
 - run lint, typecheck, tests, publint, and Are The Types Wrong;
 - pack the real tarball;

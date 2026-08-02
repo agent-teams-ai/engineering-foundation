@@ -1,7 +1,10 @@
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { MarkdownRepository } from "../../../../documentation-observation/application/ports/markdown-repository.js";
-import type { ArchitectureDecisionPolicy } from "../model/architecture-decision.js";
+import type {
+  ArchitectureDecision,
+  ArchitectureDecisionPolicy
+} from "../model/architecture-decision.js";
 import type {
   ArchitectureDecisionBaselineReadResult,
   ArchitectureDecisionBaselineRepository
@@ -29,6 +32,7 @@ export interface AnalyzeArchitectureDecisionsDependencies {
  */
 export interface ArchitectureDecisionEvidenceAnalysis {
   readonly baseline: ArchitectureDecisionBaselineReadResult;
+  readonly decisions: readonly ArchitectureDecision[];
   readonly diagnostics: readonly FoundationDiagnostic[];
 }
 
@@ -54,6 +58,7 @@ export async function analyzeArchitectureDecisionEvidence(
   ]);
   return Object.freeze({
     baseline,
+    decisions: catalog.decisions,
     diagnostics: Object.freeze([
       ...catalog.diagnostics,
       ...evaluateArchitectureDecisionBaselineDiagnostics({

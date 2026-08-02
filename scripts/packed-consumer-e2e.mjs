@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -13,6 +13,9 @@ const expectedCapabilityIds = [
   "contract.protobuf-evolution",
   "documentation.local-references",
   "governance.architecture-decisions",
+  "package.public-api-compatibility",
+  "quality.suppression-governance",
+  "repository.security-baseline",
   "workspace.dependency-declarations"
 ];
 
@@ -113,6 +116,98 @@ async function assertJsonSchemaFormats(fixture) {
     throw new Error("Packed JSON Schema capability did not reject a mismatched fixture.");
   }
   await writeJson(fixturePath, fixture.jsonContract.validFixture);
+}
+
+function capabilityFromReport(report, capabilityId) {
+  return report?.capabilities?.find((candidate) => candidate.capabilityId === capabilityId);
+}
+
+async function assertPublicApiCompatibility(fixture) {
+  const declarationPath = join(
+    fixture.consumerRoot,
+    "packages",
+    "library",
+    "dist",
+    "local-mode.d.ts"
+  );
+  await writeFile(
+    declarationPath,
+    "export declare function stable(value: number): string;\n",
+    "utf8"
+  );
+  const report = await captureFoundationFailure(fixture, [
+    "check",
+    "--consumer",
+    fixture.consumerRoot,
+    "--format",
+    "json"
+  ]);
+  const capability = capabilityFromReport(report, "package.public-api-compatibility");
+  const rejected = capability?.diagnostics?.some(
+    (diagnostic) =>
+      diagnostic.ruleId === "package.public-api-compatibility.breaking-change-not-approved"
+  );
+  if (rejected !== true) {
+    throw new Error("Packed public API capability did not reject an unapproved breaking change.");
+  }
+  await writeFile(
+    declarationPath,
+    "export declare function stable(value: string): string;\n",
+    "utf8"
+  );
+}
+
+async function assertSuppressionGovernance(fixture) {
+  const sourcePath = join(fixture.sourceRoot, "index.ts");
+  await writeFile(
+    sourcePath,
+    '// oxlint-disable-next-line no-console\nconsole.log("unregistered suppression");\n',
+    "utf8"
+  );
+  const report = await captureFoundationFailure(fixture, [
+    "check",
+    "--consumer",
+    fixture.consumerRoot,
+    "--format",
+    "json"
+  ]);
+  const capability = capabilityFromReport(report, "quality.suppression-governance");
+  const rejected = capability?.diagnostics?.some(
+    (diagnostic) =>
+      diagnostic.ruleId === "quality.suppression-governance.unregistered-suppression"
+  );
+  if (rejected !== true) {
+    throw new Error("Packed suppression capability did not reject an unregistered suppression.");
+  }
+  await writeFile(sourcePath, fixture.identitySource, "utf8");
+}
+
+async function assertRepositorySecurityBaseline(fixture) {
+  const workflowPath = join(fixture.consumerRoot, ".github", "workflows", "ci.yml");
+  const validWorkflow = await readFile(workflowPath, "utf8");
+  await writeFile(
+    workflowPath,
+    validWorkflow.replace(
+      "actions/checkout@1111111111111111111111111111111111111111",
+      "actions/checkout@main"
+    ),
+    "utf8"
+  );
+  const report = await captureFoundationFailure(fixture, [
+    "check",
+    "--consumer",
+    fixture.consumerRoot,
+    "--format",
+    "json"
+  ]);
+  const capability = capabilityFromReport(report, "repository.security-baseline");
+  const rejected = capability?.diagnostics?.some(
+    (diagnostic) => diagnostic.ruleId === "repository.security-baseline.action-not-pinned"
+  );
+  if (rejected !== true) {
+    throw new Error("Packed repository security capability did not reject a mutable action reference.");
+  }
+  await writeFile(workflowPath, validWorkflow, "utf8");
 }
 
 function oxlintArguments(fixture, configName) {
@@ -221,6 +316,9 @@ export async function verifyPackedConsumer(input) {
   await assertCapabilityCheck(fixture);
   await assertSourceGraphViolation(fixture);
   await assertJsonSchemaFormats(fixture);
+  await assertPublicApiCompatibility(fixture);
+  await assertSuppressionGovernance(fixture);
+  await assertRepositorySecurityBaseline(fixture);
   await assertBasePresets(fixture);
   await assertMaintainabilityPresets(fixture);
   await assertTypeAwarePreset(fixture);

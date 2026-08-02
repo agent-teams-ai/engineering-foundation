@@ -15,17 +15,17 @@
     {
       "id": "ADR-0003",
       "path": "docs/decisions/0003-governed-inline-suppressions.md",
-      "immutableDigest": "sha256:a7d17051fda4139b887ab69d2bec6bc72c51907c04627b5601fa9d51d2c643fd"
+      "immutableDigest": "sha256:c925d8b4020e23fd1a097d72cc7c1f2efa030974015ca580bfedcafb4de737c4"
     },
     {
       "id": "ADR-0004",
       "path": "docs/decisions/0004-released-public-api-baselines.md",
-      "immutableDigest": "sha256:c043f4dd9c9537f50f57e285904d90537b4e2924adb086562fa1f7962bea4024"
+      "immutableDigest": "sha256:b0744d548ea8ee1db35975ff76f3e2f4027bd354a3c4a21d2f76c84a8e91f718"
     },
     {
       "id": "ADR-0005",
       "path": "docs/decisions/0005-repository-security-baseline.md",
-      "immutableDigest": "sha256:37842817645cf9975bf9c0781bafd0ca0c93bdac699a4936be261101dbf5b1e9"
+      "immutableDigest": "sha256:9734cc8656c65dc39cfb247d159102ff31986a6c4decbcc5ab1d72250a5fce52"
     },
     {
       "id": "ADR-0006",

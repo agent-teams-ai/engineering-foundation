@@ -5,7 +5,8 @@ import {
   loadStrictYamlFile
 } from "../../../strict-yaml.js";
 import type {
-  ApprovedBreakingChange,
+  GovernedApprovedBreakingChange,
+  LegacyApprovedBreakingChange,
   PublicApiCompatibilityConfigSchemaVersion,
   PublicApiCompatibilityPolicy,
   PublicApiEntrypointPolicy,
@@ -22,6 +23,9 @@ export const CAPABILITY_ID = "package.public-api-compatibility" as const;
 export const CAPABILITY_CONFIG_SCHEMA_VERSION = 2 as const;
 const ACCEPTED_DECISION_BASELINE_PATH =
   "architecture/decisions/accepted-decisions.json" as const;
+const DEFAULT_GOVERNANCE_CONFIG_PATH =
+  "architecture/foundation/governance-architecture-decisions.yaml" as const;
+const ADR_ID = /^ADR-\d{4}$/u;
 
 type PublicApiCompatibilitySchemaId =
   | "package-public-api-compatibility/v1"
@@ -112,16 +116,45 @@ function acceptedDecisionBaselinePath(value: unknown): string {
   return repositoryPath;
 }
 
+function governanceConfigPath(value: unknown): string {
+  const repositoryPath = path(value, "governanceConfigPath");
+  if (!/\.ya?ml$/u.test(repositoryPath)) {
+    inputError("governanceConfigPath must name a YAML architecture-governance configuration file.");
+  }
+  return repositoryPath;
+}
+
 function pathInside(candidate: string, root: string): boolean {
   return candidate === root || candidate.startsWith(`${root}/`);
 }
 
-function mapApproval(value: unknown, packageIndex: number, index: number): ApprovedBreakingChange {
+function mapLegacyApproval(
+  value: unknown,
+  packageIndex: number,
+  index: number
+): LegacyApprovedBreakingChange {
   const field = `packages[${packageIndex}].approvedBreakingChanges[${index}]`;
   const approval = record(value, field);
   return Object.freeze({
     fingerprint: string(approval["fingerprint"], `${field}.fingerprint`),
     decisionPath: path(approval["decisionPath"], `${field}.decisionPath`)
+  });
+}
+
+function mapGovernedApproval(
+  value: unknown,
+  packageIndex: number,
+  index: number
+): GovernedApprovedBreakingChange {
+  const field = `packages[${packageIndex}].approvedBreakingChanges[${index}]`;
+  const approval = record(value, field);
+  const decisionId = string(approval["decisionId"], `${field}.decisionId`);
+  if (!ADR_ID.test(decisionId)) {
+    inputError(`${field}.decisionId must match ADR-NNNN.`);
+  }
+  return Object.freeze({
+    fingerprint: string(approval["fingerprint"], `${field}.fingerprint`),
+    decisionId: decisionId as `ADR-${string}`
   });
 }
 
@@ -219,18 +252,18 @@ function mapPackage(
     packageRoot,
     manifestPath,
     tsconfigPath,
-    releasedBaselinePath: path(
-      input["releasedBaselinePath"],
-      `${field}.releasedBaselinePath`
-    ),
-    approvedBreakingChanges: Object.freeze(
-      approvals.map((approval, approvalIndex) =>
-        mapApproval(approval, index, approvalIndex)
-      )
-    )
+    releasedBaselinePath: path(input["releasedBaselinePath"], `${field}.releasedBaselinePath`)
   };
   if (declarationEntryPoint !== undefined) {
-    return Object.freeze({ ...common, declarationEntryPoint });
+    return Object.freeze({
+      ...common,
+      declarationEntryPoint,
+      approvedBreakingChanges: Object.freeze(
+        approvals.map((approval, approvalIndex) =>
+          mapLegacyApproval(approval, index, approvalIndex)
+        )
+      )
+    });
   }
   if (entrypoints === undefined) {
     inputError(`${field}.entrypoints must be present for schemaVersion 2.`);
@@ -238,7 +271,16 @@ function mapPackage(
   if (nonTypeExports === undefined) {
     inputError(`${field}.nonTypeExports must be present for schemaVersion 2.`);
   }
-  return Object.freeze({ ...common, entrypoints, nonTypeExports });
+  return Object.freeze({
+    ...common,
+    entrypoints,
+    nonTypeExports,
+    approvedBreakingChanges: Object.freeze(
+      approvals.map((approval, approvalIndex) =>
+        mapGovernedApproval(approval, index, approvalIndex)
+      )
+    )
+  });
 }
 
 function validatePolicy(policy: PublicApiCompatibilityPolicy): void {
@@ -315,19 +357,38 @@ export async function loadCapabilityConfig(
     decisionBaselineValue === undefined
       ? undefined
       : acceptedDecisionBaselinePath(decisionBaselineValue);
+  const governanceConfigPathValue = root["governanceConfigPath"];
+  const governancePath =
+    governanceConfigPathValue === undefined
+      ? undefined
+      : governanceConfigPath(governanceConfigPathValue);
   const common = {
     changesetDirectory: path(root["changesetDirectory"], "changesetDirectory"),
     packages: Object.freeze(
       packages.map((packagePolicy, index) => mapPackage(packagePolicy, index, version))
     )
   };
+  const hasBreakingApprovals = common.packages.some(
+    (packagePolicy) => packagePolicy.approvedBreakingChanges.length > 0
+  );
   const policy: PublicApiCompatibilityPolicy =
     version === 1
       ? Object.freeze({
           schemaVersion: 1,
-          ...(decisionBaselinePath === undefined
-            ? {}
-            : { acceptedDecisionBaselinePath: decisionBaselinePath }),
+          ...(hasBreakingApprovals
+            ? {
+                acceptedDecisionBaselinePath:
+                  decisionBaselinePath ?? ACCEPTED_DECISION_BASELINE_PATH,
+                governanceConfigPath: governancePath ?? DEFAULT_GOVERNANCE_CONFIG_PATH
+              }
+            : {
+                ...(decisionBaselinePath === undefined
+                  ? {}
+                  : { acceptedDecisionBaselinePath: decisionBaselinePath }),
+                ...(governancePath === undefined
+                  ? {}
+                  : { governanceConfigPath: governancePath })
+              }),
           changesetDirectory: common.changesetDirectory,
           packages: Object.freeze(
             common.packages.map((packagePolicy) => {
@@ -343,6 +404,7 @@ export async function loadCapabilityConfig(
           acceptedDecisionBaselinePath:
             decisionBaselinePath ??
             inputError("schemaVersion 2 requires acceptedDecisionBaselinePath."),
+          ...(governancePath === undefined ? {} : { governanceConfigPath: governancePath }),
           changesetDirectory: common.changesetDirectory,
           packages: Object.freeze(
             common.packages.map((packagePolicy) => {
@@ -353,13 +415,14 @@ export async function loadCapabilityConfig(
             })
           )
         });
-  if (
-    policy.packages.some(
-      (packagePolicy) => packagePolicy.approvedBreakingChanges.length > 0
-    ) &&
-    policy.acceptedDecisionBaselinePath === undefined
-  ) {
+  if (hasBreakingApprovals && policy.acceptedDecisionBaselinePath === undefined) {
     inputError("acceptedDecisionBaselinePath is required when breaking approvals are declared.");
+  }
+  if (hasBreakingApprovals && policy.governanceConfigPath === undefined) {
+    inputError("governanceConfigPath is required when breaking approvals are declared.");
+  }
+  if (policy.governanceConfigPath !== undefined && policy.acceptedDecisionBaselinePath === undefined) {
+    inputError("governanceConfigPath requires acceptedDecisionBaselinePath.");
   }
   validatePolicy(policy);
   return policy;

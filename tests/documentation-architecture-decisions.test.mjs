@@ -18,7 +18,10 @@ import {
 } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/analyze-architecture-decisions.js";
 import { promoteArchitectureDecisionBaseline as promoteBaselineUseCase } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/promote-architecture-decision-baseline.js";
 import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/contract/config.js";
-import { promoteArchitectureDecisionBaseline } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/module.js";
+import {
+  promoteArchitectureDecisionBaseline,
+  readAcceptedArchitectureDecisionEvidence
+} from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/module.js";
 import { FilesystemMarkdownRepository } from "../packages/engineering-foundation/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -220,6 +223,22 @@ test("returns the exact accepted ADR baseline snapshot it validates", async () =
     assert.deepEqual(evidence.diagnostics, []);
     assert.equal(evidence.baseline.kind, "valid");
     assert.equal(evidence.baseline.revision.startsWith("sha256:"), true);
+  });
+});
+
+test("returns only currently accepted ADRs as immutable approval evidence", async () => {
+  await withFixture(async (root) => {
+    const evidence = await readAcceptedArchitectureDecisionEvidence({
+      baselinePath: "architecture/decisions/accepted-decisions.json",
+      configPath: "governance-architecture-decisions.yaml",
+      consumerRoot: root
+    });
+    assert.deepEqual(evidence, {
+      acceptedDecisionIds: ["ADR-0002"],
+      acceptedDecisionPaths: [
+        "docs/decisions/0002-use-immutable-decision-baselines.md"
+      ]
+    });
   });
 });
 

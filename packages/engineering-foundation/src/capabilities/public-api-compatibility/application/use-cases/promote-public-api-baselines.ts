@@ -9,6 +9,8 @@ import type { PublicApiExtractor } from "../ports/public-api-extractor.js";
 import type { AcceptedDecisionEvidencePort } from "../ports/accepted-decision-evidence.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import type { PublicApiRepository } from "../ports/public-api-repository.js";
+import { approvedBreakingChangeReference } from "../model/public-api.js";
+import { isApprovedBreakingChangeAccepted } from "../policies/accepted-breaking-change.js";
 import { classifyPublicApiChange } from "../policies/evaluate-public-api-compatibility.js";
 
 function promotionError(code: string, message: string): never {
@@ -21,6 +23,70 @@ function promotionError(code: string, message: string): never {
 }
 
 const BUMP_RANK = Object.freeze({ patch: 0, minor: 1, major: 2 });
+
+function validateV1ToV2ReleaseMigration(input: {
+  readonly current: PublicApiSnapshot;
+  readonly fingerprint: ChangeFingerprint;
+  readonly packageName: string;
+  readonly released: PublicApiSnapshot;
+  readonly releaseVersion: string;
+}): boolean {
+  if (input.released.schemaVersion !== 1 || input.current.schemaVersion !== 2) {
+    return false;
+  }
+  const rootEntrypoint = input.current.entrypoints.find(
+    (entrypoint) => entrypoint.exportPath === "."
+  );
+  if (rootEntrypoint === undefined) {
+    promotionError(
+      "PUBLIC_API_BASELINE_MIGRATION_ROOT_MISSING",
+      "A release-owned v1-to-v2 migration requires the root package entrypoint."
+    );
+  }
+  const currentRoot: PublicApiSnapshot = Object.freeze({
+    schemaVersion: 1,
+    packageName: input.current.packageName,
+    packageVersion: input.current.packageVersion,
+    extractorVersion: input.current.extractorVersion,
+    items: rootEntrypoint.items
+  });
+  const rootChange = classifyPublicApiChange(
+    input.released,
+    currentRoot,
+    input.fingerprint
+  );
+  if (rootChange.classification !== "none") {
+    promotionError(
+      "PUBLIC_API_BASELINE_MIGRATION_ROOT_DRIFT",
+      "A release-owned v1-to-v2 migration cannot change the previously governed root API. Release that change under schema v1 first."
+    );
+  }
+  if (
+    input.released.packageVersion !== input.releaseVersion &&
+    semanticVersionBumpBetween(
+      input.released.packageVersion,
+      input.releaseVersion
+    ) === undefined
+  ) {
+    promotionError(
+      "PUBLIC_API_BASELINE_PROMOTION_NOT_RELEASE",
+      `Package ${input.packageName} cannot migrate from baseline version ${input.released.packageVersion} to older version ${input.releaseVersion}.`
+    );
+  }
+  return true;
+}
+
+function assertExtractorVersionMatch(
+  released: PublicApiSnapshot,
+  current: PublicApiSnapshot
+): void {
+  if (released.extractorVersion !== current.extractorVersion) {
+    promotionError(
+      "PUBLIC_API_BASELINE_PROMOTION_TOOL_MISMATCH",
+      `API Extractor changed from ${released.extractorVersion} to ${current.extractorVersion}; migrate the baseline in an explicitly reviewed tool-upgrade change.`
+    );
+  }
+}
 
 export async function promotePublicApiBaselines(
   input: {
@@ -39,13 +105,17 @@ export async function promotePublicApiBaselines(
     readonly packagePolicy: PublicApiCompatibilityPolicy["packages"][number];
     readonly snapshot: PublicApiSnapshot;
   }> = [];
+  let acceptedDecisionEvidence:
+    | Awaited<ReturnType<AcceptedDecisionEvidencePort["readAcceptedDecisionEvidence"]>>
+    | undefined;
   for (const packagePolicy of input.policy.packages) {
     assertNotCancelled(input.signal);
     const [released, releaseEvidence] = await Promise.all([
       dependencies.repository.readReleasedBaseline(
         input.consumerRoot,
         packagePolicy,
-        input.signal
+        input.signal,
+        "release-promotion"
       ),
       dependencies.repository.readReleaseEvidence(
         input.consumerRoot,
@@ -60,11 +130,16 @@ export async function promotePublicApiBaselines(
       releaseEvidence.packageVersion,
       input.signal
     );
-    if (released.extractorVersion !== current.extractorVersion) {
-      promotionError(
-        "PUBLIC_API_BASELINE_PROMOTION_TOOL_MISMATCH",
-        `API Extractor changed from ${released.extractorVersion} to ${current.extractorVersion}; migrate the baseline in an explicitly reviewed tool-upgrade change.`
-      );
+    assertExtractorVersionMatch(released, current);
+    if (validateV1ToV2ReleaseMigration({
+      current,
+      fingerprint: dependencies.fingerprint,
+      packageName: packagePolicy.packageName,
+      released,
+      releaseVersion: releaseEvidence.packageVersion
+    })) {
+      promotions.push({ packagePolicy, snapshot: current });
+      continue;
     }
     const change = classifyPublicApiChange(released, current, dependencies.fingerprint);
     if (released.packageVersion === releaseEvidence.packageVersion) {
@@ -115,17 +190,24 @@ export async function promotePublicApiBaselines(
           "Breaking API approval requires immutable accepted-decision evidence."
         );
       }
-      if (
-        !(await dependencies.acceptedDecisionEvidence.hasAcceptedDecision({
+      const governanceConfigPath = input.policy.governanceConfigPath;
+      if (governanceConfigPath === undefined) {
+        promotionError(
+          "PUBLIC_API_BASELINE_PROMOTION_DECISION_EVIDENCE_MISSING",
+          "Breaking API approval requires architecture-governance evidence."
+        );
+      }
+      acceptedDecisionEvidence ??=
+        await dependencies.acceptedDecisionEvidence.readAcceptedDecisionEvidence({
           consumerRoot: input.consumerRoot,
-          decisionPath: approval.decisionPath,
           baselinePath,
+          governanceConfigPath,
           ...(input.signal === undefined ? {} : { signal: input.signal })
-        }))
-      ) {
+        });
+      if (!isApprovedBreakingChangeAccepted(approval, acceptedDecisionEvidence)) {
         promotionError(
           "PUBLIC_API_BASELINE_PROMOTION_DECISION_NOT_ACCEPTED",
-          `Breaking API decision is not accepted: ${approval.decisionPath}.`
+          `Breaking API decision is not accepted: ${approvedBreakingChangeReference(approval)}.`
         );
       }
     }

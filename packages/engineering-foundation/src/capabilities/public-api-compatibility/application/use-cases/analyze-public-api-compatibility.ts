@@ -9,6 +9,7 @@ import {
   classifyPublicApiChange,
   evaluatePublicApiCompatibility
 } from "../policies/evaluate-public-api-compatibility.js";
+import { isApprovedBreakingChangeAccepted } from "../policies/accepted-breaking-change.js";
 
 export async function analyzePublicApiCompatibility(
   input: {
@@ -24,6 +25,9 @@ export async function analyzePublicApiCompatibility(
   }
 ): Promise<readonly FoundationDiagnostic[]> {
   const diagnostics: FoundationDiagnostic[] = [];
+  let acceptedDecisionEvidence:
+    | Awaited<ReturnType<AcceptedDecisionEvidencePort["readAcceptedDecisionEvidence"]>>
+    | undefined;
   for (const packagePolicy of input.policy.packages) {
     assertNotCancelled(input.signal);
     const [released, releaseEvidence] = await Promise.all([
@@ -56,15 +60,25 @@ export async function analyzePublicApiCompatibility(
             (candidate) => candidate.fingerprint === change.fingerprint
           )
         : undefined;
+    if (
+      approval !== undefined &&
+      acceptedDecisionEvidence === undefined &&
+      input.policy.acceptedDecisionBaselinePath !== undefined &&
+      input.policy.governanceConfigPath !== undefined
+    ) {
+      acceptedDecisionEvidence =
+        await dependencies.acceptedDecisionEvidence.readAcceptedDecisionEvidence({
+          consumerRoot: input.consumerRoot,
+          baselinePath: input.policy.acceptedDecisionBaselinePath,
+          governanceConfigPath: input.policy.governanceConfigPath,
+          ...(input.signal === undefined ? {} : { signal: input.signal })
+        });
+    }
     const acceptedDecision =
-      approval === undefined || input.policy.acceptedDecisionBaselinePath === undefined
+      approval === undefined
         ? undefined
-        : await dependencies.acceptedDecisionEvidence.hasAcceptedDecision({
-            consumerRoot: input.consumerRoot,
-            decisionPath: approval.decisionPath,
-            baselinePath: input.policy.acceptedDecisionBaselinePath,
-            ...(input.signal === undefined ? {} : { signal: input.signal })
-          });
+        : acceptedDecisionEvidence !== undefined &&
+          isApprovedBreakingChangeAccepted(approval, acceptedDecisionEvidence);
     diagnostics.push(
       ...evaluatePublicApiCompatibility({
         policy: packagePolicy,

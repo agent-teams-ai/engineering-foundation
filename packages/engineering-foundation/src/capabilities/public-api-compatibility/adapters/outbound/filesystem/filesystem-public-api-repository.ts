@@ -1,8 +1,6 @@
 import {
-  lstat,
   mkdtemp,
   opendir,
-  readFile,
   realpath,
   rename,
   rm,
@@ -12,30 +10,35 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import { pathTraversesSymbolicLink } from "../../../../../filesystem-path-safety.js";
+import {
+  ContainedFileReadError,
+  pathTraversesSymbolicLink,
+  readContainedRegularFile
+} from "../../../../../filesystem-path-safety.js";
 import { assertSchema } from "../../../../../schema-catalog.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
 import {
   assertNotCancelled,
   parseStrictYamlSource
 } from "../../../../../strict-yaml.js";
-import {
-  compareCanonicalReferences,
-  publicApiBaselineAnchorPath
-} from "../../../application/model/public-api.js";
+import { publicApiBaselineAnchorPath } from "../../../application/model/public-api.js";
 import {
   assertPackageExportCoverage,
   PackageExportCoverageError
 } from "../../../application/policies/validate-package-export-coverage.js";
 import type {
   PackageReleaseEvidence,
-  PublicApiEntrypointSnapshot,
-  PublicApiItem,
   PublicApiPackagePolicy,
   PublicApiSnapshot,
   ReleaseBump
 } from "../../../application/model/public-api.js";
 import type { PublicApiRepository } from "../../../application/ports/public-api-repository.js";
+import {
+  baselineMatchesPolicy,
+  mapReleasedBaseline,
+  promotionBaselineSchemaId,
+  releasedBaselineSchemaId
+} from "./public-api-baseline-mapper.js";
 
 const MAX_INPUT_BYTES = 32 * 1024 * 1024;
 const BUMP_RANK: Readonly<Record<ReleaseBump, number>> = {
@@ -114,148 +117,40 @@ function record(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function mapItem(value: unknown, index: number): PublicApiItem {
-  const item = record(value, `items[${index}]`);
-  return Object.freeze({
-    canonicalReference: String(item["canonicalReference"]),
-    kind: String(item["kind"]),
-    ...(typeof item["parentReference"] === "string"
-      ? { parentReference: item["parentReference"] }
-      : {}),
-    parentKind: String(item["parentKind"]),
-    signature: String(item["signature"])
-  });
-}
-
-function baselineSchemaId(policy: PublicApiPackagePolicy):
-  | "package-public-api-baseline/v1"
-  | "package-public-api-baseline/v2" {
-  return "entrypoints" in policy
-    ? "package-public-api-baseline/v2"
-    : "package-public-api-baseline/v1";
-}
-
-function validateSortedItems(items: readonly PublicApiItem[]): void {
-  const references = items.map((item) => item.canonicalReference);
-  const sortedReferences = references.toSorted(compareCanonicalReferences);
-  if (
-    new Set(references).size !== references.length ||
-    references.some((value, index) => value !== sortedReferences[index])
-  ) {
-    inputError(
-      "PUBLIC_API_BASELINE_INVALID",
-      "Released API baseline items must have unique sorted canonical references.",
-      "public-api-evidence"
-    );
+function publicApiEvidenceReadError(
+  error: unknown,
+  repositoryPath: string,
+  phase: string
+): never {
+  if (error instanceof ContainedFileReadError) {
+    const code =
+      error.failure === "symlink"
+        ? "PUBLIC_API_EVIDENCE_SYMLINK_PROHIBITED"
+        : error.failure === "escape"
+          ? "PUBLIC_API_EVIDENCE_ESCAPE"
+          : error.failure === "invalid"
+            ? "PUBLIC_API_EVIDENCE_INVALID"
+            : "PUBLIC_API_EVIDENCE_UNAVAILABLE";
+    inputError(code, `Public API evidence is unavailable or changed: ${repositoryPath}.`, phase);
   }
+  throw error;
 }
 
-function mapEntrypoint(value: unknown, index: number): PublicApiEntrypointSnapshot {
-  const entrypoint = record(value, `entrypoints[${index}]`);
-  const itemsInput = entrypoint["items"];
-  if (!Array.isArray(itemsInput)) {
-    inputError(
-      "PUBLIC_API_BASELINE_INVALID",
-      `Released API baseline entrypoints[${index}].items must be an array.`,
-      "public-api-evidence"
-    );
-  }
-  const items = itemsInput.map(mapItem);
-  validateSortedItems(items);
-  return Object.freeze({
-    exportPath: String(entrypoint["exportPath"]),
-    items: Object.freeze(items)
-  });
-}
-
-function validateSortedEntrypoints(
-  entrypoints: readonly PublicApiEntrypointSnapshot[]
-): void {
-  const paths = entrypoints.map((entrypoint) => entrypoint.exportPath);
-  const sortedPaths = paths.toSorted(compareCanonicalReferences);
-  if (
-    new Set(paths).size !== paths.length ||
-    paths.some((value, index) => value !== sortedPaths[index])
-  ) {
-    inputError(
-      "PUBLIC_API_BASELINE_INVALID",
-      "Released API baseline entrypoints must have unique sorted export paths.",
-      "public-api-evidence"
-    );
-  }
-}
-
-function baselineIdentity(
-  baseline: Record<string, unknown>,
-  policy: PublicApiPackagePolicy
-): { readonly packageName: string; readonly packageVersion: string } {
-  const packageName = String(baseline["packageName"]);
-  if (packageName !== policy.packageName) {
-    inputError(
-      "PUBLIC_API_BASELINE_INVALID",
-      `Released API baseline package does not match ${policy.packageName}.`,
-      "public-api-evidence"
-    );
-  }
-  const packageVersion = String(baseline["packageVersion"]);
-  if (!isExactVersion(packageVersion)) {
-    inputError(
-      "PUBLIC_API_BASELINE_INVALID",
-      `Released API baseline version is not exact SemVer: ${packageVersion}.`,
-      "public-api-evidence"
-    );
-  }
-  return Object.freeze({ packageName, packageVersion });
-}
-
-function mapReleasedBaseline(
-  input: unknown,
-  policy: PublicApiPackagePolicy
-): PublicApiSnapshot {
-  const baseline = record(input, "released API baseline");
-  const identity = baselineIdentity(baseline, policy);
-  const extractorVersion = String(baseline["extractorVersion"]);
-  if ("entrypoints" in policy) {
-    const entrypointsInput = baseline["entrypoints"];
-    if (!Array.isArray(entrypointsInput)) {
-      inputError(
-        "PUBLIC_API_BASELINE_INVALID",
-        "Released API baseline entrypoints must be an array.",
-        "public-api-evidence"
-      );
-    }
-    const entrypoints = entrypointsInput.map(mapEntrypoint);
-    validateSortedEntrypoints(entrypoints);
-    return Object.freeze({
-      schemaVersion: 2,
-      ...identity,
-      extractorVersion,
-      entrypoints: Object.freeze(entrypoints)
+async function readPublicApiEvidenceFile(input: {
+  readonly maxBytes: number;
+  readonly repositoryPath: string;
+  readonly root: string;
+  readonly phase: string;
+}): Promise<Buffer> {
+  try {
+    return await readContainedRegularFile({
+      candidate: resolve(input.root, input.repositoryPath),
+      maxBytes: input.maxBytes,
+      root: input.root
     });
+  } catch (error) {
+    return publicApiEvidenceReadError(error, input.repositoryPath, input.phase);
   }
-  const itemsInput = baseline["items"];
-  if (!Array.isArray(itemsInput)) {
-    inputError(
-      "PUBLIC_API_BASELINE_INVALID",
-      "Released API baseline items must be an array.",
-      "public-api-evidence"
-    );
-  }
-  const items = itemsInput.map(mapItem);
-  validateSortedItems(items);
-  return Object.freeze({
-    schemaVersion: 1,
-    ...identity,
-    extractorVersion,
-    items: Object.freeze(items)
-  });
-}
-
-function baselineMatchesPolicy(
-  snapshot: PublicApiSnapshot,
-  policy: PublicApiPackagePolicy
-): boolean {
-  return ("entrypoints" in policy) === (snapshot.schemaVersion === 2);
 }
 
 function assertBaselineAnchor(policy: PublicApiPackagePolicy): void {
@@ -290,16 +185,34 @@ function changesetFrontmatter(source: string): string | undefined {
   return end === -1 ? undefined : normalized.slice(4, end);
 }
 
-async function declaredBump(
-  directory: string,
-  packageName: string,
-  signal?: AbortSignal
-): Promise<ReleaseBump | undefined> {
+async function declaredBump(input: {
+  readonly directory: string;
+  readonly packageName: string;
+  readonly root: string;
+  readonly signal?: AbortSignal;
+}): Promise<ReleaseBump | undefined> {
   let bump: ReleaseBump | undefined;
   const entries = [];
-  const handle = await opendir(directory);
+  const directory = resolve(input.root, input.directory);
+  if (await pathTraversesSymbolicLink(input.root, directory)) {
+    inputError(
+      "CHANGESET_SYMLINK_PROHIBITED",
+      "Changeset directory cannot traverse a symbolic link.",
+      "public-api-evidence"
+    );
+  }
+  let handle;
+  try {
+    handle = await opendir(directory);
+  } catch {
+    inputError(
+      "CHANGESET_INVALID",
+      "Changeset directory is not available.",
+      "public-api-evidence"
+    );
+  }
   for await (const entry of handle) {
-    assertNotCancelled(signal);
+    assertNotCancelled(input.signal);
     if (entry.isSymbolicLink()) {
       inputError(
         "CHANGESET_SYMLINK_PROHIBITED",
@@ -312,16 +225,13 @@ async function declaredBump(
     }
   }
   for (const name of entries.toSorted()) {
-    const path = resolve(directory, name);
-    const metadata = await lstat(path);
-    if (!metadata.isFile() || metadata.size > 1024 * 1024) {
-      inputError(
-        "CHANGESET_INVALID",
-        `Changeset must be a regular file no larger than 1 MiB: ${name}.`,
-        "public-api-evidence"
-      );
-    }
-    const frontmatter = changesetFrontmatter(await readFile(path, "utf8"));
+    const source = await readPublicApiEvidenceFile({
+      maxBytes: 1024 * 1024,
+      repositoryPath: join(input.directory, name),
+      root: input.root,
+      phase: "public-api-evidence"
+    });
+    const frontmatter = changesetFrontmatter(source.toString("utf8"));
     if (frontmatter === undefined) {
       inputError(
         "CHANGESET_INVALID",
@@ -333,7 +243,7 @@ async function declaredBump(
       parseStrictYamlSource(frontmatter, "public-api-changeset"),
       `changeset ${name}`
     );
-    bump = strongerBump(bump, parsed[packageName]);
+    bump = strongerBump(bump, parsed[input.packageName]);
   }
   return bump;
 }
@@ -342,15 +252,21 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
   async readReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    purpose: "compatibility-check" | "release-promotion" = "compatibility-check"
   ): Promise<PublicApiSnapshot> {
     assertNotCancelled(signal);
     assertBaselineAnchor(policy);
     const root = await canonicalRoot(consumerRoot);
-    const baselinePath = await safePath(root, policy.releasedBaselinePath, "file");
+    const baselineSource = await readPublicApiEvidenceFile({
+      maxBytes: MAX_INPUT_BYTES,
+      repositoryPath: policy.releasedBaselinePath,
+      root,
+      phase: "public-api-evidence"
+    });
     let input: unknown;
     try {
-      input = JSON.parse(await readFile(baselinePath, "utf8")) as unknown;
+      input = JSON.parse(baselineSource.toString("utf8")) as unknown;
     } catch {
       inputError(
         "PUBLIC_API_BASELINE_INVALID",
@@ -358,8 +274,8 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         "public-api-evidence"
       );
     }
-    await assertSchema(baselineSchemaId(policy), input, "public-api-baseline");
-    return mapReleasedBaseline(input, policy);
+    await assertSchema(releasedBaselineSchemaId(input), input, "public-api-baseline");
+    return mapReleasedBaseline(input, policy, purpose === "release-promotion");
   }
 
   async readReleaseEvidence(
@@ -370,13 +286,15 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
   ): Promise<PackageReleaseEvidence> {
     assertNotCancelled(signal);
     const root = await canonicalRoot(consumerRoot);
-    const [manifestPath, changesetPath] = await Promise.all([
-      safePath(root, policy.manifestPath, "file"),
-      safePath(root, changesetDirectory, "directory")
-    ]);
+    const manifestSource = await readPublicApiEvidenceFile({
+      maxBytes: MAX_INPUT_BYTES,
+      repositoryPath: policy.manifestPath,
+      root,
+      phase: "public-api-evidence"
+    });
     let manifestInput: unknown;
     try {
-      manifestInput = JSON.parse(await readFile(manifestPath, "utf8")) as unknown;
+      manifestInput = JSON.parse(manifestSource.toString("utf8")) as unknown;
     } catch {
       inputError(
         "PUBLIC_API_PACKAGE_MANIFEST_INVALID",
@@ -410,7 +328,12 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
       }
       throw error;
     }
-    const bump = await declaredBump(changesetPath, policy.packageName, signal);
+    const bump = await declaredBump({
+      directory: changesetDirectory,
+      packageName: policy.packageName,
+      root,
+      ...(signal === undefined ? {} : { signal })
+    });
     return {
       packageName: policy.packageName,
       packageVersion,
@@ -436,7 +359,7 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
       );
     }
     await assertSchema(
-      baselineSchemaId(policy),
+      promotionBaselineSchemaId(policy),
       snapshot,
       "public-api-baseline-promotion"
     );

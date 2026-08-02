@@ -42,22 +42,26 @@ export interface PublicApiNonTypeExportPolicy {
   readonly kind: PublicApiNonTypeExportKind;
 }
 
-interface PublicApiPackagePolicyBase {
+interface PublicApiPackagePolicyBase<
+  TApprovedBreakingChange extends ApprovedBreakingChange
+> {
   readonly packageName: string;
   readonly packageRoot: string;
   readonly manifestPath: string;
   readonly tsconfigPath: string;
   readonly releasedBaselinePath: string;
-  readonly approvedBreakingChanges: readonly ApprovedBreakingChange[];
+  readonly approvedBreakingChanges: readonly TApprovedBreakingChange[];
 }
 
 /** Configuration schema v1 retains one declaration entry point per package. */
-interface PublicApiPackagePolicyV1 extends PublicApiPackagePolicyBase {
+interface PublicApiPackagePolicyV1
+  extends PublicApiPackagePolicyBase<LegacyApprovedBreakingChange> {
   readonly declarationEntryPoint: string;
 }
 
 /** Configuration schema v2 scopes every declaration entry point by export path. */
-interface PublicApiPackagePolicyV2 extends PublicApiPackagePolicyBase {
+interface PublicApiPackagePolicyV2
+  extends PublicApiPackagePolicyBase<GovernedApprovedBreakingChange> {
   readonly entrypoints: readonly PublicApiEntrypointPolicy[];
   readonly nonTypeExports: readonly PublicApiNonTypeExportPolicy[];
 }
@@ -71,6 +75,8 @@ interface PublicApiCompatibilityPolicyV1 {
   readonly schemaVersion?: 1;
   /** Required when a v1 package declares a breaking-change approval. */
   readonly acceptedDecisionBaselinePath?: string;
+  /** Required together with an approval so governance can validate the ADR catalog. */
+  readonly governanceConfigPath?: string;
   readonly changesetDirectory: string;
   readonly packages: readonly PublicApiPackagePolicyV1[];
 }
@@ -78,6 +84,8 @@ interface PublicApiCompatibilityPolicyV1 {
 interface PublicApiCompatibilityPolicyV2 {
   readonly schemaVersion: 2;
   readonly acceptedDecisionBaselinePath: string;
+  /** Needed only when this policy declares a breaking-change approval. */
+  readonly governanceConfigPath?: string;
   readonly changesetDirectory: string;
   readonly packages: readonly PublicApiPackagePolicyV2[];
 }
@@ -115,9 +123,35 @@ interface PublicApiSnapshotV2 {
 
 export type PublicApiSnapshot = PublicApiSnapshotV1 | PublicApiSnapshotV2;
 
-export interface ApprovedBreakingChange {
+/**
+ * Schema v1 approval contract. The path is checked only against the validated
+ * immutable governance baseline; raw ADR Markdown is never approval evidence.
+ */
+export interface LegacyApprovedBreakingChange {
   readonly fingerprint: string;
   readonly decisionPath: string;
+}
+
+/** Schema v2 approval contract, using a stable governed decision identity. */
+export interface GovernedApprovedBreakingChange {
+  readonly fingerprint: string;
+  readonly decisionId: `ADR-${string}`;
+}
+
+export type ApprovedBreakingChange =
+  | LegacyApprovedBreakingChange
+  | GovernedApprovedBreakingChange;
+
+export function isLegacyApprovedBreakingChange(
+  approval: ApprovedBreakingChange
+): approval is LegacyApprovedBreakingChange {
+  return "decisionPath" in approval;
+}
+
+export function approvedBreakingChangeReference(approval: ApprovedBreakingChange): string {
+  return isLegacyApprovedBreakingChange(approval)
+    ? approval.decisionPath
+    : approval.decisionId;
 }
 
 export function publicApiEntrypoints(

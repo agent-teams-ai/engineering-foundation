@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { FoundationError } from "../errors.js";
+import { spawnWindowsManagedProcess } from "./windows-managed-process.js";
 import type {
   ProcessRequest,
   ProcessResult,
@@ -102,23 +103,13 @@ async function waitForPosixProcessGroupExit(pid: number): Promise<boolean> {
 async function terminateWindowsProcessTree(
   child: ReturnType<typeof spawn>
 ): Promise<void> {
-  if (child.pid === undefined) {
+  if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
-  const taskkill = spawn(
-    "taskkill",
-    ["/pid", String(child.pid), "/T", "/F"],
-    { stdio: "ignore", windowsHide: true }
-  );
-  taskkill.once("error", () => {});
-  if (!(await waitForExit(taskkill, TERMINATION_GRACE_MS))) {
-    taskkill.kill("SIGKILL");
-    await waitForExit(taskkill, TERMINATION_GRACE_MS);
-  }
-  if (!(await waitForExit(child, TERMINATION_GRACE_MS))) {
-    child.kill("SIGKILL");
-    await waitForExit(child, TERMINATION_GRACE_MS);
-  }
+  // The retained process handle targets the exact PowerShell wrapper. Closing
+  // that wrapper closes its strict Job Object and terminates every descendant.
+  child.kill("SIGKILL");
+  await waitForExit(child, TERMINATION_GRACE_MS);
 }
 
 async function terminateProcessTree(child: ReturnType<typeof spawn>): Promise<void> {
@@ -138,6 +129,45 @@ async function terminateProcessTree(child: ReturnType<typeof spawn>): Promise<vo
   await waitForPosixProcessGroupExit(processGroupId);
 }
 
+async function waitForCloseWithinCleanupDeadline(
+  closed: Promise<unknown>
+): Promise<void> {
+  let cleanupTimer: NodeJS.Timeout | undefined;
+  const cleanupDeadline = new Promise<never>((_resolve, reject) => {
+    cleanupTimer = setTimeout(() => {
+      reject(new Error("Process streams did not close after tree termination."));
+    }, TERMINATION_GRACE_MS);
+  });
+  try {
+    await Promise.race([closed, cleanupDeadline]);
+  } finally {
+    if (cleanupTimer !== undefined) {
+      clearTimeout(cleanupTimer);
+    }
+  }
+}
+
+function spawnManagedProcess(request: ProcessRequest): ReturnType<typeof spawn> {
+  if (process.platform === "win32") {
+    return spawnWindowsManagedProcess(request);
+  }
+  return spawn(request.command, [...request.args], {
+    cwd: request.cwd,
+    detached: true,
+    shell: false,
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true
+  });
+}
+
+async function cleanUpAfterNormalExit(
+  child: ReturnType<typeof spawn>
+): Promise<void> {
+  if (process.platform !== "win32") {
+    await terminateProcessTree(child);
+  }
+}
+
 export class NodeProcessRunner implements ProcessRunner {
   async run(request: ProcessRequest): Promise<ProcessResult> {
     const timeoutMs = resolveTimeout(request);
@@ -147,27 +177,19 @@ export class NodeProcessRunner implements ProcessRunner {
     return await new Promise((resolve, reject) => {
       let child: ReturnType<typeof spawn>;
       try {
-        child = spawn(
-          request.command,
-          [...request.args],
-          {
-            cwd: request.cwd,
-            detached: process.platform !== "win32",
-            shell: false,
-            stdio: ["ignore", "pipe", "pipe"],
-            windowsHide: true
-          }
-        );
+        child = spawnManagedProcess(request);
       } catch (error) {
         reject(processFailure(request, "could not be started.", error));
         return;
       }
       const stdout: Buffer[] = [];
       const stderr: Buffer[] = [];
+      const closed = once(child, "close").catch(() => []);
       let stdoutBytes = 0;
       let stderrBytes = 0;
       let settled = false;
       let terminating = false;
+      let completionFailure: FoundationError | undefined;
       const deadlineSignal = AbortSignal.timeout(timeoutMs);
 
       const finish = (result: ProcessResult | FoundationError) => {
@@ -192,6 +214,7 @@ export class NodeProcessRunner implements ProcessRunner {
         void (async () => {
           try {
             await terminateProcessTree(child);
+            await waitForCloseWithinCleanupDeadline(closed);
             finish(failure);
           } catch (error) {
             finish(
@@ -217,6 +240,49 @@ export class NodeProcessRunner implements ProcessRunner {
         );
       };
 
+      const completeAfterExit = (
+        exitCode: number | null,
+        signal: NodeJS.Signals | null
+      ) => {
+        if (settled || terminating) {
+          return;
+        }
+        terminating = true;
+        deadlineSignal.removeEventListener("abort", onTimeout);
+        request.signal?.removeEventListener("abort", onAbort);
+        void (async () => {
+          try {
+            await cleanUpAfterNormalExit(child);
+            await waitForCloseWithinCleanupDeadline(closed);
+          } catch (error) {
+            finish(
+              processFailure(
+                request,
+                "could not clean up its process tree after exit.",
+                error
+              )
+            );
+            return;
+          }
+          const stdoutText = Buffer.concat(stdout).toString("utf8");
+          const stderrText = Buffer.concat(stderr).toString("utf8");
+          if (completionFailure !== undefined) {
+            finish(completionFailure);
+            return;
+          }
+          if (exitCode !== 0) {
+            finish(
+              processFailure(
+                request,
+                `failed: ${stderrText.trim() || `exit code ${String(exitCode)}${signal === null ? "" : ` (${signal})`}`}`
+              )
+            );
+            return;
+          }
+          finish({ stdout: stdoutText, stderr: stderrText });
+        })();
+      };
+
       const appendOutput = (
         destination: Buffer[],
         chunk: Buffer,
@@ -224,12 +290,15 @@ export class NodeProcessRunner implements ProcessRunner {
       ) => {
         const nextSize = (stream === "stdout" ? stdoutBytes : stderrBytes) + chunk.length;
         if (nextSize > MAX_OUTPUT_BYTES) {
-          failAfterTermination(
-            processFailure(
-              request,
-              `exceeded the ${stream} output limit of ${MAX_OUTPUT_BYTES} bytes.`
-            )
+          const failure = processFailure(
+            request,
+            `exceeded the ${stream} output limit of ${MAX_OUTPUT_BYTES} bytes.`
           );
+          if (terminating) {
+            completionFailure ??= failure;
+            return;
+          }
+          failAfterTermination(failure);
           return;
         }
         if (stream === "stdout") {
@@ -249,23 +318,7 @@ export class NodeProcessRunner implements ProcessRunner {
       child.once("error", (error) => {
         failAfterTermination(processFailure(request, "could not be started.", error));
       });
-      child.once("close", (exitCode, signal) => {
-        if (terminating) {
-          return;
-        }
-        const stdoutText = Buffer.concat(stdout).toString("utf8");
-        const stderrText = Buffer.concat(stderr).toString("utf8");
-        if (exitCode !== 0) {
-          finish(
-            processFailure(
-              request,
-              `failed: ${stderrText.trim() || `exit code ${String(exitCode)}${signal === null ? "" : ` (${signal})`}`}`
-            )
-          );
-          return;
-        }
-        finish({ stdout: stdoutText, stderr: stderrText });
-      });
+      child.once("exit", completeAfterExit);
 
       deadlineSignal.addEventListener("abort", onTimeout, { once: true });
       request.signal?.addEventListener("abort", onAbort, { once: true });

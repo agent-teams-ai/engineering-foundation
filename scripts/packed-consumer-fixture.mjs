@@ -81,6 +81,12 @@ capabilities:
     configPath: architecture/foundation/documentation-local-references.yaml
   governance.architecture-decisions:
     configPath: architecture/foundation/governance-architecture-decisions.yaml
+  package.public-api-compatibility:
+    configPath: architecture/foundation/public-api-compatibility.yaml
+  quality.suppression-governance:
+    configPath: architecture/foundation/suppression-governance.yaml
+  repository.security-baseline:
+    configPath: architecture/foundation/repository-security-baseline.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml
 `,
@@ -285,6 +291,159 @@ async function writeProtobufFixture(consumerRoot) {
   );
 }
 
+async function writePublicApiFixture(consumerRoot) {
+  const packageRoot = join(consumerRoot, "packages", "library");
+  await mkdir(join(packageRoot, "dist"), { recursive: true });
+  await mkdir(join(consumerRoot, ".changeset"), { recursive: true });
+  await writeFile(
+    join(packageRoot, "dist", "index.d.ts"),
+    "export declare function stable(value: string): string;\n",
+    "utf8"
+  );
+  await writeFile(
+    join(packageRoot, "dist", "local-mode.d.ts"),
+    "export declare function stable(value: string): string;\n",
+    "utf8"
+  );
+  await writeJson(join(packageRoot, "package.json"), {
+    name: "@fixture/public-api",
+    version: "1.2.3",
+    type: "module",
+    files: ["dist"],
+    publishConfig: { provenance: true },
+    exports: {
+      ".": { types: "./dist/index.d.ts" },
+      "./local-mode": { types: "./dist/local-mode.d.ts" }
+    }
+  });
+  await writeJson(join(packageRoot, "tsconfig.json"), {
+    compilerOptions: {
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
+      strict: true,
+      target: "ES2024"
+    },
+    include: ["dist/*.d.ts"]
+  });
+  await writeFile(
+    join(consumerRoot, "architecture", "foundation", "public-api-compatibility.yaml"),
+    [
+      "schemaVersion: 2",
+      "acceptedDecisionBaselinePath: architecture/decisions/accepted-decisions.json",
+      "changesetDirectory: .changeset",
+      "packages:",
+      "  - packageName: \"@fixture/public-api\"",
+      "    packageRoot: packages/library",
+      "    manifestPath: packages/library/package.json",
+      "    entrypoints:",
+      "      - exportPath: .",
+      "        declarationEntryPoint: packages/library/dist/index.d.ts",
+      "      - exportPath: ./local-mode",
+      "        declarationEntryPoint: packages/library/dist/local-mode.d.ts",
+      "    nonTypeExports: []",
+      "    tsconfigPath: packages/library/tsconfig.json",
+      "    releasedBaselinePath: architecture/public-api/public-api.json",
+      "    approvedBreakingChanges: []",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+  const stableItem = {
+    canonicalReference: "@fixture/public-api!stable:function(1)",
+    kind: "Function",
+    parentReference: "@fixture/public-api!",
+    parentKind: "EntryPoint",
+    signature: "export declare function stable(value: string): string;"
+  };
+  await writeJson(join(consumerRoot, "architecture", "public-api", "public-api.json"), {
+    schemaVersion: 2,
+    packageName: "@fixture/public-api",
+    packageVersion: "1.2.3",
+    extractorVersion: "7.58.12",
+    entrypoints: [
+      { exportPath: ".", items: [stableItem] },
+      { exportPath: "./local-mode", items: [stableItem] }
+    ]
+  });
+}
+
+async function writeSuppressionGovernanceFixture(consumerRoot) {
+  await writeFile(
+    join(consumerRoot, "architecture", "foundation", "suppression-governance.yaml"),
+    [
+      "schemaVersion: 1",
+      "governedRoots:",
+      "  - src",
+      "nonWaivableRulePrefixes:",
+      "  - access-control.",
+      "waivers: []",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+}
+
+async function writeRepositorySecurityFixture(consumerRoot) {
+  const workflowsRoot = join(consumerRoot, ".github", "workflows");
+  await mkdir(workflowsRoot, { recursive: true });
+  await writeFile(
+    join(workflowsRoot, "ci.yml"),
+    [
+      "name: CI",
+      "on:",
+      "  pull_request:",
+      "permissions:",
+      "  contents: read",
+      "jobs:",
+      "  dependency-review:",
+      "    runs-on: ubuntu-24.04",
+      "    steps:",
+      "      - uses: actions/dependency-review-action@2222222222222222222222222222222222222222",
+      "        with:",
+      "          base-ref: refs/heads/main",
+      "          head-ref: refs/pull/current/head",
+      "          fail-on-severity: moderate",
+      "          vulnerability-check: true",
+      "          warn-only: false",
+      "  check:",
+      "    needs: dependency-review",
+      "    runs-on: ubuntu-24.04",
+      "    steps:",
+      "      - uses: actions/checkout@1111111111111111111111111111111111111111",
+      "      - uses: anchore/sbom-action@3333333333333333333333333333333333333333",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "architecture", "foundation", "repository-security-baseline.yaml"),
+    [
+      "schemaVersion: 1",
+      "workflowDirectory: .github/workflows",
+      "dependencyReview:",
+      "  workflowPath: .github/workflows/ci.yml",
+      "  jobId: dependency-review",
+      "  baseRef: refs/heads/main",
+      "  headRef: refs/pull/current/head",
+      "  failOnSeverity: moderate",
+      "sbomWorkflow: .github/workflows/ci.yml",
+      "allowedContainerImages: []",
+      "allowedUses:",
+      "  - uses: actions/checkout@1111111111111111111111111111111111111111",
+      "    transitiveUses: []",
+      "  - uses: actions/dependency-review-action@2222222222222222222222222222222222222222",
+      "    transitiveUses: []",
+      "  - uses: anchore/sbom-action@3333333333333333333333333333333333333333",
+      "    transitiveUses: []",
+      "privilegedJobs: []",
+      "publishablePackageManifests:",
+      "  - packages/library/package.json",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+}
+
 function resolveConsumerToolEntrypoints(consumerRoot) {
   const requireFromConsumer = createRequire(join(consumerRoot, "package.json"));
   const foundationRoot = dirname(requireFromConsumer.resolve(`${foundationPackage}/package.json`));
@@ -306,6 +465,9 @@ export async function createPackedConsumerFixture(input) {
   await writeDocumentationFixture(input.consumerRoot);
   const jsonContract = await writeJsonContractFixture(input.consumerRoot);
   await writeProtobufFixture(input.consumerRoot);
+  await writePublicApiFixture(input.consumerRoot);
+  await writeSuppressionGovernanceFixture(input.consumerRoot);
+  await writeRepositorySecurityFixture(input.consumerRoot);
   const sourceRoot = join(input.consumerRoot, "src");
   await mkdir(sourceRoot, { recursive: true });
   await writeFile(join(sourceRoot, "index.ts"), identitySource, "utf8");

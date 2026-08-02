@@ -1,6 +1,15 @@
-import { mkdtemp, readFile, realpath, rm, stat } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  writeFile
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
   Extractor,
@@ -14,7 +23,11 @@ import {
 } from "@microsoft/api-extractor-model";
 
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import { pathTraversesSymbolicLink } from "../../../../../filesystem-path-safety.js";
+import {
+  ContainedFileReadError,
+  pathTraversesSymbolicLink,
+  readContainedRegularFile
+} from "../../../../../filesystem-path-safety.js";
 import { assertNotCancelled } from "../../../../../strict-yaml.js";
 import {
   compareCanonicalReferences,
@@ -26,10 +39,16 @@ import {
   type PublicApiSnapshot
 } from "../../../application/model/public-api.js";
 import type { PublicApiExtractor } from "../../../application/ports/public-api-extractor.js";
+import { linkStagedPackageNodeModules } from "./link-staged-package-node-modules.js";
 
 function inputError(code: string, message: string, phase: string): never {
   throw new CapabilityInputError({ code, message, phase, retryable: false });
 }
+
+const MAX_EXTRACTOR_INPUT_BYTES = 32 * 1024 * 1024;
+const MAX_STAGED_PACKAGE_BYTES = 128 * 1024 * 1024;
+const MAX_STAGED_PACKAGE_FILES = 10_000;
+const STAGING_DIRECTORY_PREFIX = ".agent-teams-public-api-stage-";
 
 function contained(parent: string, candidate: string): boolean {
   const relation = relative(parent, candidate);
@@ -39,42 +58,221 @@ function contained(parent: string, candidate: string): boolean {
   );
 }
 
-async function safePath(
-  root: string,
-  repositoryPath: string,
-  kind: "directory" | "file"
-): Promise<string> {
-  const candidate = resolve(root, repositoryPath);
-  if (await pathTraversesSymbolicLink(root, candidate)) {
+function extractionReadError(error: unknown, repositoryPath: string): never {
+  if (error instanceof ContainedFileReadError) {
+    const code =
+      error.failure === "symlink"
+        ? "PUBLIC_API_PATH_SYMLINK_PROHIBITED"
+        : error.failure === "escape"
+          ? "PUBLIC_API_PATH_ESCAPE"
+          : error.failure === "invalid"
+            ? "PUBLIC_API_PATH_INVALID"
+            : "PUBLIC_API_PATH_UNAVAILABLE";
     inputError(
-      "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
-      `Public API ${kind} cannot traverse a symbolic link: ${repositoryPath}.`,
+      code,
+      `Public API extraction input is unavailable or changed: ${repositoryPath}.`,
       "public-api-extraction"
     );
   }
-  const canonical = await realpath(candidate).catch(() =>
-    inputError(
-      "PUBLIC_API_PATH_UNAVAILABLE",
-      `Public API ${kind} is unavailable: ${repositoryPath}.`,
-      "public-api-extraction"
-    )
-  );
-  if (!contained(root, canonical)) {
+  throw error;
+}
+
+interface StagedPackageSnapshot {
+  readonly packageRoot: string;
+  readonly sourcePackageRoot: string;
+  readonly stagingRoot: string;
+}
+
+interface StagingBudget {
+  fileCount: number;
+  totalBytes: number;
+}
+
+function sourcePathFor(root: string, repositoryPath: string): string {
+  const candidate = resolve(root, repositoryPath);
+  if (!contained(root, candidate)) {
     inputError(
       "PUBLIC_API_PATH_ESCAPE",
-      `Public API ${kind} escapes the consumer repository: ${repositoryPath}.`,
+      `Public API extraction path escapes the consumer repository: ${repositoryPath}.`,
       "public-api-extraction"
     );
   }
-  const metadata = await stat(canonical);
-  if ((kind === "file" && !metadata.isFile()) || (kind === "directory" && !metadata.isDirectory())) {
+  return candidate;
+}
+
+function stagedPathForSource(input: {
+  readonly snapshot: StagedPackageSnapshot;
+  readonly sourcePath: string;
+}): string {
+  const repositoryRelativePath = relative(input.snapshot.sourcePackageRoot, input.sourcePath);
+  if (
+    repositoryRelativePath.length === 0 ||
+    isAbsolute(repositoryRelativePath) ||
+    repositoryRelativePath === ".." ||
+    repositoryRelativePath.startsWith(`..${sep}`)
+  ) {
     inputError(
-      "PUBLIC_API_PATH_INVALID",
-      `Public API path is not a ${kind}: ${repositoryPath}.`,
+      "PUBLIC_API_PATH_ESCAPE",
+      "Configured public API evidence must stay inside the package root.",
       "public-api-extraction"
     );
   }
-  return canonical;
+  return join(input.snapshot.packageRoot, repositoryRelativePath);
+}
+
+async function readStagedSourceFile(input: {
+  readonly root: string;
+  readonly sourcePath: string;
+}): Promise<Buffer> {
+  try {
+    return await readContainedRegularFile({
+      candidate: input.sourcePath,
+      maxBytes: MAX_EXTRACTOR_INPUT_BYTES,
+      root: input.root
+    });
+  } catch (error) {
+    return extractionReadError(error, relative(input.root, input.sourcePath));
+  }
+}
+
+async function stagePackageDirectory(input: {
+  readonly budget: StagingBudget;
+  readonly destinationDirectory: string;
+  readonly root: string;
+  readonly sourceDirectory: string;
+}): Promise<void> {
+  if (await pathTraversesSymbolicLink(input.root, input.sourceDirectory)) {
+    inputError(
+      "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
+      `Public API package tree cannot traverse a symbolic link: ${relative(input.root, input.sourceDirectory)}.`,
+      "public-api-extraction"
+    );
+  }
+  let entries;
+  try {
+    entries = await readdir(input.sourceDirectory, { withFileTypes: true });
+  } catch {
+    inputError(
+      "PUBLIC_API_PATH_UNAVAILABLE",
+      `Public API package directory is unavailable: ${relative(input.root, input.sourceDirectory)}.`,
+      "public-api-extraction"
+    );
+  }
+  for (const entry of entries.toSorted((left, right) =>
+    compareCanonicalReferences(left.name, right.name)
+  )) {
+    const sourcePath = join(input.sourceDirectory, entry.name);
+    // Dependencies remain source-package-local through the controlled staging
+    // link below. Skip stale staging directories from interrupted old runs too.
+    if (
+      entry.name === "node_modules" ||
+      entry.name.startsWith(STAGING_DIRECTORY_PREFIX)
+    ) {
+      continue;
+    }
+    const destinationPath = join(input.destinationDirectory, entry.name);
+    if (entry.isSymbolicLink()) {
+      inputError(
+        "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
+        `Public API package tree cannot include a symbolic link: ${relative(input.root, sourcePath)}.`,
+        "public-api-extraction"
+      );
+    }
+    if (entry.isDirectory()) {
+      await mkdir(destinationPath, { mode: 0o700, recursive: true });
+      await stagePackageDirectory({
+        budget: input.budget,
+        destinationDirectory: destinationPath,
+        root: input.root,
+        sourceDirectory: sourcePath
+      });
+      continue;
+    }
+    if (!entry.isFile()) {
+      inputError(
+        "PUBLIC_API_PATH_INVALID",
+        `Public API package tree contains an unsupported entry: ${relative(input.root, sourcePath)}.`,
+        "public-api-extraction"
+      );
+    }
+    const source = await readStagedSourceFile({ root: input.root, sourcePath });
+    input.budget.fileCount += 1;
+    input.budget.totalBytes += source.byteLength;
+    if (
+      input.budget.fileCount > MAX_STAGED_PACKAGE_FILES ||
+      input.budget.totalBytes > MAX_STAGED_PACKAGE_BYTES
+    ) {
+      inputError(
+        "PUBLIC_API_PATH_INVALID",
+        "Public API package input exceeds the staged extraction resource limit.",
+        "public-api-extraction"
+      );
+    }
+    await writeFile(destinationPath, source, { mode: 0o600 });
+  }
+}
+
+async function stagePackageSnapshot(input: {
+  readonly policy: PublicApiPackagePolicy;
+  readonly root: string;
+}): Promise<StagedPackageSnapshot> {
+  const sourcePackageRoot = sourcePathFor(input.root, input.policy.packageRoot);
+  if (await pathTraversesSymbolicLink(input.root, sourcePackageRoot)) {
+    inputError(
+      "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
+      `Public API package root cannot traverse a symbolic link: ${input.policy.packageRoot}.`,
+      "public-api-extraction"
+    );
+  }
+  try {
+    if (!(await stat(sourcePackageRoot)).isDirectory()) {
+      inputError(
+        "PUBLIC_API_PATH_INVALID",
+        `Public API package root is not a directory: ${input.policy.packageRoot}.`,
+        "public-api-extraction"
+      );
+    }
+  } catch (error) {
+    if (error instanceof CapabilityInputError) {
+      throw error;
+    }
+    inputError(
+      "PUBLIC_API_PATH_UNAVAILABLE",
+      `Public API package root is unavailable: ${input.policy.packageRoot}.`,
+      "public-api-extraction"
+    );
+  }
+  let stagingRoot: string;
+  try {
+    stagingRoot = await mkdtemp(join(dirname(sourcePackageRoot), STAGING_DIRECTORY_PREFIX));
+  } catch {
+    inputError(
+      "PUBLIC_API_EXTRACTION_FAILED",
+      "Unable to allocate a private public API staging directory.",
+      "public-api-extraction"
+    );
+  }
+  const snapshot: StagedPackageSnapshot = Object.freeze({
+    packageRoot: stagingRoot,
+    sourcePackageRoot,
+    stagingRoot
+  });
+  try {
+    await stagePackageDirectory({
+      budget: { fileCount: 0, totalBytes: 0 },
+      destinationDirectory: snapshot.packageRoot,
+      root: input.root,
+      sourceDirectory: snapshot.sourcePackageRoot
+    });
+    await linkStagedPackageNodeModules({
+      sourcePackageRoot: snapshot.sourcePackageRoot,
+      stagedPackageRoot: snapshot.packageRoot
+    });
+    return snapshot;
+  } catch (error) {
+    await rm(stagingRoot, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 function collectItems(item: ApiItem, output: PublicApiItem[]): void {
@@ -214,73 +412,83 @@ export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
         "public-api-extraction"
       )
     );
-    const [packageRoot, manifestPath, tsconfigPath] = await Promise.all([
-      safePath(canonicalRoot, policy.packageRoot, "directory"),
-      safePath(canonicalRoot, policy.manifestPath, "file"),
-      safePath(canonicalRoot, policy.tsconfigPath, "file")
-    ]);
-    let manifest: { readonly name?: unknown };
+    const staged = await stagePackageSnapshot({ policy, root: canonicalRoot });
     try {
-      manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
-        readonly name?: unknown;
-      };
-    } catch {
-      inputError(
-        "PUBLIC_API_PACKAGE_MANIFEST_INVALID",
-        `Package manifest is not valid JSON: ${policy.manifestPath}.`,
-        "public-api-extraction"
-      );
-    }
-    if (manifest.name !== policy.packageName) {
-      inputError(
-        "PUBLIC_API_PACKAGE_IDENTITY_INVALID",
-        `Package manifest identity does not match ${policy.packageName}.`,
-        "public-api-extraction"
-      );
-    }
-    const entrypoints: PublicApiEntrypointSnapshot[] = [];
-    for (const entrypoint of publicApiEntrypoints(policy).toSorted((left, right) =>
-      compareCanonicalReferences(left.exportPath, right.exportPath)
-    )) {
-      assertNotCancelled(signal);
-      entrypoints.push(
-        await extractEntrypoint({
-          entrypoint,
-          entryPointPath: await safePath(
-            canonicalRoot,
-            entrypoint.declarationEntryPoint,
-            "file"
-          ),
-          manifestPath,
-          packageRoot,
-          ...(signal === undefined ? {} : { signal }),
-          tsconfigPath
-        })
-      );
-    }
-    if ("entrypoints" in policy) {
+      const manifestPath = stagedPathForSource({
+        snapshot: staged,
+        sourcePath: sourcePathFor(canonicalRoot, policy.manifestPath)
+      });
+      let manifest: { readonly name?: unknown };
+      try {
+        manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+          readonly name?: unknown;
+        };
+      } catch (error) {
+        if (error instanceof CapabilityInputError) {
+          throw error;
+        }
+        inputError(
+          "PUBLIC_API_PACKAGE_MANIFEST_INVALID",
+          `Package manifest is not valid JSON: ${policy.manifestPath}.`,
+          "public-api-extraction"
+        );
+      }
+      if (manifest.name !== policy.packageName) {
+        inputError(
+          "PUBLIC_API_PACKAGE_IDENTITY_INVALID",
+          `Package manifest identity does not match ${policy.packageName}.`,
+          "public-api-extraction"
+        );
+      }
+      const tsconfigPath = stagedPathForSource({
+        snapshot: staged,
+        sourcePath: sourcePathFor(canonicalRoot, policy.tsconfigPath)
+      });
+      const entrypoints: PublicApiEntrypointSnapshot[] = [];
+      for (const entrypoint of publicApiEntrypoints(policy).toSorted((left, right) =>
+        compareCanonicalReferences(left.exportPath, right.exportPath)
+      )) {
+        assertNotCancelled(signal);
+        entrypoints.push(
+          await extractEntrypoint({
+            entrypoint,
+            entryPointPath: stagedPathForSource({
+              snapshot: staged,
+              sourcePath: sourcePathFor(canonicalRoot, entrypoint.declarationEntryPoint)
+            }),
+            manifestPath,
+            packageRoot: staged.packageRoot,
+            ...(signal === undefined ? {} : { signal }),
+            tsconfigPath
+          })
+        );
+      }
+      if ("entrypoints" in policy) {
+        return Object.freeze({
+          schemaVersion: 2,
+          packageName: policy.packageName,
+          packageVersion,
+          extractorVersion: Extractor.version,
+          entrypoints: Object.freeze(entrypoints)
+        });
+      }
+      const entrypoint = entrypoints[0];
+      if (entrypoint === undefined) {
+        inputError(
+          "PUBLIC_API_EXTRACTION_FAILED",
+          "Public API configuration has no declaration entry point.",
+          "public-api-extraction"
+        );
+      }
       return Object.freeze({
-        schemaVersion: 2,
+        schemaVersion: 1,
         packageName: policy.packageName,
         packageVersion,
         extractorVersion: Extractor.version,
-        entrypoints: Object.freeze(entrypoints)
+        items: entrypoint.items
       });
+    } finally {
+      await rm(staged.stagingRoot, { recursive: true, force: true });
     }
-    const entrypoint = entrypoints[0];
-    if (entrypoint === undefined) {
-      inputError(
-        "PUBLIC_API_EXTRACTION_FAILED",
-        "Public API configuration has no declaration entry point.",
-        "public-api-extraction"
-      );
-    }
-    return Object.freeze({
-      schemaVersion: 1,
-      packageName: policy.packageName,
-      packageVersion,
-      extractorVersion: Extractor.version,
-      items: entrypoint.items
-    });
   }
 }

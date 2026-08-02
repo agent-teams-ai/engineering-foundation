@@ -246,6 +246,20 @@ test("packaging subprocesses have a bounded deadline", async () => {
   );
 });
 
+test("packaging subprocess output is bounded by cumulative bytes", async () => {
+  const source =
+    "const chunk = 'x'.repeat(1024 * 1024); for (let i = 0; i < 17; i += 1) process.stdout.write(chunk);";
+  await assert.rejects(
+    runCommand(
+      process.execPath,
+      ["--input-type=module", "--eval", source],
+      repositoryRoot,
+      { timeoutMs: 5_000 },
+    ),
+    /stdout exceeded 16777216 bytes/u,
+  );
+});
+
 test("packaging command timeouts terminate descendants", async () => {
   const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-pack-timeout-"));
   const processRecordPath = join(fixtureRoot, "processes.json");

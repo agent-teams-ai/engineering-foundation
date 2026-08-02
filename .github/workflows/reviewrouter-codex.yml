@@ -60,7 +60,9 @@ jobs:
       timeout_minutes: ${{ fromJSON(vars.REVIEW_ROUTER_TIMEOUT_MINUTES || '60') }}
       max_changed_lines: ${{ fromJSON(vars.REVIEW_ROUTER_MAX_CHANGED_LINES || '250000') }}
       codex_model: ${{ vars.REVIEW_CODEX_MODEL || 'gpt-5.6-sol' }}
-    secrets: inherit
+    secrets:
+      CODEX_AUTH_JSON: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON }}
+      REVIEW_ROUTER_LEDGER_KEY: ${{ secrets.REVIEW_ROUTER_LEDGER_KEY }}
 
   required-review:
     name: ReviewRouter

@@ -104,7 +104,8 @@ authoritative for package identities, dependencies, and exports.
 
 ## Upgrade procedure
 
-1. Renovate opens an exact-version update PR.
+1. The consumer repository's configured dependency updater opens an exact-version
+   update pull request. Foundation does not prescribe a specific updater.
 2. CI installs from the registry and runs all foundation and consumer checks.
 3. Breaking schema changes include a migration guide and preserve old immutable
    schemas for the documented migration window.

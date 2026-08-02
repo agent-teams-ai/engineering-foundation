@@ -27,10 +27,10 @@ Oxc adapter. See
 [Executable capabilities](docs/architecture/executable-capabilities.md) and
 [the parser spike](docs/research/source-dependency-parser-spike.md).
 Suppression governance, released public API compatibility, and the publishing-
-repository security baseline are accepted and dogfooded capabilities in the
-unreleased `0.4.0` line. Consumers still enable each capability explicitly and
-must satisfy its consumer-owned adoption gates; installing a package version
-does not activate policy.
+repository security baseline are accepted, implemented, released, and
+dogfooded. Consumers still enable each capability explicitly and must satisfy
+their consumer-owned adoption gates; installing a package version does not
+activate policy.
 
 ## Commands
 

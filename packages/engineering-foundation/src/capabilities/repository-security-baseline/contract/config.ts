@@ -2,9 +2,19 @@ import { CapabilityInputError } from "../../../capability-runtime.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { assertRepositoryRelativePath, loadStrictYamlFile } from "../../../strict-yaml.js";
 import type {
+  AllowedWorkflowUse,
   PrivilegedJobPolicy,
   RepositorySecurityPolicy,
+  RepositorySecurityToolPolicies,
+  RepositorySecurityToolPolicy,
+  SecurityToolName,
+  ToolEvidenceRollout,
   WorkflowPermission
+} from "../application/model/repository-security.js";
+import {
+  configuredRepositorySecurityTools,
+  flattenAllowedWorkflowUses,
+  isPinnedExternalWorkflowUse
 } from "../application/model/repository-security.js";
 
 export const CAPABILITY_ID = "repository.security-baseline" as const;
@@ -37,6 +47,107 @@ function path(value: unknown, field: string): string {
   const result = string(value, field);
   assertRepositoryRelativePath(result, "repository-security-config");
   return result;
+}
+
+function rollout(value: unknown, field: string): ToolEvidenceRollout {
+  if (value !== "advisory" && value !== "blocking") {
+    inputError(`${field} must be advisory or blocking.`);
+  }
+  return value;
+}
+
+function version(value: unknown, field: string): string {
+  const result = string(value, field);
+  if (
+    !/^v?[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u.test(
+      result
+    )
+  ) {
+    inputError(`${field} must be an exact semantic version.`);
+  }
+  return result;
+}
+
+function pinnedExternalUse(value: unknown, field: string): string {
+  const result = string(value, field);
+  if (!isPinnedExternalWorkflowUse(result)) {
+    inputError(`${field} must be an immutable external action, reusable workflow, or container digest.`);
+  }
+  return result;
+}
+
+function mapToolEvidencePolicy(
+  value: unknown,
+  tool: SecurityToolName
+): RepositorySecurityToolPolicy {
+  const field = `toolEvidence.${tool}`;
+  const input = record(value, field);
+  return Object.freeze({
+    configPath: path(input["configPath"], `${field}.configPath`),
+    evidencePath: path(input["evidencePath"], `${field}.evidencePath`),
+    invocationUse: pinnedExternalUse(input["invocationUse"], `${field}.invocationUse`),
+    jobId: string(input["jobId"], `${field}.jobId`),
+    resultPath: path(input["resultPath"], `${field}.resultPath`),
+    rollout: rollout(input["rollout"], `${field}.rollout`),
+    version: version(input["version"], `${field}.version`),
+    workflowPath: path(input["workflowPath"], `${field}.workflowPath`)
+  });
+}
+
+function mapToolEvidencePolicies(value: unknown): RepositorySecurityToolPolicies {
+  const input = record(value, "toolEvidence");
+  const actionlint = mapToolEvidencePolicy(input["actionlint"], "actionlint");
+  const zizmor = mapToolEvidencePolicy(input["zizmor"], "zizmor");
+  const codeql = input["codeql"] === undefined ? undefined : mapToolEvidencePolicy(input["codeql"], "codeql");
+  const policies = [actionlint, zizmor, ...(codeql === undefined ? [] : [codeql])];
+  const artifactPaths = policies.flatMap(({ evidencePath, resultPath }) => [
+    evidencePath,
+    resultPath
+  ]);
+  if (new Set(artifactPaths).size !== artifactPaths.length) {
+    inputError("Each security tool must declare independent evidence and result paths.");
+  }
+  const jobKeys = policies.map(({ jobId, workflowPath }) => `${workflowPath}:${jobId}`);
+  if (new Set(jobKeys).size !== jobKeys.length) {
+    inputError("Each security tool must declare an independent workflow job.");
+  }
+  return Object.freeze({
+    actionlint,
+    zizmor,
+    ...(codeql === undefined ? {} : { codeql })
+  });
+}
+
+function mapAllowedUse(value: unknown, field: string, depth: number): AllowedWorkflowUse {
+  if (depth > 10) {
+    inputError(`${field} exceeds the supported transitive allowlist depth.`);
+  }
+  const input = record(value, field);
+  const use = pinnedExternalUse(input["uses"], `${field}.uses`);
+  const transitiveInput = input["transitiveUses"];
+  if (!Array.isArray(transitiveInput)) {
+    inputError(`${field}.transitiveUses must be an array.`);
+  }
+  return Object.freeze({
+    uses: use,
+    transitiveUses: Object.freeze(
+      transitiveInput.map((entry, index) =>
+        mapAllowedUse(entry, `${field}.transitiveUses[${index}]`, depth + 1)
+      )
+    )
+  });
+}
+
+function mapAllowedUses(value: unknown): readonly AllowedWorkflowUse[] {
+  if (!Array.isArray(value)) {
+    inputError("allowedUses must be an array.");
+  }
+  const entries = value.map((entry, index) => mapAllowedUse(entry, `allowedUses[${index}]`, 1));
+  const flattened = flattenAllowedWorkflowUses(entries).map(({ uses }) => uses);
+  if (new Set(flattened).size !== flattened.length) {
+    inputError("allowedUses and transitiveUses entries must be globally unique.");
+  }
+  return Object.freeze(entries);
 }
 
 function mapPrivilegedJob(value: unknown, index: number): PrivilegedJobPolicy {
@@ -99,13 +210,29 @@ export async function loadCapabilityConfig(
       inputError(`Privileged workflow must be inside ${workflowDirectory}: ${privileged.workflowPath}.`);
     }
   }
+  const allowedUses =
+    root["allowedUses"] === undefined ? undefined : mapAllowedUses(root["allowedUses"]);
+  const toolEvidence =
+    root["toolEvidence"] === undefined
+      ? undefined
+      : mapToolEvidencePolicies(root["toolEvidence"]);
+  if (toolEvidence !== undefined && allowedUses === undefined) {
+    inputError("toolEvidence requires an explicit allowedUses declaration.");
+  }
+  for (const tool of configuredRepositorySecurityTools(toolEvidence)) {
+    if (!tool.policy.workflowPath.startsWith(`${workflowDirectory}/`)) {
+      inputError(`${tool.policy.workflowPath} must be inside workflowDirectory.`);
+    }
+  }
   return Object.freeze({
+    ...(allowedUses === undefined ? {} : { allowedUses }),
     workflowDirectory,
     dependencyReviewWorkflow,
     sbomWorkflow,
     privilegedJobs: Object.freeze(privilegedJobs),
     publishablePackageManifests: Object.freeze(
       manifestsInput.map((value, index) => path(value, `publishablePackageManifests[${index}]`))
-    )
+    ),
+    ...(toolEvidence === undefined ? {} : { toolEvidence })
   });
 }

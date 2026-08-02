@@ -12,11 +12,29 @@
     "privilegedJobs",
     "publishablePackageManifests"
   ],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "toolEvidence": true },
+        "required": ["toolEvidence"]
+      },
+      "then": {
+        "properties": { "allowedUses": true },
+        "required": ["allowedUses"]
+      }
+    }
+  ],
   "properties": {
     "schemaVersion": { "const": 1 },
     "workflowDirectory": { "$ref": "#/$defs/repositoryPath" },
     "dependencyReviewWorkflow": { "$ref": "#/$defs/repositoryPath" },
     "sbomWorkflow": { "$ref": "#/$defs/repositoryPath" },
+    "allowedUses": {
+      "type": "array",
+      "maxItems": 500,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/allowedWorkflowUse" }
+    },
     "privilegedJobs": {
       "type": "array",
       "maxItems": 100,
@@ -37,6 +55,16 @@
       "maxItems": 100,
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/repositoryPath" }
+    },
+    "toolEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actionlint", "zizmor"],
+      "properties": {
+        "actionlint": { "$ref": "#/$defs/toolEvidencePolicy" },
+        "zizmor": { "$ref": "#/$defs/toolEvidencePolicy" },
+        "codeql": { "$ref": "#/$defs/toolEvidencePolicy" }
+      }
     }
   },
   "$defs": {
@@ -52,6 +80,58 @@
       "maxProperties": 30,
       "propertyNames": { "pattern": "^[a-z-]{1,50}$" },
       "additionalProperties": { "enum": ["none", "read", "write"] }
+    },
+    "pinnedExternalUse": {
+      "type": "string",
+      "maxLength": 1000,
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_./-]+)?@[0-9a-fA-F]{40}$"
+        },
+        {
+          "pattern": "^docker://.+@sha256:[0-9a-fA-F]{64}$"
+        }
+      ]
+    },
+    "allowedWorkflowUse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uses", "transitiveUses"],
+      "properties": {
+        "uses": { "$ref": "#/$defs/pinnedExternalUse" },
+        "transitiveUses": {
+          "type": "array",
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/allowedWorkflowUse" }
+        }
+      }
+    },
+    "toolEvidencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configPath",
+        "evidencePath",
+        "invocationUse",
+        "jobId",
+        "resultPath",
+        "rollout",
+        "version",
+        "workflowPath"
+      ],
+      "properties": {
+        "configPath": { "$ref": "#/$defs/repositoryPath" },
+        "evidencePath": { "$ref": "#/$defs/repositoryPath" },
+        "invocationUse": { "$ref": "#/$defs/pinnedExternalUse" },
+        "jobId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,100}$" },
+        "resultPath": { "$ref": "#/$defs/repositoryPath" },
+        "rollout": { "enum": ["advisory", "blocking"] },
+        "version": {
+          "type": "string",
+          "pattern": "^v?[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+        },
+        "workflowPath": { "$ref": "#/$defs/repositoryPath" }
+      }
     }
   }
 }

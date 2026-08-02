@@ -1,18 +1,25 @@
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import type { DiagnosticSeverity, FoundationDiagnostic } from "../../../../check-contract.js";
 import type {
   PrivilegedJobPolicy,
   RepositorySecurityEvidence,
   RepositorySecurityPolicy,
+  RepositorySecurityToolEvidence,
+  SecurityToolName,
+  ToolEvidenceRollout,
   WorkflowJobEvidence,
   WorkflowPermission
+} from "../model/repository-security.js";
+import {
+  configuredRepositorySecurityTools,
+  flattenAllowedWorkflowUses,
+  isSafeLocalWorkflowUse,
+  isPinnedExternalWorkflowUse
 } from "../model/repository-security.js";
 import {
   REPOSITORY_SECURITY_RULES,
   type RepositorySecurityRuleMetadata
 } from "../rules.js";
 
-const FULL_SHA_ACTION = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_./-]+)?@[0-9a-fA-F]{40}$/u;
-const FULL_DIGEST_CONTAINER = /^docker:\/\/.+@sha256:[0-9a-fA-F]{64}$/u;
 const UNSAFE_PACKAGE_SEGMENT = /^(?:\.env(?:\..*)?|\.git|node_modules|src|tests?|auth\.json)$/iu;
 const PACKAGE_PATH_META = /[*?{}[\]\\]/u;
 const UNTRUSTED_EXPRESSION_IN_RUN =
@@ -24,10 +31,11 @@ function diagnostic(input: {
   readonly path: string;
   readonly message: string;
   readonly evidence?: readonly { readonly kind: string; readonly value: string }[];
+  readonly severity?: DiagnosticSeverity;
 }): FoundationDiagnostic {
   return {
     ruleId: input.rule.id,
-    severity: input.rule.severity,
+    severity: input.severity ?? input.rule.severity,
     subject: input.subject,
     message: input.message,
     location: { path: input.path },
@@ -62,10 +70,152 @@ function policyForJob(
 }
 
 function actionPinned(action: string): boolean {
-  if (action.startsWith("./")) {
-    return !action.split("/").includes("..") && !action.includes("${{");
+  if (isSafeLocalWorkflowUse(action)) {
+    return true;
   }
-  return FULL_SHA_ACTION.test(action) || FULL_DIGEST_CONTAINER.test(action);
+  return isPinnedExternalWorkflowUse(action);
+}
+
+function severityForRollout(rollout: ToolEvidenceRollout): DiagnosticSeverity {
+  return rollout === "blocking" ? "error" : "warning";
+}
+
+function jobMatchesToolRollout(job: WorkflowJobEvidence, rollout: ToolEvidenceRollout): boolean {
+  return !job.conditional && (rollout === "blocking" ? !job.nonBlocking : job.nonBlocking);
+}
+
+function jobInvokes(job: WorkflowJobEvidence, invocationUse: string): boolean {
+  return job.uses === invocationUse || job.steps.some((step) => step.uses === invocationUse);
+}
+
+function evaluateToolEvidence(
+  policy: RepositorySecurityPolicy,
+  evidence: RepositorySecurityEvidence,
+  diagnostics: FoundationDiagnostic[]
+): void {
+  const observed = new Map<SecurityToolName, RepositorySecurityToolEvidence>(
+    evidence.toolEvidence.map((entry) => [entry.tool, entry])
+  );
+  for (const expected of configuredRepositorySecurityTools(policy.toolEvidence)) {
+    const observedEvidence = observed.get(expected.tool);
+    const severity = severityForRollout(expected.policy.rollout);
+    const workflow = evidence.workflows.find(
+      (candidate) => candidate.path === expected.policy.workflowPath
+    );
+    const job = workflow?.jobs.find((candidate) => candidate.id === expected.policy.jobId);
+    if (job === undefined) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.toolEvidenceJobMissing,
+          severity,
+          subject: `${expected.policy.workflowPath}:${expected.policy.jobId}`,
+          path: expected.policy.workflowPath,
+          message: `Declared ${expected.tool} external gate job is unavailable.`,
+          evidence: [{ kind: "tool", value: expected.tool }]
+        })
+      );
+    } else if (!jobMatchesToolRollout(job, expected.policy.rollout)) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.toolEvidenceRolloutMismatch,
+          severity,
+          subject: `${expected.policy.workflowPath}:${expected.policy.jobId}`,
+          path: expected.policy.workflowPath,
+          message: `Declared ${expected.tool} external gate job does not match ${expected.policy.rollout} rollout.`,
+          evidence: [{ kind: "tool", value: expected.tool }]
+        })
+      );
+    } else if (!jobInvokes(job, expected.policy.invocationUse)) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.toolEvidenceInvocationMissing,
+          severity,
+          subject: `${expected.policy.workflowPath}:${expected.policy.jobId}`,
+          path: expected.policy.workflowPath,
+          message: `Declared ${expected.tool} external gate job does not invoke its reviewed immutable runner.`,
+          evidence: [{ kind: "invocation-use", value: expected.policy.invocationUse }]
+        })
+      );
+    }
+    if (observedEvidence === undefined || observedEvidence.kind === "missing") {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.toolEvidenceMissing,
+          severity,
+          subject: expected.tool,
+          path: expected.policy.evidencePath,
+          message: `Required ${expected.tool} ${observedEvidence?.kind === "missing" ? observedEvidence.missing : "evidence"} is unavailable.`,
+          evidence: [
+            { kind: "evidence-path", value: expected.policy.evidencePath },
+            { kind: "result-path", value: expected.policy.resultPath }
+          ]
+        })
+      );
+      continue;
+    }
+    if (observedEvidence.toolVersion !== expected.policy.version) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.toolEvidenceVersionMismatch,
+          severity,
+          subject: expected.tool,
+          path: expected.policy.evidencePath,
+          message: `${expected.tool} evidence was produced by ${observedEvidence.toolVersion}, not declared version ${expected.policy.version}.`,
+          evidence: [
+            { kind: "actual-version", value: observedEvidence.toolVersion },
+            { kind: "expected-version", value: expected.policy.version }
+          ]
+        })
+      );
+    }
+    const staleEvidence =
+      observedEvidence.configDigest !== observedEvidence.actualConfigDigest ||
+      observedEvidence.workflowDigest !== observedEvidence.actualWorkflowDigest;
+    if (staleEvidence) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.toolEvidenceStale,
+          severity,
+          subject: expected.tool,
+          path: expected.policy.evidencePath,
+          message: `${expected.tool} evidence does not match the current opaque tool config or workflow inputs.`,
+          evidence: [
+            { kind: "actual-config-digest", value: observedEvidence.actualConfigDigest },
+            { kind: "actual-workflow-digest", value: observedEvidence.actualWorkflowDigest },
+            { kind: "reported-config-digest", value: observedEvidence.configDigest },
+            { kind: "reported-workflow-digest", value: observedEvidence.workflowDigest }
+          ]
+        })
+      );
+    }
+    if (observedEvidence.resultDigest !== observedEvidence.actualResultDigest) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.toolEvidenceResultDigestMismatch,
+          severity,
+          subject: expected.tool,
+          path: expected.policy.resultPath,
+          message: `${expected.tool} result artifact does not match its evidence digest.`,
+          evidence: [
+            { kind: "actual-result-digest", value: observedEvidence.actualResultDigest },
+            { kind: "reported-result-digest", value: observedEvidence.resultDigest }
+          ]
+        })
+      );
+    }
+    if (observedEvidence.outcome === "failed") {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.toolEvidenceFailed,
+          severity,
+          subject: expected.tool,
+          path: expected.policy.evidencePath,
+          message: `${expected.tool} evidence reports a failed tool execution.`,
+          evidence: [{ kind: "result-digest", value: observedEvidence.resultDigest }]
+        })
+      );
+    }
+  }
 }
 
 function jobPermissions(
@@ -186,29 +336,7 @@ export function evaluateRepositorySecurity(
           })
         );
       }
-      if (job.uses !== undefined && !actionPinned(job.uses)) {
-        diagnostics.push(
-          diagnostic({
-            rule: REPOSITORY_SECURITY_RULES.actionNotPinned,
-            subject: `${workflow.path}:${job.id}`,
-            path: workflow.path,
-            message: `Reusable workflow is not pinned to immutable evidence: ${job.uses}.`,
-            evidence: [{ kind: "action", value: job.uses }]
-          })
-        );
-      }
       for (const step of job.steps) {
-        if (step.uses !== undefined && !actionPinned(step.uses)) {
-          diagnostics.push(
-            diagnostic({
-              rule: REPOSITORY_SECURITY_RULES.actionNotPinned,
-              subject: `${workflow.path}:${job.id}`,
-              path: workflow.path,
-              message: `Action is not pinned to immutable evidence: ${step.uses}.`,
-              evidence: [{ kind: "action", value: step.uses }]
-            })
-          );
-        }
         if (step.run !== undefined && UNTRUSTED_EXPRESSION_IN_RUN.test(step.run)) {
           diagnostics.push(
             diagnostic({
@@ -284,6 +412,65 @@ export function evaluateRepositorySecurity(
       );
     }
   }
+  const flattenedAllowedUses = flattenAllowedWorkflowUses(policy.allowedUses ?? []);
+  const directAllowedUses = new Set(
+    flattenedAllowedUses.filter(({ direct }) => direct).map(({ uses }) => uses)
+  );
+  const allAllowedUses = new Set(flattenedAllowedUses.map(({ uses }) => uses));
+  const observedDirectUses = new Set<string>();
+  for (const use of evidence.workflowUses) {
+    if (!actionPinned(use.uses)) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.actionNotPinned,
+          subject: use.subject,
+          path: use.path,
+          message: `Workflow use is not pinned to immutable evidence: ${use.uses}.`,
+          evidence: [{ kind: "use", value: use.uses }]
+        })
+      );
+      continue;
+    }
+    if (!isPinnedExternalWorkflowUse(use.uses) || policy.allowedUses === undefined) {
+      continue;
+    }
+    observedDirectUses.add(use.uses);
+    if (!allAllowedUses.has(use.uses)) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.actionNotAllowlisted,
+          subject: use.subject,
+          path: use.path,
+          message: `Pinned external workflow use is not declared in allowedUses: ${use.uses}.`,
+          evidence: [{ kind: "use", value: use.uses }]
+        })
+      );
+    } else if (!directAllowedUses.has(use.uses)) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.actionAllowlistScopeMismatch,
+          subject: use.subject,
+          path: use.path,
+          message: `Direct repository use is declared only as transitive: ${use.uses}.`,
+          evidence: [{ kind: "use", value: use.uses }]
+        })
+      );
+    }
+  }
+  for (const allowedUse of directAllowedUses) {
+    if (!observedDirectUses.has(allowedUse)) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.staleAllowedUse,
+          subject: allowedUse,
+          path: policy.workflowDirectory,
+          message: `Direct allowedUses entry is not referenced by discovered local workflow sources: ${allowedUse}.`,
+          evidence: [{ kind: "use", value: allowedUse }]
+        })
+      );
+    }
+  }
+  evaluateToolEvidence(policy, evidence, diagnostics);
   for (const packageEvidence of evidence.packages) {
     if (!packageEvidence.provenance) {
       diagnostics.push(

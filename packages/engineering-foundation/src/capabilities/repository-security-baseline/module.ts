@@ -27,17 +27,19 @@ export function createRepositorySecurityBaselineCapability(): CapabilityDefiniti
           invocation.configPath,
           invocation.signal
         );
+        const diagnostics = await analyzeRepositorySecurity(
+          {
+            consumerRoot: invocation.consumerRoot,
+            policy,
+            ...(invocation.signal === undefined ? {} : { signal: invocation.signal })
+          },
+          reader
+        );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          diagnostics: await analyzeRepositorySecurity(
-            {
-              consumerRoot: invocation.consumerRoot,
-              policy,
-              ...(invocation.signal === undefined ? {} : { signal: invocation.signal })
-            },
-            reader
-          )
+          diagnostics,
+          outcome: diagnostics.some(({ severity }) => severity === "error") ? "violations" : "passed"
         });
       } catch (error) {
         if (error instanceof CapabilityInputError) {

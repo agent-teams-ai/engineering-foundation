@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 0.4.0
+
+### Minor Changes
+
+- [#23](https://github.com/agent-teams-ai/engineering-foundation/pull/23) [`704ad29`](https://github.com/agent-teams-ai/engineering-foundation/commit/704ad29200b6dfd7765fc34ee91314f42aa6887c) Thanks [@777genius](https://github.com/777genius)! - Add accepted suppression governance, released TypeScript API compatibility, and publishing-repository security capabilities with deterministic fixtures, replay-safe release integration, and explicit consumer adoption gates.
+
 ## 0.3.0
 
 ### Minor Changes

@@ -98,6 +98,7 @@ function request(root) {
 
 function policy(observation) {
   return {
+    schemaVersion: 1,
     contractId: "agent-runtime-events",
     publicContractVersion: "1.0.0",
     schemaPaths: ["schemas/root.schema.json", "schemas/common.schema.json"],
@@ -317,7 +318,11 @@ test("runs as a deterministic capability and closes unexpected inspector failure
     assert.equal(cancelled.outcome, "cancelled");
     assert.equal(cancelled.problem.code, "EXECUTION_CANCELLED");
 
-    await writeFile(join(root, "contract.yaml"), "contractId: invalid\n", "utf8");
+    await writeFile(
+      join(root, "contract.yaml"),
+      "schemaVersion: 1\ncontractId: invalid\n",
+      "utf8",
+    );
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(invalid.outcome, "invalid-input");
     assert.equal(invalid.problem.code, "SCHEMA_INVALID");
@@ -334,6 +339,28 @@ test("runs as a deterministic capability and closes unexpected inspector failure
     assert.equal(failed.outcome, "failed");
     assert.equal(failed.problem.code, "CAPABILITY_EXECUTION_FAILED");
     assert.equal(failed.problem.message, "JSON Schema release capability execution failed.");
+  });
+});
+
+test("requires an explicitly supported root configuration schema version", async () => {
+  await withContractFixture(async (root) => {
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const observation = await inspector.inspect(request(root));
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
+
+    const missingVersion = policy(observation);
+    delete missingVersion.schemaVersion;
+    await writeYaml(root, "contract.yaml", missingVersion);
+    const missing = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(missing.outcome, "invalid-input");
+    assert.equal(missing.problem.code, "JSON_SCHEMA_RELEASE_CONFIG_INVALID");
+
+    const unknownVersion = policy(observation);
+    unknownVersion.schemaVersion = 2;
+    await writeYaml(root, "contract.yaml", unknownVersion);
+    const unknown = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(unknown.outcome, "invalid-input");
+    assert.equal(unknown.problem.code, "JSON_SCHEMA_RELEASE_CONFIG_INVALID");
   });
 });
 
@@ -367,5 +394,13 @@ test("JSON Schema release evidence schema accepts the verified policy shape", as
     );
     const validate = new Ajv2020({ strict: true }).compile(JSON.parse(source));
     assert.equal(validate(policy(observation)), true, JSON.stringify(validate.errors));
+
+    const missingVersion = policy(observation);
+    delete missingVersion.schemaVersion;
+    assert.equal(validate(missingVersion), false);
+
+    const unknownVersion = policy(observation);
+    unknownVersion.schemaVersion = 2;
+    assert.equal(validate(unknownVersion), false);
   });
 });

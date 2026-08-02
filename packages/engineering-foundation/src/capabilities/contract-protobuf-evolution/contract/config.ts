@@ -13,7 +13,14 @@ import type {
 export const CAPABILITY_ID = "contract.protobuf-evolution" as const;
 export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 
-const SCHEMA_ID = "contract-protobuf-evolution/v1" as Parameters<typeof assertSchema>[0];
+type ProtobufEvolutionConfigSchemaVersion = typeof CAPABILITY_CONFIG_SCHEMA_VERSION;
+type ProtobufEvolutionSchemaId = "contract-protobuf-evolution/v1";
+
+const SCHEMA_ID_BY_VERSION: Readonly<
+  Record<ProtobufEvolutionConfigSchemaVersion, ProtobufEvolutionSchemaId>
+> = Object.freeze({
+  1: "contract-protobuf-evolution/v1"
+});
 
 function inputError(message: string): never {
   throw new CapabilityInputError({
@@ -43,6 +50,13 @@ function number(value: unknown, field: string): number {
     inputError(`${field} must be a number.`);
   }
   return value;
+}
+
+function configSchemaId(value: unknown): ProtobufEvolutionSchemaId {
+  if (value === CAPABILITY_CONFIG_SCHEMA_VERSION) {
+    return SCHEMA_ID_BY_VERSION[value];
+  }
+  inputError(`schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}.`);
 }
 
 function list(value: unknown, field: string): readonly unknown[] {
@@ -146,9 +160,13 @@ export async function loadCapabilityConfig(
     signal
   );
   assertNotCancelled(signal);
-  await assertSchema(SCHEMA_ID, input, "protobuf-evolution-config");
-  assertNotCancelled(signal);
   const source = record(input, "protobuf evolution config");
+  await assertSchema(
+    configSchemaId(source["schemaVersion"]),
+    input,
+    "protobuf-evolution-config"
+  );
+  assertNotCancelled(signal);
   return Object.freeze({
     released: mapReleased(source["released"]),
     current: mapCurrent(source["current"])

@@ -5,6 +5,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "schemaVersion",
     "contractId",
     "publicContractVersion",
     "schemaPaths",
@@ -13,6 +14,7 @@
     "currentConsumerEvidence"
   ],
   "properties": {
+    "schemaVersion": { "const": 1 },
     "contractId": { "$ref": "#/$defs/contractId" },
     "publicContractVersion": { "$ref": "#/$defs/semver" },
     "schemaPaths": {

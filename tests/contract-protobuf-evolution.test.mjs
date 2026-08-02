@@ -38,6 +38,7 @@ function digest(character) {
 
 function policy() {
   return {
+    schemaVersion: 1,
     released: {
       schemaVersion: 1,
       contractId: "agent-runtime-control",
@@ -197,10 +198,30 @@ test("runs as a deterministic read-only Foundation capability with closed input 
     assert.equal(cancelled.outcome, "cancelled");
     assert.equal(cancelled.problem.code, "EXECUTION_CANCELLED");
 
-    await writeFile(join(root, "contract.yaml"), "released: []\n", "utf8");
+    await writeFile(join(root, "contract.yaml"), "schemaVersion: 1\nreleased: []\n", "utf8");
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(invalid.outcome, "invalid-input");
     assert.equal(invalid.problem.code, "SCHEMA_INVALID");
+  });
+});
+
+test("requires an explicitly supported root configuration schema version", async () => {
+  const capability = protobufModule.createProtobufEvolutionCapability();
+
+  const missingVersion = policy();
+  delete missingVersion.schemaVersion;
+  await withConfig(missingVersion, async (root) => {
+    const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(result.outcome, "invalid-input");
+    assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
+  });
+
+  const unknownVersion = policy();
+  unknownVersion.schemaVersion = 2;
+  await withConfig(unknownVersion, async (root) => {
+    const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+    assert.equal(result.outcome, "invalid-input");
+    assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
   });
 });
 
@@ -264,4 +285,12 @@ test("Protobuf evidence JSON Schema accepts the valid release proof shape", asyn
   );
   const validate = new Ajv2020({ strict: true }).compile(JSON.parse(source));
   assert.equal(validate(policy()), true, JSON.stringify(validate.errors));
+
+  const missingVersion = policy();
+  delete missingVersion.schemaVersion;
+  assert.equal(validate(missingVersion), false);
+
+  const unknownVersion = policy();
+  unknownVersion.schemaVersion = 2;
+  assert.equal(validate(unknownVersion), false);
 });

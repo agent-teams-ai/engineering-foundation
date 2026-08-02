@@ -12,7 +12,14 @@ import type {
 export const CAPABILITY_ID = "contract.json-schema-releases" as const;
 export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 
-const SCHEMA_ID = "contract-json-schema-releases/v1" as Parameters<typeof assertSchema>[0];
+type JsonSchemaReleaseConfigSchemaVersion = typeof CAPABILITY_CONFIG_SCHEMA_VERSION;
+type JsonSchemaReleaseSchemaId = "contract-json-schema-releases/v1";
+
+const SCHEMA_ID_BY_VERSION: Readonly<
+  Record<JsonSchemaReleaseConfigSchemaVersion, JsonSchemaReleaseSchemaId>
+> = Object.freeze({
+  1: "contract-json-schema-releases/v1"
+});
 
 function inputError(message: string): never {
   throw new CapabilityInputError({
@@ -42,6 +49,13 @@ function number(value: unknown, field: string): number {
     inputError(`${field} must be a number.`);
   }
   return value;
+}
+
+function configSchemaId(value: unknown): JsonSchemaReleaseSchemaId {
+  if (value === CAPABILITY_CONFIG_SCHEMA_VERSION) {
+    return SCHEMA_ID_BY_VERSION[value];
+  }
+  inputError(`schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}.`);
 }
 
 function list(value: unknown, field: string): readonly unknown[] {
@@ -115,9 +129,13 @@ export async function loadCapabilityConfig(
     signal
   );
   assertNotCancelled(signal);
-  await assertSchema(SCHEMA_ID, input, "json-schema-release-config");
-  assertNotCancelled(signal);
   const source = record(input, "JSON Schema release config");
+  await assertSchema(
+    configSchemaId(source["schemaVersion"]),
+    input,
+    "json-schema-release-config"
+  );
+  assertNotCancelled(signal);
   return Object.freeze({
     contractId: string(source["contractId"], "contractId"),
     publicContractVersion: string(source["publicContractVersion"], "publicContractVersion"),

@@ -4,8 +4,9 @@
   "title": "Protobuf contract evolution release evidence",
   "type": "object",
   "additionalProperties": false,
-  "required": ["released", "current"],
+  "required": ["schemaVersion", "released", "current"],
   "properties": {
+    "schemaVersion": { "const": 1 },
     "released": { "$ref": "#/$defs/released" },
     "current": { "$ref": "#/$defs/current" }
   },

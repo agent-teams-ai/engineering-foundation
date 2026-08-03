@@ -20,6 +20,7 @@ No proposed decisions.
 - [ADR-0008: Contract Evolution Evidence](0008-contract-evolution-evidence.md)
 - [ADR-0009: Pinned Workflow Security Toolchain](0009-pinned-workflow-security-toolchain.md)
 - [ADR-0010: Observed Source Graph V2](0010-observed-source-graph-v2.md)
+- [ADR-0011: Bounded Process and Property Evidence API](0011-bounded-process-and-property-evidence-api.md)
 
 ## Superseded
 

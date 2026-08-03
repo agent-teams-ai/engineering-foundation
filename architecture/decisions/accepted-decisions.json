@@ -51,6 +51,11 @@
       "id": "ADR-0010",
       "path": "docs/decisions/0010-observed-source-graph-v2.md",
       "immutableDigest": "sha256:d5a0a5882af4fc547cd08845f8fa6bb6d7db78d7f8372ab5daa76eb5501340e0"
+    },
+    {
+      "id": "ADR-0011",
+      "path": "docs/decisions/0011-bounded-process-and-property-evidence-api.md",
+      "immutableDigest": "sha256:edd60151e0b277932d00322293ad3966f92314648a34a392d497dfa43a4ba011"
     }
   ]
 }

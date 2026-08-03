@@ -21,5 +21,6 @@
       "inputs": ["production", "^production"],
       "outputs": ["{projectRoot}/dist"]
     }
-  }
+  },
+  "analytics": false
 }

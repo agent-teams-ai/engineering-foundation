@@ -23,6 +23,15 @@ const PROCESS_DEADLINE_MS = process.platform === "win32" ? 15_000 : 1_000;
 const CANCELLATION_DEADLINE_MS = process.platform === "win32" ? 15_000 : 5_000;
 const TEST_TIMEOUT_MS = process.platform === "win32" ? 35_000 : 10_000;
 
+async function removeTestRoot(root) {
+  await rm(root, {
+    force: true,
+    maxRetries: process.platform === "win32" ? 10 : 0,
+    recursive: true,
+    retryDelay: 50
+  });
+}
+
 async function waitForPidFile(path) {
   const deadline = Date.now() + READY_TIMEOUT_MS;
   while (Date.now() < deadline) {
@@ -98,7 +107,7 @@ test("terminates a never-exiting process tree when its deadline expires", { time
     await waitForProcessTreeExit(processes);
   } finally {
     forceStop(processes);
-    await rm(root, { force: true, recursive: true });
+    await removeTestRoot(root);
   }
 });
 
@@ -119,7 +128,7 @@ test("rejects an unsupported deadline before spawning the command", async () => 
     await delay(50);
     await assert.rejects(readFile(markerPath, "utf8"), (error) => error?.code === "ENOENT");
   } finally {
-    await rm(root, { force: true, recursive: true });
+    await removeTestRoot(root);
   }
 });
 
@@ -160,7 +169,7 @@ test("terminates a never-exiting process tree when cancelled", { timeout: TEST_T
     await waitForProcessTreeExit(processes);
   } finally {
     forceStop(processes);
-    await rm(root, { force: true, recursive: true });
+    await removeTestRoot(root);
   }
 });
 
@@ -182,7 +191,7 @@ test("terminates descendants after their direct parent exits", { timeout: TEST_T
     await waitForProcessTreeExit(processes);
   } finally {
     forceStop(processes);
-    await rm(root, { force: true, recursive: true });
+    await removeTestRoot(root);
   }
 });
 
@@ -213,7 +222,7 @@ test(
       await waitForProcessTreeExit(processes);
     } finally {
       forceStop(processes);
-      await rm(root, { force: true, recursive: true });
+      await removeTestRoot(root);
     }
   }
 );

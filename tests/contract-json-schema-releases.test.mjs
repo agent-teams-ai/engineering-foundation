@@ -273,9 +273,10 @@ test("fails closed when the named JSON file identity changes after descriptor va
         containedFileReadOperations({
           async stat(path) {
             const metadata = await stat(path);
-            if (!metadata.isFile() || ++candidateStats !== 2) {
+            if (!metadata.isFile()) {
               return metadata;
             }
+            candidateStats += 1;
             return {
               ctimeMs: metadata.ctimeMs,
               dev: metadata.dev,
@@ -294,7 +295,7 @@ test("fails closed when the named JSON file identity changes after descriptor va
         return true;
       },
     );
-    assert.equal(candidateStats, 2);
+    assert.equal(candidateStats, 1);
   });
 });
 

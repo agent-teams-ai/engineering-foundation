@@ -23,7 +23,12 @@ test("release pipeline runs an exact App-first review", async () => {
   const release = await workflow("release.yml");
   const review = await workflow("reviewrouter-codex.yml");
   const reviewGate = await workflow("review-gate.yml");
+  const reviewGateSource = await readFile(
+    join(repositoryRoot, ".github", "workflows", "review-gate.yml"),
+    "utf8",
+  );
   const releaseJob = release.jobs.release;
+  const reviewGateSteps = reviewGate.jobs["review-gate"].steps;
   const attestation = release.jobs["attest-release-pr"].steps.find(
     ({ name }) => name === "Dispatch and attest release pull request checks",
   );
@@ -34,18 +39,24 @@ test("release pipeline runs an exact App-first review", async () => {
     /printf 'head_sha=%s\\n'/u,
   );
   assert.deepEqual(reviewGate.on.workflow_run.workflows, ["ReviewRouter Codex OAuth"]);
+  assert.match(
+    reviewGateSource,
+    /workflow_run: # zizmor: ignore\[dangerous-triggers\].*executes no PR content/u,
+  );
+  assert.equal(reviewGateSteps.length, 1);
+  assert.equal(reviewGateSteps[0].uses, undefined);
   assert.equal(reviewGate.jobs["review-gate"].permissions.actions, "read");
   assert.equal(reviewGate.jobs["review-gate"].permissions["pull-requests"], "read");
   assert.equal(reviewGate.jobs["review-gate"].permissions.statuses, "write");
-  assert.match(reviewGate.jobs["review-gate"].steps[0].run, /-f context="ReviewGate"/u);
-  assert.match(reviewGate.jobs["review-gate"].steps[0].run, /\.context == "ReviewRouter"/u);
-  assert.match(reviewGate.jobs["review-gate"].steps[0].run, /\.creator\.id == \$app_bot_id/u);
-  assert.match(reviewGate.jobs["review-gate"].steps[0].run, /\.creator\.type == "Bot"/u);
+  assert.match(reviewGateSteps[0].run, /-f context="ReviewGate"/u);
+  assert.match(reviewGateSteps[0].run, /\.context == "ReviewRouter"/u);
+  assert.match(reviewGateSteps[0].run, /\.creator\.id == \$app_bot_id/u);
+  assert.match(reviewGateSteps[0].run, /\.creator\.type == "Bot"/u);
   assert.equal(
-    reviewGate.jobs["review-gate"].steps[0].env.REVIEWROUTER_APP_BOT_ID,
+    reviewGateSteps[0].env.REVIEWROUTER_APP_BOT_ID,
     "281702430",
   );
-  assert.match(reviewGate.jobs["review-gate"].steps[0].run, /reviewrouter-codex\.yml/u);
+  assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
   assert.match(attestation.run, /--base "\$\{base_sha\}" --head "\$\{head_sha\}"/u);
   assert.match(attestation.run, /post_status "\$\{release_gate_context\}" success/u);

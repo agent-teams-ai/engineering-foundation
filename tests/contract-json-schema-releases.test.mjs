@@ -13,7 +13,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
@@ -273,15 +273,18 @@ test("fails closed when the named JSON file identity changes after descriptor va
         containedFileReadOperations({
           async stat(path) {
             const metadata = await stat(path);
-            if (
-              basename(path).toLowerCase() !== "identity.json" ||
-              ++candidateStats !== 2
-            ) {
+            if (!metadata.isFile() || ++candidateStats !== 2) {
               return metadata;
             }
-            return Object.create(metadata, {
-              ino: { configurable: true, value: metadata.ino + 1 },
-            });
+            return {
+              ctimeMs: metadata.ctimeMs,
+              dev: metadata.dev,
+              ino: metadata.ino + 1,
+              isFile: () => true,
+              mode: metadata.mode,
+              mtimeMs: metadata.mtimeMs,
+              size: metadata.size,
+            };
           },
         }),
       ),

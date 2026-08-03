@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +9,14 @@ const CHANGESET_PATTERN = /^\.changeset\/[^/]+\.md$/u;
 const PUBLIC_API_PATTERN = /^architecture\/public-api\/[^/]+\.json$/u;
 const PACKAGE_MANIFEST = "packages/engineering-foundation/package.json";
 const PACKAGE_CHANGELOG = "packages/engineering-foundation/CHANGELOG.md";
+
+export async function readStreamText(stream) {
+  let text = "";
+  for await (const chunk of stream) {
+    text += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+  }
+  return text;
+}
 
 function stableVersionTuple(value) {
   const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.exec(value);
@@ -101,13 +108,24 @@ export function releasePullRequestContentViolations({
   if (!isDeepStrictEqual(normalizedBaseManifest, normalizedHeadManifest)) {
     violations.push("release pull request may change only package.json version");
   }
+  const changelogTitleEnd =
+    typeof baseChangelog === "string" ? baseChangelog.indexOf("\n\n") + 2 : 0;
+  const changelogTitle =
+    changelogTitleEnd >= 2 ? baseChangelog.slice(0, changelogTitleEnd) : undefined;
+  const baseChangelogHistory =
+    changelogTitle === undefined ? undefined : baseChangelog.slice(changelogTitleEnd);
   if (
     typeof baseChangelog !== "string" ||
     typeof headChangelog !== "string" ||
     headChangelog.length <= baseChangelog.length ||
-    !headChangelog.endsWith(baseChangelog)
+    changelogTitle === undefined ||
+    !changelogTitle.startsWith("# ") ||
+    !headChangelog.startsWith(changelogTitle) ||
+    !headChangelog.slice(changelogTitle.length).endsWith(baseChangelogHistory)
   ) {
-    violations.push("release pull request may only prepend a changelog release entry");
+    violations.push(
+      "release pull request may only insert a release entry after the unchanged changelog title",
+    );
   }
   return violations;
 }
@@ -129,7 +147,7 @@ async function fileAtRevision(revision, path) {
 }
 
 async function main() {
-  const pages = JSON.parse(await readFile(0, "utf8"));
+  const pages = JSON.parse(await readStreamText(process.stdin));
   const files = Array.isArray(pages) ? pages.flat() : pages;
   const baseRevision = revisionArgument("--base");
   const headRevision = revisionArgument("--head");

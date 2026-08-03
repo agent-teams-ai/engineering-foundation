@@ -280,7 +280,7 @@ test("fails closed when the named JSON file identity changes after descriptor va
             return {
               ctimeMs: metadata.ctimeMs,
               dev: metadata.dev,
-              ino: metadata.ino + 1,
+              ino: BigInt(metadata.ino) + 1n,
               isFile: () => true,
               mode: metadata.mode,
               mtimeMs: metadata.mtimeMs,

@@ -44,12 +44,12 @@ function sameIdentity(
 }
 
 interface FileSnapshot {
-  readonly ctimeMs: number;
-  readonly dev: number;
-  readonly ino: number;
-  readonly mode: number;
-  readonly mtimeMs: number;
-  readonly size: number;
+  readonly ctimeMs: number | bigint;
+  readonly dev: number | bigint;
+  readonly ino: number | bigint;
+  readonly mode: number | bigint;
+  readonly mtimeMs: number | bigint;
+  readonly size: number | bigint;
 }
 
 interface ContainedFileHandle {
@@ -70,14 +70,27 @@ interface ContainedFileReadOperations {
     flags: number
   ) => Promise<ContainedFileHandle>;
   readonly realpath: typeof realpath;
-  readonly stat: typeof stat;
+  readonly stat: (
+    path: string
+  ) => Promise<FileSnapshot & {
+    readonly isDirectory: () => boolean;
+    readonly isFile: () => boolean;
+  }>;
 }
 
 const nodeContainedFileReadOperations: ContainedFileReadOperations = {
   lstat,
-  open,
+  async open(path, flags) {
+    const handle = await open(path, flags);
+    return {
+      close: () => handle.close(),
+      read: (buffer, offset, length, position) =>
+        handle.read(buffer, offset, length, position),
+      stat: () => handle.stat({ bigint: true })
+    };
+  },
   realpath,
-  stat
+  stat: (path) => stat(path, { bigint: true })
 };
 
 function sameSnapshot(left: FileSnapshot, right: FileSnapshot): boolean {
@@ -88,6 +101,20 @@ function sameSnapshot(left: FileSnapshot, right: FileSnapshot): boolean {
     String(left.mtimeMs) === String(right.mtimeMs) &&
     String(left.ctimeMs) === String(right.ctimeMs)
   );
+}
+
+function boundedSnapshotSize(
+  snapshot: FileSnapshot,
+  maxBytes: number
+): number | undefined {
+  if (typeof snapshot.size === "bigint") {
+    return snapshot.size >= 0n && snapshot.size <= BigInt(maxBytes)
+      ? Number(snapshot.size)
+      : undefined;
+  }
+  return Number.isSafeInteger(snapshot.size) && snapshot.size >= 0 && snapshot.size <= maxBytes
+    ? snapshot.size
+    : undefined;
 }
 
 function readError(error: unknown, phase: "after-open" | "before-open"): ContainedFileReadError {
@@ -241,7 +268,8 @@ export async function readContainedRegularFile(input: {
   let failure: ContainedFileReadError | undefined;
   try {
     const openedMetadata = await handle.stat();
-    if (!openedMetadata.isFile() || openedMetadata.size > input.maxBytes) {
+    const expectedBytes = boundedSnapshotSize(openedMetadata, input.maxBytes);
+    if (!openedMetadata.isFile() || expectedBytes === undefined) {
       throw new ContainedFileReadError("invalid");
     }
     await assertNamedFileMatchesHandle({
@@ -252,11 +280,11 @@ export async function readContainedRegularFile(input: {
       root
     });
     bytes = await readAtMost({
-      expectedBytes: openedMetadata.size,
+      expectedBytes,
       handle
     });
     const finalMetadata = await handle.stat();
-    if (!sameSnapshot(openedMetadata, finalMetadata) || bytes.length !== openedMetadata.size) {
+    if (!sameSnapshot(openedMetadata, finalMetadata) || bytes.length !== expectedBytes) {
       throw new ContainedFileReadError("changed");
     }
     await assertNamedFileMatchesHandle({

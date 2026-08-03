@@ -26,9 +26,9 @@ const TEST_TIMEOUT_MS = process.platform === "win32" ? 35_000 : 10_000;
 async function removeTestRoot(root) {
   await rm(root, {
     force: true,
-    maxRetries: process.platform === "win32" ? 10 : 0,
+    maxRetries: process.platform === "win32" ? 50 : 0,
     recursive: true,
-    retryDelay: 50
+    retryDelay: 100
   });
 }
 

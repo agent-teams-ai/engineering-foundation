@@ -149,6 +149,22 @@ function needs(value: unknown, field: string): readonly string[] {
   return Object.freeze(normalized);
 }
 
+function condition(value: unknown, field: string): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value !== "string" || value.trim().length === 0) {
+    repositorySecurityInputError(
+      "REPOSITORY_SECURITY_WORKFLOW_INVALID",
+      `${field} must be a non-empty expression or boolean.`
+    );
+  }
+  return value;
+}
+
 function steps(value: unknown, field: string): readonly WorkflowStepEvidence[] {
   if (value === undefined) {
     return [];
@@ -163,8 +179,10 @@ function steps(value: unknown, field: string): readonly WorkflowStepEvidence[] {
     value.map((entry, index) => {
       const step = requireRecord(entry, `${field}[${index}]`);
       const stepInputs = step["with"];
+      const stepCondition = condition(step["if"], `${field}[${index}].if`);
       return Object.freeze({
-        conditional: step["if"] !== undefined,
+        conditional: stepCondition !== undefined,
+        ...(stepCondition === undefined ? {} : { condition: stepCondition }),
         nonBlocking:
           step["continue-on-error"] !== undefined && step["continue-on-error"] !== false,
         inputs: Object.freeze(
@@ -186,8 +204,10 @@ export function parseWorkflow(path: string, source: string): WorkflowEvidence {
       job["permissions"],
       `workflow ${path}.jobs.${id}.permissions`
     );
+    const jobCondition = condition(job["if"], `workflow ${path}.jobs.${id}.if`);
     return Object.freeze({
-      conditional: job["if"] !== undefined,
+      conditional: jobCondition !== undefined,
+      ...(jobCondition === undefined ? {} : { condition: jobCondition }),
       containers: containers(job, `workflow ${path}.jobs.${id}`),
       needs: needs(job["needs"], `workflow ${path}.jobs.${id}.needs`),
       nonBlocking:

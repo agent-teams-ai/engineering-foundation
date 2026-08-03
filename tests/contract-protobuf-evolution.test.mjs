@@ -309,6 +309,21 @@ test("binds a breaking fingerprint to an immutable accepted architecture decisio
   assert.deepEqual(protobufModule.evaluateProtobufEvolution(evidence), []);
 });
 
+test("accepts any matching breaking approval backed by an accepted decision", () => {
+  const evidence = policy();
+  evidence.current.breaking = {
+    status: "breaking",
+    fingerprint: digest("f"),
+  };
+  evidence.approvedBreakingChanges = [
+    { decisionId: "ADR-0041", fingerprint: digest("f") },
+    { decisionId: "ADR-0042", fingerprint: digest("f") },
+  ];
+  evidence.acceptedDecisionIds = ["ADR-0042"];
+
+  assert.deepEqual(protobufModule.evaluateProtobufEvolution(evidence), []);
+});
+
 test("keeps governance evidence as an opaque protobuf configuration reference", async () => {
   const config = capabilityConfig();
   config.current.breaking = {

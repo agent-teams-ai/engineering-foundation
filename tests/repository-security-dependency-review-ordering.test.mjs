@@ -42,7 +42,7 @@ function dependencyReviewConfig(additionalAllowedUses = []) {
   ].join("\n");
 }
 
-function ciWorkflow(preReviewStep = "") {
+function ciWorkflow(preReviewStep = "", options = {}) {
   return [
     "name: CI",
     "on:",
@@ -62,8 +62,10 @@ function ciWorkflow(preReviewStep = "") {
     "          fail-on-severity: moderate",
     "          vulnerability-check: true",
     "          warn-only: false",
+    ...(options.postReviewStep === undefined ? [] : [options.postReviewStep]),
     "  check:",
     "    needs: dependency-review",
+    ...(options.checkCondition === undefined ? [] : [`    if: ${options.checkCondition}`]),
     "    runs-on: ubuntu-24.04",
     "    steps:",
     `      - uses: actions/checkout@${CHECKOUT_SHA}`,
@@ -163,7 +165,7 @@ async function withConsumer(options, callback) {
         "    - run: echo checked-in-action",
         "",
       ].join("\n"),
-      ".github/workflows/ci.yml": ciWorkflow(options.preReviewStep),
+      ".github/workflows/ci.yml": ciWorkflow(options.preReviewStep, options),
       "packages/library/package.json": `${JSON.stringify(
         {
           name: "@fixture/library",
@@ -207,6 +209,54 @@ test("allows repository code after a non-conditional Dependency Review prerequis
     assert.equal(result.status, 0);
     assert.equal(report.outcome, "passed");
   });
+});
+
+test("does not report an ordering bypass for exact explicit success", async () => {
+  await withConsumer({ checkCondition: "${{ success() }}" }, async (consumerRoot) => {
+    const { report } = runCheck(consumerRoot);
+    assert.equal(orderingDiagnostic(report), undefined);
+  });
+});
+
+test("rejects status-function conditions that bypass a failed Dependency Review", async (t) => {
+  for (const checkCondition of ["always()", "failure()", "${{ !cancelled() }}"]) {
+    await t.test(checkCondition, async () => {
+      await withConsumer({ checkCondition }, async (consumerRoot) => {
+        const { result, report } = runCheck(consumerRoot);
+        assert.equal(result.status, 1);
+        assert.notEqual(orderingDiagnostic(report), undefined);
+      });
+    });
+  }
+});
+
+test("rejects a same-job run step that overrides Dependency Review failure", async () => {
+  await withConsumer(
+    {
+      postReviewStep: "      - if: always()\n        run: node scripts/build.mjs",
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.notEqual(orderingDiagnostic(report), undefined);
+    },
+  );
+});
+
+test("rejects a status-function bypass in an intermediate needs job", async () => {
+  const workflow = locallyProtectedWorkflow()
+    .replace(
+      "  execute:\n    needs: dependency-review",
+      "  bridge:\n    needs: dependency-review\n    if: always()\n    runs-on: ubuntu-24.04\n    steps: []\n  execute:\n    needs: bridge",
+    );
+  await withConsumer(
+    { additionalWorkflows: { ".github/workflows/intermediate.yml": workflow } },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.notEqual(orderingDiagnostic(report), undefined);
+    },
+  );
 });
 
 test("allows a secondary pull-request workflow with its own equivalent review gate", async () => {

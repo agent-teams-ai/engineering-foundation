@@ -156,34 +156,91 @@ function referenceBase(reference: string, sourceId: string): string {
   }
 }
 
+const SINGLE_SCHEMA_KEYWORDS = Object.freeze([
+  "additionalItems",
+  "additionalProperties",
+  "contains",
+  "contentSchema",
+  "else",
+  "if",
+  "items",
+  "not",
+  "propertyNames",
+  "then",
+  "unevaluatedItems",
+  "unevaluatedProperties"
+]);
+const SCHEMA_ARRAY_KEYWORDS = Object.freeze(["allOf", "anyOf", "oneOf", "prefixItems"]);
+const SCHEMA_MAP_KEYWORDS = Object.freeze([
+  "$defs",
+  "definitions",
+  "dependentSchemas",
+  "patternProperties",
+  "properties"
+]);
+
+function assertReferenceKeyword(
+  schema: Readonly<Record<string, unknown>>,
+  key: "$dynamicRef" | "$ref",
+  sourceId: string,
+  knownSchemaIds: ReadonlySet<string>
+): void {
+  const entry = schema[key];
+  if (entry === undefined) {
+    return;
+  }
+  if (typeof entry !== "string") {
+    inputError("JSON_SCHEMA_REFERENCE_INVALID", `${key} must be a string.`);
+  }
+  const target = referenceBase(entry, sourceId);
+  if (!knownSchemaIds.has(target)) {
+    inputError(
+      "JSON_SCHEMA_REFERENCE_NOT_LOCAL",
+      `Schema ${sourceId} references a schema not declared in this local contract set.`
+    );
+  }
+}
+
+function schemaMapValues(value: unknown): readonly unknown[] {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? Object.values(value as Record<string, unknown>)
+    : [];
+}
+
 function assertLocalReferences(
   value: unknown,
   sourceId: string,
   knownSchemaIds: ReadonlySet<string>
 ): void {
-  if (Array.isArray(value)) {
-    value.forEach((entry) => {
-      assertLocalReferences(entry, sourceId, knownSchemaIds);
-    });
-    return;
-  }
   if (typeof value !== "object" || value === null) {
     return;
   }
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    if (key === "$ref" || key === "$dynamicRef") {
-      if (typeof entry !== "string") {
-        inputError("JSON_SCHEMA_REFERENCE_INVALID", `${key} must be a string.`);
-      }
-      const target = referenceBase(entry, sourceId);
-      if (!knownSchemaIds.has(target)) {
-        inputError(
-          "JSON_SCHEMA_REFERENCE_NOT_LOCAL",
-          `Schema ${sourceId} references a schema not declared in this local contract set.`
-        );
+  const schema = value as Record<string, unknown>;
+  for (const key of ["$ref", "$dynamicRef"] as const) {
+    assertReferenceKeyword(schema, key, sourceId, knownSchemaIds);
+  }
+  for (const keyword of SINGLE_SCHEMA_KEYWORDS) {
+    if (schema[keyword] !== undefined) {
+      assertLocalReferences(schema[keyword], sourceId, knownSchemaIds);
+    }
+  }
+  for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
+    const entries = schema[keyword];
+    if (Array.isArray(entries)) {
+      for (const entry of entries) {
+        assertLocalReferences(entry, sourceId, knownSchemaIds);
       }
     }
-    assertLocalReferences(entry, sourceId, knownSchemaIds);
+  }
+  for (const keyword of SCHEMA_MAP_KEYWORDS) {
+    for (const entry of schemaMapValues(schema[keyword])) {
+      assertLocalReferences(entry, sourceId, knownSchemaIds);
+    }
+  }
+  for (const entry of schemaMapValues(schema["dependencies"])) {
+    if (!Array.isArray(entry)) {
+      assertLocalReferences(entry, sourceId, knownSchemaIds);
+    }
   }
 }
 

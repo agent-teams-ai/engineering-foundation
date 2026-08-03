@@ -496,6 +496,46 @@ test("preserves schema v1 cycle semantics while v2 rejects the same approved SCC
   );
 });
 
+test("classifies a mixed runtime and type-only SCC as a runtime cycle", () => {
+  const appPackage = workspacePackage("@fixture/app", "packages/app");
+  const a = boundary("app.a", ["packages/app/src/a"]);
+  const b = boundary("app.b", ["packages/app/src/b"]);
+  const aFile = classified(
+    "packages/app/src/a/index.ts",
+    a,
+    appPackage,
+    [sourceReference("static", "../b/index.js", 0)],
+  );
+  const bFile = classified(
+    "packages/app/src/b/index.ts",
+    b,
+    appPackage,
+    [sourceReference("static-type", "../a/index.js", 0)],
+  );
+  const graph = buildObservedSourceGraph({
+    inventory: { packages: [appPackage] },
+    allSourceFiles: sourceFiles([aFile, bFile]),
+    classifiedFiles: [aFile, bFile],
+    resolver: {
+      resolve({ reference }) {
+        return {
+          kind: "local-file",
+          path:
+            reference.specifier === "../b/index.js"
+              ? "packages/app/src/b/index.ts"
+              : "packages/app/src/a/index.ts",
+          workspacePackage: appPackage,
+        };
+      },
+    },
+  });
+
+  assert.deepEqual(
+    evaluateSourceDependencyCycles(graph).map((diagnostic) => diagnostic.ruleId),
+    ["architecture.source-dependencies.boundary-runtime-cycle"],
+  );
+});
+
 test("reports separate deterministic boundary and package SCCs with canonical bounded witnesses", () => {
   const localPackage = workspacePackage("@fixture/local", "packages/local");
   const packageOne = workspacePackage(

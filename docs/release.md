@@ -34,12 +34,12 @@ with `GITHUB_TOKEN` do not recursively emit another workflow event, so the
 release workflow explicitly dispatches the read-only CI workflow against the
 generated release branch. GitHub does not attach manually dispatched checks to
 the pull request's required-check rollup. A separate attestation job therefore
-verifies the exact open release PR SHA, waits for both expected GitHub Actions
-jobs plus a separately dispatched ReviewRouter review, and publishes their real
-conclusions as `check`, `review / review`, and `windows-check` commit statuses.
-The dispatched reviewer resolves the immutable PR head before review and refuses
-to attest if the PR head changes before completion. The release attester fails
-closed on an unexpected PR, missing result, timeout, or failed conclusion. The
+verifies the exact open release PR SHA and the narrow generated-file allowlist,
+waits for both expected GitHub Actions jobs, and publishes their real conclusions
+as `check` and `windows-check` commit statuses. It publishes `ReviewGate` only
+for that bounded generated release diff; it does not claim an external
+ReviewRouter review. The release attester fails closed on an unexpected PR,
+forbidden diff, missing result, timeout, or failed conclusion. The
 Changesets action does not receive status or Actions write permission, and no
 release-branch code runs with write credentials. If automatic pull request
 creation is unavailable, prepare the same
@@ -60,9 +60,16 @@ Before every publication:
 - verify public exports, CLI startup, and package self-check;
 - verify that local tarball overrides are rejected as registry provenance;
 - verify development-only dependency placement;
-- reject unexpected or sensitive package contents.
+- reject unexpected or sensitive package contents;
+- pass the hermetic npm-compatible registry publish/install qualification;
 - retain the CI-generated SPDX JSON SBOM and npm Trusted Publishing provenance
   as separate supply-chain evidence.
+
+`release:publish` runs the hermetic registry qualification after the normal
+repository checks and before `changeset publish`. It starts an isolated
+npm-compatible registry with no uplinks, publishes the packed package and its
+runtime dependency closure, installs by exact version, and verifies registry
+metadata, lockfile integrity, CLI startup, and public imports.
 
 The test suite also exercises the production operation lock across real child
 processes, including live-owner rejection and stale-lock recovery after the

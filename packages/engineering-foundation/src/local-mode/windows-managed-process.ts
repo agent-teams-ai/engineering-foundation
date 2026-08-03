@@ -12,10 +12,6 @@ const PROCESS_HOST_PATH = fileURLToPath(
 );
 const MAX_ENCODED_REQUEST_CHARACTERS = 24_000;
 
-function powerShellString(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
-}
-
 const WINDOWS_JOB_RUNNER = String.raw`
 $ErrorActionPreference = "Stop"
 Add-Type -TypeDefinition @'
@@ -349,12 +345,12 @@ public static class AgentTeamsFoundationJobRunner
 '@
 
 try {
-  $encodedRequest = [Console]::In.ReadToEnd()
+  $bootstrapRequest = [Console]::In.ReadToEnd() | ConvertFrom-Json
   $exitCode = [AgentTeamsFoundationJobRunner]::Run(
-    ${powerShellString(process.execPath)},
-    ${powerShellString(PROCESS_HOST_PATH)},
+    [string]$bootstrapRequest.nodeExecutable,
+    [string]$bootstrapRequest.processHostPath,
     (Get-Location).Path,
-    $encodedRequest)
+    [string]$bootstrapRequest.encodedRequest)
   exit $exitCode
 } catch {
   [Console]::Error.WriteLine("Windows Job Object runner failed: " + $_.Exception.Message)
@@ -406,6 +402,10 @@ export function spawnWindowsManagedProcess(
   child.stdin.once("error", () => {
     // The wrapper's process error is reported through its own error event.
   });
-  child.stdin.end(encodedRequest);
+  child.stdin.end(JSON.stringify({
+    nodeExecutable: process.execPath,
+    processHostPath: PROCESS_HOST_PATH,
+    encodedRequest
+  }));
   return child;
 }

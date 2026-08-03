@@ -102,6 +102,37 @@ test("terminates a never-exiting process tree when its deadline expires", { time
   }
 });
 
+test("rejects an unsupported deadline before spawning the command", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-process-runner-invalid-timeout-"));
+  const markerPath = join(root, "spawned.txt");
+  try {
+    const runner = new NodeProcessRunner();
+    await assert.rejects(
+      runner.run({
+        command: process.execPath,
+        args: ["-e", `require('node:fs').writeFileSync(${JSON.stringify(markerPath)}, 'spawned')`],
+        cwd: root,
+        timeoutMs: Number.MAX_SAFE_INTEGER
+      }),
+      /no greater than 2147483647/u
+    );
+    await delay(50);
+    await assert.rejects(readFile(markerPath, "utf8"), (error) => error?.code === "ENOENT");
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("preserves no-deadline behavior when timeoutMs is omitted", async () => {
+  const runner = new NodeProcessRunner();
+  const result = await runner.run({
+    command: process.execPath,
+    args: ["-e", "setTimeout(() => process.stdout.write('done'), 25)"],
+    cwd: process.cwd()
+  });
+  assert.equal(result.stdout, "done");
+});
+
 test("terminates a never-exiting process tree when cancelled", { timeout: TEST_TIMEOUT_MS }, async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-process-runner-"));
   const pidPath = join(root, "pids.json");

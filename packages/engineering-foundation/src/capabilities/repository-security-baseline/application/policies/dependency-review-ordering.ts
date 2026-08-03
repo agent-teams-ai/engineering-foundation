@@ -14,6 +14,26 @@ interface RepositoryCodeExecution {
   readonly value: string;
 }
 
+const EXPLICIT_STATUS_FUNCTION = /\b(?:always|cancelled|failure|success)\s*\(/iu;
+
+function overridesImplicitSuccessGate(
+  value: WorkflowJobEvidence | WorkflowStepEvidence
+): boolean {
+  // GitHub implicitly prepends success() only when an if expression contains no
+  // status function. Exact success() is also provable; all more complex status
+  // expressions fail closed because arbitrary expression equivalence is outside
+  // this policy.
+  if (value.condition === undefined || !EXPLICIT_STATUS_FUNCTION.test(value.condition)) {
+    return false;
+  }
+  const normalized = value.condition
+    .trim()
+    .replace(/^\$\{\{\s*/u, "")
+    .replace(/\s*\}\}$/u, "")
+    .trim();
+  return normalized !== "success()";
+}
+
 function inputIsEnabledOrAbsent(step: WorkflowStepEvidence, name: string): boolean {
   const value = step.inputs[name];
   return (
@@ -111,7 +131,7 @@ function dependsOnDeclaredDependencyReview(
   job: WorkflowJobEvidence,
   reviewJob: WorkflowJobEvidence
 ): boolean {
-  if (job.nonBlocking) {
+  if (job.nonBlocking || overridesImplicitSuccessGate(job)) {
     return false;
   }
   const jobsById = new Map(workflow.jobs.map((candidate) => [candidate.id, candidate]));
@@ -122,7 +142,11 @@ function dependsOnDeclaredDependencyReview(
     const nextAncestors = new Set(ancestors);
     nextAncestors.add(jobId);
     const candidate = jobsById.get(jobId);
-    if (candidate === undefined || candidate.nonBlocking) {
+    if (
+      candidate === undefined ||
+      candidate.nonBlocking ||
+      overridesImplicitSuccessGate(candidate)
+    ) {
       return false;
     }
     if (candidate.id === reviewJob.id) {
@@ -180,7 +204,11 @@ export function inspectDependencyReviewOrdering(
       reviewHasRunInJob = true;
     }
     const execution = repositoryCodeExecutionFromStep(step);
-    if (execution !== undefined && !reviewHasRunInJob && !dependsOnBlockingReview) {
+    const sameJobGateCanBeBypassed = reviewHasRunInJob && overridesImplicitSuccessGate(step);
+    if (
+      execution !== undefined &&
+      ((!reviewHasRunInJob && !dependsOnBlockingReview) || sameJobGateCanBeBypassed)
+    ) {
       diagnostics.push(orderingDiagnostic(policy, workflow, job, execution));
       return;
     }

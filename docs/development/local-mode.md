@@ -50,6 +50,14 @@ registry package entry. It never runs a workspace install. A consumer-scoped
 locks. Durable `ATTACHING` and `DETACHING` phases let a later detach finish
 recovery after process interruption.
 
+`NodeProcessRunner` preserves the pre-existing no-deadline behavior when
+`timeoutMs` is omitted and validates an explicit deadline before process
+creation. Cancellation and deadlines terminate the platform containment
+boundary. Windows uses a Job Object for strict descendant containment. POSIX
+uses a process group; a child that deliberately creates a new session leaves
+that portable boundary and must be governed by a stronger host sandbox when
+adversarial process containment is required.
+
 On POSIX filesystems, file and directory syncs also preserve mutation ordering
 across ordinary power loss. Node cannot portably fsync directories on Windows,
 so Windows provides process-crash recovery but does not claim the same hard

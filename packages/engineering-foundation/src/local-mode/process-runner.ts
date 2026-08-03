@@ -10,7 +10,7 @@ import type {
   ProcessRunner
 } from "./types.js";
 
-const DEFAULT_PROCESS_TIMEOUT_MS = 30_000;
+const MAX_PROCESS_TIMEOUT_MS = 2_147_483_647;
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 const TERMINATION_GRACE_MS = 1_000;
 
@@ -30,12 +30,19 @@ function processFailure(
   );
 }
 
-function resolveTimeout(request: ProcessRequest): number {
-  const timeoutMs = request.timeoutMs ?? DEFAULT_PROCESS_TIMEOUT_MS;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+function resolveTimeout(request: ProcessRequest): number | undefined {
+  const timeoutMs = request.timeoutMs;
+  if (timeoutMs === undefined) {
+    return undefined;
+  }
+  if (
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs <= 0 ||
+    timeoutMs > MAX_PROCESS_TIMEOUT_MS
+  ) {
     throw processFailure(
       request,
-      "requires timeoutMs to be a positive safe integer."
+      `requires timeoutMs to be a positive integer no greater than ${MAX_PROCESS_TIMEOUT_MS}.`
     );
   }
   return timeoutMs;
@@ -190,14 +197,14 @@ export class NodeProcessRunner implements ProcessRunner {
       let settled = false;
       let terminating = false;
       let completionFailure: FoundationError | undefined;
-      const deadlineSignal = AbortSignal.timeout(timeoutMs);
+      const deadlineSignal = timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs);
 
       const finish = (result: ProcessResult | FoundationError) => {
         if (settled) {
           return;
         }
         settled = true;
-        deadlineSignal.removeEventListener("abort", onTimeout);
+        deadlineSignal?.removeEventListener("abort", onTimeout);
         request.signal?.removeEventListener("abort", onAbort);
         if (result instanceof FoundationError) {
           reject(result);
@@ -236,7 +243,7 @@ export class NodeProcessRunner implements ProcessRunner {
 
       const onTimeout = () => {
         failAfterTermination(
-          processFailure(request, `timed out after ${timeoutMs}ms.`)
+          processFailure(request, `timed out after ${String(timeoutMs)}ms.`)
         );
       };
 
@@ -248,7 +255,7 @@ export class NodeProcessRunner implements ProcessRunner {
           return;
         }
         terminating = true;
-        deadlineSignal.removeEventListener("abort", onTimeout);
+        deadlineSignal?.removeEventListener("abort", onTimeout);
         request.signal?.removeEventListener("abort", onAbort);
         void (async () => {
           try {
@@ -320,7 +327,7 @@ export class NodeProcessRunner implements ProcessRunner {
       });
       child.once("exit", completeAfterExit);
 
-      deadlineSignal.addEventListener("abort", onTimeout, { once: true });
+      deadlineSignal?.addEventListener("abort", onTimeout, { once: true });
       request.signal?.addEventListener("abort", onAbort, { once: true });
       if (request.signal?.aborted === true) {
         onAbort();

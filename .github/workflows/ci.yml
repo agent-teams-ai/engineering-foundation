@@ -37,7 +37,7 @@ jobs:
     name: check
     needs: dependency-review
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -57,6 +57,8 @@ jobs:
       - run: pnpm check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Qualify registry publish and clean install
+        run: pnpm registry-install-e2e:built
       - run: pnpm dead-code:check
       - run: pnpm parser-spike:check
       - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0

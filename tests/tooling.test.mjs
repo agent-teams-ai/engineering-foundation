@@ -246,6 +246,18 @@ test("packaging subprocesses have a bounded deadline", async () => {
   );
 });
 
+test("packaging rejects unsupported deadlines before process creation", async () => {
+  await assert.rejects(
+    runCommand(
+      process.execPath,
+      ["--eval", "throw new Error('must not execute')"],
+      repositoryRoot,
+      { timeoutMs: Number.MAX_SAFE_INTEGER },
+    ),
+    /no greater than 2147483647/u,
+  );
+});
+
 test("packaging subprocess output is bounded by cumulative bytes", async () => {
   const source =
     "const chunk = 'x'.repeat(1024 * 1024); for (let i = 0; i < 17; i += 1) process.stdout.write(chunk);";

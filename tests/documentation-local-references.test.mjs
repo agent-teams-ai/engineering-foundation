@@ -230,6 +230,19 @@ test("rejects broken image and definition targets while ignoring Markdown code",
   });
 });
 
+test("rejects link path casing that would fail on a case-sensitive checkout", async () => {
+  await withFixture(async (root) => {
+    await writeFile(
+      join(root, "docs", "README.md"),
+      "# Documentation\n\n[Wrong case](Guide/README.md)\n",
+      "utf8"
+    );
+    assert.deepEqual(ruleIds(await analyze(root)), [
+      "documentation.local-references.broken-link"
+    ]);
+  });
+});
+
 test("rejects repository escapes and symbolic link traversal without following them", async () => {
   await withFixture(async (root) => {
     const outsidePath = join(dirname(root), "outside-markdown.md");

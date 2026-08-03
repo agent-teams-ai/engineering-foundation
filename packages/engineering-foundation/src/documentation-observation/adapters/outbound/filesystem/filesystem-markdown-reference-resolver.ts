@@ -36,6 +36,24 @@ interface LocatedReferenceTarget {
 type CandidateResolution = LocalReferenceCandidate | MarkdownReferenceResolution;
 type TargetLocation = LocatedReferenceTarget | MarkdownReferenceResolution;
 
+async function hasExactFilesystemSpelling(
+  absolutePath: string,
+  filesystem: FilesystemMarkdownOperations,
+  signal?: AbortSignal
+): Promise<boolean> {
+  try {
+    const canonicalPath = await filesystem.realpath(absolutePath);
+    assertNotCancelled(signal);
+    return canonicalPath === absolutePath;
+  } catch (error) {
+    assertNotCancelled(signal);
+    if (isMissingMarkdownFilesystemError(error)) {
+      return false;
+    }
+    throwMarkdownFilesystemUnavailable(error, "checking Markdown reference path spelling");
+  }
+}
+
 function terminalTargetResolution(
   target: MarkdownReferenceTarget
 ): MarkdownReferenceResolution | undefined {
@@ -108,6 +126,13 @@ async function inspectFileTarget(
       repositoryPath: markdownRepositoryPath(context.canonicalRoot, absolutePath)
     };
   }
+  if (!(await hasExactFilesystemSpelling(absolutePath, filesystem, signal))) {
+    return {
+      kind: "missing",
+      reason: missingReason,
+      repositoryPath: markdownRepositoryPath(context.canonicalRoot, absolutePath)
+    };
+  }
   return { absolutePath, kind: "located" };
 }
 
@@ -134,6 +159,13 @@ async function locateReferenceTarget(
   assertNotCancelled(signal);
   if (metadata.isSymbolicLink()) {
     return { kind: "unsafe", reason: "symbolic-link" };
+  }
+  if (!(await hasExactFilesystemSpelling(candidate, filesystem, signal))) {
+    return {
+      kind: "missing",
+      reason: "target-missing",
+      repositoryPath: markdownRepositoryPath(context.canonicalRoot, candidate)
+    };
   }
   if (!metadata.isDirectory()) {
     return metadata.isFile()

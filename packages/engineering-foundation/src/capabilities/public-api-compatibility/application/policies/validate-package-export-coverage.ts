@@ -77,7 +77,7 @@ function typeTargets(value: unknown, output: string[]): void {
   for (const [condition, candidate] of Object.entries(
     value as Readonly<Record<string, unknown>>
   )) {
-    if (condition === "types") {
+    if (condition === "types" || condition.startsWith("types@")) {
       stringTargets(candidate, output);
     } else {
       typeTargets(candidate, output);

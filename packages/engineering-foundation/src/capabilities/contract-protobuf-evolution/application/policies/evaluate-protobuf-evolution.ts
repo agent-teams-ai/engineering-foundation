@@ -339,14 +339,16 @@ export function evaluateProtobufEvolution(
   }
   if (policy.current.breaking.status === "breaking") {
     const fingerprint = policy.current.breaking.fingerprint;
-    const approval = policy.approvedBreakingChanges.find(
+    const approvals = policy.approvedBreakingChanges.filter(
       (candidate) => candidate.fingerprint === fingerprint
     );
-    const accepted =
-      approval !== undefined && policy.acceptedDecisionIds.includes(approval.decisionId);
-    if (accepted) {
+    const acceptedApproval = approvals.find((approval) =>
+      policy.acceptedDecisionIds.includes(approval.decisionId)
+    );
+    if (acceptedApproval !== undefined) {
       return Object.freeze(diagnostics);
     }
+    const approval = approvals[0];
     diagnostics.push(
       diagnostic({
         rule: PROTOBUF_EVOLUTION_RULES.breakingChangeNotApproved,

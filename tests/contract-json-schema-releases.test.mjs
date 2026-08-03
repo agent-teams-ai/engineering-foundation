@@ -363,6 +363,23 @@ test("rejects remote references and duplicate IDs before AJV can resolve anythin
   });
 });
 
+test("does not interpret instance data named $ref as a schema reference", async () => {
+  await withContractFixture(async (root) => {
+    await writeJson(root, "schemas/root.schema.json", {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://schemas.example.test/agent/root.schema.json",
+      type: "object",
+      properties: {
+        metadata: {
+          const: { $ref: "https://untrusted.example.test/instance-data.json" },
+        },
+      },
+    });
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    await assert.doesNotReject(inspector.inspect(request(root)));
+  });
+});
+
 test("rejects schema evidence that escapes through a symbolic link", async () => {
   await withContractFixture(async (root) => {
     const external = await mkdtemp(join(tmpdir(), "foundation-json-schema-external-"));

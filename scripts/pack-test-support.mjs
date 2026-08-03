@@ -7,6 +7,7 @@ import { spawnWindowsManagedProcess } from "../packages/engineering-foundation/d
 
 const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4";
 const commandMaxBufferBytes = 16 * 1024 * 1024;
+const commandMaxTimeoutMs = 2_147_483_647;
 const commandTerminationSignal = "SIGKILL";
 const secretPatterns = [
   /-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/u,
@@ -168,8 +169,14 @@ async function cleanUpAfterNormalExit(child) {
 
 export async function runCommand(command, args, cwd, options = {}) {
   const timeoutMs = options.timeoutMs ?? 120_000;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
-    throw new Error("Command timeout must be a positive safe integer.");
+  if (
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs <= 0 ||
+    timeoutMs > commandMaxTimeoutMs
+  ) {
+    throw new Error(
+      `Command timeout must be a positive integer no greater than ${commandMaxTimeoutMs}.`
+    );
   }
   if (options.signal?.aborted === true) {
     throw commandError({

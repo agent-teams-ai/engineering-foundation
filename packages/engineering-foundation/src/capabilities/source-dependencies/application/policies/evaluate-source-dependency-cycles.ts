@@ -17,6 +17,7 @@ type CycleScope = "boundary" | "package";
 
 interface LogicalEdge {
   readonly from: string;
+  readonly mode: SourceDependencyEdgeMode;
   readonly to: string;
   readonly sourcePath: string;
   readonly targetPath: string | null;
@@ -56,6 +57,7 @@ function compareLogicalEdges(left: LogicalEdge, right: LogicalEdge): number {
   return (
     compareBinaryStrings(left.from, right.from) ||
     compareBinaryStrings(left.to, right.to) ||
+    compareBinaryStrings(left.mode, right.mode) ||
     compareBinaryStrings(left.sourcePath, right.sourcePath) ||
     compareBinaryStrings(left.targetPath ?? "", right.targetPath ?? "")
   );
@@ -68,7 +70,9 @@ function logicalEdges(
 ): readonly LogicalEdge[] {
   const candidates: LogicalEdge[] = [];
   for (const edge of graph.edges) {
-    if (edge.mode !== mode) {
+    // A runtime cycle may contain type-only edges. Type-only diagnostics stay
+    // strict so a purely type-level SCC is not reported as a runtime cycle.
+    if (mode === "type-only" && edge.mode !== "type-only") {
       continue;
     }
     const candidate = logicalEdge(edge, scope);
@@ -79,7 +83,8 @@ function logicalEdges(
   const unique = new Map<string, LogicalEdge>();
   for (const edge of candidates.toSorted(compareLogicalEdges)) {
     const key = `${edge.from}\u0000${edge.to}`;
-    if (!unique.has(key)) {
+    const current = unique.get(key);
+    if (current === undefined || (current.mode === "type-only" && edge.mode === "runtime")) {
       unique.set(key, edge);
     }
   }
@@ -99,6 +104,7 @@ function logicalEdge(
     }
     return {
       from: edge.fromBoundaryId,
+      mode: edge.mode,
       to: edge.resolution.targetBoundaryId,
       sourcePath: edge.fromPath,
       targetPath: edge.resolution.path
@@ -109,6 +115,7 @@ function logicalEdge(
     case "local-file":
       return {
         from: edge.fromWorkspacePackageName,
+        mode: edge.mode,
         to: edge.resolution.workspacePackageName,
         sourcePath: edge.fromPath,
         targetPath: edge.resolution.path
@@ -116,6 +123,7 @@ function logicalEdge(
     case "workspace-package":
       return {
         from: edge.fromWorkspacePackageName,
+        mode: edge.mode,
         to: edge.resolution.workspacePackageName,
         sourcePath: edge.fromPath,
         targetPath: null
@@ -236,7 +244,8 @@ function shortestPath(
   start: string,
   target: string,
   members: ReadonlySet<string>,
-  graph: ReadonlyMap<string, readonly LogicalEdge[]>
+  graph: ReadonlyMap<string, readonly LogicalEdge[]>,
+  requiredMode?: SourceDependencyEdgeMode
 ): readonly LogicalEdge[] | undefined {
   const queue = [start];
   const previous = new Map<string, LogicalEdge>();
@@ -247,7 +256,11 @@ function shortestPath(
       break;
     }
     for (const edge of graph.get(node) ?? []) {
-      if (!members.has(edge.to) || visited.has(edge.to)) {
+      if (
+        (requiredMode !== undefined && edge.mode !== requiredMode) ||
+        !members.has(edge.to) ||
+        visited.has(edge.to)
+      ) {
         continue;
       }
       previous.set(edge.to, edge);
@@ -281,18 +294,39 @@ function reconstructPath(
 
 function canonicalWitness(
   members: readonly string[],
-  graph: ReadonlyMap<string, readonly LogicalEdge[]>
+  graph: ReadonlyMap<string, readonly LogicalEdge[]>,
+  mode: SourceDependencyEdgeMode
 ): readonly LogicalEdge[] | undefined {
-  const start = members[0];
-  if (start === undefined) {
+  if (members.length === 0) {
     return undefined;
   }
   const memberSet = new Set(members);
-  for (const firstEdge of graph.get(start) ?? []) {
+  const candidateEdges = mode === "runtime"
+    ? members.flatMap((member) =>
+        (graph.get(member) ?? []).filter(
+          (edge) => edge.mode === "runtime" && memberSet.has(edge.to)
+        )
+      ).toSorted(compareLogicalEdges)
+    : graph.get(members[0] ?? "") ?? [];
+  if (mode === "runtime") {
+    for (const firstEdge of candidateEdges) {
+      const returnPath = shortestPath(
+        firstEdge.to,
+        firstEdge.from,
+        memberSet,
+        graph,
+        "runtime"
+      );
+      if (returnPath !== undefined) {
+        return Object.freeze([firstEdge, ...returnPath]);
+      }
+    }
+  }
+  for (const firstEdge of candidateEdges) {
     if (!memberSet.has(firstEdge.to)) {
       continue;
     }
-    const returnPath = shortestPath(firstEdge.to, start, memberSet, graph);
+    const returnPath = shortestPath(firstEdge.to, firstEdge.from, memberSet, graph);
     if (returnPath !== undefined) {
       return Object.freeze([firstEdge, ...returnPath]);
     }
@@ -330,11 +364,12 @@ function boundedWitness(edges: readonly LogicalEdge[]): string {
 }
 
 function cycleEvidence(
-  graph: ReadonlyMap<string, readonly LogicalEdge[]>
+  graph: ReadonlyMap<string, readonly LogicalEdge[]>,
+  mode: SourceDependencyEdgeMode
 ): readonly CycleEvidence[] {
   const cycles: CycleEvidence[] = [];
   for (const members of stronglyConnectedComponents(graph)) {
-    const witness = canonicalWitness(members, graph);
+    const witness = canonicalWitness(members, graph, mode);
     if (witness !== undefined) {
       cycles.push(Object.freeze({ members: Object.freeze([...members]), witness }));
     }
@@ -366,7 +401,7 @@ export function evaluateSourceDependencyCycles(
   const diagnostics: FoundationDiagnostic[] = [];
   for (const scope of ["boundary", "package"] as const) {
     for (const mode of ["runtime", "type-only"] as const) {
-      const cycles = cycleEvidence(adjacency(logicalEdges(graph, scope, mode)));
+      const cycles = cycleEvidence(adjacency(logicalEdges(graph, scope, mode)), mode);
       const rule = ruleFor(scope, mode);
       for (const cycle of cycles) {
         const firstEdge = cycle.witness[0];

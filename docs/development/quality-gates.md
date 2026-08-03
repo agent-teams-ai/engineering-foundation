@@ -104,7 +104,9 @@ The tarball is extracted and searched for a source-owned secret canary. Linux CI
 also emits an SPDX JSON SBOM and runs Dependency Review inside its required
 `check` job.
 
-That tarball check qualifies this repository's published package. The static
-`repository.security-baseline` capability does not manufacture equivalent
+That tarball check qualifies package contents and packed-consumer behavior, but
+does not prove publication through an npm-compatible registry. Release runs a
+separate hermetic registry publish/install gate with network uplinks disabled.
+The static `repository.security-baseline` capability does not manufacture equivalent
 evidence for a consumer; each publishing consumer needs its own real packed-
 artifact gate until a separate reusable package capability is accepted.

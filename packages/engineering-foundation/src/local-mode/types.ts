@@ -70,9 +70,9 @@ export interface ProcessRequest {
   readonly command: string;
   readonly args: readonly string[];
   readonly cwd: string;
-  /** Maximum wall-clock duration for this process. NodeProcessRunner applies a safe default. */
+  /** Optional maximum wall-clock duration. Omission preserves unbounded legacy behavior. */
   readonly timeoutMs?: number;
-  /** Cancels the process and its descendants when aborted. */
+  /** Cancels the process and descendants retained by the platform containment boundary. */
   readonly signal?: AbortSignal;
 }
 

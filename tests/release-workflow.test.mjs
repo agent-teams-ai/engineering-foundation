@@ -21,7 +21,7 @@ async function workflow(name) {
   );
 }
 
-test("release pipeline runs an exact App-first review", async () => {
+test("release pipeline keeps App review and a bounded generated-diff attestation", async () => {
   const release = await workflow("release.yml");
   const review = await workflow("reviewrouter-codex.yml");
   const reviewGate = await workflow("review-gate.yml");
@@ -78,6 +78,26 @@ test("release pipeline runs an exact App-first review", async () => {
   assert.equal(review.on.workflow_dispatch, undefined);
   assert.equal(review.jobs["codex-review"].with.workflow_schema_version, 2);
   assert.match(review.jobs["codex-review"].if, /user\.type != 'Bot'/u);
+});
+
+test("release publishing requires the hermetic registry installation gate", async () => {
+  const manifest = JSON.parse(
+    await readFile(join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const ci = await workflow("ci.yml");
+  assert.match(
+    manifest.scripts["release:publish"],
+    /registry-install-e2e:built/u,
+  );
+  assert.equal(
+    manifest.scripts["registry-install-e2e:built"],
+    "node scripts/registry-install-e2e.mjs",
+  );
+  assert.ok(
+    ci.jobs.check.steps.some(
+      (step) => step.run === "pnpm registry-install-e2e:built",
+    ),
+  );
 });
 
 test("release ReviewGate permits only version and generated changelog changes", () => {

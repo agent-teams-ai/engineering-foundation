@@ -24,6 +24,7 @@ export function isPinnedExternalWorkflowUse(value: string): boolean {
 
 export interface WorkflowStepEvidence {
   readonly conditional: boolean;
+  readonly condition?: string;
   readonly nonBlocking: boolean;
   readonly inputs: Readonly<Record<string, unknown>>;
   readonly uses?: string;
@@ -38,6 +39,7 @@ export interface WorkflowContainerEvidence {
 
 export interface WorkflowJobEvidence {
   readonly conditional: boolean;
+  readonly condition?: string;
   readonly nonBlocking: boolean;
   readonly needs: readonly string[];
   readonly id: string;

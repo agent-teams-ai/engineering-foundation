@@ -1,5 +1,20 @@
 # @agent-teams/engineering-foundation
 
+## 0.5.0
+
+### Minor Changes
+
+- [#38](https://github.com/agent-teams-ai/engineering-foundation/pull/38) [`a2203d2`](https://github.com/agent-teams-ai/engineering-foundation/commit/a2203d21dad85ea35399ae13842cd354705034dd) Thanks [@777genius](https://github.com/777genius)! - Add the closed deterministic scaffolding protocol, filesystem executor, recovery flow, public schemas, and first conformance-fixture vertical.
+
+- [#40](https://github.com/agent-teams-ai/engineering-foundation/pull/40) [`f65fc4a`](https://github.com/agent-teams-ai/engineering-foundation/commit/f65fc4a1707936f25a9049c0bd1c212ce365d45e) Thanks [@777genius](https://github.com/777genius)! - Add the portable repository agent workflow capability and changed-file preflight runner.
+
+- [#33](https://github.com/agent-teams-ai/engineering-foundation/pull/33) [`f8fd6b6`](https://github.com/agent-teams-ai/engineering-foundation/commit/f8fd6b6672c589cf4f0c209f3bb57048d1049e87) Thanks [@777genius](https://github.com/777genius)! - Publish opt-in production and test maintainability presets with documented,
+  conformance-tested size, complexity, nesting, and parameter budgets.
+
+### Patch Changes
+
+- [#32](https://github.com/agent-teams-ai/engineering-foundation/pull/32) [`768a2f0`](https://github.com/agent-teams-ai/engineering-foundation/commit/768a2f04d8e2afb8a37d5cb1889212e3979f33a9) Thanks [@777genius](https://github.com/777genius)! - Accept pnpm catalog aliases only when their target is pinned to an exact semantic version.
+
 ## 0.4.1
 
 ### Patch Changes

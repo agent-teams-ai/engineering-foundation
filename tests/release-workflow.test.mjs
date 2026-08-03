@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
 
 import {
+  readStreamText,
   releasePullRequestContentViolations,
   releasePullRequestFileViolations,
 } from "../scripts/check-release-pr-files.mjs";
@@ -58,6 +60,10 @@ test("release pipeline runs an exact App-first review", async () => {
   );
   assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
+  assert.match(
+    attestation.run,
+    /read -r state head_ref head_sha base_ref base_sha[\s\S]*\.base\.sha/u,
+  );
   assert.match(attestation.run, /--base "\$\{base_sha\}" --head "\$\{head_sha\}"/u);
   assert.match(attestation.run, /post_status "\$\{release_gate_context\}" success/u);
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-codex\.yml/u);
@@ -74,12 +80,12 @@ test("release pipeline runs an exact App-first review", async () => {
   assert.match(review.jobs["codex-review"].if, /user\.type != 'Bot'/u);
 });
 
-test("release ReviewGate permits only version and prepend-only changelog changes", () => {
+test("release ReviewGate permits only version and generated changelog changes", () => {
   const evidence = {
     baseManifest: { name: "@agent-teams/engineering-foundation", version: "0.4.1" },
     headManifest: { name: "@agent-teams/engineering-foundation", version: "0.5.0" },
     baseChangelog: "# Changelog\n\n## 0.4.1\n",
-    headChangelog: "## 0.5.0\n\nNew capability.\n\n# Changelog\n\n## 0.4.1\n",
+    headChangelog: "# Changelog\n\n## 0.5.0\n\nNew capability.\n\n## 0.4.1\n",
   };
 
   assert.deepEqual(releasePullRequestContentViolations(evidence), []);
@@ -92,7 +98,7 @@ test("release ReviewGate permits only version and prepend-only changelog changes
   );
   assert.match(
     releasePullRequestContentViolations({ ...evidence, headChangelog: "rewritten" })[0],
-    /only prepend/u,
+    /only insert/u,
   );
   assert.match(
     releasePullRequestContentViolations({
@@ -124,5 +130,12 @@ test("release ReviewGate accepts only normalized Changesets output", () => {
       validFiles.filter(({ filename }) => !filename.endsWith("package.json")),
     )[0],
     /must modify/u,
+  );
+});
+
+test("release ReviewGate reads piped GitHub evidence through portable stdin", async () => {
+  assert.equal(
+    await readStreamText(Readable.from([Buffer.from('[{"filename":'), '"safe"}]'])),
+    '[{"filename":"safe"}]',
   );
 });

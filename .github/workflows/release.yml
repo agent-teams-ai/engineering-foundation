@@ -90,9 +90,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          read -r state head_ref head_sha base_ref < <(gh api \
+          read -r state head_ref head_sha base_ref base_sha < <(gh api \
             "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}" \
-            --jq '[.state, .head.ref, .head.sha, .base.ref] | @tsv')
+            --jq '[.state, .head.ref, .head.sha, .base.ref, .base.sha] | @tsv')
           if [[ "${state}" != "open" || "${head_ref}" != "changeset-release/main" || "${base_ref}" != "main" ]]; then
             echo "Changesets output does not identify the expected open release pull request." >&2
             exit 1

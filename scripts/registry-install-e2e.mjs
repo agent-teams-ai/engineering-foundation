@@ -4,6 +4,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   realpath,
   rm,
   writeFile,
@@ -25,6 +26,7 @@ const temporaryRoot = await mkdtemp(
 );
 const keepTemporaryRoot =
   process.env.AGENT_TEAMS_KEEP_REGISTRY_E2E_ARTIFACTS === "1";
+const runPnpm = createPnpmRunner();
 let npmUserConfigPath;
 
 function npmExecutable() {
@@ -124,7 +126,6 @@ async function collectRuntimeDependencyClosure() {
 async function createTargetArchive() {
   const destination = join(temporaryRoot, "target");
   await mkdir(destination, { recursive: true });
-  const runPnpm = createPnpmRunner();
   await runPnpm(["pack", "--pack-destination", destination], packageRoot);
   const manifest = await readManifest(packageRoot);
   const archiveName = `${manifest.name.replace("@", "").replace("/", "-")}-${manifest.version}.tgz`;
@@ -237,16 +238,17 @@ async function closeServer(server) {
 async function packPackage(entry, index) {
   const destination = join(temporaryRoot, "seed", String(index));
   await mkdir(destination, { recursive: true });
-  const { stdout } = await runNpm(
-    ["pack", entry.root, "--pack-destination", destination, "--ignore-scripts", "--json"],
-    repositoryRoot,
+  await runPnpm(
+    ["pack", "--pack-destination", destination, "--config.ignore-scripts=true"],
+    entry.root,
   );
-  const result = JSON.parse(stdout);
-  const filename = result[0]?.filename;
-  if (typeof filename !== "string") {
-    throw new Error(`npm pack did not report an archive for ${entry.identity}.`);
+  const archives = (await readdir(destination)).filter((name) =>
+    name.endsWith(".tgz"),
+  );
+  if (archives.length !== 1) {
+    throw new Error(`pnpm pack did not report one archive for ${entry.identity}.`);
   }
-  return join(destination, filename);
+  return join(destination, archives[0]);
 }
 
 async function publishArchive(archivePath, registryUrl) {

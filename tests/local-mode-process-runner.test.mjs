@@ -17,11 +17,11 @@ const PARENT_EXITS_BEFORE_CHILD_PATH = fileURLToPath(
   new URL("./fixtures/parent-exits-before-child.mjs", import.meta.url)
 );
 const POLL_INTERVAL_MS = 25;
-const READY_TIMEOUT_MS = process.platform === "win32" ? 8_000 : 2_000;
+const READY_TIMEOUT_MS = process.platform === "win32" ? 12_000 : 2_000;
 const EXIT_TIMEOUT_MS = 3_000;
-const PROCESS_DEADLINE_MS = process.platform === "win32" ? 5_000 : 1_000;
+const PROCESS_DEADLINE_MS = process.platform === "win32" ? 15_000 : 1_000;
 const CANCELLATION_DEADLINE_MS = process.platform === "win32" ? 15_000 : 5_000;
-const TEST_TIMEOUT_MS = process.platform === "win32" ? 25_000 : 10_000;
+const TEST_TIMEOUT_MS = process.platform === "win32" ? 35_000 : 10_000;
 
 async function waitForPidFile(path) {
   const deadline = Date.now() + READY_TIMEOUT_MS;

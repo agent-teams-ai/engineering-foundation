@@ -28,7 +28,7 @@ export const FOUNDATION_SCHEMA_IDS = [
 
 export type FoundationSchemaId = (typeof FOUNDATION_SCHEMA_IDS)[number];
 
-export const INTERNAL_SCAFFOLD_SCHEMA_IDS = [
+const INTERNAL_SCAFFOLD_SCHEMA_IDS = [
   "scaffold-intent/v1",
   "scaffold-plan/v1",
   "scaffold-receipt/v1",
@@ -36,7 +36,7 @@ export const INTERNAL_SCAFFOLD_SCHEMA_IDS = [
   "scaffolding-config/v1"
 ] as const;
 
-export type InternalScaffoldSchemaId =
+type InternalScaffoldSchemaId =
   (typeof INTERNAL_SCAFFOLD_SCHEMA_IDS)[number];
 
 export type FoundationSchemaCatalogId =

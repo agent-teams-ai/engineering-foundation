@@ -1,9 +1,4 @@
-import type { AuthorityScaffoldReceipt } from "./receipt-authority-types.js";
-
-export type {
-  AuthorityScaffoldReceiptCommon,
-  AuthorityScaffoldReceipt
-} from "./receipt-authority-types.js";
+export type { AuthorityScaffoldReceipt } from "./receipt-authority-types.js";
 
 export type JsonPrimitive = boolean | null | number | string;
 export type JsonValue =
@@ -40,7 +35,7 @@ export interface ScaffoldRenderingComposition {
   readonly policies: readonly ConfiguredDefinition[];
 }
 
-export interface ScaffoldCompositionV1 extends ScaffoldRenderingComposition {}
+interface ScaffoldCompositionV1 extends ScaffoldRenderingComposition {}
 
 export interface ScaffoldingConfigV1 {
   readonly schemaVersion: 1;
@@ -62,7 +57,7 @@ export interface ScaffoldAuthorityVerifierV1 {
   };
 }
 
-export interface AuthorityScaffoldComposition extends ScaffoldRenderingComposition {
+interface AuthorityScaffoldComposition extends ScaffoldRenderingComposition {
   readonly authorityVerifiers: readonly [ScaffoldAuthorityVerifierV1];
 }
 
@@ -90,7 +85,7 @@ export interface ScaffoldRenderingTarget {
   readonly packageName: string;
 }
 
-export interface ScaffoldTargetV1 extends ScaffoldRenderingTarget {
+interface ScaffoldTargetV1 extends ScaffoldRenderingTarget {
   readonly ownerDocument?: string;
 }
 
@@ -99,7 +94,7 @@ export interface ScaffoldTargetCatalogV1 {
   readonly packages: readonly ScaffoldTargetV1[];
 }
 
-export interface AuthorityScaffoldOwnerDocumentBinding {
+interface AuthorityScaffoldOwnerDocumentBinding {
   readonly id: string;
   readonly path: RepositoryPath;
 }
@@ -143,7 +138,7 @@ export type AuthorityScaffoldReadSet = readonly [
   ScaffoldReadAssertionV1
 ];
 
-export type ScaffoldAuthoritySourceRoleV1 =
+type ScaffoldAuthoritySourceRoleV1 =
   | "config"
   | "owner-document"
   | "target-catalog";
@@ -314,7 +309,7 @@ export type AuthorityScaffoldReceiptOutcome =
   | ScaffoldReceiptOutcome
   | "authority-stale";
 
-export interface ScaffoldReceiptCommonV1 {
+interface ScaffoldReceiptCommonV1 {
   readonly schemaVersion: 1;
   readonly protocolVersion: 1;
   readonly planDigest: Sha256Digest;
@@ -484,8 +479,6 @@ export type ScaffoldReceiptV1 =
           }
       ));
 
-export type ScaffoldReceipt = ScaffoldReceiptV1 | AuthorityScaffoldReceipt;
-
 type AuthorityScaffoldJournalOperationState =
   | "pending"
   | "publishing"
@@ -498,20 +491,12 @@ export interface AuthorityScaffoldJournalOperation {
   readonly state: AuthorityScaffoldJournalOperationState;
 }
 
-interface ScaffoldJournalV1 {
-  readonly schemaVersion: 1;
-  readonly state: "PREPARED";
-  readonly plan: ScaffoldPlanV1;
-}
-
 export interface AuthorityScaffoldJournal {
   readonly schemaVersion: 2;
   readonly state: "PREPARED";
   readonly plan: AuthorityScaffoldPlan;
   readonly operations: readonly AuthorityScaffoldJournalOperation[];
 }
-
-export type ScaffoldJournal = ScaffoldJournalV1 | AuthorityScaffoldJournal;
 
 export interface ScaffoldCompilationInput {
   readonly foundationVersion: string;
@@ -531,10 +516,6 @@ export interface AuthorityScaffoldCompilationInput {
   readonly authorityEvidence: ScaffoldAuthorityEvidenceV1;
   readonly authorityReadSet: AuthorityScaffoldReadSet;
 }
-
-export type AnyScaffoldCompilationInput =
-  | ScaffoldCompilationInput
-  | AuthorityScaffoldCompilationInput;
 
 export interface ScaffoldFileContribution {
   readonly path: RepositoryPath;

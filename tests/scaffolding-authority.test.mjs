@@ -346,14 +346,13 @@ test("rejects unknown authority verifier/version and schema extensions", async (
       );
     },
     async (root) => {
-      await writeFile(
-        configPath(root),
-        (await readFile(configPath(root), "utf8")).replace(
-          "contractVersion: 1\n        parameters:",
-          "contractVersion: 2\n        parameters:"
-        ),
-        "utf8"
+      const source = await readFile(configPath(root), "utf8");
+      const mutated = source.replace(
+        /contractVersion: 1(\r?\n        parameters:)/u,
+        "contractVersion: 2$1"
       );
+      assert.notEqual(mutated, source, "Verifier version fixture must mutate.");
+      await writeFile(configPath(root), mutated, "utf8");
     },
     async (root) => {
       await writeFile(

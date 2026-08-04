@@ -13,7 +13,7 @@ export type ScaffoldAuthorityAssessment =
   | { readonly state: "stale" }
   | { readonly state: "unverifiable" };
 
-export async function assertPlanMatchesConsumerAuthority(
+async function assertPlanMatchesConsumerAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
   authorityFaultInjector?: ScaffoldAuthorityInputFaultInjector

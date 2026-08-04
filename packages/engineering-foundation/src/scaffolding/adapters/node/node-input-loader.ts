@@ -18,8 +18,6 @@ import {
 } from "./node-repository-file.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
 
-export { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
-
 function hasErrorCode(error: unknown, code: string): boolean {
   const visited = new Set<Error>();
   let candidate = error;

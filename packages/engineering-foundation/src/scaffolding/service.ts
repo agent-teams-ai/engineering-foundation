@@ -5,8 +5,6 @@ import { createDefaultScaffoldRegistry } from "./definitions/registry.js";
 import { compileScaffoldPlan } from "./kernel/rendering-plan-compiler.js";
 import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffold-defaults.js";
 
-export { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffold-defaults.js";
-
 /** Retains the released 0.5 rendering planner for regression evidence only. */
 export async function planScaffoldFromFile(options: {
   readonly consumerRoot: string;

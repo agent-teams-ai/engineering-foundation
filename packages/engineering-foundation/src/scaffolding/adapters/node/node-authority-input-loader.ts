@@ -153,7 +153,7 @@ async function assertAuthoritySourceSetStable(options: {
   }
 }
 
-export async function loadAuthorityScaffoldCompilationInput(options: {
+async function loadAuthorityScaffoldCompilationInput(options: {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly foundationVersion: string;

@@ -4,7 +4,7 @@ import type {
   Sha256Digest
 } from "./types.js";
 
-export interface AuthorityScaffoldReceiptCommon {
+interface AuthorityScaffoldReceiptCommon {
   readonly schemaVersion: 2;
   readonly protocolVersion: 2;
   readonly planDigest: Sha256Digest;

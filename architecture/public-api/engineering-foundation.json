@@ -1,15 +1,78 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.5.0",
+  "packageVersion": "0.6.0",
   "extractorVersion": "7.58.12",
   "items": [
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!DeterministicSeedBank#numRuns:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!DeterministicSeedBank:interface",
+      "parentKind": "Interface",
+      "signature": "readonly numRuns: number;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!DeterministicSeedBank#propertyId:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!DeterministicSeedBank:interface",
+      "parentKind": "Interface",
+      "signature": "readonly propertyId: string;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!DeterministicSeedBank#schemaVersion:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!DeterministicSeedBank:interface",
+      "parentKind": "Interface",
+      "signature": "readonly schemaVersion: 1;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!DeterministicSeedBank#seeds:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!DeterministicSeedBank:interface",
+      "parentKind": "Interface",
+      "signature": "readonly seeds: readonly number[];"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!DeterministicSeedBank:interface",
+      "kind": "Interface",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export interface DeterministicSeedBank"
+    },
     {
       "canonicalReference": "@agent-teams/engineering-foundation!FOUNDATION_METADATA_SCHEMA_VERSION:var",
       "kind": "Variable",
       "parentReference": "@agent-teams/engineering-foundation!",
       "parentKind": "EntryPoint",
       "signature": "FOUNDATION_METADATA_SCHEMA_VERSION: 1"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FastCheckParameters#numRuns:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FastCheckParameters:interface",
+      "parentKind": "Interface",
+      "signature": "readonly numRuns: number;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FastCheckParameters#path:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FastCheckParameters:interface",
+      "parentKind": "Interface",
+      "signature": "readonly path?: string;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FastCheckParameters#seed:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!FastCheckParameters:interface",
+      "parentKind": "Interface",
+      "signature": "readonly seed: number;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!FastCheckParameters:interface",
+      "kind": "Interface",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export interface FastCheckParameters"
     },
     {
       "canonicalReference": "@agent-teams/engineering-foundation!FoundationError#code:member",
@@ -101,6 +164,83 @@
       "parentReference": "@agent-teams/engineering-foundation!",
       "parentKind": "EntryPoint",
       "signature": "export interface FoundationPackageSelfCheck"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#counterexampleDigest:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence:interface",
+      "parentKind": "Interface",
+      "signature": "readonly counterexampleDigest?: `sha256:${string}`;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#numRuns:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence:interface",
+      "parentKind": "Interface",
+      "signature": "readonly numRuns: number;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#path:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence:interface",
+      "parentKind": "Interface",
+      "signature": "readonly path?: string;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#propertyId:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence:interface",
+      "parentKind": "Interface",
+      "signature": "readonly propertyId: string;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#schemaVersion:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence:interface",
+      "parentKind": "Interface",
+      "signature": "readonly schemaVersion: 1;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#seed:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence:interface",
+      "parentKind": "Interface",
+      "signature": "readonly seed: number;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence:interface",
+      "kind": "Interface",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export interface PropertyReplayEvidence"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyTestingEvidenceError#code:member",
+      "kind": "Property",
+      "parentReference": "@agent-teams/engineering-foundation!PropertyTestingEvidenceError:class",
+      "parentKind": "Class",
+      "signature": "readonly code: \"PROPERTY_TESTING_EVIDENCE_INVALID\";"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyTestingEvidenceError:class",
+      "kind": "Class",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export declare class PropertyTestingEvidenceError extends Error"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!PropertyTestingEvidenceError:constructor(1)",
+      "kind": "Constructor",
+      "parentReference": "@agent-teams/engineering-foundation!PropertyTestingEvidenceError:class",
+      "parentKind": "Class",
+      "signature": "constructor(message: string, options?: ErrorOptions);"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!createFastCheckParameters:function(1)",
+      "kind": "Function",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export declare function createFastCheckParameters(bank: DeterministicSeedBank, seed: number, replay?: PropertyReplayEvidence): FastCheckParameters;"
     },
     {
       "canonicalReference": "@agent-teams/engineering-foundation!inspectFoundationPackage:function(1)",
@@ -537,6 +677,20 @@
       "signature": "readonly cwd: string;"
     },
     {
+      "canonicalReference": "@agent-teams/engineering-foundation!localMode.ProcessRequest#signal:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!localMode.ProcessRequest:interface",
+      "parentKind": "Interface",
+      "signature": "readonly signal?: AbortSignal;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!localMode.ProcessRequest#timeoutMs:member",
+      "kind": "PropertySignature",
+      "parentReference": "@agent-teams/engineering-foundation!localMode.ProcessRequest:interface",
+      "parentKind": "Interface",
+      "signature": "readonly timeoutMs?: number;"
+    },
+    {
       "canonicalReference": "@agent-teams/engineering-foundation!localMode.ProcessRequest:interface",
       "kind": "Interface",
       "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
@@ -633,6 +787,20 @@
       "parentReference": "@agent-teams/engineering-foundation!",
       "parentKind": "EntryPoint",
       "signature": "namespace localMode"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!normalizeDeterministicSeedBank:function(1)",
+      "kind": "Function",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export declare function normalizeDeterministicSeedBank(input: DeterministicSeedBank): DeterministicSeedBank;"
+    },
+    {
+      "canonicalReference": "@agent-teams/engineering-foundation!normalizePropertyReplayEvidence:function(1)",
+      "kind": "Function",
+      "parentReference": "@agent-teams/engineering-foundation!",
+      "parentKind": "EntryPoint",
+      "signature": "export declare function normalizePropertyReplayEvidence(input: PropertyReplayEvidence): PropertyReplayEvidence;"
     },
     {
       "canonicalReference": "@agent-teams/engineering-foundation!parseFoundationPackageSelfCheck:function(1)",

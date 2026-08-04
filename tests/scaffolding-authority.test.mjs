@@ -7,6 +7,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  rename,
   rm,
   stat,
   utimes,
@@ -651,8 +652,8 @@ test("recovers journal progress at preparation, publishing, and published crash 
 
 test("fails safely after process death at every source-bound publication boundary", async () => {
   for (const scenario of [
-    { phase: "after-journal-temporary-synced", expected: "failed-recovered" },
-    { phase: "after-journal-temporary-synced", operationIndex: 0, expected: "failed-recovered" },
+    { phase: "after-journal-temporary-synced", expected: "temporary-preserved", replaceTemporary: true, revokeAuthority: true },
+    { phase: "after-journal-temporary-synced", operationIndex: 0, expected: "temporary-preserved" },
     { phase: "after-journal-prepared", expected: "failed-recovered" },
     {
       phase: "after-journal-operation-publishing",
@@ -692,6 +693,23 @@ test("fails safely after process death at every source-bound publication boundar
         scenario.phase,
         scenario.operationIndex
       );
+      if (scenario.expected === "temporary-preserved") {
+        const temporary = `${journalPath(root)}.tmp`;
+        const bytes = await readFile(temporary);
+        if (scenario.replaceTemporary === true) {
+          await rename(temporary, `${temporary}.foundation-original`);
+          await writeFile(temporary, bytes);
+        }
+        if (scenario.revokeAuthority === true) {
+          await setOwnerStatus(root, "proposed");
+        }
+        await assert.rejects(recoverFilesystemScaffold(root), /cannot be proven transaction-owned/u);
+        assert.deepEqual(await readFile(temporary), bytes);
+        if (scenario.replaceTemporary === true) {
+          await assertMissing(journalPath(root));
+        }
+        continue;
+      }
       const receipt = await recoverFilesystemScaffold(root);
       if (scenario.expected === "already-applied-after-unlink") {
         assert.equal(receipt, undefined, scenario.phase);

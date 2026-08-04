@@ -44,6 +44,15 @@ function hasErrorCode(error: unknown, code: string): boolean {
   );
 }
 
+async function isExistingNonRegularPath(path: string): Promise<boolean> {
+  try {
+    const metadata = await lstat(path);
+    return metadata.isSymbolicLink() || !metadata.isFile();
+  } catch {
+    return false;
+  }
+}
+
 interface BigIntFileObservation {
   readonly birthtimeNs: bigint;
   readonly ctimeNs: bigint;
@@ -93,12 +102,19 @@ export async function readBoundedRegularFile(
   if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 0) {
     throw new TypeError("maximumBytes must be a non-negative safe integer.");
   }
+  if (await isExistingNonRegularPath(path)) {
+    return { outcome: "invalid" };
+  }
   const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const nonBlocking = process.platform === "win32" ? 0 : constants.O_NONBLOCK;
   let handle: FileHandle;
   try {
-    handle = await open(path, constants.O_RDONLY | noFollow);
+    handle = await open(path, constants.O_RDONLY | noFollow | nonBlocking);
   } catch (error) {
-    if (hasErrorCode(error, "ELOOP")) {
+    if (
+      hasErrorCode(error, "ELOOP") ||
+      (await isExistingNonRegularPath(path))
+    ) {
       return { outcome: "invalid" };
     }
     throw error;

@@ -40,6 +40,48 @@ function configPath(root) {
   return join(root, "architecture", "foundation", "scaffolding.yaml");
 }
 
+test("rejects malformed UTF-8 in every canonical authority source role", async () => {
+  const sources = [
+    {
+      role: "config",
+      repositoryPath: "architecture/foundation/scaffolding.yaml",
+      path: configPath,
+      malformedBytes: [0xc3, 0x28]
+    },
+    {
+      role: "target-catalog",
+      repositoryPath: "architecture/package-catalog.yaml",
+      path: catalogPath,
+      malformedBytes: [0xe2, 0x82]
+    },
+    {
+      role: "owner-document",
+      repositoryPath: "docs/decisions/adr-0060.md",
+      path: ownerPath,
+      malformedBytes: [0x80]
+    }
+  ];
+
+  for (const source of sources) {
+    const root = await createConsumer();
+    try {
+      const path = source.path(root);
+      await writeFile(
+        path,
+        Buffer.concat([await readFile(path), Buffer.from(source.malformedBytes)])
+      );
+      await assert.rejects(plan(root), (error) => {
+        assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID", source.role);
+        assert.match(error.message, /valid UTF-8/u, source.role);
+        assert.ok(error.message.includes(source.repositoryPath), source.role);
+        return true;
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test("rejects missing, overlapping, and out-of-scope authority document roots", async () => {
   const scenarios = [
     {

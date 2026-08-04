@@ -38,8 +38,8 @@ import {
   safeClassifyPlan
 } from "./filesystem-authority.js";
 import {
+  assertAuthorityScaffoldJournalTemporaryAbsent,
   readScaffoldJournalEnvelope,
-  reconcileAuthorityScaffoldJournalTemporary,
   SCAFFOLD_JOURNAL_FILE,
   writeAuthorityScaffoldJournal
 } from "./filesystem-journal.js";
@@ -100,6 +100,35 @@ interface AuthorityContinuationOptions {
 
 function isReceipt(value: unknown): value is AuthorityScaffoldReceipt {
   return typeof value === "object" && value !== null && "receiptDigest" in value;
+}
+
+function deepFreezePlanValue(value: unknown, visited: Set<object>): void {
+  if (typeof value !== "object" || value === null || visited.has(value)) {
+    return;
+  }
+  visited.add(value);
+  for (const child of Object.values(value)) {
+    deepFreezePlanValue(child, visited);
+  }
+  Object.freeze(value);
+}
+
+function snapshotAuthorityScaffoldPlan(
+  plan: AuthorityScaffoldPlan
+): AuthorityScaffoldPlan {
+  let snapshot: AuthorityScaffoldPlan;
+  try {
+    snapshot = structuredClone(plan);
+  } catch (error) {
+    throw new ScaffoldError(
+      "SCAFFOLD_PLAN_INVALID",
+      "Scaffolding Plan cannot be snapshotted as canonical data.",
+      [],
+      { cause: error }
+    );
+  }
+  deepFreezePlanValue(snapshot, new Set());
+  return snapshot;
 }
 
 async function prepareJournal(
@@ -267,9 +296,10 @@ export async function applyAuthorityFilesystemScaffold(
 /** Internal conformance seam. It is intentionally absent from package exports. */
 export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   consumerRoot: string,
-  plan: AuthorityScaffoldPlan,
+  callerPlan: AuthorityScaffoldPlan,
   faultInjector?: ScaffoldAuthorityFaultInjector
 ): Promise<AuthorityScaffoldReceipt> {
+  const plan = snapshotAuthorityScaffoldPlan(callerPlan);
   await assertSchema("scaffold-plan", plan, "scaffold-apply-plan");
   assertAuthorityScaffoldPlanDigest(plan);
   assertSafeOperationPaths(plan);
@@ -277,7 +307,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   const release = await acquireFoundationOperationLock(canonicalRoot);
   try {
     const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
-    await reconcileAuthorityScaffoldJournalTemporary(journalPath);
+    await assertAuthorityScaffoldJournalTemporaryAbsent(journalPath);
     const existing = await readScaffoldJournalEnvelope(journalPath);
     if (existing !== undefined) {
       if (existing.plan.planDigest !== plan.planDigest) {
@@ -381,7 +411,7 @@ export async function recoverAuthorityFilesystemScaffold(
   const release = await acquireFoundationOperationLock(canonicalRoot);
   try {
     const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
-    await reconcileAuthorityScaffoldJournalTemporary(journalPath);
+    await assertAuthorityScaffoldJournalTemporaryAbsent(journalPath);
     const journal = await readScaffoldJournalEnvelope(journalPath);
     if (journal === undefined) {
       return undefined;

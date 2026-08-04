@@ -24,6 +24,19 @@ function isContained(root: string, candidate: string): boolean {
   );
 }
 
+function decodeUtf8(bytes: Uint8Array, repositoryPath: string): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch (error) {
+    throw new ScaffoldError(
+      "SCAFFOLD_INPUT_INVALID",
+      `Scaffolding input must contain valid UTF-8: ${repositoryPath}.`,
+      [],
+      { cause: error }
+    );
+  }
+}
+
 export async function readContainedRepositoryFile(
   consumerRoot: string,
   repositoryPath: string,
@@ -67,7 +80,7 @@ export async function readContainedRepositoryFile(
     return {
       path: repositoryPath,
       bytes: result.bytes,
-      source: result.bytes.toString("utf8")
+      source: decodeUtf8(result.bytes, repositoryPath)
     };
   } catch (error) {
     if (error instanceof ScaffoldError) {

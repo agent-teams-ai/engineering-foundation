@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import {
   chmod,
   cp,
+  mkdir,
   mkdtemp,
   readFile,
   readdir,
@@ -12,8 +14,10 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { promisify } from "node:util";
 
 import {
   applyFilesystemScaffold,
@@ -24,6 +28,7 @@ import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundatio
 import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
 import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-plan-authority.js";
 
+const execFileAsync = promisify(execFile);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixtureRoot = join(
   repositoryRoot,
@@ -76,6 +81,61 @@ test("detects authority mutation between initial and stability source reads", as
       }
     );
     assert.deepEqual(assessment, { state: "stale" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("applies only the synchronous Plan snapshot when the caller mutates during Apply", async () => {
+  const root = await createConsumer();
+  try {
+    const callerPlan = structuredClone(await plan(root));
+    const original = structuredClone(callerPlan.operations[0]);
+    assert.ok(original);
+    const mutatedPath = original.path.replace(/[^/]+$/u, "caller-mutated.ts");
+    const receipt = await applyAuthorityFilesystemScaffoldWithFaultInjection(
+      root,
+      callerPlan,
+      (point) => {
+        if (
+          point.phase === "before-operation-authority-recheck" &&
+          point.operationIndex === 0
+        ) {
+          callerPlan.operations[0].path = mutatedPath;
+          callerPlan.operations[0].after.contentBase64 = Buffer.from(
+            "caller mutation\n"
+          ).toString("base64");
+        }
+      }
+    );
+
+    assert.equal(receipt.outcome, "applied");
+    assert.equal(receipt.operations[0]?.path, original.path);
+    assert.deepEqual(
+      await readFile(join(root, ...original.path.split("/"))),
+      Buffer.from(original.after.contentBase64, "base64")
+    );
+    await assertMissing(join(root, ...mutatedPath.split("/")));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("normalizes an unsnapshotable runtime Plan to a typed Plan error", async () => {
+  const root = await createConsumer();
+  try {
+    const callerPlan = {
+      ...(await plan(root)),
+      unsupportedRuntimeValue: () => undefined
+    };
+    await assert.rejects(
+      applyAuthorityFilesystemScaffoldWithFaultInjection(root, callerPlan),
+      (error) => {
+        assert.equal(error?.code, "SCAFFOLD_PLAN_INVALID");
+        assert.match(error?.message ?? "", /cannot be snapshotted/u);
+        return true;
+      }
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -228,3 +288,93 @@ test("preserves an exact replacement of the journal temporary", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test(
+  "rejects a FIFO journal without blocking and releases the operation lock",
+  { skip: process.platform === "win32", timeout: 10_000 },
+  async () => {
+    const root = await createConsumer();
+    try {
+      const path = journalPath(root);
+      await mkdir(dirname(path), { recursive: true });
+      await execFileAsync("mkfifo", [path]);
+      const scaffoldingUrl = new URL(
+        "../packages/engineering-foundation/dist/scaffolding/index.js",
+        import.meta.url
+      ).href;
+      const identityUrl = new URL(
+        "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-file-identity.js",
+        import.meta.url
+      ).href;
+      const probe = `
+        const [scaffoldingUrl, identityUrl, root, path] = process.argv.slice(1);
+        const { recoverFilesystemScaffold } = await import(scaffoldingUrl);
+        const { readBoundedRegularFile } = await import(identityUrl);
+        const direct = await readBoundedRegularFile(path, 1024);
+        if (direct.outcome !== "invalid") throw new Error("FIFO was not rejected");
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          let rejected = false;
+          try {
+            await recoverFilesystemScaffold(root);
+          } catch (error) {
+            if (!(error instanceof Error) || !error.message.includes("bounded regular file")) throw error;
+            rejected = true;
+          }
+          if (!rejected) throw new Error("FIFO journal recovery was not rejected");
+        }
+        process.stdout.write("completed\\n");
+      `;
+      const { stdout } = await execFileAsync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "--eval",
+          probe,
+          scaffoldingUrl,
+          identityUrl,
+          root,
+          path
+        ],
+        { timeout: 5_000 }
+      );
+
+      assert.equal(stdout, "completed\n");
+      assert.equal((await stat(path)).isFIFO(), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+);
+
+test(
+  "rejects a Unix socket journal through the typed recovery path",
+  { skip: process.platform === "win32", timeout: 10_000 },
+  async () => {
+    const root = await mkdtemp("/tmp/foundation-socket-");
+    await cp(fixtureRoot, root, { recursive: true });
+    const path = journalPath(root);
+    const server = createServer();
+    try {
+      await mkdir(dirname(path), { recursive: true });
+      await new Promise((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(path, resolve);
+      });
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await assert.rejects(
+          applyFilesystemScaffold(root, await plan(root)),
+          (error) => {
+            assert.equal(error?.code, "SCAFFOLD_RECOVERY_REQUIRED");
+            assert.match(error?.message ?? "", /bounded regular file/u);
+            return true;
+          }
+        );
+      }
+      assert.equal((await stat(path)).isSocket(), true);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+);

@@ -1,4 +1,4 @@
-import { link, mkdir, open, rename, rm } from "node:fs/promises";
+import { lstat, mkdir, open, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type { AuthorityScaffoldJournal } from "../../contract/types.js";
@@ -222,64 +222,24 @@ export async function captureExpectedAuthorityScaffoldJournal(
   return record.identity;
 }
 
-export async function reconcileAuthorityScaffoldJournalTemporary(
+export async function assertAuthorityScaffoldJournalTemporaryAbsent(
   path: string
 ): Promise<void> {
   const temporary = `${path}.tmp`;
-  const temporaryRecord = await readScaffoldJournalRecord(temporary);
-  if (temporaryRecord === undefined) {
-    return;
-  }
-  const primaryRecord = await readScaffoldJournalRecord(path);
-  if (
-    primaryRecord !== undefined &&
-    primaryRecord.journal.plan.planDigest !==
-      temporaryRecord.journal.plan.planDigest
-  ) {
-    throw new ScaffoldError(
-      "SCAFFOLD_RECOVERY_REQUIRED",
-      "Scaffolding journal and its temporary describe different transactions."
-    );
-  }
-  if (primaryRecord === undefined) {
-    if (
-      (await pathMatchesFileIdentity(temporary, temporaryRecord.identity)) !==
-      "match"
-    ) {
-      throw new ScaffoldError(
-        "SCAFFOLD_RECOVERY_REQUIRED",
-        "Scaffolding journal temporary changed before recovery."
-      );
+  try {
+    await lstat(temporary);
+  } catch (error) {
+    if (isMissing(error)) {
+      return;
     }
-    try {
-      await link(temporary, path);
-    } catch (error) {
-      throw new ScaffoldError(
-        "SCAFFOLD_RECOVERY_REQUIRED",
-        "Scaffolding journal appeared while its temporary was being recovered.",
-        [],
-        { cause: error }
-      );
-    }
-    if ((await pathMatchesFileIdentity(path, temporaryRecord.identity)) !== "match") {
-      throw new ScaffoldError(
-        "SCAFFOLD_RECOVERY_REQUIRED",
-        "Recovered scaffolding journal does not match its verified temporary."
-      );
-    }
-    await syncDirectory(dirname(path));
+    throw error;
   }
-  if (
-    (await pathMatchesFileIdentity(temporary, temporaryRecord.identity)) !==
-    "match"
-  ) {
-    throw new ScaffoldError(
-      "SCAFFOLD_RECOVERY_REQUIRED",
-      "Scaffolding journal temporary changed during recovery."
-    );
-  }
-  await rm(temporary);
-  await syncDirectory(dirname(path));
+  // Creator-handle identity does not survive a crash, so restart recovery has
+  // no evidence that authorizes promotion or deletion of this path.
+  throw new ScaffoldError(
+    "SCAFFOLD_RECOVERY_REQUIRED",
+    "Scaffolding journal temporary cannot be proven transaction-owned; it was preserved and requires manual recovery."
+  );
 }
 
 export async function removeExpectedAuthorityScaffoldJournal(

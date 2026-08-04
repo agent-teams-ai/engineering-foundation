@@ -21,16 +21,16 @@ jobs:
       contents: read
       pull-requests: read
       id-token: write
-    uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@295e76f7777a995b8fd0b0bb0a36788429c89b83
+    uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@885c973bcb6b2117ee10b262a4cc1b24fda73238
     with:
-      runtime_ref: "295e76f7777a995b8fd0b0bb0a36788429c89b83"
+      runtime_ref: "885c973bcb6b2117ee10b262a4cc1b24fda73238"
       api_url: "https://api.reviewrouter.site"
       runtime_config_mode: oidc
       static_runtime_env_json: '{"DIFF_MAX_BYTES":"240000","MAX_FULL_DIFF_FILE_BYTES":"60000","MAX_FULL_DIFF_FILE_CHANGES":"1000"}'
       pr_number: ${{ format('{0}', github.event.pull_request.number) }}
       review_head_sha: ${{ github.event.pull_request.head.sha }}
       provider_instance_id: "codex-rotating:1316243988"
-      workflow_schema_version: 2
+      workflow_schema_version: 1
       max_changed_lines: ${{ vars.REVIEW_ROUTER_MAX_CHANGED_LINES }}
       review_timeout_minutes: ${{ fromJSON(vars.REVIEW_ROUTER_TIMEOUT_MINUTES || '60') }}
     secrets:
@@ -49,10 +49,10 @@ jobs:
     steps:
       - name: ReviewRouter Codex OAuth refresh
         id: refresh_codex
-        uses: 777genius/review-router@295e76f7777a995b8fd0b0bb0a36788429c89b83
+        uses: 777genius/review-router@885c973bcb6b2117ee10b262a4cc1b24fda73238
         with:
           mode: codex-oauth-refresh
           api-url: "https://api.reviewrouter.site"
           provider-instance-id: "codex-rotating:1316243988"
-          workflow-schema-version: "2"
+          workflow-schema-version: "1"
           auth-json: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON }}

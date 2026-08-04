@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { rename, writeFile } from "node:fs/promises";
 
 const [pidPath] = process.argv.slice(2);
 if (pidPath === undefined) {
@@ -11,8 +11,10 @@ const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 60_000);"], 
 });
 child.unref();
 
+const temporaryPidPath = `${pidPath}.${process.pid}.tmp`;
 await writeFile(
-  pidPath,
+  temporaryPidPath,
   `${JSON.stringify({ parent: process.pid, child: child.pid })}\n`,
   "utf8"
 );
+await rename(temporaryPidPath, pidPath);

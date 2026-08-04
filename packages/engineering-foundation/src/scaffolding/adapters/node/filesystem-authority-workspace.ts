@@ -119,6 +119,7 @@ function snapshotAuthorityScaffoldPlan(
   let snapshot: AuthorityScaffoldPlan;
   try {
     snapshot = structuredClone(plan);
+    deepFreezePlanValue(snapshot, new Set());
   } catch (error) {
     throw new ScaffoldError(
       "SCAFFOLD_PLAN_INVALID",
@@ -127,7 +128,6 @@ function snapshotAuthorityScaffoldPlan(
       { cause: error }
     );
   }
-  deepFreezePlanValue(snapshot, new Set());
   return snapshot;
 }
 

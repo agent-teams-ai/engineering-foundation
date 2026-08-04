@@ -121,21 +121,23 @@ test("applies only the synchronous Plan snapshot when the caller mutates during 
   }
 });
 
-test("normalizes an unsnapshotable runtime Plan to a typed Plan error", async () => {
+test("normalizes unsnapshotable and unfreezable Plans to a typed Plan error", async () => {
   const root = await createConsumer();
   try {
-    const callerPlan = {
-      ...(await plan(root)),
-      unsupportedRuntimeValue: () => undefined
-    };
-    await assert.rejects(
-      applyAuthorityFilesystemScaffoldWithFaultInjection(root, callerPlan),
-      (error) => {
-        assert.equal(error?.code, "SCAFFOLD_PLAN_INVALID");
-        assert.match(error?.message ?? "", /cannot be snapshotted/u);
-        return true;
-      }
-    );
+    const scaffoldPlan = await plan(root);
+    for (const unsupportedRuntimeValue of [() => 1, new Uint8Array([1])]) {
+      await assert.rejects(
+        applyAuthorityFilesystemScaffoldWithFaultInjection(root, {
+          ...scaffoldPlan,
+          unsupportedRuntimeValue
+        }),
+        (error) => {
+          assert.equal(error?.code, "SCAFFOLD_PLAN_INVALID");
+          assert.match(error?.message ?? "", /cannot be snapshotted/u);
+          return true;
+        }
+      );
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -358,7 +360,9 @@ test(
       await mkdir(dirname(path), { recursive: true });
       await new Promise((resolve, reject) => {
         server.once("error", reject);
-        server.listen(path, resolve);
+        server.listen(path, () => {
+          resolve();
+        });
       });
 
       for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -373,7 +377,9 @@ test(
       }
       assert.equal((await stat(path)).isSocket(), true);
     } finally {
-      await new Promise((resolve) => server.close(resolve));
+      await new Promise((resolve) => {
+        server.close(resolve);
+      });
       await rm(root, { recursive: true, force: true });
     }
   }

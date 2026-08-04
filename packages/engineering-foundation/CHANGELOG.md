@@ -1,5 +1,17 @@
 # @agent-teams/engineering-foundation
 
+## 0.7.0
+
+### Minor Changes
+
+- [#56](https://github.com/agent-teams-ai/engineering-foundation/pull/56) [`1dafac7`](https://github.com/agent-teams-ai/engineering-foundation/commit/1dafac73eb3b27976b88443ad3f595d102981013) Thanks [@777genius](https://github.com/777genius)! - Consolidate `architecture.source-dependencies` into its single `schemaVersion: 1`
+  contract while preserving mandatory entrypoints, ambiguous-boundary rejection,
+  cross-boundary import fencing, and runtime and type-only cycle checks.
+
+  Consumers using the short-lived `0.6.0` source-dependency schema must change
+  `schemaVersion: 2` to `schemaVersion: 1`; their entrypoints and policy remain the
+  same.
+
 ## 0.6.0
 
 ### Minor Changes

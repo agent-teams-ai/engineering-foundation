@@ -314,3 +314,38 @@ test("packaging command completion terminates a parent-exits-first descendant", 
     await rm(fixtureRoot, { force: true, recursive: true });
   }
 });
+
+test("clean removes build output and its incremental compiler state", async () => {
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-clean-"));
+  const packageRoot = join(fixtureRoot, "packages", "engineering-foundation");
+  const cleanScript = join(fixtureRoot, "scripts", "clean.mjs");
+  try {
+    await mkdir(join(packageRoot, "dist"), { recursive: true });
+    await mkdir(dirname(cleanScript), { recursive: true });
+    await Promise.all([
+      writeFile(join(packageRoot, "dist", "cli.js"), "stale", "utf8"),
+      writeFile(join(packageRoot, "LICENSE"), "generated", "utf8"),
+      writeFile(join(packageRoot, "tsconfig.tsbuildinfo"), "stale", "utf8"),
+      writeFile(
+        cleanScript,
+        await readFile(join(repositoryRoot, "scripts", "clean.mjs"), "utf8"),
+        "utf8",
+      ),
+    ]);
+
+    const result = spawnSync(process.execPath, [cleanScript], {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+    for (const path of [
+      join(packageRoot, "dist", "cli.js"),
+      join(packageRoot, "LICENSE"),
+      join(packageRoot, "tsconfig.tsbuildinfo"),
+    ]) {
+      await assert.rejects(readFile(path), (error) => error?.code === "ENOENT");
+    }
+  } finally {
+    await rm(fixtureRoot, { force: true, recursive: true });
+  }
+});

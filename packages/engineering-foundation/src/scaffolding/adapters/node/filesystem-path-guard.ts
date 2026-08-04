@@ -1,7 +1,7 @@
 import { lstat, mkdir, open, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, sep } from "node:path";
 
-import type { ScaffoldPlanV1 } from "../../contract/types.js";
+import type { ScaffoldPlan } from "../../contract/types.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 
 const PROTECTED_ROOTS = new Set([".agent-teams-local", ".git", "node_modules"]);
@@ -30,7 +30,7 @@ export function isContainedPath(root: string, candidate: string): boolean {
   );
 }
 
-export function assertSafeOperationPaths(plan: ScaffoldPlanV1): void {
+export function assertSafeOperationPaths(plan: ScaffoldPlan): void {
   const folded = new Map<string, string>();
   const operationIds = new Set<string>();
   const targetPrefix = `${plan.target.path}/`;

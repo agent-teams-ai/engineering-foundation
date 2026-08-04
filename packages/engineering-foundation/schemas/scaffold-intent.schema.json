@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-teams.ai/schemas/scaffold-intent/v1",
-  "title": "Scaffold Intent v1",
+  "$id": "https://agent-teams.ai/schemas/scaffold-intent",
+  "title": "Scaffold Intent",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "compositionId", "targetRef"],

@@ -1,0 +1,8 @@
+version: 2
+packages:
+  - id: testing.generated
+    role: testing
+    path: packages/testing/generated
+    package_name: "@fixture/generated"
+    owner_document_id: adr-0060
+    owner_document_path: docs/decisions/adr-0060.md

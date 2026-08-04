@@ -10,7 +10,7 @@ import {
   assertScaffoldPlanDigest,
   planScaffoldFromFile,
   recoverFilesystemScaffold
-} from "../packages/engineering-foundation/dist/scaffolding/index.js";
+} from "../packages/engineering-foundation/dist/scaffolding/internal-rendering-regression-api.js";
 import {
   sha256Bytes,
   sha256Json
@@ -57,6 +57,27 @@ async function writePreparedJournal(root, scaffoldPlan) {
   await writeFile(journalPath, source);
   return { journalPath, source };
 }
+
+test("internal renderer replaces a stale journal temporary before applying", async () => {
+  const root = await createConsumer();
+  try {
+    const scaffoldPlan = await plan(root);
+    const temporary = join(
+      root,
+      ".agent-teams-local",
+      "scaffolding-transaction.json.tmp"
+    );
+    await mkdir(dirname(temporary), { recursive: true });
+    await writeFile(temporary, "stale v1 temporary\n", "utf8");
+
+    const receipt = await applyFilesystemScaffold(root, scaffoldPlan);
+
+    assert.equal(receipt.outcome, "applied");
+    await assert.rejects(readFile(temporary, "utf8"), /ENOENT/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("recovers a prepared journal that matches current consumer authority", async () => {
   const root = await createConsumer();

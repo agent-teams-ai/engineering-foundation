@@ -1,0 +1,6 @@
+schemaVersion: 1
+compositionId: testing-package
+targetRef: testing.generated
+recipeParameters:
+  featureId: deterministic-fixture
+  description: Generated protocol conformance fixture.

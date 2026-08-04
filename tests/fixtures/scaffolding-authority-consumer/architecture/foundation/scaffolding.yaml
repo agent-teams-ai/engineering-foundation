@@ -1,0 +1,37 @@
+schemaVersion: 2
+projectId: foundation-scaffolding-fixture
+targetCatalogPath: architecture/package-catalog.yaml
+compositions:
+  - id: testing-package
+    scaffoldProfile:
+      ref:
+        id: foundation.node-typescript-fixture
+        contractVersion: 1
+      parameters:
+        tsconfigBase: tsconfig.json
+    recipe:
+      ref:
+        id: foundation.conformance-fixture-package
+        contractVersion: 1
+    targetRoles: [testing]
+    authorityVerifiers:
+      - id: foundation.markdown-yaml-owner
+        contractVersion: 1
+        parameters:
+          allowedStatuses: [accepted, active]
+    facets:
+      default:
+        - ref:
+            id: foundation.fixture-readme
+            contractVersion: 1
+      allowed:
+        - id: foundation.fixture-readme
+          contractVersion: 1
+        - id: foundation.typecheck-fixture
+          contractVersion: 1
+    policies:
+      - ref:
+          id: foundation.target-role
+          contractVersion: 1
+        parameters:
+          allowedRoles: [testing]

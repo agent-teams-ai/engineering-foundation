@@ -1,0 +1,1 @@
+export const MAX_SCAFFOLD_PLAN_BYTES = 32 * 1024 * 1024;

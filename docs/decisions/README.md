@@ -21,6 +21,7 @@ No proposed decisions.
 - [ADR-0009: Pinned Workflow Security Toolchain](0009-pinned-workflow-security-toolchain.md)
 - [ADR-0011: Bounded Process and Property Evidence API](0011-bounded-process-and-property-evidence-api.md)
 - [ADR-0012: Single Source Dependency Schema](0012-single-source-dependency-schema.md)
+- [ADR-0013: Source-Bound Scaffolding Authority Evidence](0013-source-bound-scaffolding-authority-evidence.md)
 
 ## Superseded
 

@@ -137,13 +137,34 @@ otherwise recovery leaves the journal and outputs unchanged. The current
 built-in recipe is conformance-only and must not be used as a product
 architecture template.
 
+### Scaffolding transition from 0.5.0
+
+Version `0.5.0` published the provisional rendering contract before any product
+donor was qualified. A consumer must finish every pending `0.5.0`
+`scaffold-recover` operation while its dependency and lockfile still pin exactly
+`@agent-teams/engineering-foundation@0.5.0`, and verify that the local journal is
+absent before upgrading. Saved old-format Plans and Receipts are historical
+evidence only and cannot be applied by the canonical source-bound API.
+
+If an upgrade discovers an old-format journal, it fails closed. Restore the
+exact `0.5.0` package from the registry, recover or manually resolve that
+transaction under its documented rules, remove no journal by hand, then retry
+the reviewed upgrade. There is no in-place journal conversion. The immutable
+`0.5.0` registry artifact remains the recovery implementation and schema source
+for that transition; current packages intentionally expose only the canonical
+contract.
+
 ## Upgrade procedure
 
 1. The consumer repository's configured dependency updater opens an exact-version
    update pull request. Foundation does not prescribe a specific updater.
 2. CI installs from the registry and runs all foundation and consumer checks.
-3. Breaking schema changes include a migration guide and preserve old immutable
-   schemas for the documented migration window.
+3. Breaking changes to released supported schemas include a migration guide and
+   keep immutable predecessors available for the documented migration window.
+   ADR-0013 replaces the released provisional `0.5.0` scaffolding surface before
+   product donor adoption. Its exact registry artifact remains available for
+   recovery, while current packages intentionally export only the canonical
+   schemas.
 4. A local foundation checkout may be attached for development, but a PR is not
    mergeable until registry mode is restored and proven.
 5. A package update never silently adds a capability declaration or opt-in

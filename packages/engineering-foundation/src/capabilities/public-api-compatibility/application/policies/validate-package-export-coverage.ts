@@ -87,15 +87,20 @@ function typeTargets(value: unknown, output: string[]): void {
 
 function declaredTypeTarget(input: {
   readonly exportPath: string;
+  readonly packageTypesFallback: boolean;
   readonly packageRoot: string;
   readonly target: string;
 }): string {
-  const target = input.target;
+  const target =
+    input.packageTypesFallback && !input.target.startsWith("./")
+      ? `./${input.target}`
+      : input.target;
+  const segments = target.startsWith("./") ? target.slice(2).split("/") : [];
   if (
-    !target.startsWith("./") ||
+    segments.length === 0 ||
+    segments.some((segment) => segment.length === 0 || segment === "." || segment === "..") ||
     target.includes("\\") ||
     target.includes("*") ||
-    target.split("/").some((segment) => segment === "..") ||
     !DECLARATION_FILE.test(target)
   ) {
     throw new PackageExportCoverageError(
@@ -116,7 +121,9 @@ function resolveExportTargets(input: {
   const typed: string[] = [];
   stringTargets(input.target, strings);
   typeTargets(input.target, typed);
-  if (exportPath === "." && typed.length === 0 && typeof input.packageTypes === "string") {
+  const packageTypesFallback =
+    exportPath === "." && typed.length === 0 && typeof input.packageTypes === "string";
+  if (packageTypesFallback) {
     typed.push(input.packageTypes);
   }
   const typeCandidates = [...new Set(typed)].toSorted(compareCanonicalReferences);
@@ -145,6 +152,7 @@ function resolveExportTargets(input: {
       kind: "typed",
       declarationEntryPoint: declaredTypeTarget({
         exportPath,
+        packageTypesFallback,
         packageRoot: input.packageRoot,
         target: typeTarget
       })

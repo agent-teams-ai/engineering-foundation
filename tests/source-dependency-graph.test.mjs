@@ -342,6 +342,49 @@ test("blocks package-name imports back into the importing workspace package", ()
   );
 });
 
+test("permits type-only imports from development dependencies but blocks runtime imports", () => {
+  const appPackage = workspacePackage("@fixture/app", "packages/app", [
+    {
+      dependencyName: "fixture-types",
+      section: "devDependencies",
+      specifier: "1.0.0",
+    },
+  ]);
+  const appBoundary = boundary("app.application", ["packages/app/src"], {
+    packages: ["fixture-types"],
+  });
+  const appFile = classified(
+    "packages/app/src/index.ts",
+    appBoundary,
+    appPackage,
+    [
+      sourceReference("static-type", "fixture-types", 0),
+      sourceReference("static", "fixture-types", 30),
+    ],
+  );
+  const graph = buildObservedSourceGraph({
+    inventory: { packages: [appPackage] },
+    allSourceFiles: sourceFiles([appFile]),
+    classifiedFiles: [appFile],
+    resolver: new NodeSourceDependencyResolver(),
+  });
+  assert.deepEqual(
+    graph.edges.map((edge) => edge.mode).toSorted(),
+    ["runtime", "type-only"],
+  );
+
+  const diagnostics = evaluateSourceDependencies({
+    policy: policy(2, [appBoundary]),
+    graph,
+  });
+  const developmentOnly = byRule(
+    diagnostics,
+    "architecture.source-dependencies.runtime-import-from-development-dependency",
+  );
+  assert.equal(developmentOnly.length, 1);
+  assert.equal(developmentOnly[0].evidence[0].value, "fixture-types");
+});
+
 test("classifies a multi-root boundary from only roots that match the file", async () => {
   const appPackage = workspacePackage("@fixture/app", "packages/app");
   const broadBoundary = boundary("app.surface", [

@@ -364,6 +364,49 @@ test("rejects remote references and duplicate IDs before AJV can resolve anythin
   });
 });
 
+test("resolves local references from nested schema resource IDs", async () => {
+  await withContractFixture(async (root) => {
+    await writeJson(root, "schemas/root.schema.json", {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://schemas.example.test/agent/root.schema.json",
+      $ref: "nested/child.schema.json",
+      $defs: {
+        child: {
+          $id: "nested/child.schema.json",
+          type: "object",
+          additionalProperties: false,
+          required: ["id", "contact", "details"],
+          properties: {
+            id: { type: "string" },
+            contact: { type: "string", format: "email" },
+            details: { $ref: "../common.schema.json" },
+          },
+        },
+      },
+    });
+
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const observation = await inspector.inspect(request(root));
+    assert.equal(observation.fixtureResults.every((fixture) => fixture.matched), true);
+  });
+});
+
+test("rejects duplicate nested schema resource IDs before compilation", async () => {
+  await withContractFixture(async (root) => {
+    await writeJson(root, "schemas/root.schema.json", {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://schemas.example.test/agent/root.schema.json",
+      $defs: {
+        first: { $id: "nested/duplicate.schema.json", type: "string" },
+        second: { $id: "nested/duplicate.schema.json", type: "number" },
+      },
+    });
+
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    await assert.rejects(inspector.inspect(request(root)), /must be unique/u);
+  });
+});
+
 test("does not interpret instance data named $ref as a schema reference", async () => {
   await withContractFixture(async (root) => {
     await writeJson(root, "schemas/root.schema.json", {

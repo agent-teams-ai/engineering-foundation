@@ -6,6 +6,7 @@ import type {
 
 const ADR_ID = /^ADR-\d{4}$/u;
 const IMMUTABLE_DIGEST = /^sha256:[a-f0-9]{64}$/u;
+const MAX_REPOSITORY_MARKDOWN_PATH_LENGTH = 300;
 const UNSAFE_PATH_CHARACTER = /[\\*?{}[\]]/u;
 
 function record(value: unknown): Readonly<Record<string, unknown>> | undefined {
@@ -24,6 +25,7 @@ function hasOnlyKeys(
 function isRepositoryMarkdownPath(value: string): boolean {
   return (
     value.length > 0 &&
+    value.length <= MAX_REPOSITORY_MARKDOWN_PATH_LENGTH &&
     value.endsWith(".md") &&
     !value.startsWith("/") &&
     !UNSAFE_PATH_CHARACTER.test(value) &&

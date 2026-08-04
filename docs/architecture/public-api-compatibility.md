@@ -8,7 +8,9 @@ a committed snapshot of the last released TypeScript API. API Extractor is an
 outbound adapter; its model types do not cross into capability policy.
 
 Configuration schema `v1` retains the original single declaration entry point,
-baseline shape, and `decisionPath` approval contract. When a legacy `v1` policy
+baseline shape, and `decisionPath` approval contract. Its trust boundary is
+hardened: the released baseline must use the stable package anchor, and raw ADR
+Markdown is no longer sufficient approval evidence. When a legacy `v1` policy
 declares an approval, omitted evidence paths resolve to the stable governance
 anchors. Schema `v2` supports all public export paths of one package and uses
 stable `decisionId` approvals:
@@ -102,6 +104,25 @@ the command writes a complete `v2` baseline only when the previously governed
 root API is unchanged. A root change must be released under `v1` first. Normal
 checks never accept a `v1` baseline as `v2` evidence, and no feature PR may
 silently reset the baseline pointer.
+
+### Upgrading an existing v1 consumer
+
+This pre-1.0 hardening requires a one-time release-owned migration when a `v1`
+consumer used a different baseline path or raw ADR approval evidence:
+
+1. on a trusted release branch, move the existing baseline bytes without
+   regenerating them to `architecture/public-api/<package-local-name>.json` and
+   update `releasedBaselinePath`;
+2. declare `governance.architecture-decisions`, create its stable configuration,
+   and promote the immutable accepted-decision baseline before relying on an
+   existing `decisionPath` approval;
+3. run the complete Foundation and consumer checks before promotion. A changed
+   API fingerprint or an ADR absent from accepted immutable evidence still fails
+   closed.
+
+Do not restore a raw-Markdown fallback or generate a fresh API baseline merely
+to make the upgrade pass. Either action would discard the released evidence the
+capability is intended to protect.
 
 Changesets invokes promotion after versioning. CI permits creation of a new
 baseline during first adoption, but existing baselines can change only on

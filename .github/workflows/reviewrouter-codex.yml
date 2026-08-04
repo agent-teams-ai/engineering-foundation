@@ -26,6 +26,7 @@ jobs:
       runtime_ref: "295e76f7777a995b8fd0b0bb0a36788429c89b83"
       api_url: "https://api.reviewrouter.site"
       runtime_config_mode: oidc
+      static_runtime_env_json: '{"DIFF_MAX_BYTES":"240000","MAX_FULL_DIFF_FILE_BYTES":"60000","MAX_FULL_DIFF_FILE_CHANGES":"1000"}'
       pr_number: ${{ format('{0}', github.event.pull_request.number) }}
       review_head_sha: ${{ github.event.pull_request.head.sha }}
       provider_instance_id: "codex-rotating:1316243988"

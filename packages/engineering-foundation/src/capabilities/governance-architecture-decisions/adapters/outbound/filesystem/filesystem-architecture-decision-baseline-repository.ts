@@ -348,6 +348,13 @@ export class FilesystemArchitectureDecisionBaselineRepository
         "Accepted-decision baseline does not match the required immutable baseline shape."
       );
     }
+    const source = serializedBaseline(validatedBaseline);
+    if (Buffer.byteLength(source, "utf8") > MAX_BASELINE_BYTES) {
+      writeError(
+        "ARCHITECTURE_DECISION_BASELINE_WRITE_TOO_LARGE",
+        `Accepted-decision baseline must serialize to no more than ${MAX_BASELINE_BYTES} bytes.`
+      );
+    }
     const firstRead = await inspectBaseline(input);
     assertExpectedState(firstRead.result, input.expected);
     const target = firstRead.target;
@@ -358,7 +365,6 @@ export class FilesystemArchitectureDecisionBaselineRepository
       );
     }
     await ensureSafeParent(target);
-    const source = serializedBaseline(validatedBaseline);
     const release = await acquireBaselineWriteLock(target);
     try {
       // The lock is held across the final revision check and atomic replacement.

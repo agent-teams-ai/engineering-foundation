@@ -156,6 +156,28 @@ function referenceBase(reference: string, sourceId: string): string {
   }
 }
 
+function nestedSchemaId(value: unknown, inheritedId: string): string {
+  if (typeof value !== "string") {
+    inputError("JSON_SCHEMA_ID_INVALID", "Nested schema $id must be a string URI-reference.");
+  }
+  if (
+    value.length === 0 ||
+    value.length > 500 ||
+    value.includes("#") ||
+    hasControlCharacter(value)
+  ) {
+    inputError(
+      "JSON_SCHEMA_ID_INVALID",
+      "Nested schema $id must be a non-empty fragment-free URI-reference."
+    );
+  }
+  try {
+    return new URL(value, inheritedId).toString();
+  } catch {
+    inputError("JSON_SCHEMA_ID_INVALID", "Nested schema $id cannot be resolved.");
+  }
+}
+
 const SINGLE_SCHEMA_KEYWORDS = Object.freeze([
   "additionalItems",
   "additionalProperties",
@@ -207,40 +229,79 @@ function schemaMapValues(value: unknown): readonly unknown[] {
     : [];
 }
 
-function assertLocalReferences(
-  value: unknown,
-  sourceId: string,
-  knownSchemaIds: ReadonlySet<string>
-): void {
-  if (typeof value !== "object" || value === null) {
-    return;
-  }
-  const schema = value as Record<string, unknown>;
-  for (const key of ["$ref", "$dynamicRef"] as const) {
-    assertReferenceKeyword(schema, key, sourceId, knownSchemaIds);
-  }
+function schemaChildren(schema: Readonly<Record<string, unknown>>): readonly unknown[] {
+  const children: unknown[] = [];
   for (const keyword of SINGLE_SCHEMA_KEYWORDS) {
     if (schema[keyword] !== undefined) {
-      assertLocalReferences(schema[keyword], sourceId, knownSchemaIds);
+      children.push(schema[keyword]);
     }
   }
   for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
     const entries = schema[keyword];
     if (Array.isArray(entries)) {
       for (const entry of entries) {
-        assertLocalReferences(entry, sourceId, knownSchemaIds);
+        children.push(entry as unknown);
       }
     }
   }
   for (const keyword of SCHEMA_MAP_KEYWORDS) {
-    for (const entry of schemaMapValues(schema[keyword])) {
-      assertLocalReferences(entry, sourceId, knownSchemaIds);
-    }
+    children.push(...schemaMapValues(schema[keyword]));
   }
   for (const entry of schemaMapValues(schema["dependencies"])) {
     if (!Array.isArray(entry)) {
-      assertLocalReferences(entry, sourceId, knownSchemaIds);
+      children.push(entry);
     }
+  }
+  return children;
+}
+
+function collectNestedSchemaIds(
+  value: unknown,
+  inheritedId: string,
+  knownSchemaIds: Set<string>,
+  documentRoot = false
+): void {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return;
+  }
+  const schema = value as Record<string, unknown>;
+  const currentId =
+    documentRoot || schema["$id"] === undefined
+      ? inheritedId
+      : nestedSchemaId(schema["$id"], inheritedId);
+  if (!documentRoot && schema["$id"] !== undefined) {
+    if (knownSchemaIds.has(currentId)) {
+      inputError(
+        "JSON_SCHEMA_ID_DUPLICATE",
+        `Schema resource $id values must be unique within a contract: ${currentId}.`
+      );
+    }
+    knownSchemaIds.add(currentId);
+  }
+  for (const child of schemaChildren(schema)) {
+    collectNestedSchemaIds(child, currentId, knownSchemaIds);
+  }
+}
+
+function assertLocalReferences(
+  value: unknown,
+  sourceId: string,
+  knownSchemaIds: ReadonlySet<string>,
+  documentRoot = false
+): void {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return;
+  }
+  const schema = value as Record<string, unknown>;
+  const currentId =
+    documentRoot || schema["$id"] === undefined
+      ? sourceId
+      : nestedSchemaId(schema["$id"], sourceId);
+  for (const key of ["$ref", "$dynamicRef"] as const) {
+    assertReferenceKeyword(schema, key, currentId, knownSchemaIds);
+  }
+  for (const child of schemaChildren(schema)) {
+    assertLocalReferences(child, currentId, knownSchemaIds);
   }
 }
 
@@ -358,7 +419,10 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     }
     const knownSchemaIds = new Set(schemaIds);
     for (const document of documents) {
-      assertLocalReferences(document.value, document.id, knownSchemaIds);
+      collectNestedSchemaIds(document.value, document.id, knownSchemaIds, true);
+    }
+    for (const document of documents) {
+      assertLocalReferences(document.value, document.id, knownSchemaIds, true);
     }
     const ajv = compileSchemas(documents);
     const fixtureValues = new Map<string, unknown>();

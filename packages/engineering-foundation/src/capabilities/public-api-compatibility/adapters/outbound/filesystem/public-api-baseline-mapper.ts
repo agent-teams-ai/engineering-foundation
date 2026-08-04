@@ -28,16 +28,23 @@ function record(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function string(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    inputError(`${field} must be a string.`);
+  }
+  return value;
+}
+
 function mapItem(value: unknown, index: number): PublicApiItem {
   const item = record(value, `items[${index}]`);
   return Object.freeze({
-    canonicalReference: String(item["canonicalReference"]),
-    kind: String(item["kind"]),
+    canonicalReference: string(item["canonicalReference"], `items[${index}].canonicalReference`),
+    kind: string(item["kind"], `items[${index}].kind`),
     ...(typeof item["parentReference"] === "string"
       ? { parentReference: item["parentReference"] }
       : {}),
-    parentKind: String(item["parentKind"]),
-    signature: String(item["signature"]),
+    parentKind: string(item["parentKind"], `items[${index}].parentKind`),
+    signature: string(item["signature"], `items[${index}].signature`),
   });
 }
 
@@ -61,7 +68,7 @@ function mapEntrypoint(value: unknown, index: number): PublicApiEntrypointSnapsh
   const items = itemsInput.map(mapItem);
   validateSortedItems(items);
   return Object.freeze({
-    exportPath: String(entrypoint["exportPath"]),
+    exportPath: string(entrypoint["exportPath"], `entrypoints[${index}].exportPath`),
     items: Object.freeze(items),
   });
 }
@@ -83,11 +90,11 @@ function baselineIdentity(
   baseline: Record<string, unknown>,
   policy: PublicApiPackagePolicy,
 ): { readonly packageName: string; readonly packageVersion: string } {
-  const packageName = String(baseline["packageName"]);
+  const packageName = string(baseline["packageName"], "packageName");
   if (packageName !== policy.packageName) {
     inputError(`Released API baseline package does not match ${policy.packageName}.`);
   }
-  const packageVersion = String(baseline["packageVersion"]);
+  const packageVersion = string(baseline["packageVersion"], "packageVersion");
   if (!isExactVersion(packageVersion)) {
     inputError(`Released API baseline version is not exact SemVer: ${packageVersion}.`);
   }
@@ -120,7 +127,7 @@ export function mapReleasedBaseline(
 ): PublicApiSnapshot {
   const baseline = record(input, "released API baseline");
   const identity = baselineIdentity(baseline, policy);
-  const extractorVersion = String(baseline["extractorVersion"]);
+  const extractorVersion = string(baseline["extractorVersion"], "extractorVersion");
   if (baseline["schemaVersion"] === 2) {
     if (!("entrypoints" in policy)) {
       inputError("A schema v1 policy cannot read a schema v2 released baseline.");

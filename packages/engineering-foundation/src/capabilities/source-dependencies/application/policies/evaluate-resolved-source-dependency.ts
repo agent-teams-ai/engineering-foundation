@@ -52,7 +52,10 @@ function declarationDiagnostics(input: {
   readonly declaration: "development" | "runtime" | "undeclared";
   readonly workspace: boolean;
 }): readonly FoundationDiagnostic[] {
-  if (input.declaration === "runtime") {
+  if (
+    input.declaration === "runtime" ||
+    (input.declaration === "development" && input.edge.mode === "type-only")
+  ) {
     return [];
   }
   const rule =
@@ -68,7 +71,7 @@ function declarationDiagnostics(input: {
       message:
         input.declaration === "development"
           ? `Runtime source imports development-only dependency ${input.packageName}.`
-          : `Runtime source imports undeclared dependency ${input.packageName}.`,
+          : `${input.edge.mode === "type-only" ? "Type-only" : "Runtime"} source imports undeclared dependency ${input.packageName}.`,
       path: input.edge.fromPath,
       relatedPath: input.edge.fromWorkspacePackageManifestPath,
       evidence: [{ kind: "specifier", value: input.edge.specifier }]

@@ -91,6 +91,15 @@ function parseAcceptedAdrBaseline(source, revision) {
     ids.add(candidate.id);
     paths.add(candidate.path);
   }
+  if (
+    entries.some(
+      (entry, index) => index > 0 && entries[index - 1].id >= entry.id,
+    )
+  ) {
+    throw new Error(
+      `Accepted ADR baseline at ${revision} must be sorted by unique ADR ID.`,
+    );
+  }
   return entries;
 }
 
@@ -114,7 +123,7 @@ export function acceptedAdrHistoryViolations(previousSource, currentSource) {
   const current = parseAcceptedAdrBaseline(currentSource, "HEAD");
   const currentById = new Map(current.map((entry) => [entry.id, entry]));
   const violations = [];
-  for (const [index, historical] of previous.entries()) {
+  for (const historical of previous) {
     const candidate = currentById.get(historical.id);
     if (candidate === undefined) {
       violations.push(`Accepted ADR history entry ${historical.id} was deleted.`);
@@ -125,11 +134,6 @@ export function acceptedAdrHistoryViolations(previousSource, currentSource) {
       candidate.immutableDigest !== historical.immutableDigest
     ) {
       violations.push(`Accepted ADR history entry ${historical.id} was rewritten.`);
-    }
-    if (current[index]?.id !== historical.id) {
-      violations.push(
-        `Accepted ADR history entry ${historical.id} was reordered instead of appended.`,
-      );
     }
   }
   return violations.toSorted();

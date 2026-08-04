@@ -50,6 +50,13 @@ function strings(value: unknown): readonly string[] | undefined {
   return new Set(entries).size === entries.length ? [...entries].toSorted() : undefined;
 }
 
+function architectureDecisionIds(value: unknown): readonly string[] | undefined {
+  const entries = strings(value);
+  return entries?.every((entry) => ADR_ID.test(entry)) === true
+    ? entries
+    : undefined;
+}
+
 function architectureDecisionStatus(value: unknown): ArchitectureDecisionStatus | undefined {
   return typeof value === "string" &&
     ARCHITECTURE_DECISION_STATUSES.includes(value as ArchitectureDecisionStatus)
@@ -118,10 +125,11 @@ function metadataFields(input: {
   const subject = document.repositoryPath;
   const id = metadata["id"];
   const status = architectureDecisionStatus(metadata["status"]);
-  const supersedes = strings(metadata["supersedes"]);
-  const supersededBy = strings(metadata["superseded_by"]);
+  const supersedes = architectureDecisionIds(metadata["supersedes"]);
+  const supersededBy = architectureDecisionIds(metadata["superseded_by"]);
+  const idIsValid = typeof id === "string" && ADR_ID.test(id);
 
-  if (typeof id !== "string" || !ADR_ID.test(id)) {
+  if (!idIsValid) {
     diagnostics.push(
       architectureDecisionDiagnostic({
         message: "ADR frontmatter id must match ADR-NNNN.",
@@ -151,7 +159,7 @@ function metadataFields(input: {
       })
     );
   }
-  return typeof id === "string" &&
+  return idIsValid &&
     status !== undefined &&
     supersedes !== undefined &&
     supersededBy !== undefined

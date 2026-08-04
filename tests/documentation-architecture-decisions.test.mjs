@@ -301,6 +301,55 @@ test("detects ADR identity, index placement, and bidirectional supersession fail
   });
 });
 
+test("does not admit decisions with invalid IDs or relationship IDs into the catalog", async () => {
+  await withFixture(async (root) => {
+    await writeFile(
+      join(root, "docs", "decisions", "0004-invalid-id.md"),
+      "---\nid: decision-0004\nstatus: proposed\n---\n\n# decision-0004: Invalid identity\n",
+      "utf8"
+    );
+    await writeFile(
+      join(root, "docs", "decisions", "0001-keep-decision-format.md"),
+      "---\nid: ADR-0001\nstatus: proposed\nsupersedes:\n  - not-an-adr\n---\n\n# ADR-0001: Keep the decision format\n",
+      "utf8"
+    );
+
+    const evidence = await analyzeEvidence(root);
+    assert.equal(
+      evidence.diagnostics.filter(
+        ({ ruleId }) =>
+          ruleId === "governance.architecture-decisions.frontmatter-invalid"
+      ).length,
+      2
+    );
+    assert.equal(
+      evidence.decisions.some(({ id }) => id === "decision-0004" || id === "ADR-0001"),
+      false
+    );
+  });
+});
+
+test("validates both ADR relationship fields before admitting a decision", async () => {
+  for (const relationshipField of ["supersedes", "superseded_by"]) {
+    await withFixture(async (root) => {
+      await writeFile(
+        join(root, "docs", "decisions", "0001-keep-decision-format.md"),
+        `---\nid: ADR-0001\nstatus: proposed\n${relationshipField}:\n  - not-an-adr\n---\n\n# ADR-0001: Keep the decision format\n`,
+        "utf8"
+      );
+
+      const evidence = await analyzeEvidence(root);
+      assert.ok(
+        evidence.diagnostics.some(
+          ({ ruleId }) =>
+            ruleId === "governance.architecture-decisions.frontmatter-invalid"
+        )
+      );
+      assert.equal(evidence.decisions.some(({ id }) => id === "ADR-0001"), false);
+    });
+  }
+});
+
 test("rejects mutation of accepted decision content against its immutable baseline", async () => {
   await withFixture(async (root) => {
     const path = join(
@@ -575,6 +624,76 @@ test("rejects baseline promotion paths that escape or traverse symbolic links", 
     } finally {
       await rm(outside, { force: true, recursive: true });
     }
+  });
+});
+
+test("keeps runtime baseline validation aligned with schema path bounds", async () => {
+  await withFixture(async (root) => {
+    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    await assert.rejects(
+      repository.write({
+        baseline: {
+          algorithm: "sha256",
+          decisions: [
+            {
+              id: "ADR-0001",
+              immutableDigest: `sha256:${"a".repeat(64)}`,
+              path: `${"x".repeat(298)}.md`
+            }
+          ],
+          schemaVersion: 1
+        },
+        consumerRoot: root,
+        expected: { kind: "missing" },
+        path: "architecture/decisions/new-baseline.json"
+      }),
+      (error) =>
+        hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_INVALID_INPUT")
+    );
+  });
+});
+
+test("refuses to replace a readable baseline with one above its read limit", async () => {
+  await withFixture(async (root) => {
+    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const current = await repository.read({
+      consumerRoot: root,
+      path: "architecture/decisions/accepted-decisions.json"
+    });
+    assert.equal(current.kind, "valid");
+    if (current.kind !== "valid") {
+      return;
+    }
+    const original = await readFile(baselinePath(root), "utf8");
+    const pathPrefix = "docs/decisions/";
+    const decisions = Array.from({ length: 10_000 }, (_, index) => {
+      const identity = String(index).padStart(4, "0");
+      const pathSuffix = `${identity}.md`;
+      return {
+        id: `ADR-${identity}`,
+        immutableDigest: `sha256:${"a".repeat(64)}`,
+        path: `${pathPrefix}${"x".repeat(300 - pathPrefix.length - pathSuffix.length)}${pathSuffix}`
+      };
+    });
+    assert.ok(
+      Buffer.byteLength(JSON.stringify({
+        algorithm: "sha256",
+        decisions,
+        schemaVersion: 1
+      }), "utf8") > 4 * 1024 * 1024
+    );
+
+    await assert.rejects(
+      repository.write({
+        baseline: { algorithm: "sha256", decisions, schemaVersion: 1 },
+        consumerRoot: root,
+        expected: { kind: "valid", revision: current.revision },
+        path: "architecture/decisions/accepted-decisions.json"
+      }),
+      (error) =>
+        hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_TOO_LARGE")
+    );
+    assert.equal(await readFile(baselinePath(root), "utf8"), original);
   });
 });
 

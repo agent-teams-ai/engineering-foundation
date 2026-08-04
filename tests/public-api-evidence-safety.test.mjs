@@ -13,6 +13,7 @@ import {
   ROOT_STABLE_ITEM,
   configureV2PublicApiFixture,
 } from "./support/public-api-fixtures.mjs";
+import { mapReleasedBaseline } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-baseline-mapper.js";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cliPath = join(
@@ -32,6 +33,25 @@ function v1Baseline() {
     items: [ROOT_STABLE_ITEM],
   };
 }
+
+test("does not coerce missing baseline item fields into literal undefined strings", () => {
+  const item = { ...ROOT_STABLE_ITEM };
+  delete item.parentKind;
+  const baseline = { ...v1Baseline(), items: [item] };
+  assert.throws(
+    () =>
+      mapReleasedBaseline(baseline, {
+        packageName: "@fixture/public-api",
+        packageRoot: "packages/library",
+        manifestPath: "packages/library/package.json",
+        declarationEntryPoint: "packages/library/dist/index.d.ts",
+        tsconfigPath: "packages/library/tsconfig.json",
+        releasedBaselinePath: "architecture/public-api/public-api.json",
+        approvedBreakingChanges: [],
+      }),
+    /parentKind must be a string/u,
+  );
+});
 
 test("rejects a schema v1 baseline under an active schema v2 policy", async () => {
   await withPublicApiFixture(async (consumerRoot) => {

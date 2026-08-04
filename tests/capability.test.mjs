@@ -118,7 +118,7 @@ function acceptedAdrEntry(id, path, digestCharacter) {
   };
 }
 
-test("rejects a same-pull-request accepted ADR and baseline rewrite, but permits append-only history", async () => {
+test("rejects a same-pull-request accepted ADR and baseline rewrite, but permits additive history", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-accepted-adr-history-"));
   const baselinePath = join(root, "architecture", "decisions", "accepted-decisions.json");
   const firstDecisionPath = join(root, "docs", "decisions", "0001-foundation.md");
@@ -189,22 +189,31 @@ test("rejects deletion of a historical accepted ADR baseline entry", () => {
   assert.deepEqual(acceptedAdrHistoryViolations(previous, acceptedAdrBaseline([])), [
     "Accepted ADR history entry ADR-0001 was deleted.",
   ]);
-  assert.deepEqual(
-    acceptedAdrHistoryViolations(
-      acceptedAdrBaseline([
-        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
-        acceptedAdrEntry("ADR-0002", "docs/decisions/0002-history.md", "b"),
-      ]),
-      acceptedAdrBaseline([
-        acceptedAdrEntry("ADR-0002", "docs/decisions/0002-history.md", "b"),
-        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
-      ]),
-    ),
-    [
-      "Accepted ADR history entry ADR-0001 was reordered instead of appended.",
-      "Accepted ADR history entry ADR-0002 was reordered instead of appended.",
-    ],
+  assert.throws(
+    () =>
+      acceptedAdrHistoryViolations(
+        acceptedAdrBaseline([
+          acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
+          acceptedAdrEntry("ADR-0002", "docs/decisions/0002-history.md", "b"),
+        ]),
+        acceptedAdrBaseline([
+          acceptedAdrEntry("ADR-0002", "docs/decisions/0002-history.md", "b"),
+          acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
+        ]),
+      ),
+    /must be sorted by unique ADR ID/u,
   );
+});
+
+test("permits accepting a lower-numbered proposed ADR without rewriting history", () => {
+  const previous = acceptedAdrBaseline([
+    acceptedAdrEntry("ADR-0002", "docs/decisions/0002-existing.md", "b"),
+  ]);
+  const current = acceptedAdrBaseline([
+    acceptedAdrEntry("ADR-0001", "docs/decisions/0001-late-acceptance.md", "a"),
+    acceptedAdrEntry("ADR-0002", "docs/decisions/0002-existing.md", "b"),
+  ]);
+  assert.deepEqual(acceptedAdrHistoryViolations(previous, current), []);
 });
 
 test("seals legacy accepted ADR source when initializing its first immutable baseline", async () => {

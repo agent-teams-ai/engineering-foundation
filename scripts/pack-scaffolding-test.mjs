@@ -4,34 +4,15 @@ import { join } from "node:path";
 import { runCommand } from "./pack-test-support.mjs";
 
 async function copyScaffoldingFixture(fixtureRoot, consumerRoot) {
-  await mkdir(join(consumerRoot, "architecture", "foundation"), {
-    recursive: true
-  });
-  await mkdir(join(consumerRoot, "docs", "decisions"), { recursive: true });
-  await mkdir(join(consumerRoot, "intents"), { recursive: true });
-  await cp(
-    join(fixtureRoot, "architecture", "foundation", "scaffolding.yaml"),
-    join(consumerRoot, "architecture", "foundation", "scaffolding.yaml")
-  );
-  await cp(
-    join(fixtureRoot, "architecture", "package-catalog.yaml"),
-    join(consumerRoot, "architecture", "package-catalog.yaml")
-  );
-  await cp(
-    join(fixtureRoot, "docs", "decisions", "adr-0060.md"),
-    join(consumerRoot, "docs", "decisions", "adr-0060.md")
-  );
-  await cp(
-    join(fixtureRoot, "intents", "create-fixture.yaml"),
-    join(consumerRoot, "intents", "create-fixture.yaml")
-  );
+  await mkdir(consumerRoot, { recursive: true });
+  await cp(fixtureRoot, consumerRoot, { recursive: true });
 }
 
-async function runScaffoldingCommand(fixture, arguments_) {
+async function runScaffoldingCommand(fixture, consumerRoot, arguments_) {
   const { stdout } = await runCommand(
     process.execPath,
     [fixture.toolEntrypoints.foundationCli, ...arguments_],
-    fixture.consumerRoot
+    consumerRoot
   );
   return JSON.parse(stdout);
 }
@@ -46,31 +27,32 @@ export async function verifyPackedAuthorityScaffolding({
     "fixtures",
     "scaffolding-authority-consumer"
   );
-  await copyScaffoldingFixture(fixtureRoot, fixture.consumerRoot);
-  const plan = await runScaffoldingCommand(fixture, [
+  const authorityRoot = join(fixture.consumerRoot, "authority-consumer");
+  await copyScaffoldingFixture(fixtureRoot, authorityRoot);
+  const plan = await runScaffoldingCommand(fixture, authorityRoot, [
     "scaffold-plan",
     "intents/create-fixture.yaml",
     "--consumer",
-    fixture.consumerRoot,
+    authorityRoot,
     "--json"
   ]);
-  await mkdir(join(fixture.consumerRoot, "plans"), { recursive: true });
+  await mkdir(join(authorityRoot, "plans"), { recursive: true });
   await writeFile(
-    join(fixture.consumerRoot, "plans", "pack-fixture.json"),
+    join(authorityRoot, "plans", "pack-fixture.json"),
     `${JSON.stringify(plan, null, 2)}\n`
   );
-  const receipt = await runScaffoldingCommand(fixture, [
+  const receipt = await runScaffoldingCommand(fixture, authorityRoot, [
     "scaffold-apply",
     "plans/pack-fixture.json",
     "--consumer",
-    fixture.consumerRoot,
+    authorityRoot,
     "--json"
   ]);
   if (receipt.outcome !== "applied") {
     throw new Error("Packed scaffolding CLI did not apply its deterministic Plan.");
   }
   await writeFile(
-    join(fixture.consumerRoot, "plans", "pack-receipt.json"),
+    join(authorityRoot, "plans", "pack-receipt.json"),
     `${JSON.stringify(receipt, null, 2)}\n`
   );
 
@@ -91,8 +73,9 @@ import {
 } from "@agent-teams/engineering-foundation/scaffolding";
 
 const consumerRoot = process.cwd();
-const expectedPlan = JSON.parse(await readFile("plans/pack-fixture.json", "utf8"));
-const receipt = JSON.parse(await readFile("plans/pack-receipt.json", "utf8"));
+const authorityRoot = join(consumerRoot, "authority-consumer");
+const expectedPlan = JSON.parse(await readFile(join(authorityRoot, "plans", "pack-fixture.json"), "utf8"));
+const receipt = JSON.parse(await readFile(join(authorityRoot, "plans", "pack-receipt.json"), "utf8"));
 const programmaticRoot = join(consumerRoot, "programmatic-consumer");
 const recoveryRoot = join(consumerRoot, "recovery-consumer");
 await validateScaffoldReceipt(receipt, expectedPlan);
@@ -134,7 +117,7 @@ process.stdout.write(JSON.stringify({ outcome: "passed" }));
   const generatedManifest = JSON.parse(
     await readFile(
       join(
-        fixture.consumerRoot,
+        authorityRoot,
         "packages",
         "testing",
         "generated",

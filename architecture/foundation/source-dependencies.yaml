@@ -223,6 +223,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/contract/types.ts
+      - packages/engineering-foundation/src/scaffolding/contract/scaffold-contract.ts
       - packages/engineering-foundation/src/scaffolding/definitions/registry.ts
       - packages/engineering-foundation/src/scaffolding/kernel/canonical-json.ts
       - packages/engineering-foundation/src/scaffolding/kernel/compiler.ts
@@ -338,6 +339,8 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.local-mode
+        - foundation.repository-input
+        - foundation.schema-validation
         - foundation.scaffolding.core
         - foundation.scaffolding.regression-kernel
         - foundation.scaffolding.shared-adapters

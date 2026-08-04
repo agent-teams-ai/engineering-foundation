@@ -61,6 +61,11 @@
       "id": "ADR-0012",
       "path": "docs/decisions/0012-single-source-dependency-schema.md",
       "immutableDigest": "sha256:9fcce4933c6f5338cacfe75a73b34692afbd1c1b1fde1dc776725ea9c53f4d6a"
+    },
+    {
+      "id": "ADR-0013",
+      "path": "docs/decisions/0013-source-bound-scaffolding-authority-evidence.md",
+      "immutableDigest": "sha256:f380b6a29bd76b9b555cbe3713bb2376e76be6688a6be197a4260a2fd5d8f1f0"
     }
   ]
 }

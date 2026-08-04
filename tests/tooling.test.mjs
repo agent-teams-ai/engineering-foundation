@@ -16,6 +16,11 @@ const oxlintEntrypoint = join(
   "bin",
   "oxlint",
 );
+const typeScriptEntrypoint = join(
+  dirname(requireFromRepository.resolve("typescript/package.json")),
+  "lib",
+  "tsc.js",
+);
 const typeAwarePreset = join(
   repositoryRoot,
   "packages",
@@ -315,17 +320,30 @@ test("packaging command completion terminates a parent-exits-first descendant", 
   }
 });
 
-test("clean removes build output and its incremental compiler state", async () => {
+test("clean removes incremental state and permits a full rebuild", async () => {
   const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-clean-"));
   const packageRoot = join(fixtureRoot, "packages", "engineering-foundation");
+  const sourceRoot = join(packageRoot, "src");
   const cleanScript = join(fixtureRoot, "scripts", "clean.mjs");
+  const tsconfigPath = join(packageRoot, "tsconfig.json");
+  const outputPath = join(packageRoot, "dist", "index.js");
+  const buildInfoPath = join(packageRoot, "tsconfig.tsbuildinfo");
   try {
-    await mkdir(join(packageRoot, "dist"), { recursive: true });
+    const packageConfig = JSON.parse(
+      await readFile(
+        join(repositoryRoot, "packages", "engineering-foundation", "tsconfig.json"),
+        "utf8",
+      ),
+    );
+    packageConfig.compilerOptions.types = [];
+
+    await mkdir(sourceRoot, { recursive: true });
     await mkdir(dirname(cleanScript), { recursive: true });
     await Promise.all([
-      writeFile(join(packageRoot, "dist", "cli.js"), "stale", "utf8"),
+      writeFile(join(sourceRoot, "index.ts"), "export const built = true;\n", "utf8"),
       writeFile(join(packageRoot, "LICENSE"), "generated", "utf8"),
-      writeFile(join(packageRoot, "tsconfig.tsbuildinfo"), "stale", "utf8"),
+      writeFile(join(packageRoot, "package.json"), '{"type":"module"}\n', "utf8"),
+      writeFile(tsconfigPath, `${JSON.stringify(packageConfig)}\n`, "utf8"),
       writeFile(
         cleanScript,
         await readFile(join(repositoryRoot, "scripts", "clean.mjs"), "utf8"),
@@ -333,18 +351,36 @@ test("clean removes build output and its incremental compiler state", async () =
       ),
     ]);
 
-    const result = spawnSync(process.execPath, [cleanScript], {
+    const build = () =>
+      spawnSync(
+        process.execPath,
+        [typeScriptEntrypoint, "--build", tsconfigPath, "--pretty", "false"],
+        {
+          cwd: fixtureRoot,
+          encoding: "utf8",
+        },
+      );
+    const firstBuild = build();
+    assert.equal(firstBuild.status, 0, `${firstBuild.stdout}${firstBuild.stderr}`);
+    assert.match(await readFile(outputPath, "utf8"), /built/u);
+    await readFile(buildInfoPath, "utf8");
+
+    const clean = spawnSync(process.execPath, [cleanScript], {
       cwd: fixtureRoot,
       encoding: "utf8",
     });
-    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+    assert.equal(clean.status, 0, `${clean.stdout}${clean.stderr}`);
     for (const path of [
-      join(packageRoot, "dist", "cli.js"),
+      outputPath,
       join(packageRoot, "LICENSE"),
-      join(packageRoot, "tsconfig.tsbuildinfo"),
+      buildInfoPath,
     ]) {
       await assert.rejects(readFile(path), (error) => error?.code === "ENOENT");
     }
+
+    const secondBuild = build();
+    assert.equal(secondBuild.status, 0, `${secondBuild.stdout}${secondBuild.stderr}`);
+    assert.match(await readFile(outputPath, "utf8"), /built/u);
   } finally {
     await rm(fixtureRoot, { force: true, recursive: true });
   }

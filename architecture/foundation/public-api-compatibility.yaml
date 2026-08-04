@@ -14,3 +14,5 @@ packages:
         decisionPath: docs/decisions/0011-bounded-process-and-property-evidence-api.md
       - fingerprint: sha256:505922ffad5df5a690a4000832916dac2d6d25c315dc3da65dd575eef04c0b38
         decisionPath: docs/decisions/0013-source-bound-scaffolding-authority-evidence.md
+      - fingerprint: sha256:cd3b61b7d835a912ddbd87d9c4a7b3e26efa39b9f0638cad7fba9317b1fe5d07
+        decisionPath: docs/decisions/0014-scaffolding-review-hardening.md

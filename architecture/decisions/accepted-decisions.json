@@ -66,6 +66,11 @@
       "id": "ADR-0013",
       "path": "docs/decisions/0013-source-bound-scaffolding-authority-evidence.md",
       "immutableDigest": "sha256:f380b6a29bd76b9b555cbe3713bb2376e76be6688a6be197a4260a2fd5d8f1f0"
+    },
+    {
+      "id": "ADR-0014",
+      "path": "docs/decisions/0014-scaffolding-review-hardening.md",
+      "immutableDigest": "sha256:05e7ff0a726f8da4f500d38c123ba0f77ae8d5d72c18a6e2e18da86fd28b12ae"
     }
   ]
 }

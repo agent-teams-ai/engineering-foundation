@@ -22,6 +22,7 @@ No proposed decisions.
 - [ADR-0011: Bounded Process and Property Evidence API](0011-bounded-process-and-property-evidence-api.md)
 - [ADR-0012: Single Source Dependency Schema](0012-single-source-dependency-schema.md)
 - [ADR-0013: Source-Bound Scaffolding Authority Evidence](0013-source-bound-scaffolding-authority-evidence.md)
+- [ADR-0014: Scaffolding Review Hardening](0014-scaffolding-review-hardening.md)
 
 ## Superseded
 

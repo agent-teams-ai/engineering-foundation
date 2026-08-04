@@ -1,8 +1,9 @@
 ---
 id: ADR-0010
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by:
+  - ADR-0012
 ---
 
 # ADR-0010: Observed Source Graph V2

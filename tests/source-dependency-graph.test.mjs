@@ -67,9 +67,9 @@ function boundary(id, roots, options = {}) {
   });
 }
 
-function policy(schemaVersion, boundaries) {
+function policy(boundaries) {
   return Object.freeze({
-    schemaVersion,
+    schemaVersion: 1,
     workspaceManifestPath: "pnpm-workspace.yaml",
     governedRoots: Object.freeze(["packages"]),
     boundaries: Object.freeze(boundaries),
@@ -204,21 +204,21 @@ test("builds a deeply frozen, deterministic graph with POSIX Windows-path identi
   assert.throws(() => graph.nodes.push({}), TypeError);
 });
 
-test("schema v2 rejects inferred entrypoints and only permits declared cross-boundary targets", async () => {
+test("schema v1 requires entrypoints and only permits declared cross-boundary targets", async () => {
   const schema = JSON.parse(
     await readFile(
       join(
         packageRoot,
         "schemas",
         "architecture-source-dependencies",
-        "v2.schema.json",
+        "v1.schema.json",
       ),
       "utf8",
     ),
   );
   const validate = new Ajv2020({ strict: true }).compile(schema);
   const validConfig = {
-    schemaVersion: 2,
+    schemaVersion: 1,
     workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
     governedRoots: ["packages/app/src"],
     boundaries: [
@@ -281,7 +281,7 @@ test("schema v2 rejects inferred entrypoints and only permits declared cross-bou
     resolver,
   });
   const diagnostics = evaluateSourceDependencies({
-    policy: policy(2, [application, domain]),
+    policy: policy([application, domain]),
     graph,
   });
   const entrypointViolations = byRule(
@@ -301,7 +301,7 @@ test("schema v2 rejects inferred entrypoints and only permits declared cross-bou
     ],
   });
   const staleEntrypointDiagnostics = evaluateSourceDependencies({
-    policy: policy(2, [application, staleDomain]),
+    policy: policy([application, staleDomain]),
     graph,
   });
   assert.equal(
@@ -330,7 +330,7 @@ test("blocks package-name imports back into the importing workspace package", ()
   });
   assert.equal(graph.edges[0].resolution.kind, "self-workspace-package");
   const diagnostics = evaluateSourceDependencies({
-    policy: policy(1, [appBoundary]),
+    policy: policy([appBoundary]),
     graph,
   });
   assert.equal(
@@ -374,7 +374,7 @@ test("permits type-only imports from development dependencies but blocks runtime
   );
 
   const diagnostics = evaluateSourceDependencies({
-    policy: policy(2, [appBoundary]),
+    policy: policy([appBoundary]),
     graph,
   });
   const developmentOnly = byRule(
@@ -404,7 +404,7 @@ test("classifies a multi-root boundary from only roots that match the file", asy
   const diagnostics = await analyzeSourceDependencies(
     {
       consumerRoot: ".",
-      policy: policy(2, [broadBoundary, specificBoundary]),
+      policy: policy([broadBoundary, specificBoundary]),
     },
     sourceAnalysisDependencies({
       files,
@@ -417,7 +417,7 @@ test("classifies a multi-root boundary from only roots that match the file", asy
   assert.deepEqual(diagnostics, []);
 });
 
-test("keeps schema v1's lexical tie fallback but rejects a v2 boundary tie", async () => {
+test("rejects an ambiguous boundary classification tie", async () => {
   const appPackage = workspacePackage("@fixture/app", "packages/app");
   const alpha = boundary("app.alpha", ["packages/app/src"], {
     builtins: ["node:path"],
@@ -436,21 +436,12 @@ test("keeps schema v1's lexical tie fallback but rejects a v2 boundary tie", asy
     workspacePackage: appPackage,
   });
 
-  const v1Diagnostics = await analyzeSourceDependencies(
-    {
-      consumerRoot: ".",
-      policy: policy(1, [zulu, alpha]),
-    },
-    dependencies,
-  );
-  assert.deepEqual(v1Diagnostics, []);
-
   await assert.rejects(
     () =>
       analyzeSourceDependencies(
         {
           consumerRoot: ".",
-          policy: policy(2, [zulu, alpha]),
+          policy: policy([zulu, alpha]),
         },
         dependencies,
       ),
@@ -458,25 +449,19 @@ test("keeps schema v1's lexical tie fallback but rejects a v2 boundary tie", asy
   );
 });
 
-test("preserves schema v1 cycle semantics while v2 rejects the same approved SCCs", () => {
+test("rejects runtime and type-only cycles between approved boundaries", () => {
   const appPackage = workspacePackage("@fixture/app", "packages/app");
-  const v1A = boundary("app.a", ["packages/app/src/a"], {
-    boundaries: ["app.b"],
-  });
-  const v1B = boundary("app.b", ["packages/app/src/b"], {
-    boundaries: ["app.a"],
-  });
-  const v2A = boundary("app.a", ["packages/app/src/a"], {
+  const a = boundary("app.a", ["packages/app/src/a"], {
     boundaries: ["app.b"],
     entrypoints: ["packages/app/src/a/index.ts"],
   });
-  const v2B = boundary("app.b", ["packages/app/src/b"], {
+  const b = boundary("app.b", ["packages/app/src/b"], {
     boundaries: ["app.a"],
     entrypoints: ["packages/app/src/b/index.ts"],
   });
   const aFile = classified(
     "packages/app/src/a/index.ts",
-    v1A,
+    a,
     appPackage,
     [
       sourceReference("static", "../b/index.js", 0),
@@ -485,7 +470,7 @@ test("preserves schema v1 cycle semantics while v2 rejects the same approved SCC
   );
   const bFile = classified(
     "packages/app/src/b/index.ts",
-    v1B,
+    b,
     appPackage,
     [
       sourceReference("static", "../a/index.js", 0),
@@ -510,18 +495,12 @@ test("preserves schema v1 cycle semantics while v2 rejects the same approved SCC
     },
   });
 
-  const v1Diagnostics = evaluateSourceDependencies({
-    policy: policy(1, [v1A, v1B]),
-    graph,
-  });
-  assert.deepEqual(v1Diagnostics, []);
-
-  const v2Diagnostics = evaluateSourceDependencies({
-    policy: policy(2, [v2A, v2B]),
+  const diagnostics = evaluateSourceDependencies({
+    policy: policy([a, b]),
     graph,
   });
   assert.deepEqual(
-    v2Diagnostics
+    diagnostics
       .filter((diagnostic) => diagnostic.ruleId.includes("-cycle"))
       .map((diagnostic) => diagnostic.ruleId)
       .toSorted(),
@@ -532,7 +511,7 @@ test("preserves schema v1 cycle semantics while v2 rejects the same approved SCC
   );
   assert.equal(
     byRule(
-      v2Diagnostics,
+      diagnostics,
       "architecture.source-dependencies.cross-boundary-local-import-not-entrypoint",
     ).length,
     0,
@@ -698,7 +677,7 @@ test("reports separate deterministic boundary and package SCCs with canonical bo
   assert.deepEqual(graph, shuffledGraph);
 
   const diagnostics = evaluateSourceDependencies({
-    policy: policy(2, [a, b, c, one, two]),
+    policy: policy([a, b, c, one, two]),
     graph,
   });
   const cycleRules = diagnostics
@@ -778,36 +757,37 @@ test("bounds a canonical SCC witness without recursive traversal", () => {
   assert.equal(evidence(diagnostic, "cycle-witness-edge-count"), "2048");
 });
 
-test("loads schema v1 explicitly and requires schema v2 entrypoints through the capability contract", async () => {
+test("loads the single schema v1 and rejects missing entrypoints or another version", async () => {
   await withTemporaryDirectory(async (consumerRoot) => {
     const v1Path = join(consumerRoot, "v1.yaml");
     await writeFile(
       v1Path,
-      `schemaVersion: 1\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
+      `schemaVersion: 1\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    entrypoints:\n      - packages/app/src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
       "utf8",
     );
     const v1 = await loadCapabilityConfig(consumerRoot, "v1.yaml");
     assert.equal(v1.schemaVersion, 1);
-    assert.deepEqual(v1.boundaries[0].entrypoints, []);
+    assert.deepEqual(v1.boundaries[0].entrypoints, ["packages/app/src/index.ts"]);
 
-    const v2Path = join(consumerRoot, "v2.yaml");
+    const missingEntrypointsPath = join(consumerRoot, "missing-entrypoints.yaml");
     await writeFile(
-      v2Path,
-      `schemaVersion: 2\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    entrypoints:\n      - packages/app/src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
-      "utf8",
-    );
-    const v2 = await loadCapabilityConfig(consumerRoot, "v2.yaml");
-    assert.equal(v2.schemaVersion, 2);
-    assert.deepEqual(v2.boundaries[0].entrypoints, ["packages/app/src/index.ts"]);
-
-    const invalidV2Path = join(consumerRoot, "invalid-v2.yaml");
-    await writeFile(
-      invalidV2Path,
-      `schemaVersion: 2\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
+      missingEntrypointsPath,
+      `schemaVersion: 1\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
       "utf8",
     );
     await assert.rejects(
-      () => loadCapabilityConfig(consumerRoot, "invalid-v2.yaml"),
+      () => loadCapabilityConfig(consumerRoot, "missing-entrypoints.yaml"),
+      (error) => error?.name === "CapabilityInputError",
+    );
+
+    const unsupportedVersionPath = join(consumerRoot, "unsupported-version.yaml");
+    await writeFile(
+      unsupportedVersionPath,
+      `schemaVersion: 2\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    entrypoints: []\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
+      "utf8",
+    );
+    await assert.rejects(
+      () => loadCapabilityConfig(consumerRoot, "unsupported-version.yaml"),
       (error) => error?.name === "CapabilityInputError",
     );
   });

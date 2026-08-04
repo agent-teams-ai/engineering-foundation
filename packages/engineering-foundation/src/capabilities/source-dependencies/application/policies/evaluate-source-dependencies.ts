@@ -44,9 +44,6 @@ function entrypointDeclarationDiagnostics(
   policy: SourceArchitecturePolicy,
   graph: ObservedSourceGraph
 ): readonly FoundationDiagnostic[] {
-  if (policy.schemaVersion !== 2) {
-    return [];
-  }
   const nodesByPath = new Map(graph.nodes.map((node) => [node.path, node]));
   const diagnostics: FoundationDiagnostic[] = [];
   for (const boundary of policy.boundaries) {
@@ -128,8 +125,6 @@ export function evaluateSourceDependencies(
       })
     );
   }
-  if (input.policy.schemaVersion === 2) {
-    diagnostics.push(...evaluateSourceDependencyCycles(input.graph));
-  }
+  diagnostics.push(...evaluateSourceDependencyCycles(input.graph));
   return diagnostics;
 }

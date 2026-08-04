@@ -53,12 +53,17 @@
     "boundary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "roots", "allow"],
+      "required": ["id", "roots", "entrypoints", "allow"],
       "properties": {
         "id": { "$ref": "#/$defs/boundaryId" },
         "roots": {
           "type": "array",
           "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/repositoryDirectory" }
+        },
+        "entrypoints": {
+          "type": "array",
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/repositoryDirectory" }
         },

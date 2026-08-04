@@ -320,6 +320,7 @@ test("reports deterministic source boundary and resolution violations", async ()
     assert.deepEqual(
       new Set(ruleIds),
       new Set([
+        "architecture.source-dependencies.boundary-runtime-cycle",
         "architecture.source-dependencies.cross-package-relative-import",
         "architecture.source-dependencies.forbidden-boundary-dependency",
         "architecture.source-dependencies.forbidden-package-dependency",

@@ -72,7 +72,7 @@ function selectBoundary(
     .filter((match) => match.specificity === highestSpecificity)
     .toSorted((left, right) => compareBinaryStrings(left.boundary.id, right.boundary.id));
 
-  if (policy.schemaVersion === 2 && mostSpecific.length > 1) {
+  if (mostSpecific.length > 1) {
     const candidateIds = mostSpecific.map((match) => match.boundary.id).join(", ");
     throw new CapabilityInputError({
       code: "SOURCE_BOUNDARY_AMBIGUOUS",
@@ -82,8 +82,6 @@ function selectBoundary(
     });
   }
 
-  // Schema v1 did not reject ties. Retain its deterministic lexical fallback
-  // while still fixing the non-matching-root ranking bug for both versions.
   return mostSpecific[0]?.boundary;
 }
 

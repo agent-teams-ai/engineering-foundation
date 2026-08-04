@@ -6,6 +6,7 @@ import type {
   FoundationOutcome,
   FoundationProblem
 } from "./check-contract.js";
+import { compareBinaryStrings } from "./binary-string-comparator.js";
 import { FOUNDATION_REPORT_SCHEMA_VERSION } from "./check-contract.js";
 
 const OUTCOME_PRECEDENCE: Readonly<Record<FoundationOutcome, number>> = {
@@ -62,9 +63,9 @@ function sortDiagnostics(
     const leftStart = left.location.start;
     const rightStart = right.location.start;
     return (
-      left.ruleId.localeCompare(right.ruleId) ||
-      left.subject.localeCompare(right.subject) ||
-      left.location.path.localeCompare(right.location.path) ||
+      compareBinaryStrings(left.ruleId, right.ruleId) ||
+      compareBinaryStrings(left.subject, right.subject) ||
+      compareBinaryStrings(left.location.path, right.location.path) ||
       (leftStart?.line ?? 0) - (rightStart?.line ?? 0) ||
       (leftStart?.column ?? 0) - (rightStart?.column ?? 0)
     );
@@ -108,7 +109,7 @@ export function foundationReport(input: {
   readonly outcome?: FoundationOutcome;
 }): FoundationCheckReport {
   const capabilities = (input.capabilities ?? []).toSorted((left, right) =>
-    left.capabilityId.localeCompare(right.capabilityId)
+    compareBinaryStrings(left.capabilityId, right.capabilityId)
   );
   const summary = capabilities.reduce<DiagnosticSummary>(
     (total, report) => ({

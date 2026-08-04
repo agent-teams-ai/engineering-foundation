@@ -35,6 +35,7 @@ const SERVICE_MODULE_PATH = fileURLToPath(
     import.meta.url
   )
 );
+const CHILD_WAIT_TIMEOUT_MS = 5_000;
 
 async function writeJson(path, value) {
   await mkdir(dirname(path), { recursive: true });
@@ -293,26 +294,45 @@ async function startOperationLockHolder(consumerRoot) {
     [HOLDER_PATH, SERVICE_MODULE_PATH, consumerRoot],
     { stdio: ["ignore", "pipe", "pipe"] }
   );
-  await new Promise((resolve, reject) => {
-    let stderr = "";
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
+  try {
+    await new Promise((resolve, reject) => {
+      let stderr = "";
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("Lock holder did not become ready before its deadline."));
+      }, CHILD_WAIT_TIMEOUT_MS);
+      const cleanup = () => {
+        clearTimeout(timer);
+        child.stdout.off("data", onStdout);
+        child.off("exit", onExit);
+      };
+      const onStdout = (chunk) => {
+        if (chunk.includes("READY")) {
+          cleanup();
+          resolve();
+        }
+      };
+      const onExit = (code, signal) => {
+        cleanup();
+        reject(
+          new Error(
+            `Lock holder exited before ready: code=${String(code)} signal=${String(signal)} ${stderr}`
+          )
+        );
+      };
+      child.stderr.setEncoding("utf8");
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      child.stdout.setEncoding("utf8");
+      child.stdout.on("data", onStdout);
+      child.once("exit", onExit);
     });
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      if (chunk.includes("READY")) {
-        resolve();
-      }
-    });
-    child.once("exit", (code, signal) => {
-      reject(
-        new Error(
-          `Lock holder exited before ready: code=${String(code)} signal=${String(signal)} ${stderr}`
-        )
-      );
-    });
-  });
+  } catch (error) {
+    child.kill("SIGKILL");
+    await waitForExit(child);
+    throw error;
+  }
   return child;
 }
 
@@ -320,8 +340,16 @@ async function waitForExit(child) {
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
-  await new Promise((resolve) => {
-    child.once("exit", resolve);
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      child.off("exit", onExit);
+      reject(new Error("Lock holder did not exit before its deadline."));
+    }, CHILD_WAIT_TIMEOUT_MS);
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    child.once("exit", onExit);
   });
 }
 
@@ -507,6 +535,11 @@ test("rejects a concurrent operation owned by a live process", async () => {
       ),
       /operation is active or its lock is not safely recoverable/u
     );
+    assert.equal(
+      await readFile(join(fixture.consumerRoot, ".git", "info", "exclude"), "utf8"),
+      ""
+    );
+    assert.equal(fixture.runner.requests.length, 0);
     assert.equal((await inspectFoundationMode(fixture.consumerRoot)).mode, "INVALID");
   } finally {
     if (holder !== undefined && holder.exitCode === null) {

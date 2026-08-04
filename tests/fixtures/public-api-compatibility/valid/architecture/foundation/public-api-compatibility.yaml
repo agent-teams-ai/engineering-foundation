@@ -6,5 +6,5 @@ packages:
     manifestPath: packages/library/package.json
     declarationEntryPoint: packages/library/dist/index.d.ts
     tsconfigPath: packages/library/tsconfig.json
-    releasedBaselinePath: architecture/public-api/library.json
+    releasedBaselinePath: architecture/public-api/public-api.json
     approvedBreakingChanges: []

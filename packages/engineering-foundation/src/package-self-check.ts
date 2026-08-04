@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { compareBinaryStrings } from "./binary-string-comparator.js";
 import { FoundationError } from "./errors.js";
 import { FOUNDATION_SCHEMA_IDS } from "./schema-ids.js";
 import { isExactVersion } from "./semantic-version.js";
@@ -288,7 +289,7 @@ export async function inspectFoundationPackage(
     exportPaths: Object.keys(manifest.exports).toSorted(),
     runtimeDependencies: Object.fromEntries(
       Object.entries(runtimeDependencies).toSorted(([left], [right]) =>
-        left.localeCompare(right)
+        compareBinaryStrings(left, right)
       )
     )
   };

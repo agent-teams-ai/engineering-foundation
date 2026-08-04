@@ -7,8 +7,7 @@ const execFileAsync = promisify(execFile);
 
 export async function testPackedAgentWorkflow({
   consumerRoot,
-  pnpmExecutable,
-  pnpmArguments,
+  runPnpm,
 }) {
   const manifestPath = join(consumerRoot, "package.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
@@ -81,9 +80,8 @@ await appendFile(".agent-workflow-invocations.jsonl", JSON.stringify({ kind, pat
     "utf8",
   );
 
-  const { stdout: capabilityOutput } = await execFileAsync(
-    pnpmExecutable,
-    pnpmArguments([
+  const { stdout: capabilityOutput } = await runPnpm(
+    [
       "exec",
       "agent-teams-foundation",
       "check",
@@ -92,8 +90,8 @@ await appendFile(".agent-workflow-invocations.jsonl", JSON.stringify({ kind, pat
       consumerRoot,
       "--format",
       "json",
-    ]),
-    { cwd: consumerRoot },
+    ],
+    consumerRoot,
   );
   if (JSON.parse(capabilityOutput).outcome !== "passed") {
     throw new Error("Packed agent workflow capability did not pass.");
@@ -114,9 +112,8 @@ await appendFile(".agent-workflow-invocations.jsonl", JSON.stringify({ kind, pat
     "export const packedAgentWorkflow = true;\n",
     "utf8",
   );
-  const { stdout: workflowOutput } = await execFileAsync(
-    pnpmExecutable,
-    pnpmArguments([
+  const { stdout: workflowOutput } = await runPnpm(
+    [
       "exec",
       "agent-teams-foundation",
       "agent-workflow",
@@ -127,8 +124,8 @@ await appendFile(".agent-workflow-invocations.jsonl", JSON.stringify({ kind, pat
       consumerRoot,
       "--format",
       "json",
-    ]),
-    { cwd: consumerRoot },
+    ],
+    consumerRoot,
   );
   const workflow = JSON.parse(workflowOutput);
   if (

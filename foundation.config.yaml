@@ -4,6 +4,10 @@ project:
 capabilities:
   architecture.source-dependencies:
     configPath: architecture/foundation/source-dependencies.yaml
+  documentation.local-references:
+    configPath: architecture/foundation/documentation-local-references.yaml
+  governance.architecture-decisions:
+    configPath: architecture/foundation/governance-architecture-decisions.yaml
   package.public-api-compatibility:
     configPath: architecture/foundation/public-api-compatibility.yaml
   quality.suppression-governance:

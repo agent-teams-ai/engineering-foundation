@@ -1,8 +1,9 @@
+import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
+import { assertNotCancelled } from "../../../../cancellation.js";
 import { CapabilityInputError } from "../../../../capability-runtime.js";
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 import type { SourceTreeReader } from "../../../../source-inventory/application/ports/source-tree-reader.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type { WorkspaceInventoryReader } from "../../../../workspace-inventory/application/ports/workspace-inventory-reader.js";
 import type {
@@ -10,9 +11,14 @@ import type {
   ClassifiedSourceFile,
   SourceArchitecturePolicy
 } from "../model/source-workspace.js";
+import {
+  normalizeRepositoryPath,
+  pathIsInside
+} from "../model/repository-path.js";
 import type { SourceDependencyParser } from "../ports/source-dependency-parser.js";
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 import { evaluateSourceDependencies } from "../policies/evaluate-source-dependencies.js";
+import { buildObservedSourceGraph } from "./build-observed-source-graph.js";
 
 export interface AnalyzeSourceDependenciesInput {
   readonly consumerRoot: string;
@@ -28,21 +34,57 @@ export interface AnalyzeSourceDependenciesDependencies {
 }
 
 function pathInside(path: string, root: string): boolean {
-  return path === root || path.startsWith(`${root}/`);
+  return pathIsInside(path, root);
 }
 
-function deepestBoundary(
+interface BoundaryMatch {
+  readonly boundary: ArchitectureBoundaryPolicy;
+  readonly specificity: number;
+}
+
+function matchingBoundarySpecificity(
+  path: string,
+  boundary: ArchitectureBoundaryPolicy
+): number | undefined {
+  const matchingRoots = boundary.roots
+    .filter((root) => pathInside(path, root))
+    .map((root) => normalizeRepositoryPath(root).length);
+  return matchingRoots.length === 0 ? undefined : Math.max(...matchingRoots);
+}
+
+function selectBoundary(
   file: SourceFileSnapshot,
-  boundaries: readonly ArchitectureBoundaryPolicy[]
+  policy: SourceArchitecturePolicy
 ): ArchitectureBoundaryPolicy | undefined {
-  return boundaries
-    .filter((boundary) => boundary.roots.some((root) => pathInside(file.path, root)))
-    .toSorted(
-      (left, right) =>
-        Math.max(...right.roots.map((root) => root.length)) -
-          Math.max(...left.roots.map((root) => root.length)) ||
-        left.id.localeCompare(right.id)
-    )[0];
+  const matches: BoundaryMatch[] = [];
+  for (const boundary of policy.boundaries) {
+    const specificity = matchingBoundarySpecificity(file.path, boundary);
+    if (specificity !== undefined) {
+      matches.push({ boundary, specificity });
+    }
+  }
+  if (matches.length === 0) {
+    return undefined;
+  }
+
+  const highestSpecificity = Math.max(...matches.map((match) => match.specificity));
+  const mostSpecific = matches
+    .filter((match) => match.specificity === highestSpecificity)
+    .toSorted((left, right) => compareBinaryStrings(left.boundary.id, right.boundary.id));
+
+  if (policy.schemaVersion === 2 && mostSpecific.length > 1) {
+    const candidateIds = mostSpecific.map((match) => match.boundary.id).join(", ");
+    throw new CapabilityInputError({
+      code: "SOURCE_BOUNDARY_AMBIGUOUS",
+      message: `Source file matches multiple equally specific architecture boundaries: ${file.path} (${candidateIds}).`,
+      phase: "source-boundary-classification",
+      retryable: false
+    });
+  }
+
+  // Schema v1 did not reject ties. Retain its deterministic lexical fallback
+  // while still fixing the non-matching-root ranking bug for both versions.
+  return mostSpecific[0]?.boundary;
 }
 
 function containingPackage(
@@ -58,7 +100,7 @@ function containingPackage(
     .toSorted(
       (left, right) =>
         right.rootPath.length - left.rootPath.length ||
-        left.name.localeCompare(right.name)
+        compareBinaryStrings(left.name, right.name)
     )[0];
 }
 
@@ -72,16 +114,20 @@ function classifyFiles(
   const classified: ClassifiedSourceFile[] = [];
   for (const file of files) {
     assertNotCancelled(signal);
-    const boundary = deepestBoundary(file, policy.boundaries);
-    const workspacePackage = containingPackage(file.path, packages);
+    const normalizedFile: SourceFileSnapshot = {
+      ...file,
+      path: normalizeRepositoryPath(file.path)
+    };
+    const boundary = selectBoundary(normalizedFile, policy);
+    const workspacePackage = containingPackage(normalizedFile.path, packages);
     if (boundary === undefined || workspacePackage === undefined) {
       continue;
     }
     classified.push({
-      ...file,
+      ...normalizedFile,
       boundary,
       workspacePackage,
-      parsed: parser.parse(file)
+      parsed: parser.parse(normalizedFile)
     });
   }
   return classified;
@@ -128,11 +174,15 @@ export async function analyzeSourceDependencies(
     dependencies.parser,
     input.signal
   );
-  return evaluateSourceDependencies({
-    policy: input.policy,
+  const graph = buildObservedSourceGraph({
     inventory,
     allSourceFiles: sourceFiles,
     classifiedFiles,
-    resolver: dependencies.resolver
+    resolver: dependencies.resolver,
+    ...(input.signal === undefined ? {} : { signal: input.signal })
+  });
+  return evaluateSourceDependencies({
+    policy: input.policy,
+    graph
   });
 }

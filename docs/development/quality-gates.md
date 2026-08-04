@@ -12,7 +12,8 @@ weakening the merge gate.
 | --- | --- | --- |
 | Changed | `pnpm check:changed` | Foundation-routed checks for the current Git delta |
 | Fast | `pnpm check:fast` | Oxlint syntax/correctness plus pinned TypeScript 7 |
-| Architecture | `pnpm foundation:check` | Dependency, source, suppression, API, and repository-security evidence |
+| Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
+| Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor qualification for all workflows and local actions |
 | Patterns | `pnpm architecture:patterns` | Consumer-owned deterministic AST prohibitions |
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance |
@@ -22,6 +23,20 @@ local loop. Nx supplies project discovery, affected builds, and caching; it does
 not define architecture policy. Ast-grep owns narrow syntax patterns such as
 ambient clock, environment, randomness, and timer access. The foundation source
 dependency capability is the only authority for package and architecture edges.
+Actionlint and zizmor are independent external gates run through the
+repo-owned Aqua bootstrap. It accepts only Aqua v2.62.3, uses a locally exact
+copy when available, otherwise downloads one committed SHA-256-verified
+macOS/Linux release archive into a private user cache with an atomic,
+lock-protected install. The bootstrap has no floating installer script or
+checked-in binary. Windows returns an explicit unsupported-platform
+precondition, and the Windows CI job does not invoke this gate. Aqua then
+enforces the committed registry and tool checksums in `aqua.yaml` and
+`aqua-checksums.json`. Actionlint discovers all workflow YAML files without a
+shell glob; Zizmor scans the repository root with strict collection, including
+local composite actions outside `.github`. Dependency Review runs inside the
+existing required Linux `check` job, so it cannot become an optional parallel
+status. CodeQL runs as a separate hosted analysis; none of these tools execute
+inside a normal capability check.
 
 ## Dependency updates
 
@@ -67,9 +82,15 @@ relative imports, undeclared packages, blocked exports, and unresolved imports
 fail CI. The repository dogfoods separate application, contract, adapter, and
 composition boundaries for every implemented capability.
 
+Schema v2 additionally requires explicit target entrypoints and rejects runtime
+or type-only dependency cycles between packages and architecture boundaries.
+
 Suppression waivers, released API baselines, privileged workflow jobs, and
-publishable packages are also closed-world evidence. Existing API baselines are
-release-owned and cannot change in a normal pull request.
+publishable packages are also closed-world evidence. Released contract and API
+baselines are release-owned: creation, replacement, movement, and deletion are
+forbidden in a normal pull request. Contract baselines use the stable
+`architecture/contracts/` root; accepted ADR history uses the single
+`architecture/decisions/accepted-decisions.json` anchor.
 
 ## Conformance
 
@@ -77,12 +98,15 @@ The test suite includes positive and negative capability fixtures, real lint
 failures, local attach/detach recovery, parser parity, ast-grep rule tests, and a
 packed-tarball consumer. The tarball consumer installs its own exact Oxlint,
 oxlint-tsgolint, and TypeScript versions and proves the published type-aware
-preset and both executable capabilities.
+preset, source graph v2, documentation links and anchors, idempotent ADR baseline
+promotion, and both contract-evolution capabilities.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI
-also emits an SPDX JSON SBOM; Dependency Review runs as an independent required
-workflow.
+also emits an SPDX JSON SBOM and runs Dependency Review inside its required
+`check` job.
 
-That tarball check qualifies this repository's published package. The static
-`repository.security-baseline` capability does not manufacture equivalent
+That tarball check qualifies package contents and packed-consumer behavior, but
+does not prove publication through an npm-compatible registry. Release runs a
+separate hermetic registry publish/install gate with network uplinks disabled.
+The static `repository.security-baseline` capability does not manufacture equivalent
 evidence for a consumer; each publishing consumer needs its own real packed-
 artifact gate until a separate reusable package capability is accepted.

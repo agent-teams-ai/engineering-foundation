@@ -17,6 +17,7 @@ export async function runAgentWorkflowChangedCommand(input: {
     controller.abort();
   };
   process.once("SIGINT", cancel);
+  process.once("SIGTERM", cancel);
   try {
     const report = await runChangedAgentWorkflow(
       {
@@ -40,5 +41,6 @@ export async function runAgentWorkflowChangedCommand(input: {
     process.exitCode = report.outcome === "passed" ? 0 : 1;
   } finally {
     process.removeListener("SIGINT", cancel);
+    process.removeListener("SIGTERM", cancel);
   }
 }

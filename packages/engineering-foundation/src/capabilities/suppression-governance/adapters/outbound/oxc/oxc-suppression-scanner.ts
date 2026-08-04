@@ -1,5 +1,6 @@
 import { parseSync, type Comment } from "oxc-parser";
 
+import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type { SourceFileSnapshot } from "../../../../../source-inventory/application/model/source-file-snapshot.js";
 import type {
   SuppressionDirective,
@@ -139,7 +140,7 @@ export class OxcSuppressionScanner implements SuppressionScanner {
         (left, right) =>
           left.line - right.line ||
           left.column - right.column ||
-          left.kind.localeCompare(right.kind)
+          compareBinaryStrings(left.kind, right.kind)
       );
     return {
       path: file.path,

@@ -1,25 +1,21 @@
-import { readFile, realpath, stat } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { realpath, stat } from "node:fs/promises";
+import { isAbsolute, resolve } from "node:path";
 
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
+import { assertNotCancelled } from "./cancellation.js";
 import { CapabilityInputError } from "./capability-runtime.js";
+import {
+  ContainedFileReadError,
+  readContainedRegularFile
+} from "./filesystem-path-safety.js";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
 
+export { assertNotCancelled } from "./cancellation.js";
+
 function inputError(code: string, message: string, phase: string): never {
   throw new CapabilityInputError({ code, message, phase, retryable: false });
-}
-
-export function assertNotCancelled(signal: AbortSignal | undefined): void {
-  if (signal?.aborted === true) {
-    throw new CapabilityInputError({
-      code: "EXECUTION_CANCELLED",
-      message: "Foundation check was cancelled.",
-      phase: "execution",
-      retryable: false
-    });
-  }
 }
 
 export function assertRepositoryRelativePath(path: string, phase: string): void {
@@ -38,12 +34,7 @@ export function assertRepositoryRelativePath(path: string, phase: string): void 
   }
 }
 
-async function resolveContainedFile(
-  consumerRoot: string,
-  repositoryPath: string,
-  phase: string
-): Promise<string> {
-  assertRepositoryRelativePath(repositoryPath, phase);
+async function resolveConsumerRoot(consumerRoot: string, phase: string): Promise<string> {
   let canonicalRoot: string;
   try {
     canonicalRoot = await realpath(consumerRoot);
@@ -65,34 +56,7 @@ async function resolveContainedFile(
       phase
     );
   }
-  const candidate = resolve(canonicalRoot, repositoryPath);
-  let canonicalCandidate: string;
-  try {
-    canonicalCandidate = await realpath(candidate);
-  } catch {
-    inputError(
-      "CONFIG_FILE_UNAVAILABLE",
-      `Required configuration file is unavailable: ${repositoryPath}.`,
-      phase
-    );
-  }
-  const relation = relative(canonicalRoot, canonicalCandidate);
-  if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
-    inputError(
-      "CONFIG_PATH_ESCAPE",
-      `Configuration path escapes the consumer repository: ${repositoryPath}.`,
-      phase
-    );
-  }
-  const metadata = await stat(canonicalCandidate);
-  if (!metadata.isFile() || metadata.size > MAX_CONFIG_BYTES) {
-    inputError(
-      "CONFIG_FILE_INVALID",
-      `Configuration file must be a regular file no larger than ${MAX_CONFIG_BYTES} bytes: ${repositoryPath}.`,
-      phase
-    );
-  }
-  return canonicalCandidate;
+  return canonicalRoot;
 }
 
 export function parseStrictYamlSource(source: string, phase: string): unknown {
@@ -149,8 +113,47 @@ export async function loadStrictYamlFile(
   signal?: AbortSignal
 ): Promise<unknown> {
   assertNotCancelled(signal);
-  const path = await resolveContainedFile(consumerRoot, repositoryPath, phase);
-  const source = await readFile(path, "utf8");
+  assertRepositoryRelativePath(repositoryPath, phase);
+  const root = await resolveConsumerRoot(consumerRoot, phase);
+  let bytes: Buffer;
+  try {
+    bytes = await readContainedRegularFile({
+      candidate: resolve(root, repositoryPath),
+      maxBytes: MAX_CONFIG_BYTES,
+      root
+    });
+  } catch (error) {
+    if (!(error instanceof ContainedFileReadError)) {
+      throw error;
+    }
+    if (error.failure === "escape") {
+      inputError(
+        "CONFIG_PATH_ESCAPE",
+        `Configuration path escapes the consumer repository: ${repositoryPath}.`,
+        phase
+      );
+    }
+    if (error.failure === "invalid") {
+      inputError(
+        "CONFIG_FILE_INVALID",
+        `Configuration file must be a regular file no larger than ${MAX_CONFIG_BYTES} bytes: ${repositoryPath}.`,
+        phase
+      );
+    }
+    if (error.failure === "symlink") {
+      inputError(
+        "CONFIG_SYMLINK_PROHIBITED",
+        `Configuration path cannot be a symbolic link: ${repositoryPath}.`,
+        phase
+      );
+    }
+    inputError(
+      "CONFIG_FILE_UNAVAILABLE",
+      `Required configuration file is unavailable or changed while reading: ${repositoryPath}.`,
+      phase
+    );
+  }
+  const source = bytes.toString("utf8");
   assertNotCancelled(signal);
   return parseStrictYamlSource(source, phase);
 }

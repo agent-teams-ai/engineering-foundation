@@ -1,5 +1,6 @@
 import { parseSync, Visitor } from "oxc-parser";
 
+import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type { SourceFileSnapshot } from "../../../../../source-inventory/application/model/source-file-snapshot.js";
 import type {
   ParsedSourceDependencies,
@@ -119,11 +120,12 @@ export class OxcSourceDependencyParser implements SourceDependencyParser {
       references: references.toSorted(
         (left, right) =>
           left.start - right.start ||
-          left.kind.localeCompare(right.kind) ||
-          left.specifier.localeCompare(right.specifier)
+          compareBinaryStrings(left.kind, right.kind) ||
+          compareBinaryStrings(left.specifier, right.specifier)
       ),
       unresolved: unresolvedReferences.toSorted(
-        (left, right) => left.start - right.start || left.kind.localeCompare(right.kind)
+        (left, right) =>
+          left.start - right.start || compareBinaryStrings(left.kind, right.kind)
       )
     };
   }

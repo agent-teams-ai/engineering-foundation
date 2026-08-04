@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/contract-json-schema-release-baseline/v1",
+  "title": "Immutable released JSON Schema contract baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "contractId",
+    "publicContractVersion",
+    "schemaSetDigest",
+    "fixtureCorpusDigest",
+    "supportedConsumers"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "contractId": { "$ref": "#/$defs/contractId" },
+    "publicContractVersion": { "$ref": "#/$defs/semver" },
+    "schemaSetDigest": { "$ref": "#/$defs/digest" },
+    "fixtureCorpusDigest": { "$ref": "#/$defs/digest" },
+    "supportedConsumers": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/consumerEvidence" }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "contractId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9.-]{1,119}$"
+    },
+    "consumerEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumerId",
+        "consumerVersion",
+        "contractId",
+        "contractVersion",
+        "schemaSetDigest",
+        "fixtureCorpusDigest",
+        "evidenceDigest",
+        "outcome"
+      ],
+      "properties": {
+        "consumerId": { "$ref": "#/$defs/contractId" },
+        "consumerVersion": { "$ref": "#/$defs/semver" },
+        "contractId": { "$ref": "#/$defs/contractId" },
+        "contractVersion": { "$ref": "#/$defs/semver" },
+        "schemaSetDigest": { "$ref": "#/$defs/digest" },
+        "fixtureCorpusDigest": { "$ref": "#/$defs/digest" },
+        "evidenceDigest": { "$ref": "#/$defs/digest" },
+        "outcome": { "enum": ["passed", "failed"] }
+      }
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    }
+  }
+}

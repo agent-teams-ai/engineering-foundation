@@ -8,7 +8,8 @@ export interface PublicApiRepository {
   readReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    purpose?: "compatibility-check" | "release-promotion"
   ): Promise<PublicApiSnapshot>;
 
   readReleaseEvidence(
@@ -17,12 +18,6 @@ export interface PublicApiRepository {
     policy: PublicApiPackagePolicy,
     signal?: AbortSignal
   ): Promise<PackageReleaseEvidence>;
-
-  isAcceptedDecision(
-    consumerRoot: string,
-    decisionPath: string,
-    signal?: AbortSignal
-  ): Promise<boolean>;
 
   writeReleasedBaseline(
     consumerRoot: string,

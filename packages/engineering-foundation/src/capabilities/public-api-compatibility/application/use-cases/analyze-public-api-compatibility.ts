@@ -1,6 +1,7 @@
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { PublicApiCompatibilityPolicy } from "../model/public-api.js";
+import type { AcceptedDecisionEvidencePort } from "../ports/accepted-decision-evidence.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import type { PublicApiExtractor } from "../ports/public-api-extractor.js";
 import type { PublicApiRepository } from "../ports/public-api-repository.js";
@@ -8,6 +9,7 @@ import {
   classifyPublicApiChange,
   evaluatePublicApiCompatibility
 } from "../policies/evaluate-public-api-compatibility.js";
+import { isApprovedBreakingChangeAccepted } from "../policies/accepted-breaking-change.js";
 
 export async function analyzePublicApiCompatibility(
   input: {
@@ -19,9 +21,13 @@ export async function analyzePublicApiCompatibility(
     readonly extractor: PublicApiExtractor;
     readonly fingerprint: ChangeFingerprint;
     readonly repository: PublicApiRepository;
+    readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
   }
 ): Promise<readonly FoundationDiagnostic[]> {
   const diagnostics: FoundationDiagnostic[] = [];
+  let acceptedDecisionEvidence:
+    | Awaited<ReturnType<AcceptedDecisionEvidencePort["readAcceptedDecisionEvidence"]>>
+    | undefined;
   for (const packagePolicy of input.policy.packages) {
     assertNotCancelled(input.signal);
     const [released, releaseEvidence] = await Promise.all([
@@ -54,14 +60,25 @@ export async function analyzePublicApiCompatibility(
             (candidate) => candidate.fingerprint === change.fingerprint
           )
         : undefined;
+    if (
+      approval !== undefined &&
+      acceptedDecisionEvidence === undefined &&
+      input.policy.acceptedDecisionBaselinePath !== undefined &&
+      input.policy.governanceConfigPath !== undefined
+    ) {
+      acceptedDecisionEvidence =
+        await dependencies.acceptedDecisionEvidence.readAcceptedDecisionEvidence({
+          consumerRoot: input.consumerRoot,
+          baselinePath: input.policy.acceptedDecisionBaselinePath,
+          governanceConfigPath: input.policy.governanceConfigPath,
+          ...(input.signal === undefined ? {} : { signal: input.signal })
+        });
+    }
     const acceptedDecision =
       approval === undefined
         ? undefined
-        : await dependencies.repository.isAcceptedDecision(
-            input.consumerRoot,
-            approval.decisionPath,
-            input.signal
-          );
+        : acceptedDecisionEvidence !== undefined &&
+          isApprovedBreakingChangeAccepted(approval, acceptedDecisionEvidence);
     diagnostics.push(
       ...evaluatePublicApiCompatibility({
         policy: packagePolicy,

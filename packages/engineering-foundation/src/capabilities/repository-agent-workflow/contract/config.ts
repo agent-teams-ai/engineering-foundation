@@ -1,3 +1,4 @@
+import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../capability-runtime.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { assertRepositoryRelativePath, loadStrictYamlFile } from "../../../strict-yaml.js";
@@ -149,7 +150,7 @@ export async function loadAgentWorkflowPolicy(
         "foundation.config.yaml",
         configPath,
         "package.json"
-      ])].toSorted((left, right) => left.localeCompare(right))
+      ])].toSorted(compareBinaryStrings)
     )
   });
 }

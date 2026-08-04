@@ -64,8 +64,16 @@
     "@microsoft/api-extractor": "catalog:",
     "@microsoft/api-extractor-model": "catalog:",
     "ajv": "catalog:",
+    "ajv-formats": "catalog:",
+    "github-slugger": "catalog:",
+    "mdast-util-to-string": "catalog:",
     "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",
+    "remark-frontmatter": "catalog:",
+    "remark-gfm": "catalog:",
+    "remark-parse": "catalog:",
+    "unified": "catalog:",
+    "unist-util-visit": "catalog:",
     "yaml": "catalog:"
   }
 }

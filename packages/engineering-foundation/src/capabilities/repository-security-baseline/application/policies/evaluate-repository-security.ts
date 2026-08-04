@@ -1,5 +1,6 @@
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import type {
+  CompositeActionEvidence,
   PrivilegedJobPolicy,
   RepositorySecurityEvidence,
   RepositorySecurityPolicy,
@@ -7,36 +8,23 @@ import type {
   WorkflowPermission
 } from "../model/repository-security.js";
 import {
-  REPOSITORY_SECURITY_RULES,
-  type RepositorySecurityRuleMetadata
-} from "../rules.js";
+  isPinnedContainerImage,
+  isPinnedExternalWorkflowUse,
+  isSafeLocalWorkflowUse
+} from "../model/repository-security.js";
+import { REPOSITORY_SECURITY_RULES } from "../rules.js";
+import {
+  inspectDependencyReviewOrdering,
+  isDependencyReviewEvidence
+} from "./dependency-review-ordering.js";
+import { evaluateRepositorySecurityTools } from "./evaluate-repository-security-tools.js";
+import { evaluateRepositoryWorkflowUses } from "./evaluate-repository-workflow-uses.js";
+import { repositorySecurityDiagnostic as diagnostic } from "./repository-security-diagnostic.js";
 
-const FULL_SHA_ACTION = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_./-]+)?@[0-9a-fA-F]{40}$/u;
-const FULL_DIGEST_CONTAINER = /^docker:\/\/.+@sha256:[0-9a-fA-F]{64}$/u;
 const UNSAFE_PACKAGE_SEGMENT = /^(?:\.env(?:\..*)?|\.git|node_modules|src|tests?|auth\.json)$/iu;
 const PACKAGE_PATH_META = /[*?{}[\]\\]/u;
 const UNTRUSTED_EXPRESSION_IN_RUN =
   /\$\{\{[^}]*github\s*(?:\.\s*(?:event|head_ref)\b|\[\s*["'](?:event|head_ref)["']\s*\])/iu;
-
-function diagnostic(input: {
-  readonly rule: RepositorySecurityRuleMetadata;
-  readonly subject: string;
-  readonly path: string;
-  readonly message: string;
-  readonly evidence?: readonly { readonly kind: string; readonly value: string }[];
-}): FoundationDiagnostic {
-  return {
-    ruleId: input.rule.id,
-    severity: input.rule.severity,
-    subject: input.subject,
-    message: input.message,
-    location: { path: input.path },
-    relatedLocations: [],
-    evidence: input.evidence ?? [],
-    remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
-  };
-}
 
 function exactPermissions(
   actual: Readonly<Record<string, WorkflowPermission>>,
@@ -62,10 +50,10 @@ function policyForJob(
 }
 
 function actionPinned(action: string): boolean {
-  if (action.startsWith("./")) {
-    return !action.split("/").includes("..") && !action.includes("${{");
+  if (isSafeLocalWorkflowUse(action)) {
+    return true;
   }
-  return FULL_SHA_ACTION.test(action) || FULL_DIGEST_CONTAINER.test(action);
+  return isPinnedExternalWorkflowUse(action);
 }
 
 function jobPermissions(
@@ -84,18 +72,6 @@ function inputIsEnabledOrAbsent(
     value === undefined ||
     value === true ||
     (typeof value === "string" && value.toLowerCase() === "true")
-  );
-}
-
-function inputIsDisabledOrAbsent(
-  step: WorkflowJobEvidence["steps"][number],
-  name: string
-): boolean {
-  const value = step.inputs[name];
-  return (
-    value === undefined ||
-    value === false ||
-    (typeof value === "string" && value.toLowerCase() === "false")
   );
 }
 
@@ -132,29 +108,44 @@ type PackageEvidence = RepositorySecurityEvidence["packages"][number];
 
 interface EvaluationState {
   readonly diagnostics: FoundationDiagnostic[];
+  readonly seenContainerImages: Set<string>;
   readonly seenPrivilegedJobs: Set<string>;
   dependencyReviewFound: boolean;
   sbomFound: boolean;
 }
 
-function isDependencyReviewEvidence(
+function inspectContainerImage(
   policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
   job: WorkflowEvidence["jobs"][number],
-  step: WorkflowEvidence["jobs"][number]["steps"][number]
-): boolean {
-  return (
-    workflow.path === policy.dependencyReviewWorkflow &&
-    workflow.unconditionalTriggers.includes("pull_request") &&
-    !job.conditional &&
-    !job.nonBlocking &&
-    !step.conditional &&
-    !step.nonBlocking &&
-    inputIsDisabledOrAbsent(step, "warn-only") &&
-    step.inputs["config-file"] === undefined &&
-    step.uses?.startsWith("actions/dependency-review-action@") === true &&
-    actionPinned(step.uses)
-  );
+  container: WorkflowEvidence["jobs"][number]["containers"][number],
+  state: EvaluationState
+): void {
+  const subject = `${workflow.path}:${job.id}.${container.scope}.${container.name}`;
+  if (!isPinnedContainerImage(container.image)) {
+    state.diagnostics.push(
+      diagnostic({
+        rule: REPOSITORY_SECURITY_RULES.containerNotPinned,
+        subject,
+        path: workflow.path,
+        message: `Container image is not pinned to an immutable digest: ${container.image}.`,
+        evidence: [{ kind: "container-image", value: container.image }]
+      })
+    );
+    return;
+  }
+  state.seenContainerImages.add(container.image);
+  if (!policy.allowedContainerImages.includes(container.image)) {
+    state.diagnostics.push(
+      diagnostic({
+        rule: REPOSITORY_SECURITY_RULES.containerNotAllowlisted,
+        subject,
+        path: workflow.path,
+        message: `Pinned container image is not declared in allowedContainerImages: ${container.image}.`,
+        evidence: [{ kind: "container-image", value: container.image }]
+      })
+    );
+  }
 }
 
 function isSbomEvidence(
@@ -285,8 +276,29 @@ function inspectWorkflowJob(
       })
     );
   }
+  for (const container of job.containers) {
+    inspectContainerImage(policy, workflow, job, container, state);
+  }
   for (const step of job.steps) {
     inspectWorkflowStep(policy, workflow, job, step, state);
+  }
+}
+
+function inspectCompositeAction(
+  action: CompositeActionEvidence,
+  diagnostics: FoundationDiagnostic[]
+): void {
+  for (const [index, step] of action.steps.entries()) {
+    if (step.run !== undefined && UNTRUSTED_EXPRESSION_IN_RUN.test(step.run)) {
+      diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.eventInterpolationInRun,
+          subject: `${action.path}:runs.steps[${index}]`,
+          path: action.path,
+          message: "Composite action shell script directly interpolates github.event data."
+        })
+      );
+    }
   }
 }
 
@@ -298,8 +310,8 @@ function inspectRequiredEvidence(
     state.diagnostics.push(
       diagnostic({
         rule: REPOSITORY_SECURITY_RULES.dependencyReviewMissing,
-        subject: policy.dependencyReviewWorkflow,
-        path: policy.dependencyReviewWorkflow,
+        subject: `${policy.dependencyReview.workflowPath}:${policy.dependencyReview.jobId}`,
+        path: policy.dependencyReview.workflowPath,
         message: "Declared dependency-review workflow does not run the pinned official action."
       })
     );
@@ -354,6 +366,7 @@ export function evaluateRepositorySecurity(
 ): readonly FoundationDiagnostic[] {
   const state: EvaluationState = {
     diagnostics: [],
+    seenContainerImages: new Set<string>(),
     seenPrivilegedJobs: new Set<string>(),
     dependencyReviewFound: false,
     sbomFound: false
@@ -363,7 +376,11 @@ export function evaluateRepositorySecurity(
     inspectWorkflowRoot(workflow, state);
     for (const job of workflow.jobs) {
       inspectWorkflowJob(policy, workflow, job, state);
+      inspectDependencyReviewOrdering(policy, workflow, job, state.diagnostics);
     }
+  }
+  for (const action of evidence.compositeActions) {
+    inspectCompositeAction(action, state.diagnostics);
   }
   inspectRequiredEvidence(policy, state);
   for (const privileged of policy.privilegedJobs) {
@@ -379,6 +396,21 @@ export function evaluateRepositorySecurity(
       );
     }
   }
+  for (const image of policy.allowedContainerImages) {
+    if (!state.seenContainerImages.has(image)) {
+      state.diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.staleAllowedContainerImage,
+          subject: image,
+          path: policy.workflowDirectory,
+          message: "Declared allowedContainerImages entry has no matching job or service container.",
+          evidence: [{ kind: "container-image", value: image }]
+        })
+      );
+    }
+  }
+  evaluateRepositoryWorkflowUses(policy, evidence, state.diagnostics);
+  evaluateRepositorySecurityTools(policy, evidence, state.diagnostics);
   for (const packageEvidence of evidence.packages) {
     inspectPackageEvidence(packageEvidence, state.diagnostics);
   }

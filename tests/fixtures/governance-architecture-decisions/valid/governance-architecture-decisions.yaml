@@ -1,0 +1,10 @@
+schemaVersion: 1
+adrRoots:
+  - docs/decisions
+index:
+  path: docs/decisions/README.md
+  sections:
+    proposed: Proposed Decisions
+    accepted: Accepted Decisions
+    superseded: Superseded Decisions
+acceptedBaselinePath: architecture/decisions/accepted-decisions.json

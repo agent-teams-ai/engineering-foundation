@@ -1,3 +1,4 @@
+import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import type {
   InstructionFileEvidence,
@@ -179,6 +180,9 @@ export function evaluateRepositoryAgentWorkflow(
     ...validateAdapters(policy, evidence),
     ...validateCommands(policy, evidence)
   ].toSorted((left, right) =>
-    `${left.ruleId}:${left.subject}`.localeCompare(`${right.ruleId}:${right.subject}`)
+    compareBinaryStrings(
+      `${left.ruleId}:${left.subject}`,
+      `${right.ruleId}:${right.subject}`
+    )
   ));
 }

@@ -11,6 +11,13 @@ Hard rules:
 - do not extract a capability without parity fixtures and a consumer test;
 - keep registry mode reproducible and local mode explicit;
 - never commit local-link state or floating dependency ranges;
+- do not select or introduce a user-facing documentation site generator,
+  documentation portal, or visual documentation search UI without explicit
+  product-owner approval; VitePress is only a possible future candidate, not an
+  accepted decision;
+- machine-readable documentation indexes used only by developer tooling or AI
+  agents may be evaluated independently, but they remain rebuildable caches and
+  never become documentation sources of truth;
 - use conventional commits and short feature branches;
 - run `pnpm check:changed` while editing and `pnpm check:fast` before handoff;
 - run `pnpm check` before opening a pull request.

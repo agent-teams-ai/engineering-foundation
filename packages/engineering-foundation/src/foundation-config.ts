@@ -1,3 +1,4 @@
+import { compareBinaryStrings } from "./binary-string-comparator.js";
 import { CapabilityInputError } from "./capability-runtime.js";
 import { assertSchema } from "./schema-catalog.js";
 import { loadStrictYamlFile } from "./strict-yaml.js";
@@ -5,6 +6,14 @@ import { loadStrictYamlFile } from "./strict-yaml.js";
 const FOUNDATION_CONFIG_PATH = "foundation.config.yaml";
 const PUBLIC_API_COMPATIBILITY_CAPABILITY =
   "package.public-api-compatibility" as const;
+const JSON_SCHEMA_RELEASES_CAPABILITY =
+  "contract.json-schema-releases" as const;
+const PROTOBUF_EVOLUTION_CAPABILITY =
+  "contract.protobuf-evolution" as const;
+const DOCUMENTATION_LOCAL_REFERENCES_CAPABILITY =
+  "documentation.local-references" as const;
+const ARCHITECTURE_DECISIONS_CAPABILITY =
+  "governance.architecture-decisions" as const;
 const REPOSITORY_AGENT_WORKFLOW_CAPABILITY =
   "repository.agent-workflow" as const;
 const SUPPRESSION_GOVERNANCE_CAPABILITY =
@@ -16,6 +25,10 @@ const SOURCE_DEPENDENCIES_CAPABILITY =
 const WORKSPACE_DEPENDENCY_DECLARATIONS_CAPABILITY =
   "workspace.dependency-declarations" as const;
 const SUPPORTED_CAPABILITY_IDS = [
+  JSON_SCHEMA_RELEASES_CAPABILITY,
+  PROTOBUF_EVOLUTION_CAPABILITY,
+  DOCUMENTATION_LOCAL_REFERENCES_CAPABILITY,
+  ARCHITECTURE_DECISIONS_CAPABILITY,
   PUBLIC_API_COMPATIBILITY_CAPABILITY,
   REPOSITORY_AGENT_WORKFLOW_CAPABILITY,
   REPOSITORY_SECURITY_BASELINE_CAPABILITY,
@@ -96,7 +109,7 @@ export async function loadFoundationConfig(
   return Object.freeze({
     projectId: string(project["id"], "project.id"),
     declaredCapabilities: Object.freeze(
-      declaredCapabilities.toSorted((left, right) => left.id.localeCompare(right.id))
+      declaredCapabilities.toSorted((left, right) => compareBinaryStrings(left.id, right.id))
     )
   });
 }

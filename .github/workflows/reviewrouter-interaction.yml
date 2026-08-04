@@ -34,6 +34,11 @@ jobs:
       REVIEW_ROUTER_MEMORY_CANDIDATE_ENDPOINT: "/api/action/v1/memory-candidates"
       REVIEW_ROUTER_MEMORY_COMMAND_ENDPOINT: "/api/action/v1/memory-commands"
     steps:
+      - name: Checkout engineering foundation toolchain
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Checkout ReviewRouter interaction runtime
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -45,7 +50,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          node-version: "24"
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9 # v6.0.9
+        with:
+          version: 11.18.0
 
       - name: Preflight ReviewRouter interaction
         id: preflight
@@ -56,10 +66,12 @@ jobs:
           REVIEW_ROUTER_DISCUSSION_MODE: ${{ vars.REVIEW_ROUTER_DISCUSSION_MODE || 'off' }}
         run: node .reviewrouter-runtime/dist/index.js
 
-      - name: Install Codex CLI for discussion replies
+      - name: Install pinned discussion tooling
         if: ${{ steps.preflight.outputs.needs_discussion == 'true' && env.CODEX_AUTH_JSON_PRESENT == '1' }}
         shell: bash
-        run: npm install -g @openai/codex@0.141.0
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          echo "${GITHUB_WORKSPACE}/node_modules/.bin" >> "${GITHUB_PATH}"
 
       - name: Restore Codex subscription auth for discussion replies
         if: ${{ steps.preflight.outputs.needs_discussion == 'true' && env.CODEX_AUTH_JSON_PRESENT == '1' }}

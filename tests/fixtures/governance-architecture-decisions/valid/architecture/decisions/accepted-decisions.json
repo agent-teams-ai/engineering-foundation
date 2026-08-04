@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "sha256",
+  "decisions": [
+    {
+      "id": "ADR-0002",
+      "path": "docs/decisions/0002-use-immutable-decision-baselines.md",
+      "immutableDigest": "sha256:52cfb83e18f543ee969dece353e3d363dcc8781fd7c9b6296c5d6a656c008072"
+    },
+    {
+      "id": "ADR-0003",
+      "path": "docs/decisions/0003-legacy-decision-history.md",
+      "immutableDigest": "sha256:85a1a69d40755ba0d67334f22a566b03b317d496387604f6d14a29edc70a0c83"
+    }
+  ]
+}

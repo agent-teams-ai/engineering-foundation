@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/contract-protobuf-evolution-baseline/v1",
+  "title": "Immutable released Protobuf contract baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "contractId",
+    "publicContractVersion",
+    "bufVersion",
+    "bufConfigDigest",
+    "descriptorImageDigest",
+    "generatorVersions",
+    "generatedOutputDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "contractId": { "$ref": "#/$defs/contractId" },
+    "publicContractVersion": { "$ref": "#/$defs/semver" },
+    "bufVersion": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "bufConfigDigest": { "$ref": "#/$defs/digest" },
+    "descriptorImageDigest": { "$ref": "#/$defs/digest" },
+    "generatorVersions": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/generator" }
+    },
+    "generatedOutputDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "contractId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9.-]{1,119}$"
+    },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "version": { "type": "string", "minLength": 1, "maxLength": 240 }
+      }
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    }
+  }
+}

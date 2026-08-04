@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreDependencies": ["@openai/codex"],
   "workspaces": {
     ".": {
       "entry": [
@@ -15,6 +16,8 @@
     },
     "packages/engineering-foundation": {
       "entry": [
+        "src/capabilities/*/module.ts",
+        "src/capabilities/*/qualification/module.ts",
         "src/public-api-surface.ts",
         "src/scaffolding/adapters/node/filesystem-workspace.ts"
       ],

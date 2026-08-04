@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+
+import { runCommand } from "../scripts/pack-test-support.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const requireFromRepository = createRequire(import.meta.url);
@@ -38,6 +40,52 @@ const maintainabilityTestsPreset = join(
   "oxlint",
   "maintainability-tests.json",
 );
+const processFixtureRoot = join(repositoryRoot, "tests", "fixtures");
+
+function wait(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+async function readProcessRecord(path) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      return JSON.parse(await readFile(path, "utf8"));
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        throw error;
+      }
+      await wait(20);
+    }
+  }
+  throw new Error(`Process fixture did not write ${path}.`);
+}
+
+async function assertProcessExited(pid) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      process.kill(pid, 0);
+    } catch (error) {
+      if (error?.code === "ESRCH") {
+        return;
+      }
+      throw error;
+    }
+    await wait(20);
+  }
+  throw new Error(`Process ${pid} survived the packaging command.`);
+}
+
+function killProcess(pid) {
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch (error) {
+    if (error?.code !== "ESRCH") {
+      throw error;
+    }
+  }
+}
 
 async function withTypeScriptProject(source, callback) {
   const projectRoot = await mkdtemp(join(tmpdir(), "foundation-oxlint-e2e-"));
@@ -184,4 +232,85 @@ ${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}
     const tests = runMaintainabilityLint(projectRoot, maintainabilityTestsPreset);
     assert.equal(tests.status, 0, `${tests.stdout}${tests.stderr}`);
   });
+});
+
+test("packaging subprocesses have a bounded deadline", async () => {
+  await assert.rejects(
+    runCommand(
+      process.execPath,
+      ["--input-type=module", "--eval", "setInterval(() => {}, 1000);"],
+      repositoryRoot,
+      { timeoutMs: 200 },
+    ),
+    (error) => error?.killed === true || error?.signal === "SIGKILL",
+  );
+});
+
+test("packaging rejects unsupported deadlines before process creation", async () => {
+  await assert.rejects(
+    runCommand(
+      process.execPath,
+      ["--eval", "throw new Error('must not execute')"],
+      repositoryRoot,
+      { timeoutMs: Number.MAX_SAFE_INTEGER },
+    ),
+    /no greater than 2147483647/u,
+  );
+});
+
+test("packaging subprocess output is bounded by cumulative bytes", async () => {
+  const source =
+    "const chunk = 'x'.repeat(1024 * 1024); for (let i = 0; i < 17; i += 1) process.stdout.write(chunk);";
+  await assert.rejects(
+    runCommand(
+      process.execPath,
+      ["--input-type=module", "--eval", source],
+      repositoryRoot,
+      { timeoutMs: 5_000 },
+    ),
+    /stdout exceeded 16777216 bytes/u,
+  );
+});
+
+test("packaging command timeouts terminate descendants", async () => {
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-pack-timeout-"));
+  const processRecordPath = join(fixtureRoot, "processes.json");
+  let record;
+  try {
+    const command = runCommand(
+      process.execPath,
+      [join(processFixtureRoot, "never-exiting-process.mjs"), processRecordPath],
+      repositoryRoot,
+      { timeoutMs: 750 },
+    );
+    record = await readProcessRecord(processRecordPath);
+    await assert.rejects(command, (error) => error?.timedOut === true);
+    await assertProcessExited(record.child);
+  } finally {
+    if (record !== undefined) {
+      killProcess(record.child);
+    }
+    await rm(fixtureRoot, { force: true, recursive: true });
+  }
+});
+
+test("packaging command completion terminates a parent-exits-first descendant", async () => {
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-pack-parent-exit-"));
+  const processRecordPath = join(fixtureRoot, "processes.json");
+  let record;
+  try {
+    await runCommand(
+      process.execPath,
+      [join(processFixtureRoot, "parent-exits-before-child.mjs"), processRecordPath],
+      repositoryRoot,
+      { timeoutMs: 2_000 },
+    );
+    record = await readProcessRecord(processRecordPath);
+    await assertProcessExited(record.child);
+  } finally {
+    if (record !== undefined) {
+      killProcess(record.child);
+    }
+    await rm(fixtureRoot, { force: true, recursive: true });
+  }
 });

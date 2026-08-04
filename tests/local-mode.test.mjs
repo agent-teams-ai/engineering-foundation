@@ -191,16 +191,35 @@ async function replaceWithDirectory(path, version) {
 }
 
 class FakeProcessRunner {
-  constructor({ failAttachedStatus = false }) {
+  constructor({ failAttachedStatus = false, blockExcludeLookup = false }) {
     this.failAttachedStatus = failAttachedStatus;
+    this.blockExcludeLookup = blockExcludeLookup;
     this.gitCommitRequests = 0;
     this.requests = [];
     this.nodeRunner = new NodeProcessRunner();
+    this.excludeLookupStarted = new Promise((resolve) => {
+      this.resolveExcludeLookupStarted = resolve;
+    });
+    this.excludeLookupRelease = new Promise((resolve) => {
+      this.resolveExcludeLookupRelease = resolve;
+    });
+  }
+
+  async waitForExcludeLookup() {
+    await this.excludeLookupStarted;
+  }
+
+  releaseExcludeLookup() {
+    this.resolveExcludeLookupRelease();
   }
 
   async run(request) {
     this.requests.push(request);
     if (request.command === "git" && request.args.includes("--git-path")) {
+      this.resolveExcludeLookupStarted();
+      if (this.blockExcludeLookup) {
+        await this.excludeLookupRelease;
+      }
       return { stdout: ".git/info/exclude\n", stderr: "" };
     }
     if (request.command === "git" && request.args.includes("rev-parse")) {
@@ -220,7 +239,9 @@ class FakeProcessRunner {
   }
 }
 
-async function createFixture({ failAttachedStatus = false } = {}) {
+async function createFixture(
+  { failAttachedStatus = false, blockExcludeLookup = false } = {}
+) {
   const root = await mkdtemp(join(tmpdir(), "foundation-local-mode-"));
   const consumerRoot = join(root, "consumer");
   const targetRepositoryRoot = join(root, "foundation");
@@ -256,7 +277,8 @@ async function createFixture({ failAttachedStatus = false } = {}) {
   await createTargetPackage(targetPackageRoot, "1.3.0-dev.1");
 
   const runner = new FakeProcessRunner({
-    failAttachedStatus
+    failAttachedStatus,
+    blockExcludeLookup
   });
   const service = new FoundationLocalModeService({
     runner,
@@ -312,6 +334,47 @@ test("attaches, reports local evidence, and restores registry mode", async () =>
       false
     );
   } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("serializes concurrent attaches before writing the local ignore rule", async () => {
+  const fixture = await createFixture({ blockExcludeLookup: true });
+  try {
+    const firstAttach = fixture.service.attach(
+      fixture.consumerRoot,
+      fixture.targetRepositoryRoot
+    );
+    await fixture.runner.waitForExcludeLookup();
+
+    const secondAttach = fixture.service.attach(
+      fixture.consumerRoot,
+      fixture.targetRepositoryRoot
+    );
+    await assert.rejects(
+      secondAttach,
+      /operation is active or its lock is not safely recoverable/u
+    );
+
+    fixture.runner.releaseExcludeLookup();
+    const attached = await firstAttach;
+    assert.equal(attached.status.mode, "LOCAL");
+
+    const exclude = await readFile(
+      join(fixture.consumerRoot, ".git", "info", "exclude"),
+      "utf8"
+    );
+    assert.equal(
+      exclude
+        .split(/\r?\n/u)
+        .filter((line) => line === ".agent-teams-local/").length,
+      1
+    );
+    const status = await inspectFoundationMode(fixture.consumerRoot);
+    assert.equal(status.mode, "LOCAL");
+    assert.equal(status.linkState?.phase, "LOCAL");
+  } finally {
+    fixture.runner.releaseExcludeLookup();
     await rm(fixture.root, { force: true, recursive: true });
   }
 });

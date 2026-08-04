@@ -5,12 +5,14 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
+import { promoteArchitectureDecisionBaseline } from "./capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
 import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
 import { runFoundationCheck } from "./check-runner.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
+import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { loadFoundationConfig } from "./foundation-config.js";
 import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
 import { NodeProcessRunner } from "./local-mode/process-runner.js";
@@ -90,6 +92,7 @@ function printHelp(): void {
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
+  agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
@@ -148,6 +151,28 @@ async function runLocalModeCommand(
       printStatus(
         await service.assertRegistry(parsed.consumerRoot),
         json
+      );
+      return true;
+    }
+    case "architecture-decisions-promote-baseline": {
+      const settings = await loadFoundationConfig(parsed.consumerRoot);
+      const declaration = settings.declaredCapabilities.find(
+        ({ id }) => id === "governance.architecture-decisions"
+      );
+      if (declaration === undefined) {
+        throw new FoundationError(
+          "CONSUMER_INVALID",
+          "governance.architecture-decisions must be declared before baseline promotion."
+        );
+      }
+      const promotion = await promoteArchitectureDecisionBaseline({
+        consumerRoot: parsed.consumerRoot,
+        configPath: declaration.configPath
+      });
+      process.stdout.write(
+        json
+          ? `${JSON.stringify({ promotion }, null, 2)}\n`
+          : `Architecture-decision baseline ${promotion.writeResult}.\n`
       );
       return true;
     }
@@ -369,6 +394,9 @@ try {
   } else if (error instanceof CapabilityInputError) {
     process.stderr.write(`${error.problem.code}: ${error.problem.message}\n`);
     process.exitCode = 2;
+  } else if (error instanceof ProcessCancellationError) {
+    process.stderr.write(`PROCESS_CANCELLED: ${error.message}\n`);
+    process.exitCode = 130;
   } else if (error instanceof FoundationError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
     process.exitCode = error.code === "CONSUMER_INVALID" ? 2 : 1;

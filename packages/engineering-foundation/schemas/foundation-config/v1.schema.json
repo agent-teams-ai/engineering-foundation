@@ -25,6 +25,46 @@
       "additionalProperties": false,
       "minProperties": 1,
       "properties": {
+        "contract.json-schema-releases": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configPath"],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "contract.protobuf-evolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configPath"],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "documentation.local-references": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configPath"],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "governance.architecture-decisions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configPath"],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
         "package.public-api-compatibility": {
           "type": "object",
           "additionalProperties": false,

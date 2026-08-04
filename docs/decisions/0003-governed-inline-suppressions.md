@@ -1,3 +1,10 @@
+---
+id: ADR-0003
+status: accepted
+supersedes: []
+superseded_by: []
+---
+
 # ADR-0003: Governed Inline Suppressions
 
 Status: Accepted

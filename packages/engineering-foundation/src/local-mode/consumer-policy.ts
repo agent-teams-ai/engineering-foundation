@@ -5,19 +5,10 @@ import { parseDocument } from "yaml";
 
 import { isExactVersion } from "../semantic-version.js";
 import type {
-  FoundationDevOnlyStatus,
-  FoundationRegistryProvenance
+  ConsumerPolicyInspection,
+  RegistryProvenanceInspection
 } from "./types.js";
 import { FOUNDATION_PACKAGE_NAME } from "./types.js";
-
-export interface ConsumerPolicyInspection extends FoundationDevOnlyStatus {
-  readonly packageManager?: string;
-}
-
-export interface RegistryProvenanceInspection {
-  readonly provenance?: FoundationRegistryProvenance;
-  readonly issues: readonly string[];
-}
 
 const SHA512_INTEGRITY_PATTERN = /^sha512-[A-Za-z0-9+/]+={0,2}$/;
 const RUNTIME_DEPENDENCY_FIELDS = [

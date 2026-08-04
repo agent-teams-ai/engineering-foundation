@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/governance-architecture-decision-baseline/v1",
+  "title": "Immutable accepted architecture decision baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "algorithm", "decisions"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "algorithm": { "const": "sha256" },
+    "decisions": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "immutableDigest"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^ADR-[0-9]{4}$"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[*?{}[\\]]).+\\.md$"
+          },
+          "immutableDigest": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

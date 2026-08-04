@@ -1,6 +1,7 @@
 import { glob, readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 
+import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../capability-runtime.js";
 import { pathTraversesSymbolicLink } from "../../../../filesystem-path-safety.js";
 import {
@@ -200,7 +201,9 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
   }
   return {
     explicit: true,
-    entries: entries.toSorted((left, right) => left.subpath.localeCompare(right.subpath))
+    entries: entries.toSorted((left, right) =>
+      compareBinaryStrings(left.subpath, right.subpath)
+    )
   };
 }
 
@@ -293,8 +296,8 @@ async function readJsonManifest(
       : {}),
     dependencies: dependencies.toSorted(
       (left, right) =>
-        left.dependencyName.localeCompare(right.dependencyName) ||
-        left.section.localeCompare(right.section)
+        compareBinaryStrings(left.dependencyName, right.dependencyName) ||
+        compareBinaryStrings(left.section, right.section)
     ),
     bundledDependencies: [
       ...optionalStringArray(
@@ -415,7 +418,7 @@ async function readManifestBatch(
     );
   }
   return packages.toSorted((left, right) =>
-    left.manifestPath.localeCompare(right.manifestPath)
+    compareBinaryStrings(left.manifestPath, right.manifestPath)
   );
 }
 
@@ -449,8 +452,8 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
         ...parseCatalog(input, "catalogs")
       ].toSorted(
         (left, right) =>
-          left.catalogName.localeCompare(right.catalogName) ||
-          left.dependencyName.localeCompare(right.dependencyName)
+          compareBinaryStrings(left.catalogName, right.catalogName) ||
+          compareBinaryStrings(left.dependencyName, right.dependencyName)
       ),
       packages: await readManifestBatch(consumerRoot, manifestPaths, signal)
     };

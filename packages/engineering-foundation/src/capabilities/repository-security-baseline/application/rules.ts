@@ -30,10 +30,35 @@ export const REPOSITORY_SECURITY_RULES = Object.freeze({
     "Mutable action references can change without repository review.",
     "Pin external actions to a full 40-character commit SHA."
   ),
+  actionNotAllowlisted: rule(
+    "action-not-allowlisted",
+    "A pinned reference is not necessarily a trusted reference.",
+    "Add the exact immutable external use to allowedUses after reviewing its owner, revision, and purpose."
+  ),
+  actionAllowlistScopeMismatch: rule(
+    "action-allowlist-scope-mismatch",
+    "A direct repository dependency is declared only as a transitive dependency of another use.",
+    "Move the reference to allowedUses or remove the direct repository invocation."
+  ),
   dependencyReviewMissing: rule(
     "dependency-review-missing",
     "Dependency changes need a pull-request vulnerability gate.",
     "Run the pinned actions/dependency-review-action from the declared workflow."
+  ),
+  dependencyReviewOrdering: rule(
+    "dependency-review-ordering",
+    "A pull-request workflow can execute a run step, local action, or reusable workflow before Dependency Review completes.",
+    "Make each pull-request job with a run step, local action, or reusable workflow depend on the declared Dependency Review job, or run the governed review step first in that same job."
+  ),
+  containerNotAllowlisted: rule(
+    "container-not-allowlisted",
+    "A pinned container image is not automatically an approved supply-chain dependency.",
+    "Add the exact immutable container image to allowedContainerImages after reviewing its owner, digest, and purpose."
+  ),
+  containerNotPinned: rule(
+    "container-not-pinned",
+    "Mutable job and service container references can change without repository review.",
+    "Pin every job and service container image to an immutable sha256 digest."
   ),
   dangerousTrigger: rule(
     "dangerous-trigger",
@@ -74,6 +99,56 @@ export const REPOSITORY_SECURITY_RULES = Object.freeze({
     "stale-privileged-job",
     "A stale privilege declaration can hide workflow ownership drift.",
     "Remove the declaration or restore the exact governed workflow job."
+  ),
+  staleAllowedUse: rule(
+    "stale-allowed-use",
+    "An unused trust declaration can conceal action ownership drift.",
+    "Remove the unused allowedUses entry or restore the reviewed workflow reference."
+  ),
+  staleAllowedContainerImage: rule(
+    "stale-allowed-container-image",
+    "An unused container trust declaration can conceal supply-chain ownership drift.",
+    "Remove the declaration or restore the exact reviewed job or service container image."
+  ),
+  toolEvidenceFailed: rule(
+    "tool-evidence-failed",
+    "A required external security tool reported a failed result.",
+    "Fix the tool findings and publish fresh evidence with a passed outcome."
+  ),
+  toolEvidenceJobMissing: rule(
+    "tool-evidence-job-missing",
+    "The declared external security tool gate has no matching workflow job.",
+    "Declare an existing workflow path and job ID that runs the external tool gate."
+  ),
+  toolEvidenceInvocationMissing: rule(
+    "tool-evidence-invocation-missing",
+    "The declared external tool job does not invoke its reviewed immutable runner.",
+    "Declare the exact pinned invocation in the tool policy and use it from the governed job."
+  ),
+  toolEvidenceMissing: rule(
+    "tool-evidence-missing",
+    "Required external security evidence is unavailable.",
+    "Run the declared tool and publish its evidence envelope and opaque result artifact."
+  ),
+  toolEvidenceResultDigestMismatch: rule(
+    "tool-evidence-result-digest-mismatch",
+    "The result artifact no longer matches the reviewed evidence envelope.",
+    "Regenerate the evidence envelope and result artifact together from one tool execution."
+  ),
+  toolEvidenceRolloutMismatch: rule(
+    "tool-evidence-rollout-mismatch",
+    "The declared external tool job does not enforce the configured blocking or advisory rollout.",
+    "Use an unconditional blocking job, or an unconditional continue-on-error advisory job, as declared."
+  ),
+  toolEvidenceStale: rule(
+    "tool-evidence-stale",
+    "Tool evidence does not describe the current workflow or tool configuration input.",
+    "Rerun the declared tool against the current inputs and publish fresh evidence."
+  ),
+  toolEvidenceVersionMismatch: rule(
+    "tool-evidence-version-mismatch",
+    "Tool evidence was produced by a version different from the declared pinned version.",
+    "Run the declared exact tool version and publish fresh evidence."
   )
 });
 

@@ -1,0 +1,5 @@
+schemaVersion: 1
+markdownRoots:
+  - docs
+  - packages/engineering-foundation
+anchorProfile: github

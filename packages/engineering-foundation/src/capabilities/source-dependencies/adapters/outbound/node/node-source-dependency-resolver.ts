@@ -1,6 +1,7 @@
 import { builtinModules } from "node:module";
 import { posix } from "node:path";
 
+import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type {
   DependencyDeclaration,
   PackageExportEntry,
@@ -9,6 +10,10 @@ import type {
 import type {
   ResolvedSourceDependency
 } from "../../../application/model/source-workspace.js";
+import {
+  normalizeRepositoryPath,
+  pathIsInside
+} from "../../../application/model/repository-path.js";
 import type {
   ResolveSourceDependencyInput,
   SourceDependencyResolver
@@ -65,7 +70,9 @@ function declarationKind(
 }
 
 function candidateLocalPaths(importerPath: string, specifier: string): readonly string[] {
-  const base = posix.normalize(posix.join(posix.dirname(importerPath), specifier));
+  const base = posix.normalize(
+    posix.join(posix.dirname(normalizeRepositoryPath(importerPath)), specifier)
+  );
   const extension = posix.extname(base);
   const candidates = new Set<string>([base]);
   if (extension === ".js") {
@@ -85,7 +92,7 @@ function candidateLocalPaths(importerPath: string, specifier: string): readonly 
 }
 
 function pathInside(path: string, root: string): boolean {
-  return root === "." || path === root || path.startsWith(`${root}/`);
+  return pathIsInside(path, root);
 }
 
 function containingPackage(
@@ -97,7 +104,7 @@ function containingPackage(
     .toSorted(
       (left, right) =>
         right.rootPath.length - left.rootPath.length ||
-        left.name.localeCompare(right.name)
+        compareBinaryStrings(left.name, right.name)
     )[0];
 }
 
@@ -139,14 +146,14 @@ function resolveLocal(input: ResolveSourceDependencyInput): ResolvedSourceDepend
   const matching = candidateLocalPaths(
     input.file.path,
     input.reference.specifier
-  ).filter((path) => input.governedFilePaths.has(path));
+  ).filter((path) => input.governedFilePaths.has(normalizeRepositoryPath(path)));
   if (matching.length !== 1) {
     return {
       kind: "unresolved",
       reason: `local reference resolved to ${matching.length} governed files`
     };
   }
-  const path = matching[0];
+  const path = matching[0] === undefined ? undefined : normalizeRepositoryPath(matching[0]);
   const workspacePackage =
     path === undefined
       ? undefined
@@ -182,6 +189,14 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
     return { kind: "external-package", packageName, declaration };
   }
   const subpath = specifier === packageName ? "." : `.${specifier.slice(packageName.length)}`;
+  if (target.name === input.file.workspacePackage.name) {
+    return {
+      kind: "self-workspace-package",
+      workspacePackage: target,
+      exported: subpathExported(target, subpath),
+      subpath
+    };
+  }
   return {
     kind: "workspace-package",
     workspacePackage: target,

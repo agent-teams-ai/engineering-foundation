@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   mkdtemp,
+  mkdir,
   readFile,
   readdir,
   rename,
@@ -10,7 +11,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -18,7 +19,11 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { runFoundationCheck } from "../packages/engineering-foundation/dist/check-runner.js";
 import { isExactVersion } from "../packages/engineering-foundation/dist/semantic-version.js";
-import { releaseOwnedFileViolations } from "../scripts/check-release-owned-files.mjs";
+import {
+  acceptedAdrHistoryViolations,
+  acceptedAdrHistoryViolationsAtMergeBase,
+  releaseOwnedFileViolations,
+} from "../scripts/check-release-owned-files.mjs";
 import {
   check,
   cliPath,
@@ -34,11 +39,14 @@ test("accepts only exact SemVer versions", () => {
   assert.equal(isExactVersion("1.0.0-."), false);
 });
 
-test("allows public API baseline mutation only in the Changesets release branch", () => {
+test("restricts released contract and API baseline mutation to the Changesets release branch", () => {
   assert.deepEqual(
     releaseOwnedFileViolations(
       [
         { status: "M", path: "architecture/public-api/library.json" },
+        { status: "M", path: "architecture/decisions/accepted-decisions.json" },
+        { status: "M", path: "architecture/contracts/released-events.json" },
+        { status: "A", path: "architecture/contracts/new-contract.json" },
         { status: "M", path: "packages/library/src/index.ts" },
         { status: "A", path: "architecture/public-api/new-library.json" },
       ],
@@ -46,7 +54,10 @@ test("allows public API baseline mutation only in the Changesets release branch"
       "agent-teams-ai/engineering-foundation",
       "agent-teams-ai/engineering-foundation",
     ),
-    ["architecture/public-api/library.json"],
+    [
+      "architecture/contracts/released-events.json",
+      "architecture/public-api/library.json",
+    ],
   );
   assert.deepEqual(
     releaseOwnedFileViolations(
@@ -81,6 +92,190 @@ test("allows public API baseline mutation only in the Changesets release branch"
     ),
     ["architecture/public-api/library.json"],
   );
+});
+
+function runGit(cwd, args) {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
+function acceptedAdrBaseline(entries) {
+  return `${JSON.stringify({
+    schemaVersion: 1,
+    algorithm: "sha256",
+    decisions: entries,
+  })}\n`;
+}
+
+function acceptedAdrEntry(id, path, digestCharacter) {
+  return {
+    id,
+    path,
+    immutableDigest: `sha256:${digestCharacter.repeat(64)}`,
+  };
+}
+
+test("rejects a same-pull-request accepted ADR and baseline rewrite, but permits additive history", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-accepted-adr-history-"));
+  const baselinePath = join(root, "architecture", "decisions", "accepted-decisions.json");
+  const firstDecisionPath = join(root, "docs", "decisions", "0001-foundation.md");
+  try {
+    await mkdir(dirname(baselinePath), { recursive: true });
+    await mkdir(dirname(firstDecisionPath), { recursive: true });
+    await writeFile(firstDecisionPath, "initial accepted decision\n", "utf8");
+    await writeFile(
+      baselinePath,
+      acceptedAdrBaseline([
+        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
+      ]),
+      "utf8",
+    );
+    runGit(root, ["init", "-q"]);
+    runGit(root, ["checkout", "-qb", "main"]);
+    runGit(root, ["config", "user.email", "foundation@example.test"]);
+    runGit(root, ["config", "user.name", "Foundation Test"]);
+    runGit(root, ["add", "."]);
+    runGit(root, ["commit", "-qm", "base"]);
+
+    runGit(root, ["checkout", "-qb", "rewrite"]);
+    await writeFile(firstDecisionPath, "rewritten accepted decision\n", "utf8");
+    await writeFile(
+      baselinePath,
+      acceptedAdrBaseline([
+        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "b"),
+      ]),
+      "utf8",
+    );
+    runGit(root, ["add", "."]);
+    runGit(root, ["commit", "-qm", "rewrite"]);
+    assert.deepEqual(
+      await acceptedAdrHistoryViolationsAtMergeBase({ baseReference: "main", cwd: root }),
+      ["Accepted ADR history entry ADR-0001 was rewritten."],
+    );
+
+    runGit(root, ["checkout", "main"]);
+    runGit(root, ["checkout", "-qb", "append"]);
+    const secondDecisionPath = join(root, "docs", "decisions", "0002-append-only.md");
+    await writeFile(secondDecisionPath, "new accepted decision\n", "utf8");
+    await writeFile(
+      baselinePath,
+      acceptedAdrBaseline([
+        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
+        acceptedAdrEntry("ADR-0002", "docs/decisions/0002-append-only.md", "b"),
+      ]),
+      "utf8",
+    );
+    runGit(root, ["add", "."]);
+    runGit(root, ["commit", "-qm", "append"]);
+    assert.deepEqual(
+      await acceptedAdrHistoryViolationsAtMergeBase({ baseReference: "main", cwd: root }),
+      [],
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("rejects deletion of a historical accepted ADR baseline entry", () => {
+  const previous = acceptedAdrBaseline([
+    acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
+  ]);
+  assert.deepEqual(acceptedAdrHistoryViolations(previous, null), [
+    "Accepted ADR history baseline architecture/decisions/accepted-decisions.json was deleted.",
+  ]);
+  assert.deepEqual(acceptedAdrHistoryViolations(previous, acceptedAdrBaseline([])), [
+    "Accepted ADR history entry ADR-0001 was deleted.",
+  ]);
+  assert.throws(
+    () =>
+      acceptedAdrHistoryViolations(
+        acceptedAdrBaseline([
+          acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
+          acceptedAdrEntry("ADR-0002", "docs/decisions/0002-history.md", "b"),
+        ]),
+        acceptedAdrBaseline([
+          acceptedAdrEntry("ADR-0002", "docs/decisions/0002-history.md", "b"),
+          acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
+        ]),
+      ),
+    /must be sorted by unique ADR ID/u,
+  );
+});
+
+test("permits accepting a lower-numbered proposed ADR without rewriting history", () => {
+  const previous = acceptedAdrBaseline([
+    acceptedAdrEntry("ADR-0002", "docs/decisions/0002-existing.md", "b"),
+  ]);
+  const current = acceptedAdrBaseline([
+    acceptedAdrEntry("ADR-0001", "docs/decisions/0001-late-acceptance.md", "a"),
+    acceptedAdrEntry("ADR-0002", "docs/decisions/0002-existing.md", "b"),
+  ]);
+  assert.deepEqual(acceptedAdrHistoryViolations(previous, current), []);
+});
+
+test("seals legacy accepted ADR source when initializing its first immutable baseline", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-accepted-adr-bootstrap-"));
+  const baselinePath = join(root, "architecture", "decisions", "accepted-decisions.json");
+  const decisionPath = join(root, "docs", "decisions", "0001-legacy.md");
+  const legacySource =
+    "# ADR-0001: Legacy Decision\n\nStatus: Accepted\n\nThe original historical decision.\n";
+  const decoratedSource =
+    "---\nid: ADR-0001\nstatus: accepted\nsupersedes: []\nsuperseded_by: []\n---\n\n" +
+    legacySource;
+  try {
+    await mkdir(dirname(decisionPath), { recursive: true });
+    await writeFile(decisionPath, legacySource, "utf8");
+    runGit(root, ["init", "-q"]);
+    runGit(root, ["checkout", "-qb", "main"]);
+    runGit(root, ["config", "user.email", "foundation@example.test"]);
+    runGit(root, ["config", "user.name", "Foundation Test"]);
+    runGit(root, ["add", "."]);
+    runGit(root, ["commit", "-qm", "legacy"]);
+
+    runGit(root, ["checkout", "-qb", "baseline-only"]);
+    await mkdir(dirname(baselinePath), { recursive: true });
+    await writeFile(decisionPath, decoratedSource, "utf8");
+    await writeFile(
+      baselinePath,
+      acceptedAdrBaseline([
+        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-legacy.md", "a"),
+      ]),
+      "utf8",
+    );
+    runGit(root, ["add", "."]);
+    runGit(root, ["commit", "-qm", "initialize baseline"]);
+    assert.deepEqual(
+      await acceptedAdrHistoryViolationsAtMergeBase({ baseReference: "main", cwd: root }),
+      [],
+    );
+
+    runGit(root, ["checkout", "main"]);
+    runGit(root, ["checkout", "-qb", "rewrite-legacy"]);
+    await mkdir(dirname(baselinePath), { recursive: true });
+    await writeFile(
+      decisionPath,
+      decoratedSource.replace("original historical", "rewritten historical"),
+      "utf8",
+    );
+    await writeFile(
+      baselinePath,
+      acceptedAdrBaseline([
+        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-legacy.md", "b"),
+      ]),
+      "utf8",
+    );
+    runGit(root, ["add", "."]);
+    runGit(root, ["commit", "-qm", "rewrite legacy during bootstrap"]);
+    assert.deepEqual(
+      await acceptedAdrHistoryViolationsAtMergeBase({ baseReference: "main", cwd: root }),
+      [
+        "Legacy accepted ADR docs/decisions/0001-legacy.md was rewritten during baseline initialization.",
+      ],
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test("passes a materialized pnpm workspace and emits the canonical report", async () => {
@@ -436,7 +631,7 @@ test("rejects duplicate YAML keys and configuration symlink escapes", async () =
         await symlink(outsideConfig, join(consumerRoot, "foundation.config.yaml"));
         const escaped = check(consumerRoot);
         assert.equal(escaped.result.status, 2);
-        assert.equal(escaped.report.problem.code, "CONFIG_PATH_ESCAPE");
+        assert.equal(escaped.report.problem.code, "CONFIG_SYMLINK_PROHIBITED");
       } finally {
         await rm(outsideRoot, { force: true, recursive: true });
       }

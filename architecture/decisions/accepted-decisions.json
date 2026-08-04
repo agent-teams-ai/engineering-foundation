@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "sha256",
+  "decisions": [
+    {
+      "id": "ADR-0001",
+      "path": "docs/decisions/0001-executable-capability-foundation.md",
+      "immutableDigest": "sha256:e4b388bfe08a1954580062a3267752840817fadd47e5a8224c22b49b58987379"
+    },
+    {
+      "id": "ADR-0002",
+      "path": "docs/decisions/0002-oxc-source-dependency-adapter.md",
+      "immutableDigest": "sha256:8e705a9c9583ffbeb0cb606f66e0eac81bf05da6bf90e078db89c0967d38a6e7"
+    },
+    {
+      "id": "ADR-0003",
+      "path": "docs/decisions/0003-governed-inline-suppressions.md",
+      "immutableDigest": "sha256:c925d8b4020e23fd1a097d72cc7c1f2efa030974015ca580bfedcafb4de737c4"
+    },
+    {
+      "id": "ADR-0004",
+      "path": "docs/decisions/0004-released-public-api-baselines.md",
+      "immutableDigest": "sha256:b0744d548ea8ee1db35975ff76f3e2f4027bd354a3c4a21d2f76c84a8e91f718"
+    },
+    {
+      "id": "ADR-0005",
+      "path": "docs/decisions/0005-repository-security-baseline.md",
+      "immutableDigest": "sha256:9734cc8656c65dc39cfb247d159102ff31986a6c4decbcc5ab1d72250a5fce52"
+    },
+    {
+      "id": "ADR-0006",
+      "path": "docs/decisions/0006-closed-deterministic-scaffolding-compiler.md",
+      "immutableDigest": "sha256:ce99688861bbf6147d72caf77827513992bb8499337abb387f1e8dce55d66e87"
+    },
+    {
+      "id": "ADR-0007",
+      "path": "docs/decisions/0007-deterministic-documentation-governance.md",
+      "immutableDigest": "sha256:5d0c7452f48dec0095a542c16c02034f21a6416868178a73368a0dd0d8c8c71f"
+    },
+    {
+      "id": "ADR-0008",
+      "path": "docs/decisions/0008-contract-evolution-evidence.md",
+      "immutableDigest": "sha256:069017b7dc38678f8cdf8f50796e9625079e7f52b63dcc95c2e48ece001ff493"
+    },
+    {
+      "id": "ADR-0009",
+      "path": "docs/decisions/0009-pinned-workflow-security-toolchain.md",
+      "immutableDigest": "sha256:a98f31618e175a6c42099a98509b265b394b8a5edd71a0551fd47a68954c5122"
+    },
+    {
+      "id": "ADR-0010",
+      "path": "docs/decisions/0010-observed-source-graph-v2.md",
+      "immutableDigest": "sha256:d5a0a5882af4fc547cd08845f8fa6bb6d7db78d7f8372ab5daa76eb5501340e0"
+    },
+    {
+      "id": "ADR-0011",
+      "path": "docs/decisions/0011-bounded-process-and-property-evidence-api.md",
+      "immutableDigest": "sha256:edd60151e0b277932d00322293ad3966f92314648a34a392d497dfa43a4ba011"
+    }
+  ]
+}

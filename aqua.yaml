@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/aquaproj/aqua/v2.62.3/json-schema/aqua-yaml.json
+checksum:
+  enabled: true
+  require_checksum: true
+  supported_envs:
+    - darwin
+    - linux
+    - windows
+registries:
+  - type: standard
+    ref: v4.547.0 # renovate: depName=aquaproj/aqua-registry
+packages:
+  - name: bufbuild/buf@v1.72.0
+  - name: rhysd/actionlint@v1.7.12
+  - name: zizmorcore/zizmor@v1.29.0

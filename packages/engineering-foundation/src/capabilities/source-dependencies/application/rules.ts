@@ -26,10 +26,28 @@ function rule(
 }
 
 export const SOURCE_DEPENDENCY_RULES = Object.freeze({
+  boundaryRuntimeCycle: rule(
+    "boundary-runtime-cycle",
+    "A runtime cycle between architecture boundaries prevents an independent ownership direction.",
+    "Break the boundary cycle with a port, event, or extracted shared contract.",
+    true
+  ),
+  boundaryTypeOnlyCycle: rule(
+    "boundary-type-only-cycle",
+    "A type-only cycle still couples architecture boundaries and makes their public contracts mutually recursive.",
+    "Move shared types to an explicit contract boundary or remove the cyclic type dependency.",
+    true
+  ),
   crossPackageRelativeImport: rule(
     "cross-package-relative-import",
     "Cross-package relative imports bypass package identity and public exports.",
     "Import the target package through an exported package subpath.",
+    true
+  ),
+  crossBoundaryLocalImportNotEntrypoint: rule(
+    "cross-boundary-local-import-not-entrypoint",
+    "Schema v2 requires every cross-boundary local import to use a deliberately declared target entrypoint.",
+    "Import the target boundary through one of its declared entrypoint source files.",
     true
   ),
   forbiddenBoundaryDependency: rule(
@@ -48,6 +66,24 @@ export const SOURCE_DEPENDENCY_RULES = Object.freeze({
     "forbidden-package-dependency",
     "Package dependencies must be explicit per architecture boundary.",
     "Move the import behind a port or approve the package for this boundary.",
+    true
+  ),
+  invalidBoundaryEntrypoint: rule(
+    "invalid-boundary-entrypoint",
+    "Boundary entrypoints must resolve to governed source classified by the boundary that declares them.",
+    "Correct the entrypoint path or update the boundary classification before relying on it.",
+    true
+  ),
+  packageRuntimeCycle: rule(
+    "package-runtime-cycle",
+    "A runtime cycle between workspace packages prevents independent package ownership and release ordering.",
+    "Break the package cycle with an explicit contract package or directional port.",
+    true
+  ),
+  packageTypeOnlyCycle: rule(
+    "package-type-only-cycle",
+    "A type-only cycle between workspace packages couples their public type surfaces and release order.",
+    "Extract shared types into a directional contract package or remove the cyclic type dependency.",
     true
   ),
   packageSubpathNotExported: rule(
@@ -86,6 +122,12 @@ export const SOURCE_DEPENDENCY_RULES = Object.freeze({
     "runtime-import-from-development-dependency",
     "Published runtime source cannot depend only on development dependencies.",
     "Move the dependency to an appropriate runtime dependency section."
+  ),
+  selfPackageImportBoundaryUnresolved: rule(
+    "self-package-import-boundary-unresolved",
+    "A package-name import back into the importing workspace package does not reveal the target source boundary.",
+    "Use a relative import governed by schema v2 entrypoints, or move the public surface into a separate workspace package.",
+    true
   ),
   unsupportedImportSpecifier: rule(
     "unsupported-import-specifier",

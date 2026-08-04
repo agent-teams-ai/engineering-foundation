@@ -15,10 +15,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-review:
+    name: dependency-review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          base-ref: ${{ github.event.pull_request.base.sha || github.event.before || github.event.repository.default_branch }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fail-on-severity: moderate
+          vulnerability-check: true
+          warn-only: false
+
   check:
     name: check
+    needs: dependency-review
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,10 +50,15 @@ jobs:
         with:
           node-version-file: .node-version
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Validate GitHub Actions
+        run: pnpm security:workflows
+      - run: pnpm rebuild
       - run: pnpm check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Qualify registry publish and clean install
+        run: pnpm registry-install-e2e:built
       - run: pnpm dead-code:check
       - run: pnpm parser-spike:check
       - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
@@ -46,6 +70,7 @@ jobs:
 
   windows-check:
     name: windows-check
+    needs: dependency-review
     runs-on: windows-2022
     timeout-minutes: 15
     steps:

@@ -52,14 +52,20 @@ interface AttachTransactionInput {
   ) => Promise<FoundationStatus>;
 }
 
-interface AttachPreparation {
+interface AttachConsumerState {
   readonly consumerRoot: string;
   readonly dependencySpec: string;
+  readonly registryPackageRoot: string;
+}
+
+interface AttachPreparation extends AttachConsumerState {
   readonly targetPackageRoot: string;
   readonly packageVersion: string;
   readonly gitCommit: string;
   readonly gitDirty: boolean;
 }
+
+type AttachPreparationFailureCode = "CONSUMER_INVALID" | "LOCAL_STATE_INVALID";
 
 async function verifyTargetPackage(
   input: AttachTransactionInput,
@@ -132,24 +138,54 @@ async function ensureStateDirectoryIgnored(
   await appendFile(excludePath, `${separator}${LOCAL_STATE_DIRECTORY}/\n`, "utf8");
 }
 
-async function prepareAttach(input: AttachTransactionInput): Promise<AttachPreparation> {
+async function inspectAttachConsumerState(
+  input: AttachTransactionInput,
+  failureCode: AttachPreparationFailureCode,
+  expected?: Pick<AttachConsumerState, "consumerRoot" | "dependencySpec">
+): Promise<AttachConsumerState> {
   const before = await inspectFoundationMode(input.consumerPath, { ignoreOperationLock: true });
   if (
     before.mode !== "REGISTRY" ||
     before.dependencySpec === undefined ||
-    !isExactVersion(before.dependencySpec)
+    !isExactVersion(before.dependencySpec) ||
+    before.installedPackageRoot === undefined
   ) {
     throw new FoundationError(
-      "CONSUMER_INVALID",
-      `Consumer must be in valid registry mode with an exact ${FOUNDATION_PACKAGE_NAME} version before attach: ${before.issues.join(" ") || before.mode}.`
+      failureCode,
+      failureCode === "CONSUMER_INVALID"
+        ? `Consumer must be in valid registry mode with an exact ${FOUNDATION_PACKAGE_NAME} version before attach: ${before.issues.join(" ") || before.mode}.`
+        : "Consumer foundation state changed before attach acquired its operation lock."
     );
   }
-  const target = await verifyTargetPackage(input, before.consumerRoot);
-  const git = await readGitEvidence(input.runner, before.consumerRoot, target.targetPackageRoot);
-  await ensureStateDirectoryIgnored(input.runner, before.consumerRoot);
+  if (
+    expected !== undefined &&
+    (before.consumerRoot !== expected.consumerRoot ||
+      before.dependencySpec !== expected.dependencySpec)
+  ) {
+    throw new FoundationError(
+      "LOCAL_STATE_INVALID",
+      "Consumer foundation state changed before attach acquired its operation lock."
+    );
+  }
   return {
     consumerRoot: before.consumerRoot,
     dependencySpec: before.dependencySpec,
+    registryPackageRoot: before.installedPackageRoot
+  };
+}
+
+async function prepareAttach(
+  input: AttachTransactionInput,
+  consumer: AttachConsumerState
+): Promise<AttachPreparation> {
+  const target = await verifyTargetPackage(input, consumer.consumerRoot);
+  const git = await readGitEvidence(
+    input.runner,
+    consumer.consumerRoot,
+    target.targetPackageRoot
+  );
+  return {
+    ...consumer,
     ...target,
     ...git
   };
@@ -244,24 +280,28 @@ async function recoverFailedAttach(
 
 async function commitAttach(
   input: AttachTransactionInput,
-  preparation: AttachPreparation
+  preflight: AttachConsumerState
 ): Promise<AttachResult> {
-  const installedPath = join(preparation.consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME);
-  const backupPath = join(preparation.consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP);
-  const releaseLock = await acquireFoundationOperationLock(preparation.consumerRoot);
+  const releaseLock = await acquireFoundationOperationLock(preflight.consumerRoot);
+  let preparation: AttachPreparation | undefined;
   let state: FoundationLinkState | undefined;
   try {
-    const current = await inspectFoundationMode(preparation.consumerRoot, { ignoreOperationLock: true });
-    if (
-      current.mode !== "REGISTRY" ||
-      current.dependencySpec !== preparation.dependencySpec ||
-      current.installedPackageRoot === undefined
-    ) {
-      throw new FoundationError(
-        "LOCAL_STATE_INVALID",
-        "Consumer foundation state changed before attach acquired its operation lock."
-      );
-    }
+    const consumer = await inspectAttachConsumerState(
+      input,
+      "LOCAL_STATE_INVALID",
+      preflight
+    );
+    preparation = await prepareAttach(input, consumer);
+    const installedPath = join(
+      preparation.consumerRoot,
+      "node_modules",
+      FOUNDATION_PACKAGE_NAME
+    );
+    const backupPath = join(
+      preparation.consumerRoot,
+      LOCAL_STATE_DIRECTORY,
+      LOCAL_REGISTRY_BACKUP
+    );
     if (await pathEntryExists(backupPath)) {
       throw new FoundationError(
         "LOCAL_STATE_INVALID",
@@ -275,9 +315,16 @@ async function commitAttach(
         "Installed foundation entry is neither a directory nor a symbolic link."
       );
     }
+    if ((await realpath(installedPath)) !== preparation.registryPackageRoot) {
+      throw new FoundationError(
+        "LOCAL_STATE_INVALID",
+        "Installed foundation entry changed before attach could replace it."
+      );
+    }
+    await ensureStateDirectoryIgnored(input.runner, preparation.consumerRoot);
     state = createAttachingState(
       preparation,
-      current.installedPackageRoot,
+      preparation.registryPackageRoot,
       registryEntry.isSymbolicLink() ? "symbolic-link" : "directory",
       input.now
     );
@@ -294,7 +341,7 @@ async function commitAttach(
     }
     return { status, targetPackageRoot: preparation.targetPackageRoot };
   } catch (error) {
-    if (state === undefined) {
+    if (state === undefined || preparation === undefined) {
       throw error;
     }
     return await recoverFailedAttach(preparation, state, error);
@@ -306,6 +353,6 @@ async function commitAttach(
 export async function attachFoundation(
   input: AttachTransactionInput
 ): Promise<AttachResult> {
-  const preparation = await prepareAttach(input);
-  return await commitAttach(input, preparation);
+  const preflight = await inspectAttachConsumerState(input, "CONSUMER_INVALID");
+  return await commitAttach(input, preflight);
 }

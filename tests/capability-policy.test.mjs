@@ -25,6 +25,68 @@ test("accepts a closed-world repository security baseline", async () => {
   });
 });
 
+test("fails closed when the repository workflow allowlist is removed", async () => {
+  await withRepositorySecurityFixture(async (consumerRoot) => {
+    const configPath = join(
+      consumerRoot,
+      "architecture",
+      "foundation",
+      "repository-security-baseline.yaml",
+    );
+    const config = parseYaml(await readFile(configPath, "utf8"));
+    delete config.allowedUses;
+    await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 2);
+    assert.equal(report.capabilities[0].problem.code, "SCHEMA_INVALID");
+  });
+});
+
+test("fails closed when the repository container-image allowlist is removed", async () => {
+  await withRepositorySecurityFixture(async (consumerRoot) => {
+    const configPath = join(
+      consumerRoot,
+      "architecture",
+      "foundation",
+      "repository-security-baseline.yaml",
+    );
+    const config = parseYaml(await readFile(configPath, "utf8"));
+    delete config.allowedContainerImages;
+    await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 2);
+    assert.equal(report.capabilities[0].problem.code, "SCHEMA_INVALID");
+  });
+});
+
+test("binds Dependency Review to the declared job and exact comparison refs", async () => {
+  await withRepositorySecurityFixture(async (consumerRoot) => {
+    const dependencyReviewPath = join(
+      consumerRoot,
+      ".github",
+      "workflows",
+      "ci.yml",
+    );
+    const dependencyReview = parseYaml(await readFile(dependencyReviewPath, "utf8"));
+    const step = dependencyReview.jobs["dependency-review"].steps[0];
+    step.with["head-ref"] = step.with["base-ref"];
+    await writeFile(
+      dependencyReviewPath,
+      stringifyYaml(dependencyReview, { lineWidth: 0 }),
+      "utf8",
+    );
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.deepEqual(
+      report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+      ["repository.security-baseline.dependency-review-missing"],
+    );
+  });
+});
+
 test("reports deterministic workflow and package supply-chain violations", async () => {
   await withRepositorySecurityFixture(async (consumerRoot) => {
     await writeFile(
@@ -58,12 +120,14 @@ test("reports deterministic workflow and package supply-chain violations", async
       new Set([
         "repository.security-baseline.action-not-pinned",
         "repository.security-baseline.dangerous-trigger",
+        "repository.security-baseline.dependency-review-missing",
         "repository.security-baseline.event-interpolation-in-run",
         "repository.security-baseline.package-files-unsafe",
         "repository.security-baseline.package-provenance-missing",
         "repository.security-baseline.permissions-invalid",
         "repository.security-baseline.privileged-job-mismatch",
         "repository.security-baseline.sbom-missing",
+        "repository.security-baseline.stale-allowed-use",
       ]),
     );
     const filesDiagnostic = report.capabilities[0].diagnostics.find(
@@ -93,17 +157,19 @@ test("rejects stale privilege declarations and a missing dependency review actio
       },
     ];
     await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
-    await writeFile(
-      join(consumerRoot, ".github", "workflows", "dependency-review.yml"),
-      "name: Dependency Review\non:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  dependency-review:\n    runs-on: ubuntu-24.04\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n",
-      "utf8",
-    );
+    const workflowPath = join(consumerRoot, ".github", "workflows", "ci.yml");
+    const workflow = parseYaml(await readFile(workflowPath, "utf8"));
+    workflow.jobs["dependency-review"].steps = [
+      { uses: "actions/checkout@1111111111111111111111111111111111111111" },
+    ];
+    await writeFile(workflowPath, stringifyYaml(workflow, { lineWidth: 0 }), "utf8");
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 1);
     assert.deepEqual(
       new Set(report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId)),
       new Set([
         "repository.security-baseline.dependency-review-missing",
+        "repository.security-baseline.stale-allowed-use",
         "repository.security-baseline.stale-privileged-job",
       ]),
     );
@@ -116,7 +182,7 @@ test("requires dependency and SBOM evidence on every pull request", async () => 
       consumerRoot,
       ".github",
       "workflows",
-      "dependency-review.yml",
+      "ci.yml",
     );
     const dependencyReview = parseYaml(await readFile(dependencyReviewPath, "utf8"));
     dependencyReview.jobs["dependency-review"].if = false;
@@ -126,10 +192,12 @@ test("requires dependency and SBOM evidence on every pull request", async () => 
       "utf8",
     );
 
-    const ciPath = join(consumerRoot, ".github", "workflows", "ci.yml");
-    const ci = parseYaml(await readFile(ciPath, "utf8"));
-    ci.on.pull_request = { paths: ["packages/**"] };
-    await writeFile(ciPath, stringifyYaml(ci, { lineWidth: 0 }), "utf8");
+    dependencyReview.on.pull_request = { paths: ["packages/**"] };
+    await writeFile(
+      dependencyReviewPath,
+      stringifyYaml(dependencyReview, { lineWidth: 0 }),
+      "utf8",
+    );
 
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 1);
@@ -149,7 +217,7 @@ test("rejects advisory dependency review and partial SBOM evidence", async () =>
       consumerRoot,
       ".github",
       "workflows",
-      "dependency-review.yml",
+      "ci.yml",
     );
     const dependencyReview = parseYaml(await readFile(dependencyReviewPath, "utf8"));
     dependencyReview.jobs["dependency-review"].steps[0].with = { "warn-only": true };
@@ -159,10 +227,12 @@ test("rejects advisory dependency review and partial SBOM evidence", async () =>
       "utf8",
     );
 
-    const ciPath = join(consumerRoot, ".github", "workflows", "ci.yml");
-    const ci = parseYaml(await readFile(ciPath, "utf8"));
-    ci.jobs.check.steps[1].with = { path: "packages/library/package.json" };
-    await writeFile(ciPath, stringifyYaml(ci, { lineWidth: 0 }), "utf8");
+    dependencyReview.jobs.check.steps[1].with = { path: "packages/library/package.json" };
+    await writeFile(
+      dependencyReviewPath,
+      stringifyYaml(dependencyReview, { lineWidth: 0 }),
+      "utf8",
+    );
 
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 1);
@@ -177,9 +247,6 @@ test("rejects advisory dependency review and partial SBOM evidence", async () =>
 });
 
 test("rejects workflow evidence that traverses a symbolic link", async () => {
-  if (process.platform === "win32") {
-    return;
-  }
   await withRepositorySecurityFixture(async (consumerRoot) => {
     const workflowPath = join(consumerRoot, ".github", "workflows", "ci.yml");
     const realPath = join(consumerRoot, ".github", "ci.real.yml");

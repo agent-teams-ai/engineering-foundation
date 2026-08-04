@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/governance-architecture-decisions/v1",
+  "title": "Architecture decision governance capability configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "adrRoots", "index", "acceptedBaselinePath"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "adrRoots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/repositoryDirectory" }
+    },
+    "index": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sections"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryMarkdownPath" },
+        "sections": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["proposed", "accepted", "superseded"],
+          "properties": {
+            "proposed": { "$ref": "#/$defs/sectionTitle" },
+            "accepted": { "$ref": "#/$defs/sectionTitle" },
+            "superseded": { "$ref": "#/$defs/sectionTitle" }
+          }
+        }
+      }
+    },
+    "acceptedBaselinePath": { "const": "architecture/decisions/accepted-decisions.json" }
+  },
+  "$defs": {
+    "repositoryDirectory": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[*?{}[\\]]).+$"
+    },
+    "repositoryMarkdownPath": {
+      "type": "string",
+      "minLength": 4,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[*?{}[\\]]).+\\.md$"
+    },
+    "repositoryJsonPath": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[*?{}[\\]]).+\\.json$"
+    },
+    "sectionTitle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^\\S(?:.*\\S)?$"
+    }
+  }
+}

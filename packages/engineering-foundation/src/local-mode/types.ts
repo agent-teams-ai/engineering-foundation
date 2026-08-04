@@ -6,6 +6,12 @@ export const LOCAL_REGISTRY_BACKUP = "foundation-registry-backup" as const;
 export const LOCAL_OPERATION_LOCK = "foundation-operation.lock" as const;
 export const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION = 1 as const;
 
+export type {
+  ProcessRequest,
+  ProcessResult,
+  ProcessRunner
+} from "../process-execution/types.js";
+
 export type FoundationMode = "INVALID" | "LOCAL" | "REGISTRY";
 export type FoundationLinkPhase = "ATTACHING" | "DETACHING" | "LOCAL";
 
@@ -44,6 +50,17 @@ export interface FoundationDevOnlyStatus {
   readonly issues: readonly string[];
 }
 
+/** Public result of inspecting the consumer dependency policy. */
+export interface ConsumerPolicyInspection extends FoundationDevOnlyStatus {
+  readonly packageManager?: string;
+}
+
+/** Public result of inspecting the installed registry provenance. */
+export interface RegistryProvenanceInspection {
+  readonly provenance?: FoundationRegistryProvenance;
+  readonly issues: readonly string[];
+}
+
 export interface FoundationRegistryProvenance {
   readonly lockfilePath: string;
   readonly packageKey: string;
@@ -53,19 +70,4 @@ export interface FoundationRegistryProvenance {
 export interface AttachResult {
   readonly status: FoundationStatus;
   readonly targetPackageRoot: string;
-}
-
-export interface ProcessRequest {
-  readonly command: string;
-  readonly args: readonly string[];
-  readonly cwd: string;
-}
-
-export interface ProcessResult {
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-export interface ProcessRunner {
-  run(request: ProcessRequest): Promise<ProcessResult>;
 }

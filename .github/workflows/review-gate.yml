@@ -1,7 +1,7 @@
 name: Review Gate
 
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] Default-branch code executes no PR content and verifies App-owned exact-head evidence.
     workflows: [ReviewRouter Codex OAuth]
     types: [completed]
 

@@ -1,8 +1,44 @@
 schemaVersion: 1
 workflowDirectory: .github/workflows
-dependencyReviewWorkflow: .github/workflows/dependency-review.yml
+dependencyReview:
+  workflowPath: .github/workflows/ci.yml
+  jobId: dependency-review
+  baseRef: ${{ github.event.pull_request.base.sha || github.event.before || github.event.repository.default_branch }}
+  headRef: ${{ github.event.pull_request.head.sha || github.sha }}
+  failOnSeverity: moderate
 sbomWorkflow: .github/workflows/ci.yml
+allowedContainerImages: []
+allowedUses:
+  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@885c973bcb6b2117ee10b262a4cc1b24fda73238
+    transitiveUses: []
+  - uses: 777genius/review-router@885c973bcb6b2117ee10b262a4cc1b24fda73238
+    transitiveUses: []
+  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    transitiveUses: []
+  - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+    transitiveUses: []
+  - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
+    transitiveUses: []
+  - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+    transitiveUses: []
+  - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+    transitiveUses: []
+  - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+    transitiveUses: []
+  - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d
+    transitiveUses: []
+  - uses: github/codeql-action/analyze@f205ea1c3313d32999d8d6a48b4f6530d4437b38
+    transitiveUses: []
+  - uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38
+    transitiveUses: []
+  - uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9
+    transitiveUses: []
 privilegedJobs:
+  - workflowPath: .github/workflows/codeql.yml
+    jobId: analyze
+    permissions:
+      contents: read
+      security-events: write
   - workflowPath: .github/workflows/reviewrouter-codex.yml
     jobId: codex-review
     permissions:

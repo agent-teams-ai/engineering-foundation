@@ -1,5 +1,7 @@
 schemaVersion: 1
 changesetDirectory: .changeset
+acceptedDecisionBaselinePath: architecture/decisions/accepted-decisions.json
+governanceConfigPath: architecture/foundation/governance-architecture-decisions.yaml
 packages:
   - packageName: "@agent-teams/engineering-foundation"
     packageRoot: packages/engineering-foundation
@@ -7,4 +9,6 @@ packages:
     declarationEntryPoint: packages/engineering-foundation/dist/public-api-surface.d.ts
     tsconfigPath: packages/engineering-foundation/tsconfig.json
     releasedBaselinePath: architecture/public-api/engineering-foundation.json
-    approvedBreakingChanges: []
+    approvedBreakingChanges:
+      - fingerprint: sha256:32e703cac807a3a87a50b922ac8cdcfd5d8c9b5153d12f2fc9c69e28e02807dc
+        decisionPath: docs/decisions/0011-bounded-process-and-property-evidence-api.md

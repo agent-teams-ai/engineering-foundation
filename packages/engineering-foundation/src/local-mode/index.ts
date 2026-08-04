@@ -7,10 +7,6 @@ export {
 export { NodeProcessRunner } from "./process-runner.js";
 export { FoundationLocalModeService } from "./service.js";
 export type { FoundationLocalModeServiceOptions } from "./service.js";
-export type {
-  ConsumerPolicyInspection,
-  RegistryProvenanceInspection
-} from "./consumer-policy.js";
 export {
   FOUNDATION_PACKAGE_NAME,
   FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION,
@@ -21,6 +17,7 @@ export {
 } from "./types.js";
 export type {
   AttachResult,
+  ConsumerPolicyInspection,
   FoundationDevOnlyStatus,
   FoundationLinkPhase,
   FoundationLinkState,
@@ -29,5 +26,6 @@ export type {
   FoundationStatus,
   ProcessRequest,
   ProcessResult,
-  ProcessRunner
+  ProcessRunner,
+  RegistryProvenanceInspection
 } from "./types.js";

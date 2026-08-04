@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/contract-protobuf-evolution/v1",
+  "title": "Protobuf contract evolution release evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "releasedBaselinePath", "approvedBreakingChanges", "current"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "releasedBaselinePath": { "$ref": "#/$defs/releasedBaselinePath" },
+    "acceptedDecisionBaselinePath": { "$ref": "#/$defs/acceptedDecisionBaselinePath" },
+    "governanceConfigPath": { "$ref": "#/$defs/governanceConfigPath" },
+    "approvedBreakingChanges": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/breakingApproval" }
+    },
+    "current": { "$ref": "#/$defs/current" }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "contractId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9.-]{1,119}$"
+    },
+    "releasedBaselinePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^architecture/contracts/(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+\\.(?:json|ya?ml)$"
+    },
+    "acceptedDecisionBaselinePath": {
+      "const": "architecture/decisions/accepted-decisions.json"
+    },
+    "governanceConfigPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.ya?ml$"
+    },
+    "breakingApproval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decisionId", "fingerprint"],
+      "properties": {
+        "decisionId": { "type": "string", "pattern": "^ADR-[0-9]{4}$" },
+        "fingerprint": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "version": { "type": "string", "minLength": 1, "maxLength": 240 }
+      }
+    },
+    "current": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "contractId",
+        "publicContractVersion",
+        "bufVersion",
+        "bufConfigDigest",
+        "descriptorImageDigest",
+        "releasedDescriptorImageDigest",
+        "generatorVersions",
+        "generationDrift",
+        "breaking"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "contractId": { "$ref": "#/$defs/contractId" },
+        "publicContractVersion": { "$ref": "#/$defs/semver" },
+        "bufVersion": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "bufConfigDigest": { "$ref": "#/$defs/digest" },
+        "descriptorImageDigest": { "$ref": "#/$defs/digest" },
+        "releasedDescriptorImageDigest": { "$ref": "#/$defs/digest" },
+        "generatorVersions": {
+          "type": "array",
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/generator" }
+        },
+        "generationDrift": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["expectedGeneratedOutputDigest", "observedGeneratedOutputDigest"],
+          "properties": {
+            "expectedGeneratedOutputDigest": { "$ref": "#/$defs/digest" },
+            "observedGeneratedOutputDigest": { "$ref": "#/$defs/digest" }
+          }
+        },
+        "breaking": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "enum": ["compatible", "breaking", "not-run"] },
+            "fingerprint": { "$ref": "#/$defs/digest" }
+          }
+        }
+      }
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    }
+  }
+}

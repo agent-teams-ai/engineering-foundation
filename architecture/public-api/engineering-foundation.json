@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.6.0",
+  "packageVersion": "0.7.0",
   "extractorVersion": "7.58.12",
   "items": [
     {

@@ -32,6 +32,7 @@ export type {
   ScaffoldReceiptOutcome,
   ScaffoldSatisfiedOperationReceipt,
   ScaffoldTarget,
+  ScaffoldTargetCatalogEntry,
   ScaffoldTargetCatalog,
   ScaffoldingConfig
 } from "./contract/scaffold-contract.js";

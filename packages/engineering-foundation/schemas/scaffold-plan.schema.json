@@ -96,6 +96,12 @@
       "maxLength": 160,
       "pattern": "^[a-z0-9][a-z0-9._/-]*$"
     },
+    "ownerDocumentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
     "artifactId": {
       "type": "string",
       "minLength": 1,
@@ -126,7 +132,7 @@
           "additionalProperties": false,
           "required": ["id", "path", "status"],
           "properties": {
-            "id": { "$ref": "#/$defs/authorityId" },
+            "id": { "$ref": "#/$defs/ownerDocumentId" },
             "path": { "$ref": "#/$defs/repositoryPath" },
             "status": { "$ref": "#/$defs/authorityId" }
           }
@@ -259,7 +265,7 @@
           "additionalProperties": false,
           "required": ["id", "path"],
           "properties": {
-            "id": { "$ref": "#/$defs/authorityId" },
+            "id": { "$ref": "#/$defs/ownerDocumentId" },
             "path": { "$ref": "#/$defs/repositoryPath" }
           }
         }

@@ -30,6 +30,13 @@ different repository-relative file. Apply executes only the exact final bytes
 in a saved immutable Plan. Before writing, it independently recompiles the
 expected Plan from the embedded normalized Intent and current consumer authority
 and requires an exact digest match.
+The target catalog stores one owner document ID, not a duplicated path. The
+selected Composition declares bounded `documentRoots`; Foundation resolves the
+ID exactly once from strict Markdown frontmatter and records the derived path and
+selected document digest in the Plan. Only the `id` and `status` frontmatter
+projection is authoritative to Foundation. Consumer-specific metadata remains
+owned by the consumer documentation system. Traversal has fixed entry, document,
+and directory-depth budgets.
 One authority verification reads all three canonical sources, then repeats
 their digest reads. A persistent mutation during acquisition fails closed. This
 is a stability protocol under the cooperative repository lock, not an atomic
@@ -109,9 +116,10 @@ Foundation owns:
 
 A consumer owns:
 
-- package and target catalogs;
+- package and target catalogs, including the package-to-owner-document ID;
 - bounded contexts, feature ownership, terminology, and accepted evidence;
-- local `ScaffoldProfile` bindings and approved `Composition` records;
+- local `ScaffoldProfile` bindings, approved `Composition` records, and bounded
+  authority document roots;
 - fixed/default parameters and additional monotonic policies;
 - the final review and implementation of business behavior.
 
@@ -438,8 +446,21 @@ scenario fixtures, a second consumer, and Nx remain later gates.
   Facet is admitted, a versioned definition contract must constrain it to
   Recipe-declared typed slots instead of arbitrary file contributions;
 - keep consumer target-role admission in the consumer Composition. The immutable
-  internal testing Recipe retains its existing `allowedTargetRoles` contract, but no
-  product Recipe may copy consumer business-role vocabulary into Foundation;
+  internal testing Recipe retains its existing `allowedTargetRoles` contract,
+  but no product Recipe may copy consumer business-role vocabulary into
+  Foundation;
+- provide the verified owner document ID to the product Recipe from the resolved
+  authority target. The Recipe must not accept a second owner parameter or
+  derive ownership from a path;
+- migrate the Orchestrator catalog and schema to the canonical catalog contract
+  in the same reviewed cutover. Preserve Orchestrator document-ID grammar,
+  including existing uppercase ADR identities;
+- keep complete Orchestrator topology admission and post-generation checks in
+  the consumer. Foundation does not absorb business roles, path policy, package
+  dependency policy, or accepted feature-document rules;
+- preserve the mandatory Plan review boundary. The old one-shot command may be
+  retained only as a donor oracle and cannot silently plan and apply through the
+  new protocol;
 - encode only the reusable Profile, Recipe, and Policies proven by that donor;
   add Facets later only after both the slot contract and a real donor prove them;
 - compare normalized donor and Foundation Plans in dual-run mode.

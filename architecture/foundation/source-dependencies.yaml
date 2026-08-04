@@ -299,6 +299,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-error.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-input-loader.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-receipt-validator.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-owner-document-resolver.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-plan-authority.ts
     allow:
       boundaries:

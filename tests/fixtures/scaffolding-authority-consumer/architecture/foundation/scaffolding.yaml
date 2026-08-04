@@ -19,6 +19,7 @@ compositions:
         contractVersion: 1
         parameters:
           allowedStatuses: [accepted, active]
+          documentRoots: [docs]
     facets:
       default:
         - ref:

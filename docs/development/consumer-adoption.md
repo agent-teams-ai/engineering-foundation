@@ -123,8 +123,11 @@ authoritative for package identities, dependencies, and exports.
 Scaffolding is opt-in through its own strict
 `architecture/foundation/scaffolding.yaml`; it is not a `foundation.config.yaml`
 capability and package upgrades never add a Composition automatically. The
-consumer owns target identities, paths, roles, owner documents, approved
-Compositions, and project-specific parameter constraints.
+consumer owns target identities, paths, roles, owner documents, bounded document
+roots, approved Compositions, and project-specific parameter constraints. A
+target catalog stores only the owner document ID. Foundation resolves its path
+exactly once from the configured roots and binds that path and document digest
+into the generated Plan.
 
 Agents must save and review the generated Plan before Apply. Apply rechecks the
 consumer authority read set, proves that the closed compiler reproduces the

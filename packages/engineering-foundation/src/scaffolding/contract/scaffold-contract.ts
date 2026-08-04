@@ -11,6 +11,7 @@ export interface ScaffoldAuthorityVerifier {
   readonly contractVersion: 1;
   readonly parameters: {
     readonly allowedStatuses: readonly string[];
+    readonly documentRoots: readonly RepositoryPath[];
   };
 }
 
@@ -60,7 +61,15 @@ export interface ScaffoldTarget {
 
 export interface ScaffoldTargetCatalog {
   readonly version: 2;
-  readonly packages: readonly ScaffoldTarget[];
+  readonly packages: readonly ScaffoldTargetCatalogEntry[];
+}
+
+export interface ScaffoldTargetCatalogEntry {
+  readonly id: string;
+  readonly role: string;
+  readonly path: RepositoryPath;
+  readonly packageName: string;
+  readonly ownerDocumentId: string;
 }
 
 export interface ScaffoldDiagnostic {

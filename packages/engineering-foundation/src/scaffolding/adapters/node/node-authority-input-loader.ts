@@ -1,10 +1,10 @@
 import type {
-  JsonValue,
   AuthorityScaffoldReadSet,
   ScaffoldAuthorityEvidenceV1,
   ScaffoldAuthorityVerifierV1,
   AuthorityScaffoldCompilationInput,
   AuthorityScaffoldPlan,
+  AuthorityScaffoldTarget,
   ScaffoldRenderingIntent,
   AuthorityScaffoldingConfig,
   AuthorityScaffoldTargetCatalog
@@ -21,15 +21,12 @@ import {
   type LoadedRepositoryFile
 } from "./node-repository-file.js";
 import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";
+import { resolveOwnerDocument } from "./node-owner-document-resolver.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
 
 export type ScaffoldAuthorityInputFaultInjector = (
   point: { readonly phase: "before-authority-source-stability-check" }
 ) => Promise<void> | void;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function requireExactlyOne<T>(
   values: readonly T[],
@@ -43,7 +40,22 @@ function requireExactlyOne<T>(
   return matches[0] as T;
 }
 
-function mapAuthorityCatalog(value: unknown): AuthorityScaffoldTargetCatalog {
+interface UnresolvedAuthorityScaffoldTarget {
+  readonly id: string;
+  readonly role: string;
+  readonly path: string;
+  readonly packageName: string;
+  readonly ownerDocumentId: string;
+}
+
+interface UnresolvedAuthorityScaffoldTargetCatalog {
+  readonly version: 2;
+  readonly packages: readonly UnresolvedAuthorityScaffoldTarget[];
+}
+
+function mapAuthorityCatalog(
+  value: unknown
+): UnresolvedAuthorityScaffoldTargetCatalog {
   const raw = value as {
     readonly version: 2;
     readonly packages: readonly {
@@ -51,8 +63,7 @@ function mapAuthorityCatalog(value: unknown): AuthorityScaffoldTargetCatalog {
       readonly role: string;
       readonly path: string;
       readonly package_name: string;
-      readonly owner_document_id: string;
-      readonly owner_document_path: string;
+      readonly owner_document: string;
     }[];
   };
   return Object.freeze({
@@ -64,86 +75,51 @@ function mapAuthorityCatalog(value: unknown): AuthorityScaffoldTargetCatalog {
           role: entry.role,
           path: entry.path,
           packageName: entry.package_name,
-          ownerDocument: Object.freeze({
-            id: entry.owner_document_id,
-            path: entry.owner_document_path
-          })
+          ownerDocumentId: entry.owner_document
         })
       )
     )
   });
 }
 
-function parseMarkdownOwnerFrontmatter(source: string): {
-  readonly id: string;
-  readonly status: string;
-} {
-  const normalized = source.replace(/\r\n?/gu, "\n");
-  if (!normalized.startsWith("---\n")) {
-    throw new ScaffoldError(
-      "SCAFFOLD_INPUT_INVALID",
-      "Owner document must start with strict YAML frontmatter."
-    );
-  }
-  const end = normalized.indexOf("\n---\n", 4);
-  if (end === -1) {
-    throw new ScaffoldError(
-      "SCAFFOLD_INPUT_INVALID",
-      "Owner document YAML frontmatter must have a closing delimiter."
-    );
-  }
-  const parsed = parseStrictYamlSource(
-    normalized.slice(4, end),
-    "scaffold-owner-document"
-  );
-  if (
-    !isRecord(parsed) ||
-    Object.keys(parsed).toSorted().join(",") !== "id,status" ||
-    typeof parsed.id !== "string" ||
-    typeof parsed.status !== "string" ||
-    !/^[a-z0-9][a-z0-9._/-]*$/u.test(parsed.id) ||
-    !/^[a-z0-9][a-z0-9._/-]*$/u.test(parsed.status)
-  ) {
-    throw new ScaffoldError(
-      "SCAFFOLD_INPUT_INVALID",
-      "Owner document frontmatter must contain normalized id and status strings."
-    );
-  }
-  return Object.freeze({ id: parsed.id, status: parsed.status });
-}
-
 async function assertAuthoritySourceSetStable(options: {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly catalogPath: string;
-  readonly ownerPath: string;
+  readonly ownerDocumentId: string;
+  readonly documentRoots: readonly string[];
+  readonly ownerIndexDigest: string;
   readonly expected: readonly ReturnType<typeof assertion>[];
 }): Promise<void> {
-  const files = await Promise.all([
-    readContainedRepositoryFile(
-      options.consumerRoot,
-      options.configPath,
-      "scaffolding-config-stability"
-    ),
-    readContainedRepositoryFile(
-      options.consumerRoot,
-      options.catalogPath,
-      "scaffold-target-catalog-stability"
-    ),
-    readContainedRepositoryFile(
-      options.consumerRoot,
-      options.ownerPath,
-      "scaffold-owner-document-stability"
-    )
+  const [files, owner] = await Promise.all([
+    Promise.all([
+      readContainedRepositoryFile(
+        options.consumerRoot,
+        options.configPath,
+        "scaffolding-config-stability"
+      ),
+      readContainedRepositoryFile(
+        options.consumerRoot,
+        options.catalogPath,
+        "scaffold-target-catalog-stability"
+      )
+    ]),
+    resolveOwnerDocument({
+      consumerRoot: options.consumerRoot,
+      documentRoots: options.documentRoots,
+      ownerDocumentId: options.ownerDocumentId
+    })
   ]);
+  const observed = [...files.map(assertion), assertion(owner.file)];
   if (
-    files.map(assertion).some((observed, index) => {
+    owner.indexDigest !== options.ownerIndexDigest ||
+    observed.some((current, index) => {
       const expected = options.expected[index];
       return (
         expected === undefined ||
-        observed.path !== expected.path ||
-        observed.size !== expected.size ||
-        observed.digest !== expected.digest
+        current.path !== expected.path ||
+        current.size !== expected.size ||
+        current.digest !== expected.digest
       );
     })
   ) {
@@ -181,7 +157,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     catalogValue,
     "scaffold-target-catalog"
   );
-  const catalog = mapAuthorityCatalog(catalogValue);
+  const unresolvedCatalog = mapAuthorityCatalog(catalogValue);
   const intent = options.intent as ScaffoldRenderingIntent;
   const composition = requireExactlyOne(
     config.compositions,
@@ -189,7 +165,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     `Composition must exist exactly once: ${intent.compositionId}.`
   );
   const target = requireExactlyOne(
-    catalog.packages,
+    unresolvedCatalog.packages,
     (candidate) => candidate.id === intent.targetRef,
     `Scaffold target must exist exactly once: ${intent.targetRef}.`
   );
@@ -207,26 +183,31 @@ async function loadAuthorityScaffoldCompilationInput(options: {
       "The selected Composition must admit exactly one supported authority verifier."
     );
   }
-  const ownerFile = await readContainedRepositoryFile(
-    options.consumerRoot,
-    target.ownerDocument.path,
-    "scaffold-owner-document"
-  );
-  const owner = parseMarkdownOwnerFrontmatter(ownerFile.source);
-  if (owner.id !== target.ownerDocument.id) {
-    throw new ScaffoldAuthorityStaleError(
-      "Owner document frontmatter ID does not match the target catalog binding."
-    );
-  }
+  const owner = await resolveOwnerDocument({
+    consumerRoot: options.consumerRoot,
+    documentRoots: verifier.parameters.documentRoots,
+    ownerDocumentId: target.ownerDocumentId
+  });
   if (!verifier.parameters.allowedStatuses.includes(owner.status)) {
     throw new ScaffoldAuthorityStaleError(
       "Owner document status is not admitted by the selected Composition."
     );
   }
+  const resolvedTarget = Object.freeze({
+    id: target.id,
+    role: target.role,
+    path: target.path,
+    packageName: target.packageName,
+    ownerDocument: Object.freeze({ id: owner.id, path: owner.file.path })
+  }) satisfies AuthorityScaffoldTarget;
+  const catalog = Object.freeze({
+    version: 2 as const,
+    packages: Object.freeze([resolvedTarget])
+  }) satisfies AuthorityScaffoldTargetCatalog;
   const authorityReadSet = Object.freeze([
     assertion(options.configFile),
     assertion(catalogFile),
-    assertion(ownerFile)
+    assertion(owner.file)
   ]) satisfies AuthorityScaffoldReadSet;
   const [configAssertion, catalogAssertion, ownerAssertion] = authorityReadSet;
   const evidence: ScaffoldAuthorityEvidenceV1 = createScaffoldAuthorityEvidence({
@@ -234,10 +215,10 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     verifier: Object.freeze({ id: verifier.id, contractVersion: verifier.contractVersion }),
     projectId: config.projectId,
     targetRef: intent.targetRef,
-    targetIdentityDigest: sha256Json(target as unknown as JsonValue),
+    targetIdentityDigest: sha256Json(resolvedTarget),
     ownerDocument: Object.freeze({
-      id: target.ownerDocument.id,
-      path: target.ownerDocument.path,
+      id: resolvedTarget.ownerDocument.id,
+      path: resolvedTarget.ownerDocument.path,
       status: owner.status
     }),
     sources: Object.freeze([
@@ -258,7 +239,9 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     consumerRoot: options.consumerRoot,
     configPath: options.configPath,
     catalogPath: config.targetCatalogPath,
-    ownerPath: target.ownerDocument.path,
+    ownerDocumentId: target.ownerDocumentId,
+    documentRoots: verifier.parameters.documentRoots,
+    ownerIndexDigest: owner.indexDigest,
     expected: authorityReadSet
   });
   return Object.freeze({

@@ -20,6 +20,12 @@
       "maxLength": 160,
       "pattern": "^[a-z0-9][a-z0-9._/-]*$"
     },
+    "ownerDocumentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
     "repositoryPath": {
       "type": "string",
       "minLength": 1,
@@ -29,7 +35,7 @@
     "target": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "role", "path", "package_name", "owner_document_id", "owner_document_path"],
+      "required": ["id", "role", "path", "package_name", "owner_document"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "role": { "$ref": "#/$defs/id" },
@@ -40,8 +46,7 @@
           "maxLength": 214,
           "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
         },
-        "owner_document_id": { "$ref": "#/$defs/id" },
-        "owner_document_path": { "$ref": "#/$defs/repositoryPath" }
+        "owner_document": { "$ref": "#/$defs/ownerDocumentId" }
       }
     }
   }

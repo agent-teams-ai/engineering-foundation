@@ -54,6 +54,7 @@ export interface ScaffoldAuthorityVerifierV1 {
   readonly contractVersion: 1;
   readonly parameters: {
     readonly allowedStatuses: readonly string[];
+    readonly documentRoots: readonly string[];
   };
 }
 

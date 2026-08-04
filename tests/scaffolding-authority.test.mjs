@@ -194,6 +194,10 @@ test("compiles deterministic authority evidence and preserves LF/CRLF authority 
     assert.deepEqual(first, second);
     assert.equal(first.readSet.length, 3);
     assert.equal(first.authorityEvidence.sources.length, 3);
+    assert.equal(
+      first.authorityEvidence.ownerDocument.path,
+      "docs/decisions/adr-0060.md"
+    );
     for (const path of [
       configPath(crlfRoot),
       catalogPath(crlfRoot),
@@ -219,24 +223,21 @@ test("fails closed when owner status, owner binding, or catalog binding changes 
       const replacement = join(root, "docs", "decisions", "other.md");
       await writeFile(
         replacement,
-        "---\nid: adr-0060\nstatus: accepted\n---\n\n# Replacement\n",
+        "---\nid: ADR-0060\nstatus: accepted\n---\n\n# Replacement\n",
         "utf8"
       );
-      await writeFile(
-        catalogPath(root),
-        (await readFile(catalogPath(root), "utf8")).replace(
-          "docs/decisions/adr-0060.md",
-          "docs/decisions/other.md"
-        ),
-        "utf8"
-      );
+    },
+    async (root) => {
+      const replacement = join(root, "docs", "decisions", "moved.md");
+      await writeFile(replacement, await readFile(ownerPath(root)), "utf8");
+      await rm(ownerPath(root));
     },
     async (root) => {
       await writeFile(
         catalogPath(root),
         (await readFile(catalogPath(root), "utf8")).replace(
-          "owner_document_id: adr-0060",
-          "owner_document_id: adr-0061"
+          "owner_document: ADR-0060",
+          "owner_document: ADR-0061"
         ),
         "utf8"
       );
@@ -256,23 +257,6 @@ test("fails closed when owner status, owner binding, or catalog binding changes 
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  }
-});
-
-test("rejects unknown owner-document authority fields", async () => {
-  const root = await createConsumer();
-  try {
-    await writeFile(
-      ownerPath(root),
-      (await readFile(ownerPath(root), "utf8")).replace(
-        "status: accepted",
-        "status: accepted\nrevoked: true"
-      ),
-      "utf8"
-    );
-    await assert.rejects(plan(root), /normalized id and status strings/u);
-  } finally {
-    await rm(root, { recursive: true, force: true });
   }
 });
 

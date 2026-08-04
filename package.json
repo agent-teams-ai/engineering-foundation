@@ -13,6 +13,8 @@
   },
   "scripts": {
     "build": "tsc --build tsconfig.json --pretty false",
+    "buf-qualification:e2e": "pnpm build && node scripts/buf-qualification-e2e.mjs",
+    "buf-qualification:e2e:built": "node scripts/buf-qualification-e2e.mjs",
     "check": "pnpm lint && pnpm typecheck && pnpm foundation:check:built && pnpm release-owned-files:check && pnpm architecture:patterns && pnpm architecture:patterns:test && pnpm nx:graph:check && pnpm test:built && pnpm package:check:built",
     "check:changed": "pnpm build && agent-teams-foundation agent-workflow changed --consumer .",
     "check:fast": "pnpm lint:fast && pnpm typecheck",

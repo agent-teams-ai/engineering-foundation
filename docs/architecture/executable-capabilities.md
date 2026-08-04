@@ -12,6 +12,8 @@ dependency capability is implemented and dogfooded behind internal ports.
 ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
 ADR-0003 through ADR-0009 accept the governance, source-graph,
 documentation, contract-evolution, and workflow-security capabilities.
+ADR-0015 supplements contract evolution with a reusable pinned Buf `FILE`
+qualification producer and versioned evidence envelope.
 Package installation never activates them: the consumer declares each applicable
 capability and supplies its own policy and qualification evidence.
 
@@ -165,6 +167,15 @@ capability. The capability proves evidence consistency, while the consumer's
 protected qualification workflow owns evidence provenance. Breaking Protobuf
 evidence must bind its exact fingerprint to an ADR in the immutable accepted
 decision baseline.
+
+Protobuf configuration schema v2 declares the module, exact Buf configuration,
+released descriptor and evidence locations. The explicit
+`protobuf-qualify-breaking` command verifies the pinned Buf version, enforces the
+exact `FILE` policy, builds the candidate descriptor and runs compatibility
+against the released descriptor. Its versioned envelope binds all input digests,
+canonical invocation semantics and normalized findings. Check mode reruns the
+producer and rejects any byte-level evidence drift; normal capability execution
+only validates the committed envelope and never starts a process.
 
 ## Internal package shape
 

@@ -71,6 +71,11 @@
       "id": "ADR-0014",
       "path": "docs/decisions/0014-scaffolding-review-hardening.md",
       "immutableDigest": "sha256:48c4979d6e6884e83cda5ffd9544fe0026b4c034087d8b8f8194c6b8ee7f22fe"
+    },
+    {
+      "id": "ADR-0015",
+      "path": "docs/decisions/0015-qualified-buf-file-evidence.md",
+      "immutableDigest": "sha256:b13b67fc9bcfb6b7464041cf275d5db418d900e2e5ef229dd1cfb85918fa27be"
     }
   ]
 }

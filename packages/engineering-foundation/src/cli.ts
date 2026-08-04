@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
+import { qualifyProtobufBreakingEvidence } from "./capabilities/contract-protobuf-evolution/qualification/module.js";
 import { promoteArchitectureDecisionBaseline } from "./capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
 import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
@@ -94,6 +95,7 @@ function printHelp(): void {
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
+  agent-teams-foundation protobuf-qualify-breaking --buf-executable <absolute-path> [--consumer <path>] [--write] [--json]
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
   agent-teams-foundation scaffold-recover [--consumer <path>] [--json]
@@ -220,6 +222,53 @@ async function runCheckCommand(
         : renderFoundationReportText(report)
     );
     process.exitCode = exitCodeForOutcome(report.outcome);
+  } finally {
+    process.removeListener("SIGINT", cancel);
+  }
+  return true;
+}
+
+async function runProtobufQualificationCommand(
+  parsed: ParsedArguments,
+  json: boolean
+): Promise<boolean> {
+  if (parsed.command !== "protobuf-qualify-breaking") {
+    return false;
+  }
+  if (parsed.bufExecutablePath === undefined) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "protobuf-qualify-breaking requires --buf-executable <absolute-path>."
+    );
+  }
+  const settings = await loadFoundationConfig(parsed.consumerRoot);
+  const declaration = settings.declaredCapabilities.find(
+    ({ id }) => id === "contract.protobuf-evolution"
+  );
+  if (declaration === undefined) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "contract.protobuf-evolution must be declared before Buf qualification."
+    );
+  }
+  const controller = new AbortController();
+  const cancel = () => {
+    controller.abort();
+  };
+  process.once("SIGINT", cancel);
+  try {
+    const qualification = await qualifyProtobufBreakingEvidence({
+      consumerRoot: parsed.consumerRoot,
+      configPath: declaration.configPath,
+      executablePath: parsed.bufExecutablePath,
+      write: parsed.write,
+      signal: controller.signal
+    });
+    process.stdout.write(
+      json
+        ? `${JSON.stringify({ qualification }, null, 2)}\n`
+        : `Buf FILE qualification ${qualification.writeResult}: ${qualification.status} (${qualification.evidencePath}).\n`
+    );
   } finally {
     process.removeListener("SIGINT", cancel);
   }
@@ -369,6 +418,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   if (
     await runLocalModeCommand(parsed, service, json) ||
     await runAgentWorkflowCommand(parsed, environment) ||
+    await runProtobufQualificationCommand(parsed, json) ||
     await runCheckCommand(parsed, json) ||
     await runPolicyCommand(parsed, json) ||
     await runInformationCommand(parsed, json)

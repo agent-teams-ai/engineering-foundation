@@ -26,6 +26,7 @@ boundaries:
     allow:
       boundaries:
         - capability.architecture-decisions.composition
+        - capability.contract-protobuf.qualification.composition
         - capability.public-api-compatibility.composition
         - capability.repository-agent-workflow.composition
         - foundation.composition
@@ -1020,9 +1021,12 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/model/buf-breaking-qualification.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/model/protobuf-release-evidence.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/policies/evaluate-protobuf-evolution.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/ports/accepted-decision-evidence.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/ports/buf-breaking-qualification-evidence.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/ports/sha256-digest.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/rules.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/use-cases/resolve-protobuf-evolution-policy.ts
   - id: capability.contract-protobuf.contract
@@ -1050,10 +1054,14 @@ boundaries:
         - foundation.repository-input
         - foundation.schema-validation
       packages: []
-      builtins: []
+      builtins:
+        - node:crypto
+        - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters/outbound/crypto/node-sha256-digest.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters/outbound/governance/governance-accepted-decision-evidence-acl.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.ts
   - id: capability.contract-protobuf.composition
     roots:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/module.ts
@@ -1074,6 +1082,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases
     allow:
       boundaries:
+        - capability.contract-protobuf.application
         - foundation.core
         - foundation.repository-input
       packages: []
@@ -1081,6 +1090,9 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/ports/buf-executable.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/ports/buf-qualification-artifacts.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/ports/buf-qualification-runner.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases/qualify-buf-breaking-evidence.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases/verify-pinned-buf-version.ts
   - id: capability.contract-protobuf.qualification.adapters
     roots:
@@ -1094,21 +1106,27 @@ boundaries:
       builtins:
         - node:child_process
         - node:fs/promises
+        - node:os
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/filesystem/filesystem-buf-qualification-artifacts.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/process/process-buf-executable.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/process/process-buf-qualification-runner.ts
   - id: capability.contract-protobuf.qualification.composition
     roots:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/module.ts
     allow:
       boundaries:
+        - capability.contract-protobuf.adapters
+        - capability.contract-protobuf.contract
         - capability.contract-protobuf.qualification.adapters
         - capability.contract-protobuf.qualification.application
       packages: []
       builtins: []
       runtimeReferences: []
-    entrypoints: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/module.ts
   - id: foundation.property-testing-support
     roots:
       - packages/engineering-foundation/src/capabilities/property-testing-standard

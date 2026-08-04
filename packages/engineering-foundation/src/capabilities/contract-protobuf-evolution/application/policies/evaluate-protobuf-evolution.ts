@@ -198,9 +198,6 @@ function assertReleasedEvidence(evidence: ReleasedProtobufContractEvidence): voi
 }
 
 function assertCurrentEvidence(evidence: CurrentProtobufContractEvidence): void {
-  if (evidence.schemaVersion !== 1) {
-    inputError("Current Protobuf evidence has an unsupported schema version.");
-  }
   if (!CONTRACT_ID.test(evidence.contractId)) {
     inputError("Current Protobuf evidence contractId is invalid.");
   }

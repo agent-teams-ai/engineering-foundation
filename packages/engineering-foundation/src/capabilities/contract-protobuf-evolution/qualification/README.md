@@ -1,12 +1,24 @@
 # Buf Qualification Boundary
 
-This namespace is an internal donor and conformance harness for Foundation's own
-tests. It is deliberately not exported by the consumer package, is not a normal
-Foundation capability, is not registered by the check runner, and must never be
-called by a normal capability check or imported by consumer CI.
+This namespace owns the explicit process boundary behind:
 
-Each consumer instead owns an equivalent pinned producer workflow in its own CI.
-That workflow invokes the consumer's pinned Buf executable and persists only
-deterministic release evidence for the pure `contract-protobuf-evolution`
-evaluator. The evaluator does not execute subprocesses, inspect Protobuf domain
-semantics, or decide transport behavior.
+```text
+agent-teams-foundation protobuf-qualify-breaking \
+  --consumer . \
+  --buf-executable /absolute/path/to/pinned/buf \
+  --write
+```
+
+It is not registered as a normal Foundation capability. Normal `check` execution
+never imports its process adapters, starts Buf, opens a shell or accesses the
+network. The command is invoked explicitly by a protected consumer workflow.
+
+Write mode runs the pinned Buf executable and atomically emits canonical,
+versioned evidence. Check mode omits `--write`, reruns the same qualification and
+requires byte-for-byte equality with committed evidence. Consumers own the Buf
+pin, workflow protection and review policy; Foundation owns invocation semantics,
+normalization and evidence validation.
+
+Configuration schema v2 is required. Schema v1 remains shipped as immutable
+historical contract data but cannot prove qualified `FILE` provenance and is not
+accepted by the executable capability.

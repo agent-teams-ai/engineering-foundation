@@ -7,25 +7,25 @@ import {
 } from "../../../strict-yaml.js";
 import type {
   ApprovedProtobufBreakingChange,
-  BufBreakingEvidence,
+  BufBreakingQualificationBinding,
   BufGeneratorVersionEvidence,
-  CurrentProtobufContractEvidence,
+  CurrentProtobufContractDeclaration,
   ProtobufEvolutionConfiguration,
   ReleasedProtobufContractEvidence,
   Sha256Digest
 } from "../application/model/protobuf-release-evidence.js";
 
 export const CAPABILITY_ID = "contract.protobuf-evolution" as const;
-export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
+export const CAPABILITY_CONFIG_SCHEMA_VERSION = 2 as const;
 
 type ProtobufEvolutionConfigSchemaVersion = typeof CAPABILITY_CONFIG_SCHEMA_VERSION;
-type ProtobufEvolutionSchemaId = "contract-protobuf-evolution/v1";
+type ProtobufEvolutionSchemaId = "contract-protobuf-evolution/v2";
 type ProtobufReleasedBaselineSchemaId = "contract-protobuf-evolution-baseline/v1";
 
 const SCHEMA_ID_BY_VERSION: Readonly<
   Record<ProtobufEvolutionConfigSchemaVersion, ProtobufEvolutionSchemaId>
 > = Object.freeze({
-  1: "contract-protobuf-evolution/v1"
+  2: "contract-protobuf-evolution/v2"
 });
 
 function inputError(message: string): never {
@@ -62,7 +62,9 @@ function configSchemaId(value: unknown): ProtobufEvolutionSchemaId {
   if (value === CAPABILITY_CONFIG_SCHEMA_VERSION) {
     return SCHEMA_ID_BY_VERSION[value];
   }
-  inputError(`schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}.`);
+  inputError(
+    `schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}; v1 cannot prove Buf FILE qualification provenance.`
+  );
 }
 
 function releasedBaselineSchemaId(value: unknown): ProtobufReleasedBaselineSchemaId {
@@ -139,19 +141,6 @@ function mapGenerators(value: unknown, field: string): readonly BufGeneratorVers
   return Object.freeze(list(value, field).map((entry, index) => mapGenerator(entry, `${field}[${index}]`)));
 }
 
-function mapBreaking(value: unknown): BufBreakingEvidence {
-  const source = record(value, "current.breaking");
-  const status = string(source["status"], "current.breaking.status");
-  if (status !== "compatible" && status !== "breaking" && status !== "not-run") {
-    inputError("current.breaking.status is invalid.");
-  }
-  const fingerprint = source["fingerprint"];
-  return Object.freeze({
-    status,
-    ...(fingerprint === undefined ? {} : { fingerprint: digest(fingerprint, "current.breaking.fingerprint") })
-  });
-}
-
 function mapReleased(
   value: unknown,
   field = "released baseline"
@@ -191,20 +180,16 @@ async function loadReleasedBaseline(
   return mapReleased(source);
 }
 
-function mapCurrent(value: unknown): CurrentProtobufContractEvidence {
+function mapCurrent(value: unknown): CurrentProtobufContractDeclaration {
   const source = record(value, "current");
   const generationDrift = record(source["generationDrift"], "current.generationDrift");
   return Object.freeze({
-    schemaVersion: number(source["schemaVersion"], "current.schemaVersion"),
+    schemaVersion: 2,
     contractId: string(source["contractId"], "current.contractId"),
     publicContractVersion: string(source["publicContractVersion"], "current.publicContractVersion"),
     bufVersion: string(source["bufVersion"], "current.bufVersion"),
     bufConfigDigest: digest(source["bufConfigDigest"], "current.bufConfigDigest"),
     descriptorImageDigest: digest(source["descriptorImageDigest"], "current.descriptorImageDigest"),
-    releasedDescriptorImageDigest: digest(
-      source["releasedDescriptorImageDigest"],
-      "current.releasedDescriptorImageDigest"
-    ),
     generatorVersions: mapGenerators(source["generatorVersions"], "current.generatorVersions"),
     generationDrift: Object.freeze({
       expectedGeneratedOutputDigest: digest(
@@ -215,8 +200,44 @@ function mapCurrent(value: unknown): CurrentProtobufContractEvidence {
         generationDrift["observedGeneratedOutputDigest"],
         "current.generationDrift.observedGeneratedOutputDigest"
       )
-    }),
-    breaking: mapBreaking(source["breaking"])
+    })
+  });
+}
+
+function qualificationPath(
+  value: unknown,
+  field: string,
+  options: { readonly prefix?: string; readonly suffix?: RegExp } = {}
+): string {
+  const repositoryPath = string(value, field);
+  assertRepositoryRelativePath(repositoryPath, "protobuf-evolution-config");
+  if (options.prefix !== undefined && !repositoryPath.startsWith(options.prefix)) {
+    inputError(`${field} must be inside ${options.prefix}.`);
+  }
+  if (options.suffix !== undefined && !options.suffix.test(repositoryPath)) {
+    inputError(`${field} has an unsupported file extension.`);
+  }
+  return repositoryPath;
+}
+
+function mapQualification(value: unknown): BufBreakingQualificationBinding {
+  const source = record(value, "qualification");
+  return Object.freeze({
+    modulePath: qualificationPath(source["modulePath"], "qualification.modulePath"),
+    bufConfigPath: qualificationPath(
+      source["bufConfigPath"],
+      "qualification.bufConfigPath",
+      { suffix: /\.ya?ml$/u }
+    ),
+    releasedDescriptorImagePath: qualificationPath(
+      source["releasedDescriptorImagePath"],
+      "qualification.releasedDescriptorImagePath",
+      { prefix: "architecture/contracts/", suffix: /\.binpb$/u }
+    ),
+    evidencePath: qualificationPath(source["evidencePath"], "qualification.evidencePath", {
+      prefix: "architecture/evidence/protobuf/",
+      suffix: /\.json$/u
+    })
   });
 }
 
@@ -270,6 +291,7 @@ export async function loadCapabilityConfig(
       : { acceptedDecisionBaselinePath: decisionBaselinePath }),
     ...(governancePath === undefined ? {} : { governanceConfigPath: governancePath }),
     approvedBreakingChanges: approvals,
+    qualification: mapQualification(source["qualification"]),
     released,
     current: mapCurrent(source["current"])
   });

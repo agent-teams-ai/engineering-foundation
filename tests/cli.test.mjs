@@ -26,7 +26,10 @@ test("uses the stable invalid-invocation exit code", () => {
   for (const commandArguments of [
     ["check", "--format", "xml"],
     ["check", "workspace.dependency-declarations", "extra"],
+    ["check", "--write"],
+    ["check", "--buf-executable", process.execPath],
     ["check", "--unknown-option"],
+    ["protobuf-qualify-breaking"],
     ["unknown-command"],
   ]) {
     const result = spawnSync(process.execPath, [cliPath, ...commandArguments], {

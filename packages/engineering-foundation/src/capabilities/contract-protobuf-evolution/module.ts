@@ -5,6 +5,7 @@ import {
   type CapabilityInvocation
 } from "../../capability-runtime.js";
 import { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";
+import { FilesystemBufBreakingQualificationEvidence } from "./adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
   CAPABILITY_ID,
@@ -12,6 +13,7 @@ import {
 } from "./contract/config.js";
 import { evaluateProtobufEvolution } from "./application/policies/evaluate-protobuf-evolution.js";
 import type { AcceptedDecisionEvidencePort } from "./application/ports/accepted-decision-evidence.js";
+import type { BufBreakingQualificationEvidencePort } from "./application/ports/buf-breaking-qualification-evidence.js";
 import { resolveProtobufEvolutionPolicy } from "./application/use-cases/resolve-protobuf-evolution-policy.js";
 
 export {
@@ -20,7 +22,11 @@ export {
 export type {
   ApprovedProtobufBreakingChange,
   BufBreakingEvidence,
+  BufBreakingFinding,
+  BufBreakingQualificationBinding,
+  BufBreakingQualificationEvidence,
   BufGeneratorVersionEvidence,
+  CurrentProtobufContractDeclaration,
   CurrentProtobufContractEvidence,
   GenerationDriftEvidence,
   ProtobufEvolutionPolicy,
@@ -39,6 +45,7 @@ export {
 
 export interface ProtobufEvolutionCapabilityDependencies {
   readonly acceptedDecisionEvidence?: AcceptedDecisionEvidencePort;
+  readonly bufBreakingQualificationEvidence?: BufBreakingQualificationEvidencePort;
 }
 
 export function createProtobufEvolutionCapability(
@@ -46,6 +53,9 @@ export function createProtobufEvolutionCapability(
 ): CapabilityDefinition {
   const acceptedDecisionEvidence =
     dependencies.acceptedDecisionEvidence ?? new GovernanceAcceptedDecisionEvidenceAcl();
+  const bufBreakingQualificationEvidence =
+    dependencies.bufBreakingQualificationEvidence ??
+    new FilesystemBufBreakingQualificationEvidence();
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
@@ -62,7 +72,7 @@ export function createProtobufEvolutionCapability(
             configuration,
             ...(invocation.signal === undefined ? {} : { signal: invocation.signal })
           },
-          { acceptedDecisionEvidence }
+          { acceptedDecisionEvidence, bufBreakingQualificationEvidence }
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,

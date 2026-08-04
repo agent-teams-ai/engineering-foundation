@@ -55,6 +55,8 @@ jobs:
       - run: pnpm check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Qualify pinned Buf FILE compatibility evidence
+        run: pnpm buf-qualification:e2e:built
       - name: Qualify registry publish and clean install
         run: pnpm registry-install-e2e:built
       - run: pnpm dead-code:check

@@ -26,6 +26,46 @@ export interface BufBreakingEvidence {
   readonly fingerprint?: Sha256Digest;
 }
 
+export interface BufBreakingQualificationBinding {
+  readonly modulePath: string;
+  readonly bufConfigPath: string;
+  readonly releasedDescriptorImagePath: string;
+  readonly evidencePath: string;
+}
+
+export interface BufBreakingFinding {
+  readonly path: string;
+  readonly startLine: number;
+  readonly startColumn: number;
+  readonly endLine: number;
+  readonly endColumn: number;
+  readonly type: string;
+  readonly message: string;
+}
+
+export interface BufBreakingQualificationEvidence {
+  readonly schemaVersion: 1;
+  readonly producerId: "agent-teams-foundation.buf-breaking-qualification";
+  readonly producerVersion: 1;
+  readonly policy: "FILE";
+  readonly contractId: string;
+  readonly bufVersion: string;
+  readonly modulePath: string;
+  readonly bufConfigPath: string;
+  readonly bufConfigDigest: Sha256Digest;
+  readonly baselineDescriptorImagePath: string;
+  readonly baselineDescriptorImageDigest: Sha256Digest;
+  readonly candidateDescriptorImageDigest: Sha256Digest;
+  readonly invocationDigest: Sha256Digest;
+  readonly result: {
+    readonly status: "compatible" | "breaking";
+    readonly findings: readonly BufBreakingFinding[];
+    readonly findingSetDigest: Sha256Digest;
+    readonly rawOutputDigest: Sha256Digest;
+  };
+  readonly evidenceDigest: Sha256Digest;
+}
+
 export interface ApprovedProtobufBreakingChange {
   readonly decisionId: `ADR-${string}`;
   readonly fingerprint: Sha256Digest;
@@ -40,12 +80,24 @@ export interface ProtobufEvolutionConfiguration {
   readonly acceptedDecisionBaselinePath?: string;
   readonly governanceConfigPath?: string;
   readonly approvedBreakingChanges: readonly ApprovedProtobufBreakingChange[];
+  readonly qualification: BufBreakingQualificationBinding;
   readonly released: ReleasedProtobufContractEvidence;
-  readonly current: CurrentProtobufContractEvidence;
+  readonly current: CurrentProtobufContractDeclaration;
+}
+
+export interface CurrentProtobufContractDeclaration {
+  readonly schemaVersion: 2;
+  readonly contractId: string;
+  readonly publicContractVersion: string;
+  readonly bufVersion: string;
+  readonly bufConfigDigest: Sha256Digest;
+  readonly descriptorImageDigest: Sha256Digest;
+  readonly generatorVersions: readonly BufGeneratorVersionEvidence[];
+  readonly generationDrift: GenerationDriftEvidence;
 }
 
 export interface CurrentProtobufContractEvidence {
-  readonly schemaVersion: number;
+  readonly schemaVersion: 1 | 2;
   readonly contractId: string;
   readonly publicContractVersion: string;
   readonly bufVersion: string;

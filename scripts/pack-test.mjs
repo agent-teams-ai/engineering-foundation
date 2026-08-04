@@ -23,6 +23,9 @@ const temporaryRoot = await mkdtemp(join(tmpdir(), "agent-teams-foundation-pack-
 const keepTemporaryRoot = process.env.AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS === "1";
 const requireFromRepository = createRequire(import.meta.url);
 const runPnpm = createPnpmRunner();
+const repositoryManifest = JSON.parse(
+  await readFile(join(repositoryRoot, "package.json"), "utf8")
+);
 const typeScriptEntrypoint = join(
   dirname(requireFromRepository.resolve("typescript/package.json")),
   "lib",
@@ -50,6 +53,14 @@ async function toolingVersions() {
   };
 }
 
+function packageManagerVersion() {
+  const packageManager = repositoryManifest.packageManager;
+  if (typeof packageManager !== "string" || !/^pnpm@\d+\.\d+\.\d+$/u.test(packageManager)) {
+    throw new Error("Repository packageManager must pin an exact pnpm version.");
+  }
+  return packageManager;
+}
+
 try {
   const artifact = await packAndInspectArtifact({
     packageRoot,
@@ -62,6 +73,7 @@ try {
   const fixture = await createPackedConsumerFixture({
     archiveFileSpecifier: artifact.archiveFileSpecifier,
     consumerRoot: join(temporaryRoot, "consumer"),
+    packageManager: packageManagerVersion(),
     runPnpm,
     toolingVersions: await toolingVersions()
   });
@@ -70,6 +82,7 @@ try {
   await verifyPackedLocalMode({
     ...artifact,
     packageVersion: fixture.packedManifest.version,
+    packageManager: packageManagerVersion(),
     repositoryRoot,
     runPnpm,
     temporaryRoot

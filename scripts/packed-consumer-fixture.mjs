@@ -12,13 +12,13 @@ import {
 const foundationPackage = "@agent-teams/engineering-foundation";
 const identitySource = "export function identity(value: string): string {\n  return value;\n}\n";
 
-function consumerManifest(foundationVersion) {
+function consumerManifest(foundationVersion, packageManager) {
   return {
     name: "foundation-pack-consumer",
     version: "0.0.0",
     private: true,
     type: "module",
-    packageManager: "pnpm@11.18.0",
+    packageManager,
     devDependencies: {
       [foundationPackage]: foundationVersion,
       oxlint: "catalog:",
@@ -29,7 +29,10 @@ function consumerManifest(foundationVersion) {
 }
 
 async function writeInstallManifests(input) {
-  await writeJson(join(input.consumerRoot, "package.json"), consumerManifest(input.foundationVersion));
+  await writeJson(
+    join(input.consumerRoot, "package.json"),
+    consumerManifest(input.foundationVersion, input.packageManager)
+  );
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
     `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog:\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
@@ -58,7 +61,7 @@ async function installPackedPackage(input) {
   }
   await writeJson(
     join(input.consumerRoot, "package.json"),
-    consumerManifest(packedManifest.version)
+    consumerManifest(packedManifest.version, input.packageManager)
   );
   return packedManifest;
 }

@@ -3,10 +3,11 @@
 Status: Active for the protocol kernel and testing-only conformance vertical.
 
 [ADR-0006](../decisions/0006-closed-deterministic-scaffolding-compiler.md)
-accepts this design. The closed protocol, public schemas, CLI, programmatic API,
-memory adapter, journaled filesystem adapter, and testing-only conformance
-definitions are implemented. Product recipes, structured-update operations, a
-second consumer, and the Nx adapter are not implemented or qualified.
+accepts this design. The canonical source-bound protocol, public schemas, CLI,
+programmatic API, journaled filesystem adapter, and testing-only conformance
+definitions are implemented. Foundation exposes no parallel legacy API. Product
+recipes, structured-update operations, a second consumer, and the Nx adapter are
+not implemented or qualified.
 
 ## Implementation status
 
@@ -29,9 +30,23 @@ different repository-relative file. Apply executes only the exact final bytes
 in a saved immutable Plan. Before writing, it independently recompiles the
 expected Plan from the embedded normalized Intent and current consumer authority
 and requires an exact digest match.
+The target catalog stores one owner document ID, not a duplicated path. The
+selected Composition declares bounded `documentRoots`; Foundation resolves the
+ID exactly once from strict Markdown frontmatter and records the derived path and
+selected document digest in the Plan. Only the `id` and `status` frontmatter
+projection is authoritative to Foundation. Consumer-specific metadata remains
+owned by the consumer documentation system. Traversal has fixed entry, document,
+and directory-depth budgets.
+One authority verification reads all three canonical sources, then repeats
+their digest reads. A persistent mutation during acquisition fails closed. This
+is a stability protocol under the cooperative repository lock, not an atomic
+snapshot against a non-cooperating editor.
 Recovery applies the same proof before it resumes a prepared journal. If the
 current authority is unavailable or cannot reproduce the journal Plan exactly,
-recovery fails without changing the journal or its outputs.
+recovery fails without changing the journal or its outputs. The portable
+filesystem adapter never deletes output after publication begins: journal state,
+process-local observation, and matching bytes cannot prove that a path was not
+replaced by another writer.
 
 ## Goals
 
@@ -101,9 +116,10 @@ Foundation owns:
 
 A consumer owns:
 
-- package and target catalogs;
+- package and target catalogs, including the package-to-owner-document ID;
 - bounded contexts, feature ownership, terminology, and accepted evidence;
-- local `ScaffoldProfile` bindings and approved `Composition` records;
+- local `ScaffoldProfile` bindings, approved `Composition` records, and bounded
+  authority document roots;
 - fixed/default parameters and additional monotonic policies;
 - the final review and implementation of business behavior.
 
@@ -263,19 +279,24 @@ Receipt outcomes distinguish at least:
 ```text
 applied
 already-applied
+authority-stale
 rejected
 failed-recovered
 recovery-required
 ```
 
-An operation with `not-applied` or `conflict` has no result digest. Receipts do
-not claim a desired post-image that was not observed or published.
+An operation with `not-applied`, `conflict`, or `unobserved` has no result
+digest. `unobserved` means the adapter intentionally made no safe filesystem
+classification, so it cannot truthfully claim that the operation was absent.
+Receipts do not claim a desired post-image that was not observed or published.
 `failed-recovered` means a prepared transaction was finalized through the
 recovery path. It may contain only `already-satisfied` operations when the crash
 happened after every output was published but before the journal was removed;
 `recovered` is used only for an output actually published during recovery.
 
-The filesystem adapter reports journaled recoverability. The Nx adapter reports
+The public Receipt is filesystem-only. The internal memory workspace is retained
+only as rendering-kernel regression evidence and is not a supported consumer
+adapter. The filesystem adapter reports journaled recoverability. The Nx adapter reports
 host-managed commit semantics and cannot claim Foundation-owned durable recovery.
 
 ## Compilation and apply
@@ -302,21 +323,30 @@ Before applying, an authority-bearing durable adapter must:
 9. reject path traversal, symlink or reparse escape, case-fold collision,
    protected roots, special files, and unsafe modes;
 10. recognize an exact desired post-image as idempotently satisfied;
-11. reject any third state rather than overwrite it.
+11. reject any third state rather than overwrite it;
+12. verify the complete authority source set and classify every output;
+13. repeat authority verification and output classification (`A-C-A-C`);
+14. treat completion of the second output classification as the commit boundary
+    within the cooperative mutation model;
+15. only then remove the journal and emit a committed Receipt. If authority is
+    stale or unverifiable, preserve every output and the journal.
 
-The in-memory adapter is a non-durable conformance workspace without an external
-consumer authority boundary. It validates the self-contained Plan and adapter
-capabilities; the durable filesystem adapter additionally performs steps 2-9.
+The internal in-memory workspace is a non-durable conformance tool without
+an external consumer authority boundary. It validates the self-contained Plan
+and adapter capabilities; the durable filesystem adapter additionally performs
+steps 2-15.
 
-Version 1 materializes files only. It has no delete, move, fuzzy patch, wildcard
+The current protocol materializes files only. It has no delete, move, fuzzy patch, wildcard
 precondition, or overwrite-any-state operation. Updates to existing structured
 documents require a later proven operation contract. Such updates compile to
 exact post-images and CAS preconditions; Apply still performs no parsing.
 
 For filesystem execution, a durable journal records preconditions and final
 images before publication. Writes use same-directory temporary files, digest
-verification, and deterministic order. A process crash may leave partial files
-until mandatory recovery; the system does not claim true multi-file atomicity.
+verification, portable file-identity checks, and deterministic order. Cleanup
+preserves a temporary path whose identity no longer matches Foundation's open
+handle. A process crash may leave partial files until mandatory recovery; the
+system does not claim true multi-file atomicity.
 Recovery first reloads the journal's consumer authority and must reproduce the
 exact Plan through the closed compiler. If it cannot, the journal and outputs
 remain untouched. Recovery never overwrites a third-party edit that no longer
@@ -325,7 +355,7 @@ matches the planned post-image.
 ## Security boundary
 
 Scaffolding is a trusted development tool operating on untrusted repository
-state. Version 1 permits no:
+state. The current protocol permits no:
 
 - network access or remote assets;
 - environment interpolation or implicit `cwd`;
@@ -342,6 +372,10 @@ requires a separate threat-model decision and a platform adapter with
 descriptor-relative filesystem primitives unavailable in the portable Node.js
 API. Current conformance covers pre-existing symlinks or reparse paths and
 cooperative concurrent writers, not adversarial same-identity ancestor swaps.
+All Foundation-aware automated writers of authority sources and scaffold outputs
+must acquire the same repository Foundation operation lock. `A-C-A-C` is
+stability evidence inside that cooperative model; it is not an atomic snapshot
+or fencing protocol for an uncooperative writer.
 
 ## Applicability
 
@@ -395,15 +429,46 @@ scenario fixtures, a second consumer, and Nx remain later gates.
 
 ### Stage 1: first proven product vertical
 
-- select a manually accepted donor vertical rather than generating placeholder
-  business behavior;
-- encode only the reusable Profile, Recipe, Facets, and Policies proven by that
-  donor;
+- use the real Orchestrator package generator as the mandatory first donor. No
+  product Recipe is accepted before this migration completes;
+- keep the Orchestrator generator temporarily as a regression oracle, run both
+  implementations from identical consumer-owned inputs, and compare normalized
+  Plans and generated bytes across positive, conflict, replay, and recovery
+  scenarios;
+- make the Foundation source-bound generator authoritative only after parity and
+  consumer qualification pass, then remove the Orchestrator-local compiler and
+  retain only Orchestrator-owned catalog, Composition, target admission, and
+  business-specific data;
+- distinguish a Foundation Receipt, which proves materialized bytes, from
+  consumer qualification, which proves that the completed real package passes
+  its architecture, type, lint, and test gates;
+- release the first product Recipe without product Facets. Before any product
+  Facet is admitted, a versioned definition contract must constrain it to
+  Recipe-declared typed slots instead of arbitrary file contributions;
+- keep consumer target-role admission in the consumer Composition. The immutable
+  internal testing Recipe retains its existing `allowedTargetRoles` contract,
+  but no product Recipe may copy consumer business-role vocabulary into
+  Foundation;
+- provide the verified owner document ID to the product Recipe from the resolved
+  authority target. The Recipe must not accept a second owner parameter or
+  derive ownership from a path;
+- migrate the Orchestrator catalog and schema to the canonical catalog contract
+  in the same reviewed cutover. Preserve Orchestrator document-ID grammar,
+  including existing uppercase ADR identities;
+- keep complete Orchestrator topology admission and post-generation checks in
+  the consumer. Foundation does not absorb business roles, path policy, package
+  dependency policy, or accepted feature-document rules;
+- preserve the mandatory Plan review boundary. The old one-shot command may be
+  retained only as a donor oracle and cannot silently plan and apply through the
+  new protocol;
+- encode only the reusable Profile, Recipe, and Policies proven by that donor;
+  add Facets later only after both the slot contract and a real donor prove them;
 - compare normalized donor and Foundation Plans in dual-run mode.
 
-The existing orchestrator package-only scaffolder is useful evidence but is not
-the accepted reusable recipe because its output intentionally requires a real
-feature to become valid.
+The existing Orchestrator package-only scaffolder is the mandatory donor and
+regression oracle, but does not become a reusable Recipe merely by being moved.
+Only behavior proven generic by the migration may enter Foundation; the real
+feature and consumer-owned architecture gates remain the qualification subject.
 
 ### Stage 2: second consumer
 
@@ -450,8 +515,8 @@ Every released vertical or adapter must cover:
 
 Real user projects are never used for destructive or crash-injection tests.
 
-The current testing vertical additionally fixes a committed protocol-v1 golden
-digest vector and proves strict input rejection, Facet permutations,
+The current testing vertical additionally keeps a renderer regression vector
+and proves strict input rejection, Facet permutations,
 `requires`/`conflicts`, mandatory policy union, compile-twice equality,
 apply-twice idempotency, current-authority recompilation, third-state rejection,
 publication-phase process death, deterministic recovery, package tarball use,

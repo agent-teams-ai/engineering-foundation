@@ -8,7 +8,7 @@ import {
   MemoryScaffoldWorkspace,
   planScaffoldFromFile,
   validateScaffoldReceipt
-} from "../packages/engineering-foundation/dist/scaffolding/index.js";
+} from "../packages/engineering-foundation/dist/scaffolding/internal-rendering-regression-api.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 

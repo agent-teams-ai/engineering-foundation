@@ -9,7 +9,7 @@ import type {
 } from "../contract/types.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import { sha256Json } from "./canonical-json.js";
-import { assertScaffoldPlanDigest } from "./plan-validation.js";
+import { assertScaffoldPlanDigest } from "./rendering-plan-validation.js";
 
 interface ScaffoldReceiptCandidateV1 {
   readonly schemaVersion: number;

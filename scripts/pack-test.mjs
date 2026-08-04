@@ -6,11 +6,11 @@ import { fileURLToPath } from "node:url";
 
 import { FOUNDATION_REQUIRED_ARTIFACT_PATHS } from "../packages/engineering-foundation/dist/package-self-check.js";
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
+import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
 import { packAndInspectArtifact } from "./pack-artifact-e2e.mjs";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
-import { verifyPackedScaffolding } from "./packed-scaffolding-e2e.mjs";
 import {
   createPnpmRunner,
   localRegistryInstallQualification,
@@ -66,7 +66,7 @@ try {
     toolingVersions: await toolingVersions()
   });
   await verifyPackedConsumer({ fixture });
-  await verifyPackedScaffolding({ fixture, repositoryRoot });
+  await verifyPackedAuthorityScaffolding({ fixture, repositoryRoot });
   await verifyPackedLocalMode({
     ...artifact,
     packageVersion: fixture.packedManifest.version,

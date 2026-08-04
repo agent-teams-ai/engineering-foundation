@@ -39,10 +39,11 @@ waits for both expected GitHub Actions jobs, and publishes their real conclusion
 as `check` and `windows-check` commit statuses. It publishes `ReviewGate` only
 for that bounded generated release diff; it does not claim an external
 ReviewRouter review. The release attester fails closed on an unexpected PR,
-forbidden diff, missing result, timeout, or failed conclusion. The
-Changesets action does not receive status or Actions write permission, and no
-release-branch code runs with write credentials. If automatic pull request
-creation is unavailable, prepare the same
+forbidden diff, missing result, timeout, head change, or failed conclusion.
+Source pull requests still require the independent ReviewRouter gate before
+merge. The Changesets action does not receive status or Actions write
+permission, and no release-branch code runs with write credentials. If automatic
+pull request creation is unavailable, prepare the same
 version commit on a short `chore/release-*` branch, open a normal pull request,
 and let the unchanged release workflow publish its merge through npm Trusted
 Publishing. Never weaken branch protection or publish from a workstation to work

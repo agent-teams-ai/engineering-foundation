@@ -3,13 +3,17 @@ import type {
   DefinitionRef,
   JsonObject,
   JsonValue,
-  MaterializeFileOperationV1,
-  ScaffoldCompilationInput,
-  ScaffoldCompositionV1,
+  ScaffoldRenderingCompiler,
+  ScaffoldRenderingComposition,
+  ScaffoldRenderingCompositionSelection,
+  ScaffoldRenderingDefinitionEvidence,
+  ScaffoldRenderingDiagnostic,
+  ScaffoldRenderingIntent,
+  ScaffoldRenderingOperation,
+  ScaffoldRenderingResolution,
+  ScaffoldRenderingTarget,
   ScaffoldFileContribution,
-  ScaffoldIntentV1,
-  ScaffoldPlanV1,
-  ScaffoldTargetV1
+  Sha256Digest
 } from "../contract/types.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import {
@@ -70,7 +74,7 @@ function findExactlyOne<T>(
 }
 
 function mergeRecipeParameters(
-  composition: ScaffoldCompositionV1,
+  composition: ScaffoldRenderingComposition,
   explicit: JsonObject
 ): JsonObject {
   const fixed = composition.fixedRecipeParameters ?? {};
@@ -124,7 +128,7 @@ function collectPolicies(
 
 function selectFacets(
   registry: ScaffoldDefinitionRegistry,
-  composition: ScaffoldCompositionV1,
+  composition: ScaffoldRenderingComposition,
   explicit: readonly ConfiguredDefinition[] | undefined
 ): readonly {
   readonly definition: ScaffoldFacetDefinition;
@@ -195,7 +199,7 @@ function selectFacets(
 }
 
 function assertContributionPath(
-  target: ScaffoldTargetV1,
+  target: ScaffoldRenderingTarget,
   contribution: ScaffoldFileContribution
 ): void {
   if (
@@ -225,9 +229,9 @@ function assertContributionPath(
 }
 
 function operationsFromContributions(
-  target: ScaffoldTargetV1,
+  target: ScaffoldRenderingTarget,
   contributions: readonly ScaffoldFileContribution[]
-): readonly MaterializeFileOperationV1[] {
+): readonly ScaffoldRenderingOperation[] {
   if (
     contributions.length === 0 ||
     contributions.length > MAX_SCAFFOLD_OPERATIONS
@@ -282,7 +286,7 @@ function operationsFromContributions(
 function definitionEvidence(
   registry: ScaffoldDefinitionRegistry,
   definitions: readonly ScaffoldDefinition[]
-): ScaffoldPlanV1["definitions"] {
+): readonly ScaffoldRenderingDefinitionEvidence[] {
   return Object.freeze(
     definitions
       .map((definition) =>
@@ -301,31 +305,39 @@ function definitionEvidence(
   );
 }
 
-function resolveAuthoritySelection(input: ScaffoldCompilationInput): {
-  readonly composition: ScaffoldCompositionV1;
-  readonly target: ScaffoldTargetV1;
+export function resolveScaffoldRenderingSelection<
+  TComposition extends ScaffoldRenderingComposition,
+  TTarget extends ScaffoldRenderingTarget
+>(input: {
+  readonly compositions: readonly TComposition[];
+  readonly targets: readonly TTarget[];
+  readonly authorityReadPaths: readonly string[];
+  readonly intent: ScaffoldRenderingIntent;
+}): {
+  readonly composition: TComposition;
+  readonly target: TTarget;
 } {
-  assertUnique(input.config.compositions, ({ id }) => id, "Composition ID");
-  assertUnique(input.catalog.packages, ({ id }) => id, "target ID");
-  assertUnique(input.catalog.packages, ({ path }) => path, "target path");
+  assertUnique(input.compositions, ({ id }) => id, "Composition ID");
+  assertUnique(input.targets, ({ id }) => id, "target ID");
+  assertUnique(input.targets, ({ path }) => path, "target path");
   assertUnique(
-    input.catalog.packages,
+    input.targets,
     ({ path }) => path.toLowerCase(),
     "case-folded target path"
   );
   assertUnique(
-    input.catalog.packages,
+    input.targets,
     ({ packageName }) => packageName,
     "target package name"
   );
-  assertUnique(input.authorityReadSet, ({ path }) => path, "authority read path");
+  assertUnique(input.authorityReadPaths, (path) => path, "authority read path");
   const composition = findExactlyOne(
-    input.config.compositions,
+    input.compositions,
     ({ id }) => id === input.intent.compositionId,
     `Composition must exist exactly once: ${input.intent.compositionId}.`
   );
   const target = findExactlyOne(
-    input.catalog.packages,
+    input.targets,
     ({ id }) => id === input.intent.targetRef,
     `Scaffold target must exist exactly once: ${input.intent.targetRef}.`
   );
@@ -337,6 +349,24 @@ function resolveAuthoritySelection(input: ScaffoldCompilationInput): {
     );
   }
   return { composition, target };
+}
+
+export interface ScaffoldRenderingInput {
+  readonly foundationVersion: string;
+  readonly intent: ScaffoldRenderingIntent;
+  readonly composition: ScaffoldRenderingComposition;
+  readonly target: ScaffoldRenderingTarget;
+}
+
+export interface ScaffoldRenderingResult {
+  readonly compiler: ScaffoldRenderingCompiler;
+  readonly intent: ScaffoldRenderingIntent;
+  readonly intentDigest: Sha256Digest;
+  readonly composition: ScaffoldRenderingCompositionSelection;
+  readonly definitions: readonly ScaffoldRenderingDefinitionEvidence[];
+  readonly resolved: ScaffoldRenderingResolution;
+  readonly operations: readonly ScaffoldRenderingOperation[];
+  readonly diagnostics: readonly ScaffoldRenderingDiagnostic[];
 }
 
 function assertFacetCompatibility(
@@ -353,12 +383,18 @@ function assertFacetCompatibility(
   }
 }
 
-export function compileScaffoldPlan(
-  input: ScaffoldCompilationInput,
+export function compileScaffoldRendering(
+  input: ScaffoldRenderingInput,
   registry: ScaffoldDefinitionRegistry
-): ScaffoldPlanV1 {
-  const { composition, target } = resolveAuthoritySelection(input);
-
+): ScaffoldRenderingResult {
+  const { composition, target } = input;
+  assertUnique(composition.targetRoles, (role) => role, "target role");
+  if (!composition.targetRoles.includes(target.role)) {
+    throw new ScaffoldError(
+      "SCAFFOLD_INPUT_INVALID",
+      `Target role ${target.role} is not admitted by composition ${composition.id}.`
+    );
+  }
   const profile = registry.resolve(
     composition.scaffoldProfile.ref,
     "scaffold-profile"
@@ -424,13 +460,6 @@ export function compileScaffoldPlan(
     ...facets.map(({ definition }) => definition),
     ...policies
   ]);
-  const authoritySnapshotDigest = sha256Json({
-    configPath: input.configPath,
-    projectId: input.config.projectId,
-    composition,
-    target,
-    readSet: input.authorityReadSet
-  } as unknown as JsonValue);
   const normalizedIntent = JSON.parse(
     canonicalJson({
       schemaVersion: 1,
@@ -447,22 +476,14 @@ export function compileScaffoldPlan(
             )
           })
     } as unknown as JsonValue)
-  ) as ScaffoldIntentV1;
-  const planBody = {
-    schemaVersion: 1 as const,
-    protocolVersion: 1 as const,
+  ) as ScaffoldRenderingIntent;
+  return Object.freeze({
     compiler: Object.freeze({
       id: "@agent-teams/engineering-foundation" as const,
       version: input.foundationVersion
     }),
-    projectId: input.config.projectId,
-    authority: Object.freeze({
-      configPath: input.configPath,
-      targetCatalogPath: input.config.targetCatalogPath
-    }),
     intent: normalizedIntent,
     intentDigest: sha256Json(normalizedIntent as unknown as JsonValue),
-    authoritySnapshotDigest,
     composition: Object.freeze({
       id: composition.id,
       scaffoldProfile: profile.ref,
@@ -489,16 +510,7 @@ export function compileScaffoldPlan(
         )
       )
     }),
-    target,
-    readSet: Object.freeze(
-      [...input.authorityReadSet].toSorted((left, right) =>
-        compareStrings(left.path, right.path)
-      )
-    ),
-    requiredAdapterCapabilities: ["materialize-file/v1"] as const,
     operations,
     diagnostics: Object.freeze([])
-  };
-  const planDigest = sha256Json(planBody as unknown as JsonValue);
-  return Object.freeze({ ...planBody, planDigest });
+  });
 }

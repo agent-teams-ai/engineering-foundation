@@ -7,7 +7,7 @@ import test from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml } from "yaml";
 
-import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/index.js";
+import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/internal-rendering-regression-api.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const schemaRoot = join(
@@ -26,7 +26,12 @@ const fixtureRoot = join(
 async function schemaValidator(schemaId) {
   const [name, version] = schemaId.split("/");
   const schema = JSON.parse(
-    await readFile(join(schemaRoot, name, version + ".schema.json"), "utf8")
+    await readFile(
+      version === undefined
+        ? join(schemaRoot, name + ".schema.json")
+        : join(schemaRoot, name, version + ".schema.json"),
+      "utf8"
+    )
   );
   return new Ajv2020({ allErrors: true, strict: true }).compile(schema);
 }
@@ -56,7 +61,7 @@ async function contractFixtures() {
       intentPath: "intents/facets-forward.yaml"
     }),
     schemaValidator("scaffolding-config/v1"),
-    schemaValidator("scaffold-intent/v1"),
+    schemaValidator("scaffold-intent"),
     schemaValidator("scaffold-target-catalog/v1"),
     schemaValidator("scaffold-plan/v1")
   ]);

@@ -1,11 +1,14 @@
 import {
   applyFilesystemScaffold,
+  planScaffoldFromFile,
   readScaffoldPlanFile,
   recoverFilesystemScaffold
-} from "./index.js";
-import type { ScaffoldPlanV1, ScaffoldReceiptV1 } from "./contract/types.js";
+} from "./canonical-api.js";
+import type {
+  ScaffoldPlan,
+  ScaffoldReceipt
+} from "./contract/scaffold-contract.js";
 import { ScaffoldError } from "./scaffold-error.js";
-import { planScaffoldFromFile } from "./service.js";
 
 export interface ScaffoldCliArguments {
   readonly command: string;
@@ -14,15 +17,15 @@ export interface ScaffoldCliArguments {
   readonly configPath: string;
 }
 
-function renderPlan(plan: ScaffoldPlanV1): string {
+function renderPlan(plan: ScaffoldPlan): string {
   return `Scaffold Plan: ${plan.planDigest}\nProject: ${plan.projectId}\nComposition: ${plan.composition.id}\nTarget: ${plan.target.id} -> ${plan.target.path}\nOperations: ${plan.operations.length}\n`;
 }
 
-function renderReceipt(receipt: ScaffoldReceiptV1): string {
+function renderReceipt(receipt: ScaffoldReceipt): string {
   return `Scaffold Receipt: ${receipt.receiptDigest}\nPlan: ${receipt.planDigest}\nOutcome: ${receipt.outcome}\nOperations: ${receipt.operations.length}\n`;
 }
 
-function exitCode(receipt: ScaffoldReceiptV1): number {
+function exitCode(receipt: ScaffoldReceipt): number {
   return receipt.outcome === "applied" ||
     receipt.outcome === "already-applied" ||
     receipt.outcome === "failed-recovered"

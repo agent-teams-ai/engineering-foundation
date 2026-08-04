@@ -25,13 +25,13 @@ import {
   planScaffoldFromFile,
   readScaffoldPlanFile,
   recoverFilesystemScaffold
-} from "../packages/engineering-foundation/dist/scaffolding/index.js";
+} from "../packages/engineering-foundation/dist/scaffolding/internal-rendering-regression-api.js";
 import {
   sha256Bytes,
   sha256Json,
   sha256Text
 } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
-import { compileScaffoldPlan } from "../packages/engineering-foundation/dist/scaffolding/kernel/compiler.js";
+import { compileScaffoldPlan } from "../packages/engineering-foundation/dist/scaffolding/kernel/rendering-plan-compiler.js";
 import { ScaffoldDefinitionRegistry } from "../packages/engineering-foundation/dist/scaffolding/kernel/definition-registry.js";
 import { CONFORMANCE_FIXTURE_DEFINITIONS } from "../packages/engineering-foundation/dist/scaffolding/definitions/conformance-fixture.js";
 import { loadScaffoldCompilationInput } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-input-loader.js";
@@ -48,6 +48,12 @@ const fixtureRoot = join(
   "tests",
   "fixtures",
   "scaffolding-consumer"
+);
+const authorityFixtureRoot = join(
+  repositoryRoot,
+  "tests",
+  "fixtures",
+  "scaffolding-authority-consumer"
 );
 const goldenVectorPath = join(
   repositoryRoot,
@@ -79,9 +85,9 @@ const filesystemWorkspaceModulePath = join(
   "filesystem-workspace.js"
 );
 
-async function createConsumer() {
+async function createConsumer(sourceRoot = fixtureRoot) {
   const root = await mkdtemp(join(tmpdir(), "foundation-scaffolding-"));
-  await cp(fixtureRoot, root, { recursive: true });
+  await cp(sourceRoot, root, { recursive: true });
   return root;
 }
 
@@ -141,6 +147,7 @@ async function crashDuringApply(root, scaffoldPlan, phase, operationIndex) {
       filesystemWorkspaceModulePath,
       root,
       planPath,
+      "applyFilesystemScaffoldWithFaultInjection",
       phase,
       ...(operationIndex === undefined ? [] : [String(operationIndex)])
     ],
@@ -503,7 +510,7 @@ test("loads a valid self-contained Plan larger than the config input limit", asy
 });
 
 test("plans and applies the conformance package through the CLI", async () => {
-  const root = await createConsumer();
+  const root = await createConsumer(authorityFixtureRoot);
   try {
     const planned = spawnSync(
       process.execPath,

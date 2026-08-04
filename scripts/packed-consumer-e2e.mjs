@@ -225,7 +225,7 @@ async function assertBasePresets(fixture) {
   await writeJson(join(fixture.consumerRoot, "tsconfig.json"), {
     extends: "@agent-teams/engineering-foundation/presets/typescript/node.json",
     compilerOptions: { noEmit: true },
-    include: ["src/**/*.ts"]
+    include: ["src/**/*.ts", "type-consumer/**/*.ts"]
   });
   await runCommand(
     process.execPath,

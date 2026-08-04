@@ -1,25 +1,65 @@
-import type { ScaffoldPlanV1 } from "../../contract/types.js";
+import type { AuthorityScaffoldPlan } from "../../contract/types.js";
 import { createDefaultScaffoldRegistry } from "../../definitions/registry.js";
-import { compileScaffoldPlan } from "../../kernel/compiler.js";
-import { ScaffoldError } from "../../scaffold-error.js";
+import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
 import { installedFoundationVersion } from "./installed-foundation-version.js";
-import { loadScaffoldCompilationInputFromIntent } from "./node-input-loader.js";
+import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";
+import {
+  loadAuthorityScaffoldCompilationInputFromIntent,
+  type ScaffoldAuthorityInputFaultInjector
+} from "./node-authority-input-loader.js";
 
-export async function assertPlanMatchesConsumerAuthority(
+export type ScaffoldAuthorityAssessment =
+  | { readonly state: "current" }
+  | { readonly state: "stale" }
+  | { readonly state: "unverifiable" };
+
+async function assertPlanMatchesConsumerAuthority(
   consumerRoot: string,
-  plan: ScaffoldPlanV1
+  plan: AuthorityScaffoldPlan,
+  authorityFaultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<void> {
-  const input = await loadScaffoldCompilationInputFromIntent({
+  const input = await loadAuthorityScaffoldCompilationInputFromIntent({
     consumerRoot,
     configPath: plan.authority.configPath,
     foundationVersion: await installedFoundationVersion(),
-    intent: plan.intent
+    intent: plan.intent,
+    ...(authorityFaultInjector === undefined
+      ? {}
+      : { faultInjector: authorityFaultInjector })
   });
-  const expected = compileScaffoldPlan(input, createDefaultScaffoldRegistry());
+  const expected = compileAuthorityScaffoldPlan(
+    input,
+    createDefaultScaffoldRegistry()
+  );
   if (expected.planDigest !== plan.planDigest) {
-    throw new ScaffoldError(
-      "SCAFFOLD_PLAN_INVALID",
+    throw new ScaffoldAuthorityStaleError(
       "Scaffolding Plan was not produced by the closed compiler from current consumer authority."
     );
+  }
+}
+
+/**
+ * A source-bound authority change is stale only when the closed compiler can prove it.
+ * Input, parser, and filesystem failures are deliberately kept unverifiable.
+ */
+export async function assessScaffoldPlanAuthority(
+  consumerRoot: string,
+  plan: AuthorityScaffoldPlan,
+  faultInjector?: ScaffoldAuthorityInputFaultInjector
+): Promise<ScaffoldAuthorityAssessment> {
+  try {
+    await assertPlanMatchesConsumerAuthority(
+      consumerRoot,
+      plan,
+      faultInjector
+    );
+    return { state: "current" };
+  } catch (error) {
+    if (
+      error instanceof ScaffoldAuthorityStaleError
+    ) {
+      return { state: "stale" };
+    }
+    return { state: "unverifiable" };
   }
 }

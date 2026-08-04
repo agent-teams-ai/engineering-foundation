@@ -9,10 +9,10 @@ import {
   applyFilesystemScaffold,
   MemoryScaffoldWorkspace,
   planScaffoldFromFile
-} from "../packages/engineering-foundation/dist/scaffolding/index.js";
+} from "../packages/engineering-foundation/dist/scaffolding/internal-rendering-regression-api.js";
 import { loadScaffoldCompilationInput } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-input-loader.js";
 import { CONFORMANCE_FIXTURE_DEFINITIONS } from "../packages/engineering-foundation/dist/scaffolding/definitions/conformance-fixture.js";
-import { compileScaffoldPlan } from "../packages/engineering-foundation/dist/scaffolding/kernel/compiler.js";
+import { compileScaffoldPlan } from "../packages/engineering-foundation/dist/scaffolding/kernel/rendering-plan-compiler.js";
 import { ScaffoldDefinitionRegistry } from "../packages/engineering-foundation/dist/scaffolding/kernel/definition-registry.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 

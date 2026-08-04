@@ -4,35 +4,48 @@ export type {
   JsonObject,
   JsonPrimitive,
   JsonValue,
-  MaterializeFileOperationV1,
   RepositoryPath,
-  ScaffoldCompositionV1,
-  ScaffoldDiagnosticV1,
-  ScaffoldIntentV1,
-  ScaffoldOperationOutcome,
-  ScaffoldOperationReceiptV1,
-  ScaffoldPlanV1,
-  ScaffoldReadAssertionV1,
-  ScaffoldReceiptCommonV1,
-  ScaffoldReceiptOutcome,
-  ScaffoldReceiptV1,
-  ScaffoldingConfigV1,
-  ScaffoldTargetCatalogV1,
-  ScaffoldTargetV1,
   Sha256Digest
 } from "./contract/types.js";
+export type {
+  MaterializeFileOperation,
+  ScaffoldAppliedOperationReceipt,
+  ScaffoldAuthorityEvidence,
+  ScaffoldAuthorityReadSet,
+  ScaffoldAuthoritySourceAssertion,
+  ScaffoldAuthoritySourceRole,
+  ScaffoldAuthorityVerifier,
+  ScaffoldCompilationInput,
+  ScaffoldComposition,
+  ScaffoldDiagnostic,
+  ScaffoldIntent,
+  ScaffoldJournal,
+  ScaffoldJournalOperation,
+  ScaffoldJournalOperationState,
+  ScaffoldOperationOutcome,
+  ScaffoldOperationReceipt,
+  ScaffoldOwnerDocumentBinding,
+  ScaffoldPlan,
+  ScaffoldReadAssertion,
+  ScaffoldReceipt,
+  ScaffoldReceiptCommon,
+  ScaffoldReceiptOutcome,
+  ScaffoldSatisfiedOperationReceipt,
+  ScaffoldTarget,
+  ScaffoldTargetCatalogEntry,
+  ScaffoldTargetCatalog,
+  ScaffoldingConfig
+} from "./contract/scaffold-contract.js";
 export {
   applyFilesystemScaffold,
-  recoverFilesystemScaffold
-} from "./adapters/node/filesystem-workspace.js";
-export { readScaffoldPlanFile } from "./adapters/node/node-input-loader.js";
-export { validateScaffoldReceipt } from "./adapters/node/node-receipt-validator.js";
-export { MemoryScaffoldWorkspace } from "./adapters/memory/memory-workspace.js";
-export { assertScaffoldPlanDigest } from "./kernel/plan-validation.js";
-export { assertScaffoldReceiptDigest } from "./kernel/receipt.js";
+  assertScaffoldAuthorityEvidenceDigest,
+  assertScaffoldPlanDigest,
+  assertScaffoldReceiptDigest,
+  planScaffoldFromFile,
+  readScaffoldPlanFile,
+  recoverFilesystemScaffold,
+  validateScaffoldReceipt
+} from "./canonical-api.js";
 export { ScaffoldError } from "./scaffold-error.js";
 export type { ScaffoldErrorCode } from "./scaffold-error.js";
-export {
-  DEFAULT_SCAFFOLDING_CONFIG_PATH,
-  planScaffoldFromFile
-} from "./service.js";
+export { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffold-defaults.js";

@@ -9,7 +9,7 @@ import test from "node:test";
 import {
   applyFilesystemScaffold,
   planScaffoldFromFile
-} from "../packages/engineering-foundation/dist/scaffolding/index.js";
+} from "../packages/engineering-foundation/dist/scaffolding/internal-rendering-regression-api.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixtureRoot = join(

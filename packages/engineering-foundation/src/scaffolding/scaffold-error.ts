@@ -1,4 +1,4 @@
-import type { ScaffoldDiagnosticV1 } from "./contract/types.js";
+import type { ScaffoldDiagnostic } from "./contract/scaffold-contract.js";
 
 export type ScaffoldErrorCode =
   | "SCAFFOLD_APPLY_CONFLICT"
@@ -9,12 +9,12 @@ export type ScaffoldErrorCode =
 
 export class ScaffoldError extends Error {
   readonly code: ScaffoldErrorCode;
-  readonly diagnostics: readonly ScaffoldDiagnosticV1[];
+  readonly diagnostics: readonly ScaffoldDiagnostic[];
 
   constructor(
     code: ScaffoldErrorCode,
     message: string,
-    diagnostics: readonly ScaffoldDiagnosticV1[] = [],
+    diagnostics: readonly ScaffoldDiagnostic[] = [],
     options?: ErrorOptions
   ) {
     super(message, options);

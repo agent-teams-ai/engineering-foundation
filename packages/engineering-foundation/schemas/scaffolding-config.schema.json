@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/scaffolding-config",
+  "title": "Scaffolding Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "projectId", "targetCatalogPath", "compositions"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "projectId": { "$ref": "#/$defs/id" },
+    "targetCatalogPath": { "$ref": "#/$defs/repositoryPath" },
+    "compositions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": { "$ref": "#/$defs/composition" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[a-z0-9][a-z0-9._/-]*$"
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$"
+    },
+    "definitionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "contractVersion": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
+      }
+    },
+    "configuredDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref"],
+      "properties": {
+        "ref": { "$ref": "#/$defs/definitionRef" },
+        "parameters": { "$ref": "#/$defs/jsonObject" }
+      }
+    },
+    "facetPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fixed": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/configuredDefinition" } },
+        "default": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/configuredDefinition" } },
+        "allowed": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/definitionRef" } }
+      }
+    },
+    "composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scaffoldProfile", "recipe", "targetRoles", "authorityVerifiers", "policies"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "scaffoldProfile": { "$ref": "#/$defs/configuredDefinition" },
+        "recipe": { "$ref": "#/$defs/configuredDefinition" },
+        "targetRoles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "authorityVerifiers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/authorityVerifier" }
+        },
+        "fixedRecipeParameters": { "$ref": "#/$defs/jsonObject" },
+        "defaultRecipeParameters": { "$ref": "#/$defs/jsonObject" },
+        "facets": { "$ref": "#/$defs/facetPolicy" },
+        "policies": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "$ref": "#/$defs/configuredDefinition" }
+        }
+      }
+    },
+    "authorityVerifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion", "parameters"],
+      "properties": {
+        "id": { "const": "foundation.markdown-yaml-owner" },
+        "contractVersion": { "const": 1 },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allowedStatuses", "documentRoots"],
+          "properties": {
+            "allowedStatuses": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/id" }
+            },
+            "documentRoots": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/repositoryPath" }
+            }
+          }
+        }
+      }
+    },
+    "jsonObject": {
+      "type": "object",
+      "maxProperties": 128,
+      "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+    },
+    "jsonValue": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+        { "type": "string", "maxLength": 65536 },
+        { "type": "array", "maxItems": 1024, "items": { "$ref": "#/$defs/jsonValue" } },
+        { "$ref": "#/$defs/jsonObject" }
+      ]
+    }
+  }
+}

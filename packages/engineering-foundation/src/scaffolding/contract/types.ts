@@ -1,3 +1,5 @@
+export type { AuthorityScaffoldReceipt } from "./receipt-authority-types.js";
+
 export type JsonPrimitive = boolean | null | number | string;
 export type JsonValue =
   | JsonPrimitive
@@ -18,7 +20,7 @@ export interface ConfiguredDefinition {
   readonly parameters?: JsonObject;
 }
 
-export interface ScaffoldCompositionV1 {
+export interface ScaffoldRenderingComposition {
   readonly id: string;
   readonly scaffoldProfile: ConfiguredDefinition;
   readonly recipe: ConfiguredDefinition;
@@ -33,6 +35,8 @@ export interface ScaffoldCompositionV1 {
   readonly policies: readonly ConfiguredDefinition[];
 }
 
+interface ScaffoldCompositionV1 extends ScaffoldRenderingComposition {}
+
 export interface ScaffoldingConfigV1 {
   readonly schemaVersion: 1;
   readonly projectId: string;
@@ -40,7 +44,32 @@ export interface ScaffoldingConfigV1 {
   readonly compositions: readonly ScaffoldCompositionV1[];
 }
 
-export interface ScaffoldIntentV1 {
+/**
+ * A closed, Foundation-owned verifier selected by a consumer composition.
+ * Consumer input can constrain a verifier, but cannot provide executable
+ * verification behavior.
+ */
+export interface ScaffoldAuthorityVerifierV1 {
+  readonly id: "foundation.markdown-yaml-owner";
+  readonly contractVersion: 1;
+  readonly parameters: {
+    readonly allowedStatuses: readonly string[];
+    readonly documentRoots: readonly string[];
+  };
+}
+
+interface AuthorityScaffoldComposition extends ScaffoldRenderingComposition {
+  readonly authorityVerifiers: readonly [ScaffoldAuthorityVerifierV1];
+}
+
+export interface AuthorityScaffoldingConfig {
+  readonly schemaVersion: 2;
+  readonly projectId: string;
+  readonly targetCatalogPath: RepositoryPath;
+  readonly compositions: readonly AuthorityScaffoldComposition[];
+}
+
+export interface ScaffoldRenderingIntent {
   readonly schemaVersion: 1;
   readonly compositionId: string;
   readonly targetRef: string;
@@ -48,11 +77,16 @@ export interface ScaffoldIntentV1 {
   readonly facets?: readonly ConfiguredDefinition[];
 }
 
-export interface ScaffoldTargetV1 {
+export interface ScaffoldIntentV1 extends ScaffoldRenderingIntent {}
+
+export interface ScaffoldRenderingTarget {
   readonly id: string;
   readonly role: string;
   readonly path: RepositoryPath;
   readonly packageName: string;
+}
+
+interface ScaffoldTargetV1 extends ScaffoldRenderingTarget {
   readonly ownerDocument?: string;
 }
 
@@ -61,7 +95,21 @@ export interface ScaffoldTargetCatalogV1 {
   readonly packages: readonly ScaffoldTargetV1[];
 }
 
-export interface ScaffoldDiagnosticV1 {
+interface AuthorityScaffoldOwnerDocumentBinding {
+  readonly id: string;
+  readonly path: RepositoryPath;
+}
+
+export interface AuthorityScaffoldTarget extends ScaffoldRenderingTarget {
+  readonly ownerDocument: AuthorityScaffoldOwnerDocumentBinding;
+}
+
+export interface AuthorityScaffoldTargetCatalog {
+  readonly version: 2;
+  readonly packages: readonly AuthorityScaffoldTarget[];
+}
+
+export interface ScaffoldRenderingDiagnostic {
   readonly ruleId: string;
   readonly severity: "error" | "info" | "warning";
   readonly phase:
@@ -76,6 +124,8 @@ export interface ScaffoldDiagnosticV1 {
   readonly remediation: string;
 }
 
+export interface ScaffoldDiagnosticV1 extends ScaffoldRenderingDiagnostic {}
+
 export interface ScaffoldReadAssertionV1 {
   readonly path: RepositoryPath;
   readonly state: "file";
@@ -83,7 +133,49 @@ export interface ScaffoldReadAssertionV1 {
   readonly size: number;
 }
 
-export interface MaterializeFileOperationV1 {
+export type AuthorityScaffoldReadSet = readonly [
+  ScaffoldReadAssertionV1,
+  ScaffoldReadAssertionV1,
+  ScaffoldReadAssertionV1
+];
+
+type ScaffoldAuthoritySourceRoleV1 =
+  | "config"
+  | "owner-document"
+  | "target-catalog";
+
+export interface ScaffoldAuthoritySourceAssertionV1 {
+  readonly role: ScaffoldAuthoritySourceRoleV1;
+  readonly assertion: ScaffoldReadAssertionV1;
+}
+
+/**
+ * Evidence is an immutable result of Foundation re-reading the consumer's
+ * canonical sources. It is not a consumer-produced approval assertion.
+ */
+export interface ScaffoldAuthorityEvidenceV1 {
+  readonly schemaVersion: 1;
+  readonly verifier: {
+    readonly id: "foundation.markdown-yaml-owner";
+    readonly contractVersion: 1;
+  };
+  readonly projectId: string;
+  readonly targetRef: string;
+  readonly targetIdentityDigest: Sha256Digest;
+  readonly ownerDocument: {
+    readonly id: string;
+    readonly path: RepositoryPath;
+    readonly status: string;
+  };
+  readonly sources: readonly [
+    ScaffoldAuthoritySourceAssertionV1 & { readonly role: "config" },
+    ScaffoldAuthoritySourceAssertionV1 & { readonly role: "owner-document" },
+    ScaffoldAuthoritySourceAssertionV1 & { readonly role: "target-catalog" }
+  ];
+  readonly evidenceDigest: Sha256Digest;
+}
+
+export interface ScaffoldRenderingOperation {
   readonly id: string;
   readonly kind: "materialize-file";
   readonly path: RepositoryPath;
@@ -98,13 +190,45 @@ export interface MaterializeFileOperationV1 {
   readonly causes: readonly string[];
 }
 
+export interface MaterializeFileOperationV1 extends ScaffoldRenderingOperation {}
+
+export interface ScaffoldRenderingCompiler {
+  readonly id: "@agent-teams/engineering-foundation";
+  readonly version: string;
+}
+
+export interface ScaffoldRenderingCompositionSelection {
+  readonly id: string;
+  readonly scaffoldProfile: DefinitionRef;
+  readonly recipe: DefinitionRef;
+  readonly facets: readonly DefinitionRef[];
+  readonly policies: readonly DefinitionRef[];
+}
+
+export interface ScaffoldRenderingDefinitionEvidence {
+  readonly kind: "facet" | "policy" | "recipe" | "scaffold-profile";
+  readonly ref: DefinitionRef;
+  readonly contractDigest: Sha256Digest;
+}
+
+export interface ScaffoldRenderingResolution {
+  readonly profileParameters: JsonObject;
+  readonly recipeParameters: JsonObject;
+  readonly facets: readonly {
+    readonly ref: DefinitionRef;
+    readonly parameters: JsonObject;
+  }[];
+  readonly policies: readonly {
+    readonly ref: DefinitionRef;
+    readonly parameters: JsonObject;
+    readonly outcome: "passed";
+  }[];
+}
+
 export interface ScaffoldPlanV1 {
   readonly schemaVersion: 1;
   readonly protocolVersion: 1;
-  readonly compiler: {
-    readonly id: "@agent-teams/engineering-foundation";
-    readonly version: string;
-  };
+  readonly compiler: ScaffoldRenderingCompiler;
   readonly projectId: string;
   readonly authority: {
     readonly configPath: RepositoryPath;
@@ -113,31 +237,9 @@ export interface ScaffoldPlanV1 {
   readonly intent: ScaffoldIntentV1;
   readonly intentDigest: Sha256Digest;
   readonly authoritySnapshotDigest: Sha256Digest;
-  readonly composition: {
-    readonly id: string;
-    readonly scaffoldProfile: DefinitionRef;
-    readonly recipe: DefinitionRef;
-    readonly facets: readonly DefinitionRef[];
-    readonly policies: readonly DefinitionRef[];
-  };
-  readonly definitions: readonly {
-    readonly kind: "facet" | "policy" | "recipe" | "scaffold-profile";
-    readonly ref: DefinitionRef;
-    readonly contractDigest: Sha256Digest;
-  }[];
-  readonly resolved: {
-    readonly profileParameters: JsonObject;
-    readonly recipeParameters: JsonObject;
-    readonly facets: readonly {
-      readonly ref: DefinitionRef;
-      readonly parameters: JsonObject;
-    }[];
-    readonly policies: readonly {
-      readonly ref: DefinitionRef;
-      readonly parameters: JsonObject;
-      readonly outcome: "passed";
-    }[];
-  };
+  readonly composition: ScaffoldRenderingCompositionSelection;
+  readonly definitions: readonly ScaffoldRenderingDefinitionEvidence[];
+  readonly resolved: ScaffoldRenderingResolution;
   readonly target: ScaffoldTargetV1;
   readonly readSet: readonly ScaffoldReadAssertionV1[];
   readonly requiredAdapterCapabilities: readonly ["materialize-file/v1"];
@@ -146,6 +248,32 @@ export interface ScaffoldPlanV1 {
   readonly planDigest: Sha256Digest;
 }
 
+export interface AuthorityScaffoldPlan {
+  readonly schemaVersion: 2;
+  readonly protocolVersion: 2;
+  readonly compiler: ScaffoldRenderingCompiler;
+  readonly projectId: string;
+  readonly authority: {
+    readonly configPath: RepositoryPath;
+    readonly targetCatalogPath: RepositoryPath;
+  };
+  readonly authorityEvidence: ScaffoldAuthorityEvidenceV1;
+  readonly intent: ScaffoldRenderingIntent;
+  readonly intentDigest: Sha256Digest;
+  readonly authoritySnapshotDigest: Sha256Digest;
+  readonly composition: ScaffoldRenderingCompositionSelection;
+  readonly definitions: readonly ScaffoldRenderingDefinitionEvidence[];
+  readonly resolved: ScaffoldRenderingResolution;
+  readonly target: AuthorityScaffoldTarget;
+  readonly readSet: AuthorityScaffoldReadSet;
+  readonly requiredAdapterCapabilities: readonly ["materialize-file/v1"];
+  readonly operations: readonly ScaffoldRenderingOperation[];
+  readonly diagnostics: readonly ScaffoldRenderingDiagnostic[];
+  readonly planDigest: Sha256Digest;
+}
+
+export type ScaffoldPlan = ScaffoldPlanV1 | AuthorityScaffoldPlan;
+
 export type ScaffoldOperationOutcome =
   | "already-satisfied"
   | "applied"
@@ -153,10 +281,21 @@ export type ScaffoldOperationOutcome =
   | "not-applied"
   | "recovered";
 
+export type AuthorityScaffoldOperationOutcome =
+  | ScaffoldOperationOutcome
+  | "unobserved";
+
 export interface ScaffoldOperationReceiptV1 {
   readonly operationId: string;
   readonly path: RepositoryPath;
   readonly outcome: ScaffoldOperationOutcome;
+  readonly resultDigest?: Sha256Digest;
+}
+
+export interface AuthorityScaffoldOperationReceipt {
+  readonly operationId: string;
+  readonly path: RepositoryPath;
+  readonly outcome: AuthorityScaffoldOperationOutcome;
   readonly resultDigest?: Sha256Digest;
 }
 
@@ -167,7 +306,11 @@ export type ScaffoldReceiptOutcome =
   | "recovery-required"
   | "rejected";
 
-export interface ScaffoldReceiptCommonV1 {
+export type AuthorityScaffoldReceiptOutcome =
+  | ScaffoldReceiptOutcome
+  | "authority-stale";
+
+interface ScaffoldReceiptCommonV1 {
   readonly schemaVersion: 1;
   readonly protocolVersion: 1;
   readonly planDigest: Sha256Digest;
@@ -337,6 +480,25 @@ export type ScaffoldReceiptV1 =
           }
       ));
 
+type AuthorityScaffoldJournalOperationState =
+  | "pending"
+  | "publishing"
+  | "published"
+  | "preexisting";
+
+export interface AuthorityScaffoldJournalOperation {
+  readonly operationId: string;
+  readonly path: RepositoryPath;
+  readonly state: AuthorityScaffoldJournalOperationState;
+}
+
+export interface AuthorityScaffoldJournal {
+  readonly schemaVersion: 2;
+  readonly state: "PREPARED";
+  readonly plan: AuthorityScaffoldPlan;
+  readonly operations: readonly AuthorityScaffoldJournalOperation[];
+}
+
 export interface ScaffoldCompilationInput {
   readonly foundationVersion: string;
   readonly configPath: RepositoryPath;
@@ -344,6 +506,16 @@ export interface ScaffoldCompilationInput {
   readonly intent: ScaffoldIntentV1;
   readonly catalog: ScaffoldTargetCatalogV1;
   readonly authorityReadSet: readonly ScaffoldReadAssertionV1[];
+}
+
+export interface AuthorityScaffoldCompilationInput {
+  readonly foundationVersion: string;
+  readonly configPath: RepositoryPath;
+  readonly config: AuthorityScaffoldingConfig;
+  readonly intent: ScaffoldRenderingIntent;
+  readonly catalog: AuthorityScaffoldTargetCatalog;
+  readonly authorityEvidence: ScaffoldAuthorityEvidenceV1;
+  readonly authorityReadSet: AuthorityScaffoldReadSet;
 }
 
 export interface ScaffoldFileContribution {

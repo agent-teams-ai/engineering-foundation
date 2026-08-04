@@ -6,7 +6,7 @@ import type {
   JsonObject,
   JsonValue,
   ScaffoldFileContribution,
-  ScaffoldTargetV1,
+  ScaffoldRenderingTarget,
   Sha256Digest
 } from "../contract/types.js";
 import { ScaffoldError } from "../scaffold-error.js";
@@ -19,7 +19,7 @@ export type ScaffoldDefinitionKind =
   | "scaffold-profile";
 
 export interface ScaffoldDefinitionContext {
-  readonly target: ScaffoldTargetV1;
+  readonly target: ScaffoldRenderingTarget;
   readonly profileParameters: JsonObject;
   readonly recipeParameters: JsonObject;
   readonly facetParameters: JsonObject;

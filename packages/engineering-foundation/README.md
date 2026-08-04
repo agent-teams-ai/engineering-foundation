@@ -8,8 +8,12 @@ tooling. It is not a production runtime dependency.
 
 It also exposes a closed deterministic scaffolding kernel through
 `@agent-teams/engineering-foundation/scaffolding`. Consumers provide strict
-data-only Intent, Composition, and target-catalog files. They cannot provide
-templates, hooks, callbacks, commands, or definition plugins.
+data-only Intent, Composition, target-catalog, and owner-document files. The
+catalog binds each target to one owner document ID. Foundation resolves that ID
+from bounded document roots, records the derived path, and independently
+verifies the allowed owner status before planning, applying, or recovering.
+Consumers cannot provide templates, hooks, callbacks, commands, or definition
+plugins.
 
 Consumer CI should run both policy gates:
 

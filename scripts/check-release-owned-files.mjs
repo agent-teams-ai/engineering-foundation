@@ -282,9 +282,11 @@ export function releaseOwnedFileViolations(
   return [
     ...new Set(
       changes.flatMap((change) =>
-        protectedPaths(change).filter((path) =>
-          RELEASE_OWNED_PREFIXES.some((prefix) => path.startsWith(prefix)),
-        ),
+        change.status === "A" || change.status === "C"
+          ? []
+          : protectedPaths(change).filter((path) =>
+              RELEASE_OWNED_PREFIXES.some((prefix) => path.startsWith(prefix)),
+            ),
       ),
     ),
   ].toSorted();

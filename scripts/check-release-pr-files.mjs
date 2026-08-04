@@ -6,6 +6,8 @@ import { isDeepStrictEqual, promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 const CHANGESET_PATTERN = /^\.changeset\/[^/]+\.md$/u;
+const CONTRACT_BASELINE_PATTERN =
+  /^architecture\/contracts\/(?:(?!\.{1,2}\/)[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:json|ya?ml)$/u;
 const PUBLIC_API_PATTERN = /^architecture\/public-api\/[^/]+\.json$/u;
 const PACKAGE_MANIFEST = "packages/engineering-foundation/package.json";
 const PACKAGE_CHANGELOG = "packages/engineering-foundation/CHANGELOG.md";
@@ -41,7 +43,10 @@ function isAllowedReleaseFile(file) {
   if (CHANGESET_PATTERN.test(file.filename)) {
     return file.status === "removed";
   }
-  if (PUBLIC_API_PATTERN.test(file.filename)) {
+  if (
+    PUBLIC_API_PATTERN.test(file.filename) ||
+    CONTRACT_BASELINE_PATTERN.test(file.filename)
+  ) {
     return file.status === "added" || file.status === "modified";
   }
   if (file.filename === PACKAGE_MANIFEST || file.filename === PACKAGE_CHANGELOG) {

@@ -132,6 +132,8 @@ test("release ReviewGate permits only version and generated changelog changes", 
 test("release ReviewGate accepts only normalized Changesets output", () => {
   const validFiles = [
     { filename: ".changeset/portable-agent-workflow.md", status: "removed" },
+    { filename: "architecture/contracts/protobuf/control.json", status: "modified" },
+    { filename: "architecture/contracts/events.yaml", status: "added" },
     { filename: "architecture/public-api/engineering-foundation.json", status: "modified" },
     { filename: "packages/engineering-foundation/CHANGELOG.md", status: "modified" },
     { filename: "packages/engineering-foundation/package.json", status: "modified" },
@@ -142,6 +144,13 @@ test("release ReviewGate accepts only normalized Changesets output", () => {
     releasePullRequestFileViolations([
       ...validFiles,
       { filename: "packages/engineering-foundation/src/backdoor.ts", status: "added" },
+    ])[0],
+    /forbidden change/u,
+  );
+  assert.match(
+    releasePullRequestFileViolations([
+      ...validFiles,
+      { filename: "architecture/contracts/../escape.json", status: "added" },
     ])[0],
     /forbidden change/u,
   );

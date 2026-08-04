@@ -55,10 +55,8 @@ test("restricts released contract and API baseline mutation to the Changesets re
       "agent-teams-ai/engineering-foundation",
     ),
     [
-      "architecture/contracts/new-contract.json",
       "architecture/contracts/released-events.json",
       "architecture/public-api/library.json",
-      "architecture/public-api/new-library.json",
     ],
   );
   assert.deepEqual(

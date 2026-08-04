@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -46,6 +46,14 @@ function assertUnavailable(error) {
 function assertCancelled(error) {
   assert.ok(error instanceof CapabilityInputError);
   assert.equal(error.problem.code, "EXECUTION_CANCELLED");
+  return true;
+}
+
+function assertResourceLimit(error) {
+  assert.ok(error instanceof CapabilityInputError);
+  assert.equal(error.problem.code, "DOCUMENTATION_RESOURCE_LIMIT_EXCEEDED");
+  assert.equal(error.problem.phase, "documentation-observation");
+  assert.equal(error.problem.retryable, false);
   return true;
 }
 
@@ -103,6 +111,126 @@ test("propagates unavailable Markdown directory reads as retryable failures", as
         operations
       ),
       assertUnavailable
+    );
+  });
+});
+
+test("revalidates a Markdown directory before enumeration", async () => {
+  await withRepository(async (root) => {
+    const markdownRoot = join(root, "docs");
+    const directoryMetadata = await nodeFilesystemMarkdownOperations.lstat(markdownRoot);
+    const externalRoot = await mkdtemp(join(tmpdir(), "foundation-documentation-external-"));
+    const externalLink = join(root, "external-link");
+    await symlink(externalRoot, externalLink, "dir");
+    const symbolicLinkMetadata = await nodeFilesystemMarkdownOperations.lstat(externalLink);
+    let rootInspections = 0;
+    let rootReads = 0;
+    const operations = filesystem({
+      async lstat(path) {
+        if (path === markdownRoot) {
+          rootInspections += 1;
+          return rootInspections >= 3 ? symbolicLinkMetadata : directoryMetadata;
+        }
+        return nodeFilesystemMarkdownOperations.lstat(path);
+      },
+      async readdir(path, ...arguments_) {
+        if (path === markdownRoot) {
+          rootReads += 1;
+        }
+        return nodeFilesystemMarkdownOperations.readdir(path, ...arguments_);
+      }
+    });
+    try {
+      const observation = await observeFilesystemMarkdownTree(
+        { consumerRoot: root, roots: ["docs"] },
+        new FilesystemMarkdownDocumentReader(operations),
+        operations
+      );
+      assert.equal(rootReads, 0);
+      assert.equal(observation.documents.length, 0);
+      assert.equal(observation.issues[0]?.kind, "symbolic-link");
+    } finally {
+      await rm(externalLink, { force: true });
+      await rm(externalRoot, { force: true, recursive: true });
+    }
+  });
+});
+
+test("bounds aggregate Markdown observation bytes", async () => {
+  await withRepository(async (root) => {
+    for (let index = 0; index < 8; index += 1) {
+      await writeFile(join(root, "docs", `bounded-${index}.md`), "# Bounded\n", "utf8");
+    }
+    const operations = filesystem({
+      async lstat(path) {
+        const metadata = await nodeFilesystemMarkdownOperations.lstat(path);
+        if (!path.endsWith(".md")) {
+          return metadata;
+        }
+        return new Proxy(metadata, {
+          get(target, property) {
+            return property === "size"
+              ? 4 * 1024 * 1024
+              : Reflect.get(target, property, target);
+          }
+        });
+      }
+    });
+
+    await assert.rejects(
+      observeFilesystemMarkdownTree(
+        { consumerRoot: root, roots: ["docs"] },
+        new FilesystemMarkdownDocumentReader(operations),
+        operations
+      ),
+      assertResourceLimit
+    );
+  });
+});
+
+test("bounds aggregate Markdown bytes from contained reads after metadata races", async () => {
+  await withRepository(async (root) => {
+    for (let index = 0; index < 9; index += 1) {
+      await writeFile(join(root, "docs", `raced-${index}.md`), "# Small\n", "utf8");
+    }
+    const largeSource = " ".repeat(4 * 1024 * 1024);
+    const reader = {
+      reset() {},
+      async read(context, path) {
+        return {
+          anchorObservations: [],
+          frontmatter: { endOffset: 0, kind: "absent" },
+          headings: [],
+          references: [],
+          repositoryPath: path.slice(context.canonicalRoot.length + 1),
+          source: largeSource
+        };
+      }
+    };
+
+    await assert.rejects(
+      observeFilesystemMarkdownTree(
+        { consumerRoot: root, roots: ["docs"] },
+        reader,
+        filesystem()
+      ),
+      assertResourceLimit
+    );
+  });
+});
+
+test("rejects pathological Markdown structure before AST construction", async () => {
+  await withRepository(async (root) => {
+    const path = join(root, "docs", "README.md");
+    await writeFile(path, "[".repeat(25_001), "utf8");
+    const operations = filesystem();
+    const context = {
+      canonicalRoot: root,
+      consumerRoot: root
+    };
+    await assert.rejects(
+      new FilesystemMarkdownDocumentReader(operations).read(context, path),
+      assertResourceLimit
     );
   });
 });

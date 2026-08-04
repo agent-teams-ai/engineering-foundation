@@ -31,6 +31,7 @@ boundaries:
         - foundation.composition
         - foundation.core
         - foundation.local-mode
+        - foundation.process-execution
         - foundation.schema-validation
         - foundation.scaffolding.composition
         - foundation.scaffolding.core
@@ -109,10 +110,10 @@ boundaries:
       boundaries:
         - capability.repository-agent-workflow.application
         - foundation.core
+        - foundation.process-execution
         - foundation.repository-input
       packages: []
       builtins:
-        - node:child_process
         - node:fs/promises
         - node:path
       runtimeReferences: []
@@ -270,17 +271,15 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.process-execution
         - foundation.scaffolding.composition
       packages:
         - proper-lockfile
         - yaml
       builtins:
-        - node:child_process
-        - node:events
         - node:fs/promises
         - node:module
         - node:path
-        - node:timers/promises
         - node:url
         - node:util
       runtimeReferences:
@@ -292,6 +291,22 @@ boundaries:
       - packages/engineering-foundation/src/local-mode/service.ts
       - packages/engineering-foundation/src/local-mode/types.ts
       - packages/engineering-foundation/src/package-self-check.ts
+  - id: foundation.process-execution
+    roots:
+      - packages/engineering-foundation/src/process-execution
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins:
+        - node:child_process
+        - node:events
+        - node:timers/promises
+        - node:url
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/types.ts
   - id: foundation.workspace-inventory.application
     roots:
       - packages/engineering-foundation/src/workspace-inventory/application

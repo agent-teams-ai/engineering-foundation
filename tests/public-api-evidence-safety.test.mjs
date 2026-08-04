@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdir, readFile, readdir, symlink, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -23,6 +24,23 @@ const cliPath = join(
   "dist",
   "cli.js",
 );
+const stagingDirectoryPrefix = ".agent-teams-public-api-stage-";
+
+async function stagingDirectories() {
+  return new Set(
+    (await readdir(tmpdir())).filter((entry) =>
+      entry.startsWith(stagingDirectoryPrefix)
+    ),
+  );
+}
+
+async function assertNoNewStagingDirectories(previous) {
+  const current = await stagingDirectories();
+  assert.deepEqual(
+    [...current].filter((entry) => !previous.has(entry)),
+    [],
+  );
+}
 
 function v1Baseline() {
   return {
@@ -155,7 +173,7 @@ for (let attempt = 0; attempt < 5000; attempt += 1) {
   const stage = names.find((name) => name.startsWith(".agent-teams-public-api-stage-"));
   if (stage !== undefined) {
     try {
-      await stat(join(stageParent, stage, "dist", "index.d.ts"));
+      await stat(join(stageParent, stage, "packages", "library", "dist", "index.d.ts"));
       await writeFile(target, "export declare function stable(value: number): string;\\n");
       await writeFile(mutatedPath, "mutated");
       process.exit(0);
@@ -169,7 +187,7 @@ process.exit(1);
     );
     const watcher = spawn(process.execPath, [
       watcherPath,
-      dirname(packageDirectory),
+      tmpdir(),
       readyPath,
       declarationPath,
       mutatedPath,
@@ -198,6 +216,7 @@ process.exit(1);
 
 test("resolves strict package-local declaration dependencies without retaining staging files", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
+    const stagesBefore = await stagingDirectories();
     const packageDirectory = join(consumerRoot, "packages", "library");
     const dependencyStore = join(
       consumerRoot,
@@ -239,12 +258,7 @@ test("resolves strict package-local declaration dependencies without retaining s
 
     const result = check(consumerRoot);
     assert.equal(result.result.status, 0, JSON.stringify(result.report));
-    assert.equal(
-      (await readdir(dirname(packageDirectory))).some((entry) =>
-        entry.startsWith(".agent-teams-public-api-stage-")
-      ),
-      false,
-    );
+    await assertNoNewStagingDirectories(stagesBefore);
   });
 });
 
@@ -278,8 +292,89 @@ test("preserves root tsconfig extends paths in the staged package sibling", asyn
   });
 });
 
+test("extracts from staged root compiler configuration after the source mutates", async () => {
+  await withPublicApiFixture(async (consumerRoot) => {
+    const packageDirectory = join(consumerRoot, "packages", "library");
+    const rootTsconfigPath = join(consumerRoot, "tsconfig.json");
+    const watcherPath = join(consumerRoot, "mutate-root-tsconfig-after-stage.mjs");
+    const readyPath = join(packageDirectory, "root-watcher-ready");
+    await writeFile(
+      rootTsconfigPath,
+      `${JSON.stringify({
+        compilerOptions: {
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          strict: true,
+          target: "ES2024",
+        },
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    await writeFile(
+      join(packageDirectory, "tsconfig.json"),
+      `${JSON.stringify({
+        extends: "../../tsconfig.json",
+        include: ["dist/index.d.ts"],
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    await writeFile(
+      watcherPath,
+      `import { readFile, readdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+const stageParent = process.argv[2];
+const readyPath = process.argv[3];
+const target = process.argv[4];
+await writeFile(readyPath, "ready");
+for (let attempt = 0; attempt < 5000; attempt += 1) {
+  const names = await readdir(stageParent);
+  const stage = names.find((name) => name.startsWith(".agent-teams-public-api-stage-"));
+  if (stage !== undefined) {
+    try {
+      const source = await readFile(join(stageParent, stage, "tsconfig.json"), "utf8");
+      if (source.includes("ES2024")) {
+        await writeFile(target, "{ invalid json");
+        process.exit(0);
+      }
+    } catch {}
+  }
+  await new Promise((resolve) => setTimeout(resolve, 1));
+}
+process.exit(1);
+`,
+      "utf8",
+    );
+    const watcher = spawn(process.execPath, [
+      watcherPath,
+      tmpdir(),
+      readyPath,
+      rootTsconfigPath,
+    ]);
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      try {
+        await readFile(readyPath, "utf8");
+        break;
+      } catch {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 5);
+        });
+      }
+    }
+
+    const result = check(consumerRoot);
+    const watcherExit = await new Promise((resolve) => {
+      watcher.once("exit", resolve);
+    });
+
+    assert.equal(watcherExit, 0);
+    assert.equal(await readFile(rootTsconfigPath, "utf8"), "{ invalid json");
+    assert.equal(result.result.status, 0, JSON.stringify(result.report));
+  });
+});
+
 test("cleans staged package input after API extraction fails", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
+    const stagesBefore = await stagingDirectories();
     const packageDirectory = join(consumerRoot, "packages", "library");
     await writeFile(
       join(packageDirectory, "dist", "index.d.ts"),
@@ -290,11 +385,6 @@ test("cleans staged package input after API extraction fails", async () => {
     const result = check(consumerRoot);
 
     assert.notEqual(result.result.status, 0);
-    assert.equal(
-      (await readdir(dirname(packageDirectory))).some((entry) =>
-        entry.startsWith(".agent-teams-public-api-stage-")
-      ),
-      false,
-    );
+    await assertNoNewStagingDirectories(stagesBefore);
   });
 });

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -64,6 +64,32 @@ async function invocations(consumerRoot) {
   return source.trim().split("\n").map((line) => JSON.parse(line));
 }
 
+async function waitForProcessId(path) {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    try {
+      const pid = Number.parseInt(await readFile(path, "utf8"), 10);
+      if (Number.isSafeInteger(pid) && pid > 0) {
+        return pid;
+      }
+    } catch {
+      // The producer may not have created the synchronization file yet.
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+  }
+  throw new Error(`Timed out waiting for a process ID in ${path}.`);
+}
+
+function processIsRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 test("accepts one canonical instruction source with portable adapters", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
     const { result, report } = check(consumerRoot);
@@ -98,6 +124,80 @@ test("executes pnpm through its shell-free package entrypoint", async () => {
   } finally {
     await rm(consumerRoot, { force: true, recursive: true });
   }
+});
+
+test("SIGTERM cancels the changed workflow and its retained process tree", async () => {
+  if (process.platform === "win32") {
+    return;
+  }
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    const manifestPath = join(consumerRoot, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.scripts["lint:fast:files"] = "node scripts/never-exit.mjs";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    await writeFile(
+      join(consumerRoot, "scripts", "never-exit.mjs"),
+      `import { spawn } from "node:child_process";
+import { writeFile } from "node:fs/promises";
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+  stdio: "ignore"
+});
+descendant.once("exit", () => process.exit());
+await writeFile(".fixture-descendant.pid", String(descendant.pid));
+setInterval(() => {}, 1000);
+`,
+      "utf8",
+    );
+    initializeRepository(consumerRoot);
+    await writeFile(join(consumerRoot, "src", "index.ts"), "export const fixture = false;\n");
+
+    const command = spawn(
+      process.execPath,
+      [
+        cliPath,
+        "agent-workflow",
+        "changed",
+        "--base",
+        "HEAD",
+        "--consumer",
+        consumerRoot,
+        "--format",
+        "json",
+      ],
+      { encoding: "utf8" },
+    );
+    let stderr = "";
+    command.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    let descendantPid;
+    try {
+      descendantPid = await waitForProcessId(
+        join(consumerRoot, ".fixture-descendant.pid"),
+      );
+      const closed = new Promise((resolve) => {
+        command.once("close", resolve);
+      });
+      assert.equal(command.kill("SIGTERM"), true);
+      const exitCode = await closed;
+      for (let attempt = 0; attempt < 100 && processIsRunning(descendantPid); attempt += 1) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 10);
+        });
+      }
+
+      assert.equal(exitCode, 130, stderr);
+      assert.match(stderr, /PROCESS_CANCELLED/u);
+      assert.equal(processIsRunning(descendantPid), false);
+    } finally {
+      if (descendantPid !== undefined && processIsRunning(descendantPid)) {
+        process.kill(descendantPid, "SIGKILL");
+      }
+      if (command.exitCode === null && command.signalCode === null) {
+        command.kill("SIGKILL");
+      }
+    }
+  });
 });
 
 test("reports broken adapters, undocumented commands, and missing scripts", async () => {

@@ -12,6 +12,7 @@ import { runFoundationCheck } from "./check-runner.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
+import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { loadFoundationConfig } from "./foundation-config.js";
 import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
 import { NodeProcessRunner } from "./local-mode/process-runner.js";
@@ -393,6 +394,9 @@ try {
   } else if (error instanceof CapabilityInputError) {
     process.stderr.write(`${error.problem.code}: ${error.problem.message}\n`);
     process.exitCode = 2;
+  } else if (error instanceof ProcessCancellationError) {
+    process.stderr.write(`PROCESS_CANCELLED: ${error.message}\n`);
+    process.exitCode = 130;
   } else if (error instanceof FoundationError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
     process.exitCode = error.code === "CONSUMER_INVALID" ? 2 : 1;

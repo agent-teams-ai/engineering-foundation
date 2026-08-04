@@ -25,11 +25,11 @@ function isMissingPath(error: unknown): boolean {
  * Keeps package-local resolution intact without copying dependencies into the
  * snapshot. A sibling stage has the same relative depth as the source package.
  */
-export async function linkStagedPackageNodeModules(input: {
-  readonly sourcePackageRoot: string;
-  readonly stagedPackageRoot: string;
+export async function linkStagedNodeModules(input: {
+  readonly sourceDirectory: string;
+  readonly stagedDirectory: string;
 }): Promise<void> {
-  const sourceNodeModules = join(input.sourcePackageRoot, "node_modules");
+  const sourceNodeModules = join(input.sourceDirectory, "node_modules");
   try {
     if (!(await stat(sourceNodeModules)).isDirectory()) {
       inputError("PUBLIC_API_PATH_INVALID", "Public API package node_modules is not a directory.");
@@ -46,7 +46,7 @@ export async function linkStagedPackageNodeModules(input: {
   try {
     await symlink(
       sourceNodeModules,
-      join(input.stagedPackageRoot, "node_modules"),
+      join(input.stagedDirectory, "node_modules"),
       process.platform === "win32" ? "junction" : "dir"
     );
   } catch {

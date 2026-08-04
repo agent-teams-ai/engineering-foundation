@@ -1,6 +1,7 @@
 import { extname, resolve } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
+import { CapabilityInputError } from "../../../../capability-runtime.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type {
   MarkdownDocumentObservation,
@@ -27,10 +28,26 @@ import {
 } from "./filesystem-markdown-paths.js";
 
 const SKIPPED_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
+const MAX_MARKDOWN_DOCUMENTS = 10_000;
+const MAX_MARKDOWN_ISSUES = 10_000;
+const MAX_MARKDOWN_REFERENCES = 100_000;
+const MAX_MARKDOWN_TOTAL_BYTES = 32 * 1024 * 1024;
 
 interface MarkdownTreeObservationCollector {
+  documentBytes: number;
+  documentReferences: number;
+  estimatedDocumentBytes: number;
   readonly documents: Map<string, MarkdownDocumentObservation>;
   readonly issues: MarkdownObservationIssue[];
+}
+
+function resourceLimit(message: string): never {
+  throw new CapabilityInputError({
+    code: "DOCUMENTATION_RESOURCE_LIMIT_EXCEEDED",
+    message,
+    phase: "documentation-observation",
+    retryable: false
+  });
 }
 
 interface MarkdownTreeWalkContext {
@@ -45,6 +62,9 @@ function addIssue(
   collector: MarkdownTreeObservationCollector,
   issue: MarkdownObservationIssue
 ): void {
+  if (collector.issues.length >= MAX_MARKDOWN_ISSUES) {
+    resourceLimit(`Markdown observation exceeds ${MAX_MARKDOWN_ISSUES} issues.`);
+  }
   collector.issues.push(issue);
 }
 
@@ -119,6 +139,9 @@ async function inspectDirectoryEntry(
 ): Promise<void> {
   const { collector, filesystem, reader, repository: context, signal } = walk;
   const candidateRepositoryPath = markdownRepositoryPath(context.canonicalRoot, candidate);
+  if (collector.documents.has(candidateRepositoryPath)) {
+    return;
+  }
   let metadata;
   try {
     metadata = await filesystem.lstat(candidate);
@@ -153,6 +176,15 @@ async function inspectDirectoryEntry(
     });
     return;
   }
+  const estimatedDocumentBytes = collector.estimatedDocumentBytes + metadata.size;
+  if (
+    collector.documents.size >= MAX_MARKDOWN_DOCUMENTS ||
+    estimatedDocumentBytes > MAX_MARKDOWN_TOTAL_BYTES
+  ) {
+    resourceLimit(
+      `Markdown observation exceeds ${MAX_MARKDOWN_DOCUMENTS} documents or ${MAX_MARKDOWN_TOTAL_BYTES} bytes.`
+    );
+  }
 
   const document = await reader.read(context, candidate, signal);
   if (document === undefined) {
@@ -173,6 +205,23 @@ async function inspectDirectoryEntry(
     });
     return;
   }
+  const nextDocumentBytes =
+    collector.documentBytes + Buffer.byteLength(document.source, "utf8");
+  if (nextDocumentBytes > MAX_MARKDOWN_TOTAL_BYTES) {
+    resourceLimit(
+      `Markdown observation exceeds ${MAX_MARKDOWN_TOTAL_BYTES} bytes after contained reads.`
+    );
+  }
+  const nextReferenceCount =
+    collector.documentReferences + document.references.length;
+  if (nextReferenceCount > MAX_MARKDOWN_REFERENCES) {
+    resourceLimit(
+      `Markdown observation exceeds ${MAX_MARKDOWN_REFERENCES} references.`
+    );
+  }
+  collector.documentBytes = nextDocumentBytes;
+  collector.documentReferences = nextReferenceCount;
+  collector.estimatedDocumentBytes = estimatedDocumentBytes;
   collector.documents.set(document.repositoryPath, document);
 }
 
@@ -183,6 +232,24 @@ async function walkDirectory(
 ): Promise<void> {
   const { collector, filesystem, signal } = walk;
   assertNotCancelled(signal);
+  if (
+    await markdownPathTraversesSymbolicLink(
+      walk.repository.canonicalRoot,
+      directory,
+      filesystem,
+      signal
+    )
+  ) {
+    addIssue(collector, {
+      kind: "symbolic-link",
+      message: "Markdown source directory became a symbolic link during observation.",
+      repositoryPath: markdownRepositoryPath(
+        walk.repository.canonicalRoot,
+        directory
+      )
+    });
+    return;
+  }
   let entries;
   try {
     entries = await filesystem.readdir(directory, { withFileTypes: true });
@@ -201,6 +268,24 @@ async function walkDirectory(
     throwMarkdownFilesystemUnavailable(error, "reading a Markdown source directory");
   }
   assertNotCancelled(signal);
+  if (
+    await markdownPathTraversesSymbolicLink(
+      walk.repository.canonicalRoot,
+      directory,
+      filesystem,
+      signal
+    )
+  ) {
+    addIssue(collector, {
+      kind: "symbolic-link",
+      message: "Markdown source directory changed during observation.",
+      repositoryPath: markdownRepositoryPath(
+        walk.repository.canonicalRoot,
+        directory
+      )
+    });
+    return;
+  }
   for (const entry of entries.toSorted((left, right) =>
     compareBinaryStrings(left.name, right.name)
   )) {
@@ -220,6 +305,7 @@ export async function observeFilesystemMarkdownTree(
   filesystem: FilesystemMarkdownOperations = nodeFilesystemMarkdownOperations
 ): Promise<MarkdownRepositoryObservation> {
   assertNotCancelled(request.signal);
+  reader.reset();
   const context = await createFilesystemMarkdownRepositoryContext(
     request.consumerRoot,
     filesystem,
@@ -227,6 +313,9 @@ export async function observeFilesystemMarkdownTree(
   );
   assertNotCancelled(request.signal);
   const collector: MarkdownTreeObservationCollector = {
+    documentBytes: 0,
+    documentReferences: 0,
+    estimatedDocumentBytes: 0,
     documents: new Map(),
     issues: []
   };

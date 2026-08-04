@@ -6,6 +6,12 @@ export const LOCAL_REGISTRY_BACKUP = "foundation-registry-backup" as const;
 export const LOCAL_OPERATION_LOCK = "foundation-operation.lock" as const;
 export const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION = 1 as const;
 
+export type {
+  ProcessRequest,
+  ProcessResult,
+  ProcessRunner
+} from "../process-execution/types.js";
+
 export type FoundationMode = "INVALID" | "LOCAL" | "REGISTRY";
 export type FoundationLinkPhase = "ATTACHING" | "DETACHING" | "LOCAL";
 
@@ -64,23 +70,4 @@ export interface FoundationRegistryProvenance {
 export interface AttachResult {
   readonly status: FoundationStatus;
   readonly targetPackageRoot: string;
-}
-
-export interface ProcessRequest {
-  readonly command: string;
-  readonly args: readonly string[];
-  readonly cwd: string;
-  /** Optional maximum wall-clock duration. Omission preserves unbounded legacy behavior. */
-  readonly timeoutMs?: number;
-  /** Cancels the process and descendants retained by the platform containment boundary. */
-  readonly signal?: AbortSignal;
-}
-
-export interface ProcessResult {
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-export interface ProcessRunner {
-  run(request: ProcessRequest): Promise<ProcessResult>;
 }

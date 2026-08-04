@@ -1,4 +1,4 @@
-schemaVersion: 2
+schemaVersion: 1
 workspace:
   kind: pnpm
   manifest: pnpm-workspace.yaml

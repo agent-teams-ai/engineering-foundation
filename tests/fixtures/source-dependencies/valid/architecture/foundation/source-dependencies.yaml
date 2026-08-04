@@ -9,6 +9,8 @@ boundaries:
   - id: app.surface
     roots:
       - packages/app/src
+    entrypoints:
+      - packages/app/src/index.ts
     allow:
       boundaries:
         - app.application
@@ -19,6 +21,8 @@ boundaries:
   - id: app.application
     roots:
       - packages/app/src/application
+    entrypoints:
+      - packages/app/src/application/execute.ts
     allow:
       boundaries:
         - app.domain
@@ -29,6 +33,8 @@ boundaries:
   - id: app.domain
     roots:
       - packages/app/src/domain
+    entrypoints:
+      - packages/app/src/domain/agent-id.ts
     allow:
       boundaries: []
       packages: []
@@ -37,6 +43,8 @@ boundaries:
   - id: app.infrastructure
     roots:
       - packages/app/src/infrastructure
+    entrypoints:
+      - packages/app/src/infrastructure/adapter.ts
     allow:
       boundaries:
         - app.application
@@ -50,6 +58,8 @@ boundaries:
   - id: core.surface
     roots:
       - packages/core/src
+    entrypoints:
+      - packages/core/src/index.ts
     allow:
       boundaries:
         - core.domain
@@ -59,6 +69,8 @@ boundaries:
   - id: core.domain
     roots:
       - packages/core/src/domain
+    entrypoints:
+      - packages/core/src/domain/value.ts
     allow:
       boundaries: []
       packages: []

@@ -150,14 +150,10 @@ function selfPackageImportDiagnostics(input: {
 
 function boundaryEntrypointDiagnostics(input: {
   readonly edge: ObservedSourceDependencyEdge;
-  readonly policy: SourceArchitecturePolicy;
   readonly targetBoundary: ArchitectureBoundaryPolicy;
   readonly targetPath: string;
 }): readonly FoundationDiagnostic[] {
-  if (
-    input.policy.schemaVersion !== 2 ||
-    input.targetBoundary.entrypoints.includes(input.targetPath)
-  ) {
+  if (input.targetBoundary.entrypoints.includes(input.targetPath)) {
     return [];
   }
   return [
@@ -276,7 +272,6 @@ function evaluateLocalFileDependency(input: EvaluationInput & {
     }),
     ...boundaryEntrypointDiagnostics({
       edge: input.edge,
-      policy: input.policy,
       targetBoundary,
       targetPath: input.resolution.path
     })

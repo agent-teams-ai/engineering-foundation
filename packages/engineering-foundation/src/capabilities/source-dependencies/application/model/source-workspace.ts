@@ -1,10 +1,7 @@
 import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 
-const SOURCE_ARCHITECTURE_CONFIG_SCHEMA_VERSIONS = [1, 2] as const;
-
-export type SourceArchitectureConfigSchemaVersion =
-  (typeof SOURCE_ARCHITECTURE_CONFIG_SCHEMA_VERSIONS)[number];
+export type SourceArchitectureConfigSchemaVersion = 1;
 
 const SOURCE_DEPENDENCY_KINDS = [
   "commonjs",
@@ -46,10 +43,7 @@ interface ParsedSourceFile extends SourceFileSnapshot {
 export interface ArchitectureBoundaryPolicy {
   readonly id: string;
   readonly roots: readonly string[];
-  /**
-   * Explicit inbound local-import surface. Schema v1 always maps this to an
-   * empty list; schema v2 requires the consumer to declare it.
-   */
+  /** Explicit inbound local-import surface declared by the consumer. */
   readonly entrypoints: readonly string[];
   readonly allowedBoundaries: readonly string[];
   readonly allowedPackages: readonly string[];

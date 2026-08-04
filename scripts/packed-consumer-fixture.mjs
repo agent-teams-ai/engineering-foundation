@@ -115,7 +115,7 @@ policies:
   );
   await writeFile(
     join(consumerRoot, "architecture", "foundation", "source-dependencies.yaml"),
-    `schemaVersion: 2
+    `schemaVersion: 1
 workspace:
   kind: pnpm
   manifest: pnpm-workspace.yaml

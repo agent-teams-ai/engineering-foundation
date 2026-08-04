@@ -13,18 +13,9 @@ import type {
 } from "../application/model/source-workspace.js";
 
 export const CAPABILITY_ID = "architecture.source-dependencies" as const;
-export const CAPABILITY_CONFIG_SCHEMA_VERSION = 2 as const;
-
-type SourceArchitectureSchemaId =
-  | "architecture-source-dependencies/v1"
-  | "architecture-source-dependencies/v2";
-
-const SCHEMA_ID_BY_VERSION: Readonly<
-  Record<SourceArchitectureConfigSchemaVersion, SourceArchitectureSchemaId>
-> = Object.freeze({
-  1: "architecture-source-dependencies/v1",
-  2: "architecture-source-dependencies/v2"
-});
+export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
+const SOURCE_ARCHITECTURE_SCHEMA_ID =
+  "architecture-source-dependencies/v1" as const;
 
 function inputError(message: string): never {
   throw new CapabilityInputError({
@@ -68,19 +59,17 @@ function string(value: unknown, field: string): string {
 }
 
 function schemaVersion(value: unknown): SourceArchitectureConfigSchemaVersion {
-  if (value === 1 || value === 2) {
+  if (value === 1) {
     return value;
   }
-  inputError("schemaVersion must be either 1 or 2.");
+  inputError("schemaVersion must be 1.");
 }
 
 async function assertSourceArchitectureSchema(
-  version: SourceArchitectureConfigSchemaVersion,
   input: unknown
 ): Promise<void> {
-  // Keep version selection closed so callers cannot select an arbitrary schema.
   await assertSchema(
-    SCHEMA_ID_BY_VERSION[version],
+    SOURCE_ARCHITECTURE_SCHEMA_ID,
     input,
     "source-architecture-config"
   );
@@ -115,18 +104,16 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
       }
       boundaryRoots.add(root);
     }
-    if (policy.schemaVersion === 2) {
-      for (const entrypoint of boundary.entrypoints) {
-        if (boundaryEntrypoints.has(entrypoint)) {
-          inputError(`Architecture boundary entrypoint is duplicated: ${entrypoint}.`);
-        }
-        if (!boundary.roots.some((root) => pathIsInside(entrypoint, root))) {
-          inputError(
-            `Architecture boundary entrypoint is outside its boundary roots: ${boundary.id}:${entrypoint}.`
-          );
-        }
-        boundaryEntrypoints.add(entrypoint);
+    for (const entrypoint of boundary.entrypoints) {
+      if (boundaryEntrypoints.has(entrypoint)) {
+        inputError(`Architecture boundary entrypoint is duplicated: ${entrypoint}.`);
       }
+      if (!boundary.roots.some((root) => pathIsInside(entrypoint, root))) {
+        inputError(
+          `Architecture boundary entrypoint is outside its boundary roots: ${boundary.id}:${entrypoint}.`
+        );
+      }
+      boundaryEntrypoints.add(entrypoint);
     }
   }
   for (const boundary of policy.boundaries) {
@@ -145,20 +132,16 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
 
 function mapBoundary(
   value: unknown,
-  index: number,
-  version: SourceArchitectureConfigSchemaVersion
+  index: number
 ): ArchitectureBoundaryPolicy {
   const boundary = record(value, `boundaries[${index}]`);
   const allow = record(boundary["allow"], `boundaries[${index}].allow`);
-  const entrypoints =
-    version === 1
-      ? Object.freeze([])
-      : Object.freeze(
-          sortedStrings(
-            boundary["entrypoints"],
-            `boundaries[${index}].entrypoints`
-          ).map(normalizeRepositoryPath)
-        );
+  const entrypoints = Object.freeze(
+    sortedStrings(
+      boundary["entrypoints"],
+      `boundaries[${index}].entrypoints`
+    ).map(normalizeRepositoryPath)
+  );
   return Object.freeze({
     id: string(boundary["id"], `boundaries[${index}].id`),
     roots: Object.freeze(
@@ -199,7 +182,7 @@ export async function loadCapabilityConfig(
   );
   const root = record(input, "source architecture config");
   const version = schemaVersion(root["schemaVersion"]);
-  await assertSourceArchitectureSchema(version, input);
+  await assertSourceArchitectureSchema(input);
   const workspace = record(root["workspace"], "workspace");
   const boundaryInput = root["boundaries"];
   if (!Array.isArray(boundaryInput)) {
@@ -216,7 +199,7 @@ export async function loadCapabilityConfig(
     ),
     boundaries: Object.freeze(
       boundaryInput
-        .map((boundary, index) => mapBoundary(boundary, index, version))
+        .map((boundary, index) => mapBoundary(boundary, index))
         .toSorted((left, right) => compareBinaryStrings(left.id, right.id))
     )
   });

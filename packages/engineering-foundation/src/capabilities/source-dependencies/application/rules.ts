@@ -46,7 +46,7 @@ export const SOURCE_DEPENDENCY_RULES = Object.freeze({
   ),
   crossBoundaryLocalImportNotEntrypoint: rule(
     "cross-boundary-local-import-not-entrypoint",
-    "Schema v2 requires every cross-boundary local import to use a deliberately declared target entrypoint.",
+    "Every cross-boundary local import must use a deliberately declared target entrypoint.",
     "Import the target boundary through one of its declared entrypoint source files.",
     true
   ),
@@ -126,7 +126,7 @@ export const SOURCE_DEPENDENCY_RULES = Object.freeze({
   selfPackageImportBoundaryUnresolved: rule(
     "self-package-import-boundary-unresolved",
     "A package-name import back into the importing workspace package does not reveal the target source boundary.",
-    "Use a relative import governed by schema v2 entrypoints, or move the public surface into a separate workspace package.",
+    "Use a relative import governed by declared boundary entrypoints, or move the public surface into a separate workspace package.",
     true
   ),
   unsupportedImportSpecifier: rule(

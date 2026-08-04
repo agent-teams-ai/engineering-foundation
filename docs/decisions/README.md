@@ -19,9 +19,9 @@ No proposed decisions.
 - [ADR-0007: Deterministic Documentation Governance](0007-deterministic-documentation-governance.md)
 - [ADR-0008: Contract Evolution Evidence](0008-contract-evolution-evidence.md)
 - [ADR-0009: Pinned Workflow Security Toolchain](0009-pinned-workflow-security-toolchain.md)
-- [ADR-0010: Observed Source Graph V2](0010-observed-source-graph-v2.md)
 - [ADR-0011: Bounded Process and Property Evidence API](0011-bounded-process-and-property-evidence-api.md)
+- [ADR-0012: Single Source Dependency Schema](0012-single-source-dependency-schema.md)
 
 ## Superseded
 
-No superseded decisions.
+- [ADR-0010: Observed Source Graph V2](0010-observed-source-graph-v2.md)

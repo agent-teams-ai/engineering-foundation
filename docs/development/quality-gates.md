@@ -82,8 +82,9 @@ relative imports, undeclared packages, blocked exports, and unresolved imports
 fail CI. The repository dogfoods separate application, contract, adapter, and
 composition boundaries for every implemented capability.
 
-Schema v2 additionally requires explicit target entrypoints and rejects runtime
-or type-only dependency cycles between packages and architecture boundaries.
+The source-dependency schema requires explicit target entrypoints and rejects
+runtime or type-only dependency cycles between packages and architecture
+boundaries.
 
 Suppression waivers, released API baselines, privileged workflow jobs, and
 publishable packages are also closed-world evidence. Released contract and API
@@ -98,7 +99,7 @@ The test suite includes positive and negative capability fixtures, real lint
 failures, local attach/detach recovery, parser parity, ast-grep rule tests, and a
 packed-tarball consumer. The tarball consumer installs its own exact Oxlint,
 oxlint-tsgolint, and TypeScript versions and proves the published type-aware
-preset, source graph v2, documentation links and anchors, idempotent ADR baseline
+preset, the source graph, documentation links and anchors, idempotent ADR baseline
 promotion, and both contract-evolution capabilities.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI
 also emits an SPDX JSON SBOM and runs Dependency Review inside its required

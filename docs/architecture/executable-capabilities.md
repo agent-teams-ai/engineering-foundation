@@ -2,10 +2,9 @@
 
 Status: Implemented and released for workspace declarations, source dependencies,
 suppression governance, public API compatibility, and repository security.
-Four additional documentation and contract capabilities, source graph schema v2,
-and the portable repository agent workflow are implemented and dogfooded for the
-next release. The separate closed scaffolding protocol is also implemented and
-pending its first package release.
+The additional documentation and contract capabilities, hardened source graph,
+portable repository agent workflow, and closed scaffolding protocol are also
+implemented in the current published package.
 
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
@@ -113,8 +112,8 @@ The second implementation validates observed source relationships:
 - cross-package relative imports cannot bypass package boundaries;
 - imported package subpaths are exported;
 - unsupported or unresolvable governed imports fail closed.
-- schema v2 permits cross-boundary local imports only through declared target
-  entrypoints;
+- the single source-dependency schema requires declared target entrypoints for
+  cross-boundary local imports;
 - boundary and package cycles are checked separately for runtime and type-only
   edges over one normalized immutable observed graph.
 

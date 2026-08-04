@@ -1,4 +1,4 @@
-import { link, lstat, open, readFile, rm } from "node:fs/promises";
+import { link, lstat, open, rm } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 import type { MaterializeFileOperationV1 } from "../../contract/types.js";
@@ -13,6 +13,7 @@ import {
 import {
   captureFileHandleIdentity,
   pathMatchesFileIdentity,
+  readBoundedRegularFile,
   type PortableFileIdentity
 } from "./filesystem-file-identity.js";
 
@@ -56,14 +57,16 @@ export async function classifyFilesystemOperation(
     return "conflict";
   }
   try {
-    const metadata = await lstat(destination);
-    if (metadata.isSymbolicLink() || !metadata.isFile()) {
+    const result = await readBoundedRegularFile(
+      destination,
+      operation.after.size
+    );
+    if (result.outcome !== "read") {
       return "conflict";
     }
-    const bytes = await readFile(destination);
     const modeMatches =
-      process.platform === "win32" || (metadata.mode & 0o777) === 0o644;
-    return sha256Bytes(bytes) === operation.after.digest && modeMatches
+      process.platform === "win32" || (result.mode & 0o777) === 0o644;
+    return sha256Bytes(result.bytes) === operation.after.digest && modeMatches
       ? "after"
       : "conflict";
   } catch (error) {

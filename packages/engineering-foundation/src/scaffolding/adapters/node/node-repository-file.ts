@@ -1,4 +1,4 @@
-import { lstat, readFile, realpath } from "node:fs/promises";
+import { realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { ScaffoldReadAssertionV1 } from "../../contract/types.js";
@@ -6,6 +6,7 @@ import { sha256Bytes } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { pathTraversesSymbolicLink } from "../../../filesystem-path-safety.js";
 import { assertRepositoryRelativePath } from "../../../strict-yaml.js";
+import { readBoundedRegularFile } from "./filesystem-file-identity.js";
 
 const MAX_INPUT_BYTES = 1024 * 1024;
 
@@ -46,22 +47,27 @@ export async function readContainedRepositoryFile(
         `Scaffolding input escapes the consumer repository: ${repositoryPath}.`
       );
     }
-    const metadata = await lstat(canonicalCandidate);
-    if (
-      metadata.isSymbolicLink() ||
-      !metadata.isFile() ||
-      metadata.size > maxBytes
-    ) {
+    const result = await readBoundedRegularFile(canonicalCandidate, maxBytes);
+    if (result.outcome === "invalid") {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
         `Scaffolding input must be a regular file no larger than ${maxBytes} bytes: ${repositoryPath}.`
       );
     }
-    const bytes = await readFile(canonicalCandidate);
+    if (
+      result.outcome === "changed" ||
+      (await realpath(candidate)) !== canonicalCandidate ||
+      (await pathTraversesSymbolicLink(canonicalRoot, candidate))
+    ) {
+      throw new ScaffoldError(
+        "SCAFFOLD_INPUT_INVALID",
+        `Scaffolding input changed while it was being read: ${repositoryPath}.`
+      );
+    }
     return {
       path: repositoryPath,
-      bytes,
-      source: bytes.toString("utf8")
+      bytes: result.bytes,
+      source: result.bytes.toString("utf8")
     };
   } catch (error) {
     if (error instanceof ScaffoldError) {

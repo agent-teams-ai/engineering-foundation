@@ -1,4 +1,4 @@
-import { lstat, mkdir, open, rename, rm } from "node:fs/promises";
+import { mkdir, open, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type { ScaffoldPlanV1 } from "../../contract/types.js";
@@ -6,10 +6,7 @@ import { assertScaffoldPlanDigest } from "../../kernel/rendering-plan-validation
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { parseStrictYamlSource } from "../../../strict-yaml.js";
-import {
-  captureFileHandleIdentity,
-  pathMatchesFileIdentity
-} from "./filesystem-file-identity.js";
+import { readBoundedRegularFile } from "./filesystem-file-identity.js";
 import { syncDirectory } from "./filesystem-path-guard.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
 
@@ -54,36 +51,24 @@ export async function writeScaffoldJournal(
 export async function readScaffoldJournal(
   path: string
 ): Promise<ScaffoldPlanV1 | undefined> {
-  let handle;
   try {
-    const metadata = await lstat(path);
-    if (
-      metadata.isSymbolicLink() ||
-      !metadata.isFile() ||
-      metadata.size > MAX_SCAFFOLD_PLAN_BYTES
-    ) {
+    const result = await readBoundedRegularFile(path, MAX_SCAFFOLD_PLAN_BYTES);
+    if (result.outcome === "invalid") {
       throw new ScaffoldError(
         "SCAFFOLD_RECOVERY_REQUIRED",
         "Scaffolding recovery journal is not a bounded regular file."
       );
     }
-    handle = await open(path, "r");
-  } catch (error) {
-    if (isMissing(error)) {
-      return undefined;
-    }
-    throw error;
-  }
-  try {
-    const identity = await captureFileHandleIdentity(handle);
-    const source = await handle.readFile("utf8");
-    if ((await pathMatchesFileIdentity(path, identity)) !== "match") {
+    if (result.outcome === "changed") {
       throw new ScaffoldError(
         "SCAFFOLD_RECOVERY_REQUIRED",
         "Scaffolding recovery journal changed while it was being read."
       );
     }
-    const value = parseStrictYamlSource(source, "rendering-regression-journal");
+    const value = parseStrictYamlSource(
+      result.bytes.toString("utf8"),
+      "rendering-regression-journal"
+    );
     if (
       typeof value !== "object" ||
       value === null ||
@@ -108,8 +93,11 @@ export async function readScaffoldJournal(
     const plan = value.plan as ScaffoldPlanV1;
     assertScaffoldPlanDigest(plan);
     return plan;
-  } finally {
-    await handle.close();
+  } catch (error) {
+    if (isMissing(error)) {
+      return undefined;
+    }
+    throw error;
   }
 }
 

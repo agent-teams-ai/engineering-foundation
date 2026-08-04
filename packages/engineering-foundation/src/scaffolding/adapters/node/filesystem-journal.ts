@@ -1,4 +1,4 @@
-import { link, lstat, mkdir, open, rename, rm } from "node:fs/promises";
+import { link, mkdir, open, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type { AuthorityScaffoldJournal } from "../../contract/types.js";
@@ -10,6 +10,7 @@ import { syncDirectory } from "./filesystem-path-guard.js";
 import {
   captureFileHandleIdentity,
   pathMatchesFileIdentity,
+  readBoundedRegularFile,
   type PortableFileIdentity
 } from "./filesystem-file-identity.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
@@ -101,45 +102,29 @@ async function readJournalSource(path: string): Promise<{
   readonly identity: PortableFileIdentity;
   readonly source: string;
 } | undefined> {
-  let handle;
   try {
-    const metadata = await lstat(path);
-    if (
-      metadata.isSymbolicLink() ||
-      !metadata.isFile() ||
-      metadata.size > MAX_SCAFFOLD_PLAN_BYTES
-    ) {
+    const result = await readBoundedRegularFile(path, MAX_SCAFFOLD_PLAN_BYTES);
+    if (result.outcome === "invalid") {
       throw new ScaffoldError(
         "SCAFFOLD_RECOVERY_REQUIRED",
         "Scaffolding recovery journal is not a bounded regular file."
       );
     }
-    handle = await open(path, "r");
-  } catch (error) {
-    if (isMissing(error)) {
-      return undefined;
-    }
-    throw error;
-  }
-  try {
-    const metadata = await handle.stat();
-    if (!metadata.isFile() || metadata.size > MAX_SCAFFOLD_PLAN_BYTES) {
-      throw new ScaffoldError(
-        "SCAFFOLD_RECOVERY_REQUIRED",
-        "Scaffolding recovery journal is not a bounded regular file."
-      );
-    }
-    const identity = await captureFileHandleIdentity(handle);
-    const source = await handle.readFile("utf8");
-    if ((await pathMatchesFileIdentity(path, identity)) !== "match") {
+    if (result.outcome === "changed") {
       throw new ScaffoldError(
         "SCAFFOLD_RECOVERY_REQUIRED",
         "Scaffolding recovery journal changed while it was being read."
       );
     }
-    return { identity, source };
-  } finally {
-    await handle.close();
+    return {
+      identity: result.identity,
+      source: result.bytes.toString("utf8")
+    };
+  } catch (error) {
+    if (isMissing(error)) {
+      return undefined;
+    }
+    throw error;
   }
 }
 

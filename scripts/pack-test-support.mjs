@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { spawnWindowsManagedProcess } from "../packages/engineering-foundation/dist/local-mode/windows-managed-process.js";
+import { spawnWindowsManagedProcess } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js";
 
 const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4";
 const commandMaxBufferBytes = 16 * 1024 * 1024;

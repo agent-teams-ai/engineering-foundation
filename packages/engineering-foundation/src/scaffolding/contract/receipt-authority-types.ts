@@ -105,7 +105,7 @@ export type AuthorityScaffoldReceipt =
         readonly state: "rejected";
         readonly atomicity: "journaled-recoverable";
       };
-      readonly operations: readonly (
+      readonly operations: readonly [
         | (AuthorityScaffoldOperationReceipt & {
             readonly outcome: "already-satisfied";
             readonly resultDigest: Sha256Digest;
@@ -113,8 +113,18 @@ export type AuthorityScaffoldReceipt =
         | (AuthorityScaffoldOperationReceipt & {
             readonly outcome: "conflict" | "not-applied";
             readonly resultDigest?: never;
-          })
-      )[];
+          }),
+        ...(
+          | (AuthorityScaffoldOperationReceipt & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (AuthorityScaffoldOperationReceipt & {
+              readonly outcome: "conflict" | "not-applied";
+              readonly resultDigest?: never;
+            })
+        )[]
+      ];
     })
   | (AuthorityScaffoldReceiptCommon & {
       readonly outcome: "authority-stale";

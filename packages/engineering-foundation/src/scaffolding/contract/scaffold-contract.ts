@@ -68,8 +68,8 @@ export interface ScaffoldTargetCatalogEntry {
   readonly id: string;
   readonly role: string;
   readonly path: RepositoryPath;
-  readonly packageName: string;
-  readonly ownerDocumentId: string;
+  readonly package_name: string;
+  readonly owner_document: string;
 }
 
 export interface ScaffoldDiagnostic {
@@ -320,7 +320,7 @@ export type ScaffoldReceipt =
         readonly state: "rejected";
         readonly atomicity: "journaled-recoverable";
       };
-      readonly operations: readonly (
+      readonly operations: readonly [
         | (ScaffoldOperationReceipt & {
             readonly outcome: "already-satisfied";
             readonly resultDigest: Sha256Digest;
@@ -328,8 +328,18 @@ export type ScaffoldReceipt =
         | (ScaffoldOperationReceipt & {
             readonly outcome: "conflict" | "not-applied";
             readonly resultDigest?: never;
-          })
-      )[];
+          }),
+        ...(
+          | (ScaffoldOperationReceipt & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (ScaffoldOperationReceipt & {
+              readonly outcome: "conflict" | "not-applied";
+              readonly resultDigest?: never;
+            })
+        )[]
+      ];
     })
   | (ScaffoldReceiptCommon & {
       readonly outcome: "authority-stale";
@@ -373,7 +383,10 @@ export interface ScaffoldCompilationInput {
   readonly configPath: RepositoryPath;
   readonly config: ScaffoldingConfig;
   readonly intent: ScaffoldIntent;
-  readonly catalog: ScaffoldTargetCatalog;
+  readonly catalog: {
+    readonly version: 2;
+    readonly packages: readonly ScaffoldTarget[];
+  };
   readonly authorityEvidence: ScaffoldAuthorityEvidence;
   readonly authorityReadSet: ScaffoldAuthorityReadSet;
 }

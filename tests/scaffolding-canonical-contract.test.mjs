@@ -27,6 +27,11 @@ async function canonicalPlan() {
   });
 }
 
+function withReceiptDigest(receipt) {
+  const { receiptDigest: _ignored, ...body } = receipt;
+  return { ...body, receiptDigest: sha256Json(body) };
+}
+
 test("canonical public assertion rejects old protocol discriminators", async () => {
   const legacyDiscriminators = {
     ...(await canonicalPlan()),
@@ -88,5 +93,94 @@ test("applied Receipt factory and validator agree on canonical operation order",
   assert.throws(
     () => assertScaffoldReceiptDigest(forged, plan),
     /applied evidence first/u
+  );
+});
+
+test("every canonical Receipt outcome covers every Plan operation", async () => {
+  const plan = await canonicalPlan();
+  assert.ok(plan.operations.length > 1);
+  const cases = [
+    {
+      outcome: "applied",
+      commitState: "committed",
+      operationOutcome: (_operation, index) =>
+        index === 0 ? "applied" : "already-satisfied"
+    },
+    {
+      outcome: "already-applied",
+      commitState: "committed",
+      operationOutcome: () => "already-satisfied"
+    },
+    {
+      outcome: "failed-recovered",
+      commitState: "recovered",
+      operationOutcome: () => "recovered"
+    },
+    {
+      outcome: "recovery-required",
+      commitState: "recovery-required",
+      operationOutcome: () => "unobserved"
+    },
+    {
+      outcome: "rejected",
+      commitState: "rejected",
+      operationOutcome: () => "not-applied"
+    },
+    {
+      outcome: "authority-stale",
+      commitState: "rolled-back",
+      operationOutcome: () => "not-applied"
+    }
+  ];
+
+  for (const receiptCase of cases) {
+    const receipt = createAuthorityScaffoldReceipt({
+      plan,
+      outcome: receiptCase.outcome,
+      commitState: receiptCase.commitState,
+      operations: plan.operations.map((operation, index) => {
+        const outcome = receiptCase.operationOutcome(operation, index);
+        return {
+          operationId: operation.id,
+          path: operation.path,
+          outcome,
+          ...(["already-satisfied", "applied", "recovered"].includes(outcome)
+            ? { resultDigest: operation.after.digest }
+            : {})
+        };
+      })
+    });
+    const incomplete = structuredClone(receipt);
+    incomplete.operations.pop();
+    const forged = withReceiptDigest(incomplete);
+
+    await assertSchema("scaffold-receipt", forged, `missing-${receiptCase.outcome}`);
+    assert.throws(
+      () => assertScaffoldReceiptDigest(forged, plan),
+      /evidence for every Plan operation/u,
+      receiptCase.outcome
+    );
+  }
+});
+
+test("rejected canonical Receipts require operation evidence", async () => {
+  const plan = await canonicalPlan();
+  const rejected = withReceiptDigest({
+    schemaVersion: 2,
+    protocolVersion: 2,
+    planDigest: plan.planDigest,
+    adapter: { id: "foundation.filesystem/v1", contractVersion: 1 },
+    outcome: "rejected",
+    commit: { state: "rejected", atomicity: "journaled-recoverable" },
+    operations: [],
+    diagnostics: []
+  });
+
+  await assert.rejects(
+    assertSchema("scaffold-receipt", rejected, "empty-rejected-receipt")
+  );
+  assert.throws(
+    () => assertScaffoldReceiptDigest(rejected),
+    /requires operation evidence/u
   );
 });

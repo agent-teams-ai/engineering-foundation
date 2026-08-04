@@ -166,6 +166,9 @@ function assertOutcome(receipt: AuthorityScaffoldReceiptCandidate): void {
       assertOnly(receipt.operations, ["not-applied"]);
       return;
     case "rejected":
+      if (receipt.operations.length === 0) {
+        invalidReceipt("A rejected Scaffolding Receipt requires operation evidence.");
+      }
       assertOnly(receipt.operations, ["already-satisfied", "conflict", "not-applied"]);
       return;
     default:
@@ -191,11 +194,8 @@ function assertPlanEvidence(
       invalidReceipt(`Scaffolding Receipt result digest does not match its Plan evidence: ${operation.operationId}.`);
     }
   }
-  if (
-    ["applied", "already-applied", "failed-recovered", "authority-stale"].includes(receipt.outcome) &&
-    receipt.operations.length !== plan.operations.length
-  ) {
-    invalidReceipt("A completed Scaffolding Receipt must provide evidence for every Plan operation.");
+  if (receipt.operations.length !== plan.operations.length) {
+    invalidReceipt("A plan-bound Scaffolding Receipt must provide evidence for every Plan operation.");
   }
 }
 

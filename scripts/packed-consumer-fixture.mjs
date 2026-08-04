@@ -63,6 +63,32 @@ async function installPackedPackage(input) {
   return packedManifest;
 }
 
+async function writeScaffoldingTypeConsumer(consumerRoot) {
+  const typeConsumerRoot = join(consumerRoot, "type-consumer");
+  await mkdir(typeConsumerRoot, { recursive: true });
+  await writeFile(
+    join(typeConsumerRoot, "scaffold-target-catalog.ts"),
+    [
+      "import type { ScaffoldTargetCatalog } from \"@agent-teams/engineering-foundation/scaffolding\";",
+      "",
+      "export const schemaShapedTargetCatalog = {",
+      "  version: 2,",
+      "  packages: [",
+      "    {",
+      "      id: \"testing.generated\",",
+      "      role: \"testing-package\",",
+      "      path: \"packages/testing/generated\",",
+      "      package_name: \"@fixture/generated\",",
+      "      owner_document: \"ADR-0001\"",
+      "    }",
+      "  ]",
+      "} satisfies ScaffoldTargetCatalog;",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+}
+
 async function writeFoundationConfiguration(consumerRoot) {
   await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
   await writeFile(
@@ -461,6 +487,7 @@ function resolveConsumerToolEntrypoints(consumerRoot) {
 export async function createPackedConsumerFixture(input) {
   await mkdir(input.consumerRoot, { recursive: true });
   const packedManifest = await installPackedPackage(input);
+  await writeScaffoldingTypeConsumer(input.consumerRoot);
   await writeFoundationConfiguration(input.consumerRoot);
   await writeDocumentationFixture(input.consumerRoot);
   const jsonContract = await writeJsonContractFixture(input.consumerRoot);

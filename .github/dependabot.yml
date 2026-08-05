@@ -9,7 +9,7 @@ updates:
       timezone: Europe/Kyiv
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "@types/node"
         update-types:
@@ -42,4 +42,4 @@ updates:
       timezone: Europe/Kyiv
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0

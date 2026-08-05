@@ -1101,6 +1101,7 @@ boundaries:
       boundaries:
         - capability.contract-protobuf.application
         - capability.contract-protobuf.qualification.application
+        - foundation.cancellation
         - foundation.core
         - foundation.process-execution
         - foundation.repository-input

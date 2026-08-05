@@ -60,6 +60,10 @@ function errorCode(error: unknown): string | undefined {
     : undefined;
 }
 
+function errorObject(error: unknown, message: string): Error {
+  return error instanceof Error ? error : new Error(message, { cause: error });
+}
+
 function contained(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
   return (
@@ -223,7 +227,7 @@ async function writeAtomic(
   const temporaryPath = join(temporaryRoot, "evidence.json");
   let replaced = false;
   let durable = false;
-  let failure: unknown;
+  let failure: Error | undefined;
   try {
     const handle = await open(temporaryPath, "wx", 0o600);
     try {
@@ -263,14 +267,14 @@ async function writeAtomic(
         "Evidence was replaced but final durability or containment could not be proven."
       );
     } else {
-      failure = error;
+      failure = errorObject(error, "Evidence publication failed.");
     }
   }
-  let cleanupFailure: unknown;
+  let cleanupFailure: Error | undefined;
   try {
     await rm(temporaryRoot, { force: true, recursive: true });
   } catch (error) {
-    cleanupFailure = error;
+    cleanupFailure = errorObject(error, "Temporary evidence cleanup failed.");
   }
   if (failure !== undefined) {
     throw failure;

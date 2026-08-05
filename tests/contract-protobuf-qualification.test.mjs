@@ -435,6 +435,47 @@ test("runner uses one canonical inline FILE policy for both sides of breaking an
   });
 });
 
+test(
+  "runner rejects a candidate descriptor replaced with a symbolic link",
+  { skip: process.platform === "win32" },
+  async () => {
+    const externalRoot = await mkdtemp(join(tmpdir(), "foundation-buf-external-descriptor-"));
+    const externalDescriptor = join(externalRoot, "candidate.binpb");
+    try {
+      await writeFile(externalDescriptor, releasedDescriptorImage);
+      await withFixture(async ({ config, root }) => {
+        const executable = {
+          async run(invocation) {
+            if (invocation.arguments[0] === "--version") {
+              return { exitCode: 0, stdout: `${config.current.bufVersion}\n`, stderr: "" };
+            }
+            if (invocation.arguments[0] === "build") {
+              const outputIndex = invocation.arguments.indexOf("-o");
+              await symlink(externalDescriptor, invocation.arguments[outputIndex + 1]);
+              return { exitCode: 0, stdout: "", stderr: "" };
+            }
+            throw new Error("Buf breaking must not run for an unsafe descriptor.");
+          },
+        };
+        const runner = new qualificationModule.ProcessBufQualificationRunner(executable);
+        await assert.rejects(
+          runner.run({
+            executablePath: "/trusted/buf",
+            workingDirectory: root,
+            expectedVersion: config.current.bufVersion,
+            modulePath: config.qualification.modulePath,
+            bufConfigPath: config.qualification.bufConfigPath,
+            baselineDescriptorImage: releasedDescriptorImage,
+          }),
+          (error) => error?.problem?.code === "BUF_CANDIDATE_DESCRIPTOR_INVALID",
+        );
+      });
+    } finally {
+      await rm(externalRoot, { force: true, recursive: true });
+    }
+  },
+);
+
 test("cancellation after Buf execution prevents evidence publication", async () => {
   await withFixture(async ({ config, root }) => {
     const controller = new AbortController();

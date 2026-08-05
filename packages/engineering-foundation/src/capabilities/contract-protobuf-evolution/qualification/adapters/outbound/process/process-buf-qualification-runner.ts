@@ -1,8 +1,9 @@
-import { open, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { open, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { CapabilityInputError } from "../../../../../../capability-runtime.js";
+import { readContainedRegularFile } from "../../../../../../filesystem-path-safety.js";
 import { assertNotCancelled } from "../../../../../../strict-yaml.js";
 import { bufQualificationInvocationPlan } from "../../../../application/model/buf-breaking-qualification.js";
 import type {
@@ -35,15 +36,24 @@ async function writePrivateFile(path: string, bytes: Uint8Array): Promise<void> 
   }
 }
 
-async function readBoundedDescriptor(path: string): Promise<Uint8Array> {
-  const metadata = await stat(path);
-  if (!metadata.isFile() || metadata.size <= 0 || metadata.size > MAX_DESCRIPTOR_BYTES) {
+async function readBoundedDescriptor(root: string, path: string): Promise<Uint8Array> {
+  let descriptor: Uint8Array;
+  try {
+    descriptor = await readContainedRegularFile({
+      candidate: path,
+      maxBytes: MAX_DESCRIPTOR_BYTES,
+      root
+    });
+  } catch {
     inputError(
       "BUF_CANDIDATE_DESCRIPTOR_INVALID",
-      "Buf candidate descriptor is empty or exceeds the supported size limit."
+      "Buf candidate descriptor is unavailable, unsafe, or exceeds the supported size limit."
     );
   }
-  return readFile(path);
+  if (descriptor.length === 0) {
+    inputError("BUF_CANDIDATE_DESCRIPTOR_INVALID", "Buf candidate descriptor is empty.");
+  }
+  return descriptor;
 }
 
 export class ProcessBufQualificationRunner implements BufQualificationRunner {
@@ -92,7 +102,7 @@ export class ProcessBufQualificationRunner implements BufQualificationRunner {
           `Buf candidate descriptor build failed or emitted unexpected output: ${build.stderr.trim() || build.stdout.trim() || `exit ${build.exitCode}`}.`
         );
       }
-      const candidateDescriptorImage = await readBoundedDescriptor(candidatePath);
+      const candidateDescriptorImage = await readBoundedDescriptor(temporaryRoot, candidatePath);
       const breaking = await this.#executable.run(
         {
           executablePath: input.executablePath,

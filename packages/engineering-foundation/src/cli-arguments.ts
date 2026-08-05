@@ -12,6 +12,8 @@ export interface ParsedArguments {
   readonly configPath: string;
   readonly format: OutputFormat;
   readonly baseRef?: string;
+  readonly bufExecutablePath?: string;
+  readonly write: boolean;
 }
 
 const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze({
@@ -29,6 +31,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   explain: 1,
   help: 0,
   "public-api-promote-release": 0,
+  "protobuf-qualify-breaking": 0,
   "scaffold-apply": 1,
   "scaffold-plan": 1,
   "scaffold-recover": 0,
@@ -45,7 +48,33 @@ interface ArgumentState {
   configPathProvided: boolean;
   format: OutputFormat;
   baseRef?: string;
+  bufExecutablePath?: string;
+  write: boolean;
   optionsEnded: boolean;
+}
+
+function consumeQualificationOption(
+  args: readonly string[],
+  index: number,
+  state: ArgumentState
+): number | undefined {
+  const value = args[index];
+  if (value === "--write") {
+    state.write = true;
+    return 0;
+  }
+  if (value !== "--buf-executable") {
+    return undefined;
+  }
+  const candidate = args[index + 1];
+  if (candidate === undefined || candidate.length === 0) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "--buf-executable requires an absolute path."
+    );
+  }
+  state.bufExecutablePath = candidate;
+  return 1;
 }
 
 function consumeArgument(
@@ -68,6 +97,10 @@ function consumeArgument(
   if (value === "--json") {
     state.format = "json";
     return 0;
+  }
+  const qualificationOption = consumeQualificationOption(args, index, state);
+  if (qualificationOption !== undefined) {
+    return qualificationOption;
   }
   if (value === "--consumer") {
     const candidate = args[index + 1];
@@ -119,6 +152,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     configPathProvided: false,
     consumerRoot: process.cwd(),
     format: "text",
+    write: false,
     optionsEnded: false
   };
 
@@ -139,6 +173,18 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
       "--config is supported only by scaffold-plan."
     );
   }
+  if (state.write && command !== "protobuf-qualify-breaking") {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "--write is supported only by protobuf-qualify-breaking."
+    );
+  }
+  if (state.bufExecutablePath !== undefined && command !== "protobuf-qualify-breaking") {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "--buf-executable is supported only by protobuf-qualify-breaking."
+    );
+  }
   const maximum = MAX_POSITIONAL_ARGUMENTS[command];
   if (maximum !== undefined && state.positional.length > maximum) {
     throw new FoundationError(
@@ -153,6 +199,10 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     consumerRoot: state.consumerRoot,
     configPath: state.configPath,
     format: state.format,
-    ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef })
+    write: state.write,
+    ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
+    ...(state.bufExecutablePath === undefined
+      ? {}
+      : { bufExecutablePath: state.bufExecutablePath })
   });
 }

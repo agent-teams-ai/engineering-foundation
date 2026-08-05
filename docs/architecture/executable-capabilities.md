@@ -12,6 +12,8 @@ dependency capability is implemented and dogfooded behind internal ports.
 ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
 ADR-0003 through ADR-0009 accept the governance, source-graph,
 documentation, contract-evolution, and workflow-security capabilities.
+ADR-0016 supersedes ADR-0015 and hardens contract evolution with a reusable
+pinned Buf `FILE` qualification producer and versioned evidence envelope.
 Package installation never activates them: the consumer declares each applicable
 capability and supplies its own policy and qualification evidence.
 
@@ -34,11 +36,11 @@ These terms describe different facts and must not be used interchangeably:
 | `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
 | `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
-| `documentation.local-references` | Yes | No, next release | Yes | Only by explicit declaration |
-| `governance.architecture-decisions` | Yes | No, next release | Yes | Only by explicit declaration and baseline promotion |
-| `contract.protobuf-evolution` | Yes | No, next release | No contract owned here | Only by explicit declaration and qualification evidence |
-| `contract.json-schema-releases` | Yes | No, next release | No contract owned here | Only by explicit declaration and consumer evidence |
-| `repository.agent-workflow` | Yes | Pending this Changeset | Yes | Only by explicit declaration |
+| `documentation.local-references` | Yes | Yes | Yes | Only by explicit declaration |
+| `governance.architecture-decisions` | Yes | Yes | Yes | Only by explicit declaration and baseline promotion |
+| `contract.protobuf-evolution` | Yes | Yes | No contract owned here | Only by explicit declaration and qualification evidence |
+| `contract.json-schema-releases` | Yes | Yes | No contract owned here | Only by explicit declaration and consumer evidence |
+| `repository.agent-workflow` | Yes | Yes | Yes | Only by explicit declaration |
 
 Installing or upgrading the package changes none of the consumer activation
 cells. Each consumer records its own activation status in its repository.
@@ -165,6 +167,15 @@ capability. The capability proves evidence consistency, while the consumer's
 protected qualification workflow owns evidence provenance. Breaking Protobuf
 evidence must bind its exact fingerprint to an ADR in the immutable accepted
 decision baseline.
+
+Protobuf configuration schema v2 declares the module, exact Buf configuration,
+released descriptor and evidence locations. The explicit
+`protobuf-qualify-breaking` command verifies the pinned Buf version, enforces the
+exact `FILE` policy, builds the candidate descriptor and runs compatibility
+against the released descriptor. Its versioned envelope binds all input digests,
+canonical invocation semantics and normalized findings. Check mode reruns the
+producer and rejects any byte-level evidence drift; normal capability execution
+only validates the committed envelope and never starts a process.
 
 ## Internal package shape
 

@@ -14,6 +14,7 @@ weakening the merge gate.
 | Fast | `pnpm check:fast` | Oxlint syntax/correctness plus pinned TypeScript 7 |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
 | Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor qualification for all workflows and local actions |
+| Buf qualification E2E | `pnpm buf-qualification:e2e` | Real pinned Buf `FILE` compatible, breaking and fabricated-evidence scenarios |
 | Patterns | `pnpm architecture:patterns` | Consumer-owned deterministic AST prohibitions |
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance |
@@ -101,6 +102,10 @@ packed-tarball consumer. The tarball consumer installs its own exact Oxlint,
 oxlint-tsgolint, and TypeScript versions and proves the published type-aware
 preset, the source graph, documentation links and anchors, idempotent ADR baseline
 promotion, and both contract-evolution capabilities.
+Linux CI separately runs the real Aqua-pinned Buf qualification E2E because the
+normal capability and package checks are intentionally process-free. The E2E
+proves compatible and breaking `FILE` behavior plus rejection of modified
+committed evidence after a fresh Buf rerun.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI
 also emits an SPDX JSON SBOM and runs Dependency Review inside its required
 `check` job.

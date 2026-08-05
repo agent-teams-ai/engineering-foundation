@@ -24,7 +24,7 @@ async function createLocalModeConsumer(input) {
     version: "0.0.0",
     private: true,
     type: "module",
-    packageManager: "pnpm@11.18.0",
+    packageManager: input.packageManager,
     devDependencies: {
       "@agent-teams/engineering-foundation": input.packageVersion
     }

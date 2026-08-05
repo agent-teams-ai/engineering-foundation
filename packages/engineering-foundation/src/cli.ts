@@ -94,6 +94,7 @@ function printHelp(): void {
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
+  agent-teams-foundation protobuf-qualify-breaking --buf-executable <absolute-path> [--consumer <path>] [--write] [--json]
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
   agent-teams-foundation scaffold-recover [--consumer <path>] [--json]
@@ -222,6 +223,58 @@ async function runCheckCommand(
     process.exitCode = exitCodeForOutcome(report.outcome);
   } finally {
     process.removeListener("SIGINT", cancel);
+  }
+  return true;
+}
+
+async function runProtobufQualificationCommand(
+  parsed: ParsedArguments,
+  json: boolean
+): Promise<boolean> {
+  if (parsed.command !== "protobuf-qualify-breaking") {
+    return false;
+  }
+  if (parsed.bufExecutablePath === undefined) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "protobuf-qualify-breaking requires --buf-executable <absolute-path>."
+    );
+  }
+  const settings = await loadFoundationConfig(parsed.consumerRoot);
+  const declaration = settings.declaredCapabilities.find(
+    ({ id }) => id === "contract.protobuf-evolution"
+  );
+  if (declaration === undefined) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "contract.protobuf-evolution must be declared before Buf qualification."
+    );
+  }
+  const { qualifyProtobufBreakingEvidence } = await import(
+    "./capabilities/contract-protobuf-evolution/qualification/module.js"
+  );
+  const controller = new AbortController();
+  const cancel = () => {
+    controller.abort();
+  };
+  process.once("SIGINT", cancel);
+  process.once("SIGTERM", cancel);
+  try {
+    const qualification = await qualifyProtobufBreakingEvidence({
+      consumerRoot: parsed.consumerRoot,
+      configPath: declaration.configPath,
+      executablePath: parsed.bufExecutablePath,
+      write: parsed.write,
+      signal: controller.signal
+    });
+    process.stdout.write(
+      json
+        ? `${JSON.stringify({ qualification }, null, 2)}\n`
+        : `Buf FILE qualification ${qualification.writeResult}: ${qualification.status} (${qualification.evidencePath}).\n`
+    );
+  } finally {
+    process.removeListener("SIGINT", cancel);
+    process.removeListener("SIGTERM", cancel);
   }
   return true;
 }
@@ -369,6 +422,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   if (
     await runLocalModeCommand(parsed, service, json) ||
     await runAgentWorkflowCommand(parsed, environment) ||
+    await runProtobufQualificationCommand(parsed, json) ||
     await runCheckCommand(parsed, json) ||
     await runPolicyCommand(parsed, json) ||
     await runInformationCommand(parsed, json)
@@ -393,7 +447,7 @@ try {
         : 1;
   } else if (error instanceof CapabilityInputError) {
     process.stderr.write(`${error.problem.code}: ${error.problem.message}\n`);
-    process.exitCode = 2;
+    process.exitCode = error.problem.code === "EXECUTION_CANCELLED" ? 130 : 2;
   } else if (error instanceof ProcessCancellationError) {
     process.stderr.write(`PROCESS_CANCELLED: ${error.message}\n`);
     process.exitCode = 130;

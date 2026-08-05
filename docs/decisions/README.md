@@ -23,7 +23,9 @@ No proposed decisions.
 - [ADR-0012: Single Source Dependency Schema](0012-single-source-dependency-schema.md)
 - [ADR-0013: Source-Bound Scaffolding Authority Evidence](0013-source-bound-scaffolding-authority-evidence.md)
 - [ADR-0014: Scaffolding Review Hardening](0014-scaffolding-review-hardening.md)
+- [ADR-0016: Hardened Buf Qualification Boundary](0016-hardened-buf-qualification-boundary.md)
 
 ## Superseded
 
 - [ADR-0010: Observed Source Graph V2](0010-observed-source-graph-v2.md)
+- [ADR-0015: Qualified Buf FILE Evidence](0015-qualified-buf-file-evidence.md)

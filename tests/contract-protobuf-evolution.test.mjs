@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -62,6 +63,25 @@ const protobufQualification = await import(
     ),
   ).href,
 );
+const protobufQualificationModel = await import(
+  pathToFileURL(
+    join(
+      distRoot,
+      "capabilities",
+      "contract-protobuf-evolution",
+      "application",
+      "model",
+      "buf-breaking-qualification.js",
+    ),
+  ).href,
+);
+
+const bufConfigSource = "version: v2\nmodules:\n  - path: contracts/protobuf\nbreaking:\n  use:\n    - FILE\n";
+const releasedDescriptorImage = Buffer.from("released descriptor image\n", "utf8");
+
+function sha256(value) {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+}
 
 function digest(character) {
   return `sha256:${character.repeat(64)}`;
@@ -113,15 +133,99 @@ function policy() {
 }
 
 function releasedBaseline() {
-  return policy().released;
+  return {
+    ...policy().released,
+    bufConfigDigest: sha256(bufConfigSource),
+    descriptorImageDigest: sha256(releasedDescriptorImage),
+  };
 }
 
 function capabilityConfig(releasedBaselinePath = "architecture/contracts/released.yaml") {
+  const released = releasedBaseline();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     releasedBaselinePath,
     approvedBreakingChanges: [],
-    current: policy().current,
+    qualification: {
+      modulePath: "contracts/protobuf",
+      bufConfigPath: "buf.yaml",
+      releasedDescriptorImagePath: "architecture/contracts/released.binpb",
+      evidencePath: "architecture/evidence/protobuf/qualification.json",
+    },
+    current: {
+      schemaVersion: 2,
+      contractId: released.contractId,
+      publicContractVersion: released.publicContractVersion,
+      bufVersion: released.bufVersion,
+      bufConfigDigest: released.bufConfigDigest,
+      descriptorImageDigest: released.descriptorImageDigest,
+      generatorVersions: released.generatorVersions,
+      generationDrift: {
+        expectedGeneratedOutputDigest: released.generatedOutputDigest,
+        observedGeneratedOutputDigest: released.generatedOutputDigest,
+      },
+    },
+  };
+}
+
+function qualificationEvidence(config, baseline) {
+  const findingSetDigest = sha256(
+    protobufQualificationModel.canonicalBufFindingSet([]),
+  );
+  const evidenceWithoutDigest = {
+    schemaVersion: 2,
+    producerId: "agent-teams-foundation.buf-breaking-qualification",
+    producerVersion: 2,
+    policy: "FILE",
+    contractId: config.current.contractId,
+    bufVersion: config.current.bufVersion,
+    modulePath: config.qualification.modulePath,
+    bufConfigPath: config.qualification.bufConfigPath,
+    evidencePath: config.qualification.evidencePath,
+    bufConfigDigest: config.current.bufConfigDigest,
+    baselineDescriptorImagePath: config.qualification.releasedDescriptorImagePath,
+    baselineDescriptorImageDigest: baseline.descriptorImageDigest,
+    candidateDescriptorImageDigest: config.current.descriptorImageDigest,
+    breakingPolicyConfigDigest: sha256(
+      protobufQualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
+    ),
+    invocationDigest: sha256(
+      protobufQualificationModel.canonicalBufQualificationInvocation(
+        protobufQualificationModel.qualificationInvocationInput({
+          qualification: config.qualification,
+          current: config.current,
+          released: baseline,
+          breakingPolicyConfigDigest: sha256(
+            protobufQualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
+          ),
+        }),
+      ),
+    ),
+    result: {
+      status: "compatible",
+      findings: [],
+      findingSetDigest,
+      rawOutputDigest: sha256(""),
+    },
+  };
+  return {
+    ...evidenceWithoutDigest,
+    evidenceDigest: sha256(
+      protobufQualificationModel.canonicalBufQualificationEvidence(
+        evidenceWithoutDigest,
+      ),
+    ),
+  };
+}
+
+function breakingQualificationEvidence(fingerprint = digest("f")) {
+  return {
+    async read({ configuration }) {
+      return {
+        breaking: { status: "breaking", fingerprint },
+        releasedDescriptorImageDigest: configuration.released.descriptorImageDigest,
+      };
+    },
   };
 }
 
@@ -136,6 +240,20 @@ async function withConfig(value, callback, baseline = releasedBaseline()) {
   try {
     await writeYaml(root, "contract.yaml", value);
     await writeYaml(root, "architecture/contracts/released.yaml", baseline);
+    await mkdir(join(root, "contracts", "protobuf"), { recursive: true });
+    await writeFile(join(root, "buf.yaml"), bufConfigSource, "utf8");
+    await mkdir(join(root, "architecture", "contracts"), { recursive: true });
+    await writeFile(
+      join(root, "architecture", "contracts", "released.binpb"),
+      releasedDescriptorImage,
+    );
+    if (value.qualification !== undefined && value.current !== undefined) {
+      await writeYaml(
+        root,
+        value.qualification.evidencePath,
+        qualificationEvidence(value, baseline),
+      );
+    }
     return await callback(root);
   } finally {
     await rm(root, { force: true, recursive: true });
@@ -326,10 +444,6 @@ test("accepts any matching breaking approval backed by an accepted decision", ()
 
 test("keeps governance evidence as an opaque protobuf configuration reference", async () => {
   const config = capabilityConfig();
-  config.current.breaking = {
-    status: "breaking",
-    fingerprint: digest("f"),
-  };
   config.approvedBreakingChanges = [
     { decisionId: "ADR-0042", fingerprint: digest("f") },
   ];
@@ -347,12 +461,17 @@ test("keeps governance evidence as an opaque protobuf configuration reference", 
   });
 });
 
+test("accepts the repository root as an explicit Buf module path", async () => {
+  const config = capabilityConfig();
+  config.qualification.modulePath = ".";
+  await withConfig(config, async (root) => assert.equal(
+    (await protobufConfig.loadCapabilityConfig(root, "contract.yaml")).qualification.modulePath,
+    ".",
+  ));
+});
+
 test("resolves accepted decision evidence through the consumer-owned port", async () => {
   const config = capabilityConfig();
-  config.current.breaking = {
-    status: "breaking",
-    fingerprint: digest("f"),
-  };
   config.approvedBreakingChanges = [
     { decisionId: "ADR-0042", fingerprint: digest("f") },
   ];
@@ -370,6 +489,7 @@ test("resolves accepted decision evidence through the consumer-owned port", asyn
           return { acceptedDecisionIds: ["ADR-0042"] };
         },
       },
+      bufBreakingQualificationEvidence: breakingQualificationEvidence(),
     });
     const result = await capability.run({
       consumerRoot: root,
@@ -389,10 +509,6 @@ test("resolves accepted decision evidence through the consumer-owned port", asyn
 
 test("rejects a fabricated accepted-decision baseline without immutable governance evidence", async () => {
   const config = capabilityConfig();
-  config.current.breaking = {
-    status: "breaking",
-    fingerprint: digest("f"),
-  };
   config.approvedBreakingChanges = [
     { decisionId: "ADR-0042", fingerprint: digest("f") },
   ];
@@ -449,10 +565,6 @@ test("rejects a fabricated accepted-decision baseline without immutable governan
 
 test("loads a breaking approval only from a complete immutable governance catalog", async () => {
   const config = capabilityConfig();
-  config.current.breaking = {
-    status: "breaking",
-    fingerprint: digest("f"),
-  };
   config.approvedBreakingChanges = [
     { decisionId: "ADR-0042", fingerprint: digest("f") },
   ];
@@ -460,10 +572,9 @@ test("loads a breaking approval only from a complete immutable governance catalo
   config.governanceConfigPath = governanceConfigPath;
   await withConfig(config, async (root) => {
     await writeGovernedDecisionEvidence(root);
-    const result = await protobufModule.createProtobufEvolutionCapability().run({
-      consumerRoot: root,
-      configPath: "contract.yaml",
-    });
+    const result = await protobufModule.createProtobufEvolutionCapability({
+      bufBreakingQualificationEvidence: breakingQualificationEvidence(),
+    }).run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(result.outcome, "passed");
   });
 });
@@ -537,7 +648,16 @@ test("runs as a deterministic read-only Foundation capability with closed input 
       join(distRoot, "capabilities", "contract-protobuf-evolution", "module.js"),
       "utf8",
     );
-    assert.doesNotMatch(moduleSource, /qualification|child_process|node:child_process/u);
+    assert.doesNotMatch(moduleSource, /child_process|node:child_process|ProcessBuf/u);
+    const cliSource = await readFile(join(distRoot, "cli.js"), "utf8");
+    assert.doesNotMatch(
+      cliSource,
+      /^import .*contract-protobuf-evolution\/qualification\/module/mu,
+    );
+    assert.match(
+      cliSource,
+      /await import\(\s*"\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,
+    );
 
     const capability = protobufModule.createProtobufEvolutionCapability();
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -555,7 +675,7 @@ test("runs as a deterministic read-only Foundation capability with closed input 
 
     await writeFile(
       join(root, "contract.yaml"),
-      "schemaVersion: 1\nreleasedBaselinePath: architecture/contracts/released.yaml\nreleased: []\n",
+      "schemaVersion: 2\nreleasedBaselinePath: architecture/contracts/released.yaml\nreleased: []\n",
       "utf8",
     );
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -575,13 +695,15 @@ test("requires an explicitly supported root configuration schema version", async
     assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
   });
 
-  const unknownVersion = capabilityConfig();
-  unknownVersion.schemaVersion = 2;
-  await withConfig(unknownVersion, async (root) => {
-    const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
-    assert.equal(result.outcome, "invalid-input");
-    assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
-  });
+  for (const schemaVersion of [1, 3]) {
+    const unsupportedVersion = capabilityConfig();
+    unsupportedVersion.schemaVersion = schemaVersion;
+    await withConfig(unsupportedVersion, async (root) => {
+      const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+      assert.equal(result.outcome, "invalid-input");
+      assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
+    });
+  }
 });
 
 test("checks the pinned Buf executable through an injected port", async () => {
@@ -638,7 +760,7 @@ test("Protobuf contract config and released baseline schemas accept verified sha
       "engineering-foundation",
       "schemas",
       "contract-protobuf-evolution",
-      "v1.schema.json",
+      "v2.schema.json",
     ),
     "utf8",
   );
@@ -659,12 +781,30 @@ test("Protobuf contract config and released baseline schemas accept verified sha
   const validateBaseline = new Ajv2020({ strict: true }).compile(JSON.parse(baselineSource));
   assert.equal(validateBaseline(releasedBaseline()), true, JSON.stringify(validateBaseline.errors));
 
+  const evidenceSource = await readFile(
+    join(
+      repositoryRoot,
+      "packages",
+      "engineering-foundation",
+      "schemas",
+      "contract-protobuf-breaking-qualification",
+      "v2.schema.json",
+    ),
+    "utf8",
+  );
+  const validateEvidence = new Ajv2020({ strict: true }).compile(JSON.parse(evidenceSource));
+  assert.equal(
+    validateEvidence(qualificationEvidence(capabilityConfig(), releasedBaseline())),
+    true,
+    JSON.stringify(validateEvidence.errors),
+  );
+
   const missingVersion = capabilityConfig();
   delete missingVersion.schemaVersion;
   assert.equal(validate(missingVersion), false);
 
   const unknownVersion = capabilityConfig();
-  unknownVersion.schemaVersion = 2;
+  unknownVersion.schemaVersion = 3;
   assert.equal(validate(unknownVersion), false);
 });
 

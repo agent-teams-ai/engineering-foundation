@@ -1,8 +1,8 @@
-import { execFile } from "node:child_process";
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
 import { CapabilityInputError } from "../../../../../../capability-runtime.js";
+import { executeManagedProcess } from "../../../../../../process-execution/node-process-runner.js";
 import { assertNotCancelled } from "../../../../../../strict-yaml.js";
 import type {
   BufExecutable,
@@ -12,7 +12,7 @@ import type {
 
 const MAX_ARGUMENTS = 128;
 const MAX_ARGUMENT_LENGTH = 16 * 1024;
-const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
+const DEFAULT_BUF_PROCESS_TIMEOUT_MS = 300_000;
 
 function hasControlCharacter(value: string): boolean {
   for (const character of value) {
@@ -24,13 +24,13 @@ function hasControlCharacter(value: string): boolean {
   return false;
 }
 
-function inputError(code: string, message: string): never {
+function inputError(code: string, message: string, cause?: unknown): never {
   throw new CapabilityInputError({
     code,
     message,
     phase: "protobuf-buf-process",
     retryable: false
-  });
+  }, cause === undefined ? undefined : { cause });
 }
 
 function assertArgument(value: unknown, index: number): asserts value is string {
@@ -71,65 +71,45 @@ async function workingDirectory(path: unknown): Promise<string> {
   return canonical;
 }
 
-function execute(
+async function execute(
   command: string,
   arguments_: readonly string[],
   cwd: string,
+  timeoutMs: number,
   signal?: AbortSignal
 ): Promise<BufExecutionResult> {
-  return new Promise((resolve, reject) => {
-    execFile(
+  try {
+    const result = await executeManagedProcess({
       command,
-      [...arguments_],
-      {
-        cwd,
-        encoding: "utf8",
-        maxBuffer: MAX_OUTPUT_BYTES,
-        shell: false,
-        signal,
-        windowsHide: true
-      },
-      (error, stdout, stderr) => {
-        if (error === null) {
-          resolve({ exitCode: 0, stdout, stderr });
-          return;
-        }
-        if (signal?.aborted === true) {
-          reject(
-            new CapabilityInputError({
-              code: "EXECUTION_CANCELLED",
-              message: "Foundation check was cancelled.",
-              phase: "protobuf-buf-process",
-              retryable: false
-            })
-          );
-          return;
-        }
-        const exitCode =
-          typeof (error as { readonly code?: unknown }).code === "number"
-            ? (error as { readonly code: number }).code
-            : undefined;
-        if (exitCode !== undefined) {
-          resolve({ exitCode, stdout, stderr });
-          return;
-        }
-        reject(
-          new CapabilityInputError(
-            {
-              code: "BUF_EXECUTION_UNAVAILABLE",
-              message: "Pinned Buf executable could not be started.",
-              phase: "protobuf-buf-process",
-              retryable: false
-            },
-            { cause: error }
-          )
-        );
-      }
+      args: arguments_,
+      cwd,
+      timeoutMs,
+      ...(signal === undefined ? {} : { signal })
+    });
+    return {
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr
+    };
+  } catch (error) {
+    if (signal?.aborted === true) {
+      inputError("EXECUTION_CANCELLED", "Buf qualification was cancelled.", error);
+    }
+    inputError(
+      "BUF_EXECUTION_UNAVAILABLE",
+      `Pinned Buf execution failed or exceeded its ${String(timeoutMs)}ms deadline.`,
+      error
     );
-  });
+  }
 }
 
 export class ProcessBufExecutable implements BufExecutable {
+  readonly #timeoutMs: number;
+
+  constructor(timeoutMs = DEFAULT_BUF_PROCESS_TIMEOUT_MS) {
+    this.#timeoutMs = timeoutMs;
+  }
+
   async run(
     invocation: BufInvocation,
     signal?: AbortSignal
@@ -144,6 +124,6 @@ export class ProcessBufExecutable implements BufExecutable {
       workingDirectory(invocation.workingDirectory)
     ]);
     assertNotCancelled(signal);
-    return execute(command, invocation.arguments, cwd, signal);
+    return execute(command, invocation.arguments, cwd, this.#timeoutMs, signal);
   }
 }

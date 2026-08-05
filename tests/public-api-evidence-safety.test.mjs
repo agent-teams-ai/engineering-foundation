@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdir, readFile, readdir, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -156,24 +156,41 @@ test("extracts from a staged package snapshot when the original declaration muta
   await withPublicApiFixture(async (consumerRoot) => {
     const packageDirectory = join(consumerRoot, "packages", "library");
     const declarationPath = join(packageDirectory, "dist", "index.d.ts");
+    const snapshotMarker = `public-api-stage-${basename(consumerRoot)}`;
     const watcherPath = join(consumerRoot, "mutate-after-stage.mjs");
     const readyPath = join(packageDirectory, "watcher-ready");
     const mutatedPath = join(packageDirectory, "watcher-mutated");
+    const originalDeclaration = await readFile(declarationPath, "utf8");
+    await writeFile(
+      declarationPath,
+      `// ${snapshotMarker}\n${originalDeclaration}`,
+      "utf8",
+    );
     await writeFile(
       watcherPath,
-      `import { readdir, stat, writeFile } from "node:fs/promises";
+      `import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 const stageParent = process.argv[2];
 const readyPath = process.argv[3];
 const target = process.argv[4];
 const mutatedPath = process.argv[5];
+const snapshotMarker = process.argv[6];
 await writeFile(readyPath, "ready");
 for (let attempt = 0; attempt < 5000; attempt += 1) {
   const names = await readdir(stageParent);
-  const stage = names.find((name) => name.startsWith(".agent-teams-public-api-stage-"));
-  if (stage !== undefined) {
+  const stages = names.filter((name) => name.startsWith(".agent-teams-public-api-stage-"));
+  for (const stage of stages) {
     try {
-      await stat(join(stageParent, stage, "packages", "library", "dist", "index.d.ts"));
+      const stagedDeclaration = join(
+        stageParent,
+        stage,
+        "packages",
+        "library",
+        "dist",
+        "index.d.ts",
+      );
+      await stat(stagedDeclaration);
+      if (!(await readFile(stagedDeclaration, "utf8")).includes(snapshotMarker)) continue;
       await writeFile(target, "export declare function stable(value: number): string;\\n");
       await writeFile(mutatedPath, "mutated");
       process.exit(0);
@@ -191,6 +208,7 @@ process.exit(1);
       readyPath,
       declarationPath,
       mutatedPath,
+      snapshotMarker,
     ]);
     for (let attempt = 0; attempt < 200; attempt += 1) {
       try {
@@ -296,11 +314,12 @@ test("extracts from staged root compiler configuration after the source mutates"
   await withPublicApiFixture(async (consumerRoot) => {
     const packageDirectory = join(consumerRoot, "packages", "library");
     const rootTsconfigPath = join(consumerRoot, "tsconfig.json");
+    const snapshotMarker = `root-tsconfig-stage-${basename(consumerRoot)}`;
     const watcherPath = join(consumerRoot, "mutate-root-tsconfig-after-stage.mjs");
     const readyPath = join(packageDirectory, "root-watcher-ready");
     await writeFile(
       rootTsconfigPath,
-      `${JSON.stringify({
+      `// ${snapshotMarker}\n${JSON.stringify({
         compilerOptions: {
           module: "NodeNext",
           moduleResolution: "NodeNext",
@@ -325,14 +344,15 @@ import { join } from "node:path";
 const stageParent = process.argv[2];
 const readyPath = process.argv[3];
 const target = process.argv[4];
+const snapshotMarker = process.argv[5];
 await writeFile(readyPath, "ready");
 for (let attempt = 0; attempt < 5000; attempt += 1) {
   const names = await readdir(stageParent);
-  const stage = names.find((name) => name.startsWith(".agent-teams-public-api-stage-"));
-  if (stage !== undefined) {
+  const stages = names.filter((name) => name.startsWith(".agent-teams-public-api-stage-"));
+  for (const stage of stages) {
     try {
       const source = await readFile(join(stageParent, stage, "tsconfig.json"), "utf8");
-      if (source.includes("ES2024")) {
+      if (source.includes(snapshotMarker)) {
         await writeFile(target, "{ invalid json");
         process.exit(0);
       }
@@ -349,6 +369,7 @@ process.exit(1);
       tmpdir(),
       readyPath,
       rootTsconfigPath,
+      snapshotMarker,
     ]);
     for (let attempt = 0; attempt < 200; attempt += 1) {
       try {

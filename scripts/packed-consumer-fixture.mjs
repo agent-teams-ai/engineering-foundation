@@ -8,17 +8,18 @@ import {
   syntheticDigest,
   writeJson
 } from "./pack-test-support.mjs";
+import { writePackedConsumerProtobufFixture } from "./packed-consumer-protobuf-fixture.mjs";
 
 const foundationPackage = "@agent-teams/engineering-foundation";
 const identitySource = "export function identity(value: string): string {\n  return value;\n}\n";
 
-function consumerManifest(foundationVersion) {
+function consumerManifest(foundationVersion, packageManager) {
   return {
     name: "foundation-pack-consumer",
     version: "0.0.0",
     private: true,
     type: "module",
-    packageManager: "pnpm@11.18.0",
+    packageManager,
     devDependencies: {
       [foundationPackage]: foundationVersion,
       oxlint: "catalog:",
@@ -29,7 +30,10 @@ function consumerManifest(foundationVersion) {
 }
 
 async function writeInstallManifests(input) {
-  await writeJson(join(input.consumerRoot, "package.json"), consumerManifest(input.foundationVersion));
+  await writeJson(
+    join(input.consumerRoot, "package.json"),
+    consumerManifest(input.foundationVersion, input.packageManager)
+  );
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
     `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog:\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
@@ -58,7 +62,7 @@ async function installPackedPackage(input) {
   }
   await writeJson(
     join(input.consumerRoot, "package.json"),
-    consumerManifest(packedManifest.version)
+    consumerManifest(packedManifest.version, input.packageManager)
   );
   return packedManifest;
 }
@@ -277,46 +281,6 @@ async function writeJsonContractFixture(consumerRoot) {
   return evidence;
 }
 
-async function writeProtobufFixture(consumerRoot) {
-  const released = {
-    schemaVersion: 1,
-    contractId: "pack-consumer.control",
-    publicContractVersion: "1.0.0",
-    bufVersion: "1.72.0",
-    bufConfigDigest: syntheticDigest("a"),
-    descriptorImageDigest: syntheticDigest("b"),
-    generatorVersions: [],
-    generatedOutputDigest: syntheticDigest("c")
-  };
-  await writeJson(
-    join(consumerRoot, "architecture", "contracts", "protobuf", "pack-consumer.control.json"),
-    released
-  );
-  await writeJson(
-    join(consumerRoot, "architecture", "foundation", "protobuf-evolution.yaml"),
-    {
-      schemaVersion: 1,
-      releasedBaselinePath: "architecture/contracts/protobuf/pack-consumer.control.json",
-      approvedBreakingChanges: [],
-      current: {
-        schemaVersion: 1,
-        contractId: released.contractId,
-        publicContractVersion: released.publicContractVersion,
-        bufVersion: released.bufVersion,
-        bufConfigDigest: released.bufConfigDigest,
-        descriptorImageDigest: released.descriptorImageDigest,
-        releasedDescriptorImageDigest: released.descriptorImageDigest,
-        generatorVersions: [],
-        generationDrift: {
-          expectedGeneratedOutputDigest: released.generatedOutputDigest,
-          observedGeneratedOutputDigest: released.generatedOutputDigest
-        },
-        breaking: { status: "compatible", fingerprint: syntheticDigest("d") }
-      }
-    }
-  );
-}
-
 async function writePublicApiFixture(consumerRoot) {
   const packageRoot = join(consumerRoot, "packages", "library");
   await mkdir(join(packageRoot, "dist"), { recursive: true });
@@ -474,6 +438,7 @@ function resolveConsumerToolEntrypoints(consumerRoot) {
   const requireFromConsumer = createRequire(join(consumerRoot, "package.json"));
   const foundationRoot = dirname(requireFromConsumer.resolve(`${foundationPackage}/package.json`));
   return {
+    foundationRoot,
     foundationCli: join(foundationRoot, "dist", "cli.js"),
     oxlint: join(dirname(requireFromConsumer.resolve("oxlint/package.json")), "bin", "oxlint"),
     typescript: join(
@@ -488,10 +453,14 @@ export async function createPackedConsumerFixture(input) {
   await mkdir(input.consumerRoot, { recursive: true });
   const packedManifest = await installPackedPackage(input);
   await writeScaffoldingTypeConsumer(input.consumerRoot);
+  const toolEntrypoints = resolveConsumerToolEntrypoints(input.consumerRoot);
   await writeFoundationConfiguration(input.consumerRoot);
   await writeDocumentationFixture(input.consumerRoot);
   const jsonContract = await writeJsonContractFixture(input.consumerRoot);
-  await writeProtobufFixture(input.consumerRoot);
+  await writePackedConsumerProtobufFixture(
+    input.consumerRoot,
+    toolEntrypoints.foundationRoot
+  );
   await writePublicApiFixture(input.consumerRoot);
   await writeSuppressionGovernanceFixture(input.consumerRoot);
   await writeRepositorySecurityFixture(input.consumerRoot);
@@ -504,6 +473,6 @@ export async function createPackedConsumerFixture(input) {
     jsonContract,
     packedManifest,
     sourceRoot,
-    toolEntrypoints: resolveConsumerToolEntrypoints(input.consumerRoot)
+    toolEntrypoints
   });
 }

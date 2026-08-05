@@ -63,11 +63,13 @@ Before every publication:
 - verify development-only dependency placement;
 - reject unexpected or sensitive package contents;
 - pass the hermetic npm-compatible registry publish/install qualification;
+- rerun the hardened qualifier with the exact pinned Buf `FILE` policy;
 - retain the CI-generated SPDX JSON SBOM and npm Trusted Publishing provenance
   as separate supply-chain evidence.
 
-`release:publish` runs the hermetic registry qualification after the normal
-repository checks and before `changeset publish`. It starts an isolated
+`release:publish` runs the real pinned Buf qualification and hermetic registry
+qualification after the normal repository checks and before `changeset publish`.
+The registry qualification starts an isolated
 npm-compatible registry with no uplinks, publishes the packed package and its
 runtime dependency closure, installs by exact version, and verifies registry
 metadata, lockfile integrity, CLI startup, and public imports.

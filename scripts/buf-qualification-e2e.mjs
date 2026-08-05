@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -10,7 +10,11 @@ import { ensurePinnedAqua } from "./security-toolchain.mjs";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const cliPath = join(
+const configuredCliPath = process.env.AGENT_TEAMS_FOUNDATION_CLI_PATH;
+if (configuredCliPath !== undefined && !isAbsolute(configuredCliPath)) {
+  throw new Error("AGENT_TEAMS_FOUNDATION_CLI_PATH must be absolute when provided.");
+}
+const cliPath = configuredCliPath ?? join(
   repositoryRoot,
   "packages",
   "engineering-foundation",

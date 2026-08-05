@@ -76,6 +76,11 @@
       "id": "ADR-0015",
       "path": "docs/decisions/0015-qualified-buf-file-evidence.md",
       "immutableDigest": "sha256:b13b67fc9bcfb6b7464041cf275d5db418d900e2e5ef229dd1cfb85918fa27be"
+    },
+    {
+      "id": "ADR-0016",
+      "path": "docs/decisions/0016-hardened-buf-qualification-boundary.md",
+      "immutableDigest": "sha256:b77bdd35443e8510785c8ce546007528683e8fa45bd1d635790e83ab87a2070b"
     }
   ]
 }

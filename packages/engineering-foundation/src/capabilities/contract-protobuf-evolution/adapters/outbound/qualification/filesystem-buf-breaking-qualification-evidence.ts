@@ -8,11 +8,11 @@ import {
 import { assertSchema } from "../../../../../schema-catalog.js";
 import {
   assertNotCancelled,
-  loadStrictYamlFile,
   parseStrictYamlSource
 } from "../../../../../strict-yaml.js";
 import {
   assertExactBufFilePolicy,
+  BUF_FILE_BREAKING_CONFIG_SOURCE,
   canonicalBufFindingSet,
   canonicalBufQualificationEvidence,
   canonicalBufQualificationInvocation,
@@ -30,6 +30,7 @@ import { NodeSha256Digest } from "../crypto/node-sha256-digest.js";
 
 const MAX_BUF_CONFIG_BYTES = 1024 * 1024;
 const MAX_DESCRIPTOR_BYTES = 64 * 1024 * 1024;
+const MAX_EVIDENCE_BYTES = 8 * 1024 * 1024;
 
 function inputError(code: string, message: string): never {
   throw new CapabilityInputError({
@@ -77,10 +78,12 @@ function withoutEvidenceDigest(
     bufVersion: evidence.bufVersion,
     modulePath: evidence.modulePath,
     bufConfigPath: evidence.bufConfigPath,
+    evidencePath: evidence.evidencePath,
     bufConfigDigest: evidence.bufConfigDigest,
     baselineDescriptorImagePath: evidence.baselineDescriptorImagePath,
     baselineDescriptorImageDigest: evidence.baselineDescriptorImageDigest,
     candidateDescriptorImageDigest: evidence.candidateDescriptorImageDigest,
+    breakingPolicyConfigDigest: evidence.breakingPolicyConfigDigest,
     invocationDigest: evidence.invocationDigest,
     result: evidence.result
   };
@@ -99,14 +102,19 @@ implements BufBreakingQualificationEvidencePort {
   ): Promise<ResolvedBufBreakingQualificationEvidence> {
     assertNotCancelled(input.signal);
     const { configuration } = input;
-    const rawEvidence = await loadStrictYamlFile(
-      input.consumerRoot,
-      configuration.qualification.evidencePath,
-      "protobuf-buf-qualification-evidence",
-      input.signal
+    const evidenceBytes = await readQualificationFile({
+      consumerRoot: input.consumerRoot,
+      path: configuration.qualification.evidencePath,
+      maxBytes: MAX_EVIDENCE_BYTES,
+      label: "Buf qualification evidence"
+    });
+    assertNotCancelled(input.signal);
+    const rawEvidence = parseStrictYamlSource(
+      evidenceBytes.toString("utf8"),
+      "protobuf-buf-qualification-evidence"
     );
     await assertSchema(
-      "contract-protobuf-breaking-qualification/v1",
+      "contract-protobuf-breaking-qualification/v2",
       rawEvidence,
       "protobuf-buf-qualification-evidence"
     );
@@ -132,9 +140,15 @@ implements BufBreakingQualificationEvidencePort {
 
     const observedBufConfigDigest = this.#digest.digest(bufConfigBytes);
     const observedBaselineDigest = this.#digest.digest(baselineDescriptorBytes);
+    const expectedBreakingPolicyConfigDigest = this.#digest.digest(
+      BUF_FILE_BREAKING_CONFIG_SOURCE
+    );
     const expectedInvocationDigest = this.#digest.digest(
       canonicalBufQualificationInvocation(
-        qualificationInvocationInput(configuration)
+        qualificationInvocationInput({
+          ...configuration,
+          breakingPolicyConfigDigest: expectedBreakingPolicyConfigDigest
+        })
       )
     );
     const expectedFindingSetDigest = this.#digest.digest(
@@ -149,11 +163,13 @@ implements BufBreakingQualificationEvidencePort {
       evidence.bufVersion === configuration.current.bufVersion &&
       evidence.modulePath === configuration.qualification.modulePath &&
       evidence.bufConfigPath === configuration.qualification.bufConfigPath &&
+      evidence.evidencePath === configuration.qualification.evidencePath &&
       evidence.bufConfigDigest === configuration.current.bufConfigDigest &&
       evidence.baselineDescriptorImagePath ===
         configuration.qualification.releasedDescriptorImagePath &&
       evidence.baselineDescriptorImageDigest === configuration.released.descriptorImageDigest &&
-      evidence.candidateDescriptorImageDigest === configuration.current.descriptorImageDigest;
+      evidence.candidateDescriptorImageDigest === configuration.current.descriptorImageDigest &&
+      evidence.breakingPolicyConfigDigest === expectedBreakingPolicyConfigDigest;
     if (!bindingsMatch) {
       inputError(
         "BUF_QUALIFICATION_EVIDENCE_MISMATCH",
@@ -183,10 +199,7 @@ implements BufBreakingQualificationEvidencePort {
     return Object.freeze({
       breaking: Object.freeze({
         status: evidence.result.status,
-        fingerprint:
-          evidence.result.status === "breaking"
-            ? evidence.result.findingSetDigest
-            : evidence.evidenceDigest
+        fingerprint: evidence.evidenceDigest
       }),
       releasedDescriptorImageDigest: evidence.baselineDescriptorImageDigest
     });

@@ -12,8 +12,8 @@ dependency capability is implemented and dogfooded behind internal ports.
 ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
 ADR-0003 through ADR-0009 accept the governance, source-graph,
 documentation, contract-evolution, and workflow-security capabilities.
-ADR-0015 supplements contract evolution with a reusable pinned Buf `FILE`
-qualification producer and versioned evidence envelope.
+ADR-0016 supersedes ADR-0015 and hardens contract evolution with a reusable
+pinned Buf `FILE` qualification producer and versioned evidence envelope.
 Package installation never activates them: the consumer declares each applicable
 capability and supplies its own policy and qualification evidence.
 
@@ -36,11 +36,11 @@ These terms describe different facts and must not be used interchangeably:
 | `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
 | `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
-| `documentation.local-references` | Yes | No, next release | Yes | Only by explicit declaration |
-| `governance.architecture-decisions` | Yes | No, next release | Yes | Only by explicit declaration and baseline promotion |
-| `contract.protobuf-evolution` | Yes | No, next release | No contract owned here | Only by explicit declaration and qualification evidence |
-| `contract.json-schema-releases` | Yes | No, next release | No contract owned here | Only by explicit declaration and consumer evidence |
-| `repository.agent-workflow` | Yes | Pending this Changeset | Yes | Only by explicit declaration |
+| `documentation.local-references` | Yes | Yes | Yes | Only by explicit declaration |
+| `governance.architecture-decisions` | Yes | Yes | Yes | Only by explicit declaration and baseline promotion |
+| `contract.protobuf-evolution` | Yes | Yes | No contract owned here | Only by explicit declaration and qualification evidence |
+| `contract.json-schema-releases` | Yes | Yes | No contract owned here | Only by explicit declaration and consumer evidence |
+| `repository.agent-workflow` | Yes | Yes | Yes | Only by explicit declaration |
 
 Installing or upgrading the package changes none of the consumer activation
 cells. Each consumer records its own activation status in its repository.

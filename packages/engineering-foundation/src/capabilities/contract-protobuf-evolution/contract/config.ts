@@ -207,9 +207,16 @@ function mapCurrent(value: unknown): CurrentProtobufContractDeclaration {
 function qualificationPath(
   value: unknown,
   field: string,
-  options: { readonly prefix?: string; readonly suffix?: RegExp } = {}
+  options: {
+    readonly allowRepositoryRoot?: boolean;
+    readonly prefix?: string;
+    readonly suffix?: RegExp;
+  } = {}
 ): string {
   const repositoryPath = string(value, field);
+  if (options.allowRepositoryRoot === true && repositoryPath === ".") {
+    return repositoryPath;
+  }
   assertRepositoryRelativePath(repositoryPath, "protobuf-evolution-config");
   if (options.prefix !== undefined && !repositoryPath.startsWith(options.prefix)) {
     inputError(`${field} must be inside ${options.prefix}.`);
@@ -223,7 +230,9 @@ function qualificationPath(
 function mapQualification(value: unknown): BufBreakingQualificationBinding {
   const source = record(value, "qualification");
   return Object.freeze({
-    modulePath: qualificationPath(source["modulePath"], "qualification.modulePath"),
+    modulePath: qualificationPath(source["modulePath"], "qualification.modulePath", {
+      allowRepositoryRoot: true
+    }),
     bufConfigPath: qualificationPath(
       source["bufConfigPath"],
       "qualification.bufConfigPath",

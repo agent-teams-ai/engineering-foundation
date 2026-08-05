@@ -5,7 +5,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
-import { qualifyProtobufBreakingEvidence } from "./capabilities/contract-protobuf-evolution/qualification/module.js";
 import { promoteArchitectureDecisionBaseline } from "./capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
 import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
@@ -251,11 +250,15 @@ async function runProtobufQualificationCommand(
       "contract.protobuf-evolution must be declared before Buf qualification."
     );
   }
+  const { qualifyProtobufBreakingEvidence } = await import(
+    "./capabilities/contract-protobuf-evolution/qualification/module.js"
+  );
   const controller = new AbortController();
   const cancel = () => {
     controller.abort();
   };
   process.once("SIGINT", cancel);
+  process.once("SIGTERM", cancel);
   try {
     const qualification = await qualifyProtobufBreakingEvidence({
       consumerRoot: parsed.consumerRoot,
@@ -271,6 +274,7 @@ async function runProtobufQualificationCommand(
     );
   } finally {
     process.removeListener("SIGINT", cancel);
+    process.removeListener("SIGTERM", cancel);
   }
   return true;
 }
@@ -443,7 +447,7 @@ try {
         : 1;
   } else if (error instanceof CapabilityInputError) {
     process.stderr.write(`${error.problem.code}: ${error.problem.message}\n`);
-    process.exitCode = 2;
+    process.exitCode = error.problem.code === "EXECUTION_CANCELLED" ? 130 : 2;
   } else if (error instanceof ProcessCancellationError) {
     process.stderr.write(`PROCESS_CANCELLED: ${error.message}\n`);
     process.exitCode = 130;

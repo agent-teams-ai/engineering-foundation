@@ -3,6 +3,7 @@ import { assertNotCancelled, parseStrictYamlSource } from "../../../../strict-ya
 import {
   assertExactBufFilePolicy,
   BUF_BREAKING_POLICY,
+  BUF_FILE_BREAKING_CONFIG_SOURCE,
   BUF_QUALIFICATION_PRODUCER_ID,
   BUF_QUALIFICATION_PRODUCER_VERSION,
   BUF_QUALIFICATION_SCHEMA_VERSION,
@@ -20,7 +21,10 @@ import type {
 } from "../../application/model/protobuf-release-evidence.js";
 import type { Sha256DigestPort } from "../../application/ports/sha256-digest.js";
 import type { BufQualificationArtifacts } from "../ports/buf-qualification-artifacts.js";
-import type { BufQualificationRunner } from "../ports/buf-qualification-runner.js";
+import type {
+  BufQualificationRunner,
+  BufQualificationRunResult
+} from "../ports/buf-qualification-runner.js";
 
 const MAX_BUF_CONFIG_BYTES = 1024 * 1024;
 const MAX_DESCRIPTOR_BYTES = 64 * 1024 * 1024;
@@ -31,6 +35,11 @@ export interface QualifyBufBreakingEvidenceResult {
   readonly evidencePath: string;
   readonly evidenceDigest: `sha256:${string}`;
   readonly writeResult: "checked" | "created" | "updated" | "unchanged";
+}
+
+interface QualificationInputs {
+  readonly baselineDescriptorImage: Uint8Array;
+  readonly bufConfigBytes: Uint8Array;
 }
 
 function hasControlCharacter(value: string): boolean {
@@ -127,6 +136,64 @@ function normalizedOutput(source: string): { readonly source: string; readonly f
   };
 }
 
+async function readQualificationInputs(
+  consumerRoot: string,
+  configuration: ProtobufEvolutionConfiguration,
+  artifacts: BufQualificationArtifacts
+): Promise<QualificationInputs> {
+  const [bufConfigBytes, baselineDescriptorImage] = await Promise.all([
+    artifacts.readInput({
+      consumerRoot,
+      path: configuration.qualification.bufConfigPath,
+      maxBytes: MAX_BUF_CONFIG_BYTES,
+      label: "Buf configuration"
+    }),
+    artifacts.readInput({
+      consumerRoot,
+      path: configuration.qualification.releasedDescriptorImagePath,
+      maxBytes: MAX_DESCRIPTOR_BYTES,
+      label: "Released descriptor image"
+    })
+  ]);
+  return { baselineDescriptorImage, bufConfigBytes };
+}
+
+function assertFilePolicy(bufConfigBytes: Uint8Array): void {
+  assertExactBufFilePolicy(
+    parseStrictYamlSource(Buffer.from(bufConfigBytes).toString("utf8"), "protobuf-buf-config")
+  );
+}
+
+function assertDeclaredInputDigests(
+  configuration: ProtobufEvolutionConfiguration,
+  observedConfigDigest: string,
+  observedBaselineDigest: string
+): void {
+  if (
+    observedConfigDigest !== configuration.current.bufConfigDigest ||
+    observedBaselineDigest !== configuration.released.descriptorImageDigest
+  ) {
+    inputError(
+      "BUF_QUALIFICATION_INPUT_DIGEST_MISMATCH",
+      "Buf configuration or released descriptor bytes do not match declared digests."
+    );
+  }
+}
+
+function validateExecutionOutput(execution: BufQualificationRunResult): ReturnType<typeof normalizedOutput> {
+  const output = normalizedOutput(execution.rawOutput);
+  if (
+    (execution.status === "compatible" && output.findings.length !== 0) ||
+    (execution.status === "breaking" && output.findings.length === 0)
+  ) {
+    inputError(
+      "BUF_BREAKING_OUTPUT_INVALID",
+      "Buf exit status and normalized finding set are inconsistent."
+    );
+  }
+  return output;
+}
+
 export async function qualifyBufBreakingEvidence(
   input: {
     readonly consumerRoot: string;
@@ -142,35 +209,23 @@ export async function qualifyBufBreakingEvidence(
   }
 ): Promise<QualifyBufBreakingEvidenceResult> {
   assertNotCancelled(input.signal);
-  const [bufConfigBytes, baselineDescriptorImage] = await Promise.all([
-    dependencies.artifacts.readInput({
-      consumerRoot: input.consumerRoot,
-      path: input.configuration.qualification.bufConfigPath,
-      maxBytes: MAX_BUF_CONFIG_BYTES,
-      label: "Buf configuration"
-    }),
-    dependencies.artifacts.readInput({
-      consumerRoot: input.consumerRoot,
-      path: input.configuration.qualification.releasedDescriptorImagePath,
-      maxBytes: MAX_DESCRIPTOR_BYTES,
-      label: "Released descriptor image"
-    })
-  ]);
-  assertNotCancelled(input.signal);
-  assertExactBufFilePolicy(
-    parseStrictYamlSource(Buffer.from(bufConfigBytes).toString("utf8"), "protobuf-buf-config")
+  const { baselineDescriptorImage, bufConfigBytes } = await readQualificationInputs(
+    input.consumerRoot,
+    input.configuration,
+    dependencies.artifacts
   );
+  assertNotCancelled(input.signal);
+  assertFilePolicy(bufConfigBytes);
   const observedConfigDigest = dependencies.digest.digest(bufConfigBytes);
   const observedBaselineDigest = dependencies.digest.digest(baselineDescriptorImage);
-  if (
-    observedConfigDigest !== input.configuration.current.bufConfigDigest ||
-    observedBaselineDigest !== input.configuration.released.descriptorImageDigest
-  ) {
-    inputError(
-      "BUF_QUALIFICATION_INPUT_DIGEST_MISMATCH",
-      "Buf configuration or released descriptor bytes do not match declared digests."
-    );
-  }
+  const breakingPolicyConfigDigest = dependencies.digest.digest(
+    BUF_FILE_BREAKING_CONFIG_SOURCE
+  );
+  assertDeclaredInputDigests(
+    input.configuration,
+    observedConfigDigest,
+    observedBaselineDigest
+  );
 
   const execution = await dependencies.runner.run({
     executablePath: input.executablePath,
@@ -182,6 +237,25 @@ export async function qualifyBufBreakingEvidence(
     ...(input.signal === undefined ? {} : { signal: input.signal })
   });
   assertNotCancelled(input.signal);
+  const {
+    baselineDescriptorImage: confirmedBaselineDescriptorImage,
+    bufConfigBytes: confirmedBufConfigBytes
+  } = await readQualificationInputs(
+    input.consumerRoot,
+    input.configuration,
+    dependencies.artifacts
+  );
+  assertNotCancelled(input.signal);
+  assertFilePolicy(confirmedBufConfigBytes);
+  if (
+    dependencies.digest.digest(confirmedBufConfigBytes) !== observedConfigDigest ||
+    dependencies.digest.digest(confirmedBaselineDescriptorImage) !== observedBaselineDigest
+  ) {
+    inputError(
+      "BUF_QUALIFICATION_INPUT_CHANGED",
+      "Buf configuration or released descriptor changed while qualification was running."
+    );
+  }
   const candidateDescriptorImageDigest = dependencies.digest.digest(
     execution.candidateDescriptorImage
   );
@@ -191,19 +265,15 @@ export async function qualifyBufBreakingEvidence(
       "Buf candidate descriptor does not match the declared current descriptor digest."
     );
   }
-  const output = normalizedOutput(execution.rawOutput);
-  if (
-    (execution.status === "compatible" && output.findings.length !== 0) ||
-    (execution.status === "breaking" && output.findings.length === 0)
-  ) {
-    inputError(
-      "BUF_BREAKING_OUTPUT_INVALID",
-      "Buf exit status and normalized finding set are inconsistent."
-    );
-  }
+  const output = validateExecutionOutput(execution);
 
   const invocationDigest = dependencies.digest.digest(
-    canonicalBufQualificationInvocation(qualificationInvocationInput(input.configuration))
+    canonicalBufQualificationInvocation(
+      qualificationInvocationInput({
+        ...input.configuration,
+        breakingPolicyConfigDigest
+      })
+    )
   );
   const findingSetDigest = dependencies.digest.digest(
     canonicalBufFindingSet(output.findings)
@@ -217,11 +287,13 @@ export async function qualifyBufBreakingEvidence(
     bufVersion: input.configuration.current.bufVersion,
     modulePath: input.configuration.qualification.modulePath,
     bufConfigPath: input.configuration.qualification.bufConfigPath,
+    evidencePath: input.configuration.qualification.evidencePath,
     bufConfigDigest: observedConfigDigest,
     baselineDescriptorImagePath:
       input.configuration.qualification.releasedDescriptorImagePath,
     baselineDescriptorImageDigest: observedBaselineDigest,
     candidateDescriptorImageDigest,
+    breakingPolicyConfigDigest,
     invocationDigest,
     result: Object.freeze({
       status: execution.status,
@@ -243,19 +315,21 @@ export async function qualifyBufBreakingEvidence(
       "Canonical Buf qualification evidence exceeds the supported size limit."
     );
   }
-  const existing = await dependencies.artifacts.readExistingEvidence({
-    consumerRoot: input.consumerRoot,
-    path: input.configuration.qualification.evidencePath,
-    maxBytes: MAX_EVIDENCE_BYTES
-  });
   let writeResult: QualifyBufBreakingEvidenceResult["writeResult"];
   if (input.write) {
+    assertNotCancelled(input.signal);
     writeResult = await dependencies.artifacts.writeEvidence({
       consumerRoot: input.consumerRoot,
       path: input.configuration.qualification.evidencePath,
-      source
+      source,
+      ...(input.signal === undefined ? {} : { signal: input.signal })
     });
   } else {
+    const existing = await dependencies.artifacts.readExistingEvidence({
+      consumerRoot: input.consumerRoot,
+      path: input.configuration.qualification.evidencePath,
+      maxBytes: MAX_EVIDENCE_BYTES
+    });
     if (existing !== source) {
       inputError(
         "BUF_QUALIFICATION_EVIDENCE_MISMATCH",

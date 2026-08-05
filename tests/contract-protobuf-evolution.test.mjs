@@ -173,24 +173,31 @@ function qualificationEvidence(config, baseline) {
     protobufQualificationModel.canonicalBufFindingSet([]),
   );
   const evidenceWithoutDigest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     producerId: "agent-teams-foundation.buf-breaking-qualification",
-    producerVersion: 1,
+    producerVersion: 2,
     policy: "FILE",
     contractId: config.current.contractId,
     bufVersion: config.current.bufVersion,
     modulePath: config.qualification.modulePath,
     bufConfigPath: config.qualification.bufConfigPath,
+    evidencePath: config.qualification.evidencePath,
     bufConfigDigest: config.current.bufConfigDigest,
     baselineDescriptorImagePath: config.qualification.releasedDescriptorImagePath,
     baselineDescriptorImageDigest: baseline.descriptorImageDigest,
     candidateDescriptorImageDigest: config.current.descriptorImageDigest,
+    breakingPolicyConfigDigest: sha256(
+      protobufQualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
+    ),
     invocationDigest: sha256(
       protobufQualificationModel.canonicalBufQualificationInvocation(
         protobufQualificationModel.qualificationInvocationInput({
           qualification: config.qualification,
           current: config.current,
           released: baseline,
+          breakingPolicyConfigDigest: sha256(
+            protobufQualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
+          ),
         }),
       ),
     ),
@@ -454,6 +461,15 @@ test("keeps governance evidence as an opaque protobuf configuration reference", 
   });
 });
 
+test("accepts the repository root as an explicit Buf module path", async () => {
+  const config = capabilityConfig();
+  config.qualification.modulePath = ".";
+  await withConfig(config, async (root) => assert.equal(
+    (await protobufConfig.loadCapabilityConfig(root, "contract.yaml")).qualification.modulePath,
+    ".",
+  ));
+});
+
 test("resolves accepted decision evidence through the consumer-owned port", async () => {
   const config = capabilityConfig();
   config.approvedBreakingChanges = [
@@ -633,6 +649,15 @@ test("runs as a deterministic read-only Foundation capability with closed input 
       "utf8",
     );
     assert.doesNotMatch(moduleSource, /child_process|node:child_process|ProcessBuf/u);
+    const cliSource = await readFile(join(distRoot, "cli.js"), "utf8");
+    assert.doesNotMatch(
+      cliSource,
+      /^import .*contract-protobuf-evolution\/qualification\/module/mu,
+    );
+    assert.match(
+      cliSource,
+      /await import\(\s*"\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,
+    );
 
     const capability = protobufModule.createProtobufEvolutionCapability();
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -670,13 +695,15 @@ test("requires an explicitly supported root configuration schema version", async
     assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
   });
 
-  const unknownVersion = capabilityConfig();
-  unknownVersion.schemaVersion = 3;
-  await withConfig(unknownVersion, async (root) => {
-    const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
-    assert.equal(result.outcome, "invalid-input");
-    assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
-  });
+  for (const schemaVersion of [1, 3]) {
+    const unsupportedVersion = capabilityConfig();
+    unsupportedVersion.schemaVersion = schemaVersion;
+    await withConfig(unsupportedVersion, async (root) => {
+      const result = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
+      assert.equal(result.outcome, "invalid-input");
+      assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
+    });
+  }
 });
 
 test("checks the pinned Buf executable through an injected port", async () => {
@@ -761,7 +788,7 @@ test("Protobuf contract config and released baseline schemas accept verified sha
       "engineering-foundation",
       "schemas",
       "contract-protobuf-breaking-qualification",
-      "v1.schema.json",
+      "v2.schema.json",
     ),
     "utf8",
   );

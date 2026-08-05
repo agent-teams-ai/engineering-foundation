@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -9,6 +10,10 @@ import test from "node:test";
 import { stringify as stringifyYaml } from "yaml";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const packageRequire = createRequire(
+  join(repositoryRoot, "packages", "engineering-foundation", "package.json"),
+);
+const { lock: lockFile } = packageRequire("proper-lockfile");
 const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
   repositoryRoot,
   "packages",
@@ -89,23 +94,41 @@ function configuration() {
   };
 }
 
+function finalizeEvidence(evidenceWithoutDigest) {
+  return {
+    ...evidenceWithoutDigest,
+    evidenceDigest: sha256(
+      qualificationModel.canonicalBufQualificationEvidence(evidenceWithoutDigest),
+    ),
+  };
+}
+
 function qualifiedEvidence(config) {
   const evidenceWithoutDigest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     producerId: "agent-teams-foundation.buf-breaking-qualification",
-    producerVersion: 1,
+    producerVersion: 2,
     policy: "FILE",
     contractId: config.current.contractId,
     bufVersion: config.current.bufVersion,
     modulePath: config.qualification.modulePath,
     bufConfigPath: config.qualification.bufConfigPath,
+    evidencePath: config.qualification.evidencePath,
     bufConfigDigest: config.current.bufConfigDigest,
     baselineDescriptorImagePath: config.qualification.releasedDescriptorImagePath,
     baselineDescriptorImageDigest: config.released.descriptorImageDigest,
     candidateDescriptorImageDigest: config.current.descriptorImageDigest,
+    breakingPolicyConfigDigest: sha256(
+      qualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
+    ),
     invocationDigest: sha256(
       qualificationModel.canonicalBufQualificationInvocation(
-        qualificationModel.qualificationInvocationInput(config),
+        qualificationModel.qualificationInvocationInput({
+          ...config,
+          breakingPolicyConfigDigest: sha256(
+            qualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
+          ),
+        }),
       ),
     ),
     result: {
@@ -115,12 +138,24 @@ function qualifiedEvidence(config) {
       rawOutputDigest: sha256(""),
     },
   };
-  return {
-    ...evidenceWithoutDigest,
-    evidenceDigest: sha256(
-      qualificationModel.canonicalBufQualificationEvidence(evidenceWithoutDigest),
-    ),
-  };
+  return finalizeEvidence(evidenceWithoutDigest);
+}
+
+function breakingEvidence(config, findings) {
+  const compatible = qualifiedEvidence(config);
+  const { evidenceDigest: _evidenceDigest, ...withoutDigest } = compatible;
+  const normalizedFindings = qualificationModel.sortAndValidateBufFindings(findings);
+  return finalizeEvidence({
+    ...withoutDigest,
+    result: {
+      status: "breaking",
+      findings: normalizedFindings,
+      findingSetDigest: sha256(
+        qualificationModel.canonicalBufFindingSet(normalizedFindings),
+      ),
+      rawOutputDigest: sha256("breaking output\n"),
+    },
+  });
 }
 
 async function writeFixture(root, config, evidence = qualifiedEvidence(config)) {
@@ -240,6 +275,19 @@ test("evidence reader rejects stale bindings, weakened FILE policy, and changed 
       adapter.read({ consumerRoot: root, configuration: config }),
       (error) => error?.problem?.code === "BUF_QUALIFICATION_INPUT_DIGEST_MISMATCH",
     );
+
+    await writeFixture(root, config);
+    const rebound = structuredClone(config);
+    rebound.qualification.evidencePath = "architecture/evidence/protobuf/rebound.json";
+    await writeFile(
+      join(root, rebound.qualification.evidencePath),
+      stringifyYaml(qualifiedEvidence(config)),
+      "utf8",
+    );
+    await assert.rejects(
+      adapter.read({ consumerRoot: root, configuration: rebound }),
+      (error) => error?.problem?.code === "BUF_QUALIFICATION_EVIDENCE_MISMATCH",
+    );
   });
 });
 
@@ -284,10 +332,10 @@ test("rejects duplicate Buf JSON findings before evidence is written", async () 
   });
 });
 
-test("atomically replaces an existing evidence file larger than the new evidence", async () => {
+test("atomically replaces oversized existing evidence without reading it into memory", async () => {
   await withFixture(async ({ config, root }) => {
     const evidencePath = join(root, config.qualification.evidencePath);
-    await writeFile(evidencePath, "x".repeat(64 * 1024), "utf8");
+    await writeFile(evidencePath, "x".repeat((8 * 1024 * 1024) + 1), "utf8");
     const artifacts = new qualificationModule.FilesystemBufQualificationArtifacts();
 
     assert.equal(
@@ -297,6 +345,237 @@ test("atomically replaces an existing evidence file larger than the new evidence
         source: "{}\n",
       }),
       "updated",
+    );
+    assert.equal(await readFile(evidencePath, "utf8"), "{}\n");
+  });
+});
+
+test("binds breaking approval fingerprints to the complete qualified transition", async () => {
+  await withFixture(async ({ config, root }) => {
+    const finding = {
+      path: "control.proto",
+      startLine: 5,
+      startColumn: 3,
+      endLine: 5,
+      endColumn: 22,
+      type: "FIELD_SAME_JSON_NAME",
+      message: "Field renamed.",
+    };
+    const firstEvidence = breakingEvidence(config, [finding]);
+    await writeFixture(root, config, firstEvidence);
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence();
+    const first = await adapter.read({ consumerRoot: root, configuration: config });
+    assert.equal(first.breaking.fingerprint, firstEvidence.evidenceDigest);
+    assert.notEqual(first.breaking.fingerprint, firstEvidence.result.findingSetDigest);
+
+    const successor = structuredClone(config);
+    successor.current.contractId = "agent-runtime-successor";
+    successor.released.contractId = "agent-runtime-successor";
+    const successorEvidence = breakingEvidence(successor, [finding]);
+    await writeFixture(root, successor, successorEvidence);
+    const second = await adapter.read({ consumerRoot: root, configuration: successor });
+    assert.notEqual(second.breaking.fingerprint, first.breaking.fingerprint);
+  });
+});
+
+test("normal evidence reader accepts the producer's full bounded evidence size", async () => {
+  await withFixture(async ({ config, root }) => {
+    const findings = Array.from({ length: 300 }, (_, index) => ({
+      path: `contract-${String(index).padStart(3, "0")}.proto`,
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 2,
+      type: "FIELD_SAME_NAME",
+      message: `${String(index)}:${"x".repeat(3900)}`,
+    }));
+    const evidence = breakingEvidence(config, findings);
+    const source = stringifyYaml(evidence);
+    assert.ok(Buffer.byteLength(source, "utf8") > 1024 * 1024);
+    await writeFixture(root, config, evidence);
+
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence();
+    assert.equal(
+      (await adapter.read({ consumerRoot: root, configuration: config })).breaking.fingerprint,
+      evidence.evidenceDigest,
+    );
+  });
+});
+
+test("runner uses one canonical inline FILE policy for both sides of breaking analysis", async () => {
+  await withFixture(async ({ config, root }) => {
+    let observedPolicy;
+    const executable = {
+      async run(invocation) {
+        if (invocation.arguments[0] === "--version") {
+          return { exitCode: 0, stdout: `${config.current.bufVersion}\n`, stderr: "" };
+        }
+        if (invocation.arguments[0] === "build") {
+          const outputIndex = invocation.arguments.indexOf("-o");
+          await writeFile(invocation.arguments[outputIndex + 1], releasedDescriptorImage);
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        const configIndex = invocation.arguments.indexOf("--config");
+        const againstConfigIndex = invocation.arguments.indexOf("--against-config");
+        observedPolicy = invocation.arguments[configIndex + 1];
+        assert.equal(invocation.arguments[againstConfigIndex + 1], observedPolicy);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      },
+    };
+    const runner = new qualificationModule.ProcessBufQualificationRunner(executable);
+    await runner.run({
+      executablePath: "/trusted/buf",
+      workingDirectory: root,
+      expectedVersion: config.current.bufVersion,
+      modulePath: config.qualification.modulePath,
+      bufConfigPath: config.qualification.bufConfigPath,
+      baselineDescriptorImage: releasedDescriptorImage,
+    });
+    assert.equal(observedPolicy, qualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE);
+  });
+});
+
+test("cancellation after Buf execution prevents evidence publication", async () => {
+  await withFixture(async ({ config, root }) => {
+    const controller = new AbortController();
+    await assert.rejects(
+      qualificationModule.qualifyBufBreakingEvidence(
+        {
+          consumerRoot: root,
+          executablePath: "/trusted/buf",
+          configuration: config,
+          write: true,
+          signal: controller.signal,
+        },
+        {
+          artifacts: {
+            async readInput({ path }) {
+              return path === config.qualification.bufConfigPath
+                ? Buffer.from(bufConfigSource, "utf8")
+                : releasedDescriptorImage;
+            },
+            async readExistingEvidence() { return; },
+            async writeEvidence() { throw new Error("cancelled evidence must not be written"); },
+          },
+          digest: { digest: sha256 },
+          runner: {
+            async run() {
+              controller.abort();
+              return {
+                status: "compatible",
+                candidateDescriptorImage: releasedDescriptorImage,
+                rawOutput: "",
+              };
+            },
+          },
+        },
+      ),
+      (error) => error?.problem?.code === "EXECUTION_CANCELLED",
+    );
+  });
+});
+
+test("input mutation during Buf execution prevents evidence publication", async () => {
+  await withFixture(async ({ config, root }) => {
+    let configReads = 0;
+    await assert.rejects(
+      qualificationModule.qualifyBufBreakingEvidence(
+        {
+          consumerRoot: root,
+          executablePath: "/trusted/buf",
+          configuration: config,
+          write: true,
+        },
+        {
+          artifacts: {
+            async readInput({ path }) {
+              if (path !== config.qualification.bufConfigPath) {
+                return releasedDescriptorImage;
+              }
+              configReads += 1;
+              return Buffer.from(
+                configReads === 1 ? bufConfigSource : `${bufConfigSource}# changed\n`,
+                "utf8",
+              );
+            },
+            async readExistingEvidence() { return; },
+            async writeEvidence() { throw new Error("changed input must not be published"); },
+          },
+          digest: { digest: sha256 },
+          runner: {
+            async run() {
+              return {
+                status: "compatible",
+                candidateDescriptorImage: releasedDescriptorImage,
+                rawOutput: "",
+              };
+            },
+          },
+        },
+      ),
+      (error) => error?.problem?.code === "BUF_QUALIFICATION_INPUT_CHANGED",
+    );
+  });
+});
+
+test("evidence writer rejects a symbolic-link parent before publication", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-buf-write-root-"));
+  const external = await mkdtemp(join(tmpdir(), "foundation-buf-write-external-"));
+  try {
+    await mkdir(join(root, "architecture", "evidence"), { recursive: true });
+    await symlink(
+      external,
+      join(root, "architecture", "evidence", "protobuf"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const artifacts = new qualificationModule.FilesystemBufQualificationArtifacts();
+    await assert.rejects(
+      artifacts.writeEvidence({
+        consumerRoot: root,
+        path: "architecture/evidence/protobuf/qualification.json",
+        source: "{}\n",
+      }),
+      (error) => error?.problem?.code === "BUF_QUALIFICATION_PATH_UNSAFE",
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+    await rm(external, { force: true, recursive: true });
+  }
+});
+
+test("evidence writer cancels while waiting for its cooperative lock", async () => {
+  await withFixture(async ({ config, root }) => {
+    const evidencePath = join(root, config.qualification.evidencePath);
+    const release = await lockFile(evidencePath, { realpath: false });
+    const controller = new AbortController();
+    try {
+      const write = new qualificationModule.FilesystemBufQualificationArtifacts().writeEvidence({
+        consumerRoot: root,
+        path: config.qualification.evidencePath,
+        source: "{}\n",
+        signal: controller.signal,
+      });
+      setTimeout(() => controller.abort(), 25);
+      await assert.rejects(
+        write,
+        (error) => error?.problem?.code === "EXECUTION_CANCELLED",
+      );
+    } finally {
+      await release();
+    }
+  });
+});
+
+test("Buf process execution enforces a bounded deadline", async () => {
+  await withFixture(async ({ root }) => {
+    const executable = new qualificationModule.ProcessBufExecutable(50);
+    await assert.rejects(
+      executable.run({
+        executablePath: process.execPath,
+        workingDirectory: root,
+        arguments: ["-e", "setInterval(() => {}, 1000)"],
+      }),
+      (error) => error?.problem?.code === "BUF_EXECUTION_UNAVAILABLE",
     );
   });
 });

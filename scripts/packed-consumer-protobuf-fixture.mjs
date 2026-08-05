@@ -66,21 +66,32 @@ export async function writePackedConsumerProtobufFixture(consumerRoot, foundatio
     }
   };
   const evidenceWithoutDigest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     producerId: "agent-teams-foundation.buf-breaking-qualification",
-    producerVersion: 1,
+    producerVersion: 2,
     policy: "FILE",
     contractId: current.contractId,
     bufVersion: current.bufVersion,
     modulePath: qualification.modulePath,
     bufConfigPath: qualification.bufConfigPath,
+    evidencePath: qualification.evidencePath,
     bufConfigDigest: current.bufConfigDigest,
     baselineDescriptorImagePath: qualification.releasedDescriptorImagePath,
     baselineDescriptorImageDigest: released.descriptorImageDigest,
     candidateDescriptorImageDigest: current.descriptorImageDigest,
+    breakingPolicyConfigDigest: sha256(
+      qualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
+    ),
     invocationDigest: sha256(
       qualificationModel.canonicalBufQualificationInvocation(
-        qualificationModel.qualificationInvocationInput({ qualification, current, released })
+        qualificationModel.qualificationInvocationInput({
+          qualification,
+          current,
+          released,
+          breakingPolicyConfigDigest: sha256(
+            qualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
+          )
+        })
       )
     ),
     result: {

@@ -44,18 +44,20 @@ export interface BufBreakingFinding {
 }
 
 export interface BufBreakingQualificationEvidence {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly producerId: "agent-teams-foundation.buf-breaking-qualification";
-  readonly producerVersion: 1;
+  readonly producerVersion: 2;
   readonly policy: "FILE";
   readonly contractId: string;
   readonly bufVersion: string;
   readonly modulePath: string;
   readonly bufConfigPath: string;
+  readonly evidencePath: string;
   readonly bufConfigDigest: Sha256Digest;
   readonly baselineDescriptorImagePath: string;
   readonly baselineDescriptorImageDigest: Sha256Digest;
   readonly candidateDescriptorImageDigest: Sha256Digest;
+  readonly breakingPolicyConfigDigest: Sha256Digest;
   readonly invocationDigest: Sha256Digest;
   readonly result: {
     readonly status: "compatible" | "breaking";

@@ -274,6 +274,21 @@ async function seedRegistry(dependencies, registryUrl) {
   }
 }
 
+async function verifyInstalledBufQualifier(installedRoot) {
+  const environmentKey = "AGENT_TEAMS_FOUNDATION_CLI_PATH";
+  const previousCliPath = process.env[environmentKey];
+  process.env[environmentKey] = join(installedRoot, "dist", "cli.js");
+  try {
+    await import("./buf-qualification-e2e.mjs?installed-registry");
+  } finally {
+    if (previousCliPath === undefined) {
+      delete process.env[environmentKey];
+    } else {
+      process.env[environmentKey] = previousCliPath;
+    }
+  }
+}
+
 async function verifyConsumer(target, registryUrl) {
   const consumerRoot = join(temporaryRoot, "consumer");
   await mkdir(consumerRoot, { recursive: true });
@@ -351,6 +366,7 @@ async function verifyConsumer(target, registryUrl) {
     consumerRoot,
     { timeoutMs: COMMAND_TIMEOUT_MS },
   );
+  await verifyInstalledBufQualifier(installedRoot);
   const { stdout: viewedVersion } = await runNpm(
     [
       "view",

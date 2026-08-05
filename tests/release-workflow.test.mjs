@@ -80,7 +80,7 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   assert.match(review.jobs["codex-review"].if, /user\.type != 'Bot'/u);
 });
 
-test("release publishing requires the hermetic registry installation gate", async () => {
+test("release publishing requires real Buf and hermetic registry qualification", async () => {
   const manifest = JSON.parse(
     await readFile(join(repositoryRoot, "package.json"), "utf8"),
   );
@@ -88,6 +88,10 @@ test("release publishing requires the hermetic registry installation gate", asyn
   assert.match(
     manifest.scripts["release:publish"],
     /registry-install-e2e:built/u,
+  );
+  assert.match(
+    manifest.scripts["release:publish"],
+    /buf-qualification:e2e:built/u,
   );
   assert.equal(
     manifest.scripts["registry-install-e2e:built"],

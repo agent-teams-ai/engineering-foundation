@@ -11,12 +11,48 @@ import type {
 
 export const BUF_QUALIFICATION_PRODUCER_ID =
   "agent-teams-foundation.buf-breaking-qualification" as const;
-export const BUF_QUALIFICATION_PRODUCER_VERSION = 1 as const;
-export const BUF_QUALIFICATION_SCHEMA_VERSION = 1 as const;
+export const BUF_QUALIFICATION_PRODUCER_VERSION = 2 as const;
+export const BUF_QUALIFICATION_SCHEMA_VERSION = 2 as const;
 export const BUF_BREAKING_POLICY = "FILE" as const;
+export const BUF_FILE_BREAKING_CONFIG_SOURCE =
+  '{"version":"v2","modules":[{"path":"."}],"breaking":{"use":["FILE"]}}' as const;
 
 const SHA256_DIGEST = /^sha256:[a-f0-9]{64}$/u;
 const MAX_FINDINGS = 10_000;
+
+export function bufQualificationInvocationPlan(input: {
+  readonly baselineDescriptorPath: string;
+  readonly bufConfigPath: string;
+  readonly candidateDescriptorPath: string;
+  readonly modulePath: string;
+}): {
+  readonly breakingArguments: readonly string[];
+  readonly buildArguments: readonly string[];
+} {
+  return Object.freeze({
+    buildArguments: Object.freeze([
+      "build",
+      input.modulePath,
+      "--config",
+      input.bufConfigPath,
+      "--disable-symlinks",
+      "-o",
+      input.candidateDescriptorPath
+    ]),
+    breakingArguments: Object.freeze([
+      "breaking",
+      input.candidateDescriptorPath,
+      "--against",
+      input.baselineDescriptorPath,
+      "--config",
+      BUF_FILE_BREAKING_CONFIG_SOURCE,
+      "--against-config",
+      BUF_FILE_BREAKING_CONFIG_SOURCE,
+      "--disable-symlinks",
+      "--error-format=json"
+    ])
+  });
+}
 
 function hasControlCharacter(value: string): boolean {
   for (const character of value) {
@@ -194,6 +230,7 @@ export function mapBufBreakingQualificationEvidence(
     bufVersion: string(source["bufVersion"], "bufVersion", 80),
     modulePath: string(source["modulePath"], "modulePath", 300),
     bufConfigPath: string(source["bufConfigPath"], "bufConfigPath", 300),
+    evidencePath: string(source["evidencePath"], "evidencePath", 300),
     bufConfigDigest: digest(source["bufConfigDigest"], "bufConfigDigest"),
     baselineDescriptorImagePath: string(
       source["baselineDescriptorImagePath"],
@@ -207,6 +244,10 @@ export function mapBufBreakingQualificationEvidence(
     candidateDescriptorImageDigest: digest(
       source["candidateDescriptorImageDigest"],
       "candidateDescriptorImageDigest"
+    ),
+    breakingPolicyConfigDigest: digest(
+      source["breakingPolicyConfigDigest"],
+      "breakingPolicyConfigDigest"
     ),
     invocationDigest: digest(source["invocationDigest"], "invocationDigest"),
     result: Object.freeze({
@@ -242,7 +283,14 @@ export function canonicalBufQualificationInvocation(input: {
   readonly bufConfigDigest: Sha256Digest;
   readonly baselineDescriptorImageDigest: Sha256Digest;
   readonly candidateDescriptorImageDigest: Sha256Digest;
+  readonly breakingPolicyConfigDigest: Sha256Digest;
 }): string {
+  const invocation = bufQualificationInvocationPlan({
+    baselineDescriptorPath: "<baseline-descriptor>",
+    bufConfigPath: input.binding.bufConfigPath,
+    candidateDescriptorPath: "<candidate-descriptor>",
+    modulePath: input.binding.modulePath
+  });
   return JSON.stringify({
     schemaVersion: BUF_QUALIFICATION_SCHEMA_VERSION,
     producerId: BUF_QUALIFICATION_PRODUCER_ID,
@@ -252,29 +300,14 @@ export function canonicalBufQualificationInvocation(input: {
     bufVersion: input.bufVersion,
     modulePath: input.binding.modulePath,
     bufConfigPath: input.binding.bufConfigPath,
+    evidencePath: input.binding.evidencePath,
     bufConfigDigest: input.bufConfigDigest,
     baselineDescriptorImagePath: input.binding.releasedDescriptorImagePath,
     baselineDescriptorImageDigest: input.baselineDescriptorImageDigest,
     candidateDescriptorImageDigest: input.candidateDescriptorImageDigest,
-    buildArguments: [
-      "build",
-      input.binding.modulePath,
-      "--config",
-      input.binding.bufConfigPath,
-      "--disable-symlinks",
-      "-o",
-      "<candidate-descriptor>"
-    ],
-    breakingArguments: [
-      "breaking",
-      "<candidate-descriptor>",
-      "--against",
-      "<baseline-descriptor>",
-      "--config",
-      input.binding.bufConfigPath,
-      "--disable-symlinks",
-      "--error-format=json"
-    ]
+    breakingPolicyConfigDigest: input.breakingPolicyConfigDigest,
+    buildArguments: invocation.buildArguments,
+    breakingArguments: invocation.breakingArguments
   });
 }
 
@@ -290,10 +323,12 @@ export function canonicalBufQualificationEvidence(
     bufVersion: evidence.bufVersion,
     modulePath: evidence.modulePath,
     bufConfigPath: evidence.bufConfigPath,
+    evidencePath: evidence.evidencePath,
     bufConfigDigest: evidence.bufConfigDigest,
     baselineDescriptorImagePath: evidence.baselineDescriptorImagePath,
     baselineDescriptorImageDigest: evidence.baselineDescriptorImageDigest,
     candidateDescriptorImageDigest: evidence.candidateDescriptorImageDigest,
+    breakingPolicyConfigDigest: evidence.breakingPolicyConfigDigest,
     invocationDigest: evidence.invocationDigest,
     result: {
       status: evidence.result.status,
@@ -322,6 +357,7 @@ export function qualificationInvocationInput(input: {
   readonly qualification: BufBreakingQualificationBinding;
   readonly current: CurrentProtobufContractDeclaration;
   readonly released: ReleasedProtobufContractEvidence;
+  readonly breakingPolicyConfigDigest: Sha256Digest;
 }): Parameters<typeof canonicalBufQualificationInvocation>[0] {
   return {
     binding: input.qualification,
@@ -329,6 +365,7 @@ export function qualificationInvocationInput(input: {
     bufVersion: input.current.bufVersion,
     bufConfigDigest: input.current.bufConfigDigest,
     baselineDescriptorImageDigest: input.released.descriptorImageDigest,
-    candidateDescriptorImageDigest: input.current.descriptorImageDigest
+    candidateDescriptorImageDigest: input.current.descriptorImageDigest,
+    breakingPolicyConfigDigest: input.breakingPolicyConfigDigest
   };
 }

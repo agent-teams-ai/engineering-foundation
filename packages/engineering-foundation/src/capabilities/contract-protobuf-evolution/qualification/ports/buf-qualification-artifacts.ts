@@ -16,5 +16,6 @@ export interface BufQualificationArtifacts {
     readonly consumerRoot: string;
     readonly path: string;
     readonly source: string;
+    readonly signal?: AbortSignal;
   }): Promise<BufQualificationEvidenceWriteResult>;
 }

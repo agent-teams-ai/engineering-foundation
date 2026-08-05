@@ -1,8 +1,9 @@
 ---
 id: ADR-0015
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by:
+  - ADR-0016
 ---
 
 # ADR-0015: Qualified Buf FILE Evidence

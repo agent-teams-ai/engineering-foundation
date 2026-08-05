@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { CapabilityInputError } from "../../../../../../capability-runtime.js";
 import { assertNotCancelled } from "../../../../../../strict-yaml.js";
+import { bufQualificationInvocationPlan } from "../../../../application/model/buf-breaking-qualification.js";
 import type {
   BufQualificationRunner,
   BufQualificationRunInput,
@@ -68,21 +69,19 @@ export class ProcessBufQualificationRunner implements BufQualificationRunner {
     const temporaryRoot = await mkdtemp(join(tmpdir(), "agent-teams-buf-qualification-"));
     const baselinePath = join(temporaryRoot, "baseline.binpb");
     const candidatePath = join(temporaryRoot, "candidate.binpb");
+    const invocation = bufQualificationInvocationPlan({
+      baselineDescriptorPath: baselinePath,
+      bufConfigPath: input.bufConfigPath,
+      candidateDescriptorPath: candidatePath,
+      modulePath: input.modulePath
+    });
     try {
       await writePrivateFile(baselinePath, input.baselineDescriptorImage);
       const build = await this.#executable.run(
         {
           executablePath: input.executablePath,
           workingDirectory: input.workingDirectory,
-          arguments: [
-            "build",
-            input.modulePath,
-            "--config",
-            input.bufConfigPath,
-            "--disable-symlinks",
-            "-o",
-            candidatePath
-          ]
+          arguments: invocation.buildArguments
         },
         input.signal
       );
@@ -98,16 +97,7 @@ export class ProcessBufQualificationRunner implements BufQualificationRunner {
         {
           executablePath: input.executablePath,
           workingDirectory: input.workingDirectory,
-          arguments: [
-            "breaking",
-            candidatePath,
-            "--against",
-            baselinePath,
-            "--config",
-            input.bufConfigPath,
-            "--disable-symlinks",
-            "--error-format=json"
-          ]
+          arguments: invocation.breakingArguments
         },
         input.signal
       );

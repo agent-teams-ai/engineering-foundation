@@ -1,0 +1,23 @@
+schemaVersion: 2
+projectId: foundation-library-recipe-fixture
+targetCatalogPath: architecture/package-catalog.yaml
+compositions:
+  - id: library-boundary
+    scaffoldProfile:
+      ref:
+        id: foundation.node-typescript-pnpm-esm
+        contractVersion: 1
+      parameters:
+        tsconfigBase: tsconfig.json
+    recipe:
+      ref:
+        id: foundation.node-typescript-library-boundary
+        contractVersion: 1
+    targetRoles: [synthetic-alpha, synthetic.beta, synthetic/gamma]
+    authorityVerifiers:
+      - id: foundation.markdown-yaml-owner
+        contractVersion: 1
+        parameters:
+          allowedStatuses: [accepted, active]
+          documentRoots: [docs/owners]
+    policies: []

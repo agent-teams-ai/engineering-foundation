@@ -1,7 +1,7 @@
 import { loadScaffoldCompilationInput } from "./adapters/node/node-input-loader.js";
 import { installedFoundationVersion } from "./adapters/node/installed-foundation-version.js";
 import type { ScaffoldPlanV1 } from "./contract/types.js";
-import { createDefaultScaffoldRegistry } from "./definitions/registry.js";
+import { createRenderingRegressionRegistry } from "./definitions/registry.js";
 import { compileScaffoldPlan } from "./kernel/rendering-plan-compiler.js";
 import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffold-defaults.js";
 
@@ -19,6 +19,6 @@ export async function planScaffoldFromFile(options: {
   });
   return compileScaffoldPlan(
     input,
-    createDefaultScaffoldRegistry()
+    createRenderingRegressionRegistry()
   );
 }

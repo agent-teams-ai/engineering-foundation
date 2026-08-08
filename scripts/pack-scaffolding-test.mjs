@@ -17,6 +17,51 @@ async function runScaffoldingCommand(fixture, consumerRoot, arguments_) {
   return JSON.parse(stdout);
 }
 
+async function verifyPackedLibraryRecipe(fixture, repositoryRoot) {
+  const libraryFixtureRoot = join(
+    repositoryRoot,
+    "tests",
+    "fixtures",
+    "scaffolding-library-consumer"
+  );
+  const libraryRoot = join(fixture.consumerRoot, "library-consumer");
+  await copyScaffoldingFixture(libraryFixtureRoot, libraryRoot);
+  const libraryPlan = await runScaffoldingCommand(fixture, libraryRoot, [
+    "scaffold-plan",
+    "intents/create-beta.yaml",
+    "--consumer",
+    libraryRoot,
+    "--json"
+  ]);
+  await mkdir(join(libraryRoot, "plans"), { recursive: true });
+  await writeFile(
+    join(libraryRoot, "plans", "library.json"),
+    `${JSON.stringify(libraryPlan, null, 2)}\n`
+  );
+  const libraryReceipt = await runScaffoldingCommand(fixture, libraryRoot, [
+    "scaffold-apply",
+    "plans/library.json",
+    "--consumer",
+    libraryRoot,
+    "--json"
+  ]);
+  if (libraryReceipt.outcome !== "applied") {
+    throw new Error("Packed library recipe did not apply its reviewed Plan.");
+  }
+  const libraryManifest = JSON.parse(
+    await readFile(
+      join(libraryRoot, "packages", "deep", "nested", "beta", "package.json"),
+      "utf8"
+    )
+  );
+  if (
+    libraryManifest.name !== "@fixture/beta-library" ||
+    libraryManifest.agentTeamsArchitecture?.ownerDocument !== "OWNER-BETA"
+  ) {
+    throw new Error("Packed library recipe generated an unexpected boundary.");
+  }
+}
+
 export async function verifyPackedAuthorityScaffolding({
   fixture,
   repositoryRoot
@@ -129,4 +174,5 @@ process.stdout.write(JSON.stringify({ outcome: "passed" }));
   if (generatedManifest.name !== "@fixture/generated") {
     throw new Error("Packed scaffolding CLI generated an unexpected package.");
   }
+  await verifyPackedLibraryRecipe(fixture, repositoryRoot);
 }

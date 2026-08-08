@@ -136,9 +136,10 @@ the repository Foundation operation lock, rejects overwrite and path ambiguity,
 and records a recovery journal before the first file is published.
 `scaffold-recover` is mandatory after an interrupted transaction. The current
 consumer authority must remain available and reproduce the journal Plan exactly;
-otherwise recovery leaves the journal and outputs unchanged. The current
-built-in recipe is conformance-only and must not be used as a product
-architecture template.
+otherwise recovery leaves the journal and outputs unchanged. The testing Recipe
+remains conformance-only. The generic Node TypeScript library Recipe may create a
+package boundary only; it must not be treated as a product architecture or DDD
+template. See the [recipe reference](../reference/node-typescript-library-boundary.md).
 
 ### Scaffolding transition from 0.5.0
 

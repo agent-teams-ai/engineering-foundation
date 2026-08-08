@@ -7,6 +7,8 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { parse, stringify } from "yaml";
+
 import {
   applyFilesystemScaffold,
   planScaffoldFromFile
@@ -197,22 +199,26 @@ test("keeps role admission and recipe parameters closed in the consumer composit
 
     const configPath = join(root, "architecture", "foundation", "scaffolding.yaml");
     const source = await readFile(configPath, "utf8");
+    const configuration = parse(source);
+    const fixedParameterConfiguration = structuredClone(configuration);
+    fixedParameterConfiguration.compositions[0].fixedRecipeParameters = {
+      application: true
+    };
     await writeFile(
       configPath,
-      source.replace(
-        "    policies: []\n",
-        "    fixedRecipeParameters:\n      application: true\n    policies: []\n"
-      ),
+      stringify(fixedParameterConfiguration),
       "utf8"
     );
     await assert.rejects(plan(root, cases[0].intent), /additional properties/u);
 
+    const roleConfiguration = structuredClone(configuration);
+    roleConfiguration.compositions[0].targetRoles = [
+      "synthetic.beta",
+      "synthetic/gamma"
+    ];
     await writeFile(
       configPath,
-      source.replace(
-        "    targetRoles: [synthetic-alpha, synthetic.beta, synthetic/gamma]",
-        "    targetRoles: [synthetic.beta, synthetic/gamma]"
-      ),
+      stringify(roleConfiguration),
       "utf8"
     );
     await assert.rejects(

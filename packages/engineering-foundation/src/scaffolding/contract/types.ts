@@ -221,7 +221,7 @@ export interface AuthorityScaffoldPlan {
 
 export type ScaffoldPlan = AuthorityScaffoldPlan;
 
-export type ScaffoldOperationOutcome =
+type ScaffoldOperationOutcome =
   | "already-satisfied"
   | "applied"
   | "conflict"
@@ -239,7 +239,7 @@ export interface AuthorityScaffoldOperationReceipt {
   readonly resultDigest?: Sha256Digest;
 }
 
-export type ScaffoldReceiptOutcome =
+type ScaffoldReceiptOutcome =
   | "already-applied"
   | "applied"
   | "failed-recovered"

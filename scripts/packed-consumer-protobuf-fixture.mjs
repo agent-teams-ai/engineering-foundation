@@ -53,7 +53,7 @@ export async function writePackedConsumerProtobufFixture(consumerRoot, foundatio
     evidencePath: "architecture/evidence/protobuf/pack-consumer.control.json"
   };
   const current = {
-    schemaVersion: 2,
+    schemaVersion: 1,
     contractId: released.contractId,
     publicContractVersion: released.publicContractVersion,
     bufVersion: released.bufVersion,
@@ -66,9 +66,9 @@ export async function writePackedConsumerProtobufFixture(consumerRoot, foundatio
     }
   };
   const evidenceWithoutDigest = {
-    schemaVersion: 2,
+    schemaVersion: 1,
     producerId: "agent-teams-foundation.buf-breaking-qualification",
-    producerVersion: 2,
+    producerVersion: 1,
     policy: "FILE",
     contractId: current.contractId,
     bufVersion: current.bufVersion,
@@ -110,7 +110,7 @@ export async function writePackedConsumerProtobufFixture(consumerRoot, foundatio
   await writeJson(
     join(consumerRoot, "architecture", "foundation", "protobuf-evolution.yaml"),
     {
-      schemaVersion: 2,
+      schemaVersion: 1,
       releasedBaselinePath: "architecture/contracts/protobuf/pack-consumer.control.json",
       approvedBreakingChanges: [],
       qualification,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-teams.ai/schemas/scaffold-authority-evidence",
+  "$id": "https://agent-teams.ai/schemas/scaffold-authority-evidence/v1",
   "title": "Scaffold Authority Evidence",
   "type": "object",
   "additionalProperties": false,

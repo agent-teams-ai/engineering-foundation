@@ -8,7 +8,3 @@ export function createAuthorityScaffoldRegistry(): ScaffoldDefinitionRegistry {
     ...NODE_TYPESCRIPT_LIBRARY_DEFINITIONS
   ]);
 }
-
-export function createRenderingRegressionRegistry(): ScaffoldDefinitionRegistry {
-  return new ScaffoldDefinitionRegistry(CONFORMANCE_FIXTURE_DEFINITIONS);
-}

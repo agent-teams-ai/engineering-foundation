@@ -5,8 +5,7 @@ import {
   loadStrictYamlFile
 } from "../../../strict-yaml.js";
 import type {
-  GovernedApprovedBreakingChange,
-  LegacyApprovedBreakingChange,
+  ApprovedBreakingChange,
   PublicApiCompatibilityConfigSchemaVersion,
   PublicApiCompatibilityPolicy,
   PublicApiEntrypointPolicy,
@@ -20,23 +19,13 @@ import {
 } from "../application/model/public-api.js";
 
 export const CAPABILITY_ID = "package.public-api-compatibility" as const;
-export const CAPABILITY_CONFIG_SCHEMA_VERSION = 2 as const;
+export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 const ACCEPTED_DECISION_BASELINE_PATH =
   "architecture/decisions/accepted-decisions.json" as const;
-const DEFAULT_GOVERNANCE_CONFIG_PATH =
-  "architecture/foundation/governance-architecture-decisions.yaml" as const;
 const ADR_ID = /^ADR-\d{4}$/u;
 
-type PublicApiCompatibilitySchemaId =
-  | "package-public-api-compatibility/v1"
-  | "package-public-api-compatibility/v2";
-
-const SCHEMA_ID_BY_VERSION: Readonly<
-  Record<PublicApiCompatibilityConfigSchemaVersion, PublicApiCompatibilitySchemaId>
-> = Object.freeze({
-  1: "package-public-api-compatibility/v1",
-  2: "package-public-api-compatibility/v2"
-});
+const PUBLIC_API_COMPATIBILITY_SCHEMA_ID =
+  "package-public-api-compatibility/v1" as const;
 
 function inputError(message: string): never {
   throw new CapabilityInputError({
@@ -68,10 +57,10 @@ function path(value: unknown, field: string): string {
 }
 
 function schemaVersion(value: unknown): PublicApiCompatibilityConfigSchemaVersion {
-  if (value === 1 || value === 2) {
-    return value;
+  if (value === 1) {
+    return 1;
   }
-  inputError("schemaVersion must be either 1 or 2.");
+  inputError("schemaVersion must be 1.");
 }
 
 function normalizedExportPath(value: unknown, field: string): string {
@@ -128,24 +117,11 @@ function pathInside(candidate: string, root: string): boolean {
   return candidate === root || candidate.startsWith(`${root}/`);
 }
 
-function mapLegacyApproval(
+function mapApproval(
   value: unknown,
   packageIndex: number,
   index: number
-): LegacyApprovedBreakingChange {
-  const field = `packages[${packageIndex}].approvedBreakingChanges[${index}]`;
-  const approval = record(value, field);
-  return Object.freeze({
-    fingerprint: string(approval["fingerprint"], `${field}.fingerprint`),
-    decisionPath: path(approval["decisionPath"], `${field}.decisionPath`)
-  });
-}
-
-function mapGovernedApproval(
-  value: unknown,
-  packageIndex: number,
-  index: number
-): GovernedApprovedBreakingChange {
+): ApprovedBreakingChange {
   const field = `packages[${packageIndex}].approvedBreakingChanges[${index}]`;
   const approval = record(value, field);
   const decisionId = string(approval["decisionId"], `${field}.decisionId`);
@@ -211,8 +187,7 @@ function mapNonTypeExports(
 
 function mapPackage(
   value: unknown,
-  index: number,
-  version: PublicApiCompatibilityConfigSchemaVersion
+  index: number
 ): PublicApiPackagePolicy {
   const field = `packages[${index}]`;
   const input = record(value, field);
@@ -223,25 +198,10 @@ function mapPackage(
   if (!Array.isArray(approvals)) {
     inputError(`${field}.approvedBreakingChanges must be an array.`);
   }
-  const entrypoints =
-    version === 1
-      ? undefined
-      : mapEntrypoints(input["entrypoints"], index);
-  const nonTypeExports =
-    version === 1
-      ? undefined
-      : mapNonTypeExports(input["nonTypeExports"], index);
-  const declarationEntryPoint =
-    version === 1
-      ? path(input["declarationEntryPoint"], `${field}.declarationEntryPoint`)
-      : undefined;
+  const entrypoints = mapEntrypoints(input["entrypoints"], index);
+  const nonTypeExports = mapNonTypeExports(input["nonTypeExports"], index);
   const paths = [manifestPath, tsconfigPath];
-  if (declarationEntryPoint !== undefined) {
-    paths.push(declarationEntryPoint);
-  }
-  if (entrypoints !== undefined) {
-    paths.push(...entrypoints.map((entrypoint) => entrypoint.declarationEntryPoint));
-  }
+  paths.push(...entrypoints.map((entrypoint) => entrypoint.declarationEntryPoint));
   for (const repositoryPath of paths) {
     if (!pathInside(repositoryPath, packageRoot)) {
       inputError(`${repositoryPath} must be inside package root ${packageRoot}.`);
@@ -254,30 +214,13 @@ function mapPackage(
     tsconfigPath,
     releasedBaselinePath: path(input["releasedBaselinePath"], `${field}.releasedBaselinePath`)
   };
-  if (declarationEntryPoint !== undefined) {
-    return Object.freeze({
-      ...common,
-      declarationEntryPoint,
-      approvedBreakingChanges: Object.freeze(
-        approvals.map((approval, approvalIndex) =>
-          mapLegacyApproval(approval, index, approvalIndex)
-        )
-      )
-    });
-  }
-  if (entrypoints === undefined) {
-    inputError(`${field}.entrypoints must be present for schemaVersion 2.`);
-  }
-  if (nonTypeExports === undefined) {
-    inputError(`${field}.nonTypeExports must be present for schemaVersion 2.`);
-  }
   return Object.freeze({
     ...common,
     entrypoints,
     nonTypeExports,
     approvedBreakingChanges: Object.freeze(
       approvals.map((approval, approvalIndex) =>
-        mapGovernedApproval(approval, index, approvalIndex)
+        mapApproval(approval, index, approvalIndex)
       )
     )
   });
@@ -308,24 +251,22 @@ function validatePolicy(policy: PublicApiCompatibilityPolicy): void {
       }
       fingerprints.add(approval.fingerprint);
     }
-    if ("entrypoints" in packagePolicy) {
-      const exportPaths = new Set<string>();
-      for (const entrypoint of packagePolicy.entrypoints) {
-        if (exportPaths.has(entrypoint.exportPath)) {
-          inputError(
-            `Package export path is duplicated: ${packagePolicy.packageName}:${entrypoint.exportPath}.`
-          );
-        }
-        exportPaths.add(entrypoint.exportPath);
+    const exportPaths = new Set<string>();
+    for (const entrypoint of packagePolicy.entrypoints) {
+      if (exportPaths.has(entrypoint.exportPath)) {
+        inputError(
+          `Package export path is duplicated: ${packagePolicy.packageName}:${entrypoint.exportPath}.`
+        );
       }
-      for (const nonTypeExport of packagePolicy.nonTypeExports) {
-        if (exportPaths.has(nonTypeExport.exportPath)) {
-          inputError(
-            `Package export path is declared as both typed and non-type: ${packagePolicy.packageName}:${nonTypeExport.exportPath}.`
-          );
-        }
-        exportPaths.add(nonTypeExport.exportPath);
+      exportPaths.add(entrypoint.exportPath);
+    }
+    for (const nonTypeExport of packagePolicy.nonTypeExports) {
+      if (exportPaths.has(nonTypeExport.exportPath)) {
+        inputError(
+          `Package export path is declared as both typed and non-type: ${packagePolicy.packageName}:${nonTypeExport.exportPath}.`
+        );
       }
+      exportPaths.add(nonTypeExport.exportPath);
     }
   }
 }
@@ -342,9 +283,9 @@ export async function loadCapabilityConfig(
     signal
   );
   const root = record(input, "public API compatibility config");
-  const version = schemaVersion(root["schemaVersion"]);
+  schemaVersion(root["schemaVersion"]);
   await assertSchema(
-    SCHEMA_ID_BY_VERSION[version],
+    PUBLIC_API_COMPATIBILITY_SCHEMA_ID,
     input,
     "public-api-compatibility-config"
   );
@@ -365,64 +306,23 @@ export async function loadCapabilityConfig(
   const common = {
     changesetDirectory: path(root["changesetDirectory"], "changesetDirectory"),
     packages: Object.freeze(
-      packages.map((packagePolicy, index) => mapPackage(packagePolicy, index, version))
+      packages.map((packagePolicy, index) => mapPackage(packagePolicy, index))
     )
   };
   const hasBreakingApprovals = common.packages.some(
     (packagePolicy) => packagePolicy.approvedBreakingChanges.length > 0
   );
-  const policy: PublicApiCompatibilityPolicy =
-    version === 1
-      ? Object.freeze({
-          schemaVersion: 1,
-          ...(hasBreakingApprovals
-            ? {
-                acceptedDecisionBaselinePath:
-                  decisionBaselinePath ?? ACCEPTED_DECISION_BASELINE_PATH,
-                governanceConfigPath: governancePath ?? DEFAULT_GOVERNANCE_CONFIG_PATH
-              }
-            : {
-                ...(decisionBaselinePath === undefined
-                  ? {}
-                  : { acceptedDecisionBaselinePath: decisionBaselinePath }),
-                ...(governancePath === undefined
-                  ? {}
-                  : { governanceConfigPath: governancePath })
-              }),
-          changesetDirectory: common.changesetDirectory,
-          packages: Object.freeze(
-            common.packages.map((packagePolicy) => {
-              if ("entrypoints" in packagePolicy) {
-                inputError("schemaVersion 1 cannot declare entrypoints.");
-              }
-              return packagePolicy;
-            })
-          )
-        })
-      : Object.freeze({
-          schemaVersion: 2,
-          acceptedDecisionBaselinePath:
-            decisionBaselinePath ??
-            inputError("schemaVersion 2 requires acceptedDecisionBaselinePath."),
-          ...(governancePath === undefined ? {} : { governanceConfigPath: governancePath }),
-          changesetDirectory: common.changesetDirectory,
-          packages: Object.freeze(
-            common.packages.map((packagePolicy) => {
-              if (!("entrypoints" in packagePolicy)) {
-                inputError("schemaVersion 2 requires entrypoints.");
-              }
-              return packagePolicy;
-            })
-          )
-        });
-  if (hasBreakingApprovals && policy.acceptedDecisionBaselinePath === undefined) {
-    inputError("acceptedDecisionBaselinePath is required when breaking approvals are declared.");
-  }
+  const policy: PublicApiCompatibilityPolicy = Object.freeze({
+    schemaVersion: 1,
+    acceptedDecisionBaselinePath:
+      decisionBaselinePath ??
+      inputError("schemaVersion 1 requires acceptedDecisionBaselinePath."),
+    ...(governancePath === undefined ? {} : { governanceConfigPath: governancePath }),
+    changesetDirectory: common.changesetDirectory,
+    packages: common.packages
+  });
   if (hasBreakingApprovals && policy.governanceConfigPath === undefined) {
     inputError("governanceConfigPath is required when breaking approvals are declared.");
-  }
-  if (policy.governanceConfigPath !== undefined && policy.acceptedDecisionBaselinePath === undefined) {
-    inputError("governanceConfigPath requires acceptedDecisionBaselinePath.");
   }
   validatePolicy(policy);
   return policy;

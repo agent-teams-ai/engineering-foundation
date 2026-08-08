@@ -76,7 +76,7 @@ async function writeScaffoldingTypeConsumer(consumerRoot) {
       "import type { ScaffoldTargetCatalog } from \"@agent-teams/engineering-foundation/scaffolding\";",
       "",
       "export const schemaShapedTargetCatalog = {",
-      "  version: 2,",
+      "  version: 1,",
       "  packages: [",
       "    {",
       "      id: \"testing.generated\",",
@@ -318,7 +318,7 @@ async function writePublicApiFixture(consumerRoot) {
   await writeFile(
     join(consumerRoot, "architecture", "foundation", "public-api-compatibility.yaml"),
     [
-      "schemaVersion: 2",
+      "schemaVersion: 1",
       "acceptedDecisionBaselinePath: architecture/decisions/accepted-decisions.json",
       "changesetDirectory: .changeset",
       "packages:",
@@ -346,7 +346,7 @@ async function writePublicApiFixture(consumerRoot) {
     signature: "export declare function stable(value: string): string;"
   };
   await writeJson(join(consumerRoot, "architecture", "public-api", "public-api.json"), {
-    schemaVersion: 2,
+    schemaVersion: 1,
     packageName: "@fixture/public-api",
     packageVersion: "1.2.3",
     extractorVersion: "7.58.12",

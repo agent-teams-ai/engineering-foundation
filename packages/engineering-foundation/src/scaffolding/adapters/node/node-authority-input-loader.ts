@@ -49,7 +49,7 @@ interface UnresolvedAuthorityScaffoldTarget {
 }
 
 interface UnresolvedAuthorityScaffoldTargetCatalog {
-  readonly version: 2;
+  readonly version: 1;
   readonly packages: readonly UnresolvedAuthorityScaffoldTarget[];
 }
 
@@ -57,7 +57,7 @@ function mapAuthorityCatalog(
   value: unknown
 ): UnresolvedAuthorityScaffoldTargetCatalog {
   const raw = value as {
-    readonly version: 2;
+    readonly version: 1;
     readonly packages: readonly {
       readonly id: string;
       readonly role: string;
@@ -67,7 +67,7 @@ function mapAuthorityCatalog(
     }[];
   };
   return Object.freeze({
-    version: 2,
+    version: 1,
     packages: Object.freeze(
       raw.packages.map((entry) =>
         Object.freeze({
@@ -139,8 +139,8 @@ async function loadAuthorityScaffoldCompilationInput(options: {
   readonly faultInjector?: ScaffoldAuthorityInputFaultInjector;
 }): Promise<AuthorityScaffoldCompilationInput> {
   await Promise.all([
-    assertSchema("scaffolding-config", options.configValue, "scaffolding-config"),
-    assertSchema("scaffold-intent", options.intent, "scaffold-intent")
+    assertSchema("scaffolding-config/v1", options.configValue, "scaffolding-config"),
+    assertSchema("scaffold-intent/v1", options.intent, "scaffold-intent")
   ]);
   const config = options.configValue as AuthorityScaffoldingConfig;
   const catalogFile = await readContainedRepositoryFile(
@@ -153,7 +153,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     "scaffold-target-catalog"
   );
   await assertSchema(
-    "scaffold-target-catalog",
+    "scaffold-target-catalog/v1",
     catalogValue,
     "scaffold-target-catalog"
   );
@@ -201,7 +201,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     ownerDocument: Object.freeze({ id: owner.id, path: owner.file.path })
   }) satisfies AuthorityScaffoldTarget;
   const catalog = Object.freeze({
-    version: 2 as const,
+    version: 1 as const,
     packages: Object.freeze([resolvedTarget])
   }) satisfies AuthorityScaffoldTargetCatalog;
   const authorityReadSet = Object.freeze([
@@ -228,7 +228,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     ])
   });
   await assertSchema(
-    "scaffold-authority-evidence",
+    "scaffold-authority-evidence/v1",
     evidence,
     "scaffold-authority-evidence"
   );
@@ -323,7 +323,7 @@ export async function readAuthorityScaffoldPlanFile(
     MAX_SCAFFOLD_PLAN_BYTES
   );
   const value = parseStrictYamlSource(planFile.source, "scaffold-plan");
-  await assertSchema("scaffold-plan", value, "scaffold-plan");
+  await assertSchema("scaffold-plan/v1", value, "scaffold-plan");
   const plan = value as AuthorityScaffoldPlan;
   assertAuthorityScaffoldPlanDigest(plan);
   return plan;

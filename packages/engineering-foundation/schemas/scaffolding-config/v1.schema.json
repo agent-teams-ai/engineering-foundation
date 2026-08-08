@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agent-teams.ai/schemas/scaffolding-config/v1",
-  "title": "Scaffolding Configuration v1",
+  "title": "Scaffolding Configuration",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "projectId", "targetCatalogPath", "compositions"],
@@ -59,7 +59,7 @@
     "composition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "scaffoldProfile", "recipe", "targetRoles", "policies"],
+      "required": ["id", "scaffoldProfile", "recipe", "targetRoles", "authorityVerifiers", "policies"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "scaffoldProfile": { "$ref": "#/$defs/configuredDefinition" },
@@ -70,6 +70,12 @@
           "maxItems": 32,
           "items": { "$ref": "#/$defs/id" }
         },
+        "authorityVerifiers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/authorityVerifier" }
+        },
         "fixedRecipeParameters": { "$ref": "#/$defs/jsonObject" },
         "defaultRecipeParameters": { "$ref": "#/$defs/jsonObject" },
         "facets": { "$ref": "#/$defs/facetPolicy" },
@@ -77,6 +83,36 @@
           "type": "array",
           "maxItems": 32,
           "items": { "$ref": "#/$defs/configuredDefinition" }
+        }
+      }
+    },
+    "authorityVerifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion", "parameters"],
+      "properties": {
+        "id": { "const": "foundation.markdown-yaml-owner" },
+        "contractVersion": { "const": 1 },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allowedStatuses", "documentRoots"],
+          "properties": {
+            "allowedStatuses": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/id" }
+            },
+            "documentRoots": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/repositoryPath" }
+            }
+          }
         }
       }
     },

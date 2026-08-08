@@ -1,7 +1,7 @@
 import { link, lstat, open, rm } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
-import type { MaterializeFileOperationV1 } from "../../contract/types.js";
+import type { MaterializeFileOperation } from "../../contract/scaffold-contract.js";
 import { sha256Bytes, sha256Text } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import {
@@ -50,7 +50,7 @@ function hasErrorCode(error: unknown, code: string): boolean {
 
 export async function classifyFilesystemOperation(
   root: string,
-  operation: MaterializeFileOperationV1
+  operation: MaterializeFileOperation
 ): Promise<FilesystemOperationState> {
   const destination = resolve(root, operation.path);
   if (!isContainedPath(root, destination)) {
@@ -79,7 +79,7 @@ export async function classifyFilesystemOperation(
 
 function transactionTemporaryName(
   planDigest: string,
-  operation: MaterializeFileOperationV1
+  operation: MaterializeFileOperation
 ): string {
   const identity = sha256Text(`${planDigest}:${operation.id}`).slice(
     "sha256:".length
@@ -87,34 +87,9 @@ function transactionTemporaryName(
   return `.foundation-${identity}.tmp`;
 }
 
-export async function removeTransactionTemporary(
-  root: string,
-  planDigest: string,
-  operation: MaterializeFileOperationV1
-): Promise<void> {
-  await assertSafeExistingAncestors(root, operation.path);
-  const parent = dirname(resolve(root, operation.path));
-  const temporary = join(parent, transactionTemporaryName(planDigest, operation));
-  try {
-    const metadata = await lstat(temporary);
-    if (metadata.isDirectory() && !metadata.isSymbolicLink()) {
-      throw new ScaffoldError(
-        "SCAFFOLD_RECOVERY_REQUIRED",
-        `Scaffolding temporary path is not a file: ${operation.path}.`
-      );
-    }
-    await rm(temporary, { force: true });
-    await syncDirectory(parent);
-  } catch (error) {
-    if (!isMissing(error)) {
-      throw error;
-    }
-  }
-}
-
 export async function assertTransactionTemporariesAbsent(
   root: string,
-  plan: { readonly planDigest: string; readonly operations: readonly MaterializeFileOperationV1[] }
+  plan: { readonly planDigest: string; readonly operations: readonly MaterializeFileOperation[] }
 ): Promise<void> {
   for (const operation of plan.operations) {
     const parent = dirname(resolve(root, operation.path));
@@ -139,7 +114,7 @@ export async function assertTransactionTemporariesAbsent(
 
 export async function publishFilesystemOperation(
   root: string,
-  operation: MaterializeFileOperationV1,
+  operation: MaterializeFileOperation,
   planDigest: string,
   operationIndex: number,
   faultInjector?: FilesystemPublicationFaultInjector
@@ -262,19 +237,4 @@ export async function publishFilesystemOperation(
     );
   }
   return "applied";
-}
-
-export async function classifyFilesystemPlan(
-  root: string,
-  plan: { readonly operations: readonly MaterializeFileOperationV1[] }
-): Promise<readonly {
-  readonly operation: MaterializeFileOperationV1;
-  readonly state: FilesystemOperationState;
-}[]> {
-  return Promise.all(
-    plan.operations.map(async (operation) => ({
-      operation,
-      state: await classifyFilesystemOperation(root, operation)
-    }))
-  );
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.agent-teams.ai/engineering-foundation/contract-protobuf-breaking-qualification/v1",
-  "title": "Buf FILE breaking qualification evidence",
+  "title": "Hardened Buf FILE breaking qualification evidence",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,10 +13,12 @@
     "bufVersion",
     "modulePath",
     "bufConfigPath",
+    "evidencePath",
     "bufConfigDigest",
     "baselineDescriptorImagePath",
     "baselineDescriptorImageDigest",
     "candidateDescriptorImageDigest",
+    "breakingPolicyConfigDigest",
     "invocationDigest",
     "result",
     "evidenceDigest"
@@ -30,10 +32,12 @@
     "bufVersion": { "type": "string", "minLength": 1, "maxLength": 80 },
     "modulePath": { "$ref": "#/$defs/repositoryPath" },
     "bufConfigPath": { "$ref": "#/$defs/repositoryPath" },
+    "evidencePath": { "$ref": "#/$defs/repositoryPath" },
     "bufConfigDigest": { "$ref": "#/$defs/digest" },
     "baselineDescriptorImagePath": { "$ref": "#/$defs/repositoryPath" },
     "baselineDescriptorImageDigest": { "$ref": "#/$defs/digest" },
     "candidateDescriptorImageDigest": { "$ref": "#/$defs/digest" },
+    "breakingPolicyConfigDigest": { "$ref": "#/$defs/digest" },
     "invocationDigest": { "$ref": "#/$defs/digest" },
     "result": {
       "type": "object",

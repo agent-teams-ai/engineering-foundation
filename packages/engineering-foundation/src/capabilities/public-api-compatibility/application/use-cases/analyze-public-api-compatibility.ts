@@ -63,7 +63,6 @@ export async function analyzePublicApiCompatibility(
     if (
       approval !== undefined &&
       acceptedDecisionEvidence === undefined &&
-      input.policy.acceptedDecisionBaselinePath !== undefined &&
       input.policy.governanceConfigPath !== undefined
     ) {
       acceptedDecisionEvidence =

@@ -13,10 +13,6 @@ import {
   applyFilesystemScaffold,
   planScaffoldFromFile
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
-import {
-  createAuthorityScaffoldRegistry,
-  createRenderingRegressionRegistry
-} from "../packages/engineering-foundation/dist/scaffolding/definitions/registry.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixtureRoot = join(
@@ -228,18 +224,4 @@ test("keeps role admission and recipe parameters closed in the consumer composit
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
-
-test("keeps the product recipe out of the legacy rendering registry", () => {
-  const recipe = {
-    id: "foundation.node-typescript-library-boundary",
-    contractVersion: 1
-  };
-  assert.throws(
-    () => createRenderingRegressionRegistry().resolve(recipe, "recipe"),
-    /Unknown recipe definition/u
-  );
-  assert.doesNotThrow(() =>
-    createAuthorityScaffoldRegistry().resolve(recipe, "recipe")
-  );
 });

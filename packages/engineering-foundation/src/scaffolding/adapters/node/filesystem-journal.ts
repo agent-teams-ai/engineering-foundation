@@ -177,20 +177,20 @@ async function readScaffoldJournalRecord(
       "Scaffolding recovery journal is invalid."
     );
   }
-  if (value.schemaVersion !== 2) {
+  if (value.schemaVersion !== 1) {
     throw new ScaffoldError(
       "SCAFFOLD_RECOVERY_REQUIRED",
       "A released 0.5 scaffolding journal must be recovered before upgrading."
     );
   }
   await assertSchema(
-    "scaffold-recovery-journal",
+    "scaffold-recovery-journal/v1",
     value,
     "scaffold-recovery-journal"
   );
   const journal = value as AuthorityScaffoldJournal;
   await assertSchema(
-    "scaffold-plan",
+    "scaffold-plan/v1",
     journal.plan,
     "scaffold-recovery-journal"
   );

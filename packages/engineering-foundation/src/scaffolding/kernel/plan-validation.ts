@@ -10,7 +10,7 @@ export function assertAuthorityScaffoldPlanDigest(
     readonly schemaVersion: number;
     readonly protocolVersion: number;
   };
-  if (candidate.schemaVersion !== 2 || candidate.protocolVersion !== 2) {
+  if (candidate.schemaVersion !== 1 || candidate.protocolVersion !== 1) {
     throw new ScaffoldError(
       "SCAFFOLD_PLAN_INVALID",
       "Scaffolding Plan does not use the canonical protocol."

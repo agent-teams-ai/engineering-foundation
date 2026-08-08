@@ -104,7 +104,7 @@ test("SIGTERM cancels Buf qualification with exit code 130", {
       generatedOutputDigest: generatedDigest,
     }), "utf8");
     await writeFile(join(root, "contract.yaml"), JSON.stringify({
-      schemaVersion: 2,
+      schemaVersion: 1,
       releasedBaselinePath: "architecture/contracts/released.json",
       approvedBreakingChanges: [],
       qualification: {
@@ -114,7 +114,7 @@ test("SIGTERM cancels Buf qualification with exit code 130", {
         evidencePath: "architecture/evidence/protobuf/qualification.json",
       },
       current: {
-        schemaVersion: 2,
+        schemaVersion: 1,
         contractId: "cli-cancellation.control",
         publicContractVersion: "1.0.0",
         bufVersion: "1.72.0",

@@ -17,9 +17,9 @@ import {
   ACCEPTED_DECISION_BASELINE_PATH,
   GOVERNANCE_CONFIG_PATH,
   ROOT_STABLE_ITEM,
-  configureV2PublicApiFixture,
+  configureCurrentPublicApiFixture,
   sha256,
-  v2Baseline,
+  currentBaseline,
   writeGovernedDecisionEvidence
 } from "./support/public-api-fixtures.mjs";
 
@@ -32,23 +32,30 @@ test("accepts a public API identical to its released baseline", async () => {
   });
 });
 
-test("keeps the schema v1 change fingerprint byte-for-byte compatible", () => {
-  const released = {
-    schemaVersion: 1,
-    packageName: "@fixture/public-api",
-    packageVersion: "1.2.3",
-    extractorVersion: "7.58.12",
-    items: [ROOT_STABLE_ITEM],
-  };
+test("keeps the single v1 entrypoint fingerprint deterministic", () => {
+  const released = currentBaseline();
   const currentItem = {
     ...ROOT_STABLE_ITEM,
     signature: "export declare function stable(value: number): string;",
   };
-  const current = { ...released, items: [currentItem] };
+  const current = {
+    ...released,
+    entrypoints: [
+      { exportPath: ".", items: [ROOT_STABLE_ITEM] },
+      { exportPath: "./local-mode", items: [currentItem] },
+    ],
+  };
   const expectedEvidence = {
-    added: [],
-    changed: [{ before: ROOT_STABLE_ITEM, after: currentItem }],
-    removed: [],
+    addedEntrypoints: [],
+    removedEntrypoints: [],
+    entrypoints: [
+      {
+        exportPath: "./local-mode",
+        added: [],
+        changed: [{ before: ROOT_STABLE_ITEM, after: currentItem }],
+        removed: [],
+      },
+    ],
   };
 
   const change = classifyPublicApiChange(released, current, { sha256 });
@@ -58,21 +65,21 @@ test("keeps the schema v1 change fingerprint byte-for-byte compatible", () => {
   assert.equal(change.fingerprint, `sha256:${sha256(JSON.stringify(expectedEvidence))}`);
 });
 
-test("accepts schema v2 with multiple entrypoints and reports its actual schema", async () => {
+test("accepts current schema v1 with multiple entrypoints and reports its actual schema", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    await configureV2PublicApiFixture(consumerRoot);
+    await configureCurrentPublicApiFixture(consumerRoot);
 
     const { result, report } = check(consumerRoot);
 
     assert.equal(result.status, 0);
     assert.equal(report.outcome, "passed");
-    assert.equal(report.capabilities[0].capabilityConfigSchemaVersion, 2);
+    assert.equal(report.capabilities[0].capabilityConfigSchemaVersion, 1);
   });
 });
 
 test("checks a root localMode namespace and its independently importable subpath", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    await configureV2PublicApiFixture(consumerRoot);
+    await configureCurrentPublicApiFixture(consumerRoot);
     const packageDirectory = join(consumerRoot, "packages", "library");
     await writeFile(
       join(packageDirectory, "dist", "index.d.ts"),
@@ -96,8 +103,8 @@ test("checks a root localMode namespace and its independently importable subpath
   });
 });
 
-test("scopes v2 collisions by export path and keeps comparisons order-independent", () => {
-  const released = v2Baseline();
+test("scopes entrypoint collisions by export path and keeps comparisons order-independent", () => {
+  const released = currentBaseline();
   const current = {
     ...released,
     entrypoints: [
@@ -121,7 +128,7 @@ test("scopes v2 collisions by export path and keeps comparisons order-independen
     { sha256 },
   );
 
-  assert.equal(change.schemaVersion, 2);
+  assert.equal(change.schemaVersion, 1);
   assert.equal(change.classification, "breaking");
   assert.deepEqual(change.changed, [
     {
@@ -144,9 +151,9 @@ test("scopes v2 collisions by export path and keeps comparisons order-independen
   );
 });
 
-test("requires a minor Changeset for a schema v2 additive subpath export", async () => {
+test("requires a minor Changeset for a current schema v1 additive subpath export", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    await configureV2PublicApiFixture(consumerRoot);
+    await configureCurrentPublicApiFixture(consumerRoot);
     await writeFile(
       join(consumerRoot, "packages", "library", "dist", "local-mode.d.ts"),
       [
@@ -173,9 +180,9 @@ test("requires a minor Changeset for a schema v2 additive subpath export", async
   });
 });
 
-test("requires an accepted exact fingerprint for a schema v2 breaking subpath change", async () => {
+test("requires an accepted exact fingerprint for a current schema v1 breaking subpath change", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    const configPath = await configureV2PublicApiFixture(consumerRoot);
+    const configPath = await configureCurrentPublicApiFixture(consumerRoot);
     await writeFile(
       join(consumerRoot, "packages", "library", "dist", "local-mode.d.ts"),
       "export declare function stable(value: number): string;\n",
@@ -268,9 +275,9 @@ test("requires an accepted exact fingerprint for a schema v2 breaking subpath ch
   });
 });
 
-test("rejects a schema v2 configuration that omits a public typed subpath", async () => {
+test("rejects a current schema v1 configuration that omits a public typed subpath", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    const configPath = await configureV2PublicApiFixture(consumerRoot);
+    const configPath = await configureCurrentPublicApiFixture(consumerRoot);
     const config = parseYaml(await readFile(configPath, "utf8"));
     config.packages[0].entrypoints = config.packages[0].entrypoints.filter(
       ({ exportPath }) => exportPath !== "./local-mode",
@@ -287,9 +294,9 @@ test("rejects a schema v2 configuration that omits a public typed subpath", asyn
   });
 });
 
-test("requires explicit non-type export classification in schema v2", async () => {
+test("requires explicit non-type export classification in current schema v1", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    const configPath = await configureV2PublicApiFixture(consumerRoot);
+    const configPath = await configureCurrentPublicApiFixture(consumerRoot);
     const manifestPath = join(consumerRoot, "packages", "library", "package.json");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     manifest.exports["./package.json"] = "./package.json";
@@ -313,9 +320,9 @@ test("requires explicit non-type export classification in schema v2", async () =
   });
 });
 
-test("rejects v2 baseline pointer reset and paths outside its release-owned anchor", async () => {
+test("rejects current baseline pointer reset and paths outside its release-owned anchor", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    const configPath = await configureV2PublicApiFixture(consumerRoot);
+    const configPath = await configureCurrentPublicApiFixture(consumerRoot);
     const config = parseYaml(await readFile(configPath, "utf8"));
     config.packages[0].releasedBaselinePath = "architecture/public-api/reset.json";
     await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
@@ -393,7 +400,7 @@ test("rejects a package version older than its released API baseline", async () 
   });
 });
 
-test("binds a legacy breaking approval to its exact fingerprint and immutable ADR path", async () => {
+test("binds a breaking approval to its exact fingerprint and immutable ADR identity", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
     await writeFile(
       join(consumerRoot, "packages", "library", "dist", "index.d.ts"),
@@ -443,10 +450,11 @@ test("binds a legacy breaking approval to its exact fingerprint and immutable AD
     );
     const config = parseYaml(await readFile(configPath, "utf8"));
     const decision = await writeGovernedDecisionEvidence(consumerRoot);
+    config.governanceConfigPath = GOVERNANCE_CONFIG_PATH;
     config.packages[0].approvedBreakingChanges = [
       {
         fingerprint,
-        decisionPath: decision.decisionPath,
+        decisionId: decision.decisionId,
       },
     ];
     await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
@@ -475,7 +483,14 @@ test("requires immutable decision evidence before promoting a breaking public AP
     packageName: "@fixture/library",
     packageRoot: "packages/library",
     manifestPath: "packages/library/package.json",
-    declarationEntryPoint: "packages/library/dist/index.d.ts",
+    entrypoints: [
+      {
+        exportPath: ".",
+        entrypoints: [{ exportPath: ".", declarationEntryPoint: "packages/library/dist/index.d.ts" }],
+        nonTypeExports: [],
+      },
+    ],
+    nonTypeExports: [],
     tsconfigPath: "packages/library/tsconfig.json",
     releasedBaselinePath: "architecture/public-api/library.json",
     approvedBreakingChanges: [],
@@ -485,22 +500,27 @@ test("requires immutable decision evidence before promoting a breaking public AP
     packageName: packagePolicy.packageName,
     packageVersion: "1.0.0",
     extractorVersion: "7.58.12",
-    items: [ROOT_STABLE_ITEM],
+    entrypoints: [{ exportPath: ".", items: [ROOT_STABLE_ITEM] }],
   };
   const current = {
     ...released,
     packageVersion: "2.0.0",
-    items: [
+    entrypoints: [
       {
-        ...ROOT_STABLE_ITEM,
-        signature: "export declare function stable(value: number): string;",
+        exportPath: ".",
+        items: [
+          {
+            ...ROOT_STABLE_ITEM,
+            signature: "export declare function stable(value: number): string;",
+          },
+        ],
       },
     ],
   };
   const fingerprint = classifyPublicApiChange(released, current, { sha256 }).fingerprint;
   packagePolicy.approvedBreakingChanges.push({
     fingerprint,
-    decisionPath: "docs/decisions/0001-approve-public-api-break.md",
+    decisionId: "ADR-0001",
   });
   const evidenceRequests = [];
 
@@ -593,9 +613,9 @@ test("promotes a public API baseline only after a sufficient package release", a
   });
 });
 
-test("promotes one deterministic schema v2 baseline for every public entrypoint", async () => {
+test("promotes one deterministic current schema v1 baseline for every public entrypoint", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    await configureV2PublicApiFixture(consumerRoot);
+    await configureCurrentPublicApiFixture(consumerRoot);
     await writeFile(
       join(consumerRoot, "packages", "library", "dist", "local-mode.d.ts"),
       [
@@ -620,7 +640,7 @@ test("promotes one deterministic schema v2 baseline for every public entrypoint"
     const baseline = JSON.parse(
       await readFile(join(consumerRoot, "architecture", "public-api", "public-api.json"), "utf8"),
     );
-    assert.equal(baseline.schemaVersion, 2);
+    assert.equal(baseline.schemaVersion, 1);
     assert.equal(baseline.packageVersion, "1.3.0");
     assert.deepEqual(
       baseline.entrypoints.map(({ exportPath }) => exportPath),
@@ -635,7 +655,8 @@ test("validates every public API promotion before writing any baseline", async (
     packageName: `@fixture/${name}`,
     packageRoot: `packages/${name}`,
     manifestPath: `packages/${name}/package.json`,
-    declarationEntryPoint: `packages/${name}/dist/index.d.ts`,
+    entrypoints: [{ exportPath: ".", declarationEntryPoint: `packages/${name}/dist/index.d.ts` }],
+    nonTypeExports: [],
     tsconfigPath: `packages/${name}/tsconfig.json`,
     releasedBaselinePath: `architecture/public-api/${name}.json`,
     approvedBreakingChanges: [],
@@ -663,7 +684,7 @@ test("validates every public API promotion before writing any baseline", async (
               packageName: packagePolicy.packageName,
               packageVersion,
               extractorVersion: "7.58.12",
-              items: [],
+              entrypoints: [{ exportPath: ".", items: [] }],
             };
           },
         },
@@ -675,7 +696,7 @@ test("validates every public API promotion before writing any baseline", async (
               packageName: packagePolicy.packageName,
               packageVersion: "1.0.0",
               extractorVersion: "7.58.12",
-              items: [],
+              entrypoints: [{ exportPath: ".", items: [] }],
             };
           },
           async readReleaseEvidence() {
@@ -702,7 +723,8 @@ test("replays public API promotion after a partially written multi-package relea
     packageName: `@fixture/${name}`,
     packageRoot: `packages/${name}`,
     manifestPath: `packages/${name}/package.json`,
-    declarationEntryPoint: `packages/${name}/dist/index.d.ts`,
+    entrypoints: [{ exportPath: ".", declarationEntryPoint: `packages/${name}/dist/index.d.ts` }],
+    nonTypeExports: [],
     tsconfigPath: `packages/${name}/tsconfig.json`,
     releasedBaselinePath: `architecture/public-api/${name}.json`,
     approvedBreakingChanges: [],
@@ -732,7 +754,7 @@ test("replays public API promotion after a partially written multi-package relea
             packageName: packagePolicy.packageName,
             packageVersion,
             extractorVersion: "7.58.12",
-            items: [item],
+            entrypoints: [{ exportPath: ".", items: [item] }],
           };
         },
       },
@@ -745,7 +767,9 @@ test("replays public API promotion after a partially written multi-package relea
             packageName: packagePolicy.packageName,
             packageVersion: alreadyPromoted ? "1.1.0" : "1.0.0",
             extractorVersion: "7.58.12",
-            items: alreadyPromoted ? [item] : [],
+            entrypoints: [
+              { exportPath: ".", items: alreadyPromoted ? [item] : [] },
+            ],
           };
         },
         async readReleaseEvidence(_consumerRoot, _changesetDirectory, packagePolicy) {
@@ -765,75 +789,4 @@ test("replays public API promotion after a partially written multi-package relea
 
   assert.deepEqual(writes, ["@fixture/second"]);
   assert.deepEqual(promoted.map(({ packageName }) => packageName), ["@fixture/second"]);
-});
-
-test("rejects public API drift after a package version was already promoted", async () => {
-  const packagePolicy = {
-    packageName: "@fixture/library",
-    packageRoot: "packages/library",
-    manifestPath: "packages/library/package.json",
-    declarationEntryPoint: "packages/library/dist/index.d.ts",
-    tsconfigPath: "packages/library/tsconfig.json",
-    releasedBaselinePath: "architecture/public-api/library.json",
-    approvedBreakingChanges: [],
-  };
-  const writes = [];
-
-  await assert.rejects(
-    promotePublicApiBaselines(
-      {
-        consumerRoot: "/fixture",
-        policy: {
-          schemaVersion: 1,
-          changesetDirectory: ".changeset",
-          packages: [packagePolicy],
-        },
-      },
-      {
-        extractor: {
-          async extract() {
-            return {
-              schemaVersion: 1,
-              packageName: packagePolicy.packageName,
-              packageVersion: "1.1.0",
-              extractorVersion: "7.58.12",
-              items: [
-                {
-                  canonicalReference: "@fixture/api!added:function(1)",
-                  kind: "Function",
-                  parentKind: "EntryPoint",
-                  signature: "export declare function added(): void;",
-                },
-              ],
-            };
-          },
-        },
-        fingerprint: { sha256: () => "a".repeat(64) },
-        repository: {
-          async readReleasedBaseline() {
-            return {
-              schemaVersion: 1,
-              packageName: packagePolicy.packageName,
-              packageVersion: "1.1.0",
-              extractorVersion: "7.58.12",
-              items: [],
-            };
-          },
-          async readReleaseEvidence() {
-            return { packageName: packagePolicy.packageName, packageVersion: "1.1.0" };
-          },
-          async writeReleasedBaseline(...args) {
-            writes.push(args);
-          },
-        },
-        acceptedDecisionEvidence: {
-          async readAcceptedDecisionEvidence() {
-            return { acceptedDecisionIds: [], acceptedDecisionPaths: [] };
-          },
-        },
-      },
-    ),
-    (error) => error?.problem?.code === "PUBLIC_API_BASELINE_PROMOTION_RELEASE_DRIFT",
-  );
-  assert.deepEqual(writes, []);
 });

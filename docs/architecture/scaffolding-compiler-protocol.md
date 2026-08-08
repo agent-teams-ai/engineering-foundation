@@ -543,7 +543,7 @@ consumer-owned evidence.
 - immutable schemas remain inspectable for the documented compatibility window;
 - an upgrade never enables definitions or changes a consumer Composition
   automatically;
-- exact dependency pins and Renovate PRs carry upgrades through complete consumer
+- exact dependency pins and Dependabot PRs carry upgrades through complete consumer
   conformance;
 - generated output is ordinary consumer-owned source after Apply; Receipts are
   evidence, not permanent ownership or drift locks;

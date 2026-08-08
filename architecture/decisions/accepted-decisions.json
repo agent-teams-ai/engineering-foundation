@@ -91,6 +91,11 @@
       "id": "ADR-0018",
       "path": "docs/decisions/0018-retire-conflicting-recipe-qualification-prerequisite.md",
       "immutableDigest": "sha256:37ec60cd393faebe215a10d55ca680b34db42b945e0710c931ccda434c7538cd"
+    },
+    {
+      "id": "ADR-0019",
+      "path": "docs/decisions/0019-single-current-foundation-contract-version.md",
+      "immutableDigest": "sha256:56d70b836a093aa4b7719dbb065c48160530b1460f397cc28744ffb7419c858b"
     }
   ]
 }

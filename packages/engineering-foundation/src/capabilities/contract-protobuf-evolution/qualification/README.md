@@ -26,13 +26,13 @@ config for policy execution. Processes have a bounded deadline and process-tree
 cancellation; evidence publication is locked, contained, atomically replaced and
 verified after rename.
 
-Capability configuration schema v2 and qualification evidence schema v2 are
-required. Their version 1 predecessors remain shipped as immutable historical
-contract data but cannot prove hardened `FILE` provenance and are not accepted
-by the executable capability.
+The single Foundation-owned capability configuration and qualification evidence
+schemas are `v1` and include all hardened `FILE` provenance bindings. Older
+published package artifacts remain immutable history but their weaker shapes are
+not shipped or accepted by the current package.
 
 The pre-1.0 migration is explicit: move released fields into the separate
-release-owned baseline, declare `qualification` and `current` under capability
-schema v2, then run the protected qualifier with `--write`. Review the resulting
-evidence v2 digest before recording any breaking approval. No v1 evidence or
-approval fingerprint is carried forward implicitly.
+release-owned baseline, declare `qualification` and `current` under the current
+schema `v1`, then run the protected qualifier with `--write`. Review the resulting
+evidence digest before recording any breaking approval. No evidence or approval
+fingerprint from an older provisional shape is carried forward implicitly.

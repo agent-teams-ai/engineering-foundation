@@ -44,3 +44,6 @@ minimumReleaseAgeStrict: true
 allowBuilds:
   "@ast-grep/cli": true
   nx: true
+
+overrides:
+  brace-expansion: 5.0.9

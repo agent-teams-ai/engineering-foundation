@@ -4,8 +4,6 @@ import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import type {
   PackageReleaseEvidence,
   PublicApiChangeSet,
-  PublicApiChangeSetV1,
-  PublicApiChangeSetV2,
   PublicApiEntrypointItemReference,
   PublicApiEntrypointSnapshot,
   PublicApiItem,
@@ -135,42 +133,6 @@ function classifyEntrypointItems(
   });
 }
 
-function classifyV1PublicApiChange(
-  releasedSnapshot: PublicApiSnapshot,
-  currentSnapshot: PublicApiSnapshot,
-  fingerprint: ChangeFingerprint
-): PublicApiChangeSetV1 {
-  if (releasedSnapshot.schemaVersion !== 1 || currentSnapshot.schemaVersion !== 1) {
-    throw new Error("Public API schema v1 comparisons require two v1 snapshots.");
-  }
-  const comparison = classifyEntrypointItems(
-    releasedSnapshot.items,
-    currentSnapshot.items
-  );
-  const added = comparison.added.map((item) => item.canonicalReference);
-  const breaking =
-    comparison.removed.length > 0 ||
-    comparison.changed.length > 0 ||
-    comparison.breakingAdded.length > 0;
-  const changeEvidence = {
-    added: comparison.added,
-    changed: comparison.changedEvidence,
-    removed: comparison.removed.map((canonicalReference) =>
-      releasedSnapshot.items.find((item) => item.canonicalReference === canonicalReference)
-    )
-  };
-  return {
-    schemaVersion: 1,
-    classification: breaking ? "breaking" : added.length > 0 ? "additive" : "none",
-    ...(breaking
-      ? { fingerprint: `sha256:${fingerprint.sha256(JSON.stringify(changeEvidence))}` }
-      : {}),
-    added,
-    changed: comparison.changed,
-    removed: comparison.removed
-  };
-}
-
 function entrypointIndex(
   snapshot: PublicApiSnapshot
 ): ReadonlyMap<string, PublicApiEntrypointSnapshot> {
@@ -222,7 +184,7 @@ function compareEntrypointReferences(
     : pathOrder;
 }
 
-interface V2EntrypointEvidence {
+interface EntrypointEvidence {
   readonly exportPath: string;
   readonly added: readonly PublicApiItem[];
   readonly changed: readonly {
@@ -232,23 +194,23 @@ interface V2EntrypointEvidence {
   readonly removed: readonly PublicApiItem[];
 }
 
-interface V2EntrypointChanges {
+interface EntrypointChanges {
   readonly added: readonly PublicApiEntrypointItemReference[];
   readonly changed: readonly PublicApiEntrypointItemReference[];
-  readonly entrypointEvidence: readonly V2EntrypointEvidence[];
+  readonly entrypointEvidence: readonly EntrypointEvidence[];
   readonly hasBreakingAddedItem: boolean;
   readonly removed: readonly PublicApiEntrypointItemReference[];
 }
 
-function collectV2EntrypointChanges(
+function collectEntrypointChanges(
   released: ReadonlyMap<string, PublicApiEntrypointSnapshot>,
   current: ReadonlyMap<string, PublicApiEntrypointSnapshot>,
   exportPaths: readonly string[]
-): V2EntrypointChanges {
+): EntrypointChanges {
   const added: PublicApiEntrypointItemReference[] = [];
   const changed: PublicApiEntrypointItemReference[] = [];
   const removed: PublicApiEntrypointItemReference[] = [];
-  const entrypointEvidence: V2EntrypointEvidence[] = [];
+  const entrypointEvidence: EntrypointEvidence[] = [];
   let hasBreakingAddedItem = false;
   for (const exportPath of exportPaths) {
     const releasedEntrypoint = released.get(exportPath);
@@ -295,14 +257,11 @@ function collectV2EntrypointChanges(
   });
 }
 
-function classifyV2PublicApiChange(
+function classifyEntrypointPublicApiChange(
   releasedSnapshot: PublicApiSnapshot,
   currentSnapshot: PublicApiSnapshot,
   fingerprint: ChangeFingerprint
-): PublicApiChangeSetV2 {
-  if (releasedSnapshot.schemaVersion !== 2 || currentSnapshot.schemaVersion !== 2) {
-    throw new Error("Public API schema v2 comparisons require two v2 snapshots.");
-  }
+): PublicApiChangeSet {
   const released = entrypointIndex(releasedSnapshot);
   const current = entrypointIndex(currentSnapshot);
   const exportPaths = [...new Set([...released.keys(), ...current.keys()])].toSorted(
@@ -314,7 +273,7 @@ function classifyV2PublicApiChange(
   const removedEntrypoints = exportPaths.filter(
     (exportPath) => !current.has(exportPath)
   );
-  const changes = collectV2EntrypointChanges(released, current, exportPaths);
+  const changes = collectEntrypointChanges(released, current, exportPaths);
   const breaking =
     removedEntrypoints.length > 0 ||
     changes.removed.length > 0 ||
@@ -331,7 +290,7 @@ function classifyV2PublicApiChange(
     entrypoints: changes.entrypointEvidence
   };
   return Object.freeze({
-    schemaVersion: 2,
+    schemaVersion: 1,
     classification,
     ...(breaking
       ? { fingerprint: `sha256:${fingerprint.sha256(JSON.stringify(changeEvidence))}` }
@@ -349,12 +308,11 @@ export function classifyPublicApiChange(
   currentSnapshot: PublicApiSnapshot,
   fingerprint: ChangeFingerprint
 ): PublicApiChangeSet {
-  if (releasedSnapshot.schemaVersion !== currentSnapshot.schemaVersion) {
-    throw new Error("Public API snapshots must use the same schema version.");
-  }
-  return releasedSnapshot.schemaVersion === 1
-    ? classifyV1PublicApiChange(releasedSnapshot, currentSnapshot, fingerprint)
-    : classifyV2PublicApiChange(releasedSnapshot, currentSnapshot, fingerprint);
+  return classifyEntrypointPublicApiChange(
+    releasedSnapshot,
+    currentSnapshot,
+    fingerprint
+  );
 }
 
 function requiredBump(change: PublicApiChangeSet, packageVersion: string): ReleaseBump {

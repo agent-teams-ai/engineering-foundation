@@ -70,8 +70,8 @@ function normalizeAuthorityPlan(
     readSet: input.authorityReadSet
   } as unknown as JsonValue);
   const planBody = {
-    schemaVersion: 2 as const,
-    protocolVersion: 2 as const,
+    schemaVersion: 1 as const,
+    protocolVersion: 1 as const,
     ...rendering,
     projectId: input.config.projectId,
     authority: Object.freeze({

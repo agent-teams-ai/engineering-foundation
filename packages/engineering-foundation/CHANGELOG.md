@@ -1,5 +1,26 @@
 # @agent-teams/engineering-foundation
 
+## 0.8.0
+
+### Minor Changes
+
+- [#65](https://github.com/agent-teams-ai/engineering-foundation/pull/65) [`5b3150f`](https://github.com/agent-teams-ai/engineering-foundation/commit/5b3150f670baa171d587417ff4b862f5622080fb) Thanks [@777genius](https://github.com/777genius)! - Add the closed generic Node TypeScript library-boundary scaffolding recipe with
+  composition-owned roles, verified owner metadata, varied deterministic fixtures,
+  and packed CLI qualification.
+
+- [#59](https://github.com/agent-teams-ai/engineering-foundation/pull/59) [`c922527`](https://github.com/agent-teams-ai/engineering-foundation/commit/c92252788afe9d853d257d678c1810107ef99160) Thanks [@777genius](https://github.com/777genius)! - Add reproducible pinned Buf `FILE` qualification with versioned evidence binding,
+  strict normal-check validation, and a real compatibility E2E gate.
+
+  This pre-1.0 minor intentionally requires capability configuration v2 and
+  qualification evidence v2. Existing v1 schemas remain published as immutable
+  history, but consumers must regenerate qualification evidence through the
+  protected command before upgrading.
+
+- [#52](https://github.com/agent-teams-ai/engineering-foundation/pull/52) [`b67b516`](https://github.com/agent-teams-ai/engineering-foundation/commit/b67b51691a74c6c5167b10c7ba836e7a26edbe47) Thanks [@777genius](https://github.com/777genius)! - Replace the provisional scaffolding surface with one canonical source-bound
+  Plan, Receipt, and recovery-journal contract. Owner authority is referenced once
+  by document ID and resolved deterministically from bounded consumer document
+  roots.
+
 ## 0.7.0
 
 ### Minor Changes

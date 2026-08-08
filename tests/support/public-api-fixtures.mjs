@@ -23,9 +23,9 @@ export function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-export function v2Baseline(localItem = ROOT_STABLE_ITEM) {
+export function currentBaseline(localItem = ROOT_STABLE_ITEM) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 1,
     packageName: "@fixture/public-api",
     packageVersion: "1.2.3",
     extractorVersion: "7.58.12",
@@ -79,7 +79,7 @@ export async function writeGovernedDecisionEvidence(
   return Object.freeze({ decisionId, decisionPath });
 }
 
-export async function configureV2PublicApiFixture(consumerRoot) {
+export async function configureCurrentPublicApiFixture(consumerRoot) {
   const packageDirectory = join(consumerRoot, "packages", "library");
   const configPath = join(
     consumerRoot,
@@ -121,7 +121,7 @@ export async function configureV2PublicApiFixture(consumerRoot) {
   await writeFile(
     configPath,
     stringifyYaml({
-      schemaVersion: 2,
+      schemaVersion: 1,
       acceptedDecisionBaselinePath: "architecture/decisions/accepted-decisions.json",
       changesetDirectory: ".changeset",
       packages: [
@@ -150,7 +150,7 @@ export async function configureV2PublicApiFixture(consumerRoot) {
   );
   await writeFile(
     join(consumerRoot, "architecture", "public-api", "public-api.json"),
-    `${JSON.stringify(v2Baseline(), null, 2)}\n`,
+    `${JSON.stringify(currentBaseline(), null, 2)}\n`,
     "utf8"
   );
   return configPath;

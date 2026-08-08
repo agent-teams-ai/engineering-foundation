@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["version", "packages"],
   "properties": {
-    "version": { "const": 2 },
+    "version": { "const": 1 },
     "packages": {
       "type": "array",
       "maxItems": 4096,

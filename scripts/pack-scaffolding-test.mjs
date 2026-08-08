@@ -139,7 +139,7 @@ const recoveryPlan = await planScaffoldFromFile({ consumerRoot: recoveryRoot, in
 const journalPath = join(recoveryRoot, ".agent-teams-local", "scaffolding-transaction.json");
 await mkdir(join(recoveryRoot, ".agent-teams-local"), { recursive: true });
 await writeFile(journalPath, JSON.stringify({
-  schemaVersion: 2,
+  schemaVersion: 1,
   state: "PREPARED",
   plan: recoveryPlan,
   operations: recoveryPlan.operations.map((operation) => ({ operationId: operation.id, path: operation.path, state: "pending" }))

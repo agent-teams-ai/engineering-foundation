@@ -1,9 +1,10 @@
 ---
 id: ADR-0016
-status: accepted
+status: superseded
 supersedes:
   - ADR-0015
-superseded_by: []
+superseded_by:
+  - ADR-0019
 ---
 
 # ADR-0016: Hardened Buf Qualification Boundary

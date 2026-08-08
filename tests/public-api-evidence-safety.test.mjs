@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdir, readFile, readdir, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
@@ -12,18 +11,11 @@ import {
 } from "./support/capability-fixtures.mjs";
 import {
   ROOT_STABLE_ITEM,
-  configureV2PublicApiFixture,
+  currentBaseline,
+  configureCurrentPublicApiFixture,
 } from "./support/public-api-fixtures.mjs";
 import { mapReleasedBaseline } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-baseline-mapper.js";
 
-const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const cliPath = join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "dist",
-  "cli.js",
-);
 const stagingDirectoryPrefix = ".agent-teams-public-api-stage-";
 
 async function stagingDirectories() {
@@ -42,7 +34,7 @@ async function assertNoNewStagingDirectories(previous) {
   );
 }
 
-function v1Baseline() {
+function legacySingleEntrypointBaseline() {
   return {
     schemaVersion: 1,
     packageName: "@fixture/public-api",
@@ -55,14 +47,23 @@ function v1Baseline() {
 test("does not coerce missing baseline item fields into literal undefined strings", () => {
   const item = { ...ROOT_STABLE_ITEM };
   delete item.parentKind;
-  const baseline = { ...v1Baseline(), items: [item] };
+  const baseline = {
+    ...currentBaseline(),
+    entrypoints: [{ exportPath: ".", items: [item] }],
+  };
   assert.throws(
     () =>
       mapReleasedBaseline(baseline, {
         packageName: "@fixture/public-api",
         packageRoot: "packages/library",
         manifestPath: "packages/library/package.json",
-        declarationEntryPoint: "packages/library/dist/index.d.ts",
+        entrypoints: [
+          {
+            exportPath: ".",
+            declarationEntryPoint: "packages/library/dist/index.d.ts",
+          },
+        ],
+        nonTypeExports: [],
         tsconfigPath: "packages/library/tsconfig.json",
         releasedBaselinePath: "architecture/public-api/public-api.json",
         approvedBreakingChanges: [],
@@ -71,13 +72,13 @@ test("does not coerce missing baseline item fields into literal undefined string
   );
 });
 
-test("rejects a schema v1 baseline under an active schema v2 policy", async () => {
+test("rejects a legacy single-entrypoint baseline under the current schema v1 policy", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    await configureV2PublicApiFixture(consumerRoot);
+    await configureCurrentPublicApiFixture(consumerRoot);
     const baselinePath = join(consumerRoot, "architecture", "public-api", "public-api.json");
     await writeFile(
       baselinePath,
-      `${JSON.stringify(v1Baseline(), null, 2)}\n`,
+      `${JSON.stringify(legacySingleEntrypointBaseline(), null, 2)}\n`,
       "utf8",
     );
 
@@ -85,53 +86,8 @@ test("rejects a schema v1 baseline under an active schema v2 policy", async () =
     assert.equal(result.result.status, 2);
     assert.equal(
       result.report.capabilities[0].problem?.code,
-      "PUBLIC_API_BASELINE_INVALID",
+      "SCHEMA_INVALID",
     );
-  });
-});
-
-test("migrates a v1 baseline only through release promotion with an unchanged root API", async () => {
-  await withPublicApiFixture(async (consumerRoot) => {
-    await configureV2PublicApiFixture(consumerRoot);
-    const baselinePath = join(consumerRoot, "architecture", "public-api", "public-api.json");
-    await writeFile(baselinePath, `${JSON.stringify(v1Baseline(), null, 2)}\n`, "utf8");
-
-    const result = spawnSync(
-      process.execPath,
-      [cliPath, "public-api-promote-release", "--consumer", consumerRoot, "--json"],
-      { encoding: "utf8" },
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    const promoted = JSON.parse(await readFile(baselinePath, "utf8"));
-    assert.equal(promoted.schemaVersion, 2);
-    assert.deepEqual(
-      promoted.entrypoints.map(({ exportPath }) => exportPath),
-      [".", "./local-mode"],
-    );
-  });
-});
-
-test("rejects release migration when the previously governed root API drifted", async () => {
-  await withPublicApiFixture(async (consumerRoot) => {
-    await configureV2PublicApiFixture(consumerRoot);
-    const baselinePath = join(consumerRoot, "architecture", "public-api", "public-api.json");
-    await writeFile(baselinePath, `${JSON.stringify(v1Baseline(), null, 2)}\n`, "utf8");
-    await writeFile(
-      join(consumerRoot, "packages", "library", "dist", "index.d.ts"),
-      "export declare function stable(value: number): string;\n",
-      "utf8",
-    );
-
-    const result = spawnSync(
-      process.execPath,
-      [cliPath, "public-api-promote-release", "--consumer", consumerRoot, "--json"],
-      { encoding: "utf8" },
-    );
-
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /PUBLIC_API_BASELINE_MIGRATION_ROOT_DRIFT/u);
-    assert.equal(JSON.parse(await readFile(baselinePath, "utf8")).schemaVersion, 1);
   });
 });
 

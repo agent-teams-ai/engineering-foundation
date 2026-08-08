@@ -1,10 +1,14 @@
 schemaVersion: 1
 changesetDirectory: .changeset
+acceptedDecisionBaselinePath: architecture/decisions/accepted-decisions.json
 packages:
   - packageName: "@fixture/public-api"
     packageRoot: packages/library
     manifestPath: packages/library/package.json
-    declarationEntryPoint: packages/library/dist/index.d.ts
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/library/dist/index.d.ts
+    nonTypeExports: []
     tsconfigPath: packages/library/tsconfig.json
     releasedBaselinePath: architecture/public-api/public-api.json
     approvedBreakingChanges: []

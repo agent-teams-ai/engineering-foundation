@@ -36,7 +36,7 @@ function schemaPath(schemaId: FoundationSchemaCatalogId): string {
 }
 
 function schemaSource(schemaId: FoundationSchemaCatalogId): string {
-  return schemaId === "scaffold-intent/v1" ? "scaffold-intent" : schemaId;
+  return schemaId;
 }
 
 export async function readFoundationSchema(

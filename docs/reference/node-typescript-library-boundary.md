@@ -30,7 +30,7 @@ accepted owner statuses, and the `tsconfigBase` path. Foundation resolves the
 owner ID from canonical source and supplies only that verified ID to the Recipe.
 
 ```yaml
-schemaVersion: 2
+schemaVersion: 1
 projectId: example
 targetCatalogPath: architecture/package-catalog.yaml
 compositions:

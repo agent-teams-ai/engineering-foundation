@@ -16,16 +16,16 @@ import type {
 } from "../application/model/protobuf-release-evidence.js";
 
 export const CAPABILITY_ID = "contract.protobuf-evolution" as const;
-export const CAPABILITY_CONFIG_SCHEMA_VERSION = 2 as const;
+export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 
 type ProtobufEvolutionConfigSchemaVersion = typeof CAPABILITY_CONFIG_SCHEMA_VERSION;
-type ProtobufEvolutionSchemaId = "contract-protobuf-evolution/v2";
+type ProtobufEvolutionSchemaId = "contract-protobuf-evolution/v1";
 type ProtobufReleasedBaselineSchemaId = "contract-protobuf-evolution-baseline/v1";
 
 const SCHEMA_ID_BY_VERSION: Readonly<
   Record<ProtobufEvolutionConfigSchemaVersion, ProtobufEvolutionSchemaId>
 > = Object.freeze({
-  2: "contract-protobuf-evolution/v2"
+  1: "contract-protobuf-evolution/v1"
 });
 
 function inputError(message: string): never {
@@ -63,7 +63,7 @@ function configSchemaId(value: unknown): ProtobufEvolutionSchemaId {
     return SCHEMA_ID_BY_VERSION[value];
   }
   inputError(
-    `schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}; v1 cannot prove Buf FILE qualification provenance.`
+    `schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}.`
   );
 }
 
@@ -184,7 +184,7 @@ function mapCurrent(value: unknown): CurrentProtobufContractDeclaration {
   const source = record(value, "current");
   const generationDrift = record(source["generationDrift"], "current.generationDrift");
   return Object.freeze({
-    schemaVersion: 2,
+    schemaVersion: 1,
     contractId: string(source["contractId"], "current.contractId"),
     publicContractVersion: string(source["publicContractVersion"], "current.publicContractVersion"),
     bufVersion: string(source["bufVersion"], "current.bufVersion"),

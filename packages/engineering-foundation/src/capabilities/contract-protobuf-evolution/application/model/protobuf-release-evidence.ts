@@ -44,9 +44,9 @@ export interface BufBreakingFinding {
 }
 
 export interface BufBreakingQualificationEvidence {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 1;
   readonly producerId: "agent-teams-foundation.buf-breaking-qualification";
-  readonly producerVersion: 2;
+  readonly producerVersion: 1;
   readonly policy: "FILE";
   readonly contractId: string;
   readonly bufVersion: string;
@@ -88,7 +88,7 @@ export interface ProtobufEvolutionConfiguration {
 }
 
 export interface CurrentProtobufContractDeclaration {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 1;
   readonly contractId: string;
   readonly publicContractVersion: string;
   readonly bufVersion: string;
@@ -99,7 +99,7 @@ export interface CurrentProtobufContractDeclaration {
 }
 
 export interface CurrentProtobufContractEvidence {
-  readonly schemaVersion: 1 | 2;
+  readonly schemaVersion: 1;
   readonly contractId: string;
   readonly publicContractVersion: string;
   readonly bufVersion: string;

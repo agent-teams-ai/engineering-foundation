@@ -314,29 +314,12 @@ export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
           })
         );
       }
-      if ("entrypoints" in policy) {
-        return Object.freeze({
-          schemaVersion: 2,
-          packageName: policy.packageName,
-          packageVersion,
-          extractorVersion: Extractor.version,
-          entrypoints: Object.freeze(entrypoints)
-        });
-      }
-      const entrypoint = entrypoints[0];
-      if (entrypoint === undefined) {
-        inputError(
-          "PUBLIC_API_EXTRACTION_FAILED",
-          "Public API configuration has no declaration entry point.",
-          "public-api-extraction"
-        );
-      }
       return Object.freeze({
         schemaVersion: 1,
         packageName: policy.packageName,
         packageVersion,
         extractorVersion: Extractor.version,
-        items: entrypoint.items
+        entrypoints: Object.freeze(entrypoints)
       });
     } finally {
       await rm(staged.stagingRoot, { recursive: true, force: true });

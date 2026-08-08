@@ -35,20 +35,7 @@ export interface ScaffoldRenderingComposition {
   readonly policies: readonly ConfiguredDefinition[];
 }
 
-interface ScaffoldCompositionV1 extends ScaffoldRenderingComposition {}
-
-export interface ScaffoldingConfigV1 {
-  readonly schemaVersion: 1;
-  readonly projectId: string;
-  readonly targetCatalogPath: RepositoryPath;
-  readonly compositions: readonly ScaffoldCompositionV1[];
-}
-
-/**
- * A closed, Foundation-owned verifier selected by a consumer composition.
- * Consumer input can constrain a verifier, but cannot provide executable
- * verification behavior.
- */
+/** A closed Foundation-owned verifier selected by a consumer composition. */
 export interface ScaffoldAuthorityVerifierV1 {
   readonly id: "foundation.markdown-yaml-owner";
   readonly contractVersion: 1;
@@ -63,7 +50,7 @@ interface AuthorityScaffoldComposition extends ScaffoldRenderingComposition {
 }
 
 export interface AuthorityScaffoldingConfig {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 1;
   readonly projectId: string;
   readonly targetCatalogPath: RepositoryPath;
   readonly compositions: readonly AuthorityScaffoldComposition[];
@@ -77,22 +64,11 @@ export interface ScaffoldRenderingIntent {
   readonly facets?: readonly ConfiguredDefinition[];
 }
 
-export interface ScaffoldIntentV1 extends ScaffoldRenderingIntent {}
-
 export interface ScaffoldRenderingTarget {
   readonly id: string;
   readonly role: string;
   readonly path: RepositoryPath;
   readonly packageName: string;
-}
-
-interface ScaffoldTargetV1 extends ScaffoldRenderingTarget {
-  readonly ownerDocument?: string;
-}
-
-export interface ScaffoldTargetCatalogV1 {
-  readonly version: 1;
-  readonly packages: readonly ScaffoldTargetV1[];
 }
 
 interface AuthorityScaffoldOwnerDocumentBinding {
@@ -105,7 +81,7 @@ export interface AuthorityScaffoldTarget extends ScaffoldRenderingTarget {
 }
 
 export interface AuthorityScaffoldTargetCatalog {
-  readonly version: 2;
+  readonly version: 1;
   readonly packages: readonly AuthorityScaffoldTarget[];
 }
 
@@ -124,7 +100,7 @@ export interface ScaffoldRenderingDiagnostic {
   readonly remediation: string;
 }
 
-export interface ScaffoldDiagnosticV1 extends ScaffoldRenderingDiagnostic {}
+export type ScaffoldDiagnosticV1 = ScaffoldRenderingDiagnostic;
 
 export interface ScaffoldReadAssertionV1 {
   readonly path: RepositoryPath;
@@ -149,10 +125,6 @@ export interface ScaffoldAuthoritySourceAssertionV1 {
   readonly assertion: ScaffoldReadAssertionV1;
 }
 
-/**
- * Evidence is an immutable result of Foundation re-reading the consumer's
- * canonical sources. It is not a consumer-produced approval assertion.
- */
 export interface ScaffoldAuthorityEvidenceV1 {
   readonly schemaVersion: 1;
   readonly verifier: {
@@ -190,8 +162,6 @@ export interface ScaffoldRenderingOperation {
   readonly causes: readonly string[];
 }
 
-export interface MaterializeFileOperationV1 extends ScaffoldRenderingOperation {}
-
 export interface ScaffoldRenderingCompiler {
   readonly id: "@agent-teams/engineering-foundation";
   readonly version: string;
@@ -225,32 +195,9 @@ export interface ScaffoldRenderingResolution {
   }[];
 }
 
-export interface ScaffoldPlanV1 {
+export interface AuthorityScaffoldPlan {
   readonly schemaVersion: 1;
   readonly protocolVersion: 1;
-  readonly compiler: ScaffoldRenderingCompiler;
-  readonly projectId: string;
-  readonly authority: {
-    readonly configPath: RepositoryPath;
-    readonly targetCatalogPath: RepositoryPath;
-  };
-  readonly intent: ScaffoldIntentV1;
-  readonly intentDigest: Sha256Digest;
-  readonly authoritySnapshotDigest: Sha256Digest;
-  readonly composition: ScaffoldRenderingCompositionSelection;
-  readonly definitions: readonly ScaffoldRenderingDefinitionEvidence[];
-  readonly resolved: ScaffoldRenderingResolution;
-  readonly target: ScaffoldTargetV1;
-  readonly readSet: readonly ScaffoldReadAssertionV1[];
-  readonly requiredAdapterCapabilities: readonly ["materialize-file/v1"];
-  readonly operations: readonly MaterializeFileOperationV1[];
-  readonly diagnostics: readonly ScaffoldDiagnosticV1[];
-  readonly planDigest: Sha256Digest;
-}
-
-export interface AuthorityScaffoldPlan {
-  readonly schemaVersion: 2;
-  readonly protocolVersion: 2;
   readonly compiler: ScaffoldRenderingCompiler;
   readonly projectId: string;
   readonly authority: {
@@ -272,7 +219,7 @@ export interface AuthorityScaffoldPlan {
   readonly planDigest: Sha256Digest;
 }
 
-export type ScaffoldPlan = ScaffoldPlanV1 | AuthorityScaffoldPlan;
+export type ScaffoldPlan = AuthorityScaffoldPlan;
 
 export type ScaffoldOperationOutcome =
   | "already-satisfied"
@@ -284,13 +231,6 @@ export type ScaffoldOperationOutcome =
 export type AuthorityScaffoldOperationOutcome =
   | ScaffoldOperationOutcome
   | "unobserved";
-
-export interface ScaffoldOperationReceiptV1 {
-  readonly operationId: string;
-  readonly path: RepositoryPath;
-  readonly outcome: ScaffoldOperationOutcome;
-  readonly resultDigest?: Sha256Digest;
-}
 
 export interface AuthorityScaffoldOperationReceipt {
   readonly operationId: string;
@@ -310,176 +250,6 @@ export type AuthorityScaffoldReceiptOutcome =
   | ScaffoldReceiptOutcome
   | "authority-stale";
 
-interface ScaffoldReceiptCommonV1 {
-  readonly schemaVersion: 1;
-  readonly protocolVersion: 1;
-  readonly planDigest: Sha256Digest;
-  readonly diagnostics: readonly ScaffoldDiagnosticV1[];
-  readonly receiptDigest: Sha256Digest;
-}
-
-// The schema and runtime validator additionally require an applied Receipt to
-// contain at least one `applied` operation at any array position.
-export type ScaffoldReceiptV1 =
-  | (ScaffoldReceiptCommonV1 &
-      {
-        readonly outcome: "applied";
-        readonly operations: readonly [
-          ScaffoldOperationReceiptV1 & {
-            readonly outcome: "already-satisfied" | "applied";
-            readonly resultDigest: Sha256Digest;
-          },
-          ...(ScaffoldOperationReceiptV1 & {
-            readonly outcome: "already-satisfied" | "applied";
-            readonly resultDigest: Sha256Digest;
-          })[]
-        ];
-      } & (
-        | {
-            readonly adapter: {
-              readonly id: "foundation.filesystem/v1";
-              readonly contractVersion: 1;
-            };
-            readonly commit: {
-              readonly state: "committed";
-              readonly atomicity: "journaled-recoverable";
-            };
-          }
-        | {
-            readonly adapter: {
-              readonly id: "foundation.memory/v1";
-              readonly contractVersion: 1;
-            };
-            readonly commit: {
-              readonly state: "committed";
-              readonly atomicity: "memory-atomic";
-            };
-          }
-      ))
-  | (ScaffoldReceiptCommonV1 &
-      {
-        readonly outcome: "already-applied";
-        readonly operations: readonly [
-          ScaffoldOperationReceiptV1 & {
-            readonly outcome: "already-satisfied";
-            readonly resultDigest: Sha256Digest;
-          },
-          ...(ScaffoldOperationReceiptV1 & {
-            readonly outcome: "already-satisfied";
-            readonly resultDigest: Sha256Digest;
-          })[]
-        ];
-      } & (
-        | {
-            readonly adapter: {
-              readonly id: "foundation.filesystem/v1";
-              readonly contractVersion: 1;
-            };
-            readonly commit: {
-              readonly state: "committed";
-              readonly atomicity: "journaled-recoverable";
-            };
-          }
-        | {
-            readonly adapter: {
-              readonly id: "foundation.memory/v1";
-              readonly contractVersion: 1;
-            };
-            readonly commit: {
-              readonly state: "committed";
-              readonly atomicity: "memory-atomic";
-            };
-          }
-      ))
-  | (ScaffoldReceiptCommonV1 & {
-      readonly adapter: {
-        readonly id: "foundation.filesystem/v1";
-        readonly contractVersion: 1;
-      };
-      readonly outcome: "failed-recovered";
-      readonly commit: {
-        readonly state: "recovered";
-        readonly atomicity: "journaled-recoverable";
-      };
-      readonly operations: readonly [
-        ScaffoldOperationReceiptV1 & {
-          readonly outcome: "already-satisfied" | "recovered";
-          readonly resultDigest: Sha256Digest;
-        },
-        ...(ScaffoldOperationReceiptV1 & {
-          readonly outcome: "already-satisfied" | "recovered";
-          readonly resultDigest: Sha256Digest;
-        })[]
-      ];
-    })
-  | (ScaffoldReceiptCommonV1 & {
-      readonly adapter: {
-        readonly id: "foundation.filesystem/v1";
-        readonly contractVersion: 1;
-      };
-      readonly outcome: "recovery-required";
-      readonly commit: {
-        readonly state: "recovery-required";
-        readonly atomicity: "journaled-recoverable";
-      };
-      // Schema and runtime additionally require at least one unresolved entry.
-      readonly operations: readonly [
-        | (ScaffoldOperationReceiptV1 & {
-            readonly outcome: "already-satisfied";
-            readonly resultDigest: Sha256Digest;
-          })
-        | (ScaffoldOperationReceiptV1 & {
-            readonly outcome: "conflict" | "not-applied";
-            readonly resultDigest?: never;
-          }),
-        ...(
-          | (ScaffoldOperationReceiptV1 & {
-              readonly outcome: "already-satisfied";
-              readonly resultDigest: Sha256Digest;
-            })
-          | (ScaffoldOperationReceiptV1 & {
-              readonly outcome: "conflict" | "not-applied";
-              readonly resultDigest?: never;
-            })
-        )[]
-      ];
-    })
-  | (ScaffoldReceiptCommonV1 &
-      {
-        readonly outcome: "rejected";
-        readonly operations: readonly (
-          | (ScaffoldOperationReceiptV1 & {
-              readonly outcome: "already-satisfied";
-              readonly resultDigest: Sha256Digest;
-            })
-          | (ScaffoldOperationReceiptV1 & {
-              readonly outcome: "conflict" | "not-applied";
-              readonly resultDigest?: never;
-            })
-        )[];
-      } & (
-        | {
-            readonly adapter: {
-              readonly id: "foundation.filesystem/v1";
-              readonly contractVersion: 1;
-            };
-            readonly commit: {
-              readonly state: "rejected";
-              readonly atomicity: "journaled-recoverable";
-            };
-          }
-        | {
-            readonly adapter: {
-              readonly id: "foundation.memory/v1";
-              readonly contractVersion: 1;
-            };
-            readonly commit: {
-              readonly state: "rejected";
-              readonly atomicity: "memory-atomic";
-            };
-          }
-      ));
-
 type AuthorityScaffoldJournalOperationState =
   | "pending"
   | "publishing"
@@ -493,19 +263,10 @@ export interface AuthorityScaffoldJournalOperation {
 }
 
 export interface AuthorityScaffoldJournal {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 1;
   readonly state: "PREPARED";
   readonly plan: AuthorityScaffoldPlan;
   readonly operations: readonly AuthorityScaffoldJournalOperation[];
-}
-
-export interface ScaffoldCompilationInput {
-  readonly foundationVersion: string;
-  readonly configPath: RepositoryPath;
-  readonly config: ScaffoldingConfigV1;
-  readonly intent: ScaffoldIntentV1;
-  readonly catalog: ScaffoldTargetCatalogV1;
-  readonly authorityReadSet: readonly ScaffoldReadAssertionV1[];
 }
 
 export interface AuthorityScaffoldCompilationInput {

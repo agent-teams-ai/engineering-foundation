@@ -3,7 +3,10 @@
   "packageName": "@agent-teams/engineering-foundation",
   "packageVersion": "0.8.0",
   "extractorVersion": "7.58.12",
-  "items": [
+  "entrypoints": [
+    {
+      "exportPath": ".",
+      "items": [
     {
       "canonicalReference": "@agent-teams/engineering-foundation!DeterministicSeedBank#numRuns:member",
       "kind": "PropertySignature",
@@ -1900,6 +1903,8 @@
       "parentReference": "@agent-teams/engineering-foundation!",
       "parentKind": "EntryPoint",
       "signature": "namespace scaffolding"
+    }
+      ]
     }
   ]
 }

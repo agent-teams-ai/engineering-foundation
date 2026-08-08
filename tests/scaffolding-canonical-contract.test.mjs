@@ -32,15 +32,15 @@ function withReceiptDigest(receipt) {
   return { ...body, receiptDigest: sha256Json(body) };
 }
 
-test("canonical public assertion rejects old protocol discriminators", async () => {
-  const legacyDiscriminators = {
+test("canonical public assertion rejects unsupported protocol discriminators", async () => {
+  const unsupportedDiscriminators = {
     ...(await canonicalPlan()),
-    schemaVersion: 1,
-    protocolVersion: 1
+    schemaVersion: 2,
+    protocolVersion: 2
   };
 
   assert.throws(
-    () => assertScaffoldPlanDigest(legacyDiscriminators),
+    () => assertScaffoldPlanDigest(unsupportedDiscriminators),
     /canonical protocol/u
   );
 });
@@ -166,8 +166,8 @@ test("every canonical Receipt outcome covers every Plan operation", async () => 
 test("rejected canonical Receipts require operation evidence", async () => {
   const plan = await canonicalPlan();
   const rejected = withReceiptDigest({
-    schemaVersion: 2,
-    protocolVersion: 2,
+    schemaVersion: 1,
+    protocolVersion: 1,
     planDigest: plan.planDigest,
     adapter: { id: "foundation.filesystem/v1", contractVersion: 1 },
     outcome: "rejected",

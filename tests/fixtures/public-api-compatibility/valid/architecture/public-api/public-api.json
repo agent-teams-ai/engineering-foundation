@@ -3,13 +3,18 @@
   "packageName": "@fixture/public-api",
   "packageVersion": "1.2.3",
   "extractorVersion": "7.58.12",
-  "items": [
+  "entrypoints": [
+    {
+      "exportPath": ".",
+      "items": [
     {
       "canonicalReference": "@fixture/public-api!stable:function(1)",
       "kind": "Function",
       "parentReference": "@fixture/public-api!",
       "parentKind": "EntryPoint",
       "signature": "export declare function stable(value: string): string;"
+    }
+      ]
     }
   ]
 }

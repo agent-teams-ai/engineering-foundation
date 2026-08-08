@@ -143,7 +143,7 @@ function releasedBaseline() {
 function capabilityConfig(releasedBaselinePath = "architecture/contracts/released.yaml") {
   const released = releasedBaseline();
   return {
-    schemaVersion: 2,
+    schemaVersion: 1,
     releasedBaselinePath,
     approvedBreakingChanges: [],
     qualification: {
@@ -153,7 +153,7 @@ function capabilityConfig(releasedBaselinePath = "architecture/contracts/release
       evidencePath: "architecture/evidence/protobuf/qualification.json",
     },
     current: {
-      schemaVersion: 2,
+      schemaVersion: 1,
       contractId: released.contractId,
       publicContractVersion: released.publicContractVersion,
       bufVersion: released.bufVersion,
@@ -173,9 +173,9 @@ function qualificationEvidence(config, baseline) {
     protobufQualificationModel.canonicalBufFindingSet([]),
   );
   const evidenceWithoutDigest = {
-    schemaVersion: 2,
+    schemaVersion: 1,
     producerId: "agent-teams-foundation.buf-breaking-qualification",
-    producerVersion: 2,
+    producerVersion: 1,
     policy: "FILE",
     contractId: config.current.contractId,
     bufVersion: config.current.bufVersion,
@@ -675,7 +675,7 @@ test("runs as a deterministic read-only Foundation capability with closed input 
 
     await writeFile(
       join(root, "contract.yaml"),
-      "schemaVersion: 2\nreleasedBaselinePath: architecture/contracts/released.yaml\nreleased: []\n",
+      "schemaVersion: 1\nreleasedBaselinePath: architecture/contracts/released.yaml\nreleased: []\n",
       "utf8",
     );
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -695,7 +695,7 @@ test("requires an explicitly supported root configuration schema version", async
     assert.equal(result.problem.code, "PROTOBUF_EVOLUTION_CONFIG_INVALID");
   });
 
-  for (const schemaVersion of [1, 3]) {
+  for (const schemaVersion of [2, 3]) {
     const unsupportedVersion = capabilityConfig();
     unsupportedVersion.schemaVersion = schemaVersion;
     await withConfig(unsupportedVersion, async (root) => {
@@ -760,7 +760,7 @@ test("Protobuf contract config and released baseline schemas accept verified sha
       "engineering-foundation",
       "schemas",
       "contract-protobuf-evolution",
-      "v2.schema.json",
+      "v1.schema.json",
     ),
     "utf8",
   );
@@ -788,7 +788,7 @@ test("Protobuf contract config and released baseline schemas accept verified sha
       "engineering-foundation",
       "schemas",
       "contract-protobuf-breaking-qualification",
-      "v2.schema.json",
+      "v1.schema.json",
     ),
     "utf8",
   );

@@ -5,8 +5,8 @@ import type {
 } from "./types.js";
 
 interface AuthorityScaffoldReceiptCommon {
-  readonly schemaVersion: 2;
-  readonly protocolVersion: 2;
+  readonly schemaVersion: 1;
+  readonly protocolVersion: 1;
   readonly planDigest: Sha256Digest;
   readonly adapter: {
     readonly id: "foundation.filesystem/v1";

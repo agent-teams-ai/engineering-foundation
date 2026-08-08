@@ -39,7 +39,9 @@ test("promotes namespace exports with a deterministic non-empty signature", asyn
         "utf8"
       )
     );
-    const namespace = baseline.items.find(({ kind }) => kind === "Namespace");
+    const namespace = baseline.entrypoints
+      .find(({ exportPath }) => exportPath === ".")
+      .items.find(({ kind }) => kind === "Namespace");
     assert.equal(namespace.signature, "namespace tools");
   });
 });

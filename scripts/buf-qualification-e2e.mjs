@@ -64,7 +64,7 @@ async function runCli(root, arguments_, acceptedExitCodes = [0]) {
 
 function protobufConfig(input) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 1,
     releasedBaselinePath: "architecture/contracts/protobuf/control.json",
     approvedBreakingChanges: [],
     qualification: {
@@ -74,7 +74,7 @@ function protobufConfig(input) {
       evidencePath: "architecture/evidence/protobuf/control.json"
     },
     current: {
-      schemaVersion: 2,
+      schemaVersion: 1,
       contractId: "buf-qualification-e2e.control",
       publicContractVersion: input.publicContractVersion,
       bufVersion,

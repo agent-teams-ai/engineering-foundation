@@ -1,7 +1,7 @@
 import { lstat, mkdir, open, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, sep } from "node:path";
 
-import type { ScaffoldPlan } from "../../contract/types.js";
+import type { ScaffoldPlan } from "../../contract/scaffold-contract.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 
 const PROTECTED_ROOTS = new Set([".agent-teams-local", ".git", "node_modules"]);

@@ -49,7 +49,7 @@ interface UnresolvedAuthorityScaffoldTarget {
 }
 
 interface UnresolvedAuthorityScaffoldTargetCatalog {
-  readonly version: 2;
+  readonly version: 1;
   readonly packages: readonly UnresolvedAuthorityScaffoldTarget[];
 }
 
@@ -57,7 +57,7 @@ function mapAuthorityCatalog(
   value: unknown
 ): UnresolvedAuthorityScaffoldTargetCatalog {
   const raw = value as {
-    readonly version: 2;
+    readonly version: 1;
     readonly packages: readonly {
       readonly id: string;
       readonly role: string;
@@ -67,7 +67,7 @@ function mapAuthorityCatalog(
     }[];
   };
   return Object.freeze({
-    version: 2,
+    version: 1,
     packages: Object.freeze(
       raw.packages.map((entry) =>
         Object.freeze({
@@ -201,7 +201,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     ownerDocument: Object.freeze({ id: owner.id, path: owner.file.path })
   }) satisfies AuthorityScaffoldTarget;
   const catalog = Object.freeze({
-    version: 2 as const,
+    version: 1 as const,
     packages: Object.freeze([resolvedTarget])
   }) satisfies AuthorityScaffoldTargetCatalog;
   const authorityReadSet = Object.freeze([

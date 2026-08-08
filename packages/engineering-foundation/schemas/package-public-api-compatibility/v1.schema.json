@@ -4,7 +4,7 @@
   "title": "Public API compatibility capability configuration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "changesetDirectory", "packages"],
+  "required": ["schemaVersion", "acceptedDecisionBaselinePath", "changesetDirectory", "packages"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "changesetDirectory": { "$ref": "#/$defs/repositoryPath" },
@@ -30,9 +30,36 @@
       "maxLength": 214,
       "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
     },
+    "exportPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?:\\.|\\./[^\\\\/].*)$"
+    },
     "fingerprint": {
       "type": "string",
       "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exportPath", "declarationEntryPoint"],
+      "properties": {
+        "exportPath": { "$ref": "#/$defs/exportPath" },
+        "declarationEntryPoint": { "$ref": "#/$defs/repositoryPath" }
+      }
+    },
+    "nonTypeExportKind": {
+      "enum": ["data", "runtime", "wildcard"]
+    },
+    "nonTypeExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exportPath", "kind"],
+      "properties": {
+        "exportPath": { "$ref": "#/$defs/exportPath" },
+        "kind": { "$ref": "#/$defs/nonTypeExportKind" }
+      }
     },
     "package": {
       "type": "object",
@@ -41,7 +68,8 @@
         "packageName",
         "packageRoot",
         "manifestPath",
-        "declarationEntryPoint",
+        "entrypoints",
+        "nonTypeExports",
         "tsconfigPath",
         "releasedBaselinePath",
         "approvedBreakingChanges"
@@ -50,7 +78,17 @@
         "packageName": { "$ref": "#/$defs/packageName" },
         "packageRoot": { "$ref": "#/$defs/repositoryPath" },
         "manifestPath": { "$ref": "#/$defs/repositoryPath" },
-        "declarationEntryPoint": { "$ref": "#/$defs/repositoryPath" },
+        "entrypoints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/entrypoint" }
+        },
+        "nonTypeExports": {
+          "type": "array",
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/nonTypeExport" }
+        },
         "tsconfigPath": { "$ref": "#/$defs/repositoryPath" },
         "releasedBaselinePath": { "$ref": "#/$defs/repositoryPath" },
         "approvedBreakingChanges": {
@@ -59,10 +97,13 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["fingerprint", "decisionPath"],
+            "required": ["fingerprint", "decisionId"],
             "properties": {
               "fingerprint": { "$ref": "#/$defs/fingerprint" },
-              "decisionPath": { "$ref": "#/$defs/repositoryPath" }
+              "decisionId": {
+                "type": "string",
+                "pattern": "^ADR-[0-9]{4}$"
+              }
             }
           }
         }

@@ -5,19 +5,17 @@ import {
   type PublicApiEntrypointSnapshot,
   type PublicApiItem,
   type PublicApiPackagePolicy,
-  type PublicApiSnapshot,
+  type PublicApiSnapshot
 } from "../../../application/model/public-api.js";
 
-type PublicApiBaselineSchemaId =
-  | "package-public-api-baseline/v1"
-  | "package-public-api-baseline/v2";
+type PublicApiBaselineSchemaId = "package-public-api-baseline/v1";
 
 function inputError(message: string): never {
   throw new CapabilityInputError({
     code: "PUBLIC_API_BASELINE_INVALID",
     message,
     phase: "public-api-evidence",
-    retryable: false,
+    retryable: false
   });
 }
 
@@ -44,7 +42,7 @@ function mapItem(value: unknown, index: number): PublicApiItem {
       ? { parentReference: item["parentReference"] }
       : {}),
     parentKind: string(item["parentKind"], `items[${index}].parentKind`),
-    signature: string(item["signature"], `items[${index}].signature`),
+    signature: string(item["signature"], `items[${index}].signature`)
   });
 }
 
@@ -69,12 +67,12 @@ function mapEntrypoint(value: unknown, index: number): PublicApiEntrypointSnapsh
   validateSortedItems(items);
   return Object.freeze({
     exportPath: string(entrypoint["exportPath"], `entrypoints[${index}].exportPath`),
-    items: Object.freeze(items),
+    items: Object.freeze(items)
   });
 }
 
 function validateSortedEntrypoints(
-  entrypoints: readonly PublicApiEntrypointSnapshot[],
+  entrypoints: readonly PublicApiEntrypointSnapshot[]
 ): void {
   const paths = entrypoints.map((entrypoint) => entrypoint.exportPath);
   const sortedPaths = paths.toSorted(compareCanonicalReferences);
@@ -88,7 +86,7 @@ function validateSortedEntrypoints(
 
 function baselineIdentity(
   baseline: Record<string, unknown>,
-  policy: PublicApiPackagePolicy,
+  policy: PublicApiPackagePolicy
 ): { readonly packageName: string; readonly packageVersion: string } {
   const packageName = string(baseline["packageName"], "packageName");
   if (packageName !== policy.packageName) {
@@ -106,68 +104,41 @@ export function releasedBaselineSchemaId(input: unknown): PublicApiBaselineSchem
   if (baseline["schemaVersion"] === 1) {
     return "package-public-api-baseline/v1";
   }
-  if (baseline["schemaVersion"] === 2) {
-    return "package-public-api-baseline/v2";
-  }
-  inputError("Released API baseline schemaVersion must be 1 or 2.");
+  inputError("Released API baseline schemaVersion must be 1.");
 }
 
 export function promotionBaselineSchemaId(
-  policy: PublicApiPackagePolicy,
+  _policy: PublicApiPackagePolicy
 ): PublicApiBaselineSchemaId {
-  return "entrypoints" in policy
-    ? "package-public-api-baseline/v2"
-    : "package-public-api-baseline/v1";
+  return "package-public-api-baseline/v1";
 }
 
 export function mapReleasedBaseline(
   input: unknown,
   policy: PublicApiPackagePolicy,
-  allowReleaseMigration = false,
+  _allowReleaseMigration = false
 ): PublicApiSnapshot {
   const baseline = record(input, "released API baseline");
-  const identity = baselineIdentity(baseline, policy);
-  const extractorVersion = string(baseline["extractorVersion"], "extractorVersion");
-  if (baseline["schemaVersion"] === 2) {
-    if (!("entrypoints" in policy)) {
-      inputError("A schema v1 policy cannot read a schema v2 released baseline.");
-    }
-    const entrypointsInput = baseline["entrypoints"];
-    if (!Array.isArray(entrypointsInput)) {
-      inputError("Released API baseline entrypoints must be an array.");
-    }
-    const entrypoints = entrypointsInput.map(mapEntrypoint);
-    validateSortedEntrypoints(entrypoints);
-    return Object.freeze({
-      schemaVersion: 2,
-      ...identity,
-      extractorVersion,
-      entrypoints: Object.freeze(entrypoints),
-    });
+  if (baseline["schemaVersion"] !== 1) {
+    inputError("Released API baseline schemaVersion must be 1.");
   }
-  const itemsInput = baseline["items"];
-  if (!Array.isArray(itemsInput)) {
-    inputError("Released API baseline items must be an array.");
+  const entrypointsInput = baseline["entrypoints"];
+  if (!Array.isArray(entrypointsInput)) {
+    inputError("Released API baseline entrypoints must be an array.");
   }
-  const items = itemsInput.map(mapItem);
-  validateSortedItems(items);
-  const v1Snapshot = Object.freeze({
-    schemaVersion: 1 as const,
-    ...identity,
-    extractorVersion,
-    items: Object.freeze(items),
+  const entrypoints = entrypointsInput.map(mapEntrypoint);
+  validateSortedEntrypoints(entrypoints);
+  return Object.freeze({
+    schemaVersion: 1,
+    ...baselineIdentity(baseline, policy),
+    extractorVersion: string(baseline["extractorVersion"], "extractorVersion"),
+    entrypoints: Object.freeze(entrypoints)
   });
-  if (!("entrypoints" in policy) || allowReleaseMigration) {
-    return v1Snapshot;
-  }
-  inputError(
-    "A schema v2 policy requires a released schema v2 baseline. v1-to-v2 migration is release-owned and cannot reuse v1 evidence.",
-  );
 }
 
 export function baselineMatchesPolicy(
-  snapshot: PublicApiSnapshot,
-  policy: PublicApiPackagePolicy,
+  _snapshot: PublicApiSnapshot,
+  _policy: PublicApiPackagePolicy
 ): boolean {
-  return ("entrypoints" in policy) === (snapshot.schemaVersion === 2);
+  return true;
 }

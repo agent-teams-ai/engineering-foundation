@@ -168,7 +168,8 @@ protected qualification workflow owns evidence provenance. Breaking Protobuf
 evidence must bind its exact fingerprint to an ADR in the immutable accepted
 decision baseline.
 
-Protobuf configuration schema v2 declares the module, exact Buf configuration,
+The single Foundation-owned Protobuf configuration schema `v1` declares the
+module, exact Buf configuration,
 released descriptor and evidence locations. The explicit
 `protobuf-qualify-breaking` command verifies the pinned Buf version, enforces the
 exact `FILE` policy, builds the candidate descriptor and runs compatibility

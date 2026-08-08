@@ -204,7 +204,7 @@ export function assertAuthorityScaffoldReceiptDigest(
   plan?: AuthorityScaffoldPlan
 ): void {
   const candidate = receipt as unknown as AuthorityScaffoldReceiptCandidate;
-  if (candidate.schemaVersion !== 2 || candidate.protocolVersion !== 2) {
+  if (candidate.schemaVersion !== 1 || candidate.protocolVersion !== 1) {
     invalidReceipt("Scaffolding Receipt does not use current scaffolding protocol.");
   }
   assertDigest(candidate.planDigest, "Scaffolding Receipt Plan digest");
@@ -236,8 +236,8 @@ export function createAuthorityScaffoldReceipt(
         )
       : [...options.operations];
   const body = {
-    schemaVersion: 2 as const,
-    protocolVersion: 2 as const,
+    schemaVersion: 1 as const,
+    protocolVersion: 1 as const,
     planDigest: options.plan.planDigest,
     adapter: Object.freeze({
       id: "foundation.filesystem/v1" as const,

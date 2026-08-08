@@ -41,6 +41,10 @@ source-bound Scaffolding authority and recovery guarantees cannot be weakened.
    historical evidence. A consumer recovering persisted work from an older
    package uses that exact pinned registry artifact; the current package does
    not emulate it.
+   The Public API checker may normalize the immutable single-entrypoint `v1`
+   release baseline into the current multi-entrypoint `v1` comparison model.
+   This is a same-identity evidence normalization, not a second contract
+   version; promotion always writes the current shape.
 4. A Foundation-owned `v2` requires a new accepted ADR and evidence of a real
    migration boundary: at least one independently deployed, exactly pinned
    consumer or persisted contract instance that cannot be updated atomically.
@@ -57,7 +61,7 @@ source-bound Scaffolding authority and recovery guarantees cannot be weakened.
 ## Consequences
 
 - Public API, Protobuf qualification and Scaffolding expose one current `v1`
-  contract without compatibility branches.
+  contract without parallel-version compatibility branches.
 - Breaking pre-adoption corrections require a coordinated update of Foundation,
   Agent Runtime, Orchestrator and Platform instead of a parallel schema.
 - A repository test rejects a current Foundation-owned `v2` schema or protocol

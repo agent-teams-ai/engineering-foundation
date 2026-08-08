@@ -87,7 +87,12 @@ Foundation-owned configuration, evidence and protocol contracts currently have
 one active identity: `v1`. Before independent production adoption, a breaking
 correction updates that sole `v1` shape and all known consumers in one reviewed
 release and adoption wave. The current package does not ship parallel legacy
-schemas, compatibility readers or migration routers.
+schemas, cross-version compatibility readers or migration routers.
+
+The Public API checker accepts an immutable single-entrypoint `v1` release
+baseline and normalizes it to the current multi-entrypoint `v1` comparison
+model. This preserves release evidence without creating another schema
+identity. New baseline promotion always writes the current `v1` shape.
 
 A Foundation-owned `v2` is allowed only after a new accepted ADR proves a real
 non-atomic migration boundary, such as an independently deployed exact-version

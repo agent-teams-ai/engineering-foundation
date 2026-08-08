@@ -72,7 +72,27 @@ test("does not coerce missing baseline item fields into literal undefined string
   );
 });
 
-test("rejects a legacy single-entrypoint baseline under the current schema v1 policy", async () => {
+test("normalizes an immutable single-entrypoint v1 baseline into the current v1 model", async () => {
+  const mapped = mapReleasedBaseline(legacySingleEntrypointBaseline(), {
+    packageName: "@fixture/public-api",
+    packageRoot: "packages/library",
+    manifestPath: "packages/library/package.json",
+    entrypoints: [
+      {
+        exportPath: ".",
+        declarationEntryPoint: "packages/library/dist/index.d.ts",
+      },
+    ],
+    nonTypeExports: [],
+    tsconfigPath: "packages/library/tsconfig.json",
+    releasedBaselinePath: "architecture/public-api/public-api.json",
+    approvedBreakingChanges: [],
+  });
+  assert.equal(mapped.schemaVersion, 1);
+  assert.deepEqual(mapped.entrypoints, [
+    { exportPath: ".", items: [ROOT_STABLE_ITEM] },
+  ]);
+
   await withPublicApiFixture(async (consumerRoot) => {
     await configureCurrentPublicApiFixture(consumerRoot);
     const baselinePath = join(consumerRoot, "architecture", "public-api", "public-api.json");
@@ -83,11 +103,8 @@ test("rejects a legacy single-entrypoint baseline under the current schema v1 po
     );
 
     const result = check(consumerRoot);
-    assert.equal(result.result.status, 2);
-    assert.equal(
-      result.report.capabilities[0].problem?.code,
-      "SCHEMA_INVALID",
-    );
+    assert.notEqual(result.result.status, 2);
+    assert.equal(result.report.capabilities[0].problem, undefined);
   });
 });
 

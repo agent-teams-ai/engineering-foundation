@@ -123,10 +123,23 @@ export function mapReleasedBaseline(
     inputError("Released API baseline schemaVersion must be 1.");
   }
   const entrypointsInput = baseline["entrypoints"];
-  if (!Array.isArray(entrypointsInput)) {
-    inputError("Released API baseline entrypoints must be an array.");
+  const legacyItemsInput = baseline["items"];
+  if (Array.isArray(entrypointsInput) === Array.isArray(legacyItemsInput)) {
+    inputError("Released API baseline must contain exactly one of entrypoints or items.");
   }
-  const entrypoints = entrypointsInput.map(mapEntrypoint);
+  const entrypoints = Array.isArray(entrypointsInput)
+    ? entrypointsInput.map(mapEntrypoint)
+    : Array.isArray(legacyItemsInput)
+      ? [
+          Object.freeze({
+            exportPath: ".",
+            items: Object.freeze(legacyItemsInput.map(mapItem))
+          })
+        ]
+      : inputError("Released API baseline must contain exactly one of entrypoints or items.");
+  for (const entrypoint of entrypoints) {
+    validateSortedItems(entrypoint.items);
+  }
   validateSortedEntrypoints(entrypoints);
   return Object.freeze({
     schemaVersion: 1,

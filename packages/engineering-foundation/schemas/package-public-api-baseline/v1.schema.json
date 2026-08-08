@@ -1,15 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-baseline/v1",
-  "title": "Released multi-entrypoint public API baseline",
+  "title": "Released public API baseline",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
     "packageName",
     "packageVersion",
-    "extractorVersion",
-    "entrypoints"
+    "extractorVersion"
+  ],
+  "oneOf": [
+    {
+      "required": ["entrypoints"],
+      "properties": { "entrypoints": {} }
+    },
+    {
+      "required": ["items"],
+      "properties": { "items": {} }
+    }
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
@@ -24,6 +33,11 @@
       "minItems": 1,
       "maxItems": 100,
       "items": { "$ref": "#/$defs/entrypoint" }
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/item" }
     }
   },
   "$defs": {

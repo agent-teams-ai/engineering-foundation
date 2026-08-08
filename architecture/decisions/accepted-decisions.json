@@ -95,7 +95,7 @@
     {
       "id": "ADR-0019",
       "path": "docs/decisions/0019-single-current-foundation-contract-version.md",
-      "immutableDigest": "sha256:0159b46d71f5d922fe979f44eeab6409c20a024d1c33d76f502caf2106a6cf36"
+      "immutableDigest": "sha256:56d70b836a093aa4b7719dbb065c48160530b1460f397cc28744ffb7419c858b"
     }
   ]
 }

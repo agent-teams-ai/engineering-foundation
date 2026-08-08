@@ -1,20 +1,22 @@
 # Scaffolding Compiler Protocol
 
-Status: Active for the protocol kernel and testing-only conformance vertical.
+Status: Active for the protocol kernel, testing conformance vertical, and generic
+Node TypeScript library-boundary recipe.
 
 [ADR-0006](../decisions/0006-closed-deterministic-scaffolding-compiler.md)
 accepts this design. The canonical source-bound protocol, public schemas, CLI,
-programmatic API, journaled filesystem adapter, and testing-only conformance
-definitions are implemented. Foundation exposes no parallel legacy API. Product
-recipes, structured-update operations, a second consumer, and the Nx adapter are
-not implemented or qualified.
+programmatic API, journaled filesystem adapter, testing-only conformance
+definitions, and the first generic technical Recipe are implemented. Foundation
+exposes no parallel legacy API. Structured-update operations, a second consumer,
+and the Nx adapter are not implemented or qualified.
 
 ## Implementation status
 
-The current vertical proves the execution protocol without inventing consumer
-business architecture. It can materialize one non-product TypeScript testing
-package through a closed built-in Composition and static definition registry.
-It is conformance evidence, not a reusable bounded-context or feature recipe.
+The testing vertical proves the execution protocol without inventing consumer
+business architecture. The generic `foundation.node-typescript-library-boundary`
+Recipe materializes only a private composite TypeScript package envelope. It is
+not a bounded-context, application, or feature Recipe. Consumer Compositions
+retain all role admission, path, package-name, and owner-document decisions.
 
 Available commands:
 
@@ -412,8 +414,9 @@ The adapter and Foundation kernel initially release as one Changesets fixed grou
 ## Delivery stages
 
 These are qualification stages, not a requirement to prebuild every definition.
-The current release implements Stage 0 only. Product donors, additional
-scenario fixtures, a second consumer, and Nx remain later gates.
+Stage 0 and the Foundation-owned implementation part of Stage 1 are complete.
+The consumer repository owns donor parity and qualification evidence. A second
+consumer and Nx remain later gates.
 
 ### Stage 0: protocol kernel and testing conformance
 
@@ -470,6 +473,11 @@ regression oracle, but does not become a reusable Recipe merely by being moved.
 Only behavior proven generic by the migration may enter Foundation; the real
 feature and consumer-owned architecture gates remain the qualification subject.
 
+Foundation now implements the generic library-boundary Recipe and varied
+synthetic fixtures. Stage 1 becomes Orchestrator-qualified only when the
+Orchestrator repository records byte parity, recovery, and post-Apply consumer
+checks against its real donor and removes the donor implementation.
+
 ### Stage 2: second consumer
 
 - prove the same protocol against a materially different Platform or Agent
@@ -522,6 +530,11 @@ apply-twice idempotency, current-authority recompilation, third-state rejection,
 publication-phase process death, deterministic recovery, package tarball use,
 and compilation of generated TypeScript. This evidence qualifies only the
 closed testing definitions and memory/filesystem adapters that exist today.
+The library-boundary vertical separately proves multiple opaque consumer roles,
+nested target paths, scoped and unscoped package names, verified owner bindings,
+closed parameters, deterministic replay, TypeScript compilation, and packed CLI
+use. Consumer donor parity and post-Apply architecture checks remain
+consumer-owned evidence.
 
 ## Evolution rules
 

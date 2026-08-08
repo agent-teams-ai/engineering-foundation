@@ -20,6 +20,7 @@ export type ScaffoldDefinitionKind =
 
 export interface ScaffoldDefinitionContext {
   readonly target: ScaffoldRenderingTarget;
+  readonly verifiedOwnerDocumentId?: string;
   readonly profileParameters: JsonObject;
   readonly recipeParameters: JsonObject;
   readonly facetParameters: JsonObject;
@@ -41,7 +42,8 @@ interface ScaffoldProfileDefinition extends BaseDefinition {
 interface ScaffoldRecipeDefinition extends BaseDefinition {
   readonly kind: "recipe";
   readonly allowedProfileIds: readonly string[];
-  readonly allowedTargetRoles: readonly string[];
+  readonly allowedTargetRoles: readonly string[] | "composition";
+  readonly requiredAuthority?: "owner-document/v1";
   readonly requiredPolicies: readonly ConfiguredDefinition[];
   compile(context: ScaffoldDefinitionContext): readonly ScaffoldFileContribution[];
 }
@@ -136,6 +138,32 @@ export class ScaffoldDefinitionRegistry {
     }
   }
 
+  assertRecipeRequirements(
+    definition: ScaffoldRecipeDefinition,
+    profileId: string,
+    context: ScaffoldDefinitionContext
+  ): void {
+    if (
+      !definition.allowedProfileIds.includes(profileId) ||
+      (definition.allowedTargetRoles !== "composition" &&
+        !definition.allowedTargetRoles.includes(context.target.role))
+    ) {
+      throw new ScaffoldError(
+        "SCAFFOLD_INPUT_INVALID",
+        `Recipe ${definitionKey(definition.ref)} is incompatible with the selected Profile or target role.`
+      );
+    }
+    if (
+      definition.requiredAuthority === "owner-document/v1" &&
+      context.verifiedOwnerDocumentId === undefined
+    ) {
+      throw new ScaffoldError(
+        "SCAFFOLD_INPUT_INVALID",
+        `Recipe ${definitionKey(definition.ref)} requires verified owner-document authority.`
+      );
+    }
+  }
+
   digest(definition: ScaffoldDefinition): Sha256Digest {
     const common = {
       kind: definition.kind,
@@ -160,7 +188,13 @@ export class ScaffoldDefinitionRegistry {
         return sha256Json({
           ...common,
           allowedProfileIds: definition.allowedProfileIds.toSorted(),
-          allowedTargetRoles: definition.allowedTargetRoles.toSorted(),
+          allowedTargetRoles:
+            definition.allowedTargetRoles === "composition"
+              ? "composition"
+              : definition.allowedTargetRoles.toSorted(),
+          ...(definition.requiredAuthority === undefined
+            ? {}
+            : { requiredAuthority: definition.requiredAuthority }),
           requiredPolicies: definition.requiredPolicies.toSorted((left, right) =>
             compareDefinitionRefs(left.ref, right.ref)
           )

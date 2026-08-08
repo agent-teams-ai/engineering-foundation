@@ -81,6 +81,16 @@
       "id": "ADR-0016",
       "path": "docs/decisions/0016-hardened-buf-qualification-boundary.md",
       "immutableDigest": "sha256:b77bdd35443e8510785c8ce546007528683e8fa45bd1d635790e83ab87a2070b"
+    },
+    {
+      "id": "ADR-0017",
+      "path": "docs/decisions/0017-staged-scaffolding-recipe-qualification.md",
+      "immutableDigest": "sha256:68745192b8c07fdda0c544b36e7855062bc970ccd3cccdb958a3bff8acbb2ad6"
+    },
+    {
+      "id": "ADR-0018",
+      "path": "docs/decisions/0018-retire-conflicting-recipe-qualification-prerequisite.md",
+      "immutableDigest": "sha256:37ec60cd393faebe215a10d55ca680b34db42b945e0710c931ccda434c7538cd"
     }
   ]
 }

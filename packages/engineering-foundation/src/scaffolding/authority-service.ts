@@ -3,7 +3,7 @@ import {
 } from "./adapters/node/node-authority-input-loader.js";
 import { installedFoundationVersion } from "./adapters/node/installed-foundation-version.js";
 import type { AuthorityScaffoldPlan } from "./contract/types.js";
-import { createDefaultScaffoldRegistry } from "./definitions/registry.js";
+import { createAuthorityScaffoldRegistry } from "./definitions/registry.js";
 import { compileAuthorityScaffoldPlan } from "./kernel/authority-compiler.js";
 import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffold-defaults.js";
 
@@ -18,5 +18,5 @@ export async function planAuthorityScaffoldFromFile(options: {
     intentPath: options.intentPath,
     foundationVersion: await installedFoundationVersion()
   });
-  return compileAuthorityScaffoldPlan(input, createDefaultScaffoldRegistry());
+  return compileAuthorityScaffoldPlan(input, createAuthorityScaffoldRegistry());
 }

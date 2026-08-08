@@ -16,7 +16,8 @@ not repeat their rules.
 | Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; consumer mutation gate required |
 | Repository security | [Repository security baseline](security/repository-security-baseline.md) | Accepted and implemented for publishing repositories |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
-| Scaffolding compiler | [Scaffolding compiler protocol](architecture/scaffolding-compiler-protocol.md) | Kernel and testing-only vertical implemented; product recipes and Nx deferred |
+| Scaffolding compiler | [Scaffolding compiler protocol](architecture/scaffolding-compiler-protocol.md) | Kernel and generic Node TypeScript library recipe implemented; Nx deferred |
+| Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |

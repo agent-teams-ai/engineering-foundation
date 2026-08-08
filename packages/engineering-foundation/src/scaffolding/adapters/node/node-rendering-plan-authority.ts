@@ -1,5 +1,5 @@
 import type { ScaffoldPlanV1 } from "../../contract/types.js";
-import { createDefaultScaffoldRegistry } from "../../definitions/registry.js";
+import { createRenderingRegressionRegistry } from "../../definitions/registry.js";
 import { compileScaffoldPlan } from "../../kernel/rendering-plan-compiler.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { installedFoundationVersion } from "./installed-foundation-version.js";
@@ -17,7 +17,7 @@ export async function assertRenderingPlanMatchesConsumerAuthority(
   });
   const expected = compileScaffoldPlan(
     input,
-    createDefaultScaffoldRegistry()
+    createRenderingRegressionRegistry()
   );
   if (expected.planDigest !== plan.planDigest) {
     throw new ScaffoldError(

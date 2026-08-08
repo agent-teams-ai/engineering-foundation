@@ -115,7 +115,8 @@ export function compileAuthorityScaffoldPlan(
         role: target.role,
         path: target.path,
         packageName: target.packageName
-      }
+      },
+      verifiedOwnerDocumentId: target.ownerDocument.id
     },
     registry
   );

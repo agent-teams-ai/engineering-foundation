@@ -52,12 +52,13 @@ test("ships one current Foundation-owned v1 contract identity", async () => {
   const schemaFiles = (await filesBelow(schemaRoot)).filter((path) =>
     path.endsWith(".schema.json"),
   );
-  const nonV1SchemaPaths = schemaFiles
-    .map((path) => relative(packageRoot, path))
+  const schemaRelativePaths = schemaFiles.map((path) =>
+    relative(packageRoot, path).replaceAll("\\", "/"),
+  );
+  const nonV1SchemaPaths = schemaRelativePaths
     .filter((path) => !path.endsWith("/v1.schema.json"));
   assert.deepEqual(nonV1SchemaPaths, []);
-  const forbiddenSchemaPaths = schemaFiles
-    .map((path) => relative(packageRoot, path))
+  const forbiddenSchemaPaths = schemaRelativePaths
     .filter((path) => /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path));
   assert.deepEqual(forbiddenSchemaPaths, []);
 

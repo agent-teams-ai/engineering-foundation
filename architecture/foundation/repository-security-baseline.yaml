@@ -9,9 +9,9 @@ dependencyReview:
 sbomWorkflow: .github/workflows/ci.yml
 allowedContainerImages: []
 allowedUses:
-  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@885c973bcb6b2117ee10b262a4cc1b24fda73238
+  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@41d84b36d5f593c33207f0b2375a000e2c4ede6f
     transitiveUses: []
-  - uses: 777genius/review-router@885c973bcb6b2117ee10b262a4cc1b24fda73238
+  - uses: 777genius/review-router@41d84b36d5f593c33207f0b2375a000e2c4ede6f
     transitiveUses: []
   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
     transitiveUses: []

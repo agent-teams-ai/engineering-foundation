@@ -1,5 +1,14 @@
 # @agent-teams/engineering-foundation
 
+## 0.9.0
+
+### Minor Changes
+
+- [#67](https://github.com/agent-teams-ai/engineering-foundation/pull/67) [`60ba289`](https://github.com/agent-teams-ai/engineering-foundation/commit/60ba2897891a54f115cdf3c25b9b06496448b8ad) Thanks [@777genius](https://github.com/777genius)! - Collapse provisional Public API, Protobuf qualification and Scaffolding contract
+  branches into one current Foundation-owned `v1` while preserving the hardened
+  behavior. Remove parallel schemas and compatibility readers, document the
+  pre-adoption coordinated-update policy, and add an executable regression gate.
+
 ## 0.8.0
 
 ### Minor Changes

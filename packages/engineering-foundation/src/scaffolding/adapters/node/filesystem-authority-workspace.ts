@@ -300,7 +300,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   faultInjector?: ScaffoldAuthorityFaultInjector
 ): Promise<AuthorityScaffoldReceipt> {
   const plan = snapshotAuthorityScaffoldPlan(callerPlan);
-  await assertSchema("scaffold-plan", plan, "scaffold-apply-plan");
+  await assertSchema("scaffold-plan/v1", plan, "scaffold-apply-plan");
   assertAuthorityScaffoldPlanDigest(plan);
   assertSafeOperationPaths(plan);
   const canonicalRoot = await realpath(resolve(consumerRoot));

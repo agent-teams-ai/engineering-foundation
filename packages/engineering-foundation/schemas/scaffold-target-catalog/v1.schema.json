@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-teams.ai/schemas/scaffold-target-catalog",
+  "$id": "https://agent-teams.ai/schemas/scaffold-target-catalog/v1",
   "title": "Scaffold Target Catalog",
   "type": "object",
   "additionalProperties": false,

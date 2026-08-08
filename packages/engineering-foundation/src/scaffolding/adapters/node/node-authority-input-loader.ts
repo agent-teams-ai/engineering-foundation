@@ -139,8 +139,8 @@ async function loadAuthorityScaffoldCompilationInput(options: {
   readonly faultInjector?: ScaffoldAuthorityInputFaultInjector;
 }): Promise<AuthorityScaffoldCompilationInput> {
   await Promise.all([
-    assertSchema("scaffolding-config", options.configValue, "scaffolding-config"),
-    assertSchema("scaffold-intent", options.intent, "scaffold-intent")
+    assertSchema("scaffolding-config/v1", options.configValue, "scaffolding-config"),
+    assertSchema("scaffold-intent/v1", options.intent, "scaffold-intent")
   ]);
   const config = options.configValue as AuthorityScaffoldingConfig;
   const catalogFile = await readContainedRepositoryFile(
@@ -153,7 +153,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     "scaffold-target-catalog"
   );
   await assertSchema(
-    "scaffold-target-catalog",
+    "scaffold-target-catalog/v1",
     catalogValue,
     "scaffold-target-catalog"
   );
@@ -228,7 +228,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     ])
   });
   await assertSchema(
-    "scaffold-authority-evidence",
+    "scaffold-authority-evidence/v1",
     evidence,
     "scaffold-authority-evidence"
   );
@@ -323,7 +323,7 @@ export async function readAuthorityScaffoldPlanFile(
     MAX_SCAFFOLD_PLAN_BYTES
   );
   const value = parseStrictYamlSource(planFile.source, "scaffold-plan");
-  await assertSchema("scaffold-plan", value, "scaffold-plan");
+  await assertSchema("scaffold-plan/v1", value, "scaffold-plan");
   const plan = value as AuthorityScaffoldPlan;
   assertAuthorityScaffoldPlanDigest(plan);
   return plan;

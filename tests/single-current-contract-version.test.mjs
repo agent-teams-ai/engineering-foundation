@@ -19,11 +19,43 @@ async function filesBelow(root) {
   return output;
 }
 
+function assertOwnedNumericDiscriminatorsAreV1(value, source) {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      assertOwnedNumericDiscriminatorsAreV1(entry, source);
+    }
+    return;
+  }
+  if (value === null || typeof value !== "object") {
+    return;
+  }
+  const properties = value.properties;
+  if (properties !== null && typeof properties === "object") {
+    for (const name of ["schemaVersion", "protocolVersion", "producerVersion", "version"]) {
+      const property = properties[name];
+      if (
+        property !== null &&
+        typeof property === "object" &&
+        typeof property.const === "number"
+      ) {
+        assert.equal(property.const, 1, `${source} declares ${name}=${property.const}`);
+      }
+    }
+  }
+  for (const child of Object.values(value)) {
+    assertOwnedNumericDiscriminatorsAreV1(child, source);
+  }
+}
+
 test("ships one current Foundation-owned v1 contract identity", async () => {
   const schemaRoot = join(packageRoot, "schemas");
   const schemaFiles = (await filesBelow(schemaRoot)).filter((path) =>
     path.endsWith(".schema.json"),
   );
+  const nonV1SchemaPaths = schemaFiles
+    .map((path) => relative(packageRoot, path))
+    .filter((path) => !path.endsWith("/v1.schema.json"));
+  assert.deepEqual(nonV1SchemaPaths, []);
   const forbiddenSchemaPaths = schemaFiles
     .map((path) => relative(packageRoot, path))
     .filter((path) => /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path));
@@ -31,13 +63,12 @@ test("ships one current Foundation-owned v1 contract identity", async () => {
 
   for (const path of schemaFiles) {
     const schema = JSON.parse(await readFile(path, "utf8"));
-    if (typeof schema.$id === "string") {
-      assert.doesNotMatch(
-        schema.$id,
-        /\/(?:v[2-9]|v[1-9][0-9]+)$/u,
-        `Foundation-owned schema has a parallel current version: ${relative(packageRoot, path)}`,
-      );
-    }
+    assert.equal(
+      typeof schema.$id === "string" && schema.$id.endsWith("/v1"),
+      true,
+      `Foundation-owned schema must use its sole current /v1 identity: ${relative(packageRoot, path)}`,
+    );
+    assertOwnedNumericDiscriminatorsAreV1(schema, relative(packageRoot, path));
   }
 
   const sourceFiles = (await filesBelow(join(packageRoot, "src"))).filter((path) =>

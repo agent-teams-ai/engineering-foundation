@@ -10,7 +10,7 @@ export async function validateAuthorityScaffoldReceipt(
   receipt: unknown,
   plan?: AuthorityScaffoldPlan
 ): Promise<AuthorityScaffoldReceipt> {
-  await assertSchema("scaffold-receipt", receipt, "scaffold-receipt");
+  await assertSchema("scaffold-receipt/v1", receipt, "scaffold-receipt");
   const validated = receipt as AuthorityScaffoldReceipt;
   assertAuthorityScaffoldReceiptDigest(validated, plan);
   return validated;

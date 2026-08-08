@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-teams.ai/schemas/scaffold-plan",
+  "$id": "https://agent-teams.ai/schemas/scaffold-plan/v1",
   "title": "Scaffold Plan",
   "type": "object",
   "additionalProperties": false,

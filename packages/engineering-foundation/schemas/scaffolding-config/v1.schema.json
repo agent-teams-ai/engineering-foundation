@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-teams.ai/schemas/scaffolding-config",
+  "$id": "https://agent-teams.ai/schemas/scaffolding-config/v1",
   "title": "Scaffolding Configuration",
   "type": "object",
   "additionalProperties": false,

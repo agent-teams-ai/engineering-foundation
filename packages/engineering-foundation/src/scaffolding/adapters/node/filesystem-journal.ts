@@ -184,13 +184,13 @@ async function readScaffoldJournalRecord(
     );
   }
   await assertSchema(
-    "scaffold-recovery-journal",
+    "scaffold-recovery-journal/v1",
     value,
     "scaffold-recovery-journal"
   );
   const journal = value as AuthorityScaffoldJournal;
   await assertSchema(
-    "scaffold-plan",
+    "scaffold-plan/v1",
     journal.plan,
     "scaffold-recovery-journal"
   );

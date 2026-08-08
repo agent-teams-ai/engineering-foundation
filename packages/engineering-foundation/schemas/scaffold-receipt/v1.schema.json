@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-teams.ai/schemas/scaffold-receipt",
+  "$id": "https://agent-teams.ai/schemas/scaffold-receipt/v1",
   "title": "Scaffold Receipt",
   "type": "object",
   "additionalProperties": false,

@@ -15,13 +15,13 @@ export const FOUNDATION_SCHEMA_IDS = [
   "quality-suppression-governance/v1",
   "repository-agent-workflow/v1",
   "repository-security-baseline/v1",
-  "scaffold-authority-evidence",
-  "scaffold-intent",
-  "scaffold-plan",
-  "scaffold-receipt",
-  "scaffold-recovery-journal",
-  "scaffold-target-catalog",
-  "scaffolding-config",
+  "scaffold-authority-evidence/v1",
+  "scaffold-intent/v1",
+  "scaffold-plan/v1",
+  "scaffold-receipt/v1",
+  "scaffold-recovery-journal/v1",
+  "scaffold-target-catalog/v1",
+  "scaffolding-config/v1",
   "workspace-dependency-declarations/v1"
 ] as const;
 

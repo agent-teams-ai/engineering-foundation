@@ -54,13 +54,13 @@ test("embedded and standalone authority schemas require canonical source order",
 
   await assert.rejects(
     assertSchema(
-      "scaffold-authority-evidence",
+      "scaffold-authority-evidence/v1",
       plan.authorityEvidence,
       "authority-source-order"
     )
   );
   await assert.rejects(
-    assertSchema("scaffold-plan", plan, "embedded-authority-source-order")
+    assertSchema("scaffold-plan/v1", plan, "embedded-authority-source-order")
   );
 });
 
@@ -88,7 +88,7 @@ test("applied Receipt factory and validator agree on canonical operation order",
   const { receiptDigest: _ignored, ...body } = forged;
   forged.receiptDigest = sha256Json(body);
   await assert.rejects(
-    assertSchema("scaffold-receipt", forged, "canonical-operation-order")
+    assertSchema("scaffold-receipt/v1", forged, "canonical-operation-order")
   );
   assert.throws(
     () => assertScaffoldReceiptDigest(forged, plan),
@@ -154,7 +154,7 @@ test("every canonical Receipt outcome covers every Plan operation", async () => 
     incomplete.operations.pop();
     const forged = withReceiptDigest(incomplete);
 
-    await assertSchema("scaffold-receipt", forged, `missing-${receiptCase.outcome}`);
+    await assertSchema("scaffold-receipt/v1", forged, `missing-${receiptCase.outcome}`);
     assert.throws(
       () => assertScaffoldReceiptDigest(forged, plan),
       /evidence for every Plan operation/u,
@@ -177,7 +177,7 @@ test("rejected canonical Receipts require operation evidence", async () => {
   });
 
   await assert.rejects(
-    assertSchema("scaffold-receipt", rejected, "empty-rejected-receipt")
+    assertSchema("scaffold-receipt/v1", rejected, "empty-rejected-receipt")
   );
   assert.throws(
     () => assertScaffoldReceiptDigest(rejected),

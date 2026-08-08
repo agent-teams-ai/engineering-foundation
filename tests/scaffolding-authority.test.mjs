@@ -364,7 +364,7 @@ test("rejects unknown authority verifier/version and schema extensions", async (
     evidence.extension = true;
     await assert.rejects(
       assertSchema(
-        "scaffold-authority-evidence",
+        "scaffold-authority-evidence/v1",
         evidence,
         "scaffold-authority-evidence"
       ),
@@ -746,7 +746,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
   const root = await createConsumer();
   try {
     const scaffoldPlan = await plan(root);
-    await assertSchema("scaffold-plan", scaffoldPlan, "scaffold-plan-authority");
+    await assertSchema("scaffold-plan/v1", scaffoldPlan, "scaffold-plan-authority");
     const applied = await applyFilesystemScaffold(root, scaffoldPlan);
     const replayed = await applyFilesystemScaffold(root, scaffoldPlan);
     assert.equal(applied.outcome, "applied");
@@ -777,7 +777,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
     const oversizedReadSet = structuredClone(scaffoldPlan);
     oversizedReadSet.readSet.push(structuredClone(oversizedReadSet.readSet[0]));
     await assert.rejects(
-      assertSchema("scaffold-plan", oversizedReadSet, "scaffold-plan-authority"),
+      assertSchema("scaffold-plan/v1", oversizedReadSet, "scaffold-plan-authority"),
       /must NOT have more than 3 items/u
     );
 
@@ -789,7 +789,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
       structuredClone(configValue.compositions[0].authorityVerifiers[0])
     );
     await assert.rejects(
-      assertSchema("scaffolding-config", configValue, "scaffolding-config-authority"),
+      assertSchema("scaffolding-config/v1", configValue, "scaffolding-config-authority"),
       /must NOT have more than 1 items/u
     );
 
@@ -811,7 +811,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
     forgedJournal.plan.compiler.extension = true;
     await assert.rejects(
       assertSchema(
-        "scaffold-recovery-journal",
+        "scaffold-recovery-journal/v1",
         forgedJournal,
         "scaffold-recovery-journal-authority"
       ),

@@ -1,22 +1,10 @@
 name: ReviewRouter Codex OAuth
 
-run-name: ${{ inputs.review_request_id != '' && format('ReviewRouter review {0}', inputs.review_request_id) || 'ReviewRouter Codex OAuth maintenance' }}
+run-name: ${{ format('ReviewRouter review PR {0} at {1}', github.event.pull_request.number, github.event.pull_request.head.sha) }}
 
 on:
-  workflow_dispatch:
-    inputs:
-      review_request_id:
-        description: Durable ReviewRouter request identity
-        required: false
-        type: string
-      pr_number:
-        description: Pull request number selected by ReviewRouter
-        required: false
-        type: string
-      review_head_sha:
-        description: Expected pull request head selected by ReviewRouter
-        required: false
-        type: string
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   schedule:
     - cron: "17 */6 * * *"
 
@@ -25,7 +13,10 @@ permissions: {}
 jobs:
   codex-review:
     name: codex-review
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.review_request_id != '' && inputs.pr_number != '' && inputs.review_head_sha != '' }}
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot' && (github.event.pull_request.draft == false || vars.REVIEW_ROUTER_REVIEW_DRAFTS == 'true') }}
+    concurrency:
+      group: reviewrouter-codex-oauth-${{ github.repository_id }}-codex-rotating-1316243988
+      cancel-in-progress: false
     permissions:
       contents: read
       pull-requests: read
@@ -35,10 +26,10 @@ jobs:
       runtime_ref: "f8095ce05cd82e2d804e93b9f3b70ce6b1d445a3"
       api_url: "https://api.reviewrouter.site"
       runtime_config_mode: oidc
-      pr_number: ${{ inputs.pr_number }}
-      review_head_sha: ${{ inputs.review_head_sha }}
+      pr_number: ${{ format('{0}', github.event.pull_request.number) }}
+      review_head_sha: ${{ github.event.pull_request.head.sha }}
       provider_instance_id: "codex-rotating:1316243988"
-      workflow_schema_version: 1
+      workflow_schema_version: 2
       max_changed_lines: ${{ vars.REVIEW_ROUTER_MAX_CHANGED_LINES }}
       review_timeout_minutes: ${{ fromJSON(vars.REVIEW_ROUTER_TIMEOUT_MINUTES || '60') }}
     secrets:
@@ -51,7 +42,7 @@ jobs:
     concurrency:
       group: reviewrouter-codex-oauth-${{ github.repository_id }}-codex-rotating-1316243988
       cancel-in-progress: false
-    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.review_request_id == '') }}
+    if: ${{ github.event_name == 'schedule' }}
     permissions:
       id-token: write
     steps:
@@ -62,5 +53,5 @@ jobs:
           mode: codex-oauth-refresh
           api-url: "https://api.reviewrouter.site"
           provider-instance-id: "codex-rotating:1316243988"
-          workflow-schema-version: "1"
+          workflow-schema-version: "2"
           auth-json: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON }}

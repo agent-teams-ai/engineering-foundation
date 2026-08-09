@@ -49,6 +49,13 @@ and let the unchanged release workflow publish its merge through npm Trusted
 Publishing. Never weaken branch protection or publish from a workstation to work
 around the policy.
 
+The default-branch `workflow_run` publisher reports whether it safely inspected
+and published the exact-head `ReviewGate`; it does not copy the pull request's
+pass/fail result onto the default-branch check run. A missing or failed App
+review remains a failing `ReviewGate` status on the pull request head, while a
+successful publication job stays green. Invalid or unbound workflow evidence
+still fails the publisher before it can write a status.
+
 Before every publication:
 
 - verify that the repository still satisfies the independent merge-authority

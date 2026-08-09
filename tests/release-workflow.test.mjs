@@ -55,6 +55,14 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   assert.match(reviewGateSteps[0].run, /\.context == "ReviewRouter"/u);
   assert.match(reviewGateSteps[0].run, /\.creator\.id == \$app_bot_id/u);
   assert.match(reviewGateSteps[0].run, /\.creator\.type == "Bot"/u);
+  assert.match(
+    reviewGateSteps[0].run,
+    /Published a failing ReviewGate on pull request/u,
+  );
+  assert.doesNotMatch(
+    reviewGateSteps[0].run,
+    /\[\[ "\$\{gate_state\}" == "success" \]\]/u,
+  );
   assert.equal(
     reviewGateSteps[0].env.REVIEWROUTER_APP_BOT_ID,
     "281702430",

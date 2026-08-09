@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'workflow_dispatch' || ((github.event_name != 'issue_comment' || github.event.issue.pull_request) && github.event.comment.user.type != 'Bot') }}
     permissions:
+      actions: write
       contents: read
       issues: read
       pull-requests: read

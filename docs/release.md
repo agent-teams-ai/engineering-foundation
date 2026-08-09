@@ -12,6 +12,24 @@ manually with npm 2FA after `pnpm check` passes. After that release:
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
+Every pull request that changes a published package must include a normal
+Changeset. CI enforces this with the official `changeset status` command against
+the pull request's exact base commit. Repository-only tests, CI configuration,
+and internal documentation remain release-neutral unless they change a
+published contract or package artifact.
+
+The generated release pull request is accepted only when its single release
+commit is based directly on the exact `main` revision processed by the Release
+workflow. Every package Changeset present at that revision must be consumed, its
+summary must appear in the generated changelog, and the `# Releases` section of
+the pull request body must exactly match that changelog entry. The attester
+checks this evidence both before dispatching exact-head CI and immediately
+before publishing successful required statuses. A newer push to `main` or a
+release-head update therefore fails the old attestation until the next queued
+Release run regenerates the pull request. Protected `main` also requires the
+pull request branch to remain current, closing the final merge race after
+attestation.
+
 Publication packages accepted implementations; it does not activate a capability
 inside any consumer. Consumers retain exact pins and adopt a capability in a
 separate reviewed change after its consumer-owned gates pass.

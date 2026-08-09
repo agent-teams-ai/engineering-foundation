@@ -23,6 +23,7 @@ async function workflow(name) {
 
 test("release pipeline keeps App review and a bounded generated-diff attestation", async () => {
   const release = await workflow("release.yml");
+  const ci = await workflow("ci.yml");
   const review = await workflow("reviewrouter-codex.yml");
   const reviewInteraction = await workflow("reviewrouter-interaction.yml");
   const reviewGate = await workflow("review-gate.yml");
@@ -69,11 +70,34 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   );
   assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
-  assert.match(
-    attestation.run,
-    /read -r state head_ref head_sha base_ref base_sha[\s\S]*\.base\.sha/u,
+  const changesetCoverage = ci.jobs.check.steps.find(
+    ({ name }) => name === "Validate package Changeset coverage",
   );
+  assert.equal(changesetCoverage.run, "pnpm changeset:coverage");
+  assert.match(changesetCoverage.if, /pull_request[\s\S]*changeset-release\/main/u);
+  assert.equal(
+    changesetCoverage.env.FOUNDATION_CHANGESET_BASE_SHA,
+    "${{ github.event.pull_request.base.sha }}",
+  );
+  assert.equal(
+    attestation.env.EXPECTED_RELEASE_HEAD_SHA,
+    "${{ needs.release.outputs.pullRequestHeadSha }}",
+  );
+  assert.equal(attestation.env.PROCESSED_MAIN_SHA, "${{ github.sha }}");
+  assert.equal(
+    (attestation.run.match(/check-release-pr-freshness\.mjs/gu) ?? []).length,
+    2,
+  );
+  assert.equal(
+    (attestation.run.match(/git\/ref\/heads\/main/gu) ?? []).length,
+    2,
+  );
+  assert.match(attestation.run, /--arg expectedHeadSha "\$\{head_sha\}"/u);
   assert.match(attestation.run, /--base "\$\{base_sha\}" --head "\$\{head_sha\}"/u);
+  assert.ok(
+    attestation.run.lastIndexOf("check-release-pr-freshness.mjs") <
+      attestation.run.lastIndexOf('post_status "${release_gate_context}" success'),
+  );
   assert.match(attestation.run, /post_status "\$\{release_gate_context\}" success/u);
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-codex\.yml/u);
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-release\.yml/u);

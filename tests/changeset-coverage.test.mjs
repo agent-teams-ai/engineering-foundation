@@ -62,6 +62,8 @@ test("package changes require a Changeset while repository-only changes remain n
       join(packageFixture.root, "packages", "fixture", "index.js"),
       "export const value = 2;\n",
     );
+    await git(packageFixture.root, "add", ".");
+    await git(packageFixture.root, "commit", "-m", "change package without release intent");
     await assert.rejects(
       checkChangesetCoverage({
         baseRevision: packageFixture.baseRevision,
@@ -75,6 +77,7 @@ test("package changes require a Changeset while repository-only changes remain n
       '---\n"@fixture/package": patch\n---\n\nPublish the changed package behavior.\n',
     );
     await git(packageFixture.root, "add", ".");
+    await git(packageFixture.root, "commit", "-m", "add release intent");
     await assert.doesNotReject(
       checkChangesetCoverage({
         baseRevision: packageFixture.baseRevision,
@@ -87,6 +90,7 @@ test("package changes require a Changeset while repository-only changes remain n
     await writeFile(join(neutralFixture.root, "docs", "release.md"), "Internal release notes.\n");
     await writeFile(join(neutralFixture.root, "tests", "release.test.mjs"), "// repository-only test\n");
     await git(neutralFixture.root, "add", ".");
+    await git(neutralFixture.root, "commit", "-m", "change repository-only files");
     await assert.doesNotReject(
       checkChangesetCoverage({
         baseRevision: neutralFixture.baseRevision,

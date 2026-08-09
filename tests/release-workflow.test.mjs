@@ -75,6 +75,10 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   );
   assert.equal(changesetCoverage.run, "pnpm changeset:coverage");
   assert.match(changesetCoverage.if, /pull_request[\s\S]*changeset-release\/main/u);
+  assert.match(
+    changesetCoverage.if,
+    /head\.repo\.full_name != github\.repository/u,
+  );
   assert.equal(
     changesetCoverage.env.FOUNDATION_CHANGESET_BASE_SHA,
     "${{ github.event.pull_request.base.sha }}",

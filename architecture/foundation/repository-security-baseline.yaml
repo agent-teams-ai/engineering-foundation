@@ -52,6 +52,7 @@ privilegedJobs:
   - workflowPath: .github/workflows/reviewrouter-interaction.yml
     jobId: interaction
     permissions:
+      actions: write
       contents: read
       issues: read
       pull-requests: read

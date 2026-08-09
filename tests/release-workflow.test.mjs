@@ -24,6 +24,7 @@ async function workflow(name) {
 test("release pipeline keeps App review and a bounded generated-diff attestation", async () => {
   const release = await workflow("release.yml");
   const review = await workflow("reviewrouter-codex.yml");
+  const reviewInteraction = await workflow("reviewrouter-interaction.yml");
   const reviewGate = await workflow("review-gate.yml");
   const reviewGateSource = await readFile(
     join(repositoryRoot, ".github", "workflows", "review-gate.yml"),
@@ -78,6 +79,13 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   assert.equal(review.on.workflow_dispatch, undefined);
   assert.equal(review.jobs["codex-review"].with.workflow_schema_version, 2);
   assert.match(review.jobs["codex-review"].if, /user\.type != 'Bot'/u);
+  assert.deepEqual(reviewInteraction.jobs.interaction.permissions, {
+    actions: "write",
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+    "id-token": "write",
+  });
 });
 
 test("release publishing requires real Buf and hermetic registry qualification", async () => {

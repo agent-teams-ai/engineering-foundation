@@ -19,6 +19,7 @@
     "check:changed": "pnpm build && agent-teams-foundation agent-workflow changed --consumer .",
     "check:fast": "pnpm lint:fast && pnpm typecheck",
     "changeset": "changeset",
+    "changeset:coverage": "node scripts/check-changeset-coverage.mjs",
     "clean": "node scripts/clean.mjs",
     "foundation:check": "pnpm build && node packages/engineering-foundation/dist/cli.js check --consumer .",
     "foundation:check:built": "node packages/engineering-foundation/dist/cli.js check --consumer .",

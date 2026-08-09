@@ -49,6 +49,11 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Validate package Changeset coverage
+        if: ${{ github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || github.head_ref != 'changeset-release/main') }}
+        env:
+          FOUNDATION_CHANGESET_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: pnpm changeset:coverage
       - name: Validate GitHub Actions
         run: pnpm security:workflows
       - run: pnpm rebuild

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
@@ -16,7 +15,9 @@ async function git(cwd, ...args) {
 }
 
 async function createFixture() {
-  const root = await mkdtemp(join(tmpdir(), "foundation-changeset-coverage-"));
+  // Keep the fixture on the checkout volume. On Windows runners the system
+  // temporary directory is on C: while the checkout and Changesets CLI are on D:.
+  const root = await mkdtemp(join(process.cwd(), ".foundation-changeset-coverage-"));
   await mkdir(join(root, ".changeset"), { recursive: true });
   await mkdir(join(root, "packages", "fixture"), { recursive: true });
   await writeFile(

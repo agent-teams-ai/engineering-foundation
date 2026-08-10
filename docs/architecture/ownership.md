@@ -49,4 +49,7 @@ owns strict catalogs, contained artifact inspection, local JSON Schema
 validation, and deterministic diagnostics. Consumers own domain schemas and
 documents, generated types, evaluators, properties, mutation setup, package
 scripts, XState models and adapters, traces, diagrams, and the CI that executes
-their gates. Foundation proves wiring, never consumer gate success.
+their gates. The optional v1 state-model evidence profile is XState-shaped, but
+Foundation owns no XState runtime or domain semantics and proves wiring, never
+consumer gate success. Other state-model formalisms require a separately
+versioned and qualified contract extension rather than reinterpretation of v1.

@@ -16,9 +16,12 @@ facts, specification documents, schemas, optional generated types, evaluators,
 properties, mutation setup, package scripts, owner documents, ADRs, XState
 models, adapters, traces, and diagrams.
 
-The capability has no XState runtime dependency. `kind: xstate` describes an
-artifact topology only. Foundation reads those files as bounded evidence and
-never imports them.
+The optional v1 state-model evidence profile is XState-shaped. The capability
+has no XState runtime dependency and owns no XState runtime or domain semantics.
+`kind: xstate` describes an artifact topology only; Foundation reads those files
+as bounded evidence and never imports them. A different state-model formalism
+requires a versioned contract extension with its own qualified evidence profile,
+not a reinterpretation of the v1 fields as generic.
 
 ## Configuration
 

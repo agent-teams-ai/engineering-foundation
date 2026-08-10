@@ -19,9 +19,9 @@ jobs:
       issues: read
       pull-requests: read
       id-token: write
-    uses: 777genius/review-router/.github/workflows/reviewrouter-interaction-reusable.yml@5da51b7b71b1db9ce531f946ec2bb90411a31300
+    uses: 777genius/review-router/.github/workflows/reviewrouter-interaction-reusable.yml@6b35091c824b1d4d5ee6bf8316121ed08d3e4861
     with:
-      runtime_ref: 5da51b7b71b1db9ce531f946ec2bb90411a31300
+      runtime_ref: 6b35091c824b1d4d5ee6bf8316121ed08d3e4861
       runtime_config_mode: oidc
       review_workflow_file: reviewrouter-codex.yml
       discussion_mode: ${{ vars.REVIEW_ROUTER_DISCUSSION_MODE || 'off' }}

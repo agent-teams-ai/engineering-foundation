@@ -225,6 +225,49 @@ test("uses Ajv strict 2020-12 over an explicit local schema set and fixture corp
   });
 });
 
+test("accepts exact 4 MiB Ajv schema and document evidence and rejects one byte more", async () => {
+  await withContractFixture(async (root) => {
+    const schemaPath = "schemas/limit.schema.json";
+    const fixturePath = "fixtures/limit.json";
+    const schemaSource = JSON.stringify({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://schemas.example.test/limit/v1",
+      type: "object",
+    });
+    const fixtureSource = JSON.stringify({ value: true });
+    const requestAtLimit = {
+      consumerRoot: root,
+      schemaPaths: [schemaPath],
+      fixtures: [{
+        id: "limit-document",
+        path: fixturePath,
+        schemaId: "https://schemas.example.test/limit/v1",
+        expectation: "valid",
+      }],
+      requireMixedExpectations: false,
+    };
+    for (const oversizedPath of [schemaPath, fixturePath]) {
+      const sources = new Map([
+        [schemaPath, Buffer.from(schemaSource.padEnd(4 * 1024 * 1024, " "))],
+        [fixturePath, Buffer.from(fixtureSource.padEnd(4 * 1024 * 1024, " "))],
+      ]);
+      const exact = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(
+        async (path) => sources.get(path),
+      ).inspect(requestAtLimit);
+      assert.deepEqual(exact.fixtureResults, [
+        { id: "limit-document", expectation: "valid", matched: true },
+      ]);
+      sources.set(oversizedPath, Buffer.concat([sources.get(oversizedPath), Buffer.from(" ")]));
+      await assert.rejects(
+        new jsonSchemaModule.AjvJsonSchemaReleaseInspector(
+          async (path) => sources.get(path),
+        ).inspect(requestAtLimit),
+        ({ problem }) => problem?.code === "JSON_SCHEMA_FILE_INVALID",
+      );
+    }
+  });
+});
+
 test("fails closed when a contained JSON file grows after descriptor validation", async () => {
   await withContractFixture(async (root) => {
     const candidate = join(root, "fixtures", "mutable.json");

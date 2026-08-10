@@ -29,9 +29,11 @@ consumer-owned JSON catalog. Foundation validates its closed versioned shape,
 inspects contained artifacts, and uses the existing strict Draft 2020-12 Ajv
 machinery for local-only schema and document validation.
 
-Each specification binds owner documents, ADRs, schemas, JSON documents,
-generated type outputs, and distinct consumer package scripts for type
-generation, property testing, and mutation testing. An optional
+Each specification binds owner documents, ADRs, schemas, JSON documents, and
+distinct consumer package scripts for property and mutation testing. Generated
+type outputs and a distinct type-generation script are required together when
+the consumer actually generates types and are both omitted for data-only
+specifications. An optional
 `stateModel.kind: xstate` topology requires at least two unique axes, model,
 adapter, traces, diagram, and a distinct spec-model script binding.
 

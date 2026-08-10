@@ -59,8 +59,8 @@ export const EXECUTABLE_SPECIFICATION_RULES = Object.freeze({
   ),
   pathCollision: rule(
     "path-collision",
-    "Generated outputs and executable model artifacts must not collide.",
-    "Assign a unique repository path to every generated or executable artifact."
+    "Executable specification paths must be portable and must not collide across evidence, reserved input, generated output, model, or workspace-manifest roles.",
+    "Use portable ASCII repository paths and assign a distinct path whenever artifact roles cannot share the same read-only evidence."
   ),
   schemaBindingUnknown: rule(
     "schema-binding-unknown",

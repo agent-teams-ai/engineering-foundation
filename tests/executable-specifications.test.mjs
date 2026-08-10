@@ -195,6 +195,19 @@ test("forbids a type-generation gate when no generated types are declared", asyn
   }, { schemaVersion: 1, specifications: [candidate] });
 });
 
+test("requires independent property and mutation gates for generated and data-only specs", async () => {
+  for (const createCandidate of [specification, dataOnlySpecification]) {
+    for (const gateRole of ["property", "mutation"]) {
+      const candidate = createCandidate();
+      delete candidate.gateBindings[gateRole];
+      await withFixture(async (root) => {
+        const result = await run(root);
+        assert.deepEqual([result.outcome, result.problem.code], ["invalid-input", "SCHEMA_INVALID"]);
+      }, { schemaVersion: 1, specifications: [candidate] });
+    }
+  }
+});
+
 test("rejects type-generation topology mismatches before inspector I/O", async () => {
   const generatedWithoutGate = specification();
   delete generatedWithoutGate.gateBindings.typeGeneration;
@@ -631,7 +644,7 @@ test("fails closed on missing, reordered, or mismatched catalog observations", a
   }
 });
 
-test("enforces the shared aggregate byte budget at its exact boundary", async () => {
+test("enforces the shared aggregate byte budget at its exact boundary without recharging cached reads", async () => {
   await withFixture(async (root) => {
     const governedPaths = [
       "package.json",
@@ -671,6 +684,49 @@ test("enforces the shared aggregate byte budget at its exact boundary", async ()
       ({ problem }) =>
         problem?.code === "EXECUTABLE_SPECIFICATION_AGGREGATE_BYTES_EXCEEDED",
     );
+  });
+});
+
+test("accepts the exact 4 MiB JSON catalog limit and rejects one byte more", async () => {
+  await withFixture(async (root) => {
+    const catalogPath = join(root, "architecture", "specifications.json");
+    const source = `${JSON.stringify({ schemaVersion: 1, specifications: [specification()] })}\n`;
+    const exactSource = source.padEnd(4 * 1024 * 1024, " ");
+    await writeFile(catalogPath, exactSource, "utf8");
+    assert.equal((await run(root)).outcome, "passed");
+
+    await writeFile(catalogPath, `${exactSource} `, "utf8");
+    const oversized = await run(root);
+    assert.equal(oversized.problem.code, "EXECUTABLE_SPECIFICATION_CATALOG_INVALID");
+  });
+});
+
+test("accepts exact 8 MiB artifacts and workspace manifests and rejects one byte more", async () => {
+  await withFixture(async (root) => {
+    const ownerPath = join(root, "docs", "workflow.md");
+    await writeFile(ownerPath, "# owner\n".padEnd(8 * 1024 * 1024, " "), "utf8");
+    assert.equal((await run(root)).outcome, "passed");
+    await writeFile(ownerPath, "# owner\n".padEnd((8 * 1024 * 1024) + 1, " "), "utf8");
+    const oversizedArtifact = await run(root);
+    assert.equal(oversizedArtifact.outcome, "invalid-input");
+    assert.equal(oversizedArtifact.problem.code, "EXECUTABLE_SPECIFICATION_ARTIFACT_INVALID");
+
+    await write(root, "docs/workflow.md", "# owner\n");
+    const manifestPath = join(root, "package.json");
+    const manifest = JSON.stringify({
+      name: "@example/specs",
+      scripts: {
+        "spec:typegen": "consumer-owned-type-generation",
+        "spec:property": "consumer-owned-property-tests",
+        "spec:mutation": "consumer-owned-mutation-tests",
+      },
+    });
+    await writeFile(manifestPath, manifest.padEnd(8 * 1024 * 1024, " "), "utf8");
+    assert.equal((await run(root)).outcome, "passed");
+    await writeFile(manifestPath, manifest.padEnd((8 * 1024 * 1024) + 1, " "), "utf8");
+    const oversizedManifest = await run(root);
+    assert.equal(oversizedManifest.outcome, "invalid-input");
+    assert.equal(oversizedManifest.problem.code, "EXECUTABLE_SPECIFICATION_ARTIFACT_INVALID");
   });
 });
 

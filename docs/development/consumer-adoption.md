@@ -82,11 +82,12 @@ jobs, release evidence, and a separate real-tarball E2E gate. Non-publishing
 repositories do not fabricate package evidence.
 
 Adopt `quality.executable-specifications` only after a real donor specification
-exists. The consumer catalog binds its own schemas, documents, generated types,
-ownership evidence, and independent package scripts. Required CI executes type
-generation, property, mutation, and optional state-model gates; Foundation only
-checks their static connectivity and must not be used as evidence that those
-scripts succeeded. See the
+exists. The consumer catalog binds its own schemas, documents, ownership
+evidence, and independent package scripts. Generated types and their generation
+gate are declared together only when the consumer produces them. Required CI
+executes the declared property, mutation, optional type-generation, and optional
+state-model gates; Foundation only checks their static connectivity and must not
+be used as evidence that those scripts succeeded. See the
 [executable specification reference](../reference/executable-specifications.md).
 
 ## Current contract version policy

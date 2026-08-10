@@ -152,3 +152,39 @@ test("rejects exact cross-role path reuse but permits shared owner evidence", as
   );
   assert.equal(inspections, 1);
 });
+
+test("accepts exactly 1024 unique artifacts and rejects the next one before inspection", async () => {
+  for (const artifactCount of [1_024, 1_025]) {
+    const candidate = specification();
+    candidate.ownerDocs = Array.from(
+      { length: artifactCount - 4 },
+      (_, index) => `docs/owner-${index}.md`,
+    );
+    let inspections = 0;
+    const observations = await capabilityModule.analyzeExecutableSpecifications(
+      { consumerRoot: "/not-used", catalog: catalogOf(candidate) },
+      {
+        async inspectCatalog() {
+          inspections += 1;
+          return [{
+            id: candidate.id,
+            jsonSchemas: { schemaIds: [candidate.documents[0].schemaId], fixtureResults: [] },
+            missingArtifactPaths: [],
+            gates: {},
+            artifactDigest: `sha256:${"0".repeat(64)}`,
+          }];
+        },
+      },
+    ).catch((error) => error);
+    if (artifactCount === 1_024) {
+      assert.equal(inspections, 1);
+      assert.ok(Array.isArray(observations));
+    } else {
+      assert.equal(inspections, 0);
+      assert.equal(
+        observations.problem?.code,
+        "EXECUTABLE_SPECIFICATION_ARTIFACT_COUNT_EXCEEDED",
+      );
+    }
+  }
+});

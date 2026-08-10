@@ -1,5 +1,18 @@
 # @agent-teams/engineering-foundation
 
+## 0.10.0
+
+### Minor Changes
+
+- [#73](https://github.com/agent-teams-ai/engineering-foundation/pull/73) [`7bf6e85`](https://github.com/agent-teams-ai/engineering-foundation/commit/7bf6e850e983fdf439417a1640f5d99ae5bbc040) Thanks [@777genius](https://github.com/777genius)! - Add the opt-in `quality.executable-specifications` capability for strict local
+  JSON schemas and documents, generated type bindings, independent consumer gate
+  bindings, and optional XState artifact connectivity without executing consumer
+  scripts. Add explicit development-only source boundaries for truthful tooling
+  imports and reject duplicate keys, comments, and trailing commas in governed
+  JSON before schema validation. Fence runtime package-name imports from workspace
+  packages containing development boundaries, and bound executable catalog
+  topology, package discovery, artifact counts, and aggregate inspection bytes.
+
 ## 0.9.0
 
 ### Minor Changes

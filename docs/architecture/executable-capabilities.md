@@ -166,9 +166,11 @@ connects domain schemas and documents, optional generated types, owner
 documents, ADRs, and distinct property and mutation gate bindings. A
 type-generation gate is required exactly when generated types are declared. The
 optional v1 state-model evidence profile is deliberately XState-shaped: it
-requires at least two axes plus model, adapter, trace, diagram, and a distinct
-spec-model gate. It reuses the contract JSON Schema capability's strict Draft
-2020-12 local-only Ajv inspection.
+requires an explicit, possibly empty list of unique consumer-declared axis
+identifiers plus model, adapter, trace, diagram, and a distinct spec-model gate.
+Axis identifiers are opaque connectivity data; Foundation does not infer
+independence, meaning, or model parity from them. It reuses the contract JSON
+Schema capability's strict Draft 2020-12 local-only Ajv inspection.
 
 All catalog and selected workspace-manifest paths use the capability's
 conservative portable ASCII segment contract and one cross-role identity map.

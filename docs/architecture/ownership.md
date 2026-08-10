@@ -51,5 +51,7 @@ documents, generated types, evaluators, properties, mutation setup, package
 scripts, XState models and adapters, traces, diagrams, and the CI that executes
 their gates. The optional v1 state-model evidence profile is XState-shaped, but
 Foundation owns no XState runtime or domain semantics and proves wiring, never
-consumer gate success. Other state-model formalisms require a separately
-versioned and qualified contract extension rather than reinterpretation of v1.
+consumer gate success. Axis identifiers are opaque to Foundation; consumers own
+their meaning, independence, and parity evidence. Other state-model formalisms
+require a separately versioned and qualified contract extension rather than
+reinterpretation of v1.

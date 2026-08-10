@@ -92,7 +92,7 @@
         "kind": { "const": "xstate" },
         "axes": {
           "type": "array",
-          "minItems": 2,
+          "description": "A possibly empty list of opaque consumer-owned topology identifiers; Foundation does not infer their semantics or independence.",
           "maxItems": 32,
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/identifier" }

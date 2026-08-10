@@ -53,8 +53,11 @@ The catalog is JSON-first and validated by
   type-generation script exactly when generated type outputs are declared;
 - either `stateModel.kind: none` or an XState topology.
 
-An XState topology requires at least two unique state axes, model, adapter,
-trace, and diagram paths, plus a fourth distinct `spec-model` gate binding.
+An XState topology requires an explicit, possibly empty list of unique
+consumer-declared axis identifiers, model, adapter, trace, and diagram paths,
+plus a fourth distinct `spec-model` gate binding. Foundation treats the
+identifiers as opaque connectivity data; consumer gates must prove their
+meaning, independence, and parity with the model and evidence.
 Every path is repository-relative, contained, regular, and symlink-free.
 Catalog and selected workspace-manifest paths use a conservative portable ASCII
 contract. Each slash-separated segment may contain only letters, digits, `.`,

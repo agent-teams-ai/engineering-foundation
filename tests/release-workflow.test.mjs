@@ -33,8 +33,19 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   );
   const releaseJob = release.jobs.release;
   const reviewGateSteps = reviewGate.jobs["review-gate"].steps;
-  const attestation = release.jobs["attest-release-pr"].steps.find(
+  const attestationSteps = release.jobs["attest-release-pr"].steps;
+  const attestation = attestationSteps.find(
     ({ name }) => name === "Dispatch and attest release pull request checks",
+  );
+  const attestationIndex = attestationSteps.indexOf(attestation);
+  const attestationPnpmSetupIndex = attestationSteps.findIndex(
+    ({ uses }) => uses?.startsWith("pnpm/action-setup@"),
+  );
+  const attestationNodeSetupIndex = attestationSteps.findIndex(
+    ({ uses }) => uses?.startsWith("actions/setup-node@"),
+  );
+  const attestationInstallIndex = attestationSteps.findIndex(
+    ({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts",
   );
 
   assert.match(releaseJob.outputs.pullRequestHeadSha, /release-pr/u);
@@ -70,6 +81,22 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   );
   assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
+  assert.ok(attestationPnpmSetupIndex > 0);
+  assert.ok(attestationNodeSetupIndex > attestationPnpmSetupIndex);
+  assert.ok(attestationInstallIndex > attestationNodeSetupIndex);
+  assert.ok(attestationIndex > attestationInstallIndex);
+  assert.equal(
+    attestationSteps[attestationPnpmSetupIndex].uses,
+    "pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9",
+  );
+  assert.equal(
+    attestationSteps[attestationNodeSetupIndex].uses,
+    "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+  );
+  assert.equal(
+    attestationSteps[attestationNodeSetupIndex].with["node-version-file"],
+    ".node-version",
+  );
   const changesetCoverage = ci.jobs.check.steps.find(
     ({ name }) => name === "Validate package Changeset coverage",
   );

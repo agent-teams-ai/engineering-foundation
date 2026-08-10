@@ -30,6 +30,11 @@ Release run regenerates the pull request. Protected `main` also requires the
 pull request branch to remain current, closing the final merge race after
 attestation.
 
+The attestation job provisions the repository's pinned Node and pnpm versions,
+then installs the frozen lockfile with dependency lifecycle scripts disabled
+before running its local evidence validators. A dependency bootstrap failure is
+therefore an attestation failure and retains the same fail-closed status path.
+
 Publication packages accepted implementations; it does not activate a capability
 inside any consumer. Consumers retain exact pins and adopt a capability in a
 separate reviewed change after its consumer-owned gates pass.

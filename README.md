@@ -12,6 +12,7 @@ package catalog, dependency permissions, security classifications, and ADRs.
 - strict data-only consumer configuration and versioned schemas;
 - executable workspace declaration and source dependency policies;
 - governed inline suppressions and released public API compatibility;
+- static executable-specification and consumer-gate connectivity;
 - repository workflow, SBOM, provenance, and package-content security policy;
 - portable agent instructions and changed-file preflight routing;
 - shared Oxlint and TypeScript 7 baseline presets;
@@ -69,10 +70,11 @@ installed pnpm virtual-store lockfiles must agree, so a stale local installation
 cannot be hidden by editing only the repository lockfile.
 
 The scaffolding kernel exposes strict schemas and a journaled filesystem adapter.
-Its current built-in recipe is a testing-only conformance fixture; consumer
-business packages and feature slices are not generated until separately proven
-definitions are released. See the
-[scaffolding protocol](docs/architecture/scaffolding-compiler-protocol.md).
+It includes a testing-only conformance fixture and one generic private Node
+TypeScript library-boundary recipe. The latter creates only the package envelope;
+consumer business packages, roles, owner documents, and feature slices remain
+consumer-owned. See the [recipe reference](docs/reference/node-typescript-library-boundary.md)
+and [scaffolding protocol](docs/architecture/scaffolding-compiler-protocol.md).
 
 See [ownership](docs/architecture/ownership.md),
 [consistency evidence gate](docs/architecture/consistency-evidence-gate.md),

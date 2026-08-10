@@ -356,6 +356,7 @@ export interface ScaffoldRenderingInput {
   readonly intent: ScaffoldRenderingIntent;
   readonly composition: ScaffoldRenderingComposition;
   readonly target: ScaffoldRenderingTarget;
+  readonly verifiedOwnerDocumentId?: string;
 }
 
 export interface ScaffoldRenderingResult {
@@ -407,11 +408,7 @@ export function compileScaffoldRendering(
   );
   registry.validateParameters(profile, profileParameters);
   registry.validateParameters(recipe, recipeParameters);
-  if (
-    !profile.allowedRecipeIds.includes(recipe.ref.id) ||
-    !recipe.allowedProfileIds.includes(profile.ref.id) ||
-    !recipe.allowedTargetRoles.includes(target.role)
-  ) {
+  if (!profile.allowedRecipeIds.includes(recipe.ref.id)) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
       `Recipe ${refKey(recipe.ref)} is incompatible with the selected Profile or target role.`
@@ -423,10 +420,14 @@ export function compileScaffoldRendering(
 
   const baseContext: ScaffoldDefinitionContext = Object.freeze({
     target,
+    ...(input.verifiedOwnerDocumentId === undefined
+      ? {}
+      : { verifiedOwnerDocumentId: input.verifiedOwnerDocumentId }),
     profileParameters,
     recipeParameters,
     facetParameters: Object.freeze({})
   });
+  registry.assertRecipeRequirements(recipe, profile.ref.id, baseContext);
   const policyConfigurations = collectPolicies([
     profile.requiredPolicies,
     recipe.requiredPolicies,

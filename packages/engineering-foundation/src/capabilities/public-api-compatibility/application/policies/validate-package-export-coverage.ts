@@ -202,7 +202,7 @@ function observedExports(input: {
   const manifest = record(input.manifest, "package manifest");
   if (!("exports" in manifest)) {
     throw new PackageExportCoverageError(
-      `Schema v2 package ${input.policy.packageName} must declare package.json exports.`
+      `Package ${input.policy.packageName} must declare package.json exports.`
     );
   }
   const packageTypes = manifest["types"] ?? manifest["typings"];
@@ -260,7 +260,7 @@ function mismatch(
 }
 
 /**
- * Schema v2 is a closed-world declaration of the package export map. Every
+ * The policy is a closed-world declaration of the package export map. Every
  * typed subpath gets an independently baselined declaration entry point; all
  * other public paths need an explicit, narrow classification.
  */

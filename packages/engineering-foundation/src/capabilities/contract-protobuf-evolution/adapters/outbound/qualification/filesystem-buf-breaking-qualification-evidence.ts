@@ -114,7 +114,7 @@ implements BufBreakingQualificationEvidencePort {
       "protobuf-buf-qualification-evidence"
     );
     await assertSchema(
-      "contract-protobuf-breaking-qualification/v2",
+      "contract-protobuf-breaking-qualification/v1",
       rawEvidence,
       "protobuf-buf-qualification-evidence"
     );

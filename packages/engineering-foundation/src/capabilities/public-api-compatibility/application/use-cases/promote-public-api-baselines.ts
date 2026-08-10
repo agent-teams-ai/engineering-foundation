@@ -24,58 +24,6 @@ function promotionError(code: string, message: string): never {
 
 const BUMP_RANK = Object.freeze({ patch: 0, minor: 1, major: 2 });
 
-function validateV1ToV2ReleaseMigration(input: {
-  readonly current: PublicApiSnapshot;
-  readonly fingerprint: ChangeFingerprint;
-  readonly packageName: string;
-  readonly released: PublicApiSnapshot;
-  readonly releaseVersion: string;
-}): boolean {
-  if (input.released.schemaVersion !== 1 || input.current.schemaVersion !== 2) {
-    return false;
-  }
-  const rootEntrypoint = input.current.entrypoints.find(
-    (entrypoint) => entrypoint.exportPath === "."
-  );
-  if (rootEntrypoint === undefined) {
-    promotionError(
-      "PUBLIC_API_BASELINE_MIGRATION_ROOT_MISSING",
-      "A release-owned v1-to-v2 migration requires the root package entrypoint."
-    );
-  }
-  const currentRoot: PublicApiSnapshot = Object.freeze({
-    schemaVersion: 1,
-    packageName: input.current.packageName,
-    packageVersion: input.current.packageVersion,
-    extractorVersion: input.current.extractorVersion,
-    items: rootEntrypoint.items
-  });
-  const rootChange = classifyPublicApiChange(
-    input.released,
-    currentRoot,
-    input.fingerprint
-  );
-  if (rootChange.classification !== "none") {
-    promotionError(
-      "PUBLIC_API_BASELINE_MIGRATION_ROOT_DRIFT",
-      "A release-owned v1-to-v2 migration cannot change the previously governed root API. Release that change under schema v1 first."
-    );
-  }
-  if (
-    input.released.packageVersion !== input.releaseVersion &&
-    semanticVersionBumpBetween(
-      input.released.packageVersion,
-      input.releaseVersion
-    ) === undefined
-  ) {
-    promotionError(
-      "PUBLIC_API_BASELINE_PROMOTION_NOT_RELEASE",
-      `Package ${input.packageName} cannot migrate from baseline version ${input.released.packageVersion} to older version ${input.releaseVersion}.`
-    );
-  }
-  return true;
-}
-
 function assertExtractorVersionMatch(
   released: PublicApiSnapshot,
   current: PublicApiSnapshot
@@ -131,16 +79,6 @@ export async function promotePublicApiBaselines(
       input.signal
     );
     assertExtractorVersionMatch(released, current);
-    if (validateV1ToV2ReleaseMigration({
-      current,
-      fingerprint: dependencies.fingerprint,
-      packageName: packagePolicy.packageName,
-      released,
-      releaseVersion: releaseEvidence.packageVersion
-    })) {
-      promotions.push({ packagePolicy, snapshot: current });
-      continue;
-    }
     const change = classifyPublicApiChange(released, current, dependencies.fingerprint);
     if (released.packageVersion === releaseEvidence.packageVersion) {
       if (change.classification !== "none") {
@@ -184,12 +122,6 @@ export async function promotePublicApiBaselines(
         );
       }
       const baselinePath = input.policy.acceptedDecisionBaselinePath;
-      if (baselinePath === undefined) {
-        promotionError(
-          "PUBLIC_API_BASELINE_PROMOTION_DECISION_EVIDENCE_MISSING",
-          "Breaking API approval requires immutable accepted-decision evidence."
-        );
-      }
       const governanceConfigPath = input.policy.governanceConfigPath;
       if (governanceConfigPath === undefined) {
         promotionError(

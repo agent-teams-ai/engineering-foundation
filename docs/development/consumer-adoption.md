@@ -81,6 +81,38 @@ may add `repository.security-baseline` with consumer-owned paths, privileged
 jobs, release evidence, and a separate real-tarball E2E gate. Non-publishing
 repositories do not fabricate package evidence.
 
+Adopt `quality.executable-specifications` only after a real donor specification
+exists. The consumer catalog binds its own schemas, documents, ownership
+evidence, and independent package scripts. Generated types and their generation
+gate are declared together only when the consumer produces them. Required CI
+executes the declared property, mutation, optional type-generation, and optional
+state-model gates; Foundation only checks their static connectivity and must not
+be used as evidence that those scripts succeeded. See the
+[executable specification reference](../reference/executable-specifications.md).
+
+## Current contract version policy
+
+Foundation-owned configuration, evidence and protocol contracts currently have
+one active identity: `v1`. Before independent production adoption, a breaking
+correction updates that sole `v1` shape and all known consumers in one reviewed
+release and adoption wave. The current package does not ship parallel legacy
+schemas, cross-version compatibility readers or migration routers.
+
+The Public API checker accepts an immutable single-entrypoint `v1` release
+baseline and normalizes it to the current multi-entrypoint `v1` comparison
+model. This preserves release evidence without creating another schema
+identity. New baseline promotion always writes the current `v1` shape.
+
+A Foundation-owned `v2` is allowed only after a new accepted ADR proves a real
+non-atomic migration boundary, such as an independently deployed exact-version
+consumer or persisted contract instance. The ADR must define migration evidence,
+support duration and retirement. Published npm artifacts and accepted ADRs remain
+immutable history and are never rewritten.
+
+This policy does not rename versions owned by external tools or standards. Buf
+config `version: v2`, SARIF 2.1.0, JSON Schema drafts, package SemVer and action
+versions retain their upstream identities and must be labelled as external.
+
 ## Shared presets
 
 Node TypeScript projects extend:
@@ -118,6 +150,18 @@ typecheck. The source dependency capability configuration remains consumer-owned
 it declares opaque boundary IDs and allowed edges while package manifests remain
 authoritative for package identities, dependencies, and exports.
 
+Source boundaries default to `dependencyMode: runtime`. A boundary containing
+only test, specification, generator, or other development tooling may declare
+`dependencyMode: development`; this admits runtime imports from that package's
+declared `devDependencies` without weakening the boundary package allowlist.
+Never classify production runtime source as development to hide a dependency
+placement violation.
+Keep development boundaries in dedicated workspace packages when runtime source
+imports the package by name. Source-dependencies v1 deliberately blocks runtime
+and type-only imports into a mixed-mode package because it cannot prove which
+boundary owns an exported subpath; development boundaries may still import it
+when manifest declarations and allowlists permit the edge.
+
 ## Deterministic scaffolding
 
 Scaffolding is opt-in through its own strict
@@ -136,9 +180,10 @@ the repository Foundation operation lock, rejects overwrite and path ambiguity,
 and records a recovery journal before the first file is published.
 `scaffold-recover` is mandatory after an interrupted transaction. The current
 consumer authority must remain available and reproduce the journal Plan exactly;
-otherwise recovery leaves the journal and outputs unchanged. The current
-built-in recipe is conformance-only and must not be used as a product
-architecture template.
+otherwise recovery leaves the journal and outputs unchanged. The testing Recipe
+remains conformance-only. The generic Node TypeScript library Recipe may create a
+package boundary only; it must not be treated as a product architecture or DDD
+template. See the [recipe reference](../reference/node-typescript-library-boundary.md).
 
 ### Scaffolding transition from 0.5.0
 
@@ -162,12 +207,11 @@ contract.
 1. The consumer repository's configured dependency updater opens an exact-version
    update pull request. Foundation does not prescribe a specific updater.
 2. CI installs from the registry and runs all foundation and consumer checks.
-3. Breaking changes to released supported schemas include a migration guide and
-   keep immutable predecessors available for the documented migration window.
-   ADR-0013 replaces the released provisional `0.5.0` scaffolding surface before
-   product donor adoption. Its exact registry artifact remains available for
-   recovery, while current packages intentionally export only the canonical
-   schemas.
+3. Before independent production adoption, breaking Foundation-owned contract
+   corrections keep the sole current `v1` and update every known consumer in the
+   same coordinated wave. Historical schemas remain available only inside their
+   immutable exact registry artifacts. After real independent adoption, a new
+   contract version and migration window require the ADR evidence in ADR-0019.
 4. A local foundation checkout may be attached for development, but a PR is not
    mergeable until registry mode is restored and proven.
 5. A package update never silently adds a capability declaration or opt-in

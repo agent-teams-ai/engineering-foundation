@@ -1,5 +1,5 @@
 import type { AuthorityScaffoldPlan } from "../../contract/types.js";
-import { createDefaultScaffoldRegistry } from "../../definitions/registry.js";
+import { createAuthorityScaffoldRegistry } from "../../definitions/registry.js";
 import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
 import { installedFoundationVersion } from "./installed-foundation-version.js";
 import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";
@@ -29,7 +29,7 @@ async function assertPlanMatchesConsumerAuthority(
   });
   const expected = compileAuthorityScaffoldPlan(
     input,
-    createDefaultScaffoldRegistry()
+    createAuthorityScaffoldRegistry()
   );
   if (expected.planDigest !== plan.planDigest) {
     throw new ScaffoldAuthorityStaleError(

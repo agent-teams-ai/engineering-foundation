@@ -1,0 +1,17 @@
+version: 1
+packages:
+  - id: synthetic.alpha
+    role: synthetic-alpha
+    path: packages/alpha
+    package_name: alpha-library
+    owner_document: OWNER-ALPHA
+  - id: synthetic.beta
+    role: synthetic.beta
+    path: packages/deep/nested/beta
+    package_name: "@fixture/beta-library"
+    owner_document: OWNER-BETA
+  - id: synthetic.gamma
+    role: synthetic/gamma
+    path: tooling/gamma
+    package_name: "@another/gamma-library"
+    owner_document: OWNER-GAMMA

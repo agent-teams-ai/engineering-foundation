@@ -10,13 +10,6 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 0
-    ignore:
-      - dependency-name: "@types/node"
-        update-types:
-          - version-update:semver-major
-      - dependency-name: typescript
-        update-types:
-          - version-update:semver-major
     groups:
       api-extractor:
         patterns:

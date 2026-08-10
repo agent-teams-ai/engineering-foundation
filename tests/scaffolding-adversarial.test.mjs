@@ -162,7 +162,7 @@ test("does not commit when an output changes before final authority verification
 
     assert.equal(receipt.outcome, "recovery-required");
     assert.equal(await readFile(destination, "utf8"), "third-party final state\n");
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -188,7 +188,7 @@ test("preserves a journal replaced after final verification", async () => {
       ),
       /journal changed before it could be removed/u
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

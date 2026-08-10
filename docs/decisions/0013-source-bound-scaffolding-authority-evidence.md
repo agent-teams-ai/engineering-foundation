@@ -1,8 +1,9 @@
 ---
 id: ADR-0013
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by:
+  - ADR-0018
 ---
 
 # ADR-0013: Source-Bound Scaffolding Authority Evidence

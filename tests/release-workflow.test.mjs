@@ -23,22 +23,49 @@ async function workflow(name) {
 
 test("release pipeline keeps App review and a bounded generated-diff attestation", async () => {
   const release = await workflow("release.yml");
+  const ci = await workflow("ci.yml");
   const review = await workflow("reviewrouter-codex.yml");
+  const reviewInteraction = await workflow("reviewrouter-interaction.yml");
   const reviewGate = await workflow("review-gate.yml");
   const reviewGateSource = await readFile(
     join(repositoryRoot, ".github", "workflows", "review-gate.yml"),
     "utf8",
   );
   const releaseJob = release.jobs.release;
+  const releaseBinding = releaseJob.steps.find(({ id }) => id === "release-pr");
   const reviewGateSteps = reviewGate.jobs["review-gate"].steps;
-  const attestation = release.jobs["attest-release-pr"].steps.find(
+  const attestationSteps = release.jobs["attest-release-pr"].steps;
+  const attestation = attestationSteps.find(
     ({ name }) => name === "Dispatch and attest release pull request checks",
   );
+  const attestationIndex = attestationSteps.indexOf(attestation);
+  const attestationPnpmSetupIndex = attestationSteps.findIndex(
+    ({ uses }) => uses?.startsWith("pnpm/action-setup@"),
+  );
+  const attestationNodeSetupIndex = attestationSteps.findIndex(
+    ({ uses }) => uses?.startsWith("actions/setup-node@"),
+  );
+  const attestationInstallIndex = attestationSteps.findIndex(
+    ({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts",
+  );
 
-  assert.match(releaseJob.outputs.pullRequestHeadSha, /release-pr/u);
-  assert.match(
-    releaseJob.steps.find(({ id }) => id === "release-pr").run,
-    /printf 'head_sha=%s\\n'/u,
+  assert.equal(releaseJob.outputs.pullRequestNumber, "${{ steps.release-pr.outputs.number }}");
+  assert.equal(releaseJob.outputs.pullRequestBaseSha, "${{ steps.release-pr.outputs.base_sha }}");
+  assert.equal(releaseJob.outputs.pullRequestHeadSha, "${{ steps.release-pr.outputs.head_sha }}");
+  assert.equal(releaseBinding.env.PROCESSED_MAIN_SHA, "${{ github.sha }}");
+  assert.match(releaseBinding.run, /deadline=\$\(\(SECONDS \+ 30\)\)/u);
+  assert.match(releaseBinding.run, /git ls-remote --refs origin/u);
+  assert.match(releaseBinding.run, /check-release-pr-freshness\.mjs/u);
+  assert.match(releaseBinding.run, /check-release-pr-files\.mjs/u);
+  assert.match(releaseBinding.run, /stable_branch_head_sha/u);
+  assert.match(releaseBinding.run, /stable_current_main_sha/u);
+  assert.ok(
+    releaseBinding.run.indexOf("check-release-pr-freshness.mjs") <
+      releaseBinding.run.indexOf("printf 'number=%s\\n'"),
+  );
+  assert.ok(
+    releaseBinding.run.indexOf("check-release-pr-files.mjs") <
+      releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
   assert.deepEqual(reviewGate.on.workflow_run.workflows, ["ReviewRouter Codex OAuth"]);
   assert.match(
@@ -54,17 +81,80 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   assert.match(reviewGateSteps[0].run, /\.context == "ReviewRouter"/u);
   assert.match(reviewGateSteps[0].run, /\.creator\.id == \$app_bot_id/u);
   assert.match(reviewGateSteps[0].run, /\.creator\.type == "Bot"/u);
+  assert.match(
+    reviewGateSteps[0].run,
+    /Published a failing ReviewGate on pull request/u,
+  );
+  assert.doesNotMatch(
+    reviewGateSteps[0].run,
+    /\[\[ "\$\{gate_state\}" == "success" \]\]/u,
+  );
   assert.equal(
     reviewGateSteps[0].env.REVIEWROUTER_APP_BOT_ID,
     "281702430",
   );
   assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
+  assert.ok(attestationPnpmSetupIndex > 0);
+  assert.ok(attestationNodeSetupIndex > attestationPnpmSetupIndex);
+  assert.ok(attestationInstallIndex > attestationNodeSetupIndex);
+  assert.ok(attestationIndex > attestationInstallIndex);
+  assert.equal(
+    attestationSteps[attestationPnpmSetupIndex].uses,
+    "pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9",
+  );
+  assert.equal(
+    attestationSteps[attestationNodeSetupIndex].uses,
+    "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+  );
+  assert.equal(
+    attestationSteps[attestationNodeSetupIndex].with["node-version-file"],
+    ".node-version",
+  );
+  const changesetCoverage = ci.jobs.check.steps.find(
+    ({ name }) => name === "Validate package Changeset coverage",
+  );
+  assert.equal(changesetCoverage.run, "pnpm changeset:coverage");
+  assert.match(changesetCoverage.if, /pull_request[\s\S]*changeset-release\/main/u);
   assert.match(
-    attestation.run,
-    /read -r state head_ref head_sha base_ref base_sha[\s\S]*\.base\.sha/u,
+    changesetCoverage.if,
+    /head\.repo\.full_name != github\.repository/u,
+  );
+  assert.equal(
+    changesetCoverage.env.FOUNDATION_CHANGESET_BASE_SHA,
+    "${{ github.event.pull_request.base.sha }}",
+  );
+  assert.equal(
+    attestation.env.EXPECTED_RELEASE_BASE_SHA,
+    "${{ needs.release.outputs.pullRequestBaseSha }}",
+  );
+  assert.equal(
+    attestation.env.EXPECTED_RELEASE_HEAD_SHA,
+    "${{ needs.release.outputs.pullRequestHeadSha }}",
+  );
+  assert.equal(attestation.env.PROCESSED_MAIN_SHA, "${{ github.sha }}");
+  assert.equal(
+    (attestation.run.match(/check-release-pr-freshness\.mjs/gu) ?? []).length,
+    2,
+  );
+  assert.equal(
+    (attestation.run.match(/git\/ref\/heads\/main/gu) ?? []).length,
+    2,
+  );
+  assert.match(attestation.run, /--arg expectedHeadSha "\$\{head_sha\}"/u);
+  assert.equal(
+    (attestation.run.match(/--arg expectedBaseSha/gu) ?? []).length,
+    2,
+  );
+  assert.equal(
+    (attestation.run.match(/--arg expectedPullRequestNumber/gu) ?? []).length,
+    2,
   );
   assert.match(attestation.run, /--base "\$\{base_sha\}" --head "\$\{head_sha\}"/u);
+  assert.ok(
+    attestation.run.lastIndexOf("check-release-pr-freshness.mjs") <
+      attestation.run.lastIndexOf('post_status "${release_gate_context}" success'),
+  );
   assert.match(attestation.run, /post_status "\$\{release_gate_context\}" success/u);
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-codex\.yml/u);
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-release\.yml/u);
@@ -78,6 +168,13 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   assert.equal(review.on.workflow_dispatch, undefined);
   assert.equal(review.jobs["codex-review"].with.workflow_schema_version, 2);
   assert.match(review.jobs["codex-review"].if, /user\.type != 'Bot'/u);
+  assert.deepEqual(reviewInteraction.jobs.interaction.permissions, {
+    actions: "write",
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+    "id-token": "write",
+  });
 });
 
 test("release publishing requires real Buf and hermetic registry qualification", async () => {

@@ -41,6 +41,11 @@ contract-evolution, suppression, public API, and repository-security checks are
 adopted independently with consumer-owned policy and qualification evidence.
 Installing or upgrading this package never enables them automatically.
 
+`quality.executable-specifications` optionally validates a consumer-owned JSON
+catalog connecting schemas, documents, generated types, ownership evidence, and
+independent consumer gate scripts. It never runs those scripts or imports
+consumer state models.
+
 Repositories may also declare `repository.agent-workflow` and expose
 `agent-teams-foundation agent-workflow changed`. Foundation then discovers the
 current Git delta and invokes the consumer's configured pnpm scripts. This local

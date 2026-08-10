@@ -9,20 +9,22 @@ not repeat their rules.
 | Subject | Document | State |
 | --- | --- | --- |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
-| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Nine implemented; five already released; consumer activation is explicit |
+| Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Implemented and released; consumer activation is explicit |
 | Documentation integrity | [Executable capabilities](architecture/executable-capabilities.md#documentation-governance) | Accepted and implemented |
 | Contract evolution | [Executable capabilities](architecture/executable-capabilities.md#contract-evolution) | Accepted and implemented |
 | Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Accepted and implemented |
+| Executable specifications | [Executable specifications](reference/executable-specifications.md) | Accepted and implemented; activation is explicit |
 | Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; consumer mutation gate required |
 | Repository security | [Repository security baseline](security/repository-security-baseline.md) | Accepted and implemented for publishing repositories |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
-| Scaffolding compiler | [Scaffolding compiler protocol](architecture/scaffolding-compiler-protocol.md) | Kernel and testing-only vertical implemented; product recipes and Nx deferred |
+| Scaffolding compiler | [Scaffolding compiler protocol](architecture/scaffolding-compiler-protocol.md) | Kernel and generic Node TypeScript library recipe implemented; Nx deferred |
+| Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
 | Portable agent workflow | [Agent workflow](reference/repository-agent-workflow.md) | Implemented and dogfooded; activation is explicit |
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
-| Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Research complete; policy not active |
+| Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Implemented and dogfooded; consumer adoption remains opt-in |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |
 | Package release | [Release](release.md) | Active |

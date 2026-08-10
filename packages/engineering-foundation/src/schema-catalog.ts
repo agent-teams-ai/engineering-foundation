@@ -36,7 +36,7 @@ function schemaPath(schemaId: FoundationSchemaCatalogId): string {
 }
 
 function schemaSource(schemaId: FoundationSchemaCatalogId): string {
-  return schemaId === "scaffold-intent/v1" ? "scaffold-intent" : schemaId;
+  return schemaId;
 }
 
 export async function readFoundationSchema(
@@ -57,8 +57,8 @@ function safeValidationMessage(errors: readonly ErrorObject[] | null | undefined
 }
 
 async function loadSchema(schemaId: FoundationSchemaCatalogId): Promise<string> {
-  if (schemaId === "scaffold-recovery-journal") {
-    await registerSchema("scaffold-plan");
+  if (schemaId === "scaffold-recovery-journal/v1") {
+    await registerSchema("scaffold-plan/v1");
   }
   const schema = JSON.parse(await readFile(schemaPath(schemaId), "utf8")) as {
     readonly $id?: unknown;

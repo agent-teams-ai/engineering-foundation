@@ -1,8 +1,9 @@
 ---
 id: ADR-0006
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by:
+  - ADR-0017
 ---
 
 # ADR-0006: Closed Deterministic Scaffolding Compiler

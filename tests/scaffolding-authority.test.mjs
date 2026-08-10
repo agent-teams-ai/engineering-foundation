@@ -191,7 +191,7 @@ test("compiles deterministic authority evidence and preserves LF/CRLF authority 
   try {
     const first = await plan(root);
     const second = await plan(root);
-    assert.equal(first.schemaVersion, 2);
+    assert.equal(first.schemaVersion, 1);
     assert.deepEqual(first, second);
     assert.equal(first.readSet.length, 3);
     assert.equal(first.authorityEvidence.sources.length, 3);
@@ -364,7 +364,7 @@ test("rejects unknown authority verifier/version and schema extensions", async (
     evidence.extension = true;
     await assert.rejects(
       assertSchema(
-        "scaffold-authority-evidence",
+        "scaffold-authority-evidence/v1",
         evidence,
         "scaffold-authority-evidence"
       ),
@@ -406,7 +406,7 @@ test("preserves outputs and journal after revocation at first, middle, and final
           await assertMissing(outputPath);
         }
       }
-      assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+      assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -448,7 +448,7 @@ test("preserves preexisting and newly published postimages after authority becom
       await readFile(join(root, ...published.path.split("/"))),
       Buffer.from(published.after.contentBase64, "base64")
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -476,7 +476,7 @@ test("retains third-party state and journal when authority becomes stale", async
     );
     assert.equal(receipt.outcome, "recovery-required");
     assert.equal(receipt.commit.state, "recovery-required");
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
     assert.equal(await readFile(firstPath, "utf8"), "user-owned third state\n");
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -508,7 +508,7 @@ test("restart recovery preserves persisted outputs when authority was revoked", 
       await readFile(join(root, ...first.path.split("/"))),
       Buffer.from(first.after.contentBase64, "base64")
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -578,7 +578,7 @@ test("unverifiable authority preserves persisted outputs and journal", async () 
       await readFile(join(root, ...first.path.split("/"))),
       Buffer.from(first.after.contentBase64, "base64")
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -618,7 +618,7 @@ test("never deletes an exact third-party replacement after publication", async (
       await readFile(destination),
       Buffer.from(first.after.contentBase64, "base64")
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -734,7 +734,7 @@ test("fails safely after process death at every source-bound publication boundar
           scenario.phase
         );
       } else {
-        assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 2/u);
+        assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
       }
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -746,7 +746,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
   const root = await createConsumer();
   try {
     const scaffoldPlan = await plan(root);
-    await assertSchema("scaffold-plan", scaffoldPlan, "scaffold-plan-authority");
+    await assertSchema("scaffold-plan/v1", scaffoldPlan, "scaffold-plan-authority");
     const applied = await applyFilesystemScaffold(root, scaffoldPlan);
     const replayed = await applyFilesystemScaffold(root, scaffoldPlan);
     assert.equal(applied.outcome, "applied");
@@ -777,7 +777,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
     const oversizedReadSet = structuredClone(scaffoldPlan);
     oversizedReadSet.readSet.push(structuredClone(oversizedReadSet.readSet[0]));
     await assert.rejects(
-      assertSchema("scaffold-plan", oversizedReadSet, "scaffold-plan-authority"),
+      assertSchema("scaffold-plan/v1", oversizedReadSet, "scaffold-plan-authority"),
       /must NOT have more than 3 items/u
     );
 
@@ -789,7 +789,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
       structuredClone(configValue.compositions[0].authorityVerifiers[0])
     );
     await assert.rejects(
-      assertSchema("scaffolding-config", configValue, "scaffolding-config-authority"),
+      assertSchema("scaffolding-config/v1", configValue, "scaffolding-config-authority"),
       /must NOT have more than 1 items/u
     );
 
@@ -799,7 +799,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
     await assert.rejects(validateScaffoldReceipt(memoryReceipt, scaffoldPlan));
 
     const forgedJournal = {
-      schemaVersion: 2,
+      schemaVersion: 1,
       state: "PREPARED",
       plan: structuredClone(scaffoldPlan),
       operations: scaffoldPlan.operations.map((operation) => ({
@@ -811,7 +811,7 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
     forgedJournal.plan.compiler.extension = true;
     await assert.rejects(
       assertSchema(
-        "scaffold-recovery-journal",
+        "scaffold-recovery-journal/v1",
         forgedJournal,
         "scaffold-recovery-journal-authority"
       ),

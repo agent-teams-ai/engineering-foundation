@@ -142,8 +142,13 @@ function mapBoundary(
       `boundaries[${index}].entrypoints`
     ).map(normalizeRepositoryPath)
   );
+  const dependencyMode = boundary["dependencyMode"] ?? "runtime";
+  if (dependencyMode !== "runtime" && dependencyMode !== "development") {
+    inputError(`boundaries[${index}].dependencyMode is invalid.`);
+  }
   return Object.freeze({
     id: string(boundary["id"], `boundaries[${index}].id`),
+    dependencyMode,
     roots: Object.freeze(
       sortedStrings(boundary["roots"], `boundaries[${index}].roots`).map(
         normalizeRepositoryPath

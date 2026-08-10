@@ -1,10 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.agent-teams.ai/engineering-foundation/contract-protobuf-evolution/v1",
-  "title": "Protobuf contract evolution release evidence",
+  "title": "Protobuf contract evolution with qualified Buf FILE evidence",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "releasedBaselinePath", "approvedBreakingChanges", "current"],
+  "required": [
+    "schemaVersion",
+    "releasedBaselinePath",
+    "approvedBreakingChanges",
+    "qualification",
+    "current"
+  ],
   "properties": {
     "schemaVersion": { "const": 1 },
     "releasedBaselinePath": { "$ref": "#/$defs/releasedBaselinePath" },
@@ -15,6 +21,7 @@
       "maxItems": 100,
       "items": { "$ref": "#/$defs/breakingApproval" }
     },
+    "qualification": { "$ref": "#/$defs/qualification" },
     "current": { "$ref": "#/$defs/current" }
   },
   "$defs": {
@@ -25,6 +32,12 @@
     "contractId": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9.-]{1,119}$"
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+$"
     },
     "releasedBaselinePath": {
       "type": "string",
@@ -59,6 +72,37 @@
         "version": { "type": "string", "minLength": 1, "maxLength": 240 }
       }
     },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modulePath",
+        "bufConfigPath",
+        "releasedDescriptorImagePath",
+        "evidencePath"
+      ],
+      "properties": {
+        "modulePath": { "$ref": "#/$defs/repositoryPath" },
+        "bufConfigPath": {
+          "allOf": [
+            { "$ref": "#/$defs/repositoryPath" },
+            { "type": "string", "pattern": "\\.ya?ml$" }
+          ]
+        },
+        "releasedDescriptorImagePath": {
+          "allOf": [
+            { "$ref": "#/$defs/repositoryPath" },
+            { "type": "string", "pattern": "^architecture/contracts/.+\\.binpb$" }
+          ]
+        },
+        "evidencePath": {
+          "allOf": [
+            { "$ref": "#/$defs/repositoryPath" },
+            { "type": "string", "pattern": "^architecture/evidence/protobuf/.+\\.json$" }
+          ]
+        }
+      }
+    },
     "current": {
       "type": "object",
       "additionalProperties": false,
@@ -69,10 +113,8 @@
         "bufVersion",
         "bufConfigDigest",
         "descriptorImageDigest",
-        "releasedDescriptorImageDigest",
         "generatorVersions",
-        "generationDrift",
-        "breaking"
+        "generationDrift"
       ],
       "properties": {
         "schemaVersion": { "const": 1 },
@@ -81,7 +123,6 @@
         "bufVersion": { "type": "string", "minLength": 1, "maxLength": 80 },
         "bufConfigDigest": { "$ref": "#/$defs/digest" },
         "descriptorImageDigest": { "$ref": "#/$defs/digest" },
-        "releasedDescriptorImageDigest": { "$ref": "#/$defs/digest" },
         "generatorVersions": {
           "type": "array",
           "maxItems": 100,
@@ -94,15 +135,6 @@
           "properties": {
             "expectedGeneratedOutputDigest": { "$ref": "#/$defs/digest" },
             "observedGeneratedOutputDigest": { "$ref": "#/$defs/digest" }
-          }
-        },
-        "breaking": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["status"],
-          "properties": {
-            "status": { "enum": ["compatible", "breaking", "not-run"] },
-            "fingerprint": { "$ref": "#/$defs/digest" }
           }
         }
       }

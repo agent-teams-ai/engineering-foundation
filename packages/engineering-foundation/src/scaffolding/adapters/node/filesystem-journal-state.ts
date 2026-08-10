@@ -114,7 +114,7 @@ export function createRecoveryRequiredReceipt(options: {
 
 export function freshAuthorityScaffoldJournal(plan: AuthorityScaffoldPlan): AuthorityScaffoldJournal {
   return Object.freeze({
-    schemaVersion: 2,
+    schemaVersion: 1,
     state: "PREPARED",
     plan,
     operations: Object.freeze(

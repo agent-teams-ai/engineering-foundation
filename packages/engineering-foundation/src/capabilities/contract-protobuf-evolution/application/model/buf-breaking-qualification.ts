@@ -11,8 +11,8 @@ import type {
 
 export const BUF_QUALIFICATION_PRODUCER_ID =
   "agent-teams-foundation.buf-breaking-qualification" as const;
-export const BUF_QUALIFICATION_PRODUCER_VERSION = 2 as const;
-export const BUF_QUALIFICATION_SCHEMA_VERSION = 2 as const;
+export const BUF_QUALIFICATION_PRODUCER_VERSION = 1 as const;
+export const BUF_QUALIFICATION_SCHEMA_VERSION = 1 as const;
 export const BUF_BREAKING_POLICY = "FILE" as const;
 export const BUF_FILE_BREAKING_CONFIG_SOURCE =
   '{"version":"v2","modules":[{"path":"."}],"breaking":{"use":["FILE"]}}' as const;

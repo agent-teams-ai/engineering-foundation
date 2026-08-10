@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agent-teams.ai/schemas/scaffold-target-catalog/v1",
-  "title": "Scaffold Target Catalog v1",
+  "title": "Scaffold Target Catalog",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "packages"],
@@ -20,6 +20,12 @@
       "maxLength": 160,
       "pattern": "^[a-z0-9][a-z0-9._/-]*$"
     },
+    "ownerDocumentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
     "repositoryPath": {
       "type": "string",
       "minLength": 1,
@@ -29,7 +35,7 @@
     "target": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "role", "path", "package_name"],
+      "required": ["id", "role", "path", "package_name", "owner_document"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "role": { "$ref": "#/$defs/id" },
@@ -40,12 +46,7 @@
           "maxLength": 214,
           "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
         },
-        "owner_document": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 512,
-          "pattern": "^[^\\u0000-\\u001F]+$"
-        }
+        "owner_document": { "$ref": "#/$defs/ownerDocumentId" }
       }
     }
   }

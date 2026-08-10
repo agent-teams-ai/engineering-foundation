@@ -81,6 +81,26 @@
       "id": "ADR-0016",
       "path": "docs/decisions/0016-hardened-buf-qualification-boundary.md",
       "immutableDigest": "sha256:b77bdd35443e8510785c8ce546007528683e8fa45bd1d635790e83ab87a2070b"
+    },
+    {
+      "id": "ADR-0017",
+      "path": "docs/decisions/0017-staged-scaffolding-recipe-qualification.md",
+      "immutableDigest": "sha256:68745192b8c07fdda0c544b36e7855062bc970ccd3cccdb958a3bff8acbb2ad6"
+    },
+    {
+      "id": "ADR-0018",
+      "path": "docs/decisions/0018-retire-conflicting-recipe-qualification-prerequisite.md",
+      "immutableDigest": "sha256:37ec60cd393faebe215a10d55ca680b34db42b945e0710c931ccda434c7538cd"
+    },
+    {
+      "id": "ADR-0019",
+      "path": "docs/decisions/0019-single-current-foundation-contract-version.md",
+      "immutableDigest": "sha256:56d70b836a093aa4b7719dbb065c48160530b1460f397cc28744ffb7419c858b"
+    },
+    {
+      "id": "ADR-0020",
+      "path": "docs/decisions/0020-static-executable-specification-connectivity.md",
+      "immutableDigest": "sha256:559496da2e54429363227e708eec7a625c9b3ed94a95d3589470505bb5f8dcb3"
     }
   ]
 }

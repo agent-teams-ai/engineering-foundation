@@ -32,7 +32,7 @@ export interface ScaffoldComposition {
 }
 
 export interface ScaffoldingConfig {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 1;
   readonly projectId: string;
   readonly targetCatalogPath: RepositoryPath;
   readonly compositions: readonly ScaffoldComposition[];
@@ -60,7 +60,7 @@ export interface ScaffoldTarget {
 }
 
 export interface ScaffoldTargetCatalog {
-  readonly version: 2;
+  readonly version: 1;
   readonly packages: readonly ScaffoldTargetCatalogEntry[];
 }
 
@@ -148,8 +148,8 @@ export interface MaterializeFileOperation {
 }
 
 export interface ScaffoldPlan {
-  readonly schemaVersion: 2;
-  readonly protocolVersion: 2;
+  readonly schemaVersion: 1;
+  readonly protocolVersion: 1;
   readonly compiler: {
     readonly id: "@agent-teams/engineering-foundation";
     readonly version: string;
@@ -230,8 +230,8 @@ export type ScaffoldReceiptOutcome =
   | "rejected";
 
 export interface ScaffoldReceiptCommon {
-  readonly schemaVersion: 2;
-  readonly protocolVersion: 2;
+  readonly schemaVersion: 1;
+  readonly protocolVersion: 1;
   readonly planDigest: Sha256Digest;
   readonly adapter: {
     readonly id: "foundation.filesystem/v1";
@@ -372,7 +372,7 @@ export interface ScaffoldJournalOperation {
 }
 
 export interface ScaffoldJournal {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 1;
   readonly state: "PREPARED";
   readonly plan: ScaffoldPlan;
   readonly operations: readonly ScaffoldJournalOperation[];
@@ -384,7 +384,7 @@ export interface ScaffoldCompilationInput {
   readonly config: ScaffoldingConfig;
   readonly intent: ScaffoldIntent;
   readonly catalog: {
-    readonly version: 2;
+    readonly version: 1;
     readonly packages: readonly ScaffoldTarget[];
   };
   readonly authorityEvidence: ScaffoldAuthorityEvidence;

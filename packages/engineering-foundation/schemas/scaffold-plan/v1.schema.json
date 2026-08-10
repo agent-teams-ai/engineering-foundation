@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agent-teams.ai/schemas/scaffold-plan/v1",
-  "title": "Scaffold Plan v1",
+  "title": "Scaffold Plan",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "protocolVersion", "compiler", "projectId", "authority", "intent", "intentDigest", "authoritySnapshotDigest", "composition", "definitions", "resolved", "target", "readSet", "requiredAdapterCapabilities", "operations", "diagnostics", "planDigest"],
+  "required": ["schemaVersion", "protocolVersion", "compiler", "projectId", "authority", "authorityEvidence", "intent", "intentDigest", "authoritySnapshotDigest", "composition", "definitions", "resolved", "target", "readSet", "requiredAdapterCapabilities", "operations", "diagnostics", "planDigest"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "protocolVersion": { "const": 1 },
@@ -27,6 +27,7 @@
         "targetCatalogPath": { "$ref": "#/$defs/repositoryPath" }
       }
     },
+    "authorityEvidence": { "$ref": "#/$defs/authorityEvidence" },
     "intent": { "$ref": "#/$defs/intent" },
     "intentDigest": { "$ref": "#/$defs/digest" },
     "authoritySnapshotDigest": { "$ref": "#/$defs/digest" },
@@ -77,7 +78,7 @@
       }
     },
     "target": { "$ref": "#/$defs/target" },
-    "readSet": { "type": "array", "minItems": 1, "maxItems": 128, "items": { "$ref": "#/$defs/readAssertion" } },
+    "readSet": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "#/$defs/readAssertion" } },
     "requiredAdapterCapabilities": {
       "type": "array",
       "prefixItems": [{ "const": "materialize-file/v1" }],
@@ -95,6 +96,12 @@
       "maxLength": 160,
       "pattern": "^[a-z0-9][a-z0-9._/-]*$"
     },
+    "ownerDocumentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
     "artifactId": {
       "type": "string",
       "minLength": 1,
@@ -102,6 +109,74 @@
       "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$"
     },
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "authorityEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "verifier", "projectId", "targetRef", "targetIdentityDigest", "ownerDocument", "sources", "evidenceDigest"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "verifier": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "contractVersion"],
+          "properties": {
+            "id": { "const": "foundation.markdown-yaml-owner" },
+            "contractVersion": { "const": 1 }
+          }
+        },
+        "projectId": { "$ref": "#/$defs/authorityId" },
+        "targetRef": { "$ref": "#/$defs/authorityId" },
+        "targetIdentityDigest": { "$ref": "#/$defs/digest" },
+        "ownerDocument": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "path", "status"],
+          "properties": {
+            "id": { "$ref": "#/$defs/ownerDocumentId" },
+            "path": { "$ref": "#/$defs/repositoryPath" },
+            "status": { "$ref": "#/$defs/authorityId" }
+          }
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            { "$ref": "#/$defs/configAuthoritySourceAssertion" },
+            { "$ref": "#/$defs/ownerAuthoritySourceAssertion" },
+            { "$ref": "#/$defs/catalogAuthoritySourceAssertion" }
+          ]
+        },
+        "evidenceDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "authoritySourceAssertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "assertion"],
+      "properties": {
+        "role": { "enum": ["config", "target-catalog", "owner-document"] },
+        "assertion": { "$ref": "#/$defs/readAssertion" }
+      }
+    },
+    "configAuthoritySourceAssertion": {
+      "allOf": [
+        { "$ref": "#/$defs/authoritySourceAssertion" },
+        { "type": "object", "properties": { "role": { "const": "config" } }, "required": ["role"] }
+      ]
+    },
+    "ownerAuthoritySourceAssertion": {
+      "allOf": [
+        { "$ref": "#/$defs/authoritySourceAssertion" },
+        { "type": "object", "properties": { "role": { "const": "owner-document" } }, "required": ["role"] }
+      ]
+    },
+    "catalogAuthoritySourceAssertion": {
+      "allOf": [
+        { "$ref": "#/$defs/authoritySourceAssertion" },
+        { "type": "object", "properties": { "role": { "const": "target-catalog" } }, "required": ["role"] }
+      ]
+    },
     "repositoryPath": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$" },
     "definitionRef": {
       "type": "object",
@@ -174,7 +249,7 @@
     "target": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "role", "path", "packageName"],
+      "required": ["id", "role", "path", "packageName", "ownerDocument"],
       "properties": {
         "id": { "$ref": "#/$defs/authorityId" },
         "role": { "$ref": "#/$defs/authorityId" },
@@ -186,10 +261,13 @@
           "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
         },
         "ownerDocument": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 512,
-          "pattern": "^[^\\u0000-\\u001F]+$"
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "path"],
+          "properties": {
+            "id": { "$ref": "#/$defs/ownerDocumentId" },
+            "path": { "$ref": "#/$defs/repositoryPath" }
+          }
         }
       }
     },

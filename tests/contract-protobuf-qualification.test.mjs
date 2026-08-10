@@ -79,7 +79,7 @@ function configuration() {
       generatedOutputDigest: sha256("generated"),
     },
     current: {
-      schemaVersion: 2,
+      schemaVersion: 1,
       contractId: "agent-runtime-control",
       publicContractVersion: "1.2.0",
       bufVersion: "1.72.0",
@@ -105,9 +105,9 @@ function finalizeEvidence(evidenceWithoutDigest) {
 
 function qualifiedEvidence(config) {
   const evidenceWithoutDigest = {
-    schemaVersion: 2,
+    schemaVersion: 1,
     producerId: "agent-teams-foundation.buf-breaking-qualification",
-    producerVersion: 2,
+    producerVersion: 1,
     policy: "FILE",
     contractId: config.current.contractId,
     bufVersion: config.current.bufVersion,

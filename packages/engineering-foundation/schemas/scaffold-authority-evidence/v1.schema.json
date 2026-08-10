@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/scaffold-authority-evidence/v1",
+  "title": "Scaffold Authority Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "verifier", "projectId", "targetRef", "targetIdentityDigest", "ownerDocument", "sources", "evidenceDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "const": "foundation.markdown-yaml-owner" },
+        "contractVersion": { "const": 1 }
+      }
+    },
+    "projectId": { "$ref": "#/$defs/id" },
+    "targetRef": { "$ref": "#/$defs/id" },
+    "targetIdentityDigest": { "$ref": "#/$defs/digest" },
+    "ownerDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "status"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ownerDocumentId" },
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "status": { "$ref": "#/$defs/id" }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        { "$ref": "#/$defs/configSourceAssertion" },
+        { "$ref": "#/$defs/ownerSourceAssertion" },
+        { "$ref": "#/$defs/catalogSourceAssertion" }
+      ]
+    },
+    "evidenceDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[a-z0-9][a-z0-9._/-]*$"
+    },
+    "ownerDocumentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$"
+    },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "readAssertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "state", "digest", "size"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "state": { "const": "file" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 0, "maximum": 1048576 }
+      }
+    },
+    "sourceAssertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "assertion"],
+      "properties": {
+        "role": { "enum": ["config", "target-catalog", "owner-document"] },
+        "assertion": { "$ref": "#/$defs/readAssertion" }
+      }
+    },
+    "configSourceAssertion": {
+      "allOf": [
+        { "$ref": "#/$defs/sourceAssertion" },
+        { "type": "object", "properties": { "role": { "const": "config" } }, "required": ["role"] }
+      ]
+    },
+    "ownerSourceAssertion": {
+      "allOf": [
+        { "$ref": "#/$defs/sourceAssertion" },
+        { "type": "object", "properties": { "role": { "const": "owner-document" } }, "required": ["role"] }
+      ]
+    },
+    "catalogSourceAssertion": {
+      "allOf": [
+        { "$ref": "#/$defs/sourceAssertion" },
+        { "type": "object", "properties": { "role": { "const": "target-catalog" } }, "required": ["role"] }
+      ]
+    }
+  }
+}

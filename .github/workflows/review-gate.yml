@@ -65,4 +65,7 @@ jobs:
             -f context="ReviewGate" \
             -f description="${gate_description}" \
             -f target_url="${run_url}" >/dev/null
-          [[ "${gate_state}" == "success" ]]
+          if [[ "${gate_state}" != "success" ]]; then
+            echo "Published a failing ReviewGate on pull request #${pr_number}; the pull request head remains blocked."
+          fi
+          exit 0

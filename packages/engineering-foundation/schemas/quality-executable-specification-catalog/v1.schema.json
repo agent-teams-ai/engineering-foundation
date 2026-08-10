@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/quality-executable-specification-catalog/v1",
+  "title": "Executable specification catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "specifications"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "specifications": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/specification" }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9.-]{1,119}$"
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+$"
+    },
+    "schemaPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\u0000]+\\.json$"
+    },
+    "packageName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 214,
+      "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+    },
+    "scriptName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[a-zA-Z0-9:_-]+$"
+    },
+    "gateBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageName", "script"],
+      "properties": {
+        "packageName": { "$ref": "#/$defs/packageName" },
+        "script": { "$ref": "#/$defs/scriptName" }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "schemaId"],
+      "properties": {
+        "path": { "$ref": "#/$defs/schemaPath" },
+        "schemaId": { "type": "string", "minLength": 1, "maxLength": 500 }
+      }
+    },
+    "generatedType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaId", "outputPath"],
+      "properties": {
+        "schemaId": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "outputPath": { "$ref": "#/$defs/repositoryPath" }
+      }
+    },
+    "stateModelNone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": { "kind": { "const": "none" } }
+    },
+    "stateModelXstate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "axes",
+        "modelPath",
+        "adapterPath",
+        "tracesPath",
+        "diagramPath",
+        "gateBinding"
+      ],
+      "properties": {
+        "kind": { "const": "xstate" },
+        "axes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "modelPath": { "$ref": "#/$defs/repositoryPath" },
+        "adapterPath": { "$ref": "#/$defs/repositoryPath" },
+        "tracesPath": { "$ref": "#/$defs/repositoryPath" },
+        "diagramPath": { "$ref": "#/$defs/repositoryPath" },
+        "gateBinding": { "$ref": "#/$defs/gateBinding" }
+      }
+    },
+    "specification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ownerDocs",
+        "adrRefs",
+        "schemaPaths",
+        "documents",
+        "generatedTypes",
+        "gateBindings",
+        "stateModel"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "ownerDocs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/repositoryPath" }
+        },
+        "adrRefs": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/repositoryPath" }
+        },
+        "schemaPaths": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/schemaPath" }
+        },
+        "documents": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/document" }
+        },
+        "generatedTypes": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/generatedType" }
+        },
+        "gateBindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["property", "mutation"],
+          "properties": {
+            "typeGeneration": { "$ref": "#/$defs/gateBinding" },
+            "property": { "$ref": "#/$defs/gateBinding" },
+            "mutation": { "$ref": "#/$defs/gateBinding" }
+          }
+        },
+        "stateModel": {
+          "oneOf": [
+            { "$ref": "#/$defs/stateModelNone" },
+            { "$ref": "#/$defs/stateModelXstate" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "generatedTypes": { "type": "array", "minItems": 1 }
+            }
+          },
+          "then": {
+            "properties": {
+              "gateBindings": {
+                "type": "object",
+                "properties": {
+                  "typeGeneration": { "$ref": "#/$defs/gateBinding" }
+                },
+                "required": ["typeGeneration"]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "gateBindings": {
+                "type": "object",
+                "properties": { "typeGeneration": false }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

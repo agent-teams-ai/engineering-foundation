@@ -34,7 +34,7 @@ These terms describe different facts and must not be used interchangeably:
 | `workspace.dependency-declarations` | Yes | Yes | Yes | Only by explicit declaration |
 | `architecture.source-dependencies` | Yes | Yes | Yes | Only by explicit declaration |
 | `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
-| `quality.executable-specifications` | Yes | No, pending the next minor release | No donor catalog owned here | Only by explicit declaration after consumer qualification |
+| `quality.executable-specifications` | Yes | Yes, since 0.10.0 | No donor catalog owned here | Only by explicit declaration after consumer qualification |
 | `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
 | `documentation.local-references` | Yes | Yes | Yes | Only by explicit declaration |
@@ -164,19 +164,23 @@ adapters, schema, rules, and fixtures.
 `quality.executable-specifications` validates a consumer-owned JSON catalog that
 connects domain schemas and documents, optional generated types, owner
 documents, ADRs, and distinct property and mutation gate bindings. A
-type-generation gate is required exactly when generated types are declared. Optional
-XState topology requires at least two axes plus model, adapter, trace, diagram,
-and a distinct spec-model gate. It reuses the contract JSON Schema capability's
-strict Draft 2020-12 local-only Ajv inspection.
+type-generation gate is required exactly when generated types are declared. The
+optional v1 state-model evidence profile is deliberately XState-shaped: it
+requires at least two axes plus model, adapter, trace, diagram, and a distinct
+spec-model gate. It reuses the contract JSON Schema capability's strict Draft
+2020-12 local-only Ajv inspection.
 
 All catalog and selected workspace-manifest paths use the capability's
 conservative portable ASCII segment contract and one cross-role identity map.
 Aliases and platform-invalid paths fail before consumer artifact reads.
 
 Foundation performs no process execution, imports no consumer model, has no
-XState dependency, and makes no claim that a bound gate passed. Domain facts,
-evaluators, properties, mutation setup, state models, and execution evidence
-remain consumer-owned. See the
+XState dependency, and owns no XState runtime or domain semantics. It makes no
+claim that a bound gate passed. Domain facts, evaluators, properties, mutation
+setup, state models, and execution evidence remain consumer-owned. Supporting a
+different state-model formalism requires a versioned contract extension with
+its own qualified evidence profile; v1 does not pretend that its XState-shaped
+profile is generic. See the
 [reference contract](../reference/executable-specifications.md).
 
 ### Documentation governance

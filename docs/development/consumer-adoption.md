@@ -81,6 +81,15 @@ may add `repository.security-baseline` with consumer-owned paths, privileged
 jobs, release evidence, and a separate real-tarball E2E gate. Non-publishing
 repositories do not fabricate package evidence.
 
+Adopt `quality.executable-specifications` only after a real donor specification
+exists. The consumer catalog binds its own schemas, documents, ownership
+evidence, and independent package scripts. Generated types and their generation
+gate are declared together only when the consumer produces them. Required CI
+executes the declared property, mutation, optional type-generation, and optional
+state-model gates; Foundation only checks their static connectivity and must not
+be used as evidence that those scripts succeeded. See the
+[executable specification reference](../reference/executable-specifications.md).
+
 ## Current contract version policy
 
 Foundation-owned configuration, evidence and protocol contracts currently have
@@ -140,6 +149,18 @@ Use `type-aware.json` in the complete lint gate and keep TypeScript as a separat
 typecheck. The source dependency capability configuration remains consumer-owned:
 it declares opaque boundary IDs and allowed edges while package manifests remain
 authoritative for package identities, dependencies, and exports.
+
+Source boundaries default to `dependencyMode: runtime`. A boundary containing
+only test, specification, generator, or other development tooling may declare
+`dependencyMode: development`; this admits runtime imports from that package's
+declared `devDependencies` without weakening the boundary package allowlist.
+Never classify production runtime source as development to hide a dependency
+placement violation.
+Keep development boundaries in dedicated workspace packages when runtime source
+imports the package by name. Source-dependencies v1 deliberately blocks runtime
+and type-only imports into a mixed-mode package because it cannot prove which
+boundary owns an exported subpath; development boundaries may still import it
+when manifest declarations and allowlists permit the edge.
 
 ## Deterministic scaffolding
 

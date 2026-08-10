@@ -34,6 +34,7 @@ These terms describe different facts and must not be used interchangeably:
 | `workspace.dependency-declarations` | Yes | Yes | Yes | Only by explicit declaration |
 | `architecture.source-dependencies` | Yes | Yes | Yes | Only by explicit declaration |
 | `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
+| `quality.executable-specifications` | Yes | No, pending the next minor release | No donor catalog owned here | Only by explicit declaration after consumer qualification |
 | `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
 | `documentation.local-references` | Yes | Yes | Yes | Only by explicit declaration |
@@ -119,6 +120,23 @@ The second implementation validates observed source relationships:
 - boundary and package cycles are checked separately for runtime and type-only
   edges over one normalized immutable observed graph.
 
+Each boundary may explicitly set `dependencyMode: development` when the entire
+boundary is consumer-owned tooling or test/specification source. Omitted or
+`runtime` mode preserves the fail-closed default. A development boundary may
+runtime-import an allowlisted package declared in the importing workspace
+package's `devDependencies`; undeclared and non-allowlisted packages remain
+violations, while allowlisted production dependencies remain valid.
+Runtime boundaries may never import a development boundary, even through an
+otherwise allowed edge. This prevents a runtime boundary from reaching
+development dependencies through a wrapper or a longer boundary chain.
+Package-name imports are fenced conservatively: when any observed source in a
+target workspace package belongs to a development boundary, runtime boundaries
+cannot import that package, including through type-only imports. The v1 graph
+does not claim exact export-to-boundary ownership, so mixed runtime/development
+packages must split development source into a separate package or keep imports
+inside development boundaries. A future contract may add explicit, validated
+export-to-boundary mapping rather than infer subpath ownership.
+
 The source scanner, resolver, source-tree reader, and workspace inventory sit
 behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parser
 adapter after comparison with a TypeScript 6 oracle. Parser-native types never
@@ -140,6 +158,26 @@ consumer checks. They cannot be added to either dependency capability.
 
 Each remains an independent feature slice with its own model, ports, policies,
 adapters, schema, rules, and fixtures.
+
+### Executable specifications
+
+`quality.executable-specifications` validates a consumer-owned JSON catalog that
+connects domain schemas and documents, optional generated types, owner
+documents, ADRs, and distinct property and mutation gate bindings. A
+type-generation gate is required exactly when generated types are declared. Optional
+XState topology requires at least two axes plus model, adapter, trace, diagram,
+and a distinct spec-model gate. It reuses the contract JSON Schema capability's
+strict Draft 2020-12 local-only Ajv inspection.
+
+All catalog and selected workspace-manifest paths use the capability's
+conservative portable ASCII segment contract and one cross-role identity map.
+Aliases and platform-invalid paths fail before consumer artifact reads.
+
+Foundation performs no process execution, imports no consumer model, has no
+XState dependency, and makes no claim that a bound gate passed. Domain facts,
+evaluators, properties, mutation setup, state models, and execution evidence
+remain consumer-owned. See the
+[reference contract](../reference/executable-specifications.md).
 
 ### Documentation governance
 

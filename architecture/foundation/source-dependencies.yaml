@@ -55,6 +55,7 @@ boundaries:
         - capability.contract-json-schema.composition
         - capability.contract-protobuf.composition
         - capability.documentation-local-references.composition
+        - capability.executable-specifications.composition
         - capability.public-api-compatibility.composition
         - capability.repository-agent-workflow.composition
         - capability.repository-security.composition
@@ -174,11 +175,13 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/filesystem-path-safety.ts
       - packages/engineering-foundation/src/strict-yaml.ts
+      - packages/engineering-foundation/src/strict-json.ts
     allow:
       boundaries:
         - foundation.cancellation
         - foundation.core
       packages:
+        - jsonc-parser
         - yaml
       builtins:
         - node:fs
@@ -188,6 +191,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/filesystem-path-safety.ts
       - packages/engineering-foundation/src/strict-yaml.ts
+      - packages/engineering-foundation/src/strict-json.ts
   - id: foundation.schema-validation
     roots:
       - packages/engineering-foundation/src/schema-catalog.ts
@@ -888,6 +892,71 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/module.ts
+  - id: capability.executable-specifications.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application
+    allow:
+      boundaries:
+        - capability.contract-json-schema.application
+        - foundation.core
+        - foundation.repository-input
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application/model/executable-specification.ts
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application/policies/evaluate-executable-specifications.ts
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application/policies/portable-executable-specification-path.ts
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application/ports/executable-specification-inspector.ts
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application/use-cases/analyze-executable-specifications.ts
+  - id: capability.executable-specifications.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/contract
+    allow:
+      boundaries:
+        - capability.executable-specifications.application
+        - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
+      packages: []
+      builtins:
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/contract/config.ts
+  - id: capability.executable-specifications.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/adapters
+    allow:
+      boundaries:
+        - capability.contract-json-schema.adapters
+        - capability.contract-json-schema.application
+        - capability.executable-specifications.application
+        - foundation.core
+        - foundation.repository-input
+        - foundation.workspace-inventory.adapters
+      packages: []
+      builtins:
+        - node:crypto
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/adapters/outbound/filesystem/filesystem-executable-specification-inspector.ts
+  - id: capability.executable-specifications.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/module.ts
+    allow:
+      boundaries:
+        - capability.executable-specifications.adapters
+        - capability.executable-specifications.application
+        - capability.executable-specifications.contract
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/module.ts
   - id: capability.contract-json-schema.application
     roots:
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application

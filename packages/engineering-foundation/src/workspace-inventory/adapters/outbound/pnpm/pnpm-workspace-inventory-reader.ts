@@ -423,6 +423,31 @@ async function readManifestBatch(
 }
 
 export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
+  async discoverManifestPaths(
+    consumerRoot: string,
+    workspaceManifestPath: string,
+    signal?: AbortSignal
+  ): Promise<readonly string[]> {
+    const input = await loadStrictYamlFile(
+      consumerRoot,
+      workspaceManifestPath,
+      "workspace-manifest",
+      signal
+    );
+    if (!isRecord(input)) {
+      inputError(
+        "PNPM_WORKSPACE_INVALID",
+        "pnpm-workspace.yaml must contain an object.",
+        "workspace-manifest"
+      );
+    }
+    return discoverManifestPaths(
+      consumerRoot,
+      validateWorkspacePatterns(input["packages"]),
+      signal
+    );
+  }
+
   async read(
     consumerRoot: string,
     workspaceManifestPath: string,

@@ -9,6 +9,7 @@ import {
   writeJson
 } from "./pack-test-support.mjs";
 import { writePackedConsumerProtobufFixture } from "./packed-consumer-protobuf-fixture.mjs";
+import { writeExecutableSpecificationFixture } from "./packed-consumer-executable-specification-fixture.mjs";
 
 const foundationPackage = "@agent-teams/engineering-foundation";
 const identitySource = "export function identity(value: string): string {\n  return value;\n}\n";
@@ -20,8 +21,14 @@ function consumerManifest(foundationVersion, packageManager) {
     private: true,
     type: "module",
     packageManager,
+    scripts: {
+      "spec:typegen": "consumer-owned-type-generation",
+      "spec:property": "consumer-owned-property-tests",
+      "spec:mutation": "consumer-owned-mutation-tests"
+    },
     devDependencies: {
       [foundationPackage]: foundationVersion,
+      "jsonc-parser": "catalog:",
       oxlint: "catalog:",
       "oxlint-tsgolint": "catalog:",
       typescript: "catalog:"
@@ -36,7 +43,7 @@ async function writeInstallManifests(input) {
   );
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog:\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
+    `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
     "utf8"
   );
 }
@@ -113,6 +120,8 @@ capabilities:
     configPath: architecture/foundation/governance-architecture-decisions.yaml
   package.public-api-compatibility:
     configPath: architecture/foundation/public-api-compatibility.yaml
+  quality.executable-specifications:
+    configPath: architecture/foundation/executable-specifications.yaml
   quality.suppression-governance:
     configPath: architecture/foundation/suppression-governance.yaml
   repository.security-baseline:
@@ -154,12 +163,24 @@ governedRoots:
 boundaries:
   - id: pack-consumer.core
     roots:
-      - src
+      - src/index.ts
     entrypoints:
       - src/index.ts
     allow:
       boundaries: []
       packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: pack-consumer.specifications
+    dependencyMode: development
+    roots:
+      - src/generated-event.ts
+    entrypoints:
+      - src/generated-event.ts
+    allow:
+      boundaries: []
+      packages:
+        - jsonc-parser
       builtins: []
       runtimeReferences: []
 `,
@@ -457,6 +478,22 @@ export async function createPackedConsumerFixture(input) {
   await writeFoundationConfiguration(input.consumerRoot);
   await writeDocumentationFixture(input.consumerRoot);
   const jsonContract = await writeJsonContractFixture(input.consumerRoot);
+  await mkdir(join(input.consumerRoot, "src"), { recursive: true });
+  await writeExecutableSpecificationFixture(input.consumerRoot, jsonContract);
+  await mkdir(join(input.consumerRoot, "fixtures", "outside-duplicate"), { recursive: true });
+  await writeJson(join(input.consumerRoot, "fixtures", "outside-duplicate", "package.json"), {
+    name: "foundation-pack-consumer",
+    scripts: { "spec:typegen": "outside-workspace-duplicate" }
+  });
+  await mkdir(join(input.consumerRoot, "fixtures", "outside-gates"), { recursive: true });
+  await writeJson(join(input.consumerRoot, "fixtures", "outside-gates", "package.json"), {
+    name: "foundation-pack-outside-gates",
+    scripts: {
+      "spec:typegen": "outside-type-generation",
+      "spec:property": "outside-property-tests",
+      "spec:mutation": "outside-mutation-tests"
+    }
+  });
   await writePackedConsumerProtobufFixture(
     input.consumerRoot,
     toolEntrypoints.foundationRoot

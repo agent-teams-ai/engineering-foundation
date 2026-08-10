@@ -58,6 +58,7 @@ function workspacePackage(name, rootPath, dependencies = []) {
 function boundary(id, roots, options = {}) {
   return Object.freeze({
     id,
+    dependencyMode: options.dependencyMode ?? "runtime",
     roots: Object.freeze(roots),
     entrypoints: Object.freeze(options.entrypoints ?? []),
     allowedBoundaries: Object.freeze(options.boundaries ?? []),
@@ -767,6 +768,7 @@ test("loads the single schema v1 and rejects missing entrypoints or another vers
     );
     const v1 = await loadCapabilityConfig(consumerRoot, "v1.yaml");
     assert.equal(v1.schemaVersion, 1);
+    assert.equal(v1.boundaries[0].dependencyMode, "runtime");
     assert.deepEqual(v1.boundaries[0].entrypoints, ["packages/app/src/index.ts"]);
 
     const missingEntrypointsPath = join(consumerRoot, "missing-entrypoints.yaml");

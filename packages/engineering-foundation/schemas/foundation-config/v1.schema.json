@@ -95,6 +95,16 @@
             }
           }
         },
+        "quality.executable-specifications": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configPath"],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
         "repository.security-baseline": {
           "type": "object",
           "additionalProperties": false,

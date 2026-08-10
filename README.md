@@ -12,6 +12,7 @@ package catalog, dependency permissions, security classifications, and ADRs.
 - strict data-only consumer configuration and versioned schemas;
 - executable workspace declaration and source dependency policies;
 - governed inline suppressions and released public API compatibility;
+- static executable-specification and consumer-gate connectivity;
 - repository workflow, SBOM, provenance, and package-content security policy;
 - portable agent instructions and changed-file preflight routing;
 - shared Oxlint and TypeScript 7 baseline presets;

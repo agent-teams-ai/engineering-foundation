@@ -296,23 +296,23 @@ test("accepts gate scripts from a declared pnpm workspace package", async () => 
   }, { schemaVersion: 1, specifications: [candidate] });
 });
 
-test("accepts a connected XState model without importing or executing XState", async () => {
-  const stateModel = {
-    kind: "xstate",
-    axes: ["lifecycle", "delivery"],
-    modelPath: "src/specification/workflow-machine.ts",
-    adapterPath: "src/specification/workflow-adapter.ts",
-    tracesPath: "specifications/workflow-traces.json",
-    diagramPath: "docs/workflow-state.md",
-    gateBinding: { packageName: "@example/specs", script: "spec:model" },
-  };
-  await withFixture(async (root) => {
-    await write(root, stateModel.modelPath, "export const workflowMachine = {};\n");
-    await write(root, stateModel.adapterPath, "export const adaptWorkflow = () => ({});\n");
-    await writeJson(root, stateModel.tracesPath, []);
-    await write(root, stateModel.diagramPath, "# Workflow state diagram\n");
-    assert.equal((await run(root)).outcome, "passed");
-  }, { schemaVersion: 1, specifications: [specification(stateModel)] });
+test("accepts connected zero-, single-, and multi-axis XState models without executing them", async () => {
+  for (const axes of [[], ["consumer-defined-axis"], ["lifecycle", "delivery"]]) {
+    const stateModel = { kind: "xstate", axes,
+      modelPath: "src/specification/workflow-machine.ts",
+      adapterPath: "src/specification/workflow-adapter.ts",
+      tracesPath: "specifications/workflow-traces.json",
+      diagramPath: "docs/workflow-state.md",
+      gateBinding: { packageName: "@example/specs", script: "spec:model" },
+    };
+    await withFixture(async (root) => {
+      await write(root, stateModel.modelPath, "export const workflowMachine = {};\n");
+      await write(root, stateModel.adapterPath, "export const adaptWorkflow = () => ({});\n");
+      await writeJson(root, stateModel.tracesPath, []);
+      await write(root, stateModel.diagramPath, "# Workflow state diagram\n");
+      assert.equal((await run(root)).outcome, "passed");
+    }, { schemaVersion: 1, specifications: [specification(stateModel)] });
+  }
 });
 
 test("reports document drift with stable schema and corpus digests", async () => {
@@ -782,10 +782,10 @@ test("rejects an oversized workspace manifest set before reading package files",
   });
 });
 
-test("rejects XState models with fewer than two independent axes", async () => {
+test("rejects duplicate XState axis identifiers", async () => {
   const invalid = specification({
     kind: "xstate",
-    axes: ["lifecycle"],
+    axes: ["lifecycle", "lifecycle"],
     modelPath: "src/model.ts",
     adapterPath: "src/adapter.ts",
     tracesPath: "specifications/traces.json",

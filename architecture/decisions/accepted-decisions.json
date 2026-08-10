@@ -101,6 +101,11 @@
       "id": "ADR-0020",
       "path": "docs/decisions/0020-static-executable-specification-connectivity.md",
       "immutableDigest": "sha256:559496da2e54429363227e708eec7a625c9b3ed94a95d3589470505bb5f8dcb3"
+    },
+    {
+      "id": "ADR-0021",
+      "path": "docs/decisions/0021-consumer-owned-state-model-axis-topology.md",
+      "immutableDigest": "sha256:f8beb0d167f778f330a68dba631e83937347111e98cc36612ee044f71799af53"
     }
   ]
 }

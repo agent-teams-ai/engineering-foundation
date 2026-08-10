@@ -1,8 +1,9 @@
 ---
 id: ADR-0020
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by:
+  - ADR-0021
 ---
 
 # ADR-0020: Static Executable Specification Connectivity

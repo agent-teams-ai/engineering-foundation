@@ -62,6 +62,13 @@ workflow internals. Producer-owned qualification is required before claiming
 that a remote trust root also pins every transitive action. Empty
 `transitiveUses` declarations are therefore not interpreted as such proof.
 
+The repository's ReviewRouter interaction entrypoint is intentionally a thin
+caller of the producer-owned reusable workflow, pinned to the same immutable
+revision as its `runtime_ref`. The caller owns only triggers, the human/comment
+filter, least-privilege permissions, consumer variables, and secret mappings.
+Checkout, runtime preparation, and discussion authentication remain in the
+qualified producer workflow instead of being copied into this repository.
+
 ## Merge authority boundary
 
 Repository-owned workflows are evidence, not their own root of trust. A pull

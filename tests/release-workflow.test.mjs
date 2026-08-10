@@ -14,6 +14,8 @@ import {
 } from "../scripts/check-release-pr-files.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const reviewRouterInteractionRevision =
+  "5da51b7b71b1db9ce531f946ec2bb90411a31300";
 
 async function workflow(name) {
   return parseYaml(
@@ -26,6 +28,10 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   const ci = await workflow("ci.yml");
   const review = await workflow("reviewrouter-codex.yml");
   const reviewInteraction = await workflow("reviewrouter-interaction.yml");
+  const reviewInteractionSource = await readFile(
+    join(repositoryRoot, ".github", "workflows", "reviewrouter-interaction.yml"),
+    "utf8",
+  );
   const reviewGate = await workflow("review-gate.yml");
   const reviewGateSource = await readFile(
     join(repositoryRoot, ".github", "workflows", "review-gate.yml"),
@@ -175,6 +181,47 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     "pull-requests": "read",
     "id-token": "write",
   });
+  assert.deepEqual(reviewInteraction.on, {
+    pull_request_review_comment: { types: ["created", "edited"] },
+    issue_comment: { types: ["created", "edited"] },
+    workflow_dispatch: null,
+  });
+  assert.deepEqual(reviewInteraction.permissions, {});
+  assert.equal(
+    reviewInteraction.jobs.interaction.if,
+    "${{ github.event_name == 'workflow_dispatch' || ((github.event_name != 'issue_comment' || github.event.issue.pull_request) && github.event.comment.user.type != 'Bot') }}",
+  );
+  assert.equal(
+    reviewInteraction.jobs.interaction.uses,
+    `777genius/review-router/.github/workflows/reviewrouter-interaction-reusable.yml@${reviewRouterInteractionRevision}`,
+  );
+  assert.deepEqual(reviewInteraction.jobs.interaction.with, {
+    runtime_ref: reviewRouterInteractionRevision,
+    runtime_config_mode: "oidc",
+    review_workflow_file: "reviewrouter-codex.yml",
+    discussion_mode: "${{ vars.REVIEW_ROUTER_DISCUSSION_MODE || 'off' }}",
+    discussion_model: "${{ vars.REVIEW_CODEX_MODEL || 'gpt-5.5' }}",
+    discussion_reasoning_effort: "${{ vars.REVIEW_CODEX_EFFORT || 'xhigh' }}",
+    discussion_max_per_pr: "${{ vars.REVIEW_ROUTER_DISCUSSION_MAX_PER_PR || '20' }}",
+    discussion_max_per_thread: "${{ vars.REVIEW_ROUTER_DISCUSSION_MAX_PER_THREAD || '5' }}",
+    discussion_timeout_seconds: "${{ vars.REVIEW_ROUTER_DISCUSSION_TIMEOUT_SECONDS || '60' }}",
+  });
+  assert.deepEqual(reviewInteraction.jobs.interaction.secrets, {
+    REVIEW_ROUTER_LEDGER_KEY: "${{ secrets.REVIEW_ROUTER_LEDGER_KEY }}",
+    CODEX_AUTH_JSON: "${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON }}",
+  });
+  assert.deepEqual(Object.keys(reviewInteraction.jobs.interaction).toSorted(), [
+    "if",
+    "name",
+    "permissions",
+    "secrets",
+    "uses",
+    "with",
+  ]);
+  assert.doesNotMatch(
+    reviewInteractionSource,
+    /actions\/(?:checkout|setup-node)@|\.reviewrouter-runtime|auth\.json|pnpm (?:install|action-setup)/u,
+  );
 });
 
 test("release publishing requires real Buf and hermetic registry qualification", async () => {

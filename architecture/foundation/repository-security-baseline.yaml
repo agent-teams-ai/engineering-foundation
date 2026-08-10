@@ -11,15 +11,13 @@ allowedContainerImages: []
 allowedUses:
   - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@08f6bc1481fd284fa82adfa47cda05c76b161b00
     transitiveUses: []
+  - uses: 777genius/review-router/.github/workflows/reviewrouter-interaction-reusable.yml@5da51b7b71b1db9ce531f946ec2bb90411a31300
+    transitiveUses: []
   - uses: 777genius/review-router@08f6bc1481fd284fa82adfa47cda05c76b161b00
     transitiveUses: []
   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
     transitiveUses: []
-  - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-    transitiveUses: []
   - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
-    transitiveUses: []
-  - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
     transitiveUses: []
   - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
     transitiveUses: []

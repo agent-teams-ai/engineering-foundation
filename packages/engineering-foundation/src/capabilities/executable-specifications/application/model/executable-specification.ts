@@ -46,6 +46,7 @@ export interface ExecutableSpecification {
 
 export interface ExecutableSpecificationCatalog {
   readonly schemaVersion: 1;
+  readonly configPath: string;
   readonly catalogPath: string;
   readonly specifications: readonly ExecutableSpecification[];
 }

@@ -111,6 +111,55 @@ function boundaryGraphDiagnostics(boundaries, edges) {
   });
 }
 
+function workspacePackageEdge(sourceBoundary, targetName, mode = "runtime") {
+  return {
+    ...edge(targetName, "runtime"),
+    fromPath: `${sourceBoundary.roots[0]}/index.ts`,
+    fromBoundaryId: sourceBoundary.id,
+    mode,
+    resolution: {
+      kind: "workspace-package",
+      workspacePackageName: targetName,
+      workspacePackageManifestPath: "packages/target/package.json",
+      declaration: "runtime",
+      exported: true,
+      subpath: ".",
+    },
+  };
+}
+
+function workspacePackageDiagnostics(sourceBoundary, targetBoundaries, mode = "runtime") {
+  const targetName = "@fixture/target";
+  return evaluateSourceDependencies({
+    policy: {
+      schemaVersion: 1,
+      workspaceManifestPath: "pnpm-workspace.yaml",
+      governedRoots: ["packages"],
+      boundaries: [sourceBoundary, ...targetBoundaries],
+    },
+    graph: {
+      nodes: [
+        {
+          path: `${sourceBoundary.roots[0]}/index.ts`,
+          boundaryId: sourceBoundary.id,
+          workspacePackageName: "@fixture/app",
+          workspacePackageManifestPath: "packages/app/package.json",
+        },
+        ...targetBoundaries.map((target, index) => ({
+          path: `${target.roots[0]}/file-${index}.ts`,
+          boundaryId: target.id,
+          workspacePackageName: targetName,
+          workspacePackageManifestPath: "packages/target/package.json",
+        })),
+      ],
+      edges: [workspacePackageEdge(sourceBoundary, targetName, mode)],
+      parseFailures: [],
+      unclassifiedSourcePaths: [],
+      unresolvedRuntimeReferences: [],
+    },
+  });
+}
+
 test("runtime boundary rejects a runtime import from devDependencies", () => {
   assert.deepEqual(
     ruleIds(diagnostics(boundary("runtime", ["fixture-tool"]), [edge("fixture-tool", "development")])),
@@ -175,4 +224,46 @@ test("runtime source cannot reach a development boundary through a runtime wrapp
   );
   assert.equal(blocked.length, 1);
   assert.equal(blocked[0].subject, "wrapper->specification");
+});
+
+test("runtime boundary rejects a package containing a development boundary", () => {
+  const source = localBoundary("application", "runtime", []);
+  source.allowedPackages = ["@fixture/target"];
+  const development = localBoundary("target-development", "development", []);
+  assert.deepEqual(ruleIds(workspacePackageDiagnostics(source, [development])), [
+    "architecture.source-dependencies.runtime-boundary-imports-development-workspace-package",
+  ]);
+});
+
+test("runtime boundary also rejects a type-only import into a development package", () => {
+  const source = localBoundary("application", "runtime", []);
+  source.allowedPackages = ["@fixture/target"];
+  const development = localBoundary("target-development", "development", []);
+  assert.deepEqual(ruleIds(workspacePackageDiagnostics(source, [development], "type-only")), [
+    "architecture.source-dependencies.runtime-boundary-imports-development-workspace-package",
+  ]);
+});
+
+test("development source may import a development package when declared and allowed", () => {
+  const source = localBoundary("tooling", "development", []);
+  source.allowedPackages = ["@fixture/target"];
+  const development = localBoundary("target-development", "development", []);
+  assert.deepEqual(workspacePackageDiagnostics(source, [development]), []);
+});
+
+test("runtime source may import a pure runtime package", () => {
+  const source = localBoundary("application", "runtime", []);
+  source.allowedPackages = ["@fixture/target"];
+  const runtime = localBoundary("target-runtime", "runtime", []);
+  assert.deepEqual(workspacePackageDiagnostics(source, [runtime]), []);
+});
+
+test("a runtime wrapper cannot hide a development boundary in its package", () => {
+  const source = localBoundary("application", "runtime", []);
+  source.allowedPackages = ["@fixture/target"];
+  const wrapper = localBoundary("target-wrapper", "runtime", []);
+  const development = localBoundary("target-development", "development", []);
+  assert.deepEqual(ruleIds(workspacePackageDiagnostics(source, [wrapper, development])), [
+    "architecture.source-dependencies.runtime-boundary-imports-development-workspace-package",
+  ]);
 });

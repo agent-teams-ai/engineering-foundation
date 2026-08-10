@@ -129,6 +129,13 @@ violations, while allowlisted production dependencies remain valid.
 Runtime boundaries may never import a development boundary, even through an
 otherwise allowed edge. This prevents a runtime boundary from reaching
 development dependencies through a wrapper or a longer boundary chain.
+Package-name imports are fenced conservatively: when any observed source in a
+target workspace package belongs to a development boundary, runtime boundaries
+cannot import that package, including through type-only imports. The v1 graph
+does not claim exact export-to-boundary ownership, so mixed runtime/development
+packages must split development source into a separate package or keep imports
+inside development boundaries. A future contract may add explicit, validated
+export-to-boundary mapping rather than infer subpath ownership.
 
 The source scanner, resolver, source-tree reader, and workspace inventory sit
 behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parser

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -73,7 +73,34 @@ function specification(stateModel = { kind: "none" }) {
   };
 }
 
+function catalogOf(...specifications) {
+  return {
+    schemaVersion: 1,
+    configPath: "quality.yaml",
+    catalogPath: "architecture/specifications.json",
+    specifications,
+  };
+}
+
+function deliverySpecification() {
+  const second = specification();
+  second.id = "delivery-contract";
+  second.ownerDocs = ["docs/delivery.md"];
+  second.adrRefs = ["docs/decisions/0002-delivery.md"];
+  second.schemaPaths = ["specifications/delivery.schema.json"];
+  second.documents = [{
+    path: "specifications/delivery.json",
+    schemaId: "https://schemas.example.test/delivery/v1",
+  }];
+  second.generatedTypes = [{
+    schemaId: "https://schemas.example.test/delivery/v1",
+    outputPath: "src/generated/delivery.ts",
+  }];
+  return second;
+}
+
 async function materialize(root, catalog = { schemaVersion: 1, specifications: [specification()] }) {
+  await write(root, "pnpm-workspace.yaml", 'packages:\n  - "packages/*"\n');
   await write(
     root,
     "quality.yaml",
@@ -122,6 +149,59 @@ test("accepts a connected JSON-first executable specification without running ga
   });
 });
 
+test("does not accept a gate package outside the pnpm workspace", async () => {
+  const candidate = specification();
+  for (const binding of Object.values(candidate.gateBindings)) {
+    binding.packageName = "@example/outside-gates";
+  }
+  await withFixture(async (root) => {
+    await writeJson(root, "fixtures/outside/package.json", {
+      name: "@example/outside-gates",
+      scripts: {
+        "spec:typegen": "outside-type-generation",
+        "spec:property": "outside-property-tests",
+        "spec:mutation": "outside-mutation-tests",
+      },
+    });
+    const result = await run(root);
+    assert.equal(result.outcome, "violations");
+    assert.equal(
+      result.diagnostics.filter(
+        ({ ruleId }) => ruleId === "quality.executable-specifications.gate-missing",
+      ).length,
+      3,
+    );
+  }, { schemaVersion: 1, specifications: [candidate] });
+});
+
+test("ignores duplicate package names outside the pnpm workspace", async () => {
+  await withFixture(async (root) => {
+    await writeJson(root, "fixtures/duplicate/package.json", {
+      name: "@example/specs",
+      scripts: { "spec:typegen": "unrelated-fixture" },
+    });
+    assert.equal((await run(root)).outcome, "passed");
+  });
+});
+
+test("accepts gate scripts from a declared pnpm workspace package", async () => {
+  const candidate = specification();
+  for (const binding of Object.values(candidate.gateBindings)) {
+    binding.packageName = "@example/workspace-gates";
+  }
+  await withFixture(async (root) => {
+    await writeJson(root, "packages/gates/package.json", {
+      name: "@example/workspace-gates",
+      scripts: {
+        "spec:typegen": "workspace-type-generation",
+        "spec:property": "workspace-property-tests",
+        "spec:mutation": "workspace-mutation-tests",
+      },
+    });
+    assert.equal((await run(root)).outcome, "passed");
+  }, { schemaVersion: 1, specifications: [candidate] });
+});
+
 test("accepts a connected XState model without importing or executing XState", async () => {
   const stateModel = {
     kind: "xstate",
@@ -157,7 +237,7 @@ test("reports document drift with stable schema and corpus digests", async () =>
   });
 });
 
-test("reports missing package scripts and distinct gate reuse", async () => {
+test("rejects distinct gate reuse during topology preflight", async () => {
   const duplicate = specification();
   duplicate.gateBindings.mutation = duplicate.gateBindings.property;
   await withFixture(async (root) => {
@@ -170,12 +250,31 @@ test("reports missing package scripts and distinct gate reuse", async () => {
     assert.equal(result.outcome, "violations");
     assert.deepEqual(
       [...new Set(result.diagnostics.map(({ ruleId }) => ruleId))],
-      [
-        "quality.executable-specifications.gate-missing",
-        "quality.executable-specifications.gate-not-distinct",
-      ],
+      ["quality.executable-specifications.gate-not-distinct"],
     );
   }, { schemaVersion: 1, specifications: [duplicate] });
+});
+
+test("rejects a gate script whose command contains only whitespace", async () => {
+  await withFixture(async (root) => {
+    await writeJson(root, "package.json", {
+      name: "@example/specs",
+      scripts: {
+        "spec:typegen": "consumer-owned-type-generation",
+        "spec:property": "  \t  ",
+        "spec:mutation": "consumer-owned-mutation-tests",
+      },
+    });
+    const result = await run(root);
+    assert.equal(result.outcome, "violations");
+    assert.ok(
+      result.diagnostics.some(
+        ({ ruleId, message }) =>
+          ruleId === "quality.executable-specifications.gate-missing" &&
+          message.includes("spec:property"),
+      ),
+    );
+  });
 });
 
 test("rejects duplicate generated schema bindings and output collisions", async () => {
@@ -231,10 +330,208 @@ test("rejects a document path bound more than once", async () => {
       result.diagnostics.some(
         ({ ruleId, subject }) =>
           ruleId === "quality.executable-specifications.path-collision" &&
-          subject.includes(":document-path:"),
+          subject === "catalog-path:specifications/workflow.json",
       ),
     );
   }, { schemaVersion: 1, specifications: [duplicate] });
+});
+
+test("rejects repeated artifact topology before invoking any inspector I/O", async () => {
+  const duplicate = specification();
+  duplicate.documents.push({ ...duplicate.documents[0] });
+  let inspections = 0;
+  const diagnostics = await capabilityModule.analyzeExecutableSpecifications(
+    {
+      consumerRoot: "/definitely-not-readable",
+      catalog: catalogOf(duplicate),
+    },
+    {
+      async inspectCatalog() {
+        inspections += 1;
+        throw new Error("topology preflight performed I/O");
+      },
+    },
+  );
+  assert.equal(inspections, 0);
+  assert.ok(
+    diagnostics.some(
+      ({ ruleId }) => ruleId === "quality.executable-specifications.path-collision",
+    ),
+  );
+});
+
+test("reserves catalog paths and compares topology with portable identities before I/O", async () => {
+  const cases = [
+    { owner: "docs/owner.md", output: "architecture/specifications.json" },
+    { owner: "docs/owner.md", output: "quality.yaml" },
+    { owner: "docs/owner.md", output: "foundation.config.yaml" },
+    { owner: "Src/Model.ts", output: "src/model.ts" },
+    { owner: "docs/caf\u00e9.md", output: "docs/cafe\u0301.md" },
+  ];
+  for (const paths of cases) {
+    const candidate = specification();
+    candidate.ownerDocs = [paths.owner];
+    candidate.generatedTypes[0].outputPath = paths.output;
+    let inspections = 0;
+    const diagnostics = await capabilityModule.analyzeExecutableSpecifications(
+      { consumerRoot: "/not-used", catalog: catalogOf(candidate) },
+      {
+        async inspectCatalog() {
+          inspections += 1;
+          return [];
+        },
+      },
+    );
+    assert.equal(inspections, 0);
+    assert.ok(
+      diagnostics.some(
+        ({ ruleId }) => ruleId === "quality.executable-specifications.path-collision",
+      ),
+    );
+  }
+});
+
+test("uses one workspace inventory snapshot for a multi-specification catalog", async () => {
+  await withFixture(async (root) => {
+    const second = deliverySpecification();
+    const deliverySchema = { ...schema(), $id: "https://schemas.example.test/delivery/v1" };
+    await write(root, second.ownerDocs[0], "# Delivery owner\n");
+    await write(root, second.adrRefs[0], "# Delivery decision\n");
+    await writeJson(root, second.schemaPaths[0], deliverySchema);
+    await writeJson(root, second.documents[0].path, { id: "sent", enabled: true });
+    await write(root, second.generatedTypes[0].outputPath, "export interface Delivery {}\n");
+    let inventoryReads = 0;
+    const inventoryReader = {
+      async discoverManifestPaths() {
+        inventoryReads += 1;
+        return ["package.json"];
+      },
+    };
+    const inspector = new capabilityModule.FilesystemExecutableSpecificationInspector(
+      inventoryReader,
+    );
+    const diagnostics = await capabilityModule.analyzeExecutableSpecifications(
+      { consumerRoot: root, catalog: catalogOf(specification(), second) },
+      inspector,
+    );
+    assert.deepEqual(diagnostics, []);
+    assert.equal(inventoryReads, 1);
+  });
+});
+
+test("fails closed on missing, reordered, or mismatched catalog observations", async () => {
+  const first = specification();
+  const second = deliverySpecification();
+  const invalidObservations = [
+    [],
+    [{ id: second.id }, { id: first.id }],
+    [{ id: "unexpected-contract" }, { id: second.id }],
+  ];
+  for (const observations of invalidObservations) {
+    await assert.rejects(
+      capabilityModule.analyzeExecutableSpecifications(
+        { consumerRoot: "/not-used", catalog: catalogOf(first, second) },
+        { async inspectCatalog() { return observations; } },
+      ),
+      ({ problem }) =>
+        problem?.code === "EXECUTABLE_SPECIFICATION_OBSERVATION_INVALID",
+    );
+  }
+});
+
+test("enforces the shared aggregate byte budget at its exact boundary", async () => {
+  await withFixture(async (root) => {
+    const governedPaths = [
+      "package.json",
+      "docs/workflow.md",
+      "docs/decisions/0001-workflow.md",
+      "specifications/workflow.schema.json",
+      "specifications/workflow.json",
+      "src/generated/workflow.ts",
+    ];
+    const exactBytes = (
+      await Promise.all(governedPaths.map((path) => readFile(join(root, path))))
+    ).reduce((total, bytes) => total + bytes.byteLength, 0);
+    const inventoryReader = {
+      async discoverManifestPaths() {
+        return ["package.json"];
+      },
+    };
+    const catalog = catalogOf(specification());
+    assert.deepEqual(
+      await capabilityModule.analyzeExecutableSpecifications(
+        { consumerRoot: root, catalog },
+        new capabilityModule.FilesystemExecutableSpecificationInspector(
+          inventoryReader,
+          exactBytes,
+        ),
+      ),
+      [],
+    );
+    await assert.rejects(
+      capabilityModule.analyzeExecutableSpecifications(
+        { consumerRoot: root, catalog },
+        new capabilityModule.FilesystemExecutableSpecificationInspector(
+          inventoryReader,
+          exactBytes - 1,
+        ),
+      ),
+      ({ problem }) =>
+        problem?.code === "EXECUTABLE_SPECIFICATION_AGGREGATE_BYTES_EXCEEDED",
+    );
+  });
+});
+
+test("charges workspace manifests before parsing beyond the aggregate budget", async () => {
+  await withFixture(async (root) => {
+    const secondManifestPath = "packages/large/package.json";
+    await writeJson(root, secondManifestPath, {
+      name: "@example/large",
+      description: "x".repeat(4096),
+    });
+    const manifestBytes = (
+      await Promise.all(
+        ["package.json", secondManifestPath].map((path) => readFile(join(root, path))),
+      )
+    ).reduce((total, bytes) => total + bytes.byteLength, 0);
+    const reader = {
+      async discoverManifestPaths() {
+        return ["package.json", secondManifestPath];
+      },
+    };
+    await assert.rejects(
+      capabilityModule.analyzeExecutableSpecifications(
+        { consumerRoot: root, catalog: catalogOf(specification()) },
+        new capabilityModule.FilesystemExecutableSpecificationInspector(
+          reader,
+          manifestBytes - 1,
+        ),
+      ),
+      ({ problem }) =>
+        problem?.code === "EXECUTABLE_SPECIFICATION_AGGREGATE_BYTES_EXCEEDED",
+    );
+  });
+});
+
+test("rejects an oversized workspace manifest set before reading package files", async () => {
+  await withFixture(async (root) => {
+    const reader = {
+      async discoverManifestPaths() {
+        return Array.from(
+          { length: 1_025 },
+          (_, index) => `packages/package-${index}/package.json`,
+        );
+      },
+    };
+    await assert.rejects(
+      capabilityModule.analyzeExecutableSpecifications(
+        { consumerRoot: root, catalog: catalogOf(specification()) },
+        new capabilityModule.FilesystemExecutableSpecificationInspector(reader),
+      ),
+      ({ problem }) =>
+        problem?.code === "EXECUTABLE_SPECIFICATION_ARTIFACT_COUNT_EXCEEDED",
+    );
+  });
 });
 
 test("rejects XState models with fewer than two independent axes", async () => {

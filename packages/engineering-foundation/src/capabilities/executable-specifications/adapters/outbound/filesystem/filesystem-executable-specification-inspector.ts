@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { glob } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
@@ -10,6 +9,7 @@ import {
 } from "../../../../../filesystem-path-safety.js";
 import { assertNotCancelled } from "../../../../../strict-yaml.js";
 import { parseStrictJson, StrictJsonError } from "../../../../../strict-json.js";
+import { PnpmWorkspaceInventoryReader } from "../../../../../workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
 import { AjvJsonSchemaReleaseInspector } from "../../../../contract-json-schema-releases/adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
 import type { JsonSchemaFixture } from "../../../../contract-json-schema-releases/application/model/json-schema-release.js";
 import type {
@@ -20,11 +20,19 @@ import type {
 import type { ExecutableSpecificationInspector } from "../../../application/ports/executable-specification-inspector.js";
 
 const MAX_ARTIFACT_BYTES = 8 * 1024 * 1024;
-const IGNORED_GLOBS = ["**/.git/**", "**/node_modules/**", "**/dist/**", "**/coverage/**"];
+const MAX_AGGREGATE_ARTIFACT_BYTES = 32 * 1024 * 1024;
 
 interface PackageScripts {
   readonly manifestPath: string;
   readonly scripts: ReadonlySet<string>;
+}
+
+interface WorkspaceManifestPathReader {
+  discoverManifestPaths(
+    consumerRoot: string,
+    workspaceManifestPath: string,
+    signal?: AbortSignal
+  ): Promise<readonly string[]>;
 }
 
 function inputError(code: string, message: string): never {
@@ -103,15 +111,43 @@ async function readArtifact(
   }
 }
 
+class ArtifactReadSession {
+  readonly #cache = new Map<string, Buffer | undefined>();
+  #aggregateBytes = 0;
+
+  constructor(
+    private readonly root: string,
+    private readonly maxAggregateBytes: number
+  ) {}
+
+  async read(repositoryPath: string): Promise<Buffer | undefined> {
+    if (this.#cache.has(repositoryPath)) {
+      return this.#cache.get(repositoryPath);
+    }
+    const bytes = await readArtifact(this.root, repositoryPath);
+    if (bytes !== undefined) {
+      if (bytes.byteLength > this.maxAggregateBytes - this.#aggregateBytes) {
+        inputError(
+          "EXECUTABLE_SPECIFICATION_AGGREGATE_BYTES_EXCEEDED",
+          "Executable specification artifacts and workspace manifests exceed the 32 MiB aggregate inspection budget."
+        );
+      }
+      this.#aggregateBytes += bytes.byteLength;
+    }
+    this.#cache.set(repositoryPath, bytes);
+    return bytes;
+  }
+}
+
 async function packageCatalog(
-  root: string,
+  manifestPaths: readonly string[],
+  artifacts: ArtifactReadSession,
   signal?: AbortSignal
 ): Promise<ReadonlyMap<string, PackageScripts>> {
   const packages = new Map<string, PackageScripts>();
-  for await (const candidate of glob("**/package.json", { cwd: root, exclude: IGNORED_GLOBS })) {
+  for (const manifestPath of manifestPaths) {
     assertNotCancelled(signal);
-    const manifestPath = candidate.split("\\").join("/");
-    const bytes = await readArtifact(root, manifestPath);
+    const bytes = await artifacts.read(manifestPath);
     if (bytes === undefined) {
       continue;
     }
@@ -143,7 +179,7 @@ async function packageCatalog(
     const scripts = isRecord(value["scripts"])
       ? new Set(
           Object.entries(value["scripts"])
-            .filter(([, command]) => typeof command === "string" && command.length > 0)
+            .filter(([, command]) => typeof command === "string" && command.trim().length > 0)
             .map(([script]) => script)
         )
       : new Set<string>();
@@ -181,56 +217,104 @@ function gateEntries(
 export class FilesystemExecutableSpecificationInspector
   implements ExecutableSpecificationInspector
 {
-  readonly #jsonSchemaInspector = new AjvJsonSchemaReleaseInspector();
+  readonly #workspaceManifestPathReader: WorkspaceManifestPathReader;
+  readonly #maxAggregateArtifactBytes: number;
 
-  async inspect(input: {
+  constructor(
+    workspaceManifestPathReader: WorkspaceManifestPathReader = new PnpmWorkspaceInventoryReader(),
+    maxAggregateArtifactBytes = MAX_AGGREGATE_ARTIFACT_BYTES
+  ) {
+    if (
+      !Number.isSafeInteger(maxAggregateArtifactBytes) ||
+      maxAggregateArtifactBytes < 1 ||
+      maxAggregateArtifactBytes > MAX_AGGREGATE_ARTIFACT_BYTES
+    ) {
+      throw new TypeError("Aggregate artifact budget must be a positive safe integer up to 32 MiB.");
+    }
+    this.#workspaceManifestPathReader = workspaceManifestPathReader;
+    this.#maxAggregateArtifactBytes = maxAggregateArtifactBytes;
+  }
+
+  async inspectCatalog(input: {
     readonly consumerRoot: string;
-    readonly specification: ExecutableSpecification;
+    readonly catalog: import("../../../application/model/executable-specification.js").ExecutableSpecificationCatalog;
     readonly signal?: AbortSignal;
   }) {
     assertNotCancelled(input.signal);
-    const paths = [...new Set(artifactPaths(input.specification))].toSorted(compareBinaryStrings);
-    const content = new Map<string, string>();
-    const missingArtifactPaths: string[] = [];
+    const artifacts = new ArtifactReadSession(
+      input.consumerRoot,
+      this.#maxAggregateArtifactBytes
+    );
+    const jsonSchemaInspector = new AjvJsonSchemaReleaseInspector((repositoryPath) =>
+      artifacts.read(repositoryPath)
+    );
+    const manifestPaths = await this.#workspaceManifestPathReader.discoverManifestPaths(
+      input.consumerRoot,
+      "pnpm-workspace.yaml",
+      input.signal
+    );
+    const paths = [
+      ...new Set(input.catalog.specifications.flatMap(artifactPaths))
+    ].toSorted(compareBinaryStrings);
+    if (new Set([...manifestPaths, ...paths]).size > 1_024) {
+      inputError(
+        "EXECUTABLE_SPECIFICATION_ARTIFACT_COUNT_EXCEEDED",
+        "Executable specification catalogs and selected workspace packages may reference at most 1024 unique artifacts."
+      );
+    }
+    const packages = await packageCatalog(manifestPaths, artifacts, input.signal);
     for (const repositoryPath of paths) {
       assertNotCancelled(input.signal);
-      const bytes = await readArtifact(input.consumerRoot, repositoryPath);
-      if (bytes === undefined) {
-        missingArtifactPaths.push(repositoryPath);
-      } else {
-        content.set(repositoryPath, createHash("sha256").update(bytes).digest("hex"));
-      }
+      await artifacts.read(repositoryPath);
     }
-    const fixtures: readonly JsonSchemaFixture[] = input.specification.documents.map(
-      (document, index) => ({
-        id: `${input.specification.id.slice(0, 90)}.document.${index}`,
-        path: document.path,
-        schemaId: document.schemaId,
-        expectation: "valid"
-      })
-    );
-    const jsonSchemas = await this.#jsonSchemaInspector.inspect({
-      consumerRoot: input.consumerRoot,
-      schemaPaths: input.specification.schemaPaths,
-      fixtures,
-      requireMixedExpectations: false,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
-    });
-    const packages = await packageCatalog(input.consumerRoot, input.signal);
-    const gates = Object.fromEntries(
-      gateEntries(input.specification).map(([role, binding]) => [
-        role,
-        observeGate(binding, packages)
-      ])
-    );
-    return Object.freeze({
-      id: input.specification.id,
-      jsonSchemas,
-      missingArtifactPaths: Object.freeze(missingArtifactPaths),
-      gates: Object.freeze(gates),
-      artifactDigest: `sha256:${createHash("sha256")
-        .update(canonicalJson(Object.fromEntries(content)), "utf8")
-        .digest("hex")}` as const
-    });
+    const observations = [];
+    for (const specification of input.catalog.specifications) {
+      assertNotCancelled(input.signal);
+      const content = new Map<string, string>();
+      const missingArtifactPaths: string[] = [];
+      for (const repositoryPath of [...new Set(artifactPaths(specification))].toSorted(
+        compareBinaryStrings
+      )) {
+        const bytes = await artifacts.read(repositoryPath);
+        if (bytes === undefined) {
+          missingArtifactPaths.push(repositoryPath);
+        } else {
+          content.set(repositoryPath, createHash("sha256").update(bytes).digest("hex"));
+        }
+      }
+      const fixtures: readonly JsonSchemaFixture[] = specification.documents.map(
+        (document, index) => ({
+          id: `${specification.id.slice(0, 90)}.document.${index}`,
+          path: document.path,
+          schemaId: document.schemaId,
+          expectation: "valid"
+        })
+      );
+      const jsonSchemas = await jsonSchemaInspector.inspect({
+        consumerRoot: input.consumerRoot,
+        schemaPaths: specification.schemaPaths,
+        fixtures,
+        requireMixedExpectations: false,
+        ...(input.signal === undefined ? {} : { signal: input.signal })
+      });
+      const gates = Object.fromEntries(
+        gateEntries(specification).map(([role, binding]) => [
+          role,
+          observeGate(binding, packages)
+        ])
+      );
+      observations.push(
+        Object.freeze({
+          id: specification.id,
+          jsonSchemas,
+          missingArtifactPaths: Object.freeze(missingArtifactPaths),
+          gates: Object.freeze(gates),
+          artifactDigest: `sha256:${createHash("sha256")
+            .update(canonicalJson(Object.fromEntries(content)), "utf8")
+            .digest("hex")}` as const
+        })
+      );
+    }
+    return Object.freeze(observations);
   }
 }

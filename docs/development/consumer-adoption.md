@@ -155,6 +155,11 @@ only test, specification, generator, or other development tooling may declare
 declared `devDependencies` without weakening the boundary package allowlist.
 Never classify production runtime source as development to hide a dependency
 placement violation.
+Keep development boundaries in dedicated workspace packages when runtime source
+imports the package by name. Source-dependencies v1 deliberately blocks runtime
+and type-only imports into a mixed-mode package because it cannot prove which
+boundary owns an exported subpath; development boundaries may still import it
+when manifest declarations and allowlists permit the edge.
 
 ## Deterministic scaffolding
 

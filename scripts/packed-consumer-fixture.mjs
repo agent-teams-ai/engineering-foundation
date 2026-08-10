@@ -480,6 +480,20 @@ export async function createPackedConsumerFixture(input) {
   const jsonContract = await writeJsonContractFixture(input.consumerRoot);
   await mkdir(join(input.consumerRoot, "src"), { recursive: true });
   await writeExecutableSpecificationFixture(input.consumerRoot, jsonContract);
+  await mkdir(join(input.consumerRoot, "fixtures", "outside-duplicate"), { recursive: true });
+  await writeJson(join(input.consumerRoot, "fixtures", "outside-duplicate", "package.json"), {
+    name: "foundation-pack-consumer",
+    scripts: { "spec:typegen": "outside-workspace-duplicate" }
+  });
+  await mkdir(join(input.consumerRoot, "fixtures", "outside-gates"), { recursive: true });
+  await writeJson(join(input.consumerRoot, "fixtures", "outside-gates", "package.json"), {
+    name: "foundation-pack-outside-gates",
+    scripts: {
+      "spec:typegen": "outside-type-generation",
+      "spec:property": "outside-property-tests",
+      "spec:mutation": "outside-mutation-tests"
+    }
+  });
   await writePackedConsumerProtobufFixture(
     input.consumerRoot,
     toolEntrypoints.foundationRoot

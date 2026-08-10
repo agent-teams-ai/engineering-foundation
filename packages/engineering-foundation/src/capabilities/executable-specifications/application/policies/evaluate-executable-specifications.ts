@@ -42,6 +42,25 @@ function duplicateValues(values: readonly string[]): readonly string[] {
   return [...duplicates].toSorted();
 }
 
+function portablePathIdentity(path: string): string {
+  return path.normalize("NFC").toLocaleLowerCase("en-US");
+}
+
+function duplicatePaths(paths: readonly string[]): readonly string[] {
+  const firstByIdentity = new Map<string, string>();
+  const duplicates = new Set<string>();
+  for (const path of paths) {
+    const identity = portablePathIdentity(path);
+    const first = firstByIdentity.get(identity);
+    if (first === undefined) {
+      firstByIdentity.set(identity, path);
+    } else {
+      duplicates.add(first);
+    }
+  }
+  return [...duplicates].toSorted();
+}
+
 function gateKey(binding: ConsumerGateBinding): string {
   return `${binding.packageName}\u0000${binding.script}`;
 }
@@ -71,6 +90,123 @@ function generatedAndModelPaths(specification: ExecutableSpecification): readonl
         ]
       : [])
   ];
+}
+
+function duplicatePathDiagnostics(
+  paths: readonly string[],
+  description: string
+): readonly FoundationDiagnostic[] {
+  return duplicatePaths(paths).map((path) =>
+    diagnostic({
+      rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
+      subject: `catalog-path:${path}`,
+      path,
+      message: `${description}: ${path}.`
+    })
+  );
+}
+
+/** Pure topology validation. It must run before any consumer artifact inspection. */
+export function evaluateExecutableSpecificationTopology(
+  catalog: ExecutableSpecificationCatalog
+): readonly FoundationDiagnostic[] {
+  const diagnostics: FoundationDiagnostic[] = [];
+  for (const id of duplicateValues(catalog.specifications.map((specification) => specification.id))) {
+    diagnostics.push(
+      diagnostic({
+        rule: EXECUTABLE_SPECIFICATION_RULES.specificationIdDuplicate,
+        subject: `specification:${id}`,
+        path: catalog.catalogPath,
+        message: `Executable specification ID is declared more than once: ${id}.`
+      })
+    );
+  }
+  for (const specification of catalog.specifications) {
+    for (const schemaId of duplicateValues(
+      specification.generatedTypes.map((binding) => binding.schemaId)
+    )) {
+      diagnostics.push(
+        diagnostic({
+          rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
+          subject: `${specification.id}:schema:${schemaId}`,
+          path: specification.generatedTypes[0]?.outputPath ?? catalog.catalogPath,
+          message: `Schema ID has more than one generated type binding: ${schemaId}.`
+        })
+      );
+    }
+    for (const outputPath of duplicateValues(
+      specification.generatedTypes.map((binding) => binding.outputPath)
+    )) {
+      diagnostics.push(
+        diagnostic({
+          rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
+          subject: `${specification.id}:output:${outputPath}`,
+          path: outputPath,
+          message: `Generated type output path is bound more than once: ${outputPath}.`
+        })
+      );
+    }
+    for (const duplicate of duplicateValues(
+      specificationGates(specification).map(([, binding]) => gateKey(binding))
+    )) {
+      const [packageName = "", script = ""] = duplicate.split("\u0000");
+      diagnostics.push(
+        diagnostic({
+          rule: EXECUTABLE_SPECIFICATION_RULES.gateNotDistinct,
+          subject: `${specification.id}:gate:${packageName}:${script}`,
+          path: catalog.catalogPath,
+          message: `Gate script is reused by more than one evidence role: ${packageName}#${script}.`
+        })
+      );
+    }
+  }
+  const schemaPaths = catalog.specifications.flatMap((specification) => specification.schemaPaths);
+  const documentPaths = catalog.specifications.flatMap((specification) =>
+    specification.documents.map((document) => document.path)
+  );
+  const generatedModelPaths = catalog.specifications.flatMap(generatedAndModelPaths);
+  const sourcePaths = catalog.specifications.flatMap((specification) => [
+    "foundation.config.yaml",
+    catalog.configPath,
+    catalog.catalogPath,
+    "package.json",
+    "pnpm-workspace.yaml",
+    ...specification.ownerDocs,
+    ...specification.adrRefs,
+    ...specification.schemaPaths,
+    ...specification.documents.map((document) => document.path)
+  ]);
+  diagnostics.push(
+    ...duplicatePathDiagnostics(
+      schemaPaths,
+      "Schema path is declared more than once"
+    ),
+    ...duplicatePathDiagnostics(
+      documentPaths,
+      "Document path is declared more than once"
+    ),
+    ...duplicatePathDiagnostics(
+      generatedModelPaths,
+      "Generated or executable artifact path is assigned more than once"
+    )
+  );
+  const sourcePathSet = new Set(sourcePaths.map(portablePathIdentity));
+  for (const path of [...new Set(generatedModelPaths)].toSorted()) {
+    if (
+      sourcePathSet.has(portablePathIdentity(path)) ||
+      portablePathIdentity(path).endsWith("/package.json")
+    ) {
+      diagnostics.push(
+        diagnostic({
+          rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
+          subject: `catalog-path:${path}`,
+          path,
+          message: `Generated or executable artifact collides with a source, owner, ADR, schema, or document path: ${path}.`
+        })
+      );
+    }
+  }
+  return diagnostics;
 }
 
 function evaluateBindings(
@@ -103,30 +239,6 @@ function evaluateBindings(
       );
     }
   }
-  for (const schemaId of duplicateValues(
-    specification.generatedTypes.map((binding) => binding.schemaId)
-  )) {
-    diagnostics.push(
-      diagnostic({
-        rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
-        subject: `${specification.id}:schema:${schemaId}`,
-        path: specification.documents[0]?.path ?? observation.id,
-        message: `Schema ID has more than one generated type binding: ${schemaId}.`
-      })
-    );
-  }
-  for (const outputPath of duplicateValues(
-    specification.generatedTypes.map((binding) => binding.outputPath)
-  )) {
-    diagnostics.push(
-      diagnostic({
-        rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
-        subject: `${specification.id}:output:${outputPath}`,
-        path: outputPath,
-        message: `Generated type output path is bound more than once: ${outputPath}.`
-      })
-    );
-  }
   return diagnostics;
 }
 
@@ -136,17 +248,6 @@ function evaluateGates(
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const gates = specificationGates(specification);
-  for (const duplicate of duplicateValues(gates.map(([, binding]) => gateKey(binding)))) {
-    const [packageName = "", script = ""] = duplicate.split("\u0000");
-    diagnostics.push(
-      diagnostic({
-        rule: EXECUTABLE_SPECIFICATION_RULES.gateNotDistinct,
-        subject: `${specification.id}:gate:${packageName}:${script}`,
-        path: observation.id,
-        message: `Gate script is reused by more than one evidence role: ${packageName}#${script}.`
-      })
-    );
-  }
   for (const [role] of gates) {
     const observed = observation.gates[role];
     if (observed === undefined || !observed.packageExists || !observed.scriptExists) {
@@ -199,28 +300,6 @@ function evaluateSpecification(
       );
     }
   }
-  for (const collision of duplicateValues(generatedAndModelPaths(specification))) {
-    diagnostics.push(
-      diagnostic({
-        rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
-        subject: `${specification.id}:path:${collision}`,
-        path: collision,
-        message: `Executable or generated artifact path is assigned more than once: ${collision}.`
-      })
-    );
-  }
-  for (const collision of duplicateValues(
-    specification.documents.map((document) => document.path)
-  )) {
-    diagnostics.push(
-      diagnostic({
-        rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
-        subject: `${specification.id}:document-path:${collision}`,
-        path: collision,
-        message: `Specification document path is bound more than once: ${collision}.`
-      })
-    );
-  }
   diagnostics.push(...evaluateBindings(specification, observation));
   diagnostics.push(...evaluateGates(specification, observation));
   return diagnostics;
@@ -231,33 +310,11 @@ export function evaluateExecutableSpecifications(
   observations: readonly ExecutableSpecificationObservation[]
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
-  for (const id of duplicateValues(catalog.specifications.map((specification) => specification.id))) {
-    diagnostics.push(
-      diagnostic({
-        rule: EXECUTABLE_SPECIFICATION_RULES.specificationIdDuplicate,
-        subject: `specification:${id}`,
-        path: catalog.catalogPath,
-        message: `Executable specification ID is declared more than once: ${id}.`
-      })
-    );
-  }
   for (const [index, specification] of catalog.specifications.entries()) {
     const observation = observations[index];
     if (observation !== undefined) {
       diagnostics.push(...evaluateSpecification(specification, observation));
     }
-  }
-  for (const collision of duplicateValues(
-    catalog.specifications.flatMap(generatedAndModelPaths)
-  )) {
-    diagnostics.push(
-      diagnostic({
-        rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
-        subject: `catalog-path:${collision}`,
-        path: collision,
-        message: `Generated or executable artifact path collides across specifications: ${collision}.`
-      })
-    );
   }
   return diagnostics;
 }

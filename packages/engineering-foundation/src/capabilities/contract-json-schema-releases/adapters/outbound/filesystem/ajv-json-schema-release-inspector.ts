@@ -87,12 +87,28 @@ function canonicalJson(value: unknown): string {
   inputError("JSON_SCHEMA_VALUE_INVALID", "JSON evidence contains an unsupported value.");
 }
 
-async function safeJsonFile(root: string, repositoryPath: string): Promise<unknown> {
+type JsonEvidenceReader = (repositoryPath: string) => Promise<Buffer | undefined>;
+
+async function safeJsonFile(
+  root: string,
+  repositoryPath: string,
+  evidenceReader?: JsonEvidenceReader
+): Promise<unknown> {
   assertRepositoryRelativePath(repositoryPath, "json-schema-release-inspection");
   if (!repositoryPath.endsWith(".json")) {
     inputError("JSON_SCHEMA_PATH_INVALID", `JSON evidence path must end with .json: ${repositoryPath}.`);
   }
   let bytes: Buffer;
+  if (evidenceReader !== undefined) {
+    const observed = await evidenceReader(repositoryPath);
+    if (observed === undefined) {
+      inputError("JSON_SCHEMA_FILE_UNAVAILABLE", `JSON evidence is unavailable: ${repositoryPath}.`);
+    }
+    if (observed.byteLength > MAX_JSON_BYTES) {
+      inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is not a supported file: ${repositoryPath}.`);
+    }
+    bytes = observed;
+  } else {
   try {
     bytes = await readContainedRegularFile({
       candidate: resolve(root, repositoryPath),
@@ -116,6 +132,7 @@ async function safeJsonFile(root: string, repositoryPath: string): Promise<unkno
       inputError("JSON_SCHEMA_FILE_UNAVAILABLE", `JSON evidence is unavailable: ${repositoryPath}.`);
     }
     throw error;
+  }
   }
   try {
     return parseStrictJson(bytes.toString("utf8"));
@@ -394,6 +411,8 @@ function fixtureCorpusDigest(
 }
 
 export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector {
+  constructor(private readonly evidenceReader?: JsonEvidenceReader) {}
+
   async inspect(input: {
     readonly consumerRoot: string;
     readonly schemaPaths: readonly string[];
@@ -418,7 +437,10 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     const documents: SchemaDocument[] = [];
     for (const path of input.schemaPaths.toSorted(compareBinaryStrings)) {
       assertNotCancelled(input.signal);
-      const value = record(await safeJsonFile(root, path), `schema ${path}`);
+      const value = record(
+        await safeJsonFile(root, path, this.evidenceReader),
+        `schema ${path}`
+      );
       if (value["$schema"] !== DRAFT_2020_12) {
         inputError(
           "JSON_SCHEMA_DIALECT_INVALID",
@@ -445,7 +467,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
       compareBinaryStrings(left.id, right.id)
     )) {
       assertNotCancelled(input.signal);
-      const value = await safeJsonFile(root, fixture.path);
+      const value = await safeJsonFile(root, fixture.path, this.evidenceReader);
       fixtureValues.set(fixture.id, value);
       const validate = ajv.getSchema(fixture.schemaId) as ValidateFunction | undefined;
       if (validate === undefined) {

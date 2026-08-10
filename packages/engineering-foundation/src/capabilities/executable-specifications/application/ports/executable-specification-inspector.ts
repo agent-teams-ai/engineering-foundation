@@ -1,12 +1,12 @@
 import type {
-  ExecutableSpecification,
+  ExecutableSpecificationCatalog,
   ExecutableSpecificationObservation
 } from "../model/executable-specification.js";
 
 export interface ExecutableSpecificationInspector {
-  inspect(input: {
+  inspectCatalog(input: {
     readonly consumerRoot: string;
-    readonly specification: ExecutableSpecification;
+    readonly catalog: ExecutableSpecificationCatalog;
     readonly signal?: AbortSignal;
-  }): Promise<ExecutableSpecificationObservation>;
+  }): Promise<readonly ExecutableSpecificationObservation[]>;
 }

@@ -173,6 +173,37 @@ async function assertStrictExecutableSpecificationCatalog(fixture) {
   await writeFile(catalogPath, source, "utf8");
 }
 
+async function assertExecutableGatePackagesAreWorkspaceScoped(fixture) {
+  const catalogPath = join(
+    fixture.consumerRoot,
+    "architecture",
+    "specifications",
+    "catalog.json"
+  );
+  const source = await readFile(catalogPath, "utf8");
+  const catalog = JSON.parse(source);
+  for (const binding of Object.values(catalog.specifications[0].gateBindings)) {
+    binding.packageName = "foundation-pack-outside-gates";
+  }
+  await writeJson(catalogPath, catalog);
+  const report = await captureFoundationFailure(fixture, [
+    "check",
+    "--consumer",
+    fixture.consumerRoot,
+    "--format",
+    "json"
+  ]);
+  const capability = capabilityFromReport(report, "quality.executable-specifications");
+  const missingGateCount = capability?.diagnostics?.filter(
+    (diagnostic) =>
+      diagnostic.ruleId === "quality.executable-specifications.gate-missing"
+  ).length;
+  if (missingGateCount !== 3) {
+    throw new Error("Packed executable specification accepted an out-of-workspace gate package.");
+  }
+  await writeFile(catalogPath, source, "utf8");
+}
+
 async function assertDevelopmentBoundaryMode(fixture) {
   const configPath = join(
     fixture.consumerRoot,
@@ -401,6 +432,7 @@ export async function verifyPackedConsumer(input) {
   await assertJsonSchemaFormats(fixture);
   await assertExecutableSpecifications(fixture);
   await assertStrictExecutableSpecificationCatalog(fixture);
+  await assertExecutableGatePackagesAreWorkspaceScoped(fixture);
   await assertDevelopmentBoundaryMode(fixture);
   await assertPublicApiCompatibility(fixture);
   await assertSuppressionGovernance(fixture);

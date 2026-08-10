@@ -76,6 +76,18 @@ export function evaluateSourceDependencies(
   const boundariesById = new Map(
     input.policy.boundaries.map((boundary) => [boundary.id, boundary])
   );
+  const developmentBoundariesByPackage = new Map<string, string[]>();
+  for (const node of input.graph.nodes) {
+    if (boundariesById.get(node.boundaryId)?.dependencyMode !== "development") {
+      continue;
+    }
+    const boundaryIds = developmentBoundariesByPackage.get(node.workspacePackageName) ?? [];
+    if (!boundaryIds.includes(node.boundaryId)) {
+      boundaryIds.push(node.boundaryId);
+      boundaryIds.sort();
+    }
+    developmentBoundariesByPackage.set(node.workspacePackageName, boundaryIds);
+  }
   for (const path of input.graph.unclassifiedSourcePaths) {
     diagnostics.push(
       diagnostic({
@@ -121,7 +133,8 @@ export function evaluateSourceDependencies(
       ...evaluateResolvedSourceDependency({
         edge,
         policy: input.policy,
-        boundariesById
+        boundariesById,
+        developmentBoundariesByPackage
       })
     );
   }

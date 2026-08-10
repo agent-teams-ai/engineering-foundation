@@ -210,6 +210,7 @@ export async function loadCapabilityConfig(
   const catalog = record(catalogInput, "executable specification catalog");
   return Object.freeze({
     schemaVersion: 1,
+    configPath,
     catalogPath,
     specifications: Object.freeze(
       list(catalog["specifications"], "specifications").map(specification)

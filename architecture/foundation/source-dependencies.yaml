@@ -934,10 +934,10 @@ boundaries:
         - capability.executable-specifications.application
         - foundation.core
         - foundation.repository-input
+        - foundation.workspace-inventory.adapters
       packages: []
       builtins:
         - node:crypto
-        - node:fs/promises
         - node:path
       runtimeReferences: []
     entrypoints:

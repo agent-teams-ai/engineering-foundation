@@ -54,7 +54,11 @@ An XState topology requires at least two unique state axes, model, adapter,
 trace, and diagram paths, plus a fourth distinct `spec-model` gate binding.
 Every path is repository-relative, contained, regular, and symlink-free.
 Generated output and model artifact paths cannot collide within or across
-catalog entries.
+catalog entries or with Foundation/capability configuration, the catalog,
+workspace/package manifests, schemas, documents, owner documents, or ADRs.
+Path identity uses portable NFC and
+case-folded comparison, so aliases that collide on macOS or Windows fail on
+every platform.
 
 ## Validation semantics
 
@@ -69,8 +73,17 @@ keys at every nesting depth before schema validation. Duplicate keys are never
 normalized with last-write-wins behavior.
 
 Gate bindings name a workspace package and an existing non-empty package
-script. Foundation only confirms that the binding exists. Required CI remains
-consumer-owned and must execute those scripts independently.
+script. Only the root package and packages selected by `pnpm-workspace.yaml`
+are candidates. Foundation only confirms that the binding exists. Required CI
+remains consumer-owned and must execute those scripts independently.
+
+Topology validation runs before artifact or package I/O. Catalog v1 permits at
+most 64 specifications, 32 schemas per specification, 64 documents, and 64
+generated bindings, with at most 1024 unique artifact paths overall. One catalog
+inspection uses one workspace manifest selection snapshot, caches each declared
+artifact read, retains the 8 MiB per-file ceiling, and enforces a 32 MiB
+aggregate byte budget across unique artifacts and selected package manifests.
+Budget exhaustion fails the capability as invalid input without a partial pass.
 
 Inspection order, diagnostics, schema-set digests, document-corpus digests, and
 artifact digests are deterministic. Reports contain no timestamps, absolute

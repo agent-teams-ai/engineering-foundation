@@ -44,6 +44,12 @@ export const SOURCE_DEPENDENCY_RULES = Object.freeze({
     "Move the shared contract into a runtime boundary or keep the dependency entirely inside development boundaries.",
     true
   ),
+  runtimeBoundaryImportsDevelopmentWorkspacePackage: rule(
+    "runtime-boundary-imports-development-workspace-package",
+    "A workspace package containing development-only source cannot be a proven runtime-only package import target without explicit export ownership evidence.",
+    "Move development source to a separate workspace package or import it only from a development boundary.",
+    true
+  ),
   crossPackageRelativeImport: rule(
     "cross-package-relative-import",
     "Cross-package relative imports bypass package identity and public exports.",

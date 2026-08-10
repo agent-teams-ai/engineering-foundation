@@ -9,14 +9,7 @@ updates:
       timezone: Europe/Kyiv
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 10
-    ignore:
-      - dependency-name: "@types/node"
-        update-types:
-          - version-update:semver-major
-      - dependency-name: typescript
-        update-types:
-          - version-update:semver-major
+    open-pull-requests-limit: 0
     groups:
       api-extractor:
         patterns:
@@ -42,4 +35,4 @@ updates:
       timezone: Europe/Kyiv
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0

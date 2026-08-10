@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 0.11.0
+
+### Minor Changes
+
+- [#81](https://github.com/agent-teams-ai/engineering-foundation/pull/81) [`95685d3`](https://github.com/agent-teams-ai/engineering-foundation/commit/95685d3b60a1af4a3c11dd381f3284107ee33177) Thanks [@777genius](https://github.com/777genius)! - Allow empty and single-axis XState evidence profiles and clarify that axis identifiers are opaque, consumer-owned topology.
+
 ## 0.10.0
 
 ### Minor Changes

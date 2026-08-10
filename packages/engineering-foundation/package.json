@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/engineering-foundation",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Versioned engineering policy, tooling, and conformance for Agent Teams repositories.",
   "license": "Apache-2.0",
   "type": "module",

@@ -43,3 +43,10 @@ The complete contract, compatibility, and migration rules are defined by
 
 The foundation is not a production dependency and is not a shared business
 kernel.
+
+Executable specification connectivity follows the same boundary. Foundation
+owns strict catalogs, contained artifact inspection, local JSON Schema
+validation, and deterministic diagnostics. Consumers own domain schemas and
+documents, generated types, evaluators, properties, mutation setup, package
+scripts, XState models and adapters, traces, diagrams, and the CI that executes
+their gates. Foundation proves wiring, never consumer gate success.

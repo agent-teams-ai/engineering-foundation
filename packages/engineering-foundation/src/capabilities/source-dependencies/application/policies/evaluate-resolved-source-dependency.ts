@@ -50,11 +50,14 @@ function declarationDiagnostics(input: {
   readonly edge: ObservedSourceDependencyEdge;
   readonly packageName: string;
   readonly declaration: "development" | "runtime" | "undeclared";
+  readonly sourceBoundary: ArchitectureBoundaryPolicy;
   readonly workspace: boolean;
 }): readonly FoundationDiagnostic[] {
   if (
     input.declaration === "runtime" ||
-    (input.declaration === "development" && input.edge.mode === "type-only")
+    (input.declaration === "development" &&
+      (input.edge.mode === "type-only" ||
+        input.sourceBoundary.dependencyMode === "development"))
   ) {
     return [];
   }
@@ -209,6 +212,7 @@ function evaluateExternalPackageDependency(
       edge,
       packageName: resolution.packageName,
       declaration: resolution.declaration,
+      sourceBoundary,
       workspace: false
     })
   ];
@@ -249,6 +253,30 @@ function forbiddenBoundaryDiagnostics(input: {
   ];
 }
 
+function developmentTargetDiagnostics(input: {
+  readonly edge: ObservedSourceDependencyEdge;
+  readonly sourceBoundary: ArchitectureBoundaryPolicy;
+  readonly targetBoundary: ArchitectureBoundaryPolicy;
+  readonly targetPath: string;
+}): readonly FoundationDiagnostic[] {
+  if (
+    input.sourceBoundary.dependencyMode !== "runtime" ||
+    input.targetBoundary.dependencyMode !== "development"
+  ) {
+    return [];
+  }
+  return [
+    diagnostic({
+      rule: SOURCE_DEPENDENCY_RULES.runtimeBoundaryImportsDevelopmentBoundary,
+      subject: `${input.sourceBoundary.id}->${input.targetBoundary.id}`,
+      message: `Runtime boundary ${input.sourceBoundary.id} cannot import development boundary ${input.targetBoundary.id}.`,
+      path: input.edge.fromPath,
+      relatedPath: input.targetPath,
+      evidence: [{ kind: "specifier", value: input.edge.specifier }]
+    })
+  ];
+}
+
 function evaluateLocalFileDependency(input: EvaluationInput & {
   readonly resolution: ResolutionOfKind<"local-file">;
   readonly sourceBoundary: ArchitectureBoundaryPolicy;
@@ -264,6 +292,12 @@ function evaluateLocalFileDependency(input: EvaluationInput & {
     return [];
   }
   return [
+    ...developmentTargetDiagnostics({
+      edge: input.edge,
+      sourceBoundary: input.sourceBoundary,
+      targetBoundary,
+      targetPath: input.resolution.path
+    }),
     ...forbiddenBoundaryDiagnostics({
       edge: input.edge,
       sourceBoundary: input.sourceBoundary,
@@ -304,6 +338,7 @@ function evaluateWorkspacePackageDependency(
       edge,
       packageName: resolution.workspacePackageName,
       declaration: resolution.declaration,
+      sourceBoundary,
       workspace: true
     }),
     ...exportDiagnostics({

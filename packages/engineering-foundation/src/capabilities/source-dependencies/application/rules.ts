@@ -38,6 +38,12 @@ export const SOURCE_DEPENDENCY_RULES = Object.freeze({
     "Move shared types to an explicit contract boundary or remove the cyclic type dependency.",
     true
   ),
+  runtimeBoundaryImportsDevelopmentBoundary: rule(
+    "runtime-boundary-imports-development-boundary",
+    "Runtime source cannot depend directly or transitively on a development-only boundary.",
+    "Move the shared contract into a runtime boundary or keep the dependency entirely inside development boundaries.",
+    true
+  ),
   crossPackageRelativeImport: rule(
     "cross-package-relative-import",
     "Cross-package relative imports bypass package identity and public exports.",

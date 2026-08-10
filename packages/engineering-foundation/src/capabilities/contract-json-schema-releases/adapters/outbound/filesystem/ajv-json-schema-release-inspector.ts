@@ -12,6 +12,7 @@ import {
   readContainedRegularFile
 } from "../../../../../filesystem-path-safety.js";
 import { assertNotCancelled, assertRepositoryRelativePath } from "../../../../../strict-yaml.js";
+import { parseStrictJson, StrictJsonError } from "../../../../../strict-json.js";
 import type {
   JsonSchemaDigest,
   JsonSchemaFixture,
@@ -117,8 +118,14 @@ async function safeJsonFile(root: string, repositoryPath: string): Promise<unkno
     throw error;
   }
   try {
-    return JSON.parse(bytes.toString("utf8")) as unknown;
-  } catch {
+    return parseStrictJson(bytes.toString("utf8"));
+  } catch (error) {
+    if (error instanceof StrictJsonError && error.failure === "duplicate-key") {
+      inputError(
+        "JSON_SCHEMA_DUPLICATE_KEY",
+        `JSON evidence contains a duplicate object key: ${repositoryPath}.`
+      );
+    }
     inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is invalid: ${repositoryPath}.`);
   }
 }
@@ -305,7 +312,10 @@ function assertLocalReferences(
   }
 }
 
-function assertFixtures(fixtures: readonly JsonSchemaFixture[]): void {
+function assertFixtures(
+  fixtures: readonly JsonSchemaFixture[],
+  requireMixedExpectations: boolean
+): void {
   const ids = new Set<string>();
   const expectations = new Set<JsonSchemaFixture["expectation"]>();
   for (const fixture of fixtures) {
@@ -323,7 +333,10 @@ function assertFixtures(fixtures: readonly JsonSchemaFixture[]): void {
       inputError("JSON_SCHEMA_FIXTURE_INVALID", `Fixture schemaId is invalid: ${fixture.id}.`);
     }
   }
-  if (!expectations.has("valid") || !expectations.has("invalid")) {
+  if (
+    requireMixedExpectations &&
+    (!expectations.has("valid") || !expectations.has("invalid"))
+  ) {
     inputError(
       "JSON_SCHEMA_FIXTURE_CORPUS_INCOMPLETE",
       "Fixture corpus must contain at least one valid and one invalid example."
@@ -385,6 +398,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     readonly consumerRoot: string;
     readonly schemaPaths: readonly string[];
     readonly fixtures: readonly JsonSchemaFixture[];
+    readonly requireMixedExpectations?: boolean;
     readonly signal?: AbortSignal;
   }): Promise<JsonSchemaInspection> {
     assertNotCancelled(input.signal);
@@ -394,7 +408,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     if (new Set(input.schemaPaths).size !== input.schemaPaths.length) {
       inputError("JSON_SCHEMA_PATHS_INVALID", "Contract schema paths must be unique.");
     }
-    assertFixtures(input.fixtures);
+    assertFixtures(input.fixtures, input.requireMixedExpectations ?? true);
     const root = await realpath(input.consumerRoot).catch(() =>
       inputError("CONSUMER_ROOT_UNAVAILABLE", "Consumer root must be an existing accessible directory.")
     );

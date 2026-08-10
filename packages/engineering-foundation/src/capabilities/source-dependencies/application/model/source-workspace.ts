@@ -42,6 +42,8 @@ interface ParsedSourceFile extends SourceFileSnapshot {
 
 export interface ArchitectureBoundaryPolicy {
   readonly id: string;
+  /** Runtime is the safe default; development admits runtime imports from devDependencies. */
+  readonly dependencyMode: "runtime" | "development";
   readonly roots: readonly string[];
   /** Explicit inbound local-import surface declared by the consumer. */
   readonly entrypoints: readonly string[];

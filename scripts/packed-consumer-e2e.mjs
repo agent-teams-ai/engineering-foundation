@@ -14,6 +14,7 @@ const expectedCapabilityIds = [
   "documentation.local-references",
   "governance.architecture-decisions",
   "package.public-api-compatibility",
+  "quality.executable-specifications",
   "quality.suppression-governance",
   "repository.security-baseline",
   "workspace.dependency-declarations"
@@ -116,6 +117,88 @@ async function assertJsonSchemaFormats(fixture) {
     throw new Error("Packed JSON Schema capability did not reject a mismatched fixture.");
   }
   await writeJson(fixturePath, fixture.jsonContract.validFixture);
+}
+
+async function assertExecutableSpecifications(fixture) {
+  const documentPath = join(
+    fixture.consumerRoot,
+    "contracts",
+    "json-schema",
+    "fixtures",
+    "valid.json"
+  );
+  await writeJson(documentPath, fixture.jsonContract.invalidFixture);
+  const report = await captureFoundationFailure(fixture, [
+    "check",
+    "--consumer",
+    fixture.consumerRoot,
+    "--format",
+    "json"
+  ]);
+  const capability = capabilityFromReport(report, "quality.executable-specifications");
+  const rejected = capability?.diagnostics?.some(
+    (diagnostic) =>
+      diagnostic.ruleId === "quality.executable-specifications.document-invalid"
+  );
+  if (rejected !== true) {
+    throw new Error("Packed executable specification capability accepted an invalid document.");
+  }
+  await writeJson(documentPath, fixture.jsonContract.validFixture);
+}
+
+async function assertStrictExecutableSpecificationCatalog(fixture) {
+  const catalogPath = join(
+    fixture.consumerRoot,
+    "architecture",
+    "specifications",
+    "catalog.json"
+  );
+  const source = await readFile(catalogPath, "utf8");
+  await writeFile(
+    catalogPath,
+    source.replace('"schemaVersion": 1', '"schemaVersion": 1, "schemaVersion": 1'),
+    "utf8"
+  );
+  const report = await captureFoundationFailure(fixture, [
+    "check",
+    "--consumer",
+    fixture.consumerRoot,
+    "--format",
+    "json"
+  ]);
+  const capability = capabilityFromReport(report, "quality.executable-specifications");
+  if (capability?.problem?.code !== "EXECUTABLE_SPECIFICATION_CATALOG_DUPLICATE_KEY") {
+    throw new Error("Packed executable specification catalog accepted a duplicate key.");
+  }
+  await writeFile(catalogPath, source, "utf8");
+}
+
+async function assertDevelopmentBoundaryMode(fixture) {
+  const configPath = join(
+    fixture.consumerRoot,
+    "architecture",
+    "foundation",
+    "source-dependencies.yaml"
+  );
+  const source = await readFile(configPath, "utf8");
+  await writeFile(configPath, source.replace("    dependencyMode: development\n", ""), "utf8");
+  const report = await captureFoundationFailure(fixture, [
+    "check",
+    "--consumer",
+    fixture.consumerRoot,
+    "--format",
+    "json"
+  ]);
+  const capability = capabilityFromReport(report, "architecture.source-dependencies");
+  const rejected = capability?.diagnostics?.some(
+    (diagnostic) =>
+      diagnostic.ruleId ===
+      "architecture.source-dependencies.runtime-import-from-development-dependency"
+  );
+  if (rejected !== true) {
+    throw new Error("Packed runtime boundary accepted a runtime devDependency import.");
+  }
+  await writeFile(configPath, source, "utf8");
 }
 
 function capabilityFromReport(report, capabilityId) {
@@ -316,6 +399,9 @@ export async function verifyPackedConsumer(input) {
   await assertCapabilityCheck(fixture);
   await assertSourceGraphViolation(fixture);
   await assertJsonSchemaFormats(fixture);
+  await assertExecutableSpecifications(fixture);
+  await assertStrictExecutableSpecificationCatalog(fixture);
+  await assertDevelopmentBoundaryMode(fixture);
   await assertPublicApiCompatibility(fixture);
   await assertSuppressionGovernance(fixture);
   await assertRepositorySecurityBaseline(fixture);

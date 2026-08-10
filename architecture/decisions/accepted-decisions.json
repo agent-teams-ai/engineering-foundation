@@ -96,6 +96,11 @@
       "id": "ADR-0019",
       "path": "docs/decisions/0019-single-current-foundation-contract-version.md",
       "immutableDigest": "sha256:56d70b836a093aa4b7719dbb065c48160530b1460f397cc28744ffb7419c858b"
+    },
+    {
+      "id": "ADR-0020",
+      "path": "docs/decisions/0020-static-executable-specification-connectivity.md",
+      "immutableDigest": "sha256:b4ac371fbc0e1766853d37dd17c544219dbea81ee6dc7256f0decd69d3e9d499"
     }
   ]
 }

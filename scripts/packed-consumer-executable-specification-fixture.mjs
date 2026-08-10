@@ -4,6 +4,14 @@ import { join } from "node:path";
 import { writeJson } from "./pack-test-support.mjs";
 
 export async function writeExecutableSpecificationFixture(consumerRoot, jsonContract) {
+  const dataOnlySchema = {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: "https://schemas.agent-teams.ai/pack-consumer/data-only/v1",
+    type: "object",
+    additionalProperties: false,
+    required: ["status"],
+    properties: { status: { enum: ["ready"] } }
+  };
   await writeJson(
     join(consumerRoot, "architecture", "foundation", "executable-specifications.yaml"),
     {
@@ -46,9 +54,46 @@ export async function writeExecutableSpecificationFixture(consumerRoot, jsonCont
           }
         },
         stateModel: { kind: "none" }
+      },
+      {
+        id: "pack-consumer-data-only",
+        ownerDocs: ["docs/data-only-specification.md"],
+        adrRefs: [],
+        schemaPaths: ["architecture/specifications/data-only.schema.json"],
+        documents: [
+          {
+            path: "architecture/specifications/data-only.json",
+            schemaId: dataOnlySchema.$id
+          }
+        ],
+        generatedTypes: [],
+        gateBindings: {
+          property: {
+            packageName: "foundation-pack-consumer",
+            script: "spec:property"
+          },
+          mutation: {
+            packageName: "foundation-pack-consumer",
+            script: "spec:mutation"
+          }
+        },
+        stateModel: { kind: "none" }
       }
     ]
   });
+  await writeJson(
+    join(consumerRoot, "architecture", "specifications", "data-only.schema.json"),
+    dataOnlySchema
+  );
+  await writeJson(
+    join(consumerRoot, "architecture", "specifications", "data-only.json"),
+    { status: "ready" }
+  );
+  await writeFile(
+    join(consumerRoot, "docs", "data-only-specification.md"),
+    "# Data-only specification\n",
+    "utf8"
+  );
   await writeFile(
     join(consumerRoot, "src", "generated-event.ts"),
     [

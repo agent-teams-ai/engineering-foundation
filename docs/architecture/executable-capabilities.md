@@ -162,11 +162,16 @@ adapters, schema, rules, and fixtures.
 ### Executable specifications
 
 `quality.executable-specifications` validates a consumer-owned JSON catalog that
-connects domain schemas and documents, generated types, owner documents, ADRs,
-and distinct type-generation, property, and mutation gate bindings. Optional
+connects domain schemas and documents, optional generated types, owner
+documents, ADRs, and distinct property and mutation gate bindings. A
+type-generation gate is required exactly when generated types are declared. Optional
 XState topology requires at least two axes plus model, adapter, trace, diagram,
 and a distinct spec-model gate. It reuses the contract JSON Schema capability's
 strict Draft 2020-12 local-only Ajv inspection.
+
+All catalog and selected workspace-manifest paths use the capability's
+conservative portable ASCII segment contract and one cross-role identity map.
+Aliases and platform-invalid paths fail before consumer artifact reads.
 
 Foundation performs no process execution, imports no consumer model, has no
 XState dependency, and makes no claim that a bound gate passed. Domain facts,

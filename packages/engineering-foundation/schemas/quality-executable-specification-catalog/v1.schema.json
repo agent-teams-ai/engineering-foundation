@@ -147,14 +147,14 @@
         },
         "generatedTypes": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "maxItems": 64,
           "items": { "$ref": "#/$defs/generatedType" }
         },
         "gateBindings": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["typeGeneration", "property", "mutation"],
+          "required": ["property", "mutation"],
           "properties": {
             "typeGeneration": { "$ref": "#/$defs/gateBinding" },
             "property": { "$ref": "#/$defs/gateBinding" },
@@ -167,7 +167,35 @@
             { "$ref": "#/$defs/stateModelXstate" }
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "generatedTypes": { "type": "array", "minItems": 1 }
+            }
+          },
+          "then": {
+            "properties": {
+              "gateBindings": {
+                "type": "object",
+                "properties": {
+                  "typeGeneration": { "$ref": "#/$defs/gateBinding" }
+                },
+                "required": ["typeGeneration"]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "gateBindings": {
+                "type": "object",
+                "properties": { "typeGeneration": false }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

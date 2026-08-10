@@ -906,6 +906,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/capabilities/executable-specifications/application/model/executable-specification.ts
       - packages/engineering-foundation/src/capabilities/executable-specifications/application/policies/evaluate-executable-specifications.ts
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application/policies/portable-executable-specification-path.ts
       - packages/engineering-foundation/src/capabilities/executable-specifications/application/ports/executable-specification-inspector.ts
       - packages/engineering-foundation/src/capabilities/executable-specifications/application/rules.ts
       - packages/engineering-foundation/src/capabilities/executable-specifications/application/use-cases/analyze-executable-specifications.ts

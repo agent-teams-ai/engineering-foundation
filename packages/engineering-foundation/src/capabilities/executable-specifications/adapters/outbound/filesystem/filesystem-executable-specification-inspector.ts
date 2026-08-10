@@ -18,6 +18,12 @@ import type {
   ObservedGateBinding
 } from "../../../application/model/executable-specification.js";
 import type { ExecutableSpecificationInspector } from "../../../application/ports/executable-specification-inspector.js";
+import {
+  executableSpecificationArtifactPaths,
+  executableSpecificationPathDeclarations,
+  portableExecutableSpecificationPathIdentity,
+  portableExecutableSpecificationPathProblem
+} from "../../../application/policies/portable-executable-specification-path.js";
 
 const MAX_ARTIFACT_BYTES = 8 * 1024 * 1024;
 const MAX_AGGREGATE_ARTIFACT_BYTES = 32 * 1024 * 1024;
@@ -67,26 +73,6 @@ function canonicalJson(value: unknown): string {
   inputError("EXECUTABLE_SPECIFICATION_DIGEST_INVALID", "Artifact digest input is invalid.");
 }
 
-function artifactPaths(specification: ExecutableSpecification): readonly string[] {
-  const statePaths =
-    specification.stateModel.kind === "xstate"
-      ? [
-          specification.stateModel.adapterPath,
-          specification.stateModel.diagramPath,
-          specification.stateModel.modelPath,
-          specification.stateModel.tracesPath
-        ]
-      : [];
-  return [
-    ...specification.ownerDocs,
-    ...specification.adrRefs,
-    ...specification.schemaPaths,
-    ...specification.documents.map((document) => document.path),
-    ...specification.generatedTypes.map((binding) => binding.outputPath),
-    ...statePaths
-  ];
-}
-
 async function readArtifact(
   root: string,
   repositoryPath: string
@@ -112,7 +98,10 @@ async function readArtifact(
 }
 
 class ArtifactReadSession {
-  readonly #cache = new Map<string, Buffer | undefined>();
+  readonly #cache = new Map<
+    string,
+    { readonly firstPath: string; readonly result: Promise<Buffer | undefined> }
+  >();
   #aggregateBytes = 0;
 
   constructor(
@@ -121,21 +110,31 @@ class ArtifactReadSession {
   ) {}
 
   async read(repositoryPath: string): Promise<Buffer | undefined> {
-    if (this.#cache.has(repositoryPath)) {
-      return this.#cache.get(repositoryPath);
-    }
-    const bytes = await readArtifact(this.root, repositoryPath);
-    if (bytes !== undefined) {
-      if (bytes.byteLength > this.maxAggregateBytes - this.#aggregateBytes) {
+    const identity = portableExecutableSpecificationPathIdentity(repositoryPath);
+    const cached = this.#cache.get(identity);
+    if (cached !== undefined) {
+      if (cached.firstPath !== repositoryPath) {
         inputError(
-          "EXECUTABLE_SPECIFICATION_AGGREGATE_BYTES_EXCEEDED",
-          "Executable specification artifacts and workspace manifests exceed the 32 MiB aggregate inspection budget."
+          "EXECUTABLE_SPECIFICATION_ARTIFACT_PATH_COLLISION",
+          `Artifact paths have the same portable identity: ${cached.firstPath} and ${repositoryPath}.`
         );
       }
-      this.#aggregateBytes += bytes.byteLength;
+      return cached.result;
     }
-    this.#cache.set(repositoryPath, bytes);
-    return bytes;
+    const result = readArtifact(this.root, repositoryPath).then((bytes) => {
+      if (bytes !== undefined) {
+        if (bytes.byteLength > this.maxAggregateBytes - this.#aggregateBytes) {
+          inputError(
+            "EXECUTABLE_SPECIFICATION_AGGREGATE_BYTES_EXCEEDED",
+            "Executable specification artifacts and workspace manifests exceed the 32 MiB aggregate inspection budget."
+          );
+        }
+        this.#aggregateBytes += bytes.byteLength;
+      }
+      return bytes;
+    });
+    this.#cache.set(identity, { firstPath: repositoryPath, result });
+    return result;
   }
 }
 
@@ -207,7 +206,9 @@ function gateEntries(
   return [
     ["mutation", specification.gateBindings.mutation],
     ["property", specification.gateBindings.property],
-    ["typeGeneration", specification.gateBindings.typeGeneration],
+    ...(specification.gateBindings.typeGeneration === undefined
+      ? []
+      : ([['typeGeneration', specification.gateBindings.typeGeneration]] as const)),
     ...(specification.stateModel.kind === "xstate"
       ? ([['spec-model', specification.stateModel.gateBinding]] as const)
       : [])
@@ -253,16 +254,62 @@ export class FilesystemExecutableSpecificationInspector
       "pnpm-workspace.yaml",
       input.signal
     );
+    const occupiedPaths = new Map<
+      string,
+      { path: string; role: ReturnType<typeof executableSpecificationPathDeclarations>[number]["role"] }
+    >();
+    for (const declaration of executableSpecificationPathDeclarations(input.catalog)) {
+      const identity = portableExecutableSpecificationPathIdentity(declaration.path);
+      occupiedPaths.set(identity, declaration);
+    }
+    const selectedManifestIdentities = new Map<string, string>();
+    for (const manifestPath of manifestPaths) {
+      const portabilityProblem = portableExecutableSpecificationPathProblem(manifestPath);
+      if (portabilityProblem !== undefined) {
+        inputError(
+          "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_NOT_PORTABLE",
+          `Selected workspace manifest path is not portable: ${manifestPath} (${portabilityProblem}).`
+        );
+      }
+      const identity = portableExecutableSpecificationPathIdentity(manifestPath);
+      const previousManifest = selectedManifestIdentities.get(identity);
+      if (previousManifest !== undefined && previousManifest !== manifestPath) {
+        inputError(
+          "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_COLLISION",
+          `Selected workspace manifests have the same portable path identity: ${previousManifest} and ${manifestPath}.`
+        );
+      }
+      const occupiedPath = occupiedPaths.get(identity);
+      if (
+        occupiedPath !== undefined &&
+        !(
+          occupiedPath.role === "reserved-root-package" &&
+          occupiedPath.path === "package.json" &&
+          manifestPath === "package.json"
+        )
+      ) {
+        inputError(
+          "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_COLLISION",
+          `Selected workspace manifest collides with a declared or reserved executable specification path: ${manifestPath}.`
+        );
+      }
+      selectedManifestIdentities.set(identity, manifestPath);
+    }
+    const uniqueManifestPaths = [...selectedManifestIdentities.values()];
     const paths = [
-      ...new Set(input.catalog.specifications.flatMap(artifactPaths))
+      ...new Set(input.catalog.specifications.flatMap(executableSpecificationArtifactPaths))
     ].toSorted(compareBinaryStrings);
-    if (new Set([...manifestPaths, ...paths]).size > 1_024) {
+    if (
+      new Set(
+        [...uniqueManifestPaths, ...paths].map(portableExecutableSpecificationPathIdentity)
+      ).size > 1_024
+    ) {
       inputError(
         "EXECUTABLE_SPECIFICATION_ARTIFACT_COUNT_EXCEEDED",
         "Executable specification catalogs and selected workspace packages may reference at most 1024 unique artifacts."
       );
     }
-    const packages = await packageCatalog(manifestPaths, artifacts, input.signal);
+    const packages = await packageCatalog(uniqueManifestPaths, artifacts, input.signal);
     for (const repositoryPath of paths) {
       assertNotCancelled(input.signal);
       await artifacts.read(repositoryPath);
@@ -272,7 +319,7 @@ export class FilesystemExecutableSpecificationInspector
       assertNotCancelled(input.signal);
       const content = new Map<string, string>();
       const missingArtifactPaths: string[] = [];
-      for (const repositoryPath of [...new Set(artifactPaths(specification))].toSorted(
+      for (const repositoryPath of [...new Set(executableSpecificationArtifactPaths(specification))].toSorted(
         compareBinaryStrings
       )) {
         const bytes = await artifacts.read(repositoryPath);

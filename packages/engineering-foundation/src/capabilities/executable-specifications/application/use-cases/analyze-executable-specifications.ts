@@ -6,6 +6,7 @@ import {
   evaluateExecutableSpecifications
 } from "../policies/evaluate-executable-specifications.js";
 import type { ExecutableSpecificationInspector } from "../ports/executable-specification-inspector.js";
+import { executableSpecificationArtifactPaths } from "../policies/portable-executable-specification-path.js";
 
 export async function analyzeExecutableSpecifications(
   input: {
@@ -21,21 +22,7 @@ export async function analyzeExecutableSpecifications(
     return topologyDiagnostics;
   }
   const artifactCount = new Set(
-    input.catalog.specifications.flatMap((specification) => [
-      ...specification.ownerDocs,
-      ...specification.adrRefs,
-      ...specification.schemaPaths,
-      ...specification.documents.map((document) => document.path),
-      ...specification.generatedTypes.map((binding) => binding.outputPath),
-      ...(specification.stateModel.kind === "xstate"
-        ? [
-            specification.stateModel.adapterPath,
-            specification.stateModel.diagramPath,
-            specification.stateModel.modelPath,
-            specification.stateModel.tracesPath
-          ]
-        : [])
-    ])
+    input.catalog.specifications.flatMap(executableSpecificationArtifactPaths)
   ).size;
   if (artifactCount > 1_024) {
     throw new CapabilityInputError({

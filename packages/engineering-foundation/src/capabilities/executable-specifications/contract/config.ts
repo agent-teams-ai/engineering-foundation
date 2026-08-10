@@ -21,6 +21,7 @@ import type {
   NoStateModel,
   XstateStateModel
 } from "../application/model/executable-specification.js";
+import { portableExecutableSpecificationPathProblem } from "../application/policies/portable-executable-specification-path.js";
 
 export const CAPABILITY_ID = "quality.executable-specifications" as const;
 export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
@@ -59,6 +60,13 @@ function list(value: unknown, field: string): readonly unknown[] {
 function path(value: unknown, field: string): string {
   const repositoryPath = string(value, field);
   assertRepositoryRelativePath(repositoryPath, "executable-specification-config");
+  const portabilityProblem = portableExecutableSpecificationPathProblem(repositoryPath);
+  if (portabilityProblem !== undefined) {
+    inputError(
+      "EXECUTABLE_SPECIFICATION_PATH_NOT_PORTABLE",
+      `${field} is not a portable executable specification path: ${portabilityProblem}.`
+    );
+  }
   return repositoryPath;
 }
 
@@ -113,6 +121,11 @@ function specification(value: unknown, index: number): ExecutableSpecification {
   const field = `specifications[${index}]`;
   const source = record(value, field);
   const gates = record(source["gateBindings"], `${field}.gateBindings`);
+  const generatedTypes = Object.freeze(
+    list(source["generatedTypes"], `${field}.generatedTypes`).map((entry, typeIndex) =>
+      generatedType(entry, `${field}.generatedTypes[${typeIndex}]`)
+    )
+  );
   return Object.freeze({
     id: string(source["id"], `${field}.id`),
     ownerDocs: Object.freeze(
@@ -135,13 +148,16 @@ function specification(value: unknown, index: number): ExecutableSpecification {
         document(entry, `${field}.documents[${documentIndex}]`)
       )
     ),
-    generatedTypes: Object.freeze(
-      list(source["generatedTypes"], `${field}.generatedTypes`).map((entry, typeIndex) =>
-        generatedType(entry, `${field}.generatedTypes[${typeIndex}]`)
-      )
-    ),
+    generatedTypes,
     gateBindings: Object.freeze({
-      typeGeneration: gate(gates["typeGeneration"], `${field}.gateBindings.typeGeneration`),
+      ...(generatedTypes.length === 0
+        ? {}
+        : {
+            typeGeneration: gate(
+              gates["typeGeneration"],
+              `${field}.gateBindings.typeGeneration`
+            )
+          }),
       property: gate(gates["property"], `${field}.gateBindings.property`),
       mutation: gate(gates["mutation"], `${field}.gateBindings.mutation`)
     }),
@@ -187,6 +203,7 @@ export async function loadCapabilityConfig(
   configPath: string,
   signal?: AbortSignal
 ): Promise<ExecutableSpecificationCatalog> {
+  path(configPath, "configPath");
   const input = await loadStrictYamlFile(
     consumerRoot,
     configPath,

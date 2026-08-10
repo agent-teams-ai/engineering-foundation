@@ -73,6 +73,13 @@ function specification(stateModel = { kind: "none" }) {
   };
 }
 
+function dataOnlySpecification(stateModel = { kind: "none" }) {
+  const candidate = specification(stateModel);
+  candidate.generatedTypes = [];
+  delete candidate.gateBindings.typeGeneration;
+  return candidate;
+}
+
 function catalogOf(...specifications) {
   return {
     schemaVersion: 1,
@@ -147,6 +154,80 @@ test("accepts a connected JSON-first executable specification without running ga
     assert.equal(first.outcome, "passed");
     assert.deepEqual(first, second);
   });
+});
+
+test("accepts a data-only specification without generated output or a type-generation gate", async () => {
+  await withFixture(async (root) => {
+    await rm(join(root, "src", "generated", "workflow.ts"));
+    await writeJson(root, "package.json", {
+      name: "@example/specs",
+      scripts: {
+        "spec:property": "consumer-owned-property-tests",
+        "spec:mutation": "consumer-owned-mutation-tests",
+      },
+    });
+    const result = await run(root);
+    assert.equal(result.outcome, "passed");
+    assert.equal(result.diagnostics.length, 0);
+  }, { schemaVersion: 1, specifications: [dataOnlySpecification()] });
+});
+
+test("requires a type-generation gate when generated types are declared", async () => {
+  const candidate = specification();
+  delete candidate.gateBindings.typeGeneration;
+  await withFixture(async (root) => {
+    const result = await run(root);
+    assert.equal(result.outcome, "invalid-input");
+    assert.equal(result.problem.code, "SCHEMA_INVALID");
+  }, { schemaVersion: 1, specifications: [candidate] });
+});
+
+test("forbids a type-generation gate when no generated types are declared", async () => {
+  const candidate = dataOnlySpecification();
+  candidate.gateBindings.typeGeneration = {
+    packageName: "@example/specs",
+    script: "spec:typegen",
+  };
+  await withFixture(async (root) => {
+    const result = await run(root);
+    assert.equal(result.outcome, "invalid-input");
+    assert.equal(result.problem.code, "SCHEMA_INVALID");
+  }, { schemaVersion: 1, specifications: [candidate] });
+});
+
+test("rejects type-generation topology mismatches before inspector I/O", async () => {
+  const generatedWithoutGate = specification();
+  delete generatedWithoutGate.gateBindings.typeGeneration;
+  const dataOnlyWithGate = dataOnlySpecification();
+  dataOnlyWithGate.gateBindings.typeGeneration = gates().typeGeneration;
+  for (const candidate of [generatedWithoutGate, dataOnlyWithGate]) {
+    let inspections = 0;
+    const diagnostics = await capabilityModule.analyzeExecutableSpecifications(
+      { consumerRoot: "/not-used", catalog: catalogOf(candidate) },
+      {
+        async inspectCatalog() {
+          inspections += 1;
+          return [];
+        },
+      },
+    );
+    assert.equal(inspections, 0);
+    assert.ok(
+      diagnostics.some(
+        ({ ruleId }) =>
+          ruleId === "quality.executable-specifications.generated-type-gate-mismatch",
+      ),
+    );
+  }
+});
+
+test("validates the capability config path before trying to read it", async () => {
+  const result = await capabilityModule.createExecutableSpecificationsCapability().run({
+    consumerRoot: "/definitely-not-readable",
+    configPath: "docs/CON.ts",
+  });
+  assert.equal(result.outcome, "invalid-input");
+  assert.equal(result.problem.code, "EXECUTABLE_SPECIFICATION_PATH_NOT_PORTABLE");
 });
 
 test("does not accept a gate package outside the pnpm workspace", async () => {
@@ -389,6 +470,117 @@ test("reserves catalog paths and compares topology with portable identities befo
       ),
     );
   }
+});
+
+test("rejects non-portable and cross-role path aliases during pure topology preflight", async () => {
+  const cases = [
+    { owner: "docs/result", output: "docs/result." },
+    { owner: "docs/./owner.md", output: "src/generated/workflow.ts" },
+    { owner: "Docs/Owner.md", output: "docs/owner.md" },
+    { owner: "docs/caf\u00e9.md", output: "docs/cafe\u0301.md" },
+    { owner: "docs/\u03a3.md", output: "docs/\u03c2.md" },
+  ];
+  for (const paths of cases) {
+    const candidate = specification();
+    candidate.ownerDocs = [paths.owner];
+    candidate.generatedTypes[0].outputPath = paths.output;
+    let inspections = 0;
+    const diagnostics = await capabilityModule.analyzeExecutableSpecifications(
+      { consumerRoot: "/not-used", catalog: catalogOf(candidate) },
+      {
+        async inspectCatalog() {
+          inspections += 1;
+          return [];
+        },
+      },
+    );
+    assert.equal(inspections, 0);
+    assert.ok(
+      diagnostics.some(
+        ({ ruleId }) => ruleId === "quality.executable-specifications.path-collision",
+      ),
+    );
+  }
+});
+
+test("rejects Windows device, ADS, control, and trailing-space catalog paths", async () => {
+  const invalidPaths = [
+    "docs/CON.ts",
+    "docs/./owner.md",
+    "docs/owner.md:stream",
+    "docs/control\u0001.md",
+    "docs/trailing-space ",
+  ];
+  for (const invalidPath of invalidPaths) {
+    const candidate = specification();
+    candidate.ownerDocs = [invalidPath];
+    await withFixture(async (root) => {
+      const result = await run(root);
+      assert.equal(result.outcome, "invalid-input");
+      assert.equal(
+        result.problem.code,
+        invalidPath.includes("/./")
+          ? "CONFIG_PATH_INVALID"
+          : "EXECUTABLE_SPECIFICATION_PATH_NOT_PORTABLE",
+      );
+    }, { schemaVersion: 1, specifications: [candidate] });
+  }
+});
+
+test("rejects selected workspace manifest aliases before reading them", async () => {
+  await withFixture(async (root) => {
+    const inspector = new capabilityModule.FilesystemExecutableSpecificationInspector({
+      async discoverManifestPaths() {
+        return ["package.json", "DOCS/WORKFLOW.MD"];
+      },
+    });
+    await assert.rejects(
+      capabilityModule.analyzeExecutableSpecifications(
+        { consumerRoot: root, catalog: catalogOf(specification()) },
+        inspector,
+      ),
+      ({ problem }) =>
+        problem?.code === "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_COLLISION",
+    );
+  });
+});
+
+test("rejects exact owner-manifest reuse and root package case aliases before reads", async () => {
+  for (const manifestPath of ["docs/workflow.md", "Package.json"]) {
+    await withFixture(async (root) => {
+      const inspector = new capabilityModule.FilesystemExecutableSpecificationInspector({
+        async discoverManifestPaths() {
+          return ["package.json", manifestPath];
+        },
+      });
+      await assert.rejects(
+        capabilityModule.analyzeExecutableSpecifications(
+          { consumerRoot: root, catalog: catalogOf(specification()) },
+          inspector,
+        ),
+        ({ problem }) =>
+          problem?.code === "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_COLLISION",
+      );
+    });
+  }
+});
+
+test("rejects non-ASCII selected workspace manifests before reading them", async () => {
+  await withFixture(async (root) => {
+    const inspector = new capabilityModule.FilesystemExecutableSpecificationInspector({
+      async discoverManifestPaths() {
+        return ["package.json", "packages/\u03a3/package.json"];
+      },
+    });
+    await assert.rejects(
+      capabilityModule.analyzeExecutableSpecifications(
+        { consumerRoot: root, catalog: catalogOf(specification()) },
+        inspector,
+      ),
+      ({ problem }) =>
+        problem?.code === "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_NOT_PORTABLE",
+    );
+  });
 });
 
 test("uses one workspace inventory snapshot for a multi-specification catalog", async () => {

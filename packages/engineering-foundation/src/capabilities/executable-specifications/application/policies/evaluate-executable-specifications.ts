@@ -9,6 +9,11 @@ import {
   EXECUTABLE_SPECIFICATION_RULES,
   type ExecutableSpecificationRuleMetadata
 } from "../rules.js";
+import {
+  executableSpecificationPathDeclarations,
+  portableExecutableSpecificationPathIdentity,
+  portableExecutableSpecificationPathProblem
+} from "./portable-executable-specification-path.js";
 
 function diagnostic(input: {
   readonly rule: ExecutableSpecificationRuleMetadata;
@@ -42,15 +47,11 @@ function duplicateValues(values: readonly string[]): readonly string[] {
   return [...duplicates].toSorted();
 }
 
-function portablePathIdentity(path: string): string {
-  return path.normalize("NFC").toLocaleLowerCase("en-US");
-}
-
 function duplicatePaths(paths: readonly string[]): readonly string[] {
   const firstByIdentity = new Map<string, string>();
   const duplicates = new Set<string>();
   for (const path of paths) {
-    const identity = portablePathIdentity(path);
+    const identity = portableExecutableSpecificationPathIdentity(path);
     const first = firstByIdentity.get(identity);
     if (first === undefined) {
       firstByIdentity.set(identity, path);
@@ -69,7 +70,9 @@ function specificationGates(
   specification: ExecutableSpecification
 ): readonly (readonly [string, ConsumerGateBinding])[] {
   return [
-    ["typeGeneration", specification.gateBindings.typeGeneration],
+    ...(specification.gateBindings.typeGeneration === undefined
+      ? []
+      : ([['typeGeneration', specification.gateBindings.typeGeneration]] as const)),
     ["property", specification.gateBindings.property],
     ["mutation", specification.gateBindings.mutation],
     ...(specification.stateModel.kind === "xstate"
@@ -106,6 +109,65 @@ function duplicatePathDiagnostics(
   );
 }
 
+function evaluateSpecificationTopology(
+  specification: ExecutableSpecification,
+  catalogPath: string
+): readonly FoundationDiagnostic[] {
+  const diagnostics: FoundationDiagnostic[] = [];
+  const hasGeneratedTypes = specification.generatedTypes.length > 0;
+  const hasTypeGenerationGate = specification.gateBindings.typeGeneration !== undefined;
+  if (hasGeneratedTypes !== hasTypeGenerationGate) {
+    diagnostics.push(
+      diagnostic({
+        rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeGateMismatch,
+        subject: `${specification.id}:gate:typeGeneration`,
+        path: catalogPath,
+        message: hasGeneratedTypes
+          ? "Generated type outputs require a type-generation gate binding."
+          : "A data-only specification must not declare a type-generation gate binding."
+      })
+    );
+  }
+  for (const schemaId of duplicateValues(
+    specification.generatedTypes.map((binding) => binding.schemaId)
+  )) {
+    diagnostics.push(
+      diagnostic({
+        rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
+        subject: `${specification.id}:schema:${schemaId}`,
+        path: specification.generatedTypes[0]?.outputPath ?? catalogPath,
+        message: `Schema ID has more than one generated type binding: ${schemaId}.`
+      })
+    );
+  }
+  for (const outputPath of duplicateValues(
+    specification.generatedTypes.map((binding) => binding.outputPath)
+  )) {
+    diagnostics.push(
+      diagnostic({
+        rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
+        subject: `${specification.id}:output:${outputPath}`,
+        path: outputPath,
+        message: `Generated type output path is bound more than once: ${outputPath}.`
+      })
+    );
+  }
+  for (const duplicate of duplicateValues(
+    specificationGates(specification).map(([, binding]) => gateKey(binding))
+  )) {
+    const [packageName = "", script = ""] = duplicate.split("\u0000");
+    diagnostics.push(
+      diagnostic({
+        rule: EXECUTABLE_SPECIFICATION_RULES.gateNotDistinct,
+        subject: `${specification.id}:gate:${packageName}:${script}`,
+        path: catalogPath,
+        message: `Gate script is reused by more than one evidence role: ${packageName}#${script}.`
+      })
+    );
+  }
+  return diagnostics;
+}
+
 /** Pure topology validation. It must run before any consumer artifact inspection. */
 export function evaluateExecutableSpecificationTopology(
   catalog: ExecutableSpecificationCatalog
@@ -122,40 +184,44 @@ export function evaluateExecutableSpecificationTopology(
     );
   }
   for (const specification of catalog.specifications) {
-    for (const schemaId of duplicateValues(
-      specification.generatedTypes.map((binding) => binding.schemaId)
-    )) {
+    diagnostics.push(...evaluateSpecificationTopology(specification, catalog.catalogPath));
+  }
+  const pathDeclarations = executableSpecificationPathDeclarations(catalog);
+  for (const declaration of pathDeclarations) {
+    const portabilityProblem = portableExecutableSpecificationPathProblem(declaration.path);
+    if (portabilityProblem !== undefined) {
       diagnostics.push(
         diagnostic({
-          rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
-          subject: `${specification.id}:schema:${schemaId}`,
-          path: specification.generatedTypes[0]?.outputPath ?? catalog.catalogPath,
-          message: `Schema ID has more than one generated type binding: ${schemaId}.`
+          rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
+          subject: `catalog-path:${declaration.path}`,
+          path: declaration.path,
+          message: `Executable specification path is not portable: ${declaration.path} (${portabilityProblem}).`
         })
       );
     }
-    for (const outputPath of duplicateValues(
-      specification.generatedTypes.map((binding) => binding.outputPath)
-    )) {
-      diagnostics.push(
-        diagnostic({
-          rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
-          subject: `${specification.id}:output:${outputPath}`,
-          path: outputPath,
-          message: `Generated type output path is bound more than once: ${outputPath}.`
-        })
-      );
+  }
+  const firstDeclarationByIdentity = new Map<
+    string,
+    (typeof pathDeclarations)[number]
+  >();
+  for (const declaration of pathDeclarations) {
+    const identity = portableExecutableSpecificationPathIdentity(declaration.path);
+    const first = firstDeclarationByIdentity.get(identity);
+    if (first === undefined) {
+      firstDeclarationByIdentity.set(identity, declaration);
+      continue;
     }
-    for (const duplicate of duplicateValues(
-      specificationGates(specification).map(([, binding]) => gateKey(binding))
-    )) {
-      const [packageName = "", script = ""] = duplicate.split("\u0000");
+    const shareableExactEvidence =
+      first.path === declaration.path &&
+      first.role === declaration.role &&
+      (first.role === "owner" || first.role === "adr");
+    if (!shareableExactEvidence) {
       diagnostics.push(
         diagnostic({
-          rule: EXECUTABLE_SPECIFICATION_RULES.gateNotDistinct,
-          subject: `${specification.id}:gate:${packageName}:${script}`,
-          path: catalog.catalogPath,
-          message: `Gate script is reused by more than one evidence role: ${packageName}#${script}.`
+          rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
+          subject: `catalog-path:${declaration.path}`,
+          path: declaration.path,
+          message: `Executable specification path roles collide: ${first.role}:${first.path} and ${declaration.role}:${declaration.path}.`
         })
       );
     }
@@ -190,11 +256,13 @@ export function evaluateExecutableSpecificationTopology(
       "Generated or executable artifact path is assigned more than once"
     )
   );
-  const sourcePathSet = new Set(sourcePaths.map(portablePathIdentity));
+  const sourcePathSet = new Set(
+    sourcePaths.map(portableExecutableSpecificationPathIdentity)
+  );
   for (const path of [...new Set(generatedModelPaths)].toSorted()) {
     if (
-      sourcePathSet.has(portablePathIdentity(path)) ||
-      portablePathIdentity(path).endsWith("/package.json")
+      sourcePathSet.has(portableExecutableSpecificationPathIdentity(path)) ||
+      portableExecutableSpecificationPathIdentity(path).endsWith("/package.json")
     ) {
       diagnostics.push(
         diagnostic({

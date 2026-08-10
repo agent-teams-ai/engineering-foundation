@@ -52,6 +52,11 @@ export const EXECUTABLE_SPECIFICATION_RULES = Object.freeze({
     "A schema and generated output must each have one unambiguous type binding.",
     "Remove duplicate schema or output bindings."
   ),
+  generatedTypeGateMismatch: rule(
+    "generated-type-gate-mismatch",
+    "Type generation is required exactly when generated type outputs are declared.",
+    "Declare both generatedTypes and typeGeneration, or omit the gate for a data-only specification."
+  ),
   pathCollision: rule(
     "path-collision",
     "Generated outputs and executable model artifacts must not collide.",

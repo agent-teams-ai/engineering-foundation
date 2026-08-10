@@ -12,7 +12,7 @@ scripts, or consumer code, and it does not claim that those gates passed.
 Foundation owns the versioned configuration and catalog schemas, strict JSON
 Schema Draft 2020-12 inspection, repository containment, artifact connectivity,
 stable diagnostics, and deterministic digests. The consumer owns all domain
-facts, specification documents, schemas, generated types, evaluators,
+facts, specification documents, schemas, optional generated types, evaluators,
 properties, mutation setup, package scripts, owner documents, ADRs, XState
 models, adapters, traces, and diagrams.
 
@@ -45,20 +45,26 @@ The catalog is JSON-first and validated by
 
 - a unique normalized `id`, owner documents, and ADR references;
 - a local schema set and JSON documents bound by absolute schema IDs;
-- one generated type output per schema binding;
-- distinct consumer scripts for type generation, property testing, and mutation
-  testing;
+- zero or more generated type outputs bound to schemas;
+- distinct consumer scripts for property testing and mutation testing, plus a
+  type-generation script exactly when generated type outputs are declared;
 - either `stateModel.kind: none` or an XState topology.
 
 An XState topology requires at least two unique state axes, model, adapter,
 trace, and diagram paths, plus a fourth distinct `spec-model` gate binding.
 Every path is repository-relative, contained, regular, and symlink-free.
+Catalog and selected workspace-manifest paths use a conservative portable ASCII
+contract. Each slash-separated segment may contain only letters, digits, `.`,
+`_`, `@`, `+`, and `-`; it cannot end in dot or space or use a Windows device
+basename such as `CON`, `NUL`, `COM1`, or `LPT1`, including before an extension.
+Each ASCII path segment is limited to 255 characters.
 Generated output and model artifact paths cannot collide within or across
 catalog entries or with Foundation/capability configuration, the catalog,
 workspace/package manifests, schemas, documents, owner documents, or ADRs.
-Path identity uses portable NFC and
-case-folded comparison, so aliases that collide on macOS or Windows fail on
-every platform.
+Path identity uses ASCII case-insensitive comparison. Non-ASCII paths are
+rejected instead of relying on platform-dependent Unicode normalization or case
+folding. One collision map covers every declared role, reserved root input, and
+selected workspace manifest before artifact or package-manifest reads.
 
 ## Validation semantics
 
@@ -76,6 +82,9 @@ Gate bindings name a workspace package and an existing non-empty package
 script. Only the root package and packages selected by `pnpm-workspace.yaml`
 are candidates. Foundation only confirms that the binding exists. Required CI
 remains consumer-owned and must execute those scripts independently.
+Data-only specifications declare `generatedTypes: []` and must omit
+`gateBindings.typeGeneration`; declaring generated outputs without that gate,
+or declaring the gate without outputs, is invalid configuration.
 
 Topology validation runs before artifact or package I/O. Catalog v1 permits at
 most 64 specifications, 32 schemas per specification, 64 documents, and 64

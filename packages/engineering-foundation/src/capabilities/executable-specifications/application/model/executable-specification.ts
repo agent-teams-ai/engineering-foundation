@@ -37,7 +37,7 @@ export interface ExecutableSpecification {
   readonly documents: readonly ExecutableSpecificationDocument[];
   readonly generatedTypes: readonly GeneratedTypeBinding[];
   readonly gateBindings: {
-    readonly typeGeneration: ConsumerGateBinding;
+    readonly typeGeneration?: ConsumerGateBinding;
     readonly property: ConsumerGateBinding;
     readonly mutation: ConsumerGateBinding;
   };

@@ -32,6 +32,7 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     "utf8",
   );
   const releaseJob = release.jobs.release;
+  const releaseBinding = releaseJob.steps.find(({ id }) => id === "release-pr");
   const reviewGateSteps = reviewGate.jobs["review-gate"].steps;
   const attestationSteps = release.jobs["attest-release-pr"].steps;
   const attestation = attestationSteps.find(
@@ -48,10 +49,23 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     ({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts",
   );
 
-  assert.match(releaseJob.outputs.pullRequestHeadSha, /release-pr/u);
-  assert.match(
-    releaseJob.steps.find(({ id }) => id === "release-pr").run,
-    /printf 'head_sha=%s\\n'/u,
+  assert.equal(releaseJob.outputs.pullRequestNumber, "${{ steps.release-pr.outputs.number }}");
+  assert.equal(releaseJob.outputs.pullRequestBaseSha, "${{ steps.release-pr.outputs.base_sha }}");
+  assert.equal(releaseJob.outputs.pullRequestHeadSha, "${{ steps.release-pr.outputs.head_sha }}");
+  assert.equal(releaseBinding.env.PROCESSED_MAIN_SHA, "${{ github.sha }}");
+  assert.match(releaseBinding.run, /deadline=\$\(\(SECONDS \+ 30\)\)/u);
+  assert.match(releaseBinding.run, /git ls-remote --refs origin/u);
+  assert.match(releaseBinding.run, /check-release-pr-freshness\.mjs/u);
+  assert.match(releaseBinding.run, /check-release-pr-files\.mjs/u);
+  assert.match(releaseBinding.run, /stable_branch_head_sha/u);
+  assert.match(releaseBinding.run, /stable_current_main_sha/u);
+  assert.ok(
+    releaseBinding.run.indexOf("check-release-pr-freshness.mjs") <
+      releaseBinding.run.indexOf("printf 'number=%s\\n'"),
+  );
+  assert.ok(
+    releaseBinding.run.indexOf("check-release-pr-files.mjs") <
+      releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
   assert.deepEqual(reviewGate.on.workflow_run.workflows, ["ReviewRouter Codex OAuth"]);
   assert.match(
@@ -111,6 +125,10 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     "${{ github.event.pull_request.base.sha }}",
   );
   assert.equal(
+    attestation.env.EXPECTED_RELEASE_BASE_SHA,
+    "${{ needs.release.outputs.pullRequestBaseSha }}",
+  );
+  assert.equal(
     attestation.env.EXPECTED_RELEASE_HEAD_SHA,
     "${{ needs.release.outputs.pullRequestHeadSha }}",
   );
@@ -124,6 +142,14 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     2,
   );
   assert.match(attestation.run, /--arg expectedHeadSha "\$\{head_sha\}"/u);
+  assert.equal(
+    (attestation.run.match(/--arg expectedBaseSha/gu) ?? []).length,
+    2,
+  );
+  assert.equal(
+    (attestation.run.match(/--arg expectedPullRequestNumber/gu) ?? []).length,
+    2,
+  );
   assert.match(attestation.run, /--base "\$\{base_sha\}" --head "\$\{head_sha\}"/u);
   assert.ok(
     attestation.run.lastIndexOf("check-release-pr-freshness.mjs") <

@@ -86,8 +86,9 @@ async function createRelease(root, baseRevision, version, summaries) {
   return { head: await git(root, "rev-parse", "HEAD"), body: generated.body };
 }
 
-function pullRequest(baseSha, headSha, body) {
+function pullRequest(baseSha, headSha, body, number = 74) {
   return {
+    number,
     state: "open",
     headRef: "changeset-release/main",
     headSha,
@@ -102,7 +103,9 @@ async function violations(root, processedMainSha, currentMainSha, release, expec
     {
       processedMainSha,
       currentMainSha,
+      expectedBaseSha: processedMainSha,
       expectedHeadSha,
+      expectedPullRequestNumber: "74",
       pullRequest: pullRequest(processedMainSha, release.head, release.body),
     },
     { cwd: root },
@@ -181,6 +184,73 @@ test("release evidence follows the latest processed main across a two-push race"
       ).join("\n"),
       /head changed during attestation/u,
     );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("existing release PR binding waits for the post-update revision tuple", async () => {
+  const fixture = await createFixture();
+  try {
+    const oldRelease = await createRelease(
+      fixture.root,
+      fixture.mainA,
+      "1.1.0",
+      ["Alpha package change."],
+    );
+    await git(fixture.root, "checkout", "--detach", fixture.mainA);
+    await writeFile(join(fixture.root, ".changeset", "beta.md"), changeset("Beta package change."));
+    await git(fixture.root, "add", ".");
+    await git(fixture.root, "commit", "-m", "main B");
+    const mainB = await git(fixture.root, "rev-parse", "HEAD");
+    const newRelease = await createRelease(
+      fixture.root,
+      mainB,
+      "1.2.0",
+      ["Alpha package change.", "Beta package change."],
+    );
+
+    const staleSnapshot = await releasePullRequestFreshnessViolations(
+      {
+        processedMainSha: mainB,
+        currentMainSha: mainB,
+        expectedBaseSha: mainB,
+        expectedHeadSha: newRelease.head,
+        expectedPullRequestNumber: "74",
+        pullRequest: pullRequest(fixture.mainA, oldRelease.head, oldRelease.body),
+      },
+      { cwd: fixture.root },
+    );
+    assert.match(staleSnapshot.join("\n"), /head changed during attestation/u);
+    assert.match(staleSnapshot.join("\n"), /base changed during attestation/u);
+
+    assert.deepEqual(
+      await releasePullRequestFreshnessViolations(
+        {
+          processedMainSha: mainB,
+          currentMainSha: mainB,
+          expectedBaseSha: mainB,
+          expectedHeadSha: newRelease.head,
+          expectedPullRequestNumber: "74",
+          pullRequest: pullRequest(mainB, newRelease.head, newRelease.body),
+        },
+        { cwd: fixture.root },
+      ),
+      [],
+    );
+
+    const wrongNumber = await releasePullRequestFreshnessViolations(
+      {
+        processedMainSha: mainB,
+        currentMainSha: mainB,
+        expectedBaseSha: mainB,
+        expectedHeadSha: newRelease.head,
+        expectedPullRequestNumber: "74",
+        pullRequest: pullRequest(mainB, newRelease.head, newRelease.body, 75),
+      },
+      { cwd: fixture.root },
+    );
+    assert.match(wrongNumber.join("\n"), /number changed during attestation/u);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }

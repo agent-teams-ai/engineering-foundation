@@ -23,7 +23,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     outputs:
-      pullRequestNumber: ${{ steps.changesets.outputs.pullRequestNumber }}
+      pullRequestNumber: ${{ steps.release-pr.outputs.number }}
+      pullRequestBaseSha: ${{ steps.release-pr.outputs.base_sha }}
       pullRequestHeadSha: ${{ steps.release-pr.outputs.head_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,18 +53,96 @@ jobs:
         if: ${{ steps.changesets.outputs.pullRequestNumber != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROCESSED_MAIN_SHA: ${{ github.sha }}
           RELEASE_PULL_REQUEST: ${{ steps.changesets.outputs.pullRequestNumber }}
         run: |
           set -Eeuo pipefail
 
-          read -r state head_ref head_sha base_ref < <(gh api \
-            "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}" \
-            --jq '[.state, .head.ref, .head.sha, .base.ref] | @tsv')
-          if [[ "${state}" != "open" || "${head_ref}" != "changeset-release/main" || "${base_ref}" != "main" ]]; then
-            echo "Changesets output does not identify the expected open release pull request." >&2
-            exit 1
-          fi
-          printf 'head_sha=%s\n' "${head_sha}" >> "${GITHUB_OUTPUT}"
+          pull_request_json="$(mktemp)"
+          stable_pull_request_json="$(mktemp)"
+          files_json="$(mktemp)"
+          proof_error="$(mktemp)"
+          trap 'rm -f "${pull_request_json}" "${stable_pull_request_json}" "${files_json}" "${proof_error}"' EXIT
+
+          release_branch_revision() {
+            local line sha ref extra
+            line="$(git ls-remote --refs origin refs/heads/changeset-release/main)"
+            read -r sha ref extra <<< "${line}"
+            if [[ ! "${sha}" =~ ^[0-9a-f]{40}$ || "${ref}" != "refs/heads/changeset-release/main" || -n "${extra:-}" ]]; then
+              echo "Release branch does not resolve to one exact revision." >&2
+              return 1
+            fi
+            printf '%s\n' "${sha}"
+          }
+
+          deadline=$((SECONDS + 30))
+          while (( SECONDS < deadline )); do
+            branch_head_sha="$(release_branch_revision)"
+            gh api "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}" > "${pull_request_json}"
+            read -r number state head_ref head_sha base_ref base_sha < <(jq -r \
+              '[.number, .state, .head.ref, .head.sha, .base.ref, .base.sha] | @tsv' \
+              "${pull_request_json}")
+            if [[ ! "${number}" =~ ^[1-9][0-9]*$ || "${number}" != "${RELEASE_PULL_REQUEST}" || \
+              "${state}" != "open" || "${head_ref}" != "changeset-release/main" || \
+              "${base_ref}" != "main" || ! "${head_sha}" =~ ^[0-9a-f]{40}$ || \
+              ! "${base_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Changesets output does not identify the expected open release pull request." >&2
+              exit 1
+            fi
+
+            current_main_sha="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            if [[ ! "${PROCESSED_MAIN_SHA}" =~ ^[0-9a-f]{40}$ || \
+              ! "${current_main_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Release binding received a malformed main revision." >&2
+              exit 1
+            fi
+            git fetch --no-tags origin \
+              "${PROCESSED_MAIN_SHA}" "${current_main_sha}" "${base_sha}" "${head_sha}" \
+              "${branch_head_sha}"
+            : > "${proof_error}"
+            if jq -n \
+              --arg currentMainSha "${current_main_sha}" \
+              --arg expectedBaseSha "${PROCESSED_MAIN_SHA}" \
+              --arg expectedHeadSha "${branch_head_sha}" \
+              --arg expectedPullRequestNumber "${RELEASE_PULL_REQUEST}" \
+              --slurpfile pullRequest "${pull_request_json}" \
+              '{currentMainSha: $currentMainSha, expectedBaseSha: $expectedBaseSha, expectedHeadSha: $expectedHeadSha, expectedPullRequestNumber: $expectedPullRequestNumber, pullRequest: $pullRequest[0]}' | \
+              node scripts/check-release-pr-freshness.mjs \
+                --processed-main "${PROCESSED_MAIN_SHA}" 2> "${proof_error}" && \
+              gh api --paginate --slurp \
+                "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}/files?per_page=100" > \
+                "${files_json}" && \
+              node scripts/check-release-pr-files.mjs \
+                --base "${base_sha}" --head "${head_sha}" < "${files_json}" 2>> "${proof_error}"; then
+              stable_branch_head_sha="$(release_branch_revision)"
+              stable_current_main_sha="$(gh api \
+                "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+              gh api "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}" > \
+                "${stable_pull_request_json}"
+              read -r stable_number stable_state stable_head_ref stable_head_sha \
+                stable_base_ref stable_base_sha < <(jq -r \
+                '[.number, .state, .head.ref, .head.sha, .base.ref, .base.sha] | @tsv' \
+                "${stable_pull_request_json}")
+              if [[ "${stable_number}" == "${number}" && "${stable_state}" == "${state}" && \
+                "${stable_head_ref}" == "${head_ref}" && "${stable_head_sha}" == "${head_sha}" && \
+                "${stable_base_ref}" == "${base_ref}" && "${stable_base_sha}" == "${base_sha}" && \
+                "${stable_branch_head_sha}" == "${branch_head_sha}" && \
+                "${stable_current_main_sha}" == "${current_main_sha}" ]]; then
+                {
+                  printf 'number=%s\n' "${number}"
+                  printf 'base_sha=%s\n' "${base_sha}"
+                  printf 'head_sha=%s\n' "${head_sha}"
+                } >> "${GITHUB_OUTPUT}"
+                exit 0
+              fi
+            fi
+            sleep 1
+          done
+
+          echo "Release pull request revision did not converge on complete exact-head evidence." >&2
+          cat "${proof_error}" >&2
+          exit 1
 
   attest-release-pr:
     name: attest-release-pr
@@ -90,6 +169,7 @@ jobs:
       - name: Dispatch and attest release pull request checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_RELEASE_BASE_SHA: ${{ needs.release.outputs.pullRequestBaseSha }}
           EXPECTED_RELEASE_HEAD_SHA: ${{ needs.release.outputs.pullRequestHeadSha }}
           PROCESSED_MAIN_SHA: ${{ github.sha }}
           RELEASE_PULL_REQUEST: ${{ needs.release.outputs.pullRequestNumber }}
@@ -148,6 +228,13 @@ jobs:
             '[.head.sha, .base.sha] | @tsv' "${pull_request_json}")
           current_main_sha="$(gh api \
             "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ ! "${EXPECTED_RELEASE_BASE_SHA}" =~ ^[0-9a-f]{40}$ || \
+            ! "${EXPECTED_RELEASE_HEAD_SHA}" =~ ^[0-9a-f]{40}$ || \
+            ! "${PROCESSED_MAIN_SHA}" =~ ^[0-9a-f]{40}$ || \
+            ! "${current_main_sha}" =~ ^[0-9a-f]{40}$ || \
+            ! "${base_sha}" =~ ^[0-9a-f]{40}$ || ! "${head_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            fail_attestation "Release PR revision tuple is malformed"
+          fi
 
           for context in "${ci_contexts[@]}"; do
             post_status "${context}" pending "Release PR ${context}: dispatched" "${RELEASE_RUN_URL}"
@@ -158,9 +245,11 @@ jobs:
             "${PROCESSED_MAIN_SHA}" "${current_main_sha}" "${base_sha}" "${head_sha}"
           if ! jq -n \
             --arg currentMainSha "${current_main_sha}" \
+            --arg expectedBaseSha "${EXPECTED_RELEASE_BASE_SHA}" \
             --arg expectedHeadSha "${EXPECTED_RELEASE_HEAD_SHA}" \
+            --arg expectedPullRequestNumber "${RELEASE_PULL_REQUEST}" \
             --slurpfile pullRequest "${pull_request_json}" \
-            '{currentMainSha: $currentMainSha, expectedHeadSha: $expectedHeadSha, pullRequest: $pullRequest[0]}' | \
+            '{currentMainSha: $currentMainSha, expectedBaseSha: $expectedBaseSha, expectedHeadSha: $expectedHeadSha, expectedPullRequestNumber: $expectedPullRequestNumber, pullRequest: $pullRequest[0]}' | \
             node scripts/check-release-pr-freshness.mjs \
               --processed-main "${PROCESSED_MAIN_SHA}"; then
             fail_attestation "Release PR is stale or incomplete"
@@ -240,12 +329,20 @@ jobs:
           final_current_main_sha="$(gh api \
             "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           final_head_sha="$(jq -r '.head.sha' "${final_pull_request_json}")"
+          final_base_sha="$(jq -r '.base.sha' "${final_pull_request_json}")"
+          if [[ ! "${final_current_main_sha}" =~ ^[0-9a-f]{40}$ || \
+            ! "${final_head_sha}" =~ ^[0-9a-f]{40}$ || \
+            ! "${final_base_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            fail_attestation "Final release PR revision tuple is malformed"
+          fi
           git fetch --no-tags origin "${final_current_main_sha}" "${final_head_sha}"
           if ! jq -n \
             --arg currentMainSha "${final_current_main_sha}" \
+            --arg expectedBaseSha "${EXPECTED_RELEASE_BASE_SHA}" \
             --arg expectedHeadSha "${head_sha}" \
+            --arg expectedPullRequestNumber "${RELEASE_PULL_REQUEST}" \
             --slurpfile pullRequest "${final_pull_request_json}" \
-            '{currentMainSha: $currentMainSha, expectedHeadSha: $expectedHeadSha, pullRequest: $pullRequest[0]}' | \
+            '{currentMainSha: $currentMainSha, expectedBaseSha: $expectedBaseSha, expectedHeadSha: $expectedHeadSha, expectedPullRequestNumber: $expectedPullRequestNumber, pullRequest: $pullRequest[0]}' | \
             node scripts/check-release-pr-freshness.mjs \
               --processed-main "${PROCESSED_MAIN_SHA}"; then
             fail_attestation "Release PR changed or main advanced during CI"

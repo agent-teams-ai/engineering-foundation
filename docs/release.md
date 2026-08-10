@@ -34,6 +34,11 @@ The attestation job provisions the repository's pinned Node and pnpm versions,
 then installs the frozen lockfile with dependency lifecycle scripts disabled
 before running its local evidence validators. A dependency bootstrap failure is
 therefore an attestation failure and retains the same fail-closed status path.
+After Changesets creates or updates the release pull request, the release job
+polls for a bounded period until the remote release branch, pull request number,
+base, head, current `main`, generated-file allowlist, and freshness proof agree.
+It rechecks that tuple before exposing it to the attestation job. The attester
+then binds both its initial and final checks to that exact number, base, and head.
 
 Publication packages accepted implementations; it does not activate a capability
 inside any consumer. Consumers retain exact pins and adopt a capability in a

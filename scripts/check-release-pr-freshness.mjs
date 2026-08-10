@@ -21,6 +21,14 @@ function exactSha(value, label) {
   return value;
 }
 
+function exactPullRequestNumber(value, label) {
+  const normalized = typeof value === "number" ? String(value) : value;
+  if (typeof normalized !== "string" || !/^[1-9]\d*$/u.test(normalized)) {
+    throw new Error(`${label} must be a positive integer`);
+  }
+  return normalized;
+}
+
 function canonicalMarkdown(value) {
   return value
     .replaceAll("\r\n", "\n")
@@ -41,6 +49,7 @@ function pullRequestField(pullRequest, directName, ownerName, nestedName) {
 
 function normalizePullRequest(pullRequest) {
   const normalized = {
+    number: exactPullRequestNumber(pullRequest?.number, "pull request number"),
     state: pullRequest?.state,
     headRef: pullRequestField(pullRequest, "headRef", "head", "ref"),
     headSha: pullRequestField(pullRequest, "headSha", "head", "sha"),
@@ -48,12 +57,13 @@ function normalizePullRequest(pullRequest) {
     baseSha: pullRequestField(pullRequest, "baseSha", "base", "sha"),
     body: pullRequest?.body,
   };
-  for (const [name, value] of Object.entries(normalized)) {
+  const { number, ...textFields } = normalized;
+  for (const [name, value] of Object.entries(textFields)) {
     if (typeof value !== "string") {
       throw new Error(`pull request ${name} must be a string`);
     }
   }
-  return normalized;
+  return { number, ...textFields };
 }
 
 function parseChangeset(path, source) {
@@ -161,6 +171,38 @@ function optionalExactSha(value, label) {
   return value === undefined ? undefined : exactSha(value, label);
 }
 
+function releaseRevisionBindingViolations(pullRequest, evidence) {
+  const violations = [];
+  const expectedHeadSha = optionalExactSha(
+    evidence.expectedHeadSha,
+    "expected pull request head",
+  );
+  const expectedBaseSha = optionalExactSha(
+    evidence.expectedBaseSha,
+    "expected pull request base",
+  );
+  const expectedPullRequestNumber =
+    evidence.expectedPullRequestNumber === undefined
+      ? undefined
+      : exactPullRequestNumber(
+          evidence.expectedPullRequestNumber,
+          "expected pull request number",
+        );
+  if (expectedHeadSha !== undefined && pullRequest.headSha !== expectedHeadSha) {
+    violations.push("release pull request head changed during attestation");
+  }
+  if (expectedBaseSha !== undefined && pullRequest.baseSha !== expectedBaseSha) {
+    violations.push("release pull request base changed during attestation");
+  }
+  if (
+    expectedPullRequestNumber !== undefined &&
+    pullRequest.number !== expectedPullRequestNumber
+  ) {
+    violations.push("release pull request number changed during attestation");
+  }
+  return violations;
+}
+
 export async function releasePullRequestFreshnessViolations(
   evidence,
   { cwd = process.cwd() } = {},
@@ -171,10 +213,7 @@ export async function releasePullRequestFreshnessViolations(
   const pullRequest = normalizePullRequest(evidence.pullRequest);
   const headSha = exactSha(pullRequest.headSha, "pull request head");
   const baseSha = exactSha(pullRequest.baseSha, "pull request base");
-  const expectedHeadSha = optionalExactSha(
-    evidence.expectedHeadSha,
-    "expected pull request head",
-  );
+  violations.push(...releaseRevisionBindingViolations(pullRequest, evidence));
 
   if (pullRequest.state !== "open") {
     violations.push("release pull request must be open");
@@ -191,10 +230,6 @@ export async function releasePullRequestFreshnessViolations(
   if (baseSha !== processedMainSha) {
     violations.push("release pull request base is not the processed main revision");
   }
-  if (expectedHeadSha !== undefined && headSha !== expectedHeadSha) {
-    violations.push("release pull request head changed during attestation");
-  }
-
   const { stdout: parentLine } = await git(cwd, ["rev-list", "--parents", "-n", "1", headSha]);
   const [, ...parents] = parentLine.trim().split(/\s+/u);
   if (parents.length !== 1 || parents[0] !== processedMainSha) {

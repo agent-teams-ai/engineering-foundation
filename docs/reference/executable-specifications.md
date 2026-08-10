@@ -88,12 +88,14 @@ or declaring the gate without outputs, is invalid configuration.
 
 Topology validation runs before artifact or package I/O. Catalog v1 permits at
 most 64 specifications, 32 schemas per specification, 64 documents, and 64
-generated bindings, with at most 1024 unique artifact paths overall. One catalog
-inspection uses one workspace manifest selection snapshot, caches each declared
-artifact read, limits JSON schemas and documents to 4 MiB each, limits other
-artifacts and selected package manifests to 8 MiB each, and enforces a 32 MiB
-aggregate byte budget across the complete unique corpus. Budget exhaustion
-fails the capability as invalid input without a partial pass.
+generated bindings. A catalog may declare at most 1024 unique artifact paths,
+and the combined set of declared artifacts plus selected workspace package
+manifests may also contain at most 1024 paths. One catalog inspection uses one
+workspace manifest selection snapshot, caches each declared artifact read,
+limits JSON schemas and documents to 4 MiB each, limits other artifacts and
+selected package manifests to 8 MiB each, and enforces a 32 MiB aggregate byte
+budget across the complete unique corpus. Budget exhaustion fails the
+capability as invalid input without a partial pass.
 
 Inspection order, diagnostics, schema-set digests, document-corpus digests, and
 artifact digests are deterministic. Reports contain no timestamps, absolute

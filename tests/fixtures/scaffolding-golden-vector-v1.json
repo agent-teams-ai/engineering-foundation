@@ -1,9 +1,238 @@
 {
-  "foundationVersion": "1.0.0",
-  "configPath": "architecture/foundation/scaffolding.yaml",
-  "intentPath": "intents/facets-forward.yaml",
-  "intentDigest": "sha256:04a2b756bd848db308817df2e59a80e0989d37c543fb97c93f920c3137f293cb",
-  "authoritySnapshotDigest": "sha256:04fe98b676d0684b31fd99d69f44aa2eeca20abb127f93b66fc930f1bd4d74d4",
-  "planDigest": "sha256:a9af134a237349f2c687ef50a69df5edcb25620022d3e7326398019e15d70113",
-  "receiptDigest": "sha256:fc8ad70c69d85d76631efe033cbd42ea52d958b740a2f415bf63cb0d0e314931"
+  "schemaVersion": 1,
+  "fixture": "scaffolding-authority-consumer",
+  "intentPath": "intents/create-fixture.yaml",
+  "plan": {
+    "schemaVersion": 1,
+    "protocolVersion": 1,
+    "compiler": {
+      "id": "@agent-teams/engineering-foundation",
+      "version": "0.11.0"
+    },
+    "projectId": "foundation-scaffolding-fixture",
+    "compositionId": "testing-package",
+    "intentDigest": "sha256:6cc988a34957aec925abd0c1fd57a23c1801230616b055cb05c9ff7b92202e60",
+    "authoritySnapshotDigest": "sha256:8eb168c4ee8ff04ac0f1284b5b715cbcf6e6f195854a3955ee1e4229efe73f16",
+    "planDigest": "sha256:79f88497fdb9fa9008feea4478d4cd45d9c5ebc449669a6bb38ed287f9da2565",
+    "target": {
+      "id": "testing.generated",
+      "role": "testing",
+      "path": "packages/testing/generated",
+      "packageName": "@fixture/generated",
+      "ownerDocument": {
+        "id": "ADR-0060",
+        "path": "docs/decisions/adr-0060.md"
+      }
+    },
+    "definitions": [
+      {
+        "kind": "facet",
+        "id": "foundation.fixture-readme",
+        "contractVersion": 1,
+        "contractDigest": "sha256:8cea2a6428be68980ecfc5f4aa0c360750a4fdf3bd2b09f0eeb07718bdb26c54"
+      },
+      {
+        "kind": "policy",
+        "id": "foundation.target-role",
+        "contractVersion": 1,
+        "contractDigest": "sha256:7738f1f459bf4ba22afaaf8212172ef8041e9c308f9caafb4b91a0986616e02b"
+      },
+      {
+        "kind": "recipe",
+        "id": "foundation.conformance-fixture-package",
+        "contractVersion": 1,
+        "contractDigest": "sha256:a25eb528e71bacefac02fc562278d6c52898e2ba26e60dcc175a6426bb5b6e2d"
+      },
+      {
+        "kind": "scaffold-profile",
+        "id": "foundation.node-typescript-fixture",
+        "contractVersion": 1,
+        "contractDigest": "sha256:1e17b9efd1caf08e30836244b421156ebf2b45726c1453b26f9965c201062fc1"
+      }
+    ],
+    "readSet": [
+      {
+        "path": "architecture/foundation/scaffolding.yaml",
+        "state": "file",
+        "digest": "sha256:7318d6f68a056b7c6eca11b7e3f47cb7272eba6f1e7e7990aab5b638656dd066",
+        "size": 1048
+      },
+      {
+        "path": "architecture/package-catalog.yaml",
+        "state": "file",
+        "digest": "sha256:831ef16569572316cdd447d303d673f5981ad9acb26ee48721aedc7c0c9b201c",
+        "size": 170
+      },
+      {
+        "path": "docs/decisions/adr-0060.md",
+        "state": "file",
+        "digest": "sha256:afee2b6de916060fa84ad1659ea3e37af5a58ec3dcc8d78815394dd0456db114",
+        "size": 267
+      }
+    ],
+    "requiredAdapterCapabilities": [
+      "materialize-file/v1"
+    ],
+    "operations": [
+      {
+        "id": "materialize/packages/testing/generated/README.md",
+        "path": "packages/testing/generated/README.md",
+        "digest": "sha256:f5129d7bf3b30f429196fc6894ebafc96c25306f1c969de4b08dbf15e3e0fa51",
+        "size": 85,
+        "mode": "0644",
+        "mediaType": "text/markdown",
+        "causes": ["foundation.fixture-readme"]
+      },
+      {
+        "id": "materialize/packages/testing/generated/package.json",
+        "path": "packages/testing/generated/package.json",
+        "digest": "sha256:2f43173fd6f5f947fadc0c684feb873d7d2ad97350db0951e942fa4ba7570a08",
+        "size": 293,
+        "mode": "0644",
+        "mediaType": "application/json",
+        "causes": ["foundation.conformance-fixture-package"]
+      },
+      {
+        "id": "materialize/packages/testing/generated/src/features/deterministic-fixture/index.ts",
+        "path": "packages/testing/generated/src/features/deterministic-fixture/index.ts",
+        "digest": "sha256:1a80a40243526c5289014dbffcb30d1ec4a9982d0a9613c598c4d0076c9acc8c",
+        "size": 125,
+        "mode": "0644",
+        "mediaType": "text/plain",
+        "causes": ["foundation.conformance-fixture-package"]
+      },
+      {
+        "id": "materialize/packages/testing/generated/src/index.ts",
+        "path": "packages/testing/generated/src/index.ts",
+        "digest": "sha256:297c2ab0a0f304911a4695021942825e1050505e01d27881209fc66c34960c43",
+        "size": 77,
+        "mode": "0644",
+        "mediaType": "text/plain",
+        "causes": ["foundation.conformance-fixture-package"]
+      },
+      {
+        "id": "materialize/packages/testing/generated/tsconfig.json",
+        "path": "packages/testing/generated/tsconfig.json",
+        "digest": "sha256:406ed25297c51f8d339bd99c3850c9c429212f9d9ec44bf8b78ff16d7cb7c2b4",
+        "size": 292,
+        "mode": "0644",
+        "mediaType": "application/json",
+        "causes": ["foundation.conformance-fixture-package"]
+      }
+    ],
+    "diagnostics": []
+  },
+  "receipt": {
+    "schemaVersion": 1,
+    "protocolVersion": 1,
+    "planDigest": "sha256:79f88497fdb9fa9008feea4478d4cd45d9c5ebc449669a6bb38ed287f9da2565",
+    "adapter": {
+      "id": "foundation.filesystem/v1",
+      "contractVersion": 1
+    },
+    "outcome": "applied",
+    "commit": {
+      "state": "committed",
+      "atomicity": "journaled-recoverable"
+    },
+    "operationOutcomes": [
+      "applied",
+      "applied",
+      "applied",
+      "applied",
+      "applied"
+    ],
+    "diagnostics": [],
+    "receiptDigest": "sha256:68fd21da3fb05fbdc6f34d5752b5dbb8897892d8c32b01d77955080f68d7b85a"
+  },
+  "legacyJournal": {
+    "schemaVersion": 1,
+    "state": "PREPARED",
+    "operationState": "pending",
+    "expectedRecovery": {
+      "outcome": "failed-recovered",
+      "commit": {
+        "state": "recovered",
+        "atomicity": "journaled-recoverable"
+      },
+      "operationOutcome": "recovered"
+    }
+  },
+  "cli": {
+    "invalid": [
+      {
+        "args": ["scaffold-plan"],
+        "exitCode": 2,
+        "stderr": "SCAFFOLD_INPUT_INVALID: scaffold-plan requires a repository-relative Intent path.\n"
+      },
+      {
+        "args": ["scaffold-apply"],
+        "exitCode": 2,
+        "stderr": "SCAFFOLD_INPUT_INVALID: scaffold-apply requires a repository-relative Plan path.\n"
+      }
+    ],
+    "noPendingRecovery": {
+      "exitCode": 0,
+      "stdout": "{\n  \"outcome\": \"no-pending-transaction\"\n}\n",
+      "stderr": ""
+    }
+  },
+  "publicApi": {
+    "sha256": "192dd59166cea556ded61682e1b611b0c1c7108a2800a80cf766cd62b84a3a1a",
+    "packageVersion": "0.11.0",
+    "entrypoints": [
+      { "exportPath": ".", "itemCount": 115 },
+      { "exportPath": "./local-mode", "itemCount": 76 },
+      { "exportPath": "./scaffolding", "itemCount": 155 }
+    ],
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./local-mode": {
+        "types": "./dist/local-mode/index.d.ts",
+        "import": "./dist/local-mode/index.js"
+      },
+      "./scaffolding": {
+        "types": "./dist/scaffolding/index.d.ts",
+        "import": "./dist/scaffolding/index.js"
+      },
+      "./schemas/*": "./schemas/*",
+      "./presets/*": "./presets/*",
+      "./package.json": "./package.json"
+    }
+  },
+  "schemaFiles": [
+    "schemas/architecture-source-dependencies/v1.schema.json",
+    "schemas/contract-json-schema-release-baseline/v1.schema.json",
+    "schemas/contract-json-schema-releases/v1.schema.json",
+    "schemas/contract-protobuf-breaking-qualification/v1.schema.json",
+    "schemas/contract-protobuf-evolution-baseline/v1.schema.json",
+    "schemas/contract-protobuf-evolution/v1.schema.json",
+    "schemas/documentation-local-references/v1.schema.json",
+    "schemas/foundation-check-report/v1.schema.json",
+    "schemas/foundation-config/v1.schema.json",
+    "schemas/governance-architecture-decision-baseline/v1.schema.json",
+    "schemas/governance-architecture-decisions/v1.schema.json",
+    "schemas/package-public-api-baseline/v1.schema.json",
+    "schemas/package-public-api-compatibility/v1.schema.json",
+    "schemas/quality-executable-specification-catalog/v1.schema.json",
+    "schemas/quality-executable-specifications/v1.schema.json",
+    "schemas/quality-suppression-governance/v1.schema.json",
+    "schemas/repository-agent-workflow/v1.schema.json",
+    "schemas/repository-security-baseline/v1.schema.json",
+    "schemas/scaffold-authority-evidence/v1.schema.json",
+    "schemas/scaffold-intent/v1.schema.json",
+    "schemas/scaffold-plan/v1.schema.json",
+    "schemas/scaffold-receipt/v1.schema.json",
+    "schemas/scaffold-recovery-journal/v1.schema.json",
+    "schemas/scaffold-target-catalog/v1.schema.json",
+    "schemas/scaffolding-config/v1.schema.json",
+    "schemas/workspace-dependency-declarations/v1.schema.json"
+  ],
+  "packedE2e": {
+    "packageCheckBuilt": "node scripts/prepare-package.mjs && publint packages/engineering-foundation && attw --pack --profile esm-only packages/engineering-foundation && node scripts/pack-test.mjs",
+    "registryInstallBuilt": "node scripts/registry-install-e2e.mjs"
+  }
 }

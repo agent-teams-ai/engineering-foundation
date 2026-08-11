@@ -25,6 +25,7 @@ No proposed decisions.
 - [ADR-0018: Retire the Conflicting Recipe Qualification Prerequisite](0018-retire-conflicting-recipe-qualification-prerequisite.md)
 - [ADR-0019: Single Current Foundation Contract Version](0019-single-current-foundation-contract-version.md)
 - [ADR-0021: Consumer-Owned State Model Axis Topology](0021-consumer-owned-state-model-axis-topology.md)
+- [ADR-0022: Document Authoring Protocol](0022-document-authoring-protocol.md)
 
 ## Superseded
 

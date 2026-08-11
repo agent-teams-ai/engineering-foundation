@@ -53,6 +53,7 @@ export interface MarkdownDocumentObservation {
 type MarkdownObservationIssueKind =
   | "root-missing"
   | "root-not-directory"
+  | "source-invalid"
   | "source-too-large"
   | "source-unreadable"
   | "symbolic-link";

@@ -12,6 +12,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.document-authoring.composition
         - foundation.local-mode
         - foundation.property-testing-support
         - foundation.scaffolding.canonical-composition
@@ -749,6 +750,58 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/module.ts
+  - id: foundation.document-authoring.application
+    roots:
+      - packages/engineering-foundation/src/document-authoring/application
+      - packages/engineering-foundation/src/document-authoring/document-catalog-error.ts
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.documentation-observation.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/document-authoring/application/model/document-catalog.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/authoring-profile-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/metadata-instance-validator.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/owner-membership-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/projections/document-catalog-projections.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/build-documentation-catalog.ts
+      - packages/engineering-foundation/src/document-authoring/document-catalog-error.ts
+  - id: foundation.document-authoring.adapters
+    roots:
+      - packages/engineering-foundation/src/document-authoring/adapters
+    allow:
+      boundaries:
+        - foundation.cancellation
+        - foundation.core
+        - foundation.document-authoring.application
+        - foundation.repository-input
+        - foundation.schema-validation
+      packages:
+        - ajv
+      builtins:
+        - node:crypto
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-authoring-profile-reader.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-metadata-instance-validator.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-owner-membership-reader.ts
+  - id: foundation.document-authoring.composition
+    roots:
+      - packages/engineering-foundation/src/document-authoring/index.ts
+    allow:
+      boundaries:
+        - foundation.document-authoring.adapters
+        - foundation.document-authoring.application
+        - foundation.documentation-observation.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/document-authoring/index.ts
   - id: foundation.documentation-observation.application
     roots:
       - packages/engineering-foundation/src/documentation-observation/application

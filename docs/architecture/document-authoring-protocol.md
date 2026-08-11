@@ -1,8 +1,8 @@
 # Document Authoring Protocol
 
-Status: Contract-only target accepted by ADR-0022. Read-only catalog, compiler,
-writer, CLI commands, transaction coordinator, and recovery handlers are not yet
-implemented or available to consumers.
+Status: Contracts accepted by ADR-0022. The read-only catalog API is implemented.
+Compiler, writer, CLI commands, transaction coordinator, and recovery handlers
+are not yet implemented or available to consumers.
 
 ## Boundary
 
@@ -41,6 +41,27 @@ consumer code or treats a profile as an extension language.
 The metadata schema answers which final document is valid. The authoring profile
 answers which initial document may be created. They are intentionally separate.
 Foundation does not infer creation defaults from arbitrary JSON Schema.
+
+## Read-only catalog
+
+`@agent-teams/engineering-foundation/document-authoring` exposes
+`buildDocumentationCatalog`. The caller supplies one explicit profile path. The
+catalog reads the closed profile, local metadata schema, owner map, and declared
+Markdown collections without running consumer code or external tools.
+
+Discovery uses binary path ordering, skips declared excluded prefixes before
+reading, rejects malformed UTF-8, and rejects BOM or NUL sources at the catalog
+boundary. Metadata schema references must remain local fragments. A second
+corpus pass and authority recapture detect observed drift. Invalid documents do
+not hide valid neighbors: the result is `partial`, preserves bounded stable
+diagnostics, and retains safe identity projections needed to prevent accidental
+ID reuse.
+
+The catalog detects duplicate IDs and case/NFC path collisions. Its identity
+projection contains only ID and repository path. Referenced-document projection
+is built only for the explicit IDs a later use case actually consumes; unrelated
+document bodies never enter that evidence. Catalog construction performs no
+repository mutation and does not read a generated search index.
 
 ## Published language
 

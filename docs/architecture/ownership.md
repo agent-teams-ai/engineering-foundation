@@ -44,6 +44,14 @@ The complete contract, compatibility, and migration rules are defined by
 The foundation is not a production dependency and is not a shared business
 kernel.
 
+Document authoring follows the same ownership boundary but remains a separate
+top-level mutation protocol rather than an executable capability. Foundation
+owns closed contracts, deterministic compilation, protected materialization,
+and recovery. Consumers own document types, lifecycle, metadata, owner meaning,
+templates, placement meaning, body rules, relationships, and prose or diagram
+tools. Profiles are data-only and cannot load consumer code. See the
+[Document authoring protocol](document-authoring-protocol.md).
+
 Executable specification connectivity follows the same boundary. Foundation
 owns strict catalogs, contained artifact inspection, local JSON Schema
 validation, and deterministic diagnostics. Consumers own domain schemas and

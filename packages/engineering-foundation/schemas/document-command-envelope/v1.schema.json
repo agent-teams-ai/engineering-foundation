@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-command-envelope/v1",
+  "title": "Document Command Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "command", "outcome", "diagnostics", "result"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "command": { "enum": ["docs.doctor", "docs.find", "docs.new", "docs.recover"] },
+    "outcome": { "enum": ["success", "partial", "conflict", "violation", "authority-stale", "recovery-required", "invalid-input", "execution-failure", "cancelled"] },
+    "diagnostics": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/diagnostic" } },
+    "result": {
+      "oneOf": [
+        { "$ref": "#/$defs/findResult" },
+        { "$ref": "#/$defs/newResult" },
+        { "$ref": "#/$defs/doctorResult" },
+        { "$ref": "#/$defs/recoverResult" }
+      ]
+    }
+  },
+  "allOf": [
+    { "$ref": "#/$defs/findEnvelope" },
+    { "$ref": "#/$defs/newEnvelope" },
+    { "$ref": "#/$defs/doctorEnvelope" },
+    { "$ref": "#/$defs/recoverEnvelope" }
+  ],
+  "$defs": {
+    "opaqueId": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "lowerId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "semver": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$" },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[A-Za-z0-9._@-]*)?(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$"
+    },
+    "documentDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "status", "owner", "summary", "repositoryPath", "title", "source"],
+      "properties": {
+        "id": { "$ref": "#/$defs/opaqueId" },
+        "type": { "$ref": "#/$defs/lowerId" },
+        "status": { "$ref": "#/$defs/lowerId" },
+        "owner": { "$ref": "#/$defs/opaqueId" },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "repositoryPath": { "$ref": "#/$defs/repositoryPath" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "source": { "enum": ["frontmatter-readme", "markdown-tree"] }
+      }
+    },
+    "findResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "matches", "documents"],
+      "properties": {
+        "kind": { "const": "find" },
+        "matches": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "documents": { "type": "array", "maxItems": 2048, "items": { "$ref": "#/$defs/documentDescriptor" } }
+      }
+    },
+    "newResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "documentPath", "reachability"],
+      "properties": {
+        "kind": { "const": "new" },
+        "documentPath": { "$ref": "#/$defs/repositoryPath" },
+        "reachability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": {
+            "state": { "enum": ["manual-required", "managed", "not-required"] },
+            "indexPath": { "$ref": "#/$defs/repositoryPath" },
+            "markdownLink": { "type": "string", "minLength": 1, "maxLength": 1024 }
+          },
+          "allOf": [
+            {
+              "if": { "type": "object", "properties": { "state": { "const": "manual-required" } }, "required": ["state"] },
+              "then": {
+                "type": "object",
+                "required": ["indexPath", "markdownLink"],
+                "properties": {
+                  "indexPath": { "$ref": "#/$defs/repositoryPath" },
+                  "markdownLink": { "type": "string", "minLength": 1, "maxLength": 1024 }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "doctorResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "transactionState", "recoveryClass"],
+      "properties": {
+        "kind": { "const": "doctor" },
+        "transactionState": { "enum": ["none", "pending", "tampered", "unknown-version"] },
+        "protocolKind": { "enum": ["document-authoring", "scaffolding"] },
+        "foundationVersion": { "$ref": "#/$defs/semver" },
+        "recoveryClass": { "enum": ["auto-recoverable", "manual", "not-required"] }
+      }
+    },
+    "recoverResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "transactionState"],
+      "properties": {
+        "kind": { "const": "recover" },
+        "transactionState": { "enum": ["already-applied", "manual-required", "no-pending-transaction", "recovered"] },
+        "receiptDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "findEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.find" } }, "required": ["command"] },
+      "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/findResult" } } }
+    },
+    "newEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.new" } }, "required": ["command"] },
+      "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/newResult" } } }
+    },
+    "doctorEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.doctor" } }, "required": ["command"] },
+      "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/doctorResult" } } }
+    },
+    "recoverEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.recover" } }, "required": ["command"] },
+      "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/recoverResult" } } }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "severity", "phase", "subject", "message"],
+      "properties": {
+        "ruleId": { "$ref": "#/$defs/opaqueId" },
+        "severity": { "enum": ["error", "info", "warning"] },
+        "phase": { "enum": ["apply", "authority", "input", "planning", "query", "recovery"] },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "remediation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commandId", "args"],
+          "properties": {
+            "commandId": { "enum": ["docs.doctor", "docs.find", "docs.new", "docs.recover"] },
+            "args": {
+              "type": "object",
+              "maxProperties": 16,
+              "propertyNames": { "pattern": "^[a-z][a-zA-Z0-9]*$", "maxLength": 64 },
+              "additionalProperties": { "type": "string", "maxLength": 512 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

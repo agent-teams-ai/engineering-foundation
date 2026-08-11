@@ -5,6 +5,8 @@ import test from "node:test";
 
 const repositoryRoot = process.cwd();
 const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
+const transactionEnvelopeV2Path =
+  "schemas/foundation-transaction-envelope/v2.schema.json";
 
 async function filesBelow(root) {
   const output = [];
@@ -47,7 +49,7 @@ function assertOwnedNumericDiscriminatorsAreV1(value, source) {
   }
 }
 
-test("ships one current Foundation-owned v1 contract identity", async () => {
+test("ships v1 contracts plus the accepted transaction envelope v2 boundary", async () => {
   const schemaRoot = join(packageRoot, "schemas");
   const schemaFiles = (await filesBelow(schemaRoot)).filter((path) =>
     path.endsWith(".schema.json"),
@@ -57,13 +59,26 @@ test("ships one current Foundation-owned v1 contract identity", async () => {
   );
   const nonV1SchemaPaths = schemaRelativePaths
     .filter((path) => !path.endsWith("/v1.schema.json"));
-  assert.deepEqual(nonV1SchemaPaths, []);
+  assert.deepEqual(nonV1SchemaPaths, [transactionEnvelopeV2Path]);
   const forbiddenSchemaPaths = schemaRelativePaths
-    .filter((path) => /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path));
+    .filter(
+      (path) =>
+        path !== transactionEnvelopeV2Path &&
+        /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path),
+    );
   assert.deepEqual(forbiddenSchemaPaths, []);
 
   for (const path of schemaFiles) {
     const schema = JSON.parse(await readFile(path, "utf8"));
+    const relativePath = relative(packageRoot, path).replaceAll("\\", "/");
+    if (relativePath === transactionEnvelopeV2Path) {
+      assert.equal(schema.$id.endsWith("/v2"), true);
+      assert.equal(schema.properties.schemaVersion.const, 2);
+      const nestedContracts = structuredClone(schema);
+      nestedContracts.properties.schemaVersion.const = 1;
+      assertOwnedNumericDiscriminatorsAreV1(nestedContracts, relativePath);
+      continue;
+    }
     assert.equal(
       typeof schema.$id === "string" && schema.$id.endsWith("/v1"),
       true,
@@ -85,8 +100,23 @@ test("ships one current Foundation-owned v1 contract identity", async () => {
     );
   }
 
-  const packageManifest = await readFile(join(packageRoot, "package.json"), "utf8");
-  assert.doesNotMatch(packageManifest, /\/v2\.schema\.json/u);
+  const packageManifest = JSON.parse(
+    await readFile(join(packageRoot, "package.json"), "utf8"),
+  );
+  assert.deepEqual(
+    packageManifest.files.filter((path) => path.endsWith("/v2.schema.json")),
+    [transactionEnvelopeV2Path],
+  );
+});
+
+test("documents the transaction envelope v2 migration and retirement gate", async () => {
+  const decision = await readFile(
+    join(repositoryRoot, "docs", "decisions", "0022-document-authoring-protocol.md"),
+    "utf8",
+  );
+  assert.match(decision, /Compatibility direction and support window/u);
+  assert.match(decision, /preserve it byte-for-byte/u);
+  assert.match(decision, /Retirement requires organization inventory/u);
 });
 
 test("keeps upstream Buf v2 distinct from Foundation contract versions", async () => {

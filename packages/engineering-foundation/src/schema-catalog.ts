@@ -26,6 +26,18 @@ const ajv = new Ajv2020({
 });
 const validators = new Map<FoundationSchemaCatalogId, ValidateFunction>();
 const schemaLoads = new Map<string, Promise<string>>();
+const SCHEMA_DEPENDENCIES: Partial<
+  Readonly<Record<FoundationSchemaCatalogId, readonly FoundationSchemaCatalogId[]>>
+> = {
+  "document-plan/v1": ["document-intent/v1"],
+  "foundation-transaction-envelope/v2": [
+    "document-intent/v1",
+    "document-plan/v1",
+    "scaffold-plan/v1",
+    "scaffold-recovery-journal/v1"
+  ],
+  "scaffold-recovery-journal/v1": ["scaffold-plan/v1"]
+};
 
 export function isFoundationSchemaId(value: string): value is FoundationSchemaId {
   return FOUNDATION_SCHEMA_IDS.some((candidate) => candidate === value);
@@ -57,8 +69,8 @@ function safeValidationMessage(errors: readonly ErrorObject[] | null | undefined
 }
 
 async function loadSchema(schemaId: FoundationSchemaCatalogId): Promise<string> {
-  if (schemaId === "scaffold-recovery-journal/v1") {
-    await registerSchema("scaffold-plan/v1");
+  for (const dependency of SCHEMA_DEPENDENCIES[schemaId] ?? []) {
+    await registerSchema(dependency);
   }
   const schema = JSON.parse(await readFile(schemaPath(schemaId), "utf8")) as {
     readonly $id?: unknown;

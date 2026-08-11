@@ -106,6 +106,11 @@
       "id": "ADR-0021",
       "path": "docs/decisions/0021-consumer-owned-state-model-axis-topology.md",
       "immutableDigest": "sha256:f8beb0d167f778f330a68dba631e83937347111e98cc36612ee044f71799af53"
+    },
+    {
+      "id": "ADR-0022",
+      "path": "docs/decisions/0022-document-authoring-protocol.md",
+      "immutableDigest": "sha256:442c15c919f3caa0b65117032da07828647991d6f82b699f497cf7529f25bd23"
     }
   ]
 }

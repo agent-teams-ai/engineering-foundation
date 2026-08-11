@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-intent/v1",
+  "title": "Document Intent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "type", "id", "title", "owner", "summary"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "type": { "$ref": "#/$defs/lowerId" },
+    "id": { "$ref": "#/$defs/opaqueId" },
+    "title": { "$ref": "#/$defs/title" },
+    "owner": { "$ref": "#/$defs/opaqueId" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "related": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaqueId" }
+    },
+    "additionalMetadata": { "$ref": "#/$defs/jsonObject1" }
+  },
+  "$defs": {
+    "lowerId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "opaqueId": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^[^\\u0000-\\u001F\\u007F]+$" },
+    "jsonScalar": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+        { "type": "string", "maxLength": 4096 }
+      ]
+    },
+    "jsonObject1": { "type": "object", "maxProperties": 64, "additionalProperties": { "$ref": "#/$defs/jsonValue1" } },
+    "jsonValue1": {
+      "oneOf": [
+        { "$ref": "#/$defs/jsonScalar" },
+        { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/jsonValue2" } },
+        { "$ref": "#/$defs/jsonObject2" }
+      ]
+    },
+    "jsonObject2": { "type": "object", "maxProperties": 64, "additionalProperties": { "$ref": "#/$defs/jsonValue2" } },
+    "jsonValue2": {
+      "oneOf": [
+        { "$ref": "#/$defs/jsonScalar" },
+        { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/jsonValue3" } },
+        { "$ref": "#/$defs/jsonObject3" }
+      ]
+    },
+    "jsonObject3": { "type": "object", "maxProperties": 64, "additionalProperties": { "$ref": "#/$defs/jsonValue3" } },
+    "jsonValue3": {
+      "oneOf": [
+        { "$ref": "#/$defs/jsonScalar" },
+        { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/jsonScalar" } },
+        { "type": "object", "maxProperties": 64, "additionalProperties": { "$ref": "#/$defs/jsonScalar" } }
+      ]
+    }
+  }
+}

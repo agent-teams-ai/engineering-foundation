@@ -53,4 +53,5 @@ export interface DocumentationCatalogSnapshot {
 export interface ReferencedDocumentProjectionResult {
   readonly documents: readonly ReferencedDocumentProjection[];
   readonly missingIds: readonly string[];
+  readonly unresolvedIds: readonly string[];
 }

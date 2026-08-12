@@ -195,6 +195,7 @@ test("builds one deterministic read-only catalog across collection kinds", async
     assert.deepEqual(projectReferencedDocuments(first, ["package.alpha", "missing", "package.alpha"]), {
       documents: [{ id: "package.alpha", path: "packages/alpha/README.md" }],
       missingIds: ["missing"],
+      unresolvedIds: [],
     });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -259,6 +260,18 @@ test("returns a partial catalog without hiding valid neighbors", async () => {
         (entry) => entry.id === "guide.descriptor-invalid",
       ),
       true,
+    );
+    assert.deepEqual(
+      projectReferencedDocuments(snapshot, [
+        "guide.unknown",
+        "guide.duplicate",
+        "missing",
+      ]),
+      {
+        documents: [],
+        missingIds: ["missing"],
+        unresolvedIds: ["guide.duplicate", "guide.unknown"],
+      },
     );
     assert.deepEqual(
       [...new Set(snapshot.diagnostics.map((entry) => entry.ruleId))],

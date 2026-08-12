@@ -129,6 +129,17 @@ export class FoundationLocalModeService {
       const current = await inspectFoundationMode(before.consumerRoot, {
         ignoreOperationLock: true
       });
+      if (
+        current.consumerRoot !== before.consumerRoot ||
+        current.dependencySpec === undefined ||
+        current.dependencySpec !== before.dependencySpec ||
+        !isExactVersion(current.dependencySpec)
+      ) {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          "Consumer foundation dependency changed before detach acquired its operation lock."
+        );
+      }
       if (current.mode === "REGISTRY") {
         return current;
       }
@@ -140,7 +151,7 @@ export class FoundationLocalModeService {
       }
       await restoreRegistryEntry(
         before.consumerRoot,
-        before.dependencySpec,
+        current.dependencySpec,
         current.linkState
       );
       await removeLinkState(before.consumerRoot);

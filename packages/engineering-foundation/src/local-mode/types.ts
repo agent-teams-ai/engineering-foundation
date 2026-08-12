@@ -3,7 +3,7 @@ export const FOUNDATION_PACKAGE_NAME =
 export {
   LOCAL_OPERATION_LOCK,
   LOCAL_STATE_DIRECTORY
-} from "../transaction-coordination/adapters/node/foundation-state-paths.js";
+} from "../foundation-state-contract.js";
 export const LOCAL_STATE_FILE = "foundation-link.json" as const;
 export const LOCAL_REGISTRY_BACKUP = "foundation-registry-backup" as const;
 export const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION = 1 as const;
@@ -13,6 +13,14 @@ export type {
   ProcessResult,
   ProcessRunner
 } from "../process-execution/types.js";
+import type { FoundationTransactionStatus } from "../transaction-coordination/application/model/transaction-status.js";
+
+export type {
+  FoundationManualRecoveryReason,
+  FoundationRecoveryRoute,
+  FoundationTransactionDiagnostic,
+  FoundationTransactionStatus
+} from "../transaction-coordination/application/model/transaction-status.js";
 
 export type FoundationMode = "INVALID" | "LOCAL" | "REGISTRY";
 export type FoundationLinkPhase = "ATTACHING" | "DETACHING" | "LOCAL";
@@ -44,6 +52,11 @@ export interface FoundationStatus {
   readonly sourceGitCommit?: string;
   readonly sourceGitDirty?: boolean;
   readonly issues: readonly string[];
+}
+
+/** Additive transaction-aware status for callers that need recovery routing. */
+export interface FoundationTransactionAwareStatus extends FoundationStatus {
+  readonly transaction?: FoundationTransactionStatus;
 }
 
 export interface FoundationDevOnlyStatus {

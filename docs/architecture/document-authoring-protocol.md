@@ -137,13 +137,32 @@ One repository root has one canonical Foundation operation lock and one active
 transaction slot. A version 2 envelope records operation kind, registered
 recovery handler, exact Foundation version and build identity, adapter contract,
 protocol payload kind and journal, payload digest, state, and envelope digest.
+The canonical lock is a bounded owner-token regular file. New ownership is
+published with no replacement, and reclaim or release is fenced by token plus
+physical file identity. A same-host lock is reclaimed only when its PID is
+provably dead; foreign or ambiguous liveness fails closed. If transaction
+evidence remains, release retains that same regular-file inode as a durable
+transaction barrier. This intentionally makes released directory-lock clients
+fail closed before they can mutate. Interrupted in-place ownership/barrier
+rewrites also remain regular-file evidence and require recovery rather than
+opening an unlocked window.
 The coordinator now enforces that barrier for scaffolding and local attach or
 detach operations before mutation begins. It recognizes the frozen legacy
 scaffolding journal v1 and verified envelope v2 at the historical physical slot;
 an orphan temporary, invalid regular-file evidence, unknown schema, digest
-failure, or exact-package-version mismatch is preserved and fails closed. Status
+failure, or exact-package-identity mismatch is preserved and fails closed. Status
 reports the operation kind and structured exact recovery route when those facts
 are provable.
+
+For envelope v2, exact package identity means both SemVer and a canonical
+SHA-256 build identity derived from the installed executable JavaScript plus
+the shipped schema and preset contracts. The digest is independent of install
+path and directory enumeration order, is cached for the immutable installed
+package process, and distinguishes rebuilt runtime or contract bytes at the
+same version. The envelope Foundation identity must equal the embedded compiler
+identity (version plus build identity for document Plans; version for the frozen
+scaffolding Plan v1), and must equal the installed identity before compatible
+recovery is reported.
 
 The envelope does not merge `ScaffoldPlan` with `DocumentPlan` or their
 Receipts. Recovery dispatch is closed in the Foundation composition root and

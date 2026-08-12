@@ -237,6 +237,10 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["release:publish"],
     /buf-qualification:e2e:built/u,
   );
+  assert.match(
+    manifest.scripts["release:publish"],
+    /published-compatibility:e2e/u,
+  );
   assert.equal(
     manifest.scripts["registry-install-e2e:built"],
     "node scripts/registry-install-e2e.mjs",
@@ -244,6 +248,15 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.ok(
     ci.jobs.check.steps.some(
       (step) => step.run === "pnpm registry-install-e2e:built",
+    ),
+  );
+  assert.equal(
+    manifest.scripts["published-compatibility:e2e"],
+    "node scripts/published-compatibility-e2e.mjs",
+  );
+  assert.ok(
+    ci.jobs.check.steps.some(
+      (step) => step.run === "pnpm published-compatibility:e2e",
     ),
   );
 });

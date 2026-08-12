@@ -43,7 +43,7 @@ meaning, completeness, or review quality.
 | Caller mutates an in-memory Plan | Snapshot, validate, and digest before use | Invalid Plan |
 | Journal or payload tampering | Closed schema plus payload and envelope digests | Manual recovery required |
 | Unknown or newer journal | Preserve exact evidence and block every Foundation mutation | Manual recovery required |
-| Package downgrade during a transaction | Exact version and build identity in the envelope | Recovery with compatible version required |
+| Package downgrade or same-version rebuild during a transaction | Exact version plus executable/schema/preset build identity in the envelope, bound to the embedded compiler | Recovery with the exact compatible build required |
 | Concurrent Foundation mutation | One operation lock and one physical transaction slot | Recovery required |
 | Crash before publication | Durable prepared evidence and exclusive owned temporary | Recover or preserve |
 | Crash after publication | Verify exact destination and preserve journal | Complete or recover; never delete output |

@@ -2,7 +2,7 @@ import { lstat, mkdir, open, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type { AuthorityScaffoldJournal } from "../../contract/types.js";
-import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
+import { assertAuthorityScaffoldJournal } from "../../kernel/authority-journal-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { parseStrictYamlSource } from "../../../strict-yaml.js";
@@ -14,7 +14,7 @@ import {
   type PortableFileIdentity
 } from "./filesystem-file-identity.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
-import { FOUNDATION_TRANSACTION_FILE } from "../../../transaction-coordination/adapters/node/foundation-state-paths.js";
+import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.js";
 
 export const SCAFFOLD_JOURNAL_FILE = FOUNDATION_TRANSACTION_FILE;
 
@@ -129,33 +129,6 @@ async function readJournalSource(path: string): Promise<{
   }
 }
 
-function assertAuthorityJournalOperationBindings(journal: AuthorityScaffoldJournal): void {
-  if (journal.operations.length !== journal.plan.operations.length) {
-    throw new ScaffoldError(
-      "SCAFFOLD_RECOVERY_REQUIRED",
-      "Scaffolding recovery journal operation evidence does not match its Plan."
-    );
-  }
-  const planOperations = new Map(
-    journal.plan.operations.map((operation) => [operation.id, operation])
-  );
-  const seen = new Set<string>();
-  for (const operation of journal.operations) {
-    const planned = planOperations.get(operation.operationId);
-    if (
-      planned === undefined ||
-      planned.path !== operation.path ||
-      seen.has(operation.operationId)
-    ) {
-      throw new ScaffoldError(
-        "SCAFFOLD_RECOVERY_REQUIRED",
-        "Scaffolding recovery journal operation evidence is invalid."
-      );
-    }
-    seen.add(operation.operationId);
-  }
-}
-
 async function readScaffoldJournalRecord(
   path: string
 ): Promise<ScaffoldJournalRecord | undefined> {
@@ -195,8 +168,7 @@ async function readScaffoldJournalRecord(
     journal.plan,
     "scaffold-recovery-journal"
   );
-  assertAuthorityScaffoldPlanDigest(journal.plan);
-  assertAuthorityJournalOperationBindings(journal);
+  assertAuthorityScaffoldJournal(journal);
   return { identity: record.identity, journal };
 }
 

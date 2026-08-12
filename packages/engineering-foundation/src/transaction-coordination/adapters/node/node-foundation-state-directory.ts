@@ -2,7 +2,7 @@ import { lstat, mkdir, open, realpath, rmdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import { FoundationError } from "../../../errors.js";
-import { LOCAL_STATE_DIRECTORY } from "./foundation-state-paths.js";
+import { LOCAL_STATE_DIRECTORY } from "../../../foundation-state-contract.js";
 
 export async function ensureFoundationStateDirectory(
   consumerRoot: string
@@ -60,6 +60,13 @@ export async function syncFoundationStateDirectory(path: string): Promise<void> 
       await handle.close();
     }
   } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      return;
+    }
     if (
       process.platform === "win32" &&
       error instanceof Error &&

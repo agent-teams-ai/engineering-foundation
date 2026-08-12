@@ -1,3 +1,9 @@
+export interface FoundationOperationReleaseOptions {
+  readonly retainTransactionBarrier?: boolean;
+}
+
 export interface FoundationOperationLock {
-  acquire(): Promise<() => Promise<void>>;
+  acquire(): Promise<
+    (options?: FoundationOperationReleaseOptions) => Promise<void>
+  >;
 }

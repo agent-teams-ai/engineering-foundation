@@ -1,4 +1,4 @@
-import { realpath } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import type {
@@ -10,7 +10,7 @@ import type {
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/adapters/node/foundation-state-paths.js";
+import { LOCAL_STATE_DIRECTORY } from "../../../foundation-state-contract.js";
 import { createNodeFoundationTransactionCoordinator } from "../../../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import { FoundationTransactionError } from "../../../transaction-coordination/application/foundation-transaction-error.js";
 import type { FoundationTransactionLease } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
@@ -133,6 +133,22 @@ function snapshotAuthorityScaffoldPlan(
   return snapshot;
 }
 
+async function pathEntryExists(path: string): Promise<boolean> {
+  try {
+    await lstat(path);
+    return true;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function acquireScaffoldingTransaction(
   canonicalRoot: string
 ): Promise<FoundationTransactionLease> {
@@ -146,7 +162,9 @@ async function acquireScaffoldingTransaction(
     if (!(error instanceof FoundationTransactionError)) {
       throw error;
     }
-    const message = error.message.includes("orphan Foundation transaction temporary")
+    const message =
+      error.status.state === "manual-recovery-required" &&
+      error.status.reason === "orphan-temporary"
       ? "Scaffolding journal temporary cannot be proven transaction-owned; it was preserved and requires manual recovery."
       : error.message;
     throw new ScaffoldError("SCAFFOLD_RECOVERY_REQUIRED", message, [], {
@@ -328,9 +346,13 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   assertAuthorityScaffoldPlanDigest(plan);
   assertSafeOperationPaths(plan);
   const canonicalRoot = await realpath(resolve(consumerRoot));
+  const journalPath = join(
+    canonicalRoot,
+    LOCAL_STATE_DIRECTORY,
+    SCAFFOLD_JOURNAL_FILE
+  );
   const lease = await acquireScaffoldingTransaction(canonicalRoot);
   try {
-    const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
     await assertAuthorityScaffoldJournalTemporaryAbsent(journalPath);
     const existing = await readScaffoldJournalEnvelope(journalPath);
     if (existing !== undefined) {
@@ -424,7 +446,9 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       ...(faultInjector === undefined ? {} : { faultInjector })
     });
   } finally {
-    await lease.release();
+    await lease.release({
+      retainTransactionBarrier: await pathEntryExists(journalPath)
+    });
   }
 }
 
@@ -448,6 +472,10 @@ export async function recoverAuthorityFilesystemScaffold(
       recovered: true
     });
   } finally {
-    await lease.release();
+    await lease.release({
+      retainTransactionBarrier: await pathEntryExists(
+        join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE)
+      )
+    });
   }
 }

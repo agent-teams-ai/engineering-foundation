@@ -64,6 +64,8 @@ jobs:
         run: pnpm buf-qualification:e2e:built
       - name: Qualify registry publish and clean install
         run: pnpm registry-install-e2e:built
+      - name: Qualify published transaction and scaffolding compatibility
+        run: pnpm published-compatibility:e2e
       - run: pnpm dead-code:check
       - run: pnpm parser-spike:check
       - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0

@@ -1,0 +1,161 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import { hostname, tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+
+import { NodeFoundationOperationLock } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-operation-lock.js";
+
+async function createRoot() {
+  return realpath(await mkdtemp(join(tmpdir(), "foundation-operation-lock-")));
+}
+
+function paths(root) {
+  const directory = join(root, ".agent-teams-local");
+  return { directory, lock: join(directory, "foundation-operation.lock") };
+}
+
+async function writeEvidence(root, evidence) {
+  const target = paths(root);
+  await mkdir(target.directory, { recursive: true });
+  await writeFile(target.lock, `${JSON.stringify(evidence)}\n`, "utf8");
+  return target;
+}
+
+function activeEvidence(pid, overrides = {}) {
+  return {
+    schemaVersion: 2,
+    kind: "active",
+    host: hostname(),
+    pid,
+    token: randomUUID(),
+    ...overrides,
+  };
+}
+
+async function assertAcquireFailsClosed(root) {
+  await assert.rejects(new NodeFoundationOperationLock(root).acquire(), (error) => {
+    assert.equal(error.code, "LOCAL_STATE_INVALID");
+    return true;
+  });
+}
+
+test("never reclaims a same-host lock whose owner is still live", async () => {
+  const root = await createRoot();
+  try {
+    await writeEvidence(root, activeEvidence(process.pid));
+    await assertAcquireFailsClosed(root);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("preserves an empty legacy lock directory for explicit manual recovery", async () => {
+  const root = await createRoot();
+  try {
+    const target = paths(root);
+    await mkdir(target.lock, { recursive: true });
+    await assertAcquireFailsClosed(root);
+    assert.equal((await lstat(target.lock)).isDirectory(), true);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("preserves foreign-host and malformed evidence", async (context) => {
+  await context.test("foreign host", async () => {
+    const root = await createRoot();
+    try {
+      const target = await writeEvidence(
+        root,
+        activeEvidence(2_147_483_647, { host: "remote.invalid" }),
+      );
+      const before = await readFile(target.lock);
+      await assertAcquireFailsClosed(root);
+      assert.deepEqual(await readFile(target.lock), before);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+  await context.test("symbolic link", async () => {
+    const root = await createRoot();
+    try {
+      const target = paths(root);
+      const external = join(root, "external-lock");
+      await mkdir(target.directory);
+      await writeFile(external, "external\n");
+      await symlink(external, target.lock, "file");
+      await assertAcquireFailsClosed(root);
+      assert.equal(await readFile(external, "utf8"), "external\n");
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+});
+
+test("serializes two reclaimers of one provably dead owner", async () => {
+  const root = await createRoot();
+  try {
+    await writeEvidence(root, activeEvidence(2_147_483_647));
+    const attempts = await Promise.allSettled([
+      new NodeFoundationOperationLock(root).acquire(),
+      new NodeFoundationOperationLock(root).acquire(),
+    ]);
+    const acquired = attempts.filter(({ status }) => status === "fulfilled");
+    assert.equal(acquired.length, 1);
+    assert.equal(attempts.filter(({ status }) => status === "rejected").length, 1);
+    await acquired[0].value();
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("release is idempotent and an old releaser cannot delete a successor", async () => {
+  const root = await createRoot();
+  try {
+    const target = paths(root);
+    const release = await new NodeFoundationOperationLock(root).acquire();
+    const displaced = `${target.lock}.displaced`;
+    await rename(target.lock, displaced);
+    const successor = activeEvidence(process.pid);
+    await writeEvidence(root, successor);
+    await assert.rejects(release(), (error) => error.code === "LOCAL_STATE_INVALID");
+    assert.deepEqual(
+      JSON.parse(await readFile(target.lock, "utf8")),
+      successor,
+    );
+    assert.equal((await lstat(displaced)).isFile(), true);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("retained transaction barrier survives its owner and is claimable by a new coordinator", async () => {
+  const root = await createRoot();
+  try {
+    const target = paths(root);
+    const release = await new NodeFoundationOperationLock(root).acquire();
+    await release({ retainTransactionBarrier: true });
+    const barrier = JSON.parse(await readFile(target.lock, "utf8"));
+    assert.equal(barrier.kind, "transaction-barrier");
+    const successorRelease = await new NodeFoundationOperationLock(root).acquire();
+    await successorRelease({ retainTransactionBarrier: true });
+    assert.equal(
+      JSON.parse(await readFile(target.lock, "utf8")).kind,
+      "transaction-barrier",
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});

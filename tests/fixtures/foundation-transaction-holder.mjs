@@ -18,10 +18,21 @@ const coordinator = await createNodeFoundationTransactionCoordinator(consumerRoo
 const lease = await coordinator.acquire({ requestedMutation });
 process.stdout.write("READY\n");
 
+let shutdownStarted = false;
 const shutdown = async () => {
+  if (shutdownStarted) {
+    return;
+  }
+  shutdownStarted = true;
   await lease.release();
   process.exit(0);
 };
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (source) => {
+  if (source.includes("STOP")) {
+    void shutdown();
+  }
+});
 process.once("SIGINT", () => {
   void shutdown();
 });
@@ -29,4 +40,4 @@ process.once("SIGTERM", () => {
   void shutdown();
 });
 
-setInterval(() => {}, 60_000);
+process.stdin.resume();

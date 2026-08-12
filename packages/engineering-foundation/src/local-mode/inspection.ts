@@ -3,7 +3,8 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type {
   FoundationLinkState,
-  FoundationStatus
+  FoundationStatus,
+  FoundationTransactionAwareStatus
 } from "./types.js";
 import {
   inspectFoundationDevOnly,
@@ -17,12 +18,9 @@ import {
   LOCAL_STATE_FILE
 } from "./types.js";
 import { installedFoundationVersion } from "../package-version.js";
+import { installedFoundationBuildIdentity } from "../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import { NodeFoundationTransactionSlot } from "../transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 import type { FoundationTransactionStatus } from "../transaction-coordination/application/model/transaction-status.js";
-
-type FoundationStatusWithTransaction = FoundationStatus & {
-  readonly transaction?: FoundationTransactionStatus;
-};
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown;
@@ -234,7 +232,7 @@ function buildStatus(input: {
   readonly linkState?: FoundationLinkState;
   readonly transaction?: FoundationTransactionStatus;
   readonly issues: readonly string[];
-}): FoundationStatusWithTransaction {
+}): FoundationTransactionAwareStatus {
   return {
     mode: input.issues.length === 0
       ? input.linkState === undefined ? "REGISTRY" : "LOCAL"
@@ -260,6 +258,13 @@ export async function inspectFoundationMode(
   consumerPath: string,
   options: { readonly ignoreOperationLock?: boolean } = {}
 ): Promise<FoundationStatus> {
+  return inspectFoundationTransactionAwareMode(consumerPath, options);
+}
+
+export async function inspectFoundationTransactionAwareMode(
+  consumerPath: string,
+  options: { readonly ignoreOperationLock?: boolean } = {}
+): Promise<FoundationTransactionAwareStatus> {
   const consumerRoot = await realpath(resolve(consumerPath));
   const issues: string[] = [];
   const localStateDirectoryIsSafe = await inspectLocalStateDirectory(
@@ -270,7 +275,8 @@ export async function inspectFoundationMode(
   const transaction = localStateDirectoryIsSafe
     ? await new NodeFoundationTransactionSlot({
         consumerRoot,
-        installedVersion: await installedFoundationVersion()
+        installedVersion: await installedFoundationVersion(),
+        installedBuildIdentity: await installedFoundationBuildIdentity()
       }).inspect()
     : { state: "idle" as const, diagnostics: [] as const };
   const transactionDiagnostic =

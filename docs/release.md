@@ -110,7 +110,10 @@ runtime dependency closure, installs by exact version, and verifies registry
 metadata, lockfile integrity, CLI startup, and public imports.
 
 The test suite also exercises the production operation lock across real child
-processes, including live-owner rejection and stale-lock recovery after the
-owner is killed. Mutation-boundary recovery remains covered by deterministic
-state fixtures. Windows does not claim POSIX-equivalent hard power-loss
-durability because Node cannot portably fsync directories there.
+processes, including live-owner rejection, dual-reclaimer serialization, and
+ownership-fenced recovery after a same-host owner is killed. Published-version
+qualification installs the pinned npm 0.11 package and proves that a current v2
+transaction barrier blocks its recover, attach, and detach mutations without
+changing consumer evidence. Mutation-boundary recovery remains covered by
+deterministic state fixtures. Windows does not claim POSIX-equivalent hard
+power-loss durability because Node cannot portably fsync directories there.

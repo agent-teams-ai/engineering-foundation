@@ -52,9 +52,19 @@ manual-recovery transaction evidence exists.
 
 Detach removes only the foundation link and atomically restores the preserved
 registry package entry. It never runs a workspace install. A consumer-scoped
-`proper-lockfile` lock rejects concurrent mutations and safely reclaims stale
-locks. Durable `ATTACHING` and `DETACHING` phases let a later detach finish
-recovery after process interruption.
+owner-token regular-file lock rejects concurrent mutations. Creation uses a
+no-replace hard-link publication; takeover and release are token- and
+file-identity-fenced. Takeover and barrier retention rewrite the already verified
+inode in place, so they do not depend on platform-specific replace-rename
+semantics; an interrupted rewrite remains a regular file and therefore fails
+closed. Only a same-host owner whose recorded process is provably dead may be
+reclaimed. Foreign, malformed, legacy-directory, or otherwise unverifiable
+evidence fails closed and requires manual recovery. Process liveness cannot
+distinguish PID reuse, so that case deliberately prefers an availability block
+over unsafe reclamation. While a transaction remains, release durably publishes
+a persistent regular-file downgrade barrier that older Foundation versions
+cannot mistake for their directory lock. Durable `ATTACHING` and `DETACHING`
+phases let a later detach finish recovery after process interruption.
 
 `NodeProcessRunner` preserves the pre-existing no-deadline behavior when
 `timeoutMs` is omitted and validates an explicit deadline before process

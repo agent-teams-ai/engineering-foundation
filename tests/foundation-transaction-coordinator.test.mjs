@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import {
   cp,
+  lstat,
   mkdir,
   mkdtemp,
   readFile,
   rename,
   rm,
-  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -20,11 +20,16 @@ import { FoundationTransactionError } from "../packages/engineering-foundation/d
 import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import {
+  computeFoundationBuildIdentity,
+  installedFoundationBuildIdentity,
+} from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
+import {
   applyFilesystemScaffold,
   planScaffoldFromFile,
   recoverFilesystemScaffold,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
+import { readBoundedRegularFile } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-file-identity.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const coordinatorModulePath = join(
@@ -42,12 +47,6 @@ const transactionHolderFixture = join(
   "tests",
   "fixtures",
   "foundation-transaction-holder.mjs",
-);
-const legacyFoundationReaderFixture = join(
-  repositoryRoot,
-  "tests",
-  "fixtures",
-  "legacy-foundation-scaffold-reader-0.11.mjs",
 );
 const scaffoldFixtureRoot = join(
   repositoryRoot,
@@ -67,6 +66,7 @@ const documentFixture = JSON.parse(
     "utf8",
   ),
 );
+const installedBuildIdentity = await installedFoundationBuildIdentity();
 
 async function createRoot(prefix = "foundation-transaction-") {
   return mkdtemp(join(tmpdir(), prefix));
@@ -85,7 +85,7 @@ async function startTransactionHolder(root, mutation) {
   const child = spawn(
     process.execPath,
     [transactionHolderFixture, coordinatorModulePath, root, mutation],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    { stdio: ["pipe", "pipe", "pipe"] },
   );
   await new Promise((resolve, reject) => {
     let stdout = "";
@@ -113,19 +113,60 @@ async function stopTransactionHolder(child) {
   if (child.exitCode !== null) {
     return;
   }
-  child.kill("SIGTERM");
-  await new Promise((resolve) => {
+  await new Promise((resolve, reject) => {
+    const forceTimer = setTimeout(() => {
+      child.kill("SIGKILL");
+    }, 5_000);
+    const failureTimer = setTimeout(() => {
+      reject(new Error("transaction holder did not stop after graceful and forced shutdown"));
+    }, 10_000);
     child.once("exit", () => {
+      clearTimeout(forceTimer);
+      clearTimeout(failureTimer);
       resolve();
     });
+    child.once("error", (error) => {
+      clearTimeout(forceTimer);
+      clearTimeout(failureTimer);
+      reject(error);
+    });
+    child.stdin.end("STOP\n");
   });
 }
 
-function buildDocumentEnvelope(version = "0.12.0") {
+async function observeEvidence(path) {
+  try {
+    const metadata = await lstat(path);
+    const type = metadata.isFile()
+      ? "file"
+      : metadata.isDirectory()
+        ? "directory"
+        : metadata.isSymbolicLink()
+          ? "symbolic-link"
+          : "other";
+    return {
+      exists: true,
+      type,
+      ...(metadata.isFile() ? { bytes: await readFile(path) } : {}),
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return { exists: false };
+    }
+    throw error;
+  }
+}
+
+function buildDocumentEnvelope(
+  version = "0.12.0",
+  buildIdentity = installedBuildIdentity,
+) {
   const envelope = structuredClone(documentFixture.documentEnvelope);
   envelope.foundation.version = version;
+  envelope.foundation.buildIdentity = buildIdentity;
   envelope.journal.plan = structuredClone(documentFixture.plan);
   envelope.journal.plan.compiler.version = version;
+  envelope.journal.plan.compiler.buildIdentity = buildIdentity;
   const { planDigest: _planDigest, ...planBody } = envelope.journal.plan;
   envelope.journal.plan.planDigest = sha256Json(planBody);
   envelope.payloadDigest = sha256Json(envelope.journal);
@@ -166,6 +207,90 @@ test("serializes an idle mutation and releases its physical lock exactly once", 
   assert.equal(fixture.releaseCount(), 1);
 });
 
+test("preserves the classified transaction failure when lock release also fails", async () => {
+  const releaseFailure = new Error("lock release failed");
+  const status = {
+    state: "pending",
+    operationKind: "scaffolding",
+    format: "envelope-v2",
+    diagnostics: [
+      {
+        code: "FOUNDATION_TRANSACTION_ACTIVE",
+        message: "pending scaffold",
+      },
+    ],
+  };
+  const coordinator = new FoundationTransactionCoordinator({
+    lock: {
+      async acquire() {
+        return async () => {
+          throw releaseFailure;
+        };
+      },
+    },
+    slot: {
+      async inspect() {
+        return status;
+      },
+    },
+  });
+
+  await assert.rejects(
+    coordinator.acquire({ requestedMutation: "attach" }),
+    (error) => {
+      assert.ok(error instanceof FoundationTransactionError);
+      assert.equal(error.code, "FOUNDATION_TRANSACTION_ACTIVE");
+      assert.equal(error.message, "pending scaffold");
+      assert.equal(error.status, status);
+      assert.equal(error.cause, releaseFailure);
+      return true;
+    },
+  );
+});
+
+test("build identity is path-independent and changes for rebuilt executable or contract bytes", async () => {
+  const first = await createRoot("foundation-build-first-");
+  const second = await createRoot("foundation-build-second-");
+  try {
+    for (const root of [first, second]) {
+      await mkdir(join(root, "dist"), { recursive: true });
+      await mkdir(join(root, "schemas"), { recursive: true });
+      await mkdir(join(root, "presets"), { recursive: true });
+      await writeFile(join(root, "dist", "runtime.js"), "export const value = 1;\n");
+      await writeFile(join(root, "schemas", "contract.json"), "{}\n");
+      await writeFile(join(root, "presets", "base.json"), "{}\n");
+      await writeFile(join(root, "dist", "ignored.d.ts"), "export {};\n");
+    }
+    assert.equal(
+      await computeFoundationBuildIdentity(first),
+      await computeFoundationBuildIdentity(second),
+    );
+    await writeFile(join(second, "dist", "runtime.js"), "export const value = 2;\n");
+    assert.notEqual(
+      await computeFoundationBuildIdentity(first),
+      await computeFoundationBuildIdentity(second),
+    );
+    await writeFile(join(second, "dist", "runtime.js"), "export const value = 1;\n");
+    await writeFile(join(second, "schemas", "contract.json"), '{"type":"object"}\n');
+    assert.notEqual(
+      await computeFoundationBuildIdentity(first),
+      await computeFoundationBuildIdentity(second),
+    );
+    await Promise.all(
+      Array.from({ length: 8 }, async (_value, index) => {
+        await writeFile(join(first, "dist", `ignored-${index}.d.ts`), "export {};\n");
+      }),
+    );
+    await assert.rejects(
+      computeFoundationBuildIdentity(first, { maximumVisitedEntries: 6 }),
+      /too many entries/u,
+    );
+  } finally {
+    await rm(first, { force: true, recursive: true });
+    await rm(second, { force: true, recursive: true });
+  }
+});
+
 test("blocks foreign transactions and preserves the exact recovery route", async () => {
   const status = {
     state: "pending",
@@ -201,6 +326,15 @@ test("blocks foreign transactions and preserves the exact recovery route", async
   });
   await lease.release();
   assert.equal(recovery.releaseCount(), 1);
+
+  const confusedDeputy = coordinatorWith(status);
+  await assert.rejects(
+    confusedDeputy.coordinator.acquire({
+      requestedMutation: "attach",
+      allowRecoveryOf: "scaffolding",
+    }),
+    (error) => error?.code === "FOUNDATION_TRANSACTION_ACTIVE",
+  );
 
   const genericEnvelope = coordinatorWith({ ...status, format: "envelope-v2" });
   await assert.rejects(
@@ -260,6 +394,7 @@ test("recognizes a frozen legacy scaffolding v1 journal and its exact compiler",
     await writeJson(slotPath(root), journal);
     const status = await new NodeFoundationTransactionSlot({
       consumerRoot: root,
+      installedBuildIdentity,
       installedVersion: plan.compiler.version,
     }).inspect();
     assert.deepEqual(
@@ -286,17 +421,22 @@ test("recognizes a frozen legacy scaffolding v1 journal and its exact compiler",
   }
 });
 
-test("recognizes a verified envelope v2 and reports package version drift", async () => {
+test("recognizes a verified envelope v2 and reports exact package identity drift", async () => {
   const root = await createRoot();
   try {
     await writeJson(slotPath(root), buildDocumentEnvelope("0.12.0"));
     const status = await new NodeFoundationTransactionSlot({
       consumerRoot: root,
+      installedBuildIdentity,
       installedVersion: "0.13.0",
     }).inspect();
     assert.equal(status.state, "pending");
     assert.equal(status.operationKind, "document-authoring");
     assert.equal(status.recovery.exactFoundationVersion, "0.12.0");
+    assert.equal(
+      status.recovery.exactFoundationBuildIdentity,
+      installedBuildIdentity,
+    );
     assert.equal(
       status.diagnostics[0]?.code,
       "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
@@ -306,18 +446,134 @@ test("recognizes a verified envelope v2 and reports package version drift", asyn
   }
 });
 
-test("a frozen Foundation 0.11 reader fails closed on envelope v2", async () => {
+test("fails closed when an envelope is rebound across compiler or installed builds", async (context) => {
+  const otherBuildIdentity = `sha256:${"f".repeat(64)}`;
+  const scenarios = [
+    {
+      name: "outer and document compiler version differ",
+      mutate(envelope) {
+        envelope.journal.plan.compiler.version = "0.13.0";
+      },
+    },
+    {
+      name: "outer and document compiler build differ",
+      mutate(envelope) {
+        envelope.journal.plan.compiler.buildIdentity = otherBuildIdentity;
+      },
+    },
+    {
+      name: "document plan digest is invalid",
+      mutate(envelope) {
+        envelope.journal.plan.projectId = "forged-project";
+      },
+    },
+    {
+      name: "intent digest does not bind the embedded intent",
+      mutate(envelope) {
+        envelope.journal.plan.intent.title = "Rebound intent";
+        const { planDigest: _digest, ...body } = envelope.journal.plan;
+        envelope.journal.plan.planDigest = sha256Json(body);
+      },
+    },
+    {
+      name: "journal destination differs from the Plan",
+      mutate(envelope) {
+        envelope.journal.destination.path = "docs/decisions/0084-rebound.md";
+      },
+    },
+    {
+      name: "output size does not bind decoded output bytes",
+      mutate(envelope) {
+        envelope.journal.plan.output.size += 1;
+        const { planDigest: _digest, ...body } = envelope.journal.plan;
+        envelope.journal.plan.planDigest = sha256Json(body);
+      },
+    },
+    {
+      name: "owned temporary does not bind the exact output",
+      mutate(envelope) {
+        envelope.journal.ownedTemporary = {
+          path: `${envelope.journal.plan.destination}.foundation-document.tmp`,
+          digest: `sha256:${"e".repeat(64)}`,
+        };
+      },
+    },
+  ];
+  for (const scenario of scenarios) {
+    await context.test(scenario.name, async () => {
+      const root = await createRoot();
+      try {
+        const envelope = buildDocumentEnvelope();
+        scenario.mutate(envelope);
+        envelope.payloadDigest = sha256Json(envelope.journal);
+        const { envelopeDigest: _digest, ...body } = envelope;
+        envelope.envelopeDigest = sha256Json(body);
+        await writeJson(slotPath(root), envelope);
+        const before = await readFile(slotPath(root));
+        const status = await new NodeFoundationTransactionSlot({
+          consumerRoot: root,
+          installedBuildIdentity,
+          installedVersion: "0.12.0",
+        }).inspect();
+        assert.equal(status.state, "manual-recovery-required");
+        assert.deepEqual(await readFile(slotPath(root)), before);
+      } finally {
+        await rm(root, { force: true, recursive: true });
+      }
+    });
+  }
+
+  await context.test("installed build identity differs at the same version", async () => {
+    const root = await createRoot();
+    try {
+      await writeJson(slotPath(root), buildDocumentEnvelope());
+      const status = await new NodeFoundationTransactionSlot({
+        consumerRoot: root,
+        installedBuildIdentity: otherBuildIdentity,
+        installedVersion: "0.12.0",
+      }).inspect();
+      assert.equal(status.state, "pending");
+      assert.equal(
+        status.diagnostics[0]?.code,
+        "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+      );
+      assert.equal(
+        status.recovery.exactFoundationBuildIdentity,
+        installedBuildIdentity,
+      );
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+});
+
+test("rejects a schema-valid legacy journal whose operation evidence is not Plan-bound", async () => {
   const root = await createRoot();
   try {
-    const path = slotPath(root);
-    await writeJson(path, buildDocumentEnvelope());
-    const before = await readFile(path);
-    const result = spawnSync(process.execPath, [legacyFoundationReaderFixture, path], {
-      encoding: "utf8",
+    await cp(scaffoldFixtureRoot, root, { recursive: true });
+    const plan = await planScaffoldFromFile({
+      consumerRoot: root,
+      intentPath: "intents/create-fixture.yaml",
     });
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /SCAFFOLD_RECOVERY_REQUIRED/u);
-    assert.deepEqual(await readFile(path), before);
+    const journal = {
+      schemaVersion: 1,
+      state: "PREPARED",
+      plan,
+      operations: plan.operations.map((operation) => ({
+        operationId: operation.id,
+        path: `${operation.path}.forged`,
+        state: "pending",
+      })),
+    };
+    await writeJson(slotPath(root), journal);
+    const before = await readFile(slotPath(root));
+    const status = await new NodeFoundationTransactionSlot({
+      consumerRoot: root,
+      installedBuildIdentity,
+      installedVersion: plan.compiler.version,
+    }).inspect();
+    assert.equal(status.state, "manual-recovery-required");
+    assert.deepEqual(await readFile(slotPath(root)), before);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
@@ -365,18 +621,35 @@ test("fails closed and preserves unknown, corrupt, replaced, and temporary evide
       try {
         await mkdir(dirname(slotPath(root)), { recursive: true });
         await scenario.prepare(root);
-        const before = await stat(
-          scenario.name === "orphan temporary" ? `${slotPath(root)}.tmp` : slotPath(root),
+        const path =
+          scenario.name === "orphan temporary" ? `${slotPath(root)}.tmp` : slotPath(root);
+        const before = await observeEvidence(path);
+        const absentBefore = await observeEvidence(
+          scenario.name === "orphan temporary" ? slotPath(root) : `${slotPath(root)}.tmp`,
         );
         const status = await new NodeFoundationTransactionSlot({
           consumerRoot: root,
+          installedBuildIdentity,
           installedVersion: "0.12.0",
         }).inspect();
         assert.equal(status.state, "manual-recovery-required");
-        const after = await stat(
-          scenario.name === "orphan temporary" ? `${slotPath(root)}.tmp` : slotPath(root),
+        assert.equal(
+          status.reason,
+          scenario.name === "orphan temporary"
+            ? "orphan-temporary"
+            : scenario.name === "unknown version"
+              ? "unsupported-schema"
+              : scenario.name === "non-regular slot"
+                ? "unstable-slot"
+                : "corrupt-or-incompatible",
         );
-        assert.equal(String(after.ino), String(before.ino));
+        assert.deepEqual(await observeEvidence(path), before);
+        assert.deepEqual(
+          await observeEvidence(
+            scenario.name === "orphan temporary" ? slotPath(root) : `${slotPath(root)}.tmp`,
+          ),
+          absentBefore,
+        );
       } finally {
         await rm(root, { force: true, recursive: true });
       }
@@ -394,6 +667,7 @@ test("preserves both journal and temporary evidence when the slot has two candid
     const temporaryBefore = await readFile(`${path}.tmp`);
     const status = await new NodeFoundationTransactionSlot({
       consumerRoot: root,
+      installedBuildIdentity,
       installedVersion: "0.12.0",
     }).inspect();
     assert.equal(status.state, "manual-recovery-required");
@@ -429,32 +703,33 @@ test("blocks scaffold apply on a document envelope without deleting it", async (
   }
 });
 
-test("detects transaction replacement between lock acquisition and inspection", async () => {
+test("detects transaction replacement during its stable bounded read", async () => {
   const root = await createRoot();
   try {
     const initial = buildDocumentEnvelope("0.12.0");
     await writeJson(slotPath(root), initial);
-    const coordinator = new FoundationTransactionCoordinator({
-      lock: {
-        async acquire() {
-          const path = slotPath(root);
-          const source = await readFile(path);
-          await rename(path, `${path}.original`);
-          await writeFile(path, source);
-          return async () => {};
-        },
+    const path = slotPath(root);
+    const before = await readFile(path);
+    const observation = await readBoundedRegularFile(
+      path,
+      32 * 1024 * 1024,
+      async ({ phase }) => {
+        assert.equal(phase, "before-stability-check");
+        await rename(path, `${path}.original`);
+        await writeFile(path, before);
       },
-      slot: new NodeFoundationTransactionSlot({
-        consumerRoot: root,
-        installedVersion: "0.12.0",
-      }),
-    });
-    await assert.rejects(
-      coordinator.acquire({ requestedMutation: "attach" }),
-      (error) => error?.code === "FOUNDATION_TRANSACTION_ACTIVE",
     );
-    assert.equal((await stat(slotPath(root))).isFile(), true);
-    assert.equal((await stat(`${slotPath(root)}.original`)).isFile(), true);
+    assert.deepEqual(observation, { outcome: "changed" });
+    assert.deepEqual(await observeEvidence(path), {
+      exists: true,
+      type: "file",
+      bytes: before,
+    });
+    assert.deepEqual(await observeEvidence(`${path}.original`), {
+      exists: true,
+      type: "file",
+      bytes: before,
+    });
   } finally {
     await rm(root, { force: true, recursive: true });
   }
@@ -462,7 +737,7 @@ test("detects transaction replacement between lock acquisition and inspection", 
 
 test(
   "serializes cross-kind child processes with the shared repository lock",
-  { timeout: 10_000 },
+  { timeout: 30_000 },
   async () => {
     const root = await createRoot();
     let holder;

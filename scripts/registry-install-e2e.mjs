@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import { runServer } from "verdaccio";
 
 import { createPnpmRunner, runCommand } from "./pack-test-support.mjs";
+import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const COMMAND_TIMEOUT_MS = 120_000;
@@ -367,6 +368,16 @@ async function verifyConsumer(target, registryUrl) {
     { timeoutMs: COMMAND_TIMEOUT_MS },
   );
   await verifyInstalledBufQualifier(installedRoot);
+  await verifyInstalledTransactionBarrier({
+    cliPath: join(installedRoot, "dist", "cli.js"),
+    consumerRoot: join(consumerRoot, "transaction-barrier-consumer"),
+    fixtureRoot: join(
+      repositoryRoot,
+      "tests",
+      "fixtures",
+      "scaffolding-authority-consumer",
+    ),
+  });
   const { stdout: viewedVersion } = await runNpm(
     [
       "view",

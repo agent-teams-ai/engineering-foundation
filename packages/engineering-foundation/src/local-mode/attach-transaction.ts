@@ -282,10 +282,6 @@ async function commitAttach(
   input: AttachTransactionInput,
   preflight: AttachConsumerState
 ): Promise<AttachResult> {
-  const coordinator = await createNodeFoundationTransactionCoordinator(
-    preflight.consumerRoot
-  );
-  const lease = await coordinator.acquire({ requestedMutation: "attach" });
   let preparation: AttachPreparation | undefined;
   let state: FoundationLinkState | undefined;
   try {
@@ -348,14 +344,23 @@ async function commitAttach(
       throw error;
     }
     return await recoverFailedAttach(preparation, state, error);
-  } finally {
-    await lease.release();
   }
 }
 
 export async function attachFoundation(
   input: AttachTransactionInput
 ): Promise<AttachResult> {
-  const preflight = await inspectAttachConsumerState(input, "CONSUMER_INVALID");
-  return await commitAttach(input, preflight);
+  const coordinator = await createNodeFoundationTransactionCoordinator(
+    input.consumerPath
+  );
+  const lease = await coordinator.acquire({ requestedMutation: "attach" });
+  try {
+    const preflight = await inspectAttachConsumerState(
+      input,
+      "CONSUMER_INVALID"
+    );
+    return await commitAttach(input, preflight);
+  } finally {
+    await lease.release();
+  }
 }

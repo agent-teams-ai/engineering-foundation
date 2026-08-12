@@ -376,11 +376,23 @@ test("blocks attach and detach while a foreign Foundation transaction is pending
         fixture.consumerRoot,
         fixture.targetRepositoryRoot
       ),
-      /transaction slot is invalid|unsupported|manual recovery/u
+      (error) => {
+        assert.equal(
+          error?.code,
+          "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"
+        );
+        return true;
+      }
     );
     await assert.rejects(
       fixture.service.detach(fixture.consumerRoot),
-      /transaction slot is invalid|unsupported|manual recovery/u
+      (error) => {
+        assert.equal(
+          error?.code,
+          "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"
+        );
+        return true;
+      }
     );
     assert.deepEqual(await readFile(transactionPath), original);
   } finally {

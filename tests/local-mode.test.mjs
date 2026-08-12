@@ -348,6 +348,36 @@ test("attaches, reports local evidence, and restores registry mode", async () =>
   }
 });
 
+test("blocks attach and detach while a foreign Foundation transaction is pending", async () => {
+  const fixture = await createFixture();
+  try {
+    const transactionPath = join(
+      fixture.consumerRoot,
+      ".agent-teams-local",
+      "scaffolding-transaction.json"
+    );
+    await writeJson(transactionPath, {
+      schemaVersion: 99,
+      operationKind: "future-mutation"
+    });
+    const original = await readFile(transactionPath);
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      /transaction slot is invalid|unsupported|manual recovery/u
+    );
+    await assert.rejects(
+      fixture.service.detach(fixture.consumerRoot),
+      /transaction slot is invalid|unsupported|manual recovery/u
+    );
+    assert.deepEqual(await readFile(transactionPath), original);
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
 test("serializes concurrent attaches before writing the local ignore rule", async () => {
   const fixture = await createFixture({ blockExcludeLookup: true });
   try {

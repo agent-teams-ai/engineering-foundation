@@ -27,6 +27,8 @@ import { inspectFoundationPackage } from "./package-self-check.js";
 import { renderFoundationReportText } from "./report-renderer.js";
 import { runScaffoldingCliCommand } from "./scaffolding/cli-command.js";
 import { ScaffoldError } from "./scaffolding/scaffold-error.js";
+import { FoundationTransactionError } from "./transaction-coordination/application/foundation-transaction-error.js";
+import type { FoundationTransactionStatus } from "./transaction-coordination/application/model/transaction-status.js";
 import {
   isFoundationSchemaId,
   readFoundationSchema
@@ -68,6 +70,18 @@ function printStatus(status: FoundationStatus, json: boolean): void {
     process.stdout.write(
       `Current dirty: ${status.sourceGitDirty ? "yes" : "no"}\n`
     );
+  }
+  const transaction = (
+    status as FoundationStatus & { readonly transaction?: FoundationTransactionStatus }
+  ).transaction;
+  if (transaction !== undefined && transaction.state !== "idle") {
+    process.stdout.write(`Transaction: ${transaction.state}\n`);
+    if (transaction.state === "pending") {
+      process.stdout.write(`Transaction kind: ${transaction.operationKind}\n`);
+      process.stdout.write(
+        `Recovery: ${transaction.recovery.commandId} with Foundation ${transaction.recovery.exactFoundationVersion}\n`
+      );
+    }
   }
   for (const issue of status.issues) {
     process.stdout.write(`Issue: ${issue}\n`);
@@ -455,6 +469,9 @@ try {
     const result = documentFindFailure(error);
     process.stdout.write(`${JSON.stringify(result.envelope)}\n`);
     process.exitCode = result.exitCode;
+  } else if (error instanceof FoundationTransactionError) {
+    process.stderr.write(`${error.code}: ${error.message}\n`);
+    process.exitCode = 1;
   } else if (error instanceof ScaffoldError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
     process.exitCode =

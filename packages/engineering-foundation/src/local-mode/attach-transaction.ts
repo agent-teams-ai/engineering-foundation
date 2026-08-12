@@ -19,11 +19,11 @@ import {
 import { isExactVersion } from "../semantic-version.js";
 import { inspectFoundationMode } from "./inspection.js";
 import {
-  acquireFoundationOperationLock,
   removeLinkState,
   syncDirectory,
   writeLinkState
 } from "./local-state-store.js";
+import { createNodeFoundationTransactionCoordinator } from "../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import {
   pathEntryExists,
   resolveTargetPackageRoot,
@@ -282,7 +282,10 @@ async function commitAttach(
   input: AttachTransactionInput,
   preflight: AttachConsumerState
 ): Promise<AttachResult> {
-  const releaseLock = await acquireFoundationOperationLock(preflight.consumerRoot);
+  const coordinator = await createNodeFoundationTransactionCoordinator(
+    preflight.consumerRoot
+  );
+  const lease = await coordinator.acquire({ requestedMutation: "attach" });
   let preparation: AttachPreparation | undefined;
   let state: FoundationLinkState | undefined;
   try {
@@ -346,7 +349,7 @@ async function commitAttach(
     }
     return await recoverFailedAttach(preparation, state, error);
   } finally {
-    await releaseLock();
+    await lease.release();
   }
 }
 

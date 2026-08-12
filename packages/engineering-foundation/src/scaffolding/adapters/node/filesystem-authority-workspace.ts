@@ -10,8 +10,10 @@ import type {
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { acquireFoundationOperationLock } from "../../../local-mode/service.js";
-import { LOCAL_STATE_DIRECTORY } from "../../../local-mode/types.js";
+import { LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/adapters/node/foundation-state-paths.js";
+import { createNodeFoundationTransactionCoordinator } from "../../../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { FoundationTransactionError } from "../../../transaction-coordination/application/foundation-transaction-error.js";
+import type { FoundationTransactionLease } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
 import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
 import {
   assertSafeExistingAncestors,
@@ -129,6 +131,28 @@ function snapshotAuthorityScaffoldPlan(
     );
   }
   return snapshot;
+}
+
+async function acquireScaffoldingTransaction(
+  canonicalRoot: string
+): Promise<FoundationTransactionLease> {
+  const coordinator = await createNodeFoundationTransactionCoordinator(canonicalRoot);
+  try {
+    return await coordinator.acquire({
+      requestedMutation: "scaffolding",
+      allowRecoveryOf: "scaffolding"
+    });
+  } catch (error) {
+    if (!(error instanceof FoundationTransactionError)) {
+      throw error;
+    }
+    const message = error.message.includes("orphan Foundation transaction temporary")
+      ? "Scaffolding journal temporary cannot be proven transaction-owned; it was preserved and requires manual recovery."
+      : error.message;
+    throw new ScaffoldError("SCAFFOLD_RECOVERY_REQUIRED", message, [], {
+      cause: error
+    });
+  }
 }
 
 async function prepareJournal(
@@ -304,7 +328,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   assertAuthorityScaffoldPlanDigest(plan);
   assertSafeOperationPaths(plan);
   const canonicalRoot = await realpath(resolve(consumerRoot));
-  const release = await acquireFoundationOperationLock(canonicalRoot);
+  const lease = await acquireScaffoldingTransaction(canonicalRoot);
   try {
     const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
     await assertAuthorityScaffoldJournalTemporaryAbsent(journalPath);
@@ -400,7 +424,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       ...(faultInjector === undefined ? {} : { faultInjector })
     });
   } finally {
-    await release();
+    await lease.release();
   }
 }
 
@@ -408,7 +432,7 @@ export async function recoverAuthorityFilesystemScaffold(
   consumerRoot: string
 ): Promise<AuthorityScaffoldReceipt | undefined> {
   const canonicalRoot = await realpath(resolve(consumerRoot));
-  const release = await acquireFoundationOperationLock(canonicalRoot);
+  const lease = await acquireScaffoldingTransaction(canonicalRoot);
   try {
     const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
     await assertAuthorityScaffoldJournalTemporaryAbsent(journalPath);
@@ -424,6 +448,6 @@ export async function recoverAuthorityFilesystemScaffold(
       recovered: true
     });
   } finally {
-    await release();
+    await lease.release();
   }
 }

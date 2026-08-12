@@ -184,6 +184,11 @@ otherwise recovery leaves the journal and outputs unchanged. The testing Recipe
 remains conformance-only. The generic Node TypeScript library Recipe may create a
 package boundary only; it must not be treated as a product architecture or DDD
 template. See the [recipe reference](../reference/node-typescript-library-boundary.md).
+Scaffolding, future document authoring, attach, and detach share one physical
+transaction barrier. Unknown, corrupt, temporary-only, or foreign transaction
+evidence is never removed automatically. A verified journal created by another
+exact Foundation version reports that version as the required recovery route
+and blocks package switching until recovery is complete.
 
 ### Scaffolding transition from 0.5.0
 

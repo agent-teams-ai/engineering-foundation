@@ -9,10 +9,10 @@ import {
 import { isExactVersion } from "../semantic-version.js";
 import { inspectFoundationMode } from "./inspection.js";
 import {
-  acquireFoundationOperationLock,
   removeLinkState,
   writeLinkState
 } from "./local-state-store.js";
+import { createNodeFoundationTransactionCoordinator } from "../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import {
   restoreRegistryEntry
 } from "./registry-recovery.js";
@@ -121,9 +121,10 @@ export class FoundationLocalModeService {
         `Consumer must retain an exact ${FOUNDATION_PACKAGE_NAME} registry dependency.`
       );
     }
-    const releaseLock = await acquireFoundationOperationLock(
+    const coordinator = await createNodeFoundationTransactionCoordinator(
       before.consumerRoot
     );
+    const lease = await coordinator.acquire({ requestedMutation: "detach" });
     try {
       const current = await inspectFoundationMode(before.consumerRoot, {
         ignoreOperationLock: true
@@ -144,7 +145,7 @@ export class FoundationLocalModeService {
       );
       await removeLinkState(before.consumerRoot);
     } finally {
-      await releaseLock();
+      await lease.release();
     }
 
     const after = await inspectFoundationMode(before.consumerRoot);

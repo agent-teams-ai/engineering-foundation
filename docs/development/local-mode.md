@@ -44,6 +44,12 @@ Status reports package version, source path, Git commit, dirty state, and one of
 - `LOCAL`: installed package resolves to the recorded local target;
 - `INVALID`: marker, manifest, installed package, or source evidence disagree.
 
+Status also reports a pending Foundation transaction, its operation kind, and
+the exact recovery command and package version when the shared transaction slot
+contains verified evidence. Attach and detach acquire the shared operation lock
+and refuse to switch package bytes while any foreign, incompatible, unknown, or
+manual-recovery transaction evidence exists.
+
 Detach removes only the foundation link and atomically restores the preserved
 registry package entry. It never runs a workspace install. A consumer-scoped
 `proper-lockfile` lock rejects concurrent mutations and safely reclaims stale

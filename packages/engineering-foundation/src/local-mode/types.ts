@@ -1,9 +1,11 @@
 export const FOUNDATION_PACKAGE_NAME =
   "@agent-teams/engineering-foundation" as const;
-export const LOCAL_STATE_DIRECTORY = ".agent-teams-local" as const;
+export {
+  LOCAL_OPERATION_LOCK,
+  LOCAL_STATE_DIRECTORY
+} from "../transaction-coordination/adapters/node/foundation-state-paths.js";
 export const LOCAL_STATE_FILE = "foundation-link.json" as const;
 export const LOCAL_REGISTRY_BACKUP = "foundation-registry-backup" as const;
-export const LOCAL_OPERATION_LOCK = "foundation-operation.lock" as const;
 export const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION = 1 as const;
 
 export type {

@@ -14,8 +14,9 @@ import {
   type PortableFileIdentity
 } from "./filesystem-file-identity.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
+import { FOUNDATION_TRANSACTION_FILE } from "../../../transaction-coordination/adapters/node/foundation-state-paths.js";
 
-export const SCAFFOLD_JOURNAL_FILE = "scaffolding-transaction.json";
+export const SCAFFOLD_JOURNAL_FILE = FOUNDATION_TRANSACTION_FILE;
 
 function isMissing(error: unknown): boolean {
   return (

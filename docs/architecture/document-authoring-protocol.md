@@ -137,6 +137,13 @@ One repository root has one canonical Foundation operation lock and one active
 transaction slot. A version 2 envelope records operation kind, registered
 recovery handler, exact Foundation version and build identity, adapter contract,
 protocol payload kind and journal, payload digest, state, and envelope digest.
+The coordinator now enforces that barrier for scaffolding and local attach or
+detach operations before mutation begins. It recognizes the frozen legacy
+scaffolding journal v1 and verified envelope v2 at the historical physical slot;
+an orphan temporary, invalid regular-file evidence, unknown schema, digest
+failure, or exact-package-version mismatch is preserved and fails closed. Status
+reports the operation kind and structured exact recovery route when those facts
+are provable.
 
 The envelope does not merge `ScaffoldPlan` with `DocumentPlan` or their
 Receipts. Recovery dispatch is closed in the Foundation composition root and

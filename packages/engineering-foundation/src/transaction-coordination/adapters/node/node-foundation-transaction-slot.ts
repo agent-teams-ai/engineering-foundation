@@ -10,7 +10,7 @@ import {
   LOCAL_STATE_DIRECTORY
 } from "../../../foundation-state-contract.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { sha256Json } from "../../../canonical-json.js";
+import { sha256Json as sha256DocumentJson } from "../../../canonical-json.js";
 import { assertDocumentPlanDigests } from "../../../document-authoring/application/policies/document-contract-digests.js";
 import { documentTemporaryPath } from "../../../document-authoring/application/policies/document-temporary-path.js";
 import type {
@@ -18,6 +18,7 @@ import type {
   JsonValue
 } from "../../../scaffolding/contract/types.js";
 import { assertAuthorityScaffoldJournal } from "../../../scaffolding/kernel/authority-journal-validation.js";
+import { sha256Json as sha256ScaffoldingJson } from "../../../scaffolding/kernel/canonical-json.js";
 import { parseStrictJson } from "../../../strict-json.js";
 import type {
   FoundationRecoveryRoute,
@@ -230,12 +231,16 @@ async function inspectLocalModeEvidence(
 }
 
 function assertEnvelopeDigests(envelope: Record<string, unknown>): void {
+  const sha256EnvelopeJson =
+    envelope["operationKind"] === "scaffolding"
+      ? sha256ScaffoldingJson
+      : sha256DocumentJson;
   const journal = envelope["journal"];
-  if (envelope["payloadDigest"] !== sha256Json(journal as JsonValue)) {
+  if (envelope["payloadDigest"] !== sha256EnvelopeJson(journal as JsonValue)) {
     throw new Error("Foundation transaction payload digest is invalid.");
   }
   const { envelopeDigest, ...body } = envelope;
-  if (envelopeDigest !== sha256Json(body as JsonValue)) {
+  if (envelopeDigest !== sha256EnvelopeJson(body as JsonValue)) {
     throw new Error("Foundation transaction envelope digest is invalid.");
   }
 }

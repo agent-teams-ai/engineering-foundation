@@ -1,13 +1,9 @@
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { runCommand } from "./pack-test-support.mjs";
+import { runNpmCommand } from "./pack-test-support.mjs";
 
 const packageName = "@agent-teams/engineering-foundation";
-
-function npmExecutable() {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
-}
 
 export async function installPublishedFoundation({
   expectedIntegrity,
@@ -29,8 +25,7 @@ export async function installPublishedFoundation({
     )}\n`,
     "utf8",
   );
-  await runCommand(
-    npmExecutable(),
+  await runNpmCommand(
     [
       "install",
       "--ignore-scripts",

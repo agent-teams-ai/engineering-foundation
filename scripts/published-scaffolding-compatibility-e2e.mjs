@@ -11,7 +11,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
-import { createPnpmRunner, runCommand } from "./pack-test-support.mjs";
+import {
+  createPnpmRunner,
+  runCommand,
+  runNpmCommand,
+} from "./pack-test-support.mjs";
 import { installPublishedFoundation } from "./published-foundation-install.mjs";
 
 const publishedVersion = "0.12.0";
@@ -47,10 +51,6 @@ async function runScaffolding(cliPath, consumerRoot, args) {
   );
   JSON.parse(stdout);
   return Buffer.from(stdout, "utf8");
-}
-
-function npmExecutable() {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
 async function installPackedCurrentPackage({
@@ -89,8 +89,7 @@ async function installPackedCurrentPackage({
     )}\n`,
     "utf8",
   );
-  await runCommand(
-    npmExecutable(),
+  await runNpmCommand(
     [
       "install",
       "--ignore-scripts",

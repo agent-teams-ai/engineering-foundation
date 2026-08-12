@@ -15,7 +15,11 @@ import { fileURLToPath } from "node:url";
 
 import { runServer } from "verdaccio";
 
-import { createPnpmRunner, runCommand } from "./pack-test-support.mjs";
+import {
+  createPnpmRunner,
+  runCommand,
+  runNpmCommand,
+} from "./pack-test-support.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
@@ -30,10 +34,6 @@ const keepTemporaryRoot =
 const runPnpm = createPnpmRunner();
 let npmUserConfigPath;
 
-function npmExecutable() {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
-}
-
 function compareStrings(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
@@ -41,7 +41,7 @@ function compareStrings(left, right) {
 async function runNpm(args, cwd) {
   const userConfigArgs =
     npmUserConfigPath === undefined ? [] : ["--userconfig", npmUserConfigPath];
-  return runCommand(npmExecutable(), [...args, ...userConfigArgs, "--loglevel=error"], cwd, {
+  return runNpmCommand([...args, ...userConfigArgs, "--loglevel=error"], cwd, {
     timeoutMs: COMMAND_TIMEOUT_MS,
   });
 }

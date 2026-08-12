@@ -111,6 +111,11 @@
       "id": "ADR-0022",
       "path": "docs/decisions/0022-document-authoring-protocol.md",
       "immutableDigest": "sha256:442c15c919f3caa0b65117032da07828647991d6f82b699f497cf7529f25bd23"
+    },
+    {
+      "id": "ADR-0023",
+      "path": "docs/decisions/0023-correct-document-authoring-v1-semantics.md",
+      "immutableDigest": "sha256:a631c19f0ed7ca45e1b1104cbd6ac3a82dc3080244626788c35365b98bf8b154"
     }
   ]
 }

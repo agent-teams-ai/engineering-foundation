@@ -47,7 +47,13 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 512,
-      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[A-Za-z0-9._@-]*)?(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$"
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[A-Za-z0-9._@-]*)?(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$"
+    },
+    "repositoryParentPath": {
+      "oneOf": [
+        { "const": "." },
+        { "$ref": "#/$defs/repositoryPath" }
+      ]
     },
     "compiler": {
       "type": "object",
@@ -66,7 +72,17 @@
       "properties": {
         "path": { "$ref": "#/$defs/repositoryPath" },
         "digest": { "$ref": "#/$defs/digest" },
-        "size": { "type": "integer", "minimum": 1, "maximum": 4194304 }
+        "size": { "type": "integer", "minimum": 1, "maximum": 1048576 }
+      }
+    },
+    "templateAuthoritySource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "size"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 1, "maximum": 262144 }
       }
     },
     "authority": {
@@ -77,7 +93,7 @@
         "profile": { "$ref": "#/$defs/authoritySource" },
         "metadataSchema": { "$ref": "#/$defs/authoritySource" },
         "ownerCatalog": { "$ref": "#/$defs/authoritySource" },
-        "template": { "$ref": "#/$defs/authoritySource" }
+        "template": { "$ref": "#/$defs/templateAuthoritySource" }
       }
     },
     "selectedOwner": {
@@ -113,7 +129,7 @@
       "additionalProperties": false,
       "required": ["path", "state", "ancestry"],
       "properties": {
-        "path": { "$ref": "#/$defs/repositoryPath" },
+        "path": { "$ref": "#/$defs/repositoryParentPath" },
         "state": { "const": "directory" },
         "ancestry": { "const": "real-directories" }
       }

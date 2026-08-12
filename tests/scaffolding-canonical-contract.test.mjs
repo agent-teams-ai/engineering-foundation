@@ -9,7 +9,10 @@ import {
   planScaffoldFromFile
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
-import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
+import {
+  canonicalJson,
+  sha256Json,
+} from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 import { createAuthorityScaffoldReceipt } from "../packages/engineering-foundation/dist/scaffolding/kernel/authority-receipt.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -31,6 +34,26 @@ function withReceiptDigest(receipt) {
   const { receiptDigest: _ignored, ...body } = receipt;
   return { ...body, receiptDigest: sha256Json(body) };
 }
+
+test("freezes legacy scaffolding v1 canonical edge values", () => {
+  const vectors = [
+    {
+      value: -0,
+      canonical: "0",
+      digest: "sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    },
+    {
+      value: "\ud800",
+      canonical: '"\\ud800"',
+      digest: "sha256:8c0c59dd0d275aadcd462a5fe12eb352cbdfeaf961eae4f85a4660521df7d2f5",
+    },
+  ];
+
+  for (const vector of vectors) {
+    assert.equal(canonicalJson(vector.value), vector.canonical);
+    assert.equal(sha256Json(vector.value), vector.digest);
+  }
+});
 
 test("canonical public assertion rejects unsupported protocol discriminators", async () => {
   const unsupportedDiscriminators = {

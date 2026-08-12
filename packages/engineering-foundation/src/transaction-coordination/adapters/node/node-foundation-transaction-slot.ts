@@ -10,10 +10,9 @@ import {
   LOCAL_STATE_DIRECTORY
 } from "../../../foundation-state-contract.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import {
-  sha256Bytes,
-  sha256Json
-} from "../../../scaffolding/kernel/canonical-json.js";
+import { sha256Json } from "../../../canonical-json.js";
+import { assertDocumentPlanDigests } from "../../../document-authoring/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../../../document-authoring/application/policies/document-temporary-path.js";
 import type {
   AuthorityScaffoldJournal,
   JsonValue
@@ -28,6 +27,14 @@ import type {
 } from "../../application/model/transaction-status.js";
 import type { FoundationTransactionSlot } from "../../application/ports/foundation-transaction-slot.js";
 import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+import {
+  assertLegacyDocumentEnvelope,
+  isKnownLegacyDocumentEnvelope
+} from "./legacy-document-envelope-v2.js";
+import {
+  classifyNodeTemporaryIdentity,
+  unverifiableDocumentTemporaryStatus
+} from "./document-temporary-identity.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
@@ -233,24 +240,15 @@ function assertEnvelopeDigests(envelope: Record<string, unknown>): void {
   }
 }
 
-function assertDocumentPlanDigest(plan: Record<string, unknown>): void {
-  const { planDigest, ...body } = plan;
-  if (planDigest !== sha256Json(body as JsonValue)) {
-    throw new Error("Document Plan digest is invalid.");
-  }
-}
-
 function assertDocumentTransactionBindings(
   journal: Record<string, unknown>,
   plan: Record<string, unknown>,
-  envelopeState: unknown
-): void {
-  const intent = plan["intent"];
+  envelopeState: unknown,
+  legacyDigestSemantics: boolean
+): "legacy-or-absent" | "verifiable" | "unverifiable" {
   const output = plan["output"];
   const destination = journal["destination"];
   if (
-    !isRecord(intent) ||
-    plan["intentDigest"] !== sha256Json(intent as JsonValue) ||
     !isRecord(output) ||
     typeof output["contentBase64"] !== "string" ||
     !isRecord(destination) ||
@@ -258,23 +256,30 @@ function assertDocumentTransactionBindings(
   ) {
     throw new Error("Document transaction semantic binding is invalid.");
   }
-  const outputBytes = Buffer.from(output["contentBase64"], "base64");
-  if (
-    outputBytes.toString("base64") !== output["contentBase64"] ||
-    output["size"] !== outputBytes.byteLength ||
-    output["digest"] !== sha256Bytes(outputBytes)
-  ) {
-    throw new Error("Document transaction output binding is invalid.");
-  }
   const ownedTemporary = journal["ownedTemporary"];
+  let temporaryIdentityAuthority: "legacy-or-absent" | "verifiable" | "unverifiable" =
+    "legacy-or-absent";
   if (ownedTemporary !== undefined) {
+    const expectedTemporary = legacyDigestSemantics
+      ? `${String(plan["destination"])}.foundation-document.tmp`
+      : documentTemporaryPath(
+          String(plan["destination"]),
+          String(plan["planDigest"])
+        );
     if (
       !isRecord(ownedTemporary) ||
       ownedTemporary["digest"] !== output["digest"] ||
       typeof ownedTemporary["path"] !== "string" ||
-      ownedTemporary["path"] !== `${String(plan["destination"])}.foundation-document.tmp`
+      ownedTemporary["path"] !== expectedTemporary ||
+      (!legacyDigestSemantics &&
+        classifyNodeTemporaryIdentity(ownedTemporary["identity"]) === "invalid")
     ) {
       throw new Error("Document transaction temporary binding is invalid.");
+    }
+    if (!legacyDigestSemantics) {
+      temporaryIdentityAuthority = classifyNodeTemporaryIdentity(
+        ownedTemporary["identity"]
+      ) as "verifiable" | "unverifiable";
     }
   }
   const precondition = plan["destinationPrecondition"];
@@ -290,6 +295,27 @@ function assertDocumentTransactionBindings(
   if (expectedLifecycle === undefined || !expectedLifecycle.has(lifecycle)) {
     throw new Error("Document transaction lifecycle binding is invalid.");
   }
+  return temporaryIdentityAuthority;
+}
+
+function inspectDocumentTransactionBindings(options: {
+  readonly foundation: Record<string, unknown>;
+  readonly journal: Record<string, unknown>;
+  readonly legacy: boolean;
+  readonly plan: Record<string, unknown>;
+  readonly state: unknown;
+}): FoundationTransactionStatus | undefined {
+  if (!options.legacy) {
+    assertDocumentPlanDigests(options.plan);
+  }
+  return assertDocumentTransactionBindings(
+    options.journal,
+    options.plan,
+    options.state,
+    options.legacy
+  ) === "unverifiable"
+    ? unverifiableDocumentTemporaryStatus(options.foundation)
+    : undefined;
 }
 
 async function inspectParsedTransaction(
@@ -325,12 +351,17 @@ async function inspectParsedTransaction(
     });
   }
   if (value["schemaVersion"] === 2) {
-    await assertSchema(
-      "foundation-transaction-envelope/v2",
-      value,
-      "foundation-transaction-slot"
-    );
-    assertEnvelopeDigests(value);
+    const legacyDocumentEnvelope = isKnownLegacyDocumentEnvelope(value);
+    if (legacyDocumentEnvelope) {
+      assertLegacyDocumentEnvelope(value);
+    } else {
+      await assertSchema(
+        "foundation-transaction-envelope/v2",
+        value,
+        "foundation-transaction-slot"
+      );
+      assertEnvelopeDigests(value);
+    }
     const foundation = value["foundation"];
     const operationKind = value["operationKind"];
     const journal = value["journal"];
@@ -357,8 +388,13 @@ async function inspectParsedTransaction(
       throw new Error("Foundation transaction compiler binding is invalid.");
     }
     if (operationKind === "document-authoring") {
-      assertDocumentPlanDigest(plan);
-      assertDocumentTransactionBindings(journal, plan, value["state"]);
+      const documentStatus = inspectDocumentTransactionBindings({
+        foundation, journal, legacy: legacyDocumentEnvelope, plan,
+        state: value["state"]
+      });
+      if (documentStatus !== undefined) {
+        return documentStatus;
+      }
     } else {
       assertAuthorityScaffoldJournal(
         journal as unknown as AuthorityScaffoldJournal

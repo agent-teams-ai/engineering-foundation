@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "repository": "agent-teams-ai/Orchestrator",
+    "commit": "b9685a15552087cc8d83bfb8c4ce408231dcce70",
+    "sourceManifest": "scripts/docs/fixtures/create-doc-golden-v1.json",
+    "sourceManifestSha256": "b65ccc4b45d4baf91f8bc3e3ea07ede901f0368be614ca60cd07c13caf38aea5",
+    "sourceCorpus": "scripts/docs/fixtures/create-doc-golden",
+    "semantics": "Raw donor characterization copied byte-for-byte at Foundation adoption time; Foundation tests do not execute or import the donor repository. Five outputs retain exact parity; feature is an intentional semantic-equivalence vector because Foundation binary-sorts generic nested map keys."
+  },
+  "cases": [
+    {
+      "name": "adr",
+      "type": "adr",
+      "id": "ADR-9001",
+      "title": "Frozen ADR",
+      "slug": "frozen-adr",
+      "path": "docs/decisions/9001-frozen-adr.md",
+      "sourceFixture": "adr.md",
+      "frontmatterKeys": ["id", "type", "status", "owner", "summary"],
+      "lf": { "size": 407, "sha256": "2b5c091fe48891f907aa8ddc27d763af77b8994eef4a45589c086e9992a3671b" },
+      "crlf": { "size": 432, "sha256": "717b0950c8e24be9d9a1df945a6c7523413c45fadb7d5d8db975e69afd3b3901" }
+    },
+    {
+      "name": "open-decision",
+      "type": "open-decision",
+      "id": "OD-901",
+      "title": "Frozen Choice",
+      "slug": "frozen-choice",
+      "path": "docs/open-decisions/OD-901-frozen-choice.md",
+      "sourceFixture": "open-decision.md",
+      "frontmatterKeys": ["id", "type", "status", "owner", "summary"],
+      "lf": { "size": 373, "sha256": "ec74086acd050060453605e3136d10f9de3797ab210b95d0ff3119f77633942b" },
+      "crlf": { "size": 395, "sha256": "38c673b3aa152297074df7a663fab74a2180671b430d1c4e7b5f68c348d93c1f" }
+    },
+    {
+      "name": "bounded-context",
+      "type": "bounded-context",
+      "id": "domain.contexts.frozen",
+      "title": "Frozen Context",
+      "slug": "frozen-context",
+      "path": "docs/domain/contexts/frozen/README.md",
+      "sourceFixture": "bounded-context.md",
+      "frontmatterKeys": ["id", "type", "status", "owner", "summary"],
+      "lf": { "size": 1033, "sha256": "d684ef61e2d7d1ece62e56bdc63164b9f66e440f321736dc9ce0ebb457b345b7" },
+      "crlf": { "size": 1089, "sha256": "fc2eb28dff54936dd126dc51c7cbb4ade4948e0f297d53411eea1691ade4d09c" }
+    },
+    {
+      "name": "contract",
+      "type": "contract",
+      "id": "contract.frozen.widgets.v1",
+      "title": "Frozen Widgets v1",
+      "slug": "frozen-widgets-v1",
+      "path": "docs/contracts/frozen-widgets-v1.md",
+      "sourceFixture": "contract.md",
+      "frontmatterKeys": ["id", "type", "status", "owner", "summary"],
+      "lf": { "size": 467, "sha256": "536be3ec11d84b3770d54ac2f8bdc8b1ea333e2d2c9aaa6256bdf6a9679ea569" },
+      "crlf": { "size": 498, "sha256": "4d730b48b4b25b23d0b176fffcb1f369c91bb2c207de6f1b5a02e9447b8a5ba3" }
+    },
+    {
+      "name": "feature",
+      "type": "feature",
+      "id": "feature.example.create-widget",
+      "title": "Create Widget",
+      "slug": "create-widget",
+      "path": "packages/example/src/features/create-widget/README.md",
+      "sourceFixture": "feature.md",
+      "frontmatterKeys": ["id", "type", "status", "owner", "summary", "related", "blocked_by", "code_anchors"],
+      "lf": { "size": 569, "sha256": "3623354c7096ccfe1e47314c598f1eb9cdcd49a1a68c5811218b6f04306b5dfd" },
+      "crlf": { "size": 604, "sha256": "b6f6cf716fe01e7313652a990d2c1abdaa40acbd44004aea4fe1049202e8ad57" }
+    },
+    {
+      "name": "runbook",
+      "type": "runbook",
+      "id": "runbook.frozen.widget-outage",
+      "title": "Frozen Widget Outage",
+      "slug": "frozen-widget-outage",
+      "path": "docs/operations/frozen-widget-outage.md",
+      "sourceFixture": "runbook.md",
+      "frontmatterKeys": ["id", "type", "status", "owner", "summary"],
+      "lf": { "size": 369, "sha256": "d8135c10891fd3ba4b92325f9f5b9fbd4eb7e814f0ac32c6eb7bebf99bcb8de7" },
+      "crlf": { "size": 396, "sha256": "d71feb4095df29630a201896170394e9641a94b4d77595ab8497e279e2d39524" }
+    }
+  ],
+  "identityVectors": {
+    "valid": [
+      { "type": "adr", "id": "ADR-0000" },
+      { "type": "adr", "id": "ADR-9999" },
+      { "type": "open-decision", "id": "OD-000" },
+      { "type": "open-decision", "id": "OD-999" },
+      { "type": "bounded-context", "id": "domain.contexts.example" },
+      { "type": "contract", "id": "contract.example.widgets" },
+      { "type": "contract", "id": "contract.example.widgets.v1" },
+      { "type": "feature", "id": "feature.example.create-widget" },
+      { "type": "runbook", "id": "runbook.example.widget-outage" }
+    ],
+    "invalid": [
+      { "type": "adr", "id": "ADR-001" },
+      { "type": "adr", "id": "adr-0001" },
+      { "type": "open-decision", "id": "OD-0001" },
+      { "type": "open-decision", "id": "od-001" },
+      { "type": "bounded-context", "id": "domain.contexts" },
+      { "type": "bounded-context", "id": "domain.contexts.one.too-many" },
+      { "type": "contract", "id": "contract.widgets" },
+      { "type": "feature", "id": "feature.example" },
+      { "type": "runbook", "id": "runbook.example" },
+      { "type": "contract", "id": "contract.Example.widgets" },
+      { "type": "feature", "id": "feature.example.create_widget" }
+    ]
+  },
+  "normalizedPolicyVectors": [
+    {
+      "type": "adr",
+      "identity": { "kind": "explicit", "format": "adr-four-digits" },
+      "placement": {
+        "kind": "collection",
+        "directory": "docs/decisions",
+        "filename": "numeric-id-slug"
+      }
+    },
+    {
+      "type": "open-decision",
+      "identity": { "kind": "explicit", "format": "open-decision-three-digits" },
+      "placement": {
+        "kind": "collection",
+        "directory": "docs/open-decisions",
+        "filename": "id-slug"
+      }
+    },
+    {
+      "type": "bounded-context",
+      "identity": {
+        "kind": "qualified",
+        "prefixSegments": ["domain", "contexts"],
+        "minSuffixSegments": 1,
+        "maxSuffixSegments": 1
+      },
+      "placement": {
+        "kind": "qualified-leaf-index",
+        "root": "docs/domain/contexts",
+        "requiredBasename": "README.md"
+      }
+    },
+    {
+      "type": "contract",
+      "identity": {
+        "kind": "qualified",
+        "prefixSegments": ["contract"],
+        "minSuffixSegments": 2,
+        "maxSuffixSegments": 16
+      },
+      "placement": {
+        "kind": "collection",
+        "directory": "docs/contracts",
+        "filename": "slug"
+      }
+    },
+    {
+      "type": "feature",
+      "identity": {
+        "kind": "qualified",
+        "prefixSegments": ["feature"],
+        "minSuffixSegments": 2,
+        "maxSuffixSegments": 16
+      },
+      "placement": {
+        "kind": "explicit",
+        "allowedRoots": ["apps", "packages", "tooling"],
+        "requiredSegmentsInOrder": ["src", "features"],
+        "requiredBasename": "README.md",
+        "minimumSegmentsBeforeRequired": 1,
+        "minimumSegmentsAfterRequired": 1
+      }
+    },
+    {
+      "type": "runbook",
+      "identity": {
+        "kind": "qualified",
+        "prefixSegments": ["runbook"],
+        "minSuffixSegments": 2,
+        "maxSuffixSegments": 16
+      },
+      "placement": {
+        "kind": "collection",
+        "directory": "docs/operations",
+        "filename": "slug"
+      }
+    }
+  ],
+  "slugVectors": [
+    { "title": "Frozen Widgets v1", "slug": "frozen-widgets-v1" },
+    { "title": "Crème brûlée déjà vu", "slug": "creme-brulee-deja-vu" },
+    { "title": "Ångström + Café", "slug": "angstrom-cafe" },
+    { "title": "中文 документ", "slug": "" },
+    { "title": "💥", "slug": "" },
+    { "title": "  --  ", "slug": "" }
+  ],
+  "explicitSlugVectors": {
+    "valid": ["frozen", "widget-v1", "123"],
+    "invalid": ["", "Frozen", "two--words", "-leading", "trailing-", "café", "中文"]
+  }
+}

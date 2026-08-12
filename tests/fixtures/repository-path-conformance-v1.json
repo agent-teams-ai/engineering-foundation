@@ -1,0 +1,30 @@
+{
+  "contract": "foundation.repository-path-conformance/v1",
+  "vectors": [
+    { "name": "nested markdown", "path": "docs/guide.md", "documentValid": true, "mutationProblem": null },
+    { "name": "portable punctuation", "path": "docs/a_b.c@d-e", "documentValid": true, "mutationProblem": null },
+    { "name": "mutation-only plus", "path": "docs/a+b.md", "documentValid": false, "mutationProblem": null },
+    { "name": "posix absolute", "path": "/escape.md", "documentValid": false, "mutationProblem": "absolute" },
+    { "name": "drive absolute", "path": "C:/escape.md", "documentValid": false, "mutationProblem": "absolute" },
+    { "name": "unc absolute", "path": "\\\\host\\share", "documentValid": false, "mutationProblem": "absolute" },
+    { "name": "backslash", "path": "docs\\guide.md", "documentValid": false, "mutationProblem": "backslash" },
+    { "name": "empty", "path": "", "documentValid": false, "mutationProblem": "empty-segment" },
+    { "name": "empty segment", "path": "docs//guide.md", "documentValid": false, "mutationProblem": "empty-segment" },
+    { "name": "trailing slash", "path": "docs/", "documentValid": false, "mutationProblem": "empty-segment" },
+    { "name": "dot", "path": "docs/./guide.md", "documentValid": false, "mutationProblem": "invalid-segment" },
+    { "name": "dotdot", "path": "docs/../guide.md", "documentValid": false, "mutationProblem": "invalid-segment" },
+    { "name": "control", "path": "docs/bad\u0001.md", "documentValid": false, "mutationProblem": "control-character" },
+    { "name": "delete control", "path": "docs/bad\u007f.md", "documentValid": false, "mutationProblem": "control-character" },
+    { "name": "non ascii", "path": "docs/café.md", "documentValid": false, "mutationProblem": "invalid-character" },
+    { "name": "colon", "path": "docs/stream:secret", "documentValid": false, "mutationProblem": "invalid-character" },
+    { "name": "trailing dot", "path": "docs/name.", "documentValid": false, "mutationProblem": "trailing-dot" },
+    { "name": "trailing space", "path": "docs/name ", "documentValid": false, "mutationProblem": "trailing-space" },
+    { "name": "reserved bare", "path": "docs/CON", "documentValid": false, "mutationProblem": "reserved-name" },
+    { "name": "reserved extension", "path": "docs/lpt9.md", "documentValid": false, "mutationProblem": "reserved-name" },
+    { "name": "reserved prefix is allowed", "path": "docs/console.md", "documentValid": true, "mutationProblem": null },
+    { "name": "segment at limit", "segments": [{ "repeat": "a", "count": 255 }], "documentValid": true, "mutationProblem": null },
+    { "name": "segment over limit", "segments": [{ "repeat": "a", "count": 256 }], "documentValid": false, "mutationProblem": "segment-too-long" },
+    { "name": "path at limit", "segments": [{ "repeat": "a", "count": 255 }, { "repeat": "b", "count": 254 }, { "repeat": "c", "count": 1 }], "documentValid": true, "mutationProblem": null },
+    { "name": "path over limit", "segments": [{ "repeat": "a", "count": 255 }, { "repeat": "b", "count": 255 }, { "repeat": "c", "count": 1 }], "documentValid": false, "mutationProblem": "path-too-long" }
+  ]
+}

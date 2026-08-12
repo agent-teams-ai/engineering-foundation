@@ -52,6 +52,14 @@ templates, placement meaning, body rules, relationships, and prose or diagram
 tools. Profiles are data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
+The corrected authoring v1 applies that split mechanically. Foundation owns
+Intent normalization, closed ID/placement operators, filename slug derivation,
+canonical frontmatter and domain-separated protocol digests. A complete rebuilt
+catalog is required before planning. Consumer metadata remains bounded opaque
+data: Foundation binary-sorts generic mapping keys, preserves array order, and
+never assigns meaning or priority to consumer field names. The consumer metadata
+schema remains the final authority for shape and meaning.
+
 Foundation mutation protocols share one private transaction-coordination
 application boundary. Its ports model only cooperative lock ownership and
 persisted-slot observation; Node adapters provide filesystem inspection and the

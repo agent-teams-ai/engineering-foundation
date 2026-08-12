@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,6 +31,27 @@ async function withTemporaryRoot(callback) {
 async function collisionEntries() {
   return ["a.txt", "A.txt", "A.TXT"];
 }
+
+const pathVectors = JSON.parse(readFileSync(
+  new URL("./fixtures/repository-path-conformance-v1.json", import.meta.url),
+  "utf8"
+)).vectors;
+
+function vectorPath(vector) {
+  return vector.path ?? vector.segments
+    .map(({ count, repeat }) => repeat.repeat(count))
+    .join("/");
+}
+
+test("implements the shared repository path conformance vectors", () => {
+  for (const vector of pathVectors) {
+    assert.equal(
+      portableRepositoryPathProblem(vectorPath(vector)),
+      vector.mutationProblem ?? undefined,
+      vector.name
+    );
+  }
+});
 
 test("validates portable repository paths independently of the host", () => {
   assert.equal(portableRepositoryPathProblem("docs/guide.md"), undefined);

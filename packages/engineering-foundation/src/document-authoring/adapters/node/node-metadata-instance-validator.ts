@@ -38,8 +38,10 @@ function assertLocalReferences(value: unknown): void {
     if (key === "$ref" && (typeof item !== "string" || !item.startsWith("#"))) {
       invalidSchema("Document metadata schema may use only local fragment $ref values.");
     }
-    if (["$dynamicRef", "$recursiveRef"].includes(key)) {
-      invalidSchema("Document metadata schema may not use dynamic or recursive references.");
+    if (["$async", "$dynamicRef", "$recursiveRef"].includes(key)) {
+      invalidSchema(
+        "Document metadata schema may not use async, dynamic, or recursive validation."
+      );
     }
     assertLocalReferences(item);
   }

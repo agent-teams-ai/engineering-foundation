@@ -336,6 +336,28 @@ test("rejects remote metadata schema references before discovery", async () => {
   }
 });
 
+test("rejects async metadata schemas before exposing the synchronous validator", async () => {
+  const root = await createConsumer();
+  try {
+    await writeFile(
+      join(root, "docs", "metadata.schema.json"),
+      `${JSON.stringify({ ...metadataSchema, $async: true })}\n`,
+      "utf8",
+    );
+    await assert.rejects(
+      buildDocumentationCatalog({
+        consumerRoot: root,
+        profilePath: "document-authoring.yaml",
+      }),
+      (error) =>
+        error instanceof DocumentCatalogError &&
+        error.code === "DOCUMENT_CATALOG_INPUT_INVALID",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 function observedDocument(repositoryPath, id) {
   const source = documentSource({ id, title: id });
   return {

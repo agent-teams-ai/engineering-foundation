@@ -4,7 +4,7 @@ import {
   lstat,
   mkdir,
   mkdtemp,
-  readFile,
+  open,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -48,16 +48,29 @@ async function writeJson(path, value) {
 }
 
 async function observe(path) {
+  let handle;
   try {
-    const metadata = await lstat(path);
-    return metadata.isFile()
-      ? { exists: true, type: "file", bytes: await readFile(path) }
-      : { exists: true, type: metadata.isDirectory() ? "directory" : "other" };
+    handle = await open(path, "r");
   } catch (error) {
     if (error?.code === "ENOENT") {
       return { exists: false };
     }
+    if (error?.code === "EISDIR" || error?.code === "EPERM") {
+      const metadata = await lstat(path);
+      return {
+        exists: true,
+        type: metadata.isDirectory() ? "directory" : "other",
+      };
+    }
     throw error;
+  }
+  try {
+    const metadata = await handle.stat();
+    return metadata.isFile()
+      ? { exists: true, type: "file", bytes: await handle.readFile() }
+      : { exists: true, type: metadata.isDirectory() ? "directory" : "other" };
+  } finally {
+    await handle.close();
   }
 }
 

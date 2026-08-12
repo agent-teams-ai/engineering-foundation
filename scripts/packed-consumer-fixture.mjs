@@ -10,6 +10,7 @@ import {
 } from "./pack-test-support.mjs";
 import { writePackedConsumerProtobufFixture } from "./packed-consumer-protobuf-fixture.mjs";
 import { writeExecutableSpecificationFixture } from "./packed-consumer-executable-specification-fixture.mjs";
+import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 
 const foundationPackage = "@agent-teams/engineering-foundation";
 const identitySource = "export function identity(value: string): string {\n  return value;\n}\n";
@@ -212,11 +213,7 @@ async function writeDocumentationFixture(consumerRoot) {
     "# Packaged Consumer\n\nSee the [guide](guide.md#packaged-guide) and [decisions](decisions/README.md).\n",
     "utf8"
   );
-  await writeFile(
-    join(consumerRoot, "docs", "guide.md"),
-    "# Packaged Guide\n\nThe installed Foundation package governs this clean consumer.\n",
-    "utf8"
-  );
+  await writeFile(join(consumerRoot, "docs", "guide.md"), "# Packaged Guide\n\nThe installed Foundation package governs this clean consumer.\n", "utf8");
   await writeFile(
     join(decisionsRoot, "README.md"),
     "# Architecture Decisions\n\n## Proposed\n\n## Accepted\n\n- [ADR-0001: Verify packaged capabilities](0001-verify-packaged-capabilities.md)\n\n## Superseded\n",
@@ -477,6 +474,7 @@ export async function createPackedConsumerFixture(input) {
   const toolEntrypoints = resolveConsumerToolEntrypoints(input.consumerRoot);
   await writeFoundationConfiguration(input.consumerRoot);
   await writeDocumentationFixture(input.consumerRoot);
+  await writePackedConsumerDocumentAuthoringFixture(input.consumerRoot);
   const jsonContract = await writeJsonContractFixture(input.consumerRoot);
   await mkdir(join(input.consumerRoot, "src"), { recursive: true });
   await writeExecutableSpecificationFixture(input.consumerRoot, jsonContract);

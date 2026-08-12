@@ -283,6 +283,10 @@ test("returns a partial catalog without hiding valid neighbors", async () => {
         "document.catalog.owner-unknown",
       ],
     );
+    assert.equal(
+      snapshot.documents.some(({ id }) => id === "guide.duplicate"),
+      true,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

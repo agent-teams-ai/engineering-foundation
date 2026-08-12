@@ -12,6 +12,8 @@ import { runFoundationCheck } from "./check-runner.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
+import { documentFindFailure } from "./document-authoring/find-command.js";
+import { runDocumentCommand } from "./document-command.js";
 import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { loadFoundationConfig } from "./foundation-config.js";
 import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
@@ -98,6 +100,7 @@ function printHelp(): void {
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
   agent-teams-foundation scaffold-recover [--consumer <path>] [--json]
+  agent-teams-foundation docs find [text] [--id <id>] [--type <type>] [--status <status>] [--owner <owner>] [--consumer <path>] [--profile <path>] [--json]
   agent-teams-foundation schema <schema-id>
   agent-teams-foundation attach <path> [--consumer <path>]
   agent-teams-foundation status [--consumer <path>] [--json]
@@ -423,6 +426,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
     await runLocalModeCommand(parsed, service, json) ||
     await runAgentWorkflowCommand(parsed, environment) ||
     await runProtobufQualificationCommand(parsed, json) ||
+    await runDocumentCommand(parsed, json) ||
     await runCheckCommand(parsed, json) ||
     await runPolicyCommand(parsed, json) ||
     await runInformationCommand(parsed, json)
@@ -438,7 +442,20 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
 try {
   await main(process.env);
 } catch (error) {
-  if (error instanceof ScaffoldError) {
+  const rawArguments = process.argv.slice(2);
+  const documentJsonInvocation =
+    rawArguments[0] === "docs" &&
+    rawArguments[1] === "find" &&
+    (rawArguments.includes("--json") ||
+      rawArguments.some(
+        (argument, index) =>
+          argument === "--format" && rawArguments[index + 1] === "json"
+      ));
+  if (documentJsonInvocation) {
+    const result = documentFindFailure(error);
+    process.stdout.write(`${JSON.stringify(result.envelope)}\n`);
+    process.exitCode = result.exitCode;
+  } else if (error instanceof ScaffoldError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
     process.exitCode =
       error.code === "SCAFFOLD_INPUT_INVALID" ||

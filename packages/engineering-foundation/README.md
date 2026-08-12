@@ -32,6 +32,21 @@ const catalog = await buildDocumentationCatalog({
 });
 ```
 
+Agents can query the same stable catalog without a generated search index. The
+v1 query is a normalized, case-independent literal substring over document ID,
+title, summary, headings, and body. Filters are exact and combine with AND;
+results sort by ID and then repository path.
+
+```bash
+agent-teams-foundation docs find "tenant isolation" --consumer /repo
+agent-teams-foundation docs find --type adr --status proposed --owner architecture --consumer /repo --json
+```
+
+The default profile is
+`architecture/foundation/document-authoring.yaml`; `--profile` selects another
+repository-relative profile. Zero matches is success. A partial catalog retains
+valid matches and structured diagnostics while returning exit code `1`.
+
 Consumer CI should run both policy gates:
 
 ```bash

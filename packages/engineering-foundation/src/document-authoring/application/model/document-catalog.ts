@@ -50,6 +50,17 @@ export interface DocumentationCatalogSnapshot {
   readonly status: "complete" | "partial";
 }
 
+export interface DocumentSearchCorpusEntry {
+  readonly body: string;
+  readonly descriptor: DocumentDescriptor;
+  readonly headings: readonly string[];
+}
+
+export interface DocumentationSearchCatalogSnapshot {
+  readonly catalog: DocumentationCatalogSnapshot;
+  readonly documents: readonly DocumentSearchCorpusEntry[];
+}
+
 export interface ReferencedDocumentProjectionResult {
   readonly documents: readonly ReferencedDocumentProjection[];
   readonly missingIds: readonly string[];

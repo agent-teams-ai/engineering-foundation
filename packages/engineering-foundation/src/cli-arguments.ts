@@ -11,6 +11,11 @@ export interface ParsedArguments {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly format: OutputFormat;
+  readonly documentId?: string;
+  readonly documentOwner?: string;
+  readonly documentProfilePath: string;
+  readonly documentStatus?: string;
+  readonly documentType?: string;
   readonly baseRef?: string;
   readonly bufExecutablePath?: string;
   readonly write: boolean;
@@ -28,6 +33,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   attach: 1,
   check: 1,
   detach: 0,
+  "docs.find": 1,
   explain: 1,
   help: 0,
   "public-api-promote-release": 0,
@@ -47,10 +53,53 @@ interface ArgumentState {
   configPath: string;
   configPathProvided: boolean;
   format: OutputFormat;
+  documentId?: string;
+  documentOwner?: string;
+  documentProfilePath: string;
+  documentProfilePathProvided: boolean;
+  documentStatus?: string;
+  documentType?: string;
   baseRef?: string;
   bufExecutablePath?: string;
   write: boolean;
   optionsEnded: boolean;
+}
+
+const DEFAULT_DOCUMENT_AUTHORING_PROFILE_PATH =
+  "architecture/foundation/document-authoring.yaml";
+
+function consumeDocumentOption(
+  args: readonly string[],
+  index: number,
+  state: ArgumentState
+): number | undefined {
+  const value = args[index];
+  const field = value === "--id"
+    ? "documentId"
+    : value === "--owner"
+      ? "documentOwner"
+      : value === "--profile"
+        ? "documentProfilePath"
+        : value === "--status"
+          ? "documentStatus"
+          : value === "--type"
+            ? "documentType"
+            : undefined;
+  if (field === undefined) {
+    return undefined;
+  }
+  const candidate = args[index + 1];
+  if (candidate === undefined || candidate.length === 0) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      `${value} requires a value.`
+    );
+  }
+  state[field] = candidate;
+  if (field === "documentProfilePath") {
+    state.documentProfilePathProvided = true;
+  }
+  return 1;
 }
 
 function consumeQualificationOption(
@@ -97,6 +146,10 @@ function consumeArgument(
   if (value === "--json") {
     state.format = "json";
     return 0;
+  }
+  const documentOption = consumeDocumentOption(args, index, state);
+  if (documentOption !== undefined) {
+    return documentOption;
   }
   const qualificationOption = consumeQualificationOption(args, index, state);
   if (qualificationOption !== undefined) {
@@ -145,22 +198,19 @@ function consumeArgument(
   return 0;
 }
 
-export function parseArguments(args: readonly string[]): ParsedArguments {
-  const state: ArgumentState = {
-    positional: [],
-    configPath: DEFAULT_SCAFFOLDING_CONFIG_PATH,
-    configPathProvided: false,
-    consumerRoot: process.cwd(),
-    format: "text",
-    write: false,
-    optionsEnded: false
-  };
-
-  for (let index = 1; index < args.length; index += 1) {
-    index += consumeArgument(args, index, state);
+function validateCommandOptions(command: string, state: ArgumentState): void {
+  const documentOptionsProvided =
+    state.documentId !== undefined ||
+    state.documentOwner !== undefined ||
+    state.documentProfilePathProvided ||
+    state.documentStatus !== undefined ||
+    state.documentType !== undefined;
+  if (documentOptionsProvided && command !== "docs.find") {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "--id, --owner, --profile, --status, and --type are supported only by docs find."
+    );
   }
-
-  const command = args[0] ?? "help";
   if (state.baseRef !== undefined && command !== "agent-workflow") {
     throw new FoundationError(
       "CONSUMER_INVALID",
@@ -179,19 +229,53 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
       "--write is supported only by protobuf-qualify-breaking."
     );
   }
-  if (state.bufExecutablePath !== undefined && command !== "protobuf-qualify-breaking") {
+  if (
+    state.bufExecutablePath !== undefined &&
+    command !== "protobuf-qualify-breaking"
+  ) {
     throw new FoundationError(
       "CONSUMER_INVALID",
       "--buf-executable is supported only by protobuf-qualify-breaking."
     );
   }
+}
+
+function validatePositionalArguments(
+  command: string,
+  positional: readonly string[]
+): void {
   const maximum = MAX_POSITIONAL_ARGUMENTS[command];
-  if (maximum !== undefined && state.positional.length > maximum) {
+  if (maximum !== undefined && positional.length > maximum) {
     throw new FoundationError(
       "CONSUMER_INVALID",
       `${command} accepts at most ${maximum} positional argument${maximum === 1 ? "" : "s"}.`
     );
   }
+}
+
+export function parseArguments(args: readonly string[]): ParsedArguments {
+  const state: ArgumentState = {
+    positional: [],
+    configPath: DEFAULT_SCAFFOLDING_CONFIG_PATH,
+    configPathProvided: false,
+    consumerRoot: process.cwd(),
+    documentProfilePath: DEFAULT_DOCUMENT_AUTHORING_PROFILE_PATH,
+    documentProfilePathProvided: false,
+    format: "text",
+    write: false,
+    optionsEnded: false
+  };
+
+  const command = args[0] === "docs"
+    ? `docs.${args[1] ?? ""}`
+    : (args[0] ?? "help");
+  const firstArgumentIndex = args[0] === "docs" ? 2 : 1;
+  for (let index = firstArgumentIndex; index < args.length; index += 1) {
+    index += consumeArgument(args, index, state);
+  }
+
+  validateCommandOptions(command, state);
+  validatePositionalArguments(command, state.positional);
 
   return Object.freeze({
     command,
@@ -199,7 +283,18 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     consumerRoot: state.consumerRoot,
     configPath: state.configPath,
     format: state.format,
+    documentProfilePath: state.documentProfilePath,
     write: state.write,
+    ...(state.documentId === undefined ? {} : { documentId: state.documentId }),
+    ...(state.documentOwner === undefined
+      ? {}
+      : { documentOwner: state.documentOwner }),
+    ...(state.documentStatus === undefined
+      ? {}
+      : { documentStatus: state.documentStatus }),
+    ...(state.documentType === undefined
+      ? {}
+      : { documentType: state.documentType }),
     ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
     ...(state.bufExecutablePath === undefined
       ? {}

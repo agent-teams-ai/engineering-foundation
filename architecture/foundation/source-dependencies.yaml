@@ -24,6 +24,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/cli-arguments.ts
       - packages/engineering-foundation/src/cli.ts
+      - packages/engineering-foundation/src/document-command.ts
     allow:
       boundaries:
         - capability.architecture-decisions.composition
@@ -32,6 +33,7 @@ boundaries:
         - capability.repository-agent-workflow.composition
         - foundation.composition
         - foundation.core
+        - foundation.document-authoring.composition
         - foundation.local-mode
         - foundation.process-execution
         - foundation.schema-validation
@@ -763,11 +765,16 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/application/model/document-catalog.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-find.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/authoring-profile-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/documentation-search-catalog-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/metadata-instance-validator.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/owner-membership-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/projections/document-catalog-projections.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-repository-path.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/inspect-catalog-document.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/build-documentation-catalog.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/find-documents.ts
       - packages/engineering-foundation/src/document-authoring/document-catalog-error.ts
   - id: foundation.document-authoring.adapters
     roots:
@@ -792,16 +799,19 @@ boundaries:
   - id: foundation.document-authoring.composition
     roots:
       - packages/engineering-foundation/src/document-authoring/index.ts
+      - packages/engineering-foundation/src/document-authoring/find-command.ts
     allow:
       boundaries:
         - foundation.document-authoring.adapters
         - foundation.document-authoring.application
         - foundation.documentation-observation.adapters
+        - foundation.core
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/index.ts
+      - packages/engineering-foundation/src/document-authoring/find-command.ts
   - id: foundation.documentation-observation.application
     roots:
       - packages/engineering-foundation/src/documentation-observation/application

@@ -1,17 +1,12 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import type {
-  MarkdownDocumentObservation,
-  MarkdownObservationIssue,
-  MarkdownRepositoryObservation
+import {
+  type MarkdownDocumentObservation,
+  type MarkdownObservationIssue,
+  type MarkdownRepositoryObservation
 } from "../../../documentation-observation/application/model/markdown-document.js";
 import type { MarkdownRepository } from "../../../documentation-observation/application/ports/markdown-repository.js";
-import type {
-  DocumentAuthorityEvidence,
-  DocumentDescriptor,
-  DocumentIdentityProjectionEntry,
-  DocumentationCatalogDiagnostic,
-  DocumentationCatalogSnapshot
-} from "../model/document-catalog.js";
+import type { DocumentAuthorityEvidence, DocumentDescriptor, DocumentIdentityProjectionEntry, DocumentationCatalogDiagnostic, DocumentationCatalogSnapshot, DocumentationSearchCatalogSnapshot, DocumentSearchCorpusEntry } from "../model/document-catalog.js";
+import type { DocumentationCatalogReadRequest, DocumentationSearchCatalogReader } from "../ports/documentation-search-catalog-reader.js";
 import type {
   AuthoringProfileReader,
   CatalogCollection,
@@ -33,25 +28,16 @@ import {
   duplicateIdentityDiagnostics,
   sortCatalogDiagnostics
 } from "../policies/document-catalog-diagnostics.js";
-import {
-  documentTitle,
-  inspectDocumentFields
-} from "../policies/document-catalog-fields.js";
+import { inspectCatalogDocument } from "../policies/inspect-catalog-document.js";
 
 export interface BuildDocumentationCatalogRequest {
   readonly consumerRoot: string;
   readonly profilePath: string;
   readonly signal?: AbortSignal;
 }
+interface CatalogObservation { readonly documents: readonly MarkdownDocumentObservation[]; readonly issues: readonly MarkdownObservationIssue[]; }
 
-interface CatalogObservation {
-  readonly documents: readonly MarkdownDocumentObservation[];
-  readonly issues: readonly MarkdownObservationIssue[];
-}
-
-function matchesPrefix(path: string, prefix: string): boolean {
-  return path === prefix || path.startsWith(`${prefix}/`);
-}
+const matchesPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
 
 function collectionContainsPath(
   collection: CatalogCollection,
@@ -139,10 +125,6 @@ function sameObservation(
   return true;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function sameEvidence(
   left: DocumentAuthorityEvidence,
   right: DocumentAuthorityEvidence
@@ -197,7 +179,9 @@ interface LoadedCatalogAuthority {
   readonly profile: CatalogProfileSnapshot;
 }
 
-function signalOption(signal: AbortSignal | undefined): { readonly signal?: AbortSignal } {
+function signalOption(signal: AbortSignal | undefined): {
+  readonly signal?: AbortSignal;
+} {
   return signal === undefined ? {} : { signal };
 }
 
@@ -276,119 +260,11 @@ async function assertAuthorityRemainedStable(
   });
 }
 
-interface InspectedCatalogDocument {
-  readonly descriptor?: DocumentDescriptor;
-  readonly diagnostic?: DocumentationCatalogDiagnostic;
-  readonly identity?: DocumentIdentityProjectionEntry;
-}
-
-function inspectCatalogDocument(
-  document: MarkdownDocumentObservation,
-  metadata: MetadataSchemaSnapshot,
-  ownerIds: ReadonlySet<string>,
-  source: DocumentDescriptor["source"]
-): InspectedCatalogDocument {
-  if (document.source.startsWith("\uFEFF") || document.source.includes("\u0000")) {
-    return {
-      diagnostic: catalogDiagnostic(
-        "document.catalog.source-invalid",
-        document.repositoryPath,
-        "Catalog Markdown must not contain a UTF-8 BOM or NUL characters."
-      )
-    };
-  }
-  if (document.frontmatter.kind === "absent") {
-    return {
-      diagnostic: catalogDiagnostic(
-        "document.catalog.frontmatter-required",
-        document.repositoryPath,
-        "Catalog documents must contain strict YAML frontmatter."
-      )
-    };
-  }
-  if (document.frontmatter.kind === "invalid") {
-    return {
-      diagnostic: catalogDiagnostic(
-        "document.catalog.frontmatter-invalid",
-        document.repositoryPath,
-        document.frontmatter.message
-      )
-    };
-  }
-  if (!isRecord(document.frontmatter.value)) {
-    return {
-      diagnostic: catalogDiagnostic(
-        "document.catalog.frontmatter-invalid",
-        document.repositoryPath,
-        "Document frontmatter must be an object."
-      )
-    };
-  }
-  const fieldInspection = inspectDocumentFields(
-    document,
-    document.frontmatter.value
-  );
-  if (fieldInspection.fields === undefined) {
-    return {
-      diagnostic: catalogDiagnostic(
-        "document.catalog.descriptor-invalid",
-        document.repositoryPath,
-        "Document metadata must provide bounded id, type, status, owner, and summary strings."
-      ),
-      ...(fieldInspection.identity === undefined
-        ? {}
-        : { identity: fieldInspection.identity })
-    };
-  }
-  const { fields, identity } = fieldInspection;
-  const validation = metadata.validate(document.frontmatter.value);
-  if (!validation.valid) {
-    return {
-      diagnostic: catalogDiagnostic(
-        "document.catalog.metadata-invalid",
-        document.repositoryPath,
-        validation.messages.join("; ") || "Document metadata is invalid."
-      ),
-      identity
-    };
-  }
-  if (!ownerIds.has(fields.owner)) {
-    return {
-      diagnostic: catalogDiagnostic(
-        "document.catalog.owner-unknown",
-        document.repositoryPath,
-        `Document owner is absent from the owner catalog: ${fields.owner}.`
-      ),
-      identity
-    };
-  }
-  const title = documentTitle(document);
-  if (title === undefined) {
-    return {
-      diagnostic: catalogDiagnostic(
-        "document.catalog.title-invalid",
-        document.repositoryPath,
-        "Catalog documents must contain a bounded level-one heading."
-      ),
-      identity
-    };
-  }
-  return {
-    descriptor: Object.freeze({
-      ...fields,
-      repositoryPath: document.repositoryPath,
-      source,
-      title
-    }),
-    identity
-  };
-}
-
 function createCatalogSnapshot(
   authority: LoadedCatalogAuthority,
   first: CatalogObservation,
   second: CatalogObservation
-): DocumentationCatalogSnapshot {
+): DocumentationSearchCatalogSnapshot {
   const diagnostics: DocumentationCatalogDiagnostic[] = second.issues.map(
     catalogObservationDiagnostic
   );
@@ -402,6 +278,7 @@ function createCatalogSnapshot(
     );
   }
   const documents: DocumentDescriptor[] = [];
+  const searchDocuments: DocumentSearchCorpusEntry[] = [];
   const identityProjection: DocumentIdentityProjectionEntry[] = [];
   const ownerIds = new Set(authority.owners.ids);
   for (const document of second.documents) {
@@ -413,6 +290,9 @@ function createCatalogSnapshot(
     );
     if (inspected.descriptor !== undefined) {
       documents.push(inspected.descriptor);
+    }
+    if (inspected.searchEntry !== undefined) {
+      searchDocuments.push(inspected.searchEntry);
     }
     if (inspected.identity !== undefined) {
       identityProjection.push(inspected.identity);
@@ -438,7 +318,7 @@ function createCatalogSnapshot(
     )
   );
   const sortedDiagnostics = sortCatalogDiagnostics(diagnostics);
-  return Object.freeze({
+  const catalog: DocumentationCatalogSnapshot = Object.freeze({
     authority: Object.freeze({
       metadataSchema: authority.metadata.evidence,
       ownerCatalog: authority.owners.evidence,
@@ -455,9 +335,20 @@ function createCatalogSnapshot(
     projectId: authority.profile.projectId,
     status: sortedDiagnostics.length === 0 ? "complete" : "partial"
   });
+  return Object.freeze({
+    catalog,
+    documents: Object.freeze(
+      searchDocuments.toSorted((left, right) =>
+        compareBinaryStrings(
+          left.descriptor.repositoryPath,
+          right.descriptor.repositoryPath
+        )
+      )
+    )
+  });
 }
 
-export class BuildDocumentationCatalog {
+export class BuildDocumentationCatalog implements DocumentationSearchCatalogReader {
   readonly #metadata: MetadataInstanceValidator;
   readonly #owners: OwnerMembershipReader;
   readonly #profile: AuthoringProfileReader;
@@ -475,9 +366,11 @@ export class BuildDocumentationCatalog {
     this.#repository = dependencies.repository;
   }
 
-  async execute(
-    request: BuildDocumentationCatalogRequest
-  ): Promise<DocumentationCatalogSnapshot> {
+  async execute(request: BuildDocumentationCatalogRequest): Promise<DocumentationCatalogSnapshot> {
+    return (await this.read(request)).catalog;
+  }
+
+  async read(request: DocumentationCatalogReadRequest): Promise<DocumentationSearchCatalogSnapshot> {
     const dependencies = {
       metadata: this.#metadata,
       owners: this.#owners,

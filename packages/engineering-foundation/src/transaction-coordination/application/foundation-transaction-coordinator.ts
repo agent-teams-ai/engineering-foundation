@@ -38,6 +38,10 @@ function preservePrimaryFailure(
       );
 }
 
+function observedStatusFormat(status: FoundationTransactionStatus): unknown {
+  return Reflect.get(status, "format") as unknown;
+}
+
 export interface FoundationTransactionLease {
   readonly status: FoundationTransactionStatus;
   release(options?: { readonly retainTransactionBarrier?: boolean }): Promise<void>;
@@ -70,6 +74,7 @@ export class FoundationTransactionCoordinator {
       const scaffoldingRecoveryAllowed =
         status.state === "pending" &&
         status.operationKind === "scaffolding" &&
+        observedStatusFormat(status) === "legacy-scaffolding-v1" &&
         options.allowRecoveryOf === status.operationKind &&
         options.requestedMutation === status.operationKind &&
         !status.diagnostics.some(
@@ -78,6 +83,7 @@ export class FoundationTransactionCoordinator {
       const localModeRecoveryAllowed =
         status.state === "pending" &&
         status.operationKind === "local-mode" &&
+        observedStatusFormat(status) === "local-mode-v1" &&
         options.allowRecoveryOf === "local-mode" &&
         options.requestedMutation === "detach";
       if (

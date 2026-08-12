@@ -93,7 +93,9 @@ export async function verifyInstalledTransactionBarrier({
     throw new Error("Installed status did not fail for a foreign transaction.");
   }
   if (observedStatus.stderr !== "") {
-    throw new Error("Installed status JSON emitted an unexpected stderr payload.");
+    throw new Error(
+      `Installed status JSON emitted an unexpected stderr payload: ${JSON.stringify(observedStatus.stderr)}.`,
+    );
   }
   let status;
   try {

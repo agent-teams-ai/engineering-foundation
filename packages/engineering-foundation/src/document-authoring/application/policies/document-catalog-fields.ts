@@ -3,6 +3,8 @@ import type {
   DocumentDescriptor,
   DocumentIdentityProjectionEntry
 } from "../model/document-catalog.js";
+import { catalogDiagnostic } from "./document-catalog-diagnostics.js";
+import { isDocumentRepositoryPath } from "./document-repository-path.js";
 
 const OPAQUE_ID = /^[A-Za-z0-9@][A-Za-z0-9@._/-]*$/u;
 const LOWER_ID = /^[a-z0-9][a-z0-9._/-]*$/u;
@@ -88,4 +90,18 @@ export function documentTitle(
     !containsControlCharacter(title)
     ? title
     : undefined;
+}
+
+export function invalidDocumentPathInspection(
+  document: MarkdownDocumentObservation
+): { readonly diagnostic: ReturnType<typeof catalogDiagnostic> } | undefined {
+  return isDocumentRepositoryPath(document.repositoryPath)
+    ? undefined
+    : Object.freeze({
+        diagnostic: catalogDiagnostic(
+          "document.catalog.path-invalid",
+          document.repositoryPath,
+          "Catalog document paths must use the portable repository path grammar."
+        )
+      });
 }

@@ -434,6 +434,7 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   );
   assert.equal(ci.jobs.check.needs, "dependency-review");
   assert.equal(ci.jobs["windows-check"].needs, "dependency-review");
+  assert.equal(ci.jobs["macos-qualification"].needs, "dependency-review");
   assert.ok(
     workflow.indexOf("uses: actions/dependency-review-action@") <
       workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts"),

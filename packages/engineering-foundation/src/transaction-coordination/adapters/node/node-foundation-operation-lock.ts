@@ -8,10 +8,8 @@ import { TextDecoder } from "node:util";
 import { FoundationError } from "../../../errors.js";
 import { LOCAL_OPERATION_LOCK } from "../../../foundation-state-contract.js";
 import { parseStrictJson } from "../../../strict-json.js";
-import {
-  readBoundedRegularFile,
-  type PortableFileIdentity
-} from "../../../scaffolding/adapters/node/filesystem-file-identity.js";
+import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
 import type {
   FoundationOperationLock,
   FoundationOperationReleaseOptions
@@ -43,7 +41,7 @@ type LockEvidence = ActiveOwner | TransactionBarrier;
 
 interface OwnedLock {
   readonly evidence: ActiveOwner;
-  readonly identity: PortableFileIdentity;
+  readonly identity: PortablePathIdentity;
 }
 
 function isErrorCode(error: unknown, code: string): boolean {
@@ -104,7 +102,7 @@ function parseEvidence(value: unknown): LockEvidence {
 
 async function readLock(path: string): Promise<{
   readonly evidence: LockEvidence;
-  readonly identity: PortableFileIdentity;
+  readonly identity: PortablePathIdentity;
 }> {
   const record = await readBoundedRegularFile(path, maximumLockBytes);
   if (record.outcome !== "read") {
@@ -119,8 +117,8 @@ async function readLock(path: string): Promise<{
 }
 
 function identitiesEqual(
-  left: PortableFileIdentity,
-  right: PortableFileIdentity
+  left: PortablePathIdentity,
+  right: PortablePathIdentity
 ): boolean {
   return (
     left.birthtimeNs === right.birthtimeNs &&
@@ -141,7 +139,7 @@ function evidenceEqual(left: LockEvidence, right: LockEvidence): boolean {
 
 async function readHandleEvidence(
   handle: FileHandle,
-  expectedIdentity: PortableFileIdentity
+  expectedIdentity: PortablePathIdentity
 ): Promise<LockEvidence> {
   const before = await handle.stat({ bigint: true });
   if (
@@ -190,7 +188,7 @@ async function rewriteOwnedLockEvidence(
   lockPath: string,
   expected: Awaited<ReturnType<typeof readLock>>,
   replacement: LockEvidence
-): Promise<PortableFileIdentity> {
+): Promise<PortablePathIdentity> {
   const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
   const handle = await open(lockPath, constants.O_RDWR | noFollow);
   try {

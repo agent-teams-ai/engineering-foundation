@@ -1,9 +1,9 @@
 # Document Authoring Protocol
 
-Status: Contracts accepted by ADR-0022. The read-only catalog API and shared
-transaction coordinator are implemented. The document compiler, writer,
-mutation CLI commands, and envelope v2 recovery handlers are not yet implemented
-or available to consumers.
+Status: Contracts accepted by ADR-0022. The read-only catalog API, shared
+transaction coordinator, and private repository-mutation primitives are
+implemented. The document compiler, writer, mutation CLI commands, and envelope
+v2 recovery handlers are not yet implemented or available to consumers.
 
 ## Boundary
 

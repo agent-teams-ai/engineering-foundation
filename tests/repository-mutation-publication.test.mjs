@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, chmod, link as hardLink, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, link as hardLink, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -20,11 +20,7 @@ const postimage = {
 };
 
 async function fixture() {
-  const root = join(
-    tmpdir(),
-    `foundation-publication-${process.pid}-${crypto.randomUUID()}`
-  );
-  await mkdir(root);
+  const root = await mkdtemp(join(tmpdir(), "foundation-publication-"));
   return {
     destinationPath: join(root, "result.txt"),
     root,

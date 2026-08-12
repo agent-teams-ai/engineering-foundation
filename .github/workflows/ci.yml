@@ -94,4 +94,6 @@ jobs:
       - run: pnpm check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Qualify published transaction and scaffolding compatibility
+        run: pnpm published-compatibility:e2e
       - run: pnpm parser-spike:check

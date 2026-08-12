@@ -259,6 +259,11 @@ test("release publishing requires real Buf and hermetic registry qualification",
       (step) => step.run === "pnpm published-compatibility:e2e",
     ),
   );
+  assert.ok(
+    ci.jobs["windows-check"].steps.some(
+      (step) => step.run === "pnpm published-compatibility:e2e",
+    ),
+  );
 });
 
 test("release ReviewGate permits only version and generated changelog changes", () => {

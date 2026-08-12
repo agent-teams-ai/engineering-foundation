@@ -59,7 +59,9 @@ async function installPackedCurrentPackage({
         name: "current-packed-foundation-qualification",
         private: true,
         type: "module",
-        devDependencies: { [packageName]: `file:${archivePath}` },
+        devDependencies: {
+          [packageName]: `file:${archivePath.replaceAll("\\", "/")}`,
+        },
       },
       null,
       2,

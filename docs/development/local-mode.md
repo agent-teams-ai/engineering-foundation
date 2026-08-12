@@ -58,10 +58,17 @@ file-identity-fenced. Takeover and barrier retention rewrite the already verifie
 inode in place, so they do not depend on platform-specific replace-rename
 semantics; an interrupted rewrite remains a regular file and therefore fails
 closed. Only a same-host owner whose recorded process is provably dead may be
-reclaimed. Foreign, malformed, legacy-directory, or otherwise unverifiable
-evidence fails closed and requires manual recovery. Process liveness cannot
-distinguish PID reuse, so that case deliberately prefers an availability block
-over unsafe reclamation. While a transaction remains, release durably publishes
+reclaimed on a single-host/local filesystem. The lock protocol does not claim
+safe dead-owner detection on a shared filesystem whose machines can reuse the
+same hostname. Foreign, malformed, partial, legacy-directory, stale takeover
+claim for the current lock generation, or otherwise unverifiable evidence fails
+closed and requires manual recovery. Claims are keyed by the observed lock token,
+so cleanup residue from an already-replaced generation is inert. Canonical and
+claim paths are created before their evidence is fully written, so a crash in
+that narrow window deliberately leaves a regular-file manual-recovery barrier
+instead of an unlocked window. Process liveness cannot
+distinguish PID reuse, so that case also prefers an availability block over
+unsafe reclamation. While a transaction remains, release durably publishes
 a persistent regular-file downgrade barrier that older Foundation versions
 cannot mistake for their directory lock. Durable `ATTACHING` and `DETACHING`
 phases let a later detach finish recovery after process interruption.

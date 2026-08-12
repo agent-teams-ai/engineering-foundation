@@ -268,43 +268,19 @@ async function createOwnedLock(
   return { evidence, identity: observed.identity };
 }
 
-async function removeDeadClaim(
-  directory: string,
-  claimPath: string
-): Promise<boolean> {
-  let observed;
-  try {
-    observed = await readLock(claimPath);
-  } catch (error) {
-    if (isErrorCode(error, "ENOENT")) {
-      return true;
-    }
-    throw error;
-  }
-  if (
-    observed.evidence.kind !== "active" ||
-    activeOwnerIsAlive(observed.evidence) !== false
-  ) {
-    return false;
-  }
-  const quarantinePath = `${claimPath}.recovered.${observed.evidence.token}`;
-  await rename(claimPath, quarantinePath);
-  const quarantined = await readLock(quarantinePath);
-  if (
-    quarantined.evidence.token !== observed.evidence.token ||
-    !identitiesEqual(quarantined.identity, observed.identity)
-  ) {
-    throw new Error("Foundation operation-lock claim changed during recovery.");
-  }
-  await unlink(quarantinePath);
-  await syncFoundationStateDirectory(directory);
-  return true;
-}
-
 async function takeoverLock(
   directory: string,
   lockPath: string
 ): Promise<OwnedLock> {
+  const expected = await readLock(lockPath);
+  if (
+    expected.evidence.kind === "active" &&
+    activeOwnerIsAlive(expected.evidence) !== false
+  ) {
+    throw new Error(
+      "Foundation operation lock owner is live or cannot be proven dead."
+    );
+  }
   const evidence: ActiveOwner = {
     host: hostname(),
     kind: "active",
@@ -312,38 +288,35 @@ async function takeoverLock(
     schemaVersion: 2,
     token: randomUUID()
   };
-  const claimPath = `${lockPath}.claim`;
+  const claimPath = `${lockPath}.claim.${expected.evidence.token}`;
   let claimHeld = false;
+  let ownershipPublished = false;
   try {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const claimHandle = await open(claimPath, "wx", 0o600);
       try {
-        const claimHandle = await open(claimPath, "wx", 0o600);
-        try {
-          await claimHandle.writeFile(evidenceBytes(evidence));
-          await claimHandle.sync();
-        } finally {
-          await claimHandle.close();
-        }
-        await syncFoundationStateDirectory(directory);
-        claimHeld = true;
-        break;
-      } catch (error) {
-        if (!isErrorCode(error, "EEXIST") || !(await removeDeadClaim(directory, claimPath))) {
-          throw error;
-        }
+        await claimHandle.writeFile(evidenceBytes(evidence));
+        await claimHandle.sync();
+      } finally {
+        await claimHandle.close();
       }
-    }
-    if (!claimHeld) {
-      throw new Error("Foundation operation-lock takeover claim is unavailable.");
+      await syncFoundationStateDirectory(directory);
+      claimHeld = true;
+    } catch (error) {
+      if (isErrorCode(error, "EEXIST")) {
+        throw new Error(
+          "Foundation operation-lock takeover claim requires manual recovery.",
+          { cause: error }
+        );
+      }
+      throw error;
     }
     const observed = await readLock(lockPath);
     if (
-      observed.evidence.kind === "active" &&
-      activeOwnerIsAlive(observed.evidence) !== false
+      !evidenceEqual(observed.evidence, expected.evidence) ||
+      !identitiesEqual(observed.identity, expected.identity)
     ) {
-      throw new Error(
-        "Foundation operation lock owner is live or cannot be proven dead."
-      );
+      throw new Error("Foundation operation lock changed during takeover.");
     }
     const rewrittenIdentity = await rewriteOwnedLockEvidence(
       lockPath,
@@ -359,13 +332,12 @@ async function takeoverLock(
     ) {
       throw new Error("Foundation operation-lock takeover was not published.");
     }
-    await unlink(claimPath);
-    claimHeld = false;
+    ownershipPublished = true;
     return { evidence, identity: current.identity };
   } finally {
     if (claimHeld) {
       await unlink(claimPath).catch((error: unknown) => {
-        if (!isErrorCode(error, "ENOENT")) {
+        if (!ownershipPublished && !isErrorCode(error, "ENOENT")) {
           throw error;
         }
       });

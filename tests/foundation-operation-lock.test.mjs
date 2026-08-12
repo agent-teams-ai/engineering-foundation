@@ -29,7 +29,11 @@ function paths(root) {
 async function writeEvidence(root, evidence) {
   const target = paths(root);
   await mkdir(target.directory, { recursive: true });
-  await writeFile(target.lock, `${JSON.stringify(evidence)}\n`, "utf8");
+  await writeFile(
+    target.lock,
+    typeof evidence === "string" ? evidence : `${JSON.stringify(evidence)}\n`,
+    "utf8",
+  );
   return target;
 }
 
@@ -102,6 +106,47 @@ test("preserves foreign-host and malformed evidence", async (context) => {
       await rm(root, { force: true, recursive: true });
     }
   });
+  await context.test("partial canonical file", async () => {
+    const root = await createRoot();
+    try {
+      const target = await writeEvidence(root, "partial");
+      const before = await readFile(target.lock);
+      await assertAcquireFailsClosed(root);
+      assert.deepEqual(await readFile(target.lock), before);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+});
+
+test("preserves a stale or partial takeover claim for manual recovery", async () => {
+  const root = await createRoot();
+  try {
+    const deadOwner = activeEvidence(2_147_483_647);
+    const target = await writeEvidence(root, deadOwner);
+    const claimPath = `${target.lock}.claim.${deadOwner.token}`;
+    await writeFile(claimPath, "partial\n", "utf8");
+    const lockBefore = await readFile(target.lock);
+    const claimBefore = await readFile(claimPath);
+    await assertAcquireFailsClosed(root);
+    assert.deepEqual(await readFile(target.lock), lockBefore);
+    assert.deepEqual(await readFile(claimPath), claimBefore);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("ignores a residual claim from an older lock generation", async () => {
+  const root = await createRoot();
+  try {
+    const deadOwner = activeEvidence(2_147_483_647);
+    const target = await writeEvidence(root, deadOwner);
+    await writeFile(`${target.lock}.claim.${randomUUID()}`, "partial\n", "utf8");
+    const release = await new NodeFoundationOperationLock(root).acquire();
+    await release();
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test("serializes two reclaimers of one provably dead owner", async () => {

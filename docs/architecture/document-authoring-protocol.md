@@ -140,7 +140,13 @@ protocol payload kind and journal, payload digest, state, and envelope digest.
 The canonical lock is a bounded owner-token regular file. New ownership is
 published with no replacement, and reclaim or release is fenced by token plus
 physical file identity. A same-host lock is reclaimed only when its PID is
-provably dead; foreign or ambiguous liveness fails closed. If transaction
+provably dead on a single-host/local filesystem; foreign or ambiguous liveness
+fails closed. A takeover claim is exclusive and is never automatically
+reclaimed: partial or stale claim evidence for the current lock generation
+requires manual recovery because portable Node APIs do not provide
+unlink-if-identity CAS. Claims are keyed by the observed lock token, making
+cleanup residue from an older generation inert. Partial canonical or current
+generation claim writes likewise remain regular-file manual-recovery barriers. If transaction
 evidence remains, release retains that same regular-file inode as a durable
 transaction barrier. This intentionally makes released directory-lock clients
 fail closed before they can mutate. Interrupted in-place ownership/barrier

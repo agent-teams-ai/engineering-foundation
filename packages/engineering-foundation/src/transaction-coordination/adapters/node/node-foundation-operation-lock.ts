@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { link, open, rename, unlink, type FileHandle } from "node:fs/promises";
+import { open, rename, unlink, type FileHandle } from "node:fs/promises";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
@@ -250,24 +250,14 @@ async function createOwnedLock(
     schemaVersion: 2,
     token: randomUUID()
   };
-  const preparedPath = `${lockPath}.prepared.${evidence.token}`;
-  const handle = await open(preparedPath, "wx", 0o600);
+  const handle = await open(lockPath, "wx", 0o600);
   try {
     await handle.writeFile(evidenceBytes(evidence));
     await handle.sync();
   } finally {
     await handle.close();
   }
-  try {
-    await link(preparedPath, lockPath);
-    await syncFoundationStateDirectory(directory);
-  } finally {
-    await unlink(preparedPath).catch((error: unknown) => {
-      if (!isErrorCode(error, "ENOENT")) {
-        throw error;
-      }
-    });
-  }
+  await syncFoundationStateDirectory(directory);
   const observed = await readLock(lockPath);
   if (
     observed.evidence.kind !== "active" ||
@@ -322,20 +312,19 @@ async function takeoverLock(
     schemaVersion: 2,
     token: randomUUID()
   };
-  const preparedPath = `${lockPath}.prepared.${evidence.token}`;
   const claimPath = `${lockPath}.claim`;
-  const handle = await open(preparedPath, "wx", 0o600);
-  try {
-    await handle.writeFile(evidenceBytes(evidence));
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
   let claimHeld = false;
   try {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        await link(preparedPath, claimPath);
+        const claimHandle = await open(claimPath, "wx", 0o600);
+        try {
+          await claimHandle.writeFile(evidenceBytes(evidence));
+          await claimHandle.sync();
+        } finally {
+          await claimHandle.close();
+        }
+        await syncFoundationStateDirectory(directory);
         claimHeld = true;
         break;
       } catch (error) {
@@ -374,11 +363,6 @@ async function takeoverLock(
     claimHeld = false;
     return { evidence, identity: current.identity };
   } finally {
-    await unlink(preparedPath).catch((error: unknown) => {
-      if (!isErrorCode(error, "ENOENT")) {
-        throw error;
-      }
-    });
     if (claimHeld) {
       await unlink(claimPath).catch((error: unknown) => {
         if (!isErrorCode(error, "ENOENT")) {
@@ -469,42 +453,52 @@ export class NodeFoundationOperationLock implements FoundationOperationLock {
     }
 
     let state: "held" | "released" = "held";
+    let releaseInProgress: Promise<void> | undefined;
     return async (options = {}) => {
       if (state === "released") {
         return;
       }
-      try {
-        if (options.retainTransactionBarrier === true) {
-          await retainTransactionBarrier(directory, lockPath, owned);
+      releaseInProgress ??= (async () => {
+        try {
+          if (options.retainTransactionBarrier === true) {
+            await retainTransactionBarrier(directory, lockPath, owned);
+            state = "released";
+            await syncFoundationStateDirectory(directory);
+            return;
+          }
+          const current = await readLock(lockPath);
+          if (
+            current.evidence.kind !== "active" ||
+            current.evidence.token !== owned.evidence.token ||
+            !identitiesEqual(current.identity, owned.identity)
+          ) {
+            throw new Error("Foundation operation lock ownership was lost before release.");
+          }
+          const quarantinePath = await quarantineObservedLock(
+            directory,
+            lockPath,
+            current,
+            "released"
+          );
           state = "released";
+          await unlink(quarantinePath);
           await syncFoundationStateDirectory(directory);
-          return;
+          await pruneFoundationStateDirectory(this.#consumerRoot);
+          await syncFoundationStateDirectory(this.#consumerRoot);
+        } catch (error) {
+          throw new FoundationError(
+            "LOCAL_STATE_INVALID",
+            "Foundation operation lock could not be released without violating ownership.",
+            { cause: error }
+          );
         }
-        const current = await readLock(lockPath);
-        if (
-          current.evidence.kind !== "active" ||
-          current.evidence.token !== owned.evidence.token ||
-          !identitiesEqual(current.identity, owned.identity)
-        ) {
-          throw new Error("Foundation operation lock ownership was lost before release.");
+      })();
+      try {
+        await releaseInProgress;
+      } finally {
+        if (state === "held") {
+          releaseInProgress = undefined;
         }
-        const quarantinePath = await quarantineObservedLock(
-          directory,
-          lockPath,
-          current,
-          "released"
-        );
-        state = "released";
-        await unlink(quarantinePath);
-        await syncFoundationStateDirectory(directory);
-        await pruneFoundationStateDirectory(this.#consumerRoot);
-        await syncFoundationStateDirectory(this.#consumerRoot);
-      } catch (error) {
-        throw new FoundationError(
-          "LOCAL_STATE_INVALID",
-          "Foundation operation lock could not be released without violating ownership.",
-          { cause: error }
-        );
       }
     };
   }

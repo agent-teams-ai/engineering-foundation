@@ -141,6 +141,18 @@ test("release is idempotent and an old releaser cannot delete a successor", asyn
   }
 });
 
+test("coalesces concurrent release calls without deleting unrelated state", async () => {
+  const root = await createRoot();
+  try {
+    const release = await new NodeFoundationOperationLock(root).acquire();
+    await Promise.all([release(), release(), release()]);
+    await release();
+    await assert.rejects(lstat(paths(root).lock), { code: "ENOENT" });
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 test("retained transaction barrier survives its owner and is claimable by a new coordinator", async () => {
   const root = await createRoot();
   try {

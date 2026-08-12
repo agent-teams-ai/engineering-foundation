@@ -20,6 +20,23 @@ const expectedCapabilityIds = [
   "workspace.dependency-declarations"
 ];
 
+async function assertPrivateMutationImportsRejected(fixture) {
+  const privateSpecifiers = [
+    "@agent-teams/engineering-foundation/repository-mutation",
+    "@agent-teams/engineering-foundation/dist/repository-mutation/application/model/repository-path.js"
+  ];
+  for (const specifier of privateSpecifiers) {
+    const failure = await captureFailure(() => runCommand(
+      process.execPath,
+      ["--input-type=module", "--eval", `await import(${JSON.stringify(specifier)})`],
+      fixture.consumerRoot
+    ));
+    if (failure?.code !== 1 || !failure.stderr?.includes("ERR_PACKAGE_PATH_NOT_EXPORTED")) {
+      throw new Error(`Packed private import was not rejected for ${specifier}.`);
+    }
+  }
+}
+
 async function runFoundationJson(fixture, args) {
   const { stdout } = await runCommand(
     process.execPath,
@@ -445,6 +462,7 @@ async function assertDocumentFind(fixture) {
 
 export async function verifyPackedConsumer(input) {
   const fixture = input.fixture;
+  await assertPrivateMutationImportsRejected(fixture);
   await assertAdrPromotion(fixture);
   await assertCapabilityCheck(fixture);
   await assertSourceGraphViolation(fixture);

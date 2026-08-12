@@ -5,6 +5,7 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   rename,
   rm,
@@ -135,8 +136,10 @@ async function stopTransactionHolder(child) {
 }
 
 async function observeEvidence(path) {
+  let handle;
   try {
-    const metadata = await lstat(path);
+    handle = await open(path, "r");
+    const metadata = await handle.stat();
     const type = metadata.isFile()
       ? "file"
       : metadata.isDirectory()
@@ -147,13 +150,26 @@ async function observeEvidence(path) {
     return {
       exists: true,
       type,
-      ...(metadata.isFile() ? { bytes: await readFile(path) } : {}),
+      ...(metadata.isFile() ? { bytes: await handle.readFile() } : {}),
     };
   } catch (error) {
+    if (error?.code === "EISDIR" || error?.code === "EACCES") {
+      const metadata = await lstat(path);
+      return {
+        exists: true,
+        type: metadata.isDirectory()
+          ? "directory"
+          : metadata.isSymbolicLink()
+            ? "symbolic-link"
+            : "other",
+      };
+    }
     if (error?.code === "ENOENT") {
       return { exists: false };
     }
     throw error;
+  } finally {
+    await handle?.close();
   }
 }
 

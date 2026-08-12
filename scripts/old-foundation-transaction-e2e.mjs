@@ -4,6 +4,7 @@ import {
   lstat,
   mkdtemp,
   mkdir,
+  open,
   readFile,
   readdir,
   realpath,
@@ -241,8 +242,15 @@ export async function verifyOldFoundationTransactionBarrier({ currentCliPath }) 
       ".agent-teams-local",
       "foundation-operation.lock",
     );
-    const lockMetadata = await lstat(lockPath);
-    const lockEvidence = JSON.parse(await readFile(lockPath, "utf8"));
+    const lockHandle = await open(lockPath, "r");
+    let lockEvidence;
+    let lockMetadata;
+    try {
+      lockMetadata = await lockHandle.stat();
+      lockEvidence = JSON.parse(await lockHandle.readFile("utf8"));
+    } finally {
+      await lockHandle.close();
+    }
     if (
       !lockMetadata.isFile() ||
       lockMetadata.isSymbolicLink() ||

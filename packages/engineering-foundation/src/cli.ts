@@ -79,10 +79,14 @@ function printStatus(
     process.stdout.write(`Transaction: ${transaction.state}\n`);
     if (transaction.state === "pending") {
       process.stdout.write(`Transaction kind: ${transaction.operationKind}\n`);
-      const buildIdentity = transaction.recovery.exactFoundationBuildIdentity;
-      process.stdout.write(
-        `Recovery: ${transaction.recovery.commandId} with Foundation ${transaction.recovery.exactFoundationVersion}${buildIdentity === undefined ? "" : ` (${buildIdentity})`}\n`
-      );
+      if (transaction.recovery.commandId === "detach") {
+        process.stdout.write("Recovery: detach with the installed Foundation.\n");
+      } else {
+        const buildIdentity = transaction.recovery.exactFoundationBuildIdentity;
+        process.stdout.write(
+          `Recovery: ${transaction.recovery.commandId} with Foundation ${transaction.recovery.exactFoundationVersion}${buildIdentity === undefined ? "" : ` (${buildIdentity})`}\n`
+        );
+      }
     }
   }
   for (const issue of status.issues) {

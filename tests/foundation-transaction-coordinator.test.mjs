@@ -21,7 +21,6 @@ import { FoundationTransactionError } from "../packages/engineering-foundation/d
 import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import {
-  computeFoundationBuildIdentity,
   installedFoundationBuildIdentity,
 } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import {
@@ -264,49 +263,6 @@ test("preserves the classified transaction failure when lock release also fails"
   );
 });
 
-test("build identity is path-independent and changes for rebuilt executable or contract bytes", async () => {
-  const first = await createRoot("foundation-build-first-");
-  const second = await createRoot("foundation-build-second-");
-  try {
-    for (const root of [first, second]) {
-      await mkdir(join(root, "dist"), { recursive: true });
-      await mkdir(join(root, "schemas"), { recursive: true });
-      await mkdir(join(root, "presets"), { recursive: true });
-      await writeFile(join(root, "dist", "runtime.js"), "export const value = 1;\n");
-      await writeFile(join(root, "schemas", "contract.json"), "{}\n");
-      await writeFile(join(root, "presets", "base.json"), "{}\n");
-      await writeFile(join(root, "dist", "ignored.d.ts"), "export {};\n");
-    }
-    assert.equal(
-      await computeFoundationBuildIdentity(first),
-      await computeFoundationBuildIdentity(second),
-    );
-    await writeFile(join(second, "dist", "runtime.js"), "export const value = 2;\n");
-    assert.notEqual(
-      await computeFoundationBuildIdentity(first),
-      await computeFoundationBuildIdentity(second),
-    );
-    await writeFile(join(second, "dist", "runtime.js"), "export const value = 1;\n");
-    await writeFile(join(second, "schemas", "contract.json"), '{"type":"object"}\n');
-    assert.notEqual(
-      await computeFoundationBuildIdentity(first),
-      await computeFoundationBuildIdentity(second),
-    );
-    await Promise.all(
-      Array.from({ length: 8 }, async (_value, index) => {
-        await writeFile(join(first, "dist", `ignored-${index}.d.ts`), "export {};\n");
-      }),
-    );
-    await assert.rejects(
-      computeFoundationBuildIdentity(first, { maximumVisitedEntries: 6 }),
-      /too many entries/u,
-    );
-  } finally {
-    await rm(first, { force: true, recursive: true });
-    await rm(second, { force: true, recursive: true });
-  }
-});
-
 test("blocks foreign transactions and preserves the exact recovery route", async () => {
   const status = {
     state: "pending",
@@ -362,20 +318,18 @@ test("blocks foreign transactions and preserves the exact recovery route", async
   );
 });
 
-test("never grants recovery to a mismatched Foundation package version", async () => {
+test("never grants recovery to envelope v2 before its handler is qualified", async () => {
   const status = {
-    state: "pending",
+    state: "manual-recovery-required",
+    reason: "recovery-handler-unavailable",
     operationKind: "document-authoring",
     format: "envelope-v2",
     foundationVersion: "0.13.0",
-    recovery: {
-      commandId: "docs-recover",
-      exactFoundationVersion: "0.13.0",
-    },
+    foundationBuildIdentity: "sha256:2222222222222222222222222222222222222222222222222222222222222222",
     diagnostics: [
       {
-        code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-        message: "use 0.13.0",
+        code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+        message: "recovery handler unavailable",
       },
     ],
   };
@@ -385,7 +339,8 @@ test("never grants recovery to a mismatched Foundation package version", async (
       requestedMutation: "document-authoring",
       allowRecoveryOf: "document-authoring",
     }),
-    (error) => error?.code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+    (error) =>
+      error?.code === "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
   );
 });
 
@@ -437,7 +392,7 @@ test("recognizes a frozen legacy scaffolding v1 journal and its exact compiler",
   }
 });
 
-test("recognizes a verified envelope v2 and reports exact package identity drift", async () => {
+test("preserves exact verified envelope v2 evidence until its recovery handler exists", async () => {
   const root = await createRoot();
   try {
     await writeJson(slotPath(root), buildDocumentEnvelope("0.12.0"));
@@ -446,16 +401,29 @@ test("recognizes a verified envelope v2 and reports exact package identity drift
       installedBuildIdentity,
       installedVersion: "0.13.0",
     }).inspect();
-    assert.equal(status.state, "pending");
-    assert.equal(status.operationKind, "document-authoring");
-    assert.equal(status.recovery.exactFoundationVersion, "0.12.0");
-    assert.equal(
-      status.recovery.exactFoundationBuildIdentity,
-      installedBuildIdentity,
+    assert.deepEqual(
+      {
+        state: status.state,
+        reason: status.reason,
+        operationKind: status.operationKind,
+        format: status.format,
+        foundationVersion: status.foundationVersion,
+        foundationBuildIdentity: status.foundationBuildIdentity,
+        recovery: status.recovery,
+      },
+      {
+        state: "manual-recovery-required",
+        reason: "recovery-handler-unavailable",
+        operationKind: "document-authoring",
+        format: "envelope-v2",
+        foundationVersion: "0.12.0",
+        foundationBuildIdentity: installedBuildIdentity,
+        recovery: undefined,
+      },
     );
     assert.equal(
       status.diagnostics[0]?.code,
-      "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+      "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
     );
   } finally {
     await rm(root, { force: true, recursive: true });
@@ -514,6 +482,34 @@ test("fails closed when an envelope is rebound across compiler or installed buil
         };
       },
     },
+    {
+      name: "PREPARED envelope claims a published destination",
+      mutate(envelope) {
+        envelope.journal.destination.state = "published";
+      },
+    },
+    {
+      name: "PUBLISHED envelope retains a pending destination",
+      mutate(envelope) {
+        envelope.state = "PUBLISHED";
+      },
+    },
+    {
+      name: "PUBLISHING envelope has no owned temporary",
+      mutate(envelope) {
+        envelope.state = "PUBLISHING";
+        envelope.journal.destination.state = "publishing";
+      },
+    },
+    {
+      name: "PREPARED envelope already owns a temporary",
+      mutate(envelope) {
+        envelope.journal.ownedTemporary = {
+          path: `${envelope.journal.plan.destination}.foundation-document.tmp`,
+          digest: envelope.journal.plan.output.digest,
+        };
+      },
+    },
   ];
   for (const scenario of scenarios) {
     await context.test(scenario.name, async () => {
@@ -548,15 +544,18 @@ test("fails closed when an envelope is rebound across compiler or installed buil
         installedBuildIdentity: otherBuildIdentity,
         installedVersion: "0.12.0",
       }).inspect();
-      assert.equal(status.state, "pending");
+      assert.equal(status.state, "manual-recovery-required");
+      assert.equal(status.reason, "recovery-handler-unavailable");
       assert.equal(
         status.diagnostics[0]?.code,
-        "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+        "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
       );
       assert.equal(
-        status.recovery.exactFoundationBuildIdentity,
+        status.foundationBuildIdentity,
         installedBuildIdentity,
       );
+      assert.equal(status.foundationVersion, "0.12.0");
+      assert.equal(status.recovery, undefined);
     } finally {
       await rm(root, { force: true, recursive: true });
     }

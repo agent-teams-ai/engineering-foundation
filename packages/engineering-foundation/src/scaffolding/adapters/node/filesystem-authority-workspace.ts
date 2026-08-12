@@ -149,6 +149,13 @@ async function pathEntryExists(path: string): Promise<boolean> {
   }
 }
 
+async function transactionEvidenceExists(journalPath: string): Promise<boolean> {
+  return (
+    (await pathEntryExists(journalPath)) ||
+    (await pathEntryExists(`${journalPath}.tmp`))
+  );
+}
+
 async function acquireScaffoldingTransaction(
   canonicalRoot: string
 ): Promise<FoundationTransactionLease> {
@@ -447,7 +454,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
     });
   } finally {
     await lease.release({
-      retainTransactionBarrier: await pathEntryExists(journalPath)
+      retainTransactionBarrier: await transactionEvidenceExists(journalPath)
     });
   }
 }
@@ -473,7 +480,7 @@ export async function recoverAuthorityFilesystemScaffold(
     });
   } finally {
     await lease.release({
-      retainTransactionBarrier: await pathEntryExists(
+      retainTransactionBarrier: await transactionEvidenceExists(
         join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE)
       )
     });

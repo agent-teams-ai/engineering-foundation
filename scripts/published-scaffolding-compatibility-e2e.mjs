@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   cp,
   lstat,
@@ -8,16 +9,35 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 
 import { createPnpmRunner, runCommand } from "./pack-test-support.mjs";
 import { installPublishedFoundation } from "./published-foundation-install.mjs";
 
-const version = "0.12.0";
+const publishedVersion = "0.12.0";
 const expectedIntegrity =
   "sha512-LWey96bQBwA/91eD1T9pZRKrNUPlAt/8NEOQ5gnWfW6Mzs+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==";
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const packageName = "@agent-teams/engineering-foundation";
+const normalizedCompilerVersion = "0.0.0-compatibility";
 const runPnpm = createPnpmRunner();
+
+function canonicalize(value) {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalize).join(",")}]`;
+  }
+  return `{${Object.entries(value)
+    .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item)}`)
+    .join(",")}}`;
+}
+
+export function compatibilityDigest(value) {
+  return `sha256:${createHash("sha256").update(canonicalize(value)).digest("hex")}`;
+}
 
 async function runScaffolding(cliPath, consumerRoot, args) {
   const { stdout } = await runCommand(
@@ -34,6 +54,7 @@ function npmExecutable() {
 }
 
 async function installPackedCurrentPackage({
+  candidateVersion,
   currentPackageRoot,
   temporaryRoot,
 }) {
@@ -93,7 +114,7 @@ async function installPackedCurrentPackage({
     !metadata.isDirectory() ||
     metadata.isSymbolicLink() ||
     manifest.name !== packageName ||
-    manifest.version !== version
+    manifest.version !== candidateVersion
   ) {
     throw new Error("Current packed Foundation has an invalid installed identity.");
   }
@@ -101,6 +122,41 @@ async function installPackedCurrentPackage({
     archivePath,
     cliPath: join(packageRoot, "dist", "cli.js"),
   });
+}
+
+export function projectScaffoldPlanCompatibility(plan, expectedVersion) {
+  const projection = structuredClone(plan);
+  if (projection.compiler?.version !== expectedVersion) {
+    throw new Error(
+      `ScaffoldPlan compiler version differs from expected package ${expectedVersion}.`,
+    );
+  }
+  const { planDigest, ...originalBody } = projection;
+  if (planDigest !== compatibilityDigest(originalBody)) {
+    throw new Error("ScaffoldPlan digest binding is invalid.");
+  }
+  delete projection.planDigest;
+  projection.compiler.version = normalizedCompilerVersion;
+  projection.planDigest = compatibilityDigest(projection);
+  return projection;
+}
+
+export function projectScaffoldReceiptCompatibility(
+  receipt,
+  { originalPlanDigest, projectedPlanDigest },
+) {
+  const projection = structuredClone(receipt);
+  if (projection.planDigest !== originalPlanDigest) {
+    throw new Error("ScaffoldReceipt does not bind its original Plan.");
+  }
+  const { receiptDigest, ...originalBody } = projection;
+  if (receiptDigest !== compatibilityDigest(originalBody)) {
+    throw new Error("ScaffoldReceipt digest binding is invalid.");
+  }
+  delete projection.receiptDigest;
+  projection.planDigest = projectedPlanDigest;
+  projection.receiptDigest = compatibilityDigest(projection);
+  return projection;
 }
 
 async function assertAllPlannedOutputsEqual({
@@ -111,7 +167,7 @@ async function assertAllPlannedOutputsEqual({
 }) {
   const currentPaths = currentPlan.operations.map(({ path }) => path);
   const publishedPaths = publishedPlan.operations.map(({ path }) => path);
-  if (JSON.stringify(currentPaths) !== JSON.stringify(publishedPaths)) {
+  if (!isDeepStrictEqual(currentPaths, publishedPaths)) {
     throw new Error("Current and published Plans enumerate different output paths.");
   }
   for (let index = 0; index < currentPlan.operations.length; index += 1) {
@@ -138,7 +194,7 @@ async function assertAllPlannedOutputsEqual({
       publishedOperation.after.size !== publishedBytes.byteLength
     ) {
       throw new Error(
-        `Packed current output differs from published Foundation ${version}: ${currentOperation.path}.`,
+        `Packed current output differs from published Foundation ${publishedVersion}: ${currentOperation.path}.`,
       );
     }
   }
@@ -154,12 +210,23 @@ export async function verifyPublishedScaffoldingCompatibility({
   ),
   temporaryRoot,
 }) {
+  const candidateManifest = JSON.parse(
+    await readFile(join(currentPackageRoot, "package.json"), "utf8"),
+  );
+  if (
+    candidateManifest.name !== packageName ||
+    typeof candidateManifest.version !== "string"
+  ) {
+    throw new Error("Current Foundation source package identity is invalid.");
+  }
+  const candidateVersion = candidateManifest.version;
   const published = await installPublishedFoundation({
     expectedIntegrity,
     root: join(temporaryRoot, "published-0.12-package"),
-    version,
+    version: publishedVersion,
   });
   const current = await installPackedCurrentPackage({
+    candidateVersion,
     currentPackageRoot,
     temporaryRoot,
   });
@@ -179,13 +246,21 @@ export async function verifyPublishedScaffoldingCompatibility({
       "intents/create-fixture.yaml",
     ]),
   ]);
-  if (!currentPlanBytes.equals(publishedPlanBytes)) {
-    throw new Error(
-      `Current packed ScaffoldPlan bytes differ from published Foundation ${version}.`,
-    );
-  }
   const currentPlan = JSON.parse(currentPlanBytes);
   const publishedPlan = JSON.parse(publishedPlanBytes);
+  const currentPlanProjection = projectScaffoldPlanCompatibility(
+    currentPlan,
+    candidateVersion,
+  );
+  const publishedPlanProjection = projectScaffoldPlanCompatibility(
+    publishedPlan,
+    publishedVersion,
+  );
+  if (!isDeepStrictEqual(currentPlanProjection, publishedPlanProjection)) {
+    throw new Error(
+      `Current packed ScaffoldPlan semantics differ from published Foundation ${publishedVersion}.`,
+    );
+  }
 
   await Promise.all([
     mkdir(join(currentConsumer, "plans"), { recursive: true }),
@@ -211,9 +286,25 @@ export async function verifyPublishedScaffoldingCompatibility({
       "plans/compatibility.json",
     ]),
   ]);
-  if (!currentReceipt.equals(publishedReceipt)) {
+  const currentReceiptValue = JSON.parse(currentReceipt);
+  const publishedReceiptValue = JSON.parse(publishedReceipt);
+  const currentReceiptProjection = projectScaffoldReceiptCompatibility(
+    currentReceiptValue,
+    {
+      originalPlanDigest: currentPlan.planDigest,
+      projectedPlanDigest: currentPlanProjection.planDigest,
+    },
+  );
+  const publishedReceiptProjection = projectScaffoldReceiptCompatibility(
+    publishedReceiptValue,
+    {
+      originalPlanDigest: publishedPlan.planDigest,
+      projectedPlanDigest: publishedPlanProjection.planDigest,
+    },
+  );
+  if (!isDeepStrictEqual(currentReceiptProjection, publishedReceiptProjection)) {
     throw new Error(
-      `Current packed ScaffoldReceipt bytes differ from published Foundation ${version}.`,
+      `Current packed ScaffoldReceipt semantics differ from published Foundation ${publishedVersion}.`,
     );
   }
   await assertAllPlannedOutputsEqual({

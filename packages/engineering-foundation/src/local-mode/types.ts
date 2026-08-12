@@ -1,11 +1,11 @@
 export const FOUNDATION_PACKAGE_NAME =
   "@agent-teams/engineering-foundation" as const;
 export {
+  FOUNDATION_LINK_STATE_FILE as LOCAL_STATE_FILE,
+  FOUNDATION_REGISTRY_BACKUP as LOCAL_REGISTRY_BACKUP,
   LOCAL_OPERATION_LOCK,
   LOCAL_STATE_DIRECTORY
 } from "../foundation-state-contract.js";
-export const LOCAL_STATE_FILE = "foundation-link.json" as const;
-export const LOCAL_REGISTRY_BACKUP = "foundation-registry-backup" as const;
 export const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION = 1 as const;
 
 export type {

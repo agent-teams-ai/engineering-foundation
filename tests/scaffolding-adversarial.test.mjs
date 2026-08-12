@@ -291,6 +291,46 @@ test("preserves an exact replacement of the journal temporary", async () => {
   }
 });
 
+test("retains the downgrade barrier for a replaced journal temporary", async () => {
+  const root = await createConsumer();
+  try {
+    const scaffoldPlan = await plan(root);
+    const path = journalPath(root);
+    const temporary = `${path}.tmp`;
+    await assert.rejects(
+      applyAuthorityFilesystemScaffoldWithFaultInjection(
+        root,
+        scaffoldPlan,
+        async (point) => {
+          if (point.phase !== "after-journal-temporary-synced") {
+            return;
+          }
+          const bytes = await readFile(temporary);
+          await rename(temporary, `${temporary}.original`);
+          await writeFile(temporary, bytes);
+          if (process.platform !== "win32") {
+            await chmod(temporary, 0o600);
+          }
+        },
+      ),
+      /journal temporary path was replaced concurrently/u,
+    );
+    assert.equal(
+      JSON.parse(
+        await readFile(
+          join(root, ".agent-teams-local", "foundation-operation.lock"),
+          "utf8",
+        ),
+      ).kind,
+      "transaction-barrier",
+    );
+    await assertMissing(path);
+    assert.ok((await stat(temporary)).isFile());
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test(
   "rejects a FIFO journal without blocking and releases the operation lock",
   { skip: process.platform === "win32", timeout: 10_000 },

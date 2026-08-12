@@ -21,7 +21,7 @@ try {
     temporaryRoot,
   });
   process.stdout.write(
-    "Published ScaffoldPlan/ScaffoldReceipt compatibility PASS: current build equals pinned 0.12.0.\n",
+    "Published scaffolding semantic compatibility PASS: current candidate matches pinned 0.12.0 outside release identity fields.\n",
   );
 } finally {
   await rm(temporaryRoot, { force: true, recursive: true });

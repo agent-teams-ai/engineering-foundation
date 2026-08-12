@@ -124,7 +124,10 @@ export class FoundationLocalModeService {
     const coordinator = await createNodeFoundationTransactionCoordinator(
       before.consumerRoot
     );
-    const lease = await coordinator.acquire({ requestedMutation: "detach" });
+    const lease = await coordinator.acquire({
+      requestedMutation: "detach",
+      allowRecoveryOf: "local-mode"
+    });
     try {
       const current = await inspectFoundationMode(before.consumerRoot, {
         ignoreOperationLock: true
@@ -156,7 +159,9 @@ export class FoundationLocalModeService {
       );
       await removeLinkState(before.consumerRoot);
     } finally {
-      await lease.release();
+      await lease.release({
+        retainTransactionBarrier: (await coordinator.inspect()).state !== "idle"
+      });
     }
 
     const after = await inspectFoundationMode(before.consumerRoot);

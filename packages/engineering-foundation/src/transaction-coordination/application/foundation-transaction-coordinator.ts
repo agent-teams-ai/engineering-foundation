@@ -61,21 +61,30 @@ export class FoundationTransactionCoordinator {
 
   async acquire(options: {
     readonly requestedMutation: FoundationMutationKind;
-    readonly allowRecoveryOf?: "document-authoring" | "scaffolding";
+    readonly allowRecoveryOf?: "local-mode" | "scaffolding";
   }): Promise<FoundationTransactionLease> {
     const release = await this.#lock.acquire();
     let held = true;
     try {
       const status = await this.#slot.inspect();
-      const recoveryAllowed =
+      const scaffoldingRecoveryAllowed =
         status.state === "pending" &&
+        status.operationKind === "scaffolding" &&
         options.allowRecoveryOf === status.operationKind &&
         options.requestedMutation === status.operationKind &&
-        status.format === "legacy-scaffolding-v1" &&
         !status.diagnostics.some(
           ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
         );
-      if (status.state !== "idle" && !recoveryAllowed) {
+      const localModeRecoveryAllowed =
+        status.state === "pending" &&
+        status.operationKind === "local-mode" &&
+        options.allowRecoveryOf === "local-mode" &&
+        options.requestedMutation === "detach";
+      if (
+        status.state !== "idle" &&
+        !scaffoldingRecoveryAllowed &&
+        !localModeRecoveryAllowed
+      ) {
         throw new FoundationTransactionError({
           requestedMutation: options.requestedMutation,
           status

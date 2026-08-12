@@ -44,11 +44,13 @@ Status reports package version, source path, Git commit, dirty state, and one of
 - `LOCAL`: installed package resolves to the recorded local target;
 - `INVALID`: marker, manifest, installed package, or source evidence disagree.
 
-Status also reports a pending Foundation transaction, its operation kind, and
-the exact recovery command and package version when the shared transaction slot
-contains verified evidence. Attach and detach acquire the shared operation lock
-and refuse to switch package bytes while any foreign, incompatible, unknown, or
-manual-recovery transaction evidence exists.
+Status also reports shared transaction evidence. A frozen legacy scaffolding
+journal exposes its exact recovery command and package version. An incomplete
+local-mode phase exposes `detach` as its only automatic recovery route. A
+verified envelope v2 is preserved with its recorded package identity but remains
+manual until its registered handler is implemented and qualified. Attach and
+detach acquire the shared operation lock and refuse to switch package bytes
+while any foreign, incompatible, unknown, or manual-recovery evidence exists.
 
 Detach removes only the foundation link and atomically restores the preserved
 registry package entry. It never runs a workspace install. A consumer-scoped
@@ -71,7 +73,8 @@ distinguish PID reuse, so that case also prefers an availability block over
 unsafe reclamation. While a transaction remains, release durably publishes
 a persistent regular-file downgrade barrier that older Foundation versions
 cannot mistake for their directory lock. Durable `ATTACHING` and `DETACHING`
-phases let a later detach finish recovery after process interruption.
+phases and an orphan registry backup block every other Foundation mutation while
+letting only a later detach finish recovery after process interruption.
 
 `NodeProcessRunner` preserves the pre-existing no-deadline behavior when
 `timeoutMs` is omitted and validates an explicit deadline before process

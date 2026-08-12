@@ -165,6 +165,110 @@ async function assertOldMutationBlocked({ args, cliPath, consumerRoot, expected 
   }
 }
 
+async function assertPersistentBarrier(consumerRoot) {
+  const lockPath = join(
+    consumerRoot,
+    ".agent-teams-local",
+    "foundation-operation.lock",
+  );
+  const lockHandle = await open(lockPath, "r");
+  let lockEvidence;
+  let lockMetadata;
+  try {
+    lockMetadata = await lockHandle.stat();
+    lockEvidence = JSON.parse(await lockHandle.readFile("utf8"));
+  } finally {
+    await lockHandle.close();
+  }
+  if (
+    !lockMetadata.isFile() ||
+    lockMetadata.isSymbolicLink() ||
+    lockEvidence.schemaVersion !== 1 ||
+    lockEvidence.kind !== "transaction-barrier"
+  ) {
+    throw new Error("Current Foundation did not persist a valid downgrade barrier.");
+  }
+}
+
+async function assertOldCommandsBlocked({
+  cliPath,
+  consumerRoot,
+  targetRoot,
+}) {
+  const beforeOldCommands = await mutationEvidence(consumerRoot);
+  await assertOldMutationBlocked({
+    args: ["scaffold-recover", "--consumer", consumerRoot, "--json"],
+    cliPath,
+    consumerRoot,
+    expected: beforeOldCommands,
+  });
+  await assertOldMutationBlocked({
+    args: [
+      "attach",
+      targetRoot,
+      "--consumer",
+      consumerRoot,
+      "--json",
+    ],
+    cliPath,
+    consumerRoot,
+    expected: beforeOldCommands,
+  });
+  await assertOldMutationBlocked({
+    args: ["detach", "--consumer", consumerRoot, "--json"],
+    cliPath,
+    consumerRoot,
+    expected: beforeOldCommands,
+  });
+}
+
+async function verifyOrphanTemporaryBarrier({
+  currentCliPath,
+  installed,
+  temporaryRoot,
+}) {
+  const consumerRoot = join(temporaryRoot, "temporary-consumer");
+  await prepareConsumer(consumerRoot, installed.packageRoot);
+  const transactionPath = join(
+    consumerRoot,
+    ".agent-teams-local",
+    "scaffolding-transaction.json.tmp",
+  );
+  await mkdir(dirname(transactionPath), { recursive: true });
+  const evidence = Buffer.from("partial transaction evidence\n", "utf8");
+  await writeFile(transactionPath, evidence);
+  const failure = await captureFailure(() =>
+    runCommand(
+      process.execPath,
+      [currentCliPath, "scaffold-recover", "--consumer", consumerRoot, "--json"],
+      consumerRoot,
+    ),
+  );
+  if (
+    failure?.code !== 1 ||
+    failure.stdout !== "" ||
+    !/SCAFFOLD_RECOVERY_REQUIRED/u.test(failure.stderr)
+  ) {
+    throw new Error(
+      "Current Foundation did not establish a downgrade barrier for orphan temporary evidence.",
+    );
+  }
+  await assertPersistentBarrier(consumerRoot);
+  if (!(await readFile(transactionPath)).equals(evidence)) {
+    throw new Error("Current Foundation changed orphan temporary evidence.");
+  }
+  await assertOldCommandsBlocked({
+    cliPath: installed.cliPath,
+    consumerRoot,
+    targetRoot: join(temporaryRoot, "unreachable-temporary-target"),
+  });
+  if (!(await readFile(transactionPath)).equals(evidence)) {
+    throw new Error(
+      `Published Foundation ${version} changed orphan temporary evidence.`,
+    );
+  }
+}
+
 export async function verifyOldFoundationTransactionBarrier({ currentCliPath }) {
   const temporaryRoot = await mkdtemp(
     join(tmpdir(), "foundation-old-version-e2e-"),
@@ -237,28 +341,7 @@ export async function verifyOldFoundationTransactionBarrier({ currentCliPath }) 
         "Current Foundation did not establish the persistent downgrade barrier.",
       );
     }
-    const lockPath = join(
-      consumerRoot,
-      ".agent-teams-local",
-      "foundation-operation.lock",
-    );
-    const lockHandle = await open(lockPath, "r");
-    let lockEvidence;
-    let lockMetadata;
-    try {
-      lockMetadata = await lockHandle.stat();
-      lockEvidence = JSON.parse(await lockHandle.readFile("utf8"));
-    } finally {
-      await lockHandle.close();
-    }
-    if (
-      !lockMetadata.isFile() ||
-      lockMetadata.isSymbolicLink() ||
-      lockEvidence.schemaVersion !== 1 ||
-      lockEvidence.kind !== "transaction-barrier"
-    ) {
-      throw new Error("Current Foundation did not persist a valid downgrade barrier.");
-    }
+    await assertPersistentBarrier(consumerRoot);
     if (!(await readFile(transactionPath)).equals(transactionBytes)) {
       throw new Error("Current Foundation changed the blocked envelope v2 evidence.");
     }
@@ -274,43 +357,32 @@ export async function verifyOldFoundationTransactionBarrier({ currentCliPath }) 
     if (
       statusFailure?.code !== 1 ||
       statusFailure.stderr !== "" ||
-      status.transaction?.state !== "pending" ||
-      status.transaction.recovery?.exactFoundationBuildIdentity !==
+      status.transaction?.state !== "manual-recovery-required" ||
+      status.transaction.reason !== "recovery-handler-unavailable" ||
+      status.transaction.foundationVersion !==
+        documentFixture.documentEnvelope.foundation.version ||
+      status.transaction.foundationBuildIdentity !==
         documentFixture.documentEnvelope.foundation.buildIdentity
     ) {
-      throw new Error("Current status omitted exact transaction recovery evidence.");
+      throw new Error("Current status omitted preserved envelope v2 identity evidence.");
     }
 
-    const beforeOldCommands = await mutationEvidence(consumerRoot);
-    await assertOldMutationBlocked({
-      args: ["scaffold-recover", "--consumer", consumerRoot, "--json"],
+    await assertOldCommandsBlocked({
       cliPath: installed.cliPath,
       consumerRoot,
-      expected: beforeOldCommands,
-    });
-    await assertOldMutationBlocked({
-      args: [
-        "attach",
-        join(temporaryRoot, "unreachable-foundation-target"),
-        "--consumer",
-        consumerRoot,
-        "--json",
-      ],
-      cliPath: installed.cliPath,
-      consumerRoot,
-      expected: beforeOldCommands,
-    });
-    await assertOldMutationBlocked({
-      args: ["detach", "--consumer", consumerRoot, "--json"],
-      cliPath: installed.cliPath,
-      consumerRoot,
-      expected: beforeOldCommands,
+      targetRoot: join(temporaryRoot, "unreachable-foundation-target"),
     });
     if (!(await readFile(transactionPath)).equals(transactionBytes)) {
       throw new Error(`Published Foundation ${version} changed envelope v2 evidence.`);
     }
+
+    await verifyOrphanTemporaryBarrier({
+      currentCliPath,
+      installed,
+      temporaryRoot,
+    });
     process.stdout.write(
-      `Published downgrade barrier qualification PASS: ${version} recover/attach/detach; integrity ${expectedIntegrity}.\n`,
+      `Published downgrade barrier qualification PASS: ${version} recover/attach/detach for canonical and temporary transaction evidence; integrity ${expectedIntegrity}.\n`,
     );
   } finally {
     await rm(temporaryRoot, { force: true, recursive: true });

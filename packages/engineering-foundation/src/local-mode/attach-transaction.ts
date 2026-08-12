@@ -361,6 +361,8 @@ export async function attachFoundation(
     );
     return await commitAttach(input, preflight);
   } finally {
-    await lease.release();
+    await lease.release({
+      retainTransactionBarrier: (await coordinator.inspect()).state !== "idle"
+    });
   }
 }

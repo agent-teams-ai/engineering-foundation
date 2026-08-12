@@ -1,10 +1,12 @@
-import { lstat } from "node:fs/promises";
+import { lstat, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
 import {
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE,
+  FOUNDATION_LINK_STATE_FILE,
+  FOUNDATION_REGISTRY_BACKUP,
   LOCAL_STATE_DIRECTORY
 } from "../../../foundation-state-contract.js";
 import { assertSchema } from "../../../schema-catalog.js";
@@ -28,6 +30,8 @@ import type { FoundationTransactionSlot } from "../../application/ports/foundati
 import { readBoundedRegularFile } from "../../../scaffolding/adapters/node/filesystem-file-identity.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
+const maximumLinkStateBytes = 64 * 1024;
+const maximumStateDirectoryEntries = 1024;
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 
 function isMissing(error: unknown): boolean {
@@ -70,46 +74,25 @@ function manual(
   };
 }
 
-function recoveryRoute(
-  operationKind: "document-authoring" | "scaffolding",
-  exactFoundationVersion: string,
-  exactFoundationBuildIdentity?: string
-): FoundationRecoveryRoute {
-  if (operationKind === "scaffolding") {
-    return {
-      commandId: "scaffold-recover",
-      exactFoundationVersion,
-      ...(exactFoundationBuildIdentity === undefined
-        ? {}
-        : { exactFoundationBuildIdentity })
-    };
-  }
-  if (exactFoundationBuildIdentity === undefined) {
-    throw new Error("Document recovery requires an exact Foundation build identity.");
-  }
+function recoveryRoute(exactFoundationVersion: string): FoundationRecoveryRoute {
   return {
-    commandId: "docs-recover",
-    exactFoundationVersion,
-    exactFoundationBuildIdentity
+    commandId: "scaffold-recover",
+    exactFoundationVersion
   };
 }
 
 function pending(options: {
-  readonly operationKind: "document-authoring" | "scaffolding";
-  readonly format: "envelope-v2" | "legacy-scaffolding-v1";
+  readonly operationKind: "scaffolding";
+  readonly format: "legacy-scaffolding-v1";
   readonly foundationVersion: string;
-  readonly foundationBuildIdentity?: string;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
 }): FoundationTransactionStatus {
   const diagnostics: FoundationTransactionDiagnostic[] = [];
-  const buildMismatch =
-    options.foundationBuildIdentity !== undefined &&
-    options.foundationBuildIdentity !== options.installedBuildIdentity;
-  if (options.foundationVersion !== options.installedVersion || buildMismatch) {
+  if (options.foundationVersion !== options.installedVersion) {
     diagnostics.push({
       code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-      message: `Foundation ${options.foundationVersion}${options.foundationBuildIdentity === undefined ? "" : ` (${options.foundationBuildIdentity})`} must recover the pending ${options.operationKind} transaction before package ${options.installedVersion} (${options.installedBuildIdentity}) can mutate this repository.`
+      message: `Foundation ${options.foundationVersion} must recover the pending ${options.operationKind} transaction before package ${options.installedVersion} (${options.installedBuildIdentity}) can mutate this repository.`
     });
   } else {
     diagnostics.push({
@@ -122,16 +105,121 @@ function pending(options: {
     operationKind: options.operationKind,
     format: options.format,
     foundationVersion: options.foundationVersion,
-    ...(options.foundationBuildIdentity === undefined
-      ? {}
-      : { foundationBuildIdentity: options.foundationBuildIdentity }),
-    recovery: recoveryRoute(
-      options.operationKind,
-      options.foundationVersion,
-      options.foundationBuildIdentity
-    ),
+    recovery: recoveryRoute(options.foundationVersion),
     diagnostics
   };
+}
+
+function localModePending(message: string): FoundationTransactionStatus {
+  return {
+    state: "pending",
+    operationKind: "local-mode",
+    format: "local-mode-v1",
+    recovery: { commandId: "detach" },
+    diagnostics: [{ code: "FOUNDATION_TRANSACTION_ACTIVE", message }]
+  };
+}
+
+function parseLinkPhase(value: unknown): "ATTACHING" | "DETACHING" | "LOCAL" {
+  if (!isRecord(value)) {
+    throw new Error("Foundation local-mode recovery state is invalid.");
+  }
+  const expectedKeys = [
+    "attachedAt",
+    "consumerRoot",
+    "gitCommit",
+    "gitDirty",
+    "packageVersion",
+    "phase",
+    "registryBackupPath",
+    "registryEntryKind",
+    "registryPackageRoot",
+    "schemaVersion",
+    "targetPackageRoot"
+  ];
+  if (
+    value["schemaVersion"] !== 1 ||
+    !["ATTACHING", "DETACHING", "LOCAL"].includes(String(value["phase"])) ||
+    typeof value["consumerRoot"] !== "string" ||
+    typeof value["targetPackageRoot"] !== "string" ||
+    typeof value["registryBackupPath"] !== "string" ||
+    !["directory", "symbolic-link"].includes(String(value["registryEntryKind"])) ||
+    typeof value["registryPackageRoot"] !== "string" ||
+    typeof value["packageVersion"] !== "string" ||
+    typeof value["gitCommit"] !== "string" ||
+    typeof value["gitDirty"] !== "boolean" ||
+    typeof value["attachedAt"] !== "string" ||
+    Object.keys(value).toSorted().join(",") !== expectedKeys.join(",")
+  ) {
+    throw new Error("Foundation local-mode recovery state is invalid.");
+  }
+  return value["phase"] as "ATTACHING" | "DETACHING" | "LOCAL";
+}
+
+async function inspectLocalModeEvidence(
+  stateDirectory: string
+): Promise<FoundationTransactionStatus> {
+  let entries: string[];
+  try {
+    entries = await readdir(stateDirectory);
+  } catch (error) {
+    if (isMissing(error)) {
+      return { state: "idle", diagnostics: [] };
+    }
+    return manual(
+      "local-mode-evidence-invalid",
+      "Foundation local-mode recovery evidence cannot be inspected safely."
+    );
+  }
+  if (entries.length > maximumStateDirectoryEntries) {
+    return manual(
+      "local-mode-evidence-invalid",
+      "Foundation local-mode state contains too many entries."
+    );
+  }
+  if (
+    entries.some(
+      (entry) =>
+        entry.startsWith(`${FOUNDATION_LINK_STATE_FILE}.`) &&
+        entry.endsWith(".tmp")
+    )
+  ) {
+    return manual(
+      "local-mode-evidence-invalid",
+      "An incomplete Foundation local-mode state write requires manual recovery."
+    );
+  }
+  const hasBackup = entries.includes(FOUNDATION_REGISTRY_BACKUP);
+  if (!entries.includes(FOUNDATION_LINK_STATE_FILE)) {
+    return hasBackup
+      ? localModePending(
+          "An orphan Foundation registry backup must be recovered with detach before another mutation can start."
+        )
+      : { state: "idle", diagnostics: [] };
+  }
+  try {
+    const record = await readBoundedRegularFile(
+      join(stateDirectory, FOUNDATION_LINK_STATE_FILE),
+      maximumLinkStateBytes
+    );
+    if (record.outcome !== "read") {
+      throw new Error("Foundation local-mode state is not a stable regular file.");
+    }
+    const phase = parseLinkPhase(
+      parseStrictJson(strictUtf8.decode(record.bytes))
+    );
+    if (phase === "LOCAL" && hasBackup) {
+      return { state: "idle", diagnostics: [] };
+    }
+    return localModePending(
+      `Foundation local-mode recovery is required (${phase}${hasBackup ? "" : ", registry backup missing"}) before another mutation can start.`
+    );
+  } catch {
+    return manual(
+      "local-mode-evidence-invalid",
+      "Foundation local-mode recovery evidence is invalid and was preserved."
+    );
+  }
 }
 
 function assertEnvelopeDigests(envelope: Record<string, unknown>): void {
@@ -154,7 +242,8 @@ function assertDocumentPlanDigest(plan: Record<string, unknown>): void {
 
 function assertDocumentTransactionBindings(
   journal: Record<string, unknown>,
-  plan: Record<string, unknown>
+  plan: Record<string, unknown>,
+  envelopeState: unknown
 ): void {
   const intent = plan["intent"];
   const output = plan["output"];
@@ -187,6 +276,19 @@ function assertDocumentTransactionBindings(
     ) {
       throw new Error("Document transaction temporary binding is invalid.");
     }
+  }
+  const precondition = plan["destinationPrecondition"];
+  if (!isRecord(precondition)) {
+    throw new Error("Document transaction destination precondition is invalid.");
+  }
+  const lifecycle = `${String(precondition["state"])}:${String(destination["state"])}:${String(ownedTemporary !== undefined)}`;
+  const expectedLifecycle = new Map([
+    ["PREPARED", new Set(["absent:pending:false"])],
+    ["PUBLISHING", new Set(["absent:publishing:true"])],
+    ["PUBLISHED", new Set(["absent:published:false"])],
+  ]).get(String(envelopeState));
+  if (expectedLifecycle === undefined || !expectedLifecycle.has(lifecycle)) {
+    throw new Error("Document transaction lifecycle binding is invalid.");
   }
 }
 
@@ -256,20 +358,26 @@ async function inspectParsedTransaction(
     }
     if (operationKind === "document-authoring") {
       assertDocumentPlanDigest(plan);
-      assertDocumentTransactionBindings(journal, plan);
+      assertDocumentTransactionBindings(journal, plan, value["state"]);
     } else {
       assertAuthorityScaffoldJournal(
         journal as unknown as AuthorityScaffoldJournal
       );
     }
-    return pending({
+    return {
+      state: "manual-recovery-required",
+      reason: "recovery-handler-unavailable",
       operationKind: operationKind as "document-authoring" | "scaffolding",
       format: "envelope-v2",
       foundationVersion: foundation["version"],
       foundationBuildIdentity: foundation["buildIdentity"],
-      installedVersion,
-      installedBuildIdentity
-    });
+      diagnostics: [
+        {
+          code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+          message: `A verified ${String(operationKind)} envelope v2 from Foundation ${foundation["version"]} (${foundation["buildIdentity"]}) was preserved, but this release does not yet provide its recovery handler.`
+        }
+      ]
+    };
   }
   return manual(
     "unsupported-schema",
@@ -280,6 +388,7 @@ async function inspectParsedTransaction(
 export class NodeFoundationTransactionSlot implements FoundationTransactionSlot {
   readonly #installedBuildIdentity: string;
   readonly #installedVersion: string;
+  readonly #stateDirectory: string;
   readonly #slotPath: string;
   readonly #temporaryPath: string;
 
@@ -291,6 +400,7 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
     this.#installedBuildIdentity = options.installedBuildIdentity;
     this.#installedVersion = options.installedVersion;
     const stateDirectory = join(options.consumerRoot, LOCAL_STATE_DIRECTORY);
+    this.#stateDirectory = stateDirectory;
     this.#slotPath = join(stateDirectory, FOUNDATION_TRANSACTION_FILE);
     this.#temporaryPath = join(
       stateDirectory,
@@ -298,7 +408,7 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
     );
   }
 
-  async inspect(): Promise<FoundationTransactionStatus> {
+  async #inspectTransactionEvidence(): Promise<FoundationTransactionStatus> {
     if (await pathExists(this.#temporaryPath)) {
       return manual(
         "orphan-temporary",
@@ -339,5 +449,19 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
         "The Foundation transaction slot is corrupt, tampered, or incompatible; it was preserved."
       );
     }
+  }
+
+  async inspect(): Promise<FoundationTransactionStatus> {
+    const [localMode, transaction] = await Promise.all([
+      inspectLocalModeEvidence(this.#stateDirectory),
+      this.#inspectTransactionEvidence()
+    ]);
+    if (localMode.state !== "idle" && transaction.state !== "idle") {
+      return manual(
+        "multiple-transactions",
+        "Local-mode and transaction-slot recovery evidence coexist; both were preserved and require manual recovery."
+      );
+    }
+    return transaction.state === "idle" ? localMode : transaction;
   }
 }

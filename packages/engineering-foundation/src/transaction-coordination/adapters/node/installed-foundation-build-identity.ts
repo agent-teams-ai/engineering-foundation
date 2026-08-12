@@ -98,6 +98,7 @@ async function buildIdentityFiles(
   const distribution = join(root, "dist");
   const schemas = join(root, "schemas");
   const presets = join(root, "presets");
+  const manifest = join(root, "package.json");
   await Promise.all([
     assertRealDirectory(distribution),
     assertRealDirectory(schemas),
@@ -112,6 +113,7 @@ async function buildIdentityFiles(
   );
   await collectRegularFiles(root, schemas, () => true, files, budget);
   await collectRegularFiles(root, presets, () => true, files, budget);
+  files.push(manifest);
   return files.toSorted((left, right) =>
     comparePortablePaths(
       portableRelativePath(root, left),
@@ -127,8 +129,8 @@ function hashLength(hash: ReturnType<typeof createHash>, length: number): void {
 }
 
 /**
- * Derives an identity from the installed executable JavaScript and every
- * shipped schema/preset contract. Length-prefixed portable paths and bytes
+ * Derives an identity from the installed package manifest, executable
+ * JavaScript, and every shipped schema/preset contract. Length-prefixed paths and bytes
  * make the digest independent of directory enumeration and installation path.
  */
 export async function computeFoundationBuildIdentity(

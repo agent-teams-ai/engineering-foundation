@@ -33,9 +33,10 @@ import {
   duplicateIdentityDiagnostics,
   sortCatalogDiagnostics
 } from "../policies/document-catalog-diagnostics.js";
-
-const OPAQUE_ID = /^[A-Za-z0-9@][A-Za-z0-9@._/-]*$/u;
-const LOWER_ID = /^[a-z0-9][a-z0-9._/-]*$/u;
+import {
+  documentTitle,
+  inspectDocumentFields
+} from "../policies/document-catalog-fields.js";
 
 export interface BuildDocumentationCatalogRequest {
   readonly consumerRoot: string;
@@ -127,65 +128,6 @@ function sameObservation(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function containsControlCharacter(value: string): boolean {
-  for (const character of value) {
-    const code = character.codePointAt(0) ?? 0;
-    if (code <= 0x1f || code === 0x7f) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function stringField(
-  metadata: Record<string, unknown>,
-  field: string,
-  maximumLength: number,
-  pattern?: RegExp
-): string | undefined {
-  const value = metadata[field];
-  return (
-    typeof value === "string" &&
-    value.length > 0 &&
-    value.length <= maximumLength &&
-    !containsControlCharacter(value) &&
-    (pattern === undefined || pattern.test(value))
-  )
-    ? value
-    : undefined;
-}
-
-function descriptorFields(
-  document: MarkdownDocumentObservation,
-  metadata: Record<string, unknown>
-): Omit<DocumentDescriptor, "repositoryPath" | "source" | "title"> | undefined {
-  const id = stringField(metadata, "id", 214, OPAQUE_ID);
-  const type = stringField(metadata, "type", 160, LOWER_ID);
-  const status = stringField(metadata, "status", 160, LOWER_ID);
-  const owner = stringField(metadata, "owner", 214, OPAQUE_ID);
-  const summary = stringField(metadata, "summary", 1000);
-  if (
-    id === undefined ||
-    type === undefined ||
-    status === undefined ||
-    owner === undefined ||
-    summary === undefined
-  ) {
-    return undefined;
-  }
-  return { id, owner, status, summary, type };
-}
-
-function documentTitle(document: MarkdownDocumentObservation): string | undefined {
-  const title = document.headings.find((heading) => heading.depth === 1)?.text;
-  return title !== undefined &&
-    title.length > 0 &&
-    title.length <= 240 &&
-    !containsControlCharacter(title)
-    ? title
-    : undefined;
 }
 
 function sameEvidence(
@@ -368,20 +310,23 @@ function inspectCatalogDocument(
       )
     };
   }
-  const fields = descriptorFields(document, document.frontmatter.value);
-  if (fields === undefined) {
+  const fieldInspection = inspectDocumentFields(
+    document,
+    document.frontmatter.value
+  );
+  if (fieldInspection.fields === undefined) {
     return {
       diagnostic: catalogDiagnostic(
         "document.catalog.descriptor-invalid",
         document.repositoryPath,
         "Document metadata must provide bounded id, type, status, owner, and summary strings."
-      )
+      ),
+      ...(fieldInspection.identity === undefined
+        ? {}
+        : { identity: fieldInspection.identity })
     };
   }
-  const identity = Object.freeze({
-    id: fields.id,
-    repositoryPath: document.repositoryPath
-  });
+  const { fields, identity } = fieldInspection;
   const validation = metadata.validate(document.frontmatter.value);
   if (!validation.valid) {
     return {

@@ -220,6 +220,12 @@ test("returns a partial catalog without hiding valid neighbors", async () => {
         "utf8",
       ),
       writeFile(
+        join(root, "docs", "content", "descriptor-invalid.md"),
+        documentSource({ id: "guide.descriptor-invalid", title: "Descriptor invalid" })
+          .replace(/summary: .*\n/u, "summary:\n"),
+        "utf8",
+      ),
+      writeFile(
         join(root, "docs", "content", "malformed.md"),
         "---\nid: broken\n# Missing delimiter\n",
         "utf8",
@@ -236,9 +242,16 @@ test("returns a partial catalog without hiding valid neighbors", async () => {
       snapshot.identityProjection.some((entry) => entry.id === "guide.unknown"),
       true,
     );
+    assert.equal(
+      snapshot.identityProjection.some(
+        (entry) => entry.id === "guide.descriptor-invalid",
+      ),
+      true,
+    );
     assert.deepEqual(
       [...new Set(snapshot.diagnostics.map((entry) => entry.ruleId))],
       [
+        "document.catalog.descriptor-invalid",
         "document.catalog.duplicate-id",
         "document.catalog.frontmatter-invalid",
         "document.catalog.metadata-invalid",

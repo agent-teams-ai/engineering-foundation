@@ -22,6 +22,7 @@ const postimage = {
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "foundation-publication-"));
   return {
+    allowUnsupportedDirectoryDurability: process.platform === "win32",
     destinationPath: join(root, "result.txt"),
     root,
     temporaryPath: join(root, ".result.tmp")
@@ -242,6 +243,65 @@ test("fails closed when hard links are unsupported", async () => {
         postimage
       }),
       (error) => error?.code === "PUBLICATION_UNSUPPORTED"
+    );
+    await missing(paths.destinationPath);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("fails closed when publication directory durability is unsupported", async () => {
+  const paths = await fixture();
+  let syncCount = 0;
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        allowUnsupportedDirectoryDurability: false,
+        displayPath: "result.txt",
+        operations: {
+          async syncDirectory() {
+            syncCount += 1;
+            return syncCount === 1 ? "unsupported" : "durable";
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "PUBLICATION_UNSUPPORTED"
+    );
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("reports cleanup failure when cleanup directory durability is unsupported", async () => {
+  const paths = await fixture();
+  const primary = new Error("primary publication fault");
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        allowUnsupportedDirectoryDurability: false,
+        displayPath: "result.txt",
+        faultInjector(point) {
+          if (point.phase === "after-temporary-written") {
+            throw primary;
+          }
+        },
+        operations: {
+          async syncDirectory() {
+            return "unsupported";
+          }
+        },
+        postimage
+      }),
+      (error) =>
+        error?.code === "CLEANUP_FAILED" &&
+        error.cause === primary &&
+        error.cleanupError?.code === "PUBLICATION_UNSUPPORTED"
     );
     await missing(paths.destinationPath);
     await missing(paths.temporaryPath);

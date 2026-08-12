@@ -48,7 +48,7 @@ export async function assertNoPortableNameCollision(
     throw error;
   });
   const entries = ordering === "binary"
-    ? [...observedEntries].sort((left, right) =>
+    ? observedEntries.toSorted((left, right) =>
         Buffer.compare(Buffer.from(left), Buffer.from(right)))
     : observedEntries;
   const requestedIdentity = pathIdentity(requestedName);

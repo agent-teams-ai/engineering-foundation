@@ -12,8 +12,11 @@ async function sourceFilesBelow(root) {
   const files = [];
   for (const entry of await readdir(root, { withFileTypes: true })) {
     const path = join(root, entry.name);
-    if (entry.isDirectory()) files.push(...await sourceFilesBelow(path));
-    else if (entry.isFile()) files.push(path);
+    if (entry.isDirectory()) {
+      files.push(...await sourceFilesBelow(path));
+    } else if (entry.isFile()) {
+      files.push(path);
+    }
   }
   return files;
 }

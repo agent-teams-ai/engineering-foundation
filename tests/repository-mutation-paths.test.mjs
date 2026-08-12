@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -25,6 +25,10 @@ async function withTemporaryRoot(callback) {
   } finally {
     await rm(root, { force: true, recursive: true });
   }
+}
+
+async function collisionEntries() {
+  return ["a.txt", "A.txt", "A.TXT"];
 }
 
 test("validates portable repository paths independently of the host", () => {
@@ -94,14 +98,13 @@ test("assigns NFC and case folded portable identities", () => {
 });
 
 test("selects portable name collisions in binary order", async () => {
-  const readEntries = async () => ["a.txt", "A.txt", "A.TXT"];
   await assert.rejects(
     assertNoPortableNameCollision(
       "unused",
       "requested.txt",
       () => "collision",
       "binary",
-      readEntries
+      collisionEntries
     ),
     (error) => error?.existingName === "A.TXT"
   );
@@ -111,7 +114,7 @@ test("selects portable name collisions in binary order", async () => {
       "requested.txt",
       () => "collision",
       "filesystem",
-      readEntries
+      collisionEntries
     ),
     (error) => error?.existingName === "a.txt"
   );
@@ -165,7 +168,7 @@ test("reports directory durability capability honestly", async () => {
         close: async () => {
           closed = true;
         },
-        sync: async () => undefined
+        sync: async () => {}
       })
     }),
     "durable"

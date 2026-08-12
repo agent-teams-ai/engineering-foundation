@@ -430,6 +430,28 @@ test("preserves exact verified envelope v2 evidence until its recovery handler e
   }
 });
 
+test("accepts the schema-defined preexisting document lifecycle", async () => {
+  const root = await createRoot();
+  try {
+    const envelope = buildDocumentEnvelope();
+    envelope.journal.destination.state = "preexisting";
+    envelope.payloadDigest = sha256Json(envelope.journal);
+    const { envelopeDigest: _digest, ...body } = envelope;
+    envelope.envelopeDigest = sha256Json(body);
+    await writeJson(slotPath(root), envelope);
+    const status = await new NodeFoundationTransactionSlot({
+      consumerRoot: root,
+      installedBuildIdentity,
+      installedVersion: "0.12.0",
+    }).inspect();
+    assert.equal(status.state, "manual-recovery-required");
+    assert.equal(status.reason, "recovery-handler-unavailable");
+    assert.equal(status.operationKind, "document-authoring");
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 test("fails closed when an envelope is rebound across compiler or installed builds", async (context) => {
   const otherBuildIdentity = `sha256:${"f".repeat(64)}`;
   const scenarios = [

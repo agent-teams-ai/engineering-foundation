@@ -283,7 +283,7 @@ function assertDocumentTransactionBindings(
   }
   const lifecycle = `${String(precondition["state"])}:${String(destination["state"])}:${String(ownedTemporary !== undefined)}`;
   const expectedLifecycle = new Map([
-    ["PREPARED", new Set(["absent:pending:false"])],
+    ["PREPARED", new Set(["absent:pending:false", "absent:preexisting:false"])],
     ["PUBLISHING", new Set(["absent:publishing:true"])],
     ["PUBLISHED", new Set(["absent:published:false"])],
   ]).get(String(envelopeState));

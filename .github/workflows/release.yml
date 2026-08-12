@@ -260,24 +260,65 @@ jobs:
             fail_attestation "Release PR contains unreviewed changes"
           fi
 
-          gh workflow run ci.yml \
-            --repo "${GITHUB_REPOSITORY}" \
-            --ref changeset-release/main
+          dispatch_response="$(gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/dispatches" \
+            -f ref=changeset-release/main \
+            -F return_run_details=true)"
+          bound_run_id="$(jq -r '.workflow_run_id // ""' <<<"${dispatch_response}")"
+          bound_run_url="$(jq -r '.html_url // ""' <<<"${dispatch_response}")"
+          expected_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}"
+          if [[ ! "${bound_run_id}" =~ ^[1-9][0-9]*$ || \
+            "${bound_run_url}" != "${expected_run_url}" ]]; then
+            fail_attestation "Release PR CI dispatch did not return an exact run"
+          fi
 
           deadline=$((SECONDS + 2100))
+          bound_run_attempt=""
+          all_completed=0
           while (( SECONDS < deadline )); do
-            checks="$(gh api -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs?per_page=100")"
+            if ! bound_run="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}")"; then
+              sleep 5
+              continue
+            fi
+            read -r run_id run_path run_event run_head_branch run_head_sha \
+              bound_run_attempt run_url run_status run_conclusion < <(jq -r \
+              '[.id, .path, .event, .head_branch, .head_sha, .run_attempt,
+                .html_url, .status, .conclusion // ""] | @tsv' \
+              <<<"${bound_run}")
+            if [[ "${run_id}" != "${bound_run_id}" || \
+              "${run_path}" != ".github/workflows/ci.yml" || \
+              "${run_event}" != "workflow_dispatch" || \
+              "${run_head_branch}" != "changeset-release/main" || \
+              "${run_head_sha}" != "${head_sha}" || \
+              "${bound_run_attempt}" != "1" || \
+              "${run_url}" != "${bound_run_url}" ]]; then
+              fail_attestation "Release PR CI dispatch resolved to unexpected evidence"
+            fi
+
+            if ! jobs="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}/attempts/${bound_run_attempt}/jobs?per_page=100")"; then
+              sleep 5
+              continue
+            fi
             all_completed=1
             for context in "${ci_contexts[@]}"; do
-              check_status="$(jq -r --arg context "${context}" \
-                '[.check_runs[] | select(.app.slug == "github-actions" and .name == $context)] | sort_by(.id) | last | .status // "missing"' \
-                <<<"${checks}")"
-              if [[ "${check_status}" != "completed" ]]; then
+              read -r job_count job_status < <(jq -r --arg context "${context}" \
+                '[.jobs[] | select(.name == $context)] |
+                [length, first.status // "missing"] | @tsv' \
+                <<<"${jobs}")
+              if (( job_count > 1 )); then
+                fail_attestation "Release PR CI contains duplicate required jobs"
+              fi
+              if (( job_count == 0 )) && [[ "${run_status}" == "completed" ]]; then
+                fail_attestation "Release PR CI completed without required jobs"
+              fi
+              if [[ "${job_status}" != "completed" ]]; then
                 all_completed=0
               fi
             done
-            if (( all_completed == 1 )); then
+            if (( all_completed == 1 )) && [[ "${run_status}" == "completed" ]]; then
               break
             fi
             sleep 5
@@ -294,12 +335,17 @@ jobs:
           fi
 
           failed=0
+          if [[ "${run_conclusion}" != "success" ]]; then
+            failed=1
+          fi
           conclusions=()
           target_urls=()
           for context in "${ci_contexts[@]}"; do
             read -r conclusion target_url < <(jq -r --arg context "${context}" \
-              '[.check_runs[] | select(.app.slug == "github-actions" and .name == $context)] | sort_by(.id) | last | [.conclusion, .details_url] | @tsv' \
-              <<<"${checks}")
+              --arg runUrl "${bound_run_url}" \
+              '[.jobs[] | select(.name == $context)] | first |
+              [.conclusion // "missing", .html_url // $runUrl] | @tsv' \
+              <<<"${jobs}")
             case "${conclusion}" in
               success)
                 ;;
@@ -346,6 +392,44 @@ jobs:
             node scripts/check-release-pr-freshness.mjs \
               --processed-main "${PROCESSED_MAIN_SHA}"; then
             fail_attestation "Release PR changed or main advanced during CI"
+          fi
+
+          final_run_verified=0
+          final_verification_deadline=$((SECONDS + 60))
+          while (( SECONDS < final_verification_deadline )); do
+            if ! final_bound_run="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}")"; then
+              sleep 5
+              continue
+            fi
+            read -r final_run_id final_run_path final_run_event \
+              final_run_head_branch final_run_head_sha final_run_attempt \
+              final_run_url final_run_status \
+              final_run_conclusion < <(jq -r \
+              '[.id, .path, .event, .head_branch, .head_sha, .run_attempt,
+                .html_url, .status, .conclusion // ""] | @tsv' \
+              <<<"${final_bound_run}")
+            if [[ "${final_run_id}" != "${bound_run_id}" || \
+              "${final_run_path}" != ".github/workflows/ci.yml" || \
+              "${final_run_event}" != "workflow_dispatch" || \
+              "${final_run_head_branch}" != "changeset-release/main" || \
+              "${final_run_head_sha}" != "${head_sha}" || \
+              "${final_run_attempt}" != "1" || \
+              "${final_run_url}" != "${expected_run_url}" ]]; then
+              fail_attestation "Final release PR CI evidence changed identity"
+            fi
+            if [[ "${final_run_status}" != "completed" ]]; then
+              sleep 5
+              continue
+            fi
+            if [[ "${final_run_conclusion}" != "success" ]]; then
+              fail_attestation "Final release PR CI did not succeed"
+            fi
+            final_run_verified=1
+            break
+          done
+          if (( final_run_verified != 1 )); then
+            fail_attestation "Final release PR CI could not be verified"
           fi
 
           status_finalized=1

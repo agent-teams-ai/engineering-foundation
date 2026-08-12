@@ -10,6 +10,7 @@ import {
   classifyExactFilePostimage,
   publishAbsentFile
 } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-absent-file-publication.js";
+import { readBoundedRegularFile } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-bounded-regular-file.js";
 
 const bytes = Buffer.from("exact postimage\n");
 const postimage = {
@@ -185,6 +186,162 @@ test("concurrent real-filesystem publishers converge on one exact postimage", as
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
     await missing(join(paths.root, ".first.tmp"));
     await missing(join(paths.root, ".second.tmp"));
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("retries a transient inode metadata change while accepting an exact concurrent publisher", async () => {
+  const paths = await fixture();
+  let publicationStarted = false;
+  let unstableReads = 0;
+  try {
+    assert.equal(
+      await publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link() {
+            await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
+            publicationStarted = true;
+            const error = new Error("exists");
+            error.code = "EEXIST";
+            throw error;
+          },
+          async readBoundedRegularFile(path, maximumBytes) {
+            if (publicationStarted && unstableReads === 0) {
+              unstableReads += 1;
+              return { outcome: "changed" };
+            }
+            return readBoundedRegularFile(path, maximumBytes);
+          }
+        },
+        postimage
+      }),
+      "already-satisfied"
+    );
+    assert.equal(unstableReads, 1);
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("retries an outcome-path metadata change after an exact EEXIST classification", async () => {
+  const paths = await fixture();
+  let publicationStarted = false;
+  let postPublicationReads = 0;
+  try {
+    assert.equal(
+      await publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link() {
+            await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
+            publicationStarted = true;
+            const error = new Error("exists");
+            error.code = "EEXIST";
+            throw error;
+          },
+          async readBoundedRegularFile(path, maximumBytes) {
+            if (publicationStarted) {
+              postPublicationReads += 1;
+              if (postPublicationReads === 2) {
+                return { outcome: "changed" };
+              }
+            }
+            return readBoundedRegularFile(path, maximumBytes);
+          }
+        },
+        postimage
+      }),
+      "already-satisfied"
+    );
+    assert.equal(postPublicationReads, 3);
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("rejects different bytes observed after an outcome-path metadata change", async () => {
+  const paths = await fixture();
+  const differentBytes = Buffer.alloc(bytes.byteLength, 0x78);
+  let publicationStarted = false;
+  let postPublicationReads = 0;
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link() {
+            await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
+            publicationStarted = true;
+            const error = new Error("exists");
+            error.code = "EEXIST";
+            throw error;
+          },
+          async readBoundedRegularFile(path, maximumBytes) {
+            if (publicationStarted) {
+              postPublicationReads += 1;
+              if (postPublicationReads === 2) {
+                await writeFile(paths.destinationPath, differentBytes, {
+                  mode: 0o644
+                });
+                return { outcome: "changed" };
+              }
+            }
+            return readBoundedRegularFile(path, maximumBytes);
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "CONFLICT"
+    );
+    assert.equal(postPublicationReads, 3);
+    assert.deepEqual(await readFile(paths.destinationPath), differentBytes);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("fails closed after bounded retries when concurrent publication never stabilizes", async () => {
+  const paths = await fixture();
+  let publicationStarted = false;
+  let unstableReads = 0;
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link() {
+            await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
+            publicationStarted = true;
+            const error = new Error("exists");
+            error.code = "EEXIST";
+            throw error;
+          },
+          async readBoundedRegularFile(path, maximumBytes) {
+            if (publicationStarted) {
+              unstableReads += 1;
+              return { outcome: "changed" };
+            }
+            return readBoundedRegularFile(path, maximumBytes);
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "CONFLICT"
+    );
+    assert.equal(unstableReads, 3);
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(paths.temporaryPath);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }

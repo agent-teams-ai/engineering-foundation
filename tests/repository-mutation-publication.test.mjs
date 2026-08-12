@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, link as hardLink, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -111,6 +111,33 @@ test("publishes an immutable postimage snapshot when the caller mutates its inpu
   }
 });
 
+test("publishes from an immutable options snapshot", async () => {
+  const paths = await fixture();
+  const alternate = await fixture();
+  const options = {
+    ...paths,
+    displayPath: "result.txt",
+    postimage
+  };
+  try {
+    const publication = publishAbsentFile(options);
+    options.destinationPath = alternate.destinationPath;
+    options.displayPath = "alternate.txt";
+    options.temporaryPath = alternate.temporaryPath;
+    options.operations = {
+      async link() {
+        throw new Error("mutated operation must not run");
+      }
+    };
+    assert.equal(await publication, "published");
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(alternate.destinationPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(alternate.root, { recursive: true, force: true });
+  }
+});
+
 test("accepts only an exact concurrent publication", async () => {
   for (const [content, expected] of [[bytes, "already-satisfied"], [Buffer.from("other\n"), "CONFLICT"]]) {
     const paths = await fixture();
@@ -157,7 +184,7 @@ test("concurrent real-filesystem publishers converge on one exact postimage", as
         temporaryPath: join(paths.root, ".second.tmp")
       })
     ]);
-    assert.deepEqual(outcomes.sort(), ["already-satisfied", "published"]);
+    assert.deepEqual(outcomes.toSorted(), ["already-satisfied", "published"]);
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
     await missing(join(paths.root, ".first.tmp"));
     await missing(join(paths.root, ".second.tmp"));
@@ -325,6 +352,132 @@ test("preserves a replacement of an owned temporary", async () => {
     );
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "replacement\n");
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("rejects an exact pre-link temporary replacement by identity", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        async faultInjector(point) {
+          if (point.phase === "after-temporary-synced") {
+            await rename(paths.temporaryPath, `${paths.temporaryPath}.owned`);
+            await writeFile(paths.temporaryPath, bytes, { mode: 0o644 });
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "TEMPORARY_REPLACED"
+    );
+    await missing(paths.destinationPath);
+    assert.deepEqual(await readFile(paths.temporaryPath), bytes);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("rejects a pre-link in-place temporary mutation", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        async faultInjector(point) {
+          if (point.phase === "after-temporary-synced") {
+            await writeFile(paths.temporaryPath, "foreign bytes!!\n");
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "TEMPORARY_REPLACED"
+    );
+    await missing(paths.destinationPath);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("does not claim success when the pathname is replaced inside link", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link(source, destination) {
+            await rename(source, `${source}.owned`);
+            await writeFile(source, "foreign replacement\n");
+            await hardLink(source, destination);
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "TEMPORARY_REPLACED"
+    );
+    assert.equal(await readFile(paths.destinationPath, "utf8"), "foreign replacement\n");
+    assert.equal(await readFile(paths.temporaryPath, "utf8"), "foreign replacement\n");
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("does not claim success when the inode is mutated inside link", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link(source, destination) {
+            await writeFile(source, "foreign mutation\n");
+            await hardLink(source, destination);
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "VERIFICATION_FAILED"
+    );
+    assert.equal(await readFile(paths.destinationPath, "utf8"), "foreign mutation\n");
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("reverifies destination identity and content before returning success", async () => {
+  const paths = await fixture();
+  let syncCount = 0;
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        allowUnsupportedDirectoryDurability: true,
+        displayPath: "result.txt",
+        operations: {
+          async syncDirectory() {
+            syncCount += 1;
+            if (syncCount === 2) {
+              await rm(paths.destinationPath);
+              await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
+            }
+            return "unsupported";
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "VERIFICATION_FAILED"
+    );
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(paths.temporaryPath);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }

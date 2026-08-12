@@ -8,6 +8,7 @@ import {
   type ExactFilePostimage,
   type ExactFilePostimageState
 } from "../../application/model/exact-postimage.js";
+import type { PortablePathIdentity } from "../../application/model/path-identity.js";
 import { portableRepositoryPathIdentity } from "../../application/model/repository-path.js";
 import {
   captureFileHandleIdentity,
@@ -38,6 +39,24 @@ interface AbsentFilePublicationOperations {
   readonly syncDirectory: typeof syncDirectoryDurably;
 }
 
+interface PublicationContext {
+  readonly allowUnsupportedDirectoryDurability: boolean;
+  readonly destinationPath: string;
+  readonly displayPath: string;
+  readonly faultInjector: AbsentFilePublicationFaultInjector | undefined;
+  readonly operations: AbsentFilePublicationOperations;
+  readonly parent: string;
+  readonly postimage: ExactFilePostimage;
+  readonly temporaryPath: string;
+}
+
+interface PublicationState {
+  concurrentSatisfied: boolean;
+  error?: unknown;
+  published: boolean;
+  temporaryIdentity?: PortablePathIdentity;
+}
+
 const nodeOperations: AbsentFilePublicationOperations = {
   link,
   open,
@@ -63,6 +82,74 @@ function isUnsupportedLink(error: unknown): boolean {
 
 function sha256(bytes: Uint8Array): string {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function sameIdentity(
+  left: PortablePathIdentity,
+  right: PortablePathIdentity
+): boolean {
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.birthtimeNs === right.birthtimeNs
+  );
+}
+
+function exactReadMatchesPostimage(
+  result: Awaited<ReturnType<typeof readBoundedRegularFile>>,
+  postimage: ExactFilePostimage
+): result is Extract<typeof result, { readonly outcome: "read" }> {
+  return (
+    result.outcome === "read" &&
+    result.bytes.byteLength === postimage.size &&
+    sha256(result.bytes) === postimage.digest &&
+    (process.platform === "win32" ||
+      (result.mode & 0o777) === postimage.mode)
+  );
+}
+
+async function verifyTemporaryForPublication(
+  temporaryPath: string,
+  postimage: ExactFilePostimage,
+  expectedIdentity: PortablePathIdentity,
+  displayPath: string
+): Promise<void> {
+  const stableTemporary = await readBoundedRegularFile(
+    temporaryPath,
+    postimage.size
+  );
+  if (
+    exactReadMatchesPostimage(stableTemporary, postimage) &&
+    sameIdentity(stableTemporary.identity, expectedIdentity)
+  ) {
+    return;
+  }
+  throw new AbsentFilePublicationError(
+    "TEMPORARY_REPLACED",
+    `Temporary path was replaced or modified concurrently: ${displayPath}.`
+  );
+}
+
+async function verifyPublishedFile(
+  destinationPath: string,
+  postimage: ExactFilePostimage,
+  expectedIdentity: PortablePathIdentity,
+  displayPath: string
+): Promise<void> {
+  const publishedFile = await readBoundedRegularFile(
+    destinationPath,
+    postimage.size
+  );
+  if (
+    exactReadMatchesPostimage(publishedFile, postimage) &&
+    sameIdentity(publishedFile.identity, expectedIdentity)
+  ) {
+    return;
+  }
+  throw new AbsentFilePublicationError(
+    "VERIFICATION_FAILED",
+    `Published file failed identity or content verification: ${displayPath}.`
+  );
 }
 
 function assertValidPostimage(postimage: ExactFilePostimage): void {
@@ -157,131 +244,142 @@ export async function assertTemporaryPathsAbsent(
   }
 }
 
-export async function publishAbsentFile(options: {
-  readonly allowUnsupportedDirectoryDurability?: boolean;
-  readonly destinationPath: string;
-  readonly displayPath: string;
-  readonly faultInjector?: AbsentFilePublicationFaultInjector;
-  readonly operations?: Partial<AbsentFilePublicationOperations>;
-  readonly postimage: ExactFilePostimage;
-  readonly temporaryPath: string;
-}): Promise<AbsentFilePublicationOutcome> {
-  const destinationPath = options.destinationPath;
-  const displayPath = options.displayPath;
-  const temporaryPath = options.temporaryPath;
-  const postimage = snapshotPostimage(options.postimage);
-  assertValidPublicationPaths(temporaryPath, destinationPath, displayPath);
-  const operations = { ...nodeOperations, ...options.operations };
-  const initial = await classifyExactFilePostimage(
-    destinationPath,
-    postimage
-  );
-  if (initial === "exact") {
-    return "already-satisfied";
-  }
-  if (initial === "conflict") {
+async function syncPublicationParent(context: PublicationContext): Promise<void> {
+  const durability = await context.operations.syncDirectory(context.parent);
+  if (
+    durability === "unsupported" &&
+    !context.allowUnsupportedDirectoryDurability
+  ) {
     throw new AbsentFilePublicationError(
-      "CONFLICT",
-      `Destination changed concurrently: ${displayPath}.`
+      "PUBLICATION_UNSUPPORTED",
+      `Directory durability is unsupported: ${context.displayPath}.`
     );
   }
+}
 
-  const parent = dirname(resolve(destinationPath));
-  let temporaryIdentity;
-  let concurrentSatisfied = false;
-  let published = false;
-  let publicationError: unknown;
-  try {
-    const handle = await operations.open(temporaryPath, "wx", 0o600).catch(
-      (error: unknown) => {
-        if (errorCode(error) === "EEXIST") {
-          throw new AbsentFilePublicationError(
-            "TEMPORARY_EXISTS",
-            `Temporary path already exists: ${displayPath}.`,
-            { cause: error }
-          );
-        }
-        throw error;
-      }
-    );
-    try {
-      temporaryIdentity = await captureFileHandleIdentity(handle);
-      await handle.writeFile(postimage.bytes);
-      await options.faultInjector?.({ phase: "after-temporary-written" });
-      await handle.chmod(postimage.mode);
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-    await options.faultInjector?.({ phase: "after-temporary-synced" });
-    try {
-      await operations.link(temporaryPath, destinationPath);
-    } catch (error) {
+async function createPublicationTemporary(
+  context: PublicationContext,
+  state: PublicationState
+): Promise<void> {
+  const handle = await context.operations
+    .open(context.temporaryPath, "wx", 0o600)
+    .catch((error: unknown) => {
       if (errorCode(error) === "EEXIST") {
-        if (
-          (await classifyExactFilePostimage(
-            destinationPath,
-            postimage
-          )) === "exact"
-        ) {
-          concurrentSatisfied = true;
-        } else {
-          throw new AbsentFilePublicationError(
-            "CONFLICT",
-            `Destination changed concurrently: ${displayPath}.`,
-            { cause: error }
-          );
-        }
-      } else if (isUnsupportedLink(error)) {
         throw new AbsentFilePublicationError(
-          "PUBLICATION_UNSUPPORTED",
-          `Atomic absent-only publication is unsupported: ${displayPath}.`,
+          "TEMPORARY_EXISTS",
+          `Temporary path already exists: ${context.displayPath}.`,
           { cause: error }
         );
-      } else {
-        throw error;
       }
+      throw error;
+    });
+  try {
+    state.temporaryIdentity = await captureFileHandleIdentity(handle);
+    await handle.writeFile(context.postimage.bytes);
+    await context.faultInjector?.({ phase: "after-temporary-written" });
+    await handle.chmod(context.postimage.mode);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+async function linkPublicationDestination(
+  context: PublicationContext
+): Promise<boolean> {
+  try {
+    await context.operations.link(
+      context.temporaryPath,
+      context.destinationPath
+    );
+    return false;
+  } catch (error) {
+    if (errorCode(error) === "EEXIST") {
+      const state = await classifyExactFilePostimage(
+        context.destinationPath,
+        context.postimage
+      );
+      if (state === "exact") {
+        return true;
+      }
+      throw new AbsentFilePublicationError(
+        "CONFLICT",
+        `Destination changed concurrently: ${context.displayPath}.`,
+        { cause: error }
+      );
     }
-    if (!concurrentSatisfied) {
-      published = true;
-      await options.faultInjector?.({ phase: "after-hard-link" });
-      const durability = await operations.syncDirectory(parent);
-      if (
-        durability === "unsupported" &&
-        options.allowUnsupportedDirectoryDurability !== true
-      ) {
-        throw new AbsentFilePublicationError(
-          "PUBLICATION_UNSUPPORTED",
-          `Directory durability is unsupported: ${displayPath}.`
-        );
-      }
+    if (isUnsupportedLink(error)) {
+      throw new AbsentFilePublicationError(
+        "PUBLICATION_UNSUPPORTED",
+        `Atomic absent-only publication is unsupported: ${context.displayPath}.`,
+        { cause: error }
+      );
+    }
+    throw error;
+  }
+}
+
+async function runPublicationPhase(
+  context: PublicationContext
+): Promise<PublicationState> {
+  const state: PublicationState = {
+    concurrentSatisfied: false,
+    published: false
+  };
+  try {
+    await createPublicationTemporary(context, state);
+    const temporaryIdentity = state.temporaryIdentity;
+    if (temporaryIdentity === undefined) {
+      throw new AbsentFilePublicationError(
+        "PUBLICATION_INCOMPLETE",
+        `Publication temporary identity was not captured: ${context.displayPath}.`
+      );
+    }
+    await context.faultInjector?.({ phase: "after-temporary-synced" });
+    await verifyTemporaryForPublication(
+      context.temporaryPath,
+      context.postimage,
+      temporaryIdentity,
+      context.displayPath
+    );
+    state.concurrentSatisfied = await linkPublicationDestination(context);
+    if (!state.concurrentSatisfied) {
+      state.published = true;
+      await context.faultInjector?.({ phase: "after-hard-link" });
+      await verifyPublishedFile(
+        context.destinationPath,
+        context.postimage,
+        temporaryIdentity,
+        context.displayPath
+      );
+      await syncPublicationParent(context);
     }
   } catch (error) {
-    publicationError = error;
+    state.error = error;
   }
+  return state;
+}
 
+async function cleanupPublicationTemporary(
+  context: PublicationContext,
+  state: PublicationState
+): Promise<void> {
   try {
     const ownership =
-      temporaryIdentity === undefined
+      state.temporaryIdentity === undefined
         ? "missing"
-        : await pathMatchesRegularFileIdentity(temporaryPath, temporaryIdentity);
+        : await pathMatchesRegularFileIdentity(
+            context.temporaryPath,
+            state.temporaryIdentity
+          );
     if (ownership === "match") {
-      await operations.rm(temporaryPath);
-      const durability = await operations.syncDirectory(parent);
-      if (
-        durability === "unsupported" &&
-        options.allowUnsupportedDirectoryDurability !== true
-      ) {
-        throw new AbsentFilePublicationError(
-          "PUBLICATION_UNSUPPORTED",
-          `Directory durability is unsupported: ${displayPath}.`
-        );
-      }
+      await context.operations.rm(context.temporaryPath);
+      await syncPublicationParent(context);
     } else if (ownership === "different") {
       throw new AbsentFilePublicationError(
         "TEMPORARY_REPLACED",
-        `Temporary path was replaced concurrently: ${displayPath}.`,
-        publicationError === undefined ? undefined : { cause: publicationError }
+        `Temporary path was replaced concurrently: ${context.displayPath}.`,
+        state.error === undefined ? undefined : { cause: state.error }
       );
     }
   } catch (cleanupError) {
@@ -293,41 +391,97 @@ export async function publishAbsentFile(options: {
     }
     throw new AbsentFilePublicationError(
       "CLEANUP_FAILED",
-      `Publication temporary cleanup failed: ${displayPath}.`,
+      `Publication temporary cleanup failed: ${context.displayPath}.`,
       {
-        cause: publicationError ?? cleanupError,
+        cause: state.error ?? cleanupError,
         cleanupError
       }
     );
   }
-  if (publicationError !== undefined) {
-    if (!(publicationError instanceof Error)) {
+}
+
+async function publicationOutcome(
+  context: PublicationContext,
+  state: PublicationState
+): Promise<AbsentFilePublicationOutcome> {
+  if (state.error !== undefined) {
+    if (!(state.error instanceof Error)) {
       throw new AbsentFilePublicationError(
         "INVALID_ERROR",
-        `Publication failed with an invalid error value: ${displayPath}.`
+        `Publication failed with an invalid error value: ${context.displayPath}.`
       );
     }
-    throw publicationError;
+    throw state.error;
   }
-  if (concurrentSatisfied) {
+  if (state.concurrentSatisfied) {
+    if (
+      (await classifyExactFilePostimage(
+        context.destinationPath,
+        context.postimage
+      )) !== "exact"
+    ) {
+      throw new AbsentFilePublicationError(
+        "CONFLICT",
+        `Destination changed concurrently: ${context.displayPath}.`
+      );
+    }
     return "already-satisfied";
   }
-  if (!published) {
+  if (!state.published || state.temporaryIdentity === undefined) {
     throw new AbsentFilePublicationError(
       "PUBLICATION_INCOMPLETE",
-      `Publication did not reach a terminal state: ${displayPath}.`
+      `Publication did not reach a terminal state: ${context.displayPath}.`
     );
   }
-  if (
-    (await classifyExactFilePostimage(
-      destinationPath,
-      postimage
-    )) !== "exact"
-  ) {
-    throw new AbsentFilePublicationError(
-      "VERIFICATION_FAILED",
-      `Published file failed verification: ${displayPath}.`
-    );
-  }
+  await verifyPublishedFile(
+    context.destinationPath,
+    context.postimage,
+    state.temporaryIdentity,
+    context.displayPath
+  );
   return "published";
+}
+
+export async function publishAbsentFile(options: {
+  readonly allowUnsupportedDirectoryDurability?: boolean;
+  readonly destinationPath: string;
+  readonly displayPath: string;
+  readonly faultInjector?: AbsentFilePublicationFaultInjector;
+  readonly operations?: Partial<AbsentFilePublicationOperations>;
+  readonly postimage: ExactFilePostimage;
+  readonly temporaryPath: string;
+}): Promise<AbsentFilePublicationOutcome> {
+  const postimage = snapshotPostimage(options.postimage);
+  const context: PublicationContext = {
+    allowUnsupportedDirectoryDurability:
+      options.allowUnsupportedDirectoryDurability === true,
+    destinationPath: options.destinationPath,
+    displayPath: options.displayPath,
+    faultInjector: options.faultInjector,
+    operations: { ...nodeOperations, ...options.operations },
+    parent: dirname(resolve(options.destinationPath)),
+    postimage,
+    temporaryPath: options.temporaryPath
+  };
+  assertValidPublicationPaths(
+    context.temporaryPath,
+    context.destinationPath,
+    context.displayPath
+  );
+  const initial = await classifyExactFilePostimage(
+    context.destinationPath,
+    context.postimage
+  );
+  if (initial === "exact") {
+    return "already-satisfied";
+  }
+  if (initial === "conflict") {
+    throw new AbsentFilePublicationError(
+      "CONFLICT",
+      `Destination changed concurrently: ${context.displayPath}.`
+    );
+  }
+  const state = await runPublicationPhase(context);
+  await cleanupPublicationTemporary(context, state);
+  return publicationOutcome(context, state);
 }

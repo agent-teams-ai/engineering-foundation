@@ -4,7 +4,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Sha256Digest } from "../../../scaffolding/contract/types.js";
-import { readBoundedRegularFile } from "../../../scaffolding/adapters/node/filesystem-file-identity.js";
+import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 
 const maximumBuildFileBytes = 8 * 1024 * 1024;
 const maximumBuildFiles = 4096;

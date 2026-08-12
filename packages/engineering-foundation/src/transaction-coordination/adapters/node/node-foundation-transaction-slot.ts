@@ -27,7 +27,7 @@ import type {
   FoundationTransactionStatus
 } from "../../application/model/transaction-status.js";
 import type { FoundationTransactionSlot } from "../../application/ports/foundation-transaction-slot.js";
-import { readBoundedRegularFile } from "../../../scaffolding/adapters/node/filesystem-file-identity.js";
+import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;

@@ -1,18 +1,18 @@
-import { lstat, mkdir, open, readdir, realpath } from "node:fs/promises";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { lstat, mkdir, realpath } from "node:fs/promises";
+import { join } from "node:path";
 
+import {
+  assertNoPortableNameCollision,
+  assertSafeExistingRepositoryAncestors,
+  ExistingRepositoryAncestorError
+} from "../../../repository-mutation/adapters/node/node-existing-repository-ancestors.js";
+import { syncDirectoryDurably } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
+import { isLexicallyContainedPath } from "../../../repository-mutation/adapters/node/node-repository-path.js";
+import { portableRepositoryPathProblem } from "../../../repository-mutation/application/model/repository-path.js";
 import type { ScaffoldPlan } from "../../contract/scaffold-contract.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 
 const PROTECTED_ROOTS = new Set([".agent-teams-local", ".git", "node_modules"]);
-const WINDOWS_RESERVED_NAMES = new Set([
-  "AUX",
-  "CON",
-  "NUL",
-  "PRN",
-  ...Array.from({ length: 9 }, (_unused, index) => `COM${index + 1}`),
-  ...Array.from({ length: 9 }, (_unused, index) => `LPT${index + 1}`)
-]);
 
 function isMissing(error: unknown): boolean {
   return (
@@ -23,11 +23,7 @@ function isMissing(error: unknown): boolean {
 }
 
 export function isContainedPath(root: string, candidate: string): boolean {
-  const relation = relative(root, candidate);
-  return (
-    relation === "" ||
-    (!relation.startsWith(`..${sep}`) && relation !== ".." && !isAbsolute(relation))
-  );
+  return isLexicallyContainedPath(root, candidate);
 }
 
 export function assertSafeOperationPaths(plan: ScaffoldPlan): void {
@@ -38,22 +34,7 @@ export function assertSafeOperationPaths(plan: ScaffoldPlan): void {
     const segments = operation.path.split("/");
     if (
       !operation.path.startsWith(targetPrefix) ||
-      operation.path.length === 0 ||
-      operation.path.length > 512 ||
-      operation.path.includes("\\") ||
-      isAbsolute(operation.path) ||
-      segments.some(
-        (segment) =>
-          segment.length === 0 ||
-          segment === "." ||
-          segment === ".." ||
-          segment.length > 255 ||
-          segment.endsWith(".") ||
-          Array.from(segment).some(
-            (character) => (character.codePointAt(0) ?? 0) < 32
-          ) ||
-          WINDOWS_RESERVED_NAMES.has((segment.split(".")[0] ?? "").toUpperCase())
-      ) ||
+      portableRepositoryPathProblem(operation.path) !== undefined ||
       segments.some((segment) => PROTECTED_ROOTS.has(segment.toLowerCase()))
     ) {
       throw new ScaffoldError(
@@ -83,47 +64,31 @@ export function assertSafeOperationPaths(plan: ScaffoldPlan): void {
 }
 
 export async function syncDirectory(path: string): Promise<void> {
-  try {
-    const handle = await open(path, "r");
-    try {
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-  } catch (error) {
-    if (
-      process.platform === "win32" &&
-      error instanceof Error &&
-      "code" in error &&
-      ["EACCES", "EINVAL", "EISDIR", "EPERM"].includes(
-        (error as NodeJS.ErrnoException).code ?? ""
-      )
-    ) {
-      return;
-    }
-    throw error;
-  }
+  await syncDirectoryDurably(path);
 }
 
 async function assertNoCaseCollision(
   parent: string,
   requestedName: string
 ): Promise<void> {
-  const entries = await readdir(parent).catch((error: unknown) => {
-    if (isMissing(error)) {
-      return [];
+  try {
+    await assertNoPortableNameCollision(
+      parent,
+      requestedName,
+      (path) => path.toLowerCase()
+    );
+  } catch (error) {
+    if (
+      error instanceof ExistingRepositoryAncestorError &&
+      error.problem === "name-collision"
+    ) {
+      const collision = error.existingName ?? "";
+      throw new ScaffoldError(
+        "SCAFFOLD_APPLY_CONFLICT",
+        `Path collides under case folding: ${collision}, ${requestedName}.`
+      );
     }
     throw error;
-  });
-  const collision = entries.find(
-    (entry) =>
-      entry !== requestedName && entry.toLowerCase() === requestedName.toLowerCase()
-  );
-  if (collision !== undefined) {
-    throw new ScaffoldError(
-      "SCAFFOLD_APPLY_CONFLICT",
-      `Path collides under case folding: ${collision}, ${requestedName}.`
-    );
   }
 }
 
@@ -168,34 +133,31 @@ export async function assertSafeExistingAncestors(
   root: string,
   repositoryPath: string
 ): Promise<void> {
-  const segments = repositoryPath.split("/");
-  let current = root;
-  for (const segment of segments.slice(0, -1)) {
-    await assertNoCaseCollision(current, segment);
-    const next = join(current, segment);
-    const metadata = await lstat(next).catch((error: unknown) => {
-      if (isMissing(error)) {
-        return null;
+  try {
+    await assertSafeExistingRepositoryAncestors(
+      root,
+      repositoryPath,
+      (path) => path.toLowerCase()
+    );
+  } catch (error) {
+    if (error instanceof ExistingRepositoryAncestorError) {
+      if (error.problem === "name-collision") {
+        throw new ScaffoldError(
+          "SCAFFOLD_APPLY_CONFLICT",
+          `Path collides under case folding: ${error.existingName ?? ""}, ${error.requestedName ?? ""}.`
+        );
       }
-      throw error;
-    });
-    if (metadata === null) {
-      return;
-    }
-    if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
-      throw new ScaffoldError(
-        "SCAFFOLD_APPLY_CONFLICT",
-        `Scaffolding parent is not a real directory: ${repositoryPath}.`
-      );
-    }
-    const canonical = await realpath(next);
-    if (!isContainedPath(root, canonical)) {
+      if (error.problem === "not-directory") {
+        throw new ScaffoldError(
+          "SCAFFOLD_APPLY_CONFLICT",
+          `Scaffolding parent is not a real directory: ${repositoryPath}.`
+        );
+      }
       throw new ScaffoldError(
         "SCAFFOLD_APPLY_CONFLICT",
         `Scaffolding parent escapes the repository: ${repositoryPath}.`
       );
     }
-    current = canonical;
+    throw error;
   }
-  await assertNoCaseCollision(current, segments.at(-1) ?? "");
 }

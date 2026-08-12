@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.12.0",
+  "packageVersion": "0.13.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -106,6 +106,13 @@
           "signature": "export type FoundationErrorCode = \"CONFIG_INVALID\" | \"CONSUMER_INVALID\" | \"LOCAL_STATE_INVALID\" | \"PACKAGE_INVALID\" | \"PROCESS_FAILED\" | \"REGISTRY_MODE_REQUIRED\";"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationManualRecoveryReason:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FoundationManualRecoveryReason = \"corrupt-or-incompatible\" | \"invalid-slot\" | \"local-mode-evidence-invalid\" | \"multiple-transactions\" | \"orphan-temporary\" | \"recovery-handler-unavailable\" | \"unstable-slot\" | \"unsupported-schema\";"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck#compatibleLocalModeProtocolVersions:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!FoundationPackageSelfCheck:interface",
@@ -167,6 +174,41 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export interface FoundationPackageSelfCheck"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationRecoveryRoute:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FoundationRecoveryRoute = {\n    readonly commandId: \"scaffold-recover\";\n    readonly exactFoundationVersion: string;\n    readonly exactFoundationBuildIdentity?: string;\n} | {\n    readonly commandId: \"detach\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationTransactionAwareStatus#transaction:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationTransactionAwareStatus:interface",
+          "parentKind": "Interface",
+          "signature": "readonly transaction?: FoundationTransactionStatus;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationTransactionAwareStatus:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface FoundationTransactionAwareStatus extends FoundationStatus"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationTransactionDiagnostic:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FoundationTransactionDiagnostic = {\n    readonly code: \"FOUNDATION_TRANSACTION_ACTIVE\";\n    readonly message: string;\n} | {\n    readonly code: \"FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED\";\n    readonly message: string;\n} | {\n    readonly code: \"FOUNDATION_TRANSACTION_VERSION_MISMATCH\";\n    readonly message: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationTransactionStatus:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FoundationTransactionStatus = {\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"scaffolding\";\n    readonly format: \"legacy-scaffolding-v1\";\n    readonly foundationVersion: string;\n    readonly recovery: FoundationRecoveryRoute;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"local-mode\";\n    readonly format: \"local-mode-v1\";\n    readonly recovery: {\n        readonly commandId: \"detach\";\n    };\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"manual-recovery-required\";\n    readonly reason: FoundationManualRecoveryReason;\n    readonly operationKind?: \"document-authoring\" | \"scaffolding\";\n    readonly format?: \"envelope-v2\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#counterexampleDigest:member",
@@ -251,6 +293,13 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function inspectFoundationPackage(packageRoot: string): Promise<FoundationPackageSelfCheck>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!inspectFoundationTransactionAwareMode:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function inspectFoundationTransactionAwareMode(consumerPath: string, options?: {\n    readonly ignoreOperationLock?: boolean;\n}): Promise<FoundationTransactionAwareStatus>;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.AttachResult#status:member",
@@ -628,7 +677,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
           "parentKind": "Namespace",
-          "signature": "LOCAL_REGISTRY_BACKUP: \"foundation-registry-backup\""
+          "signature": "FOUNDATION_REGISTRY_BACKUP: \"foundation-registry-backup\""
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.LOCAL_STATE_DIRECTORY:var",
@@ -642,7 +691,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
           "parentKind": "Namespace",
-          "signature": "LOCAL_STATE_FILE: \"foundation-link.json\""
+          "signature": "FOUNDATION_LINK_STATE_FILE: \"foundation-link.json\""
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.NodeProcessRunner#run:member(1)",
@@ -1688,7 +1737,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "LOCAL_REGISTRY_BACKUP: \"foundation-registry-backup\""
+          "signature": "FOUNDATION_REGISTRY_BACKUP: \"foundation-registry-backup\""
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!LOCAL_STATE_DIRECTORY:var",
@@ -1702,7 +1751,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "LOCAL_STATE_FILE: \"foundation-link.json\""
+          "signature": "FOUNDATION_LINK_STATE_FILE: \"foundation-link.json\""
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!NodeProcessRunner#run:member(1)",

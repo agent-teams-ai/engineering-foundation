@@ -1,5 +1,14 @@
 # @agent-teams/engineering-foundation
 
+## 0.13.0
+
+### Minor Changes
+
+- [#89](https://github.com/agent-teams-ai/engineering-foundation/pull/89) [`70e6a2b`](https://github.com/agent-teams-ai/engineering-foundation/commit/70e6a2b889602878bd98959ea64bb9854c020085) Thanks [@777genius](https://github.com/777genius)! - Add the internal Foundation transaction coordinator, semantic legacy and v2
+  envelope inspection, preserved package-artifact identity diagnostics, a
+  crash-safe owner-token operation lock, local-mode crash-state admission, and
+  persistent downgrade barriers shared by scaffolding and local package switching.
+
 ## 0.12.0
 
 ### Minor Changes

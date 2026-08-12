@@ -35,6 +35,7 @@ interface AbsentFilePublicationOperations {
     flags: "wx",
     mode: number
   ) => Promise<FileHandle>;
+  readonly readBoundedRegularFile: typeof readBoundedRegularFile;
   readonly rm: (path: string) => Promise<void>;
   readonly syncDirectory: typeof syncDirectoryDurably;
 }
@@ -60,6 +61,7 @@ interface PublicationState {
 const nodeOperations: AbsentFilePublicationOperations = {
   link,
   open,
+  readBoundedRegularFile,
   rm,
   syncDirectory: syncDirectoryDurably
 };
@@ -199,30 +201,52 @@ function assertValidPublicationPaths(
   }
 }
 
+// Covers the one-shot ctime change when a concurrent publisher unlinks its hard-link temporary.
+const maximumUnstableReadRetries = 2;
+
+async function classifyExactFilePostimageWith(
+  readFile: typeof readBoundedRegularFile,
+  destinationPath: string,
+  postimage: ExactFilePostimage
+): Promise<ExactFilePostimageState> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const result = await readFile(destinationPath, postimage.size);
+      if (
+        result.outcome === "changed" &&
+        attempt < maximumUnstableReadRetries
+      ) {
+        continue;
+      }
+      if (result.outcome !== "read") {
+        return "conflict";
+      }
+      const modeMatches =
+        process.platform === "win32" ||
+        (result.mode & 0o777) === postimage.mode;
+      return result.bytes.byteLength === postimage.size &&
+        sha256(result.bytes) === postimage.digest &&
+        modeMatches
+        ? "exact"
+        : "conflict";
+    } catch (error) {
+      if (isMissing(error)) {
+        return "absent";
+      }
+      throw error;
+    }
+  }
+}
+
 export async function classifyExactFilePostimage(
   destinationPath: string,
   postimage: ExactFilePostimage
 ): Promise<ExactFilePostimageState> {
-  const snapshot = snapshotPostimage(postimage);
-  try {
-    const result = await readBoundedRegularFile(destinationPath, snapshot.size);
-    if (result.outcome !== "read") {
-      return "conflict";
-    }
-    const modeMatches =
-      process.platform === "win32" ||
-      (result.mode & 0o777) === snapshot.mode;
-    return result.bytes.byteLength === snapshot.size &&
-      sha256(result.bytes) === snapshot.digest &&
-      modeMatches
-      ? "exact"
-      : "conflict";
-  } catch (error) {
-    if (isMissing(error)) {
-      return "absent";
-    }
-    throw error;
-  }
+  return classifyExactFilePostimageWith(
+    readBoundedRegularFile,
+    destinationPath,
+    snapshotPostimage(postimage)
+  );
 }
 
 export async function assertTemporaryPathsAbsent(
@@ -295,7 +319,8 @@ async function linkPublicationDestination(
     return false;
   } catch (error) {
     if (errorCode(error) === "EEXIST") {
-      const state = await classifyExactFilePostimage(
+      const state = await classifyExactFilePostimageWith(
+        context.operations.readBoundedRegularFile,
         context.destinationPath,
         context.postimage
       );
@@ -415,7 +440,8 @@ async function publicationOutcome(
   }
   if (state.concurrentSatisfied) {
     if (
-      (await classifyExactFilePostimage(
+      (await classifyExactFilePostimageWith(
+        context.operations.readBoundedRegularFile,
         context.destinationPath,
         context.postimage
       )) !== "exact"
@@ -468,7 +494,8 @@ export async function publishAbsentFile(options: {
     context.destinationPath,
     context.displayPath
   );
-  const initial = await classifyExactFilePostimage(
+  const initial = await classifyExactFilePostimageWith(
+    context.operations.readBoundedRegularFile,
     context.destinationPath,
     context.postimage
   );

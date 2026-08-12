@@ -395,7 +395,8 @@ jobs:
           fi
 
           final_run_verified=0
-          while (( SECONDS < deadline )); do
+          final_verification_deadline=$((SECONDS + 60))
+          while (( SECONDS < final_verification_deadline )); do
             if ! final_bound_run="$(gh api -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}")"; then
               sleep 5

@@ -24,7 +24,12 @@ async function workflow(name) {
 }
 
 function assertExactReleaseRunBinding(attestation, release, ci) {
-  assert.equal(release.jobs["attest-release-pr"]["timeout-minutes"], 40);
+  const jobTimeoutSeconds =
+    release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
+  const primaryDeadlineSeconds = 2100;
+  const finalVerificationSeconds = 60;
+
+  assert.equal(jobTimeoutSeconds, 2400);
   assert.match(attestation.run, /deadline=\$\(\(SECONDS \+ 2100\)\)/u);
   assert.match(attestation.run, /actions\/workflows\/ci\.yml\/dispatches/u);
   assert.match(attestation.run, /-F return_run_details=true/u);
@@ -57,6 +62,23 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.match(attestation.run, /final_bound_run="\$\(gh api/u);
   assert.match(attestation.run, /final_run_status.*completed/su);
   assert.match(attestation.run, /final_run_conclusion.*success/su);
+  assert.match(
+    attestation.run,
+    /final_verification_deadline=\$\(\(SECONDS \+ 60\)\)/u,
+  );
+  assert.match(
+    attestation.run,
+    /while \(\( SECONDS < final_verification_deadline \)\); do/u,
+  );
+  assert.ok(
+    attestation.run.lastIndexOf("deadline=$((SECONDS + 2100))") <
+      attestation.run.lastIndexOf(
+        "final_verification_deadline=$((SECONDS + 60))",
+      ),
+  );
+  assert.ok(
+    primaryDeadlineSeconds + finalVerificationSeconds <= jobTimeoutSeconds,
+  );
   assert.ok(
     attestation.run.lastIndexOf("final_bound_run") <
       attestation.run.lastIndexOf('post_status "${release_gate_context}" success'),

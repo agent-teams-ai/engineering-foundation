@@ -64,6 +64,53 @@ test("publishes absent postimage and removes only its temporary", async () => {
   }
 });
 
+test("rejects identical or cross-directory publication paths before I/O", async () => {
+  const paths = await fixture();
+  const otherRoot = await fixture();
+  try {
+    for (const temporaryPath of [
+      paths.destinationPath,
+      join(paths.root, ".", "RESULT.TXT"),
+      join(otherRoot.root, ".result.tmp")
+    ]) {
+      await assert.rejects(
+        publishAbsentFile({
+          ...paths,
+          displayPath: "result.txt",
+          postimage,
+          temporaryPath
+        }),
+        (error) => error?.code === "PUBLICATION_INVALID"
+      );
+      await missing(paths.destinationPath);
+    }
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(otherRoot.root, { recursive: true, force: true });
+  }
+});
+
+test("publishes an immutable postimage snapshot when the caller mutates its input", async () => {
+  const paths = await fixture();
+  const mutableBytes = Buffer.from(bytes);
+  const mutablePostimage = { ...postimage, bytes: mutableBytes };
+  try {
+    const publication = publishAbsentFile({
+      ...paths,
+      displayPath: "result.txt",
+      postimage: mutablePostimage
+    });
+    mutableBytes.fill(0x78);
+    mutablePostimage.digest = "sha256:caller-mutated";
+    mutablePostimage.mode = 0;
+    mutablePostimage.size = 0;
+    assert.equal(await publication, "published");
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
 test("accepts only an exact concurrent publication", async () => {
   for (const [content, expected] of [[bytes, "already-satisfied"], [Buffer.from("other\n"), "CONFLICT"]]) {
     const paths = await fixture();
@@ -198,6 +245,62 @@ test("preserves destination after a post-link fault", async () => {
     );
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
     await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("cleans its known temporary after a pre-sync publication fault", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        faultInjector(point) {
+          if (point.phase === "after-temporary-written") {
+            throw new Error("write boundary fault");
+          }
+        },
+        postimage
+      }),
+      /write boundary fault/u
+    );
+    await missing(paths.temporaryPath);
+    await missing(paths.destinationPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("retains the primary publication failure when cleanup also fails", async () => {
+  const paths = await fixture();
+  const primary = new Error("primary publication fault");
+  const cleanup = new Error("cleanup fault");
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        faultInjector(point) {
+          if (point.phase === "after-temporary-written") {
+            throw primary;
+          }
+        },
+        operations: {
+          async rm() {
+            throw cleanup;
+          }
+        },
+        postimage
+      }),
+      (error) =>
+        error?.code === "CLEANUP_FAILED" &&
+        error.cause === primary &&
+        error.cleanupError === cleanup
+    );
+    assert.deepEqual(await readFile(paths.temporaryPath), bytes);
+    await missing(paths.destinationPath);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }

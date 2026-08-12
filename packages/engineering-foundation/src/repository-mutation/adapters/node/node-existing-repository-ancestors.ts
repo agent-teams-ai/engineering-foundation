@@ -37,14 +37,20 @@ function isMissing(error: unknown): boolean {
 export async function assertNoPortableNameCollision(
   parent: string,
   requestedName: string,
-  pathIdentity: (path: string) => string = portableRepositoryPathIdentity
+  pathIdentity: (path: string) => string = portableRepositoryPathIdentity,
+  ordering: "binary" | "filesystem" = "binary",
+  readEntries: (path: string) => Promise<string[]> = readdir
 ): Promise<void> {
-  const entries = await readdir(parent).catch((error: unknown) => {
+  const observedEntries = await readEntries(parent).catch((error: unknown) => {
     if (isMissing(error)) {
       return [];
     }
     throw error;
   });
+  const entries = ordering === "binary"
+    ? [...observedEntries].sort((left, right) =>
+        Buffer.compare(Buffer.from(left), Buffer.from(right)))
+    : observedEntries;
   const requestedIdentity = pathIdentity(requestedName);
   const collision = entries.find(
     (entry) => entry !== requestedName && pathIdentity(entry) === requestedIdentity
@@ -60,12 +66,13 @@ export async function assertNoPortableNameCollision(
 export async function assertSafeExistingRepositoryAncestors(
   root: string,
   repositoryPath: string,
-  pathIdentity: (path: string) => string = portableRepositoryPathIdentity
+  pathIdentity: (path: string) => string = portableRepositoryPathIdentity,
+  ordering: "binary" | "filesystem" = "binary"
 ): Promise<void> {
   const segments = repositoryPath.split("/");
   let current = root;
   for (const segment of segments.slice(0, -1)) {
-    await assertNoPortableNameCollision(current, segment, pathIdentity);
+    await assertNoPortableNameCollision(current, segment, pathIdentity, ordering);
     const next = join(current, segment);
     const metadata = await lstat(next).catch((error: unknown) => {
       if (isMissing(error)) {
@@ -88,6 +95,7 @@ export async function assertSafeExistingRepositoryAncestors(
   await assertNoPortableNameCollision(
     current,
     segments.at(-1) ?? "",
-    pathIdentity
+    pathIdentity,
+    ordering
   );
 }

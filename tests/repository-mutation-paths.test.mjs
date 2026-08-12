@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  assertNoPortableNameCollision,
   assertSafeExistingRepositoryAncestors,
   ExistingRepositoryAncestorError
 } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-existing-repository-ancestors.js";
@@ -90,6 +91,30 @@ test("assigns NFC and case folded portable identities", () => {
     first: decomposed,
     second: composed
   });
+});
+
+test("selects portable name collisions in binary order", async () => {
+  const readEntries = async () => ["a.txt", "A.txt", "A.TXT"];
+  await assert.rejects(
+    assertNoPortableNameCollision(
+      "unused",
+      "requested.txt",
+      () => "collision",
+      "binary",
+      readEntries
+    ),
+    (error) => error?.existingName === "A.TXT"
+  );
+  await assert.rejects(
+    assertNoPortableNameCollision(
+      "unused",
+      "requested.txt",
+      () => "collision",
+      "filesystem",
+      readEntries
+    ),
+    (error) => error?.existingName === "a.txt"
+  );
 });
 
 test("checks lexical containment without touching the filesystem", () => {

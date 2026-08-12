@@ -75,7 +75,8 @@ async function assertNoCaseCollision(
     await assertNoPortableNameCollision(
       parent,
       requestedName,
-      (path) => path.toLowerCase()
+      (path) => path.toLowerCase(),
+      "filesystem"
     );
   } catch (error) {
     if (
@@ -137,7 +138,8 @@ export async function assertSafeExistingAncestors(
     await assertSafeExistingRepositoryAncestors(
       root,
       repositoryPath,
-      (path) => path.toLowerCase()
+      (path) => path.toLowerCase(),
+      "filesystem"
     );
   } catch (error) {
     if (error instanceof ExistingRepositoryAncestorError) {

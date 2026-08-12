@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { link, lstat, open, rm } from "node:fs/promises";
-import { dirname } from "node:path";
+import { link, lstat, open, rm, type FileHandle } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 import {
   AbsentFilePublicationError,
@@ -8,6 +8,7 @@ import {
   type ExactFilePostimage,
   type ExactFilePostimageState
 } from "../../application/model/exact-postimage.js";
+import { portableRepositoryPathIdentity } from "../../application/model/repository-path.js";
 import {
   captureFileHandleIdentity,
   pathMatchesRegularFileIdentity,
@@ -28,9 +29,21 @@ export type AbsentFilePublicationFaultInjector = (
 
 interface AbsentFilePublicationOperations {
   readonly link: typeof link;
+  readonly open: (
+    path: string,
+    flags: "wx",
+    mode: number
+  ) => Promise<FileHandle>;
+  readonly rm: (path: string) => Promise<void>;
+  readonly syncDirectory: typeof syncDirectoryDurably;
 }
 
-const nodeOperations: AbsentFilePublicationOperations = { link };
+const nodeOperations: AbsentFilePublicationOperations = {
+  link,
+  open,
+  rm,
+  syncDirectory: syncDirectoryDurably
+};
 
 function errorCode(error: unknown): string | undefined {
   return error instanceof Error && "code" in error
@@ -69,21 +82,51 @@ function assertValidPostimage(postimage: ExactFilePostimage): void {
   }
 }
 
+function snapshotPostimage(postimage: ExactFilePostimage): ExactFilePostimage {
+  const snapshot = {
+    bytes: Buffer.from(postimage.bytes),
+    digest: postimage.digest,
+    mode: postimage.mode,
+    size: postimage.size
+  };
+  assertValidPostimage(snapshot);
+  return snapshot;
+}
+
+function assertValidPublicationPaths(
+  temporaryPath: string,
+  destinationPath: string,
+  displayPath: string
+): void {
+  const resolvedTemporary = resolve(temporaryPath);
+  const resolvedDestination = resolve(destinationPath);
+  if (
+    portableRepositoryPathIdentity(resolvedTemporary) ===
+      portableRepositoryPathIdentity(resolvedDestination) ||
+    dirname(resolvedTemporary) !== dirname(resolvedDestination)
+  ) {
+    throw new AbsentFilePublicationError(
+      "PUBLICATION_INVALID",
+      `Publication paths are not distinct siblings: ${displayPath}.`
+    );
+  }
+}
+
 export async function classifyExactFilePostimage(
   destinationPath: string,
   postimage: ExactFilePostimage
 ): Promise<ExactFilePostimageState> {
-  assertValidPostimage(postimage);
+  const snapshot = snapshotPostimage(postimage);
   try {
-    const result = await readBoundedRegularFile(destinationPath, postimage.size);
+    const result = await readBoundedRegularFile(destinationPath, snapshot.size);
     if (result.outcome !== "read") {
       return "conflict";
     }
     const modeMatches =
       process.platform === "win32" ||
-      (result.mode & 0o777) === postimage.mode;
-    return result.bytes.byteLength === postimage.size &&
-      sha256(result.bytes) === postimage.digest &&
+      (result.mode & 0o777) === snapshot.mode;
+    return result.bytes.byteLength === snapshot.size &&
+      sha256(result.bytes) === snapshot.digest &&
       modeMatches
       ? "exact"
       : "conflict";
@@ -119,15 +162,19 @@ export async function publishAbsentFile(options: {
   readonly destinationPath: string;
   readonly displayPath: string;
   readonly faultInjector?: AbsentFilePublicationFaultInjector;
-  readonly operations?: AbsentFilePublicationOperations;
+  readonly operations?: Partial<AbsentFilePublicationOperations>;
   readonly postimage: ExactFilePostimage;
   readonly temporaryPath: string;
 }): Promise<AbsentFilePublicationOutcome> {
-  assertValidPostimage(options.postimage);
-  const operations = options.operations ?? nodeOperations;
+  const destinationPath = options.destinationPath;
+  const displayPath = options.displayPath;
+  const temporaryPath = options.temporaryPath;
+  const postimage = snapshotPostimage(options.postimage);
+  assertValidPublicationPaths(temporaryPath, destinationPath, displayPath);
+  const operations = { ...nodeOperations, ...options.operations };
   const initial = await classifyExactFilePostimage(
-    options.destinationPath,
-    options.postimage
+    destinationPath,
+    postimage
   );
   if (initial === "exact") {
     return "already-satisfied";
@@ -135,22 +182,22 @@ export async function publishAbsentFile(options: {
   if (initial === "conflict") {
     throw new AbsentFilePublicationError(
       "CONFLICT",
-      `Destination changed concurrently: ${options.displayPath}.`
+      `Destination changed concurrently: ${displayPath}.`
     );
   }
 
-  const parent = dirname(options.destinationPath);
+  const parent = dirname(resolve(destinationPath));
   let temporaryIdentity;
   let concurrentSatisfied = false;
   let published = false;
   let publicationError: unknown;
   try {
-    const handle = await open(options.temporaryPath, "wx", 0o600).catch(
+    const handle = await operations.open(temporaryPath, "wx", 0o600).catch(
       (error: unknown) => {
         if (errorCode(error) === "EEXIST") {
           throw new AbsentFilePublicationError(
             "TEMPORARY_EXISTS",
-            `Temporary path already exists: ${options.displayPath}.`,
+            `Temporary path already exists: ${displayPath}.`,
             { cause: error }
           );
         }
@@ -158,37 +205,37 @@ export async function publishAbsentFile(options: {
       }
     );
     try {
-      await handle.writeFile(options.postimage.bytes);
-      await options.faultInjector?.({ phase: "after-temporary-written" });
-      await handle.chmod(options.postimage.mode);
-      await handle.sync();
       temporaryIdentity = await captureFileHandleIdentity(handle);
+      await handle.writeFile(postimage.bytes);
+      await options.faultInjector?.({ phase: "after-temporary-written" });
+      await handle.chmod(postimage.mode);
+      await handle.sync();
     } finally {
       await handle.close();
     }
     await options.faultInjector?.({ phase: "after-temporary-synced" });
     try {
-      await operations.link(options.temporaryPath, options.destinationPath);
+      await operations.link(temporaryPath, destinationPath);
     } catch (error) {
       if (errorCode(error) === "EEXIST") {
         if (
           (await classifyExactFilePostimage(
-            options.destinationPath,
-            options.postimage
+            destinationPath,
+            postimage
           )) === "exact"
         ) {
           concurrentSatisfied = true;
         } else {
           throw new AbsentFilePublicationError(
             "CONFLICT",
-            `Destination changed concurrently: ${options.displayPath}.`,
+            `Destination changed concurrently: ${displayPath}.`,
             { cause: error }
           );
         }
       } else if (isUnsupportedLink(error)) {
         throw new AbsentFilePublicationError(
           "PUBLICATION_UNSUPPORTED",
-          `Atomic absent-only publication is unsupported: ${options.displayPath}.`,
+          `Atomic absent-only publication is unsupported: ${displayPath}.`,
           { cause: error }
         );
       } else {
@@ -198,14 +245,14 @@ export async function publishAbsentFile(options: {
     if (!concurrentSatisfied) {
       published = true;
       await options.faultInjector?.({ phase: "after-hard-link" });
-      const durability = await syncDirectoryDurably(parent);
+      const durability = await operations.syncDirectory(parent);
       if (
         durability === "unsupported" &&
         options.allowUnsupportedDirectoryDurability !== true
       ) {
         throw new AbsentFilePublicationError(
           "PUBLICATION_UNSUPPORTED",
-          `Directory durability is unsupported: ${options.displayPath}.`
+          `Directory durability is unsupported: ${displayPath}.`
         );
       }
     }
@@ -213,36 +260,51 @@ export async function publishAbsentFile(options: {
     publicationError = error;
   }
 
-  const ownership =
-    temporaryIdentity === undefined
-      ? "missing"
-      : await pathMatchesRegularFileIdentity(
-          options.temporaryPath,
-          temporaryIdentity
+  try {
+    const ownership =
+      temporaryIdentity === undefined
+        ? "missing"
+        : await pathMatchesRegularFileIdentity(temporaryPath, temporaryIdentity);
+    if (ownership === "match") {
+      await operations.rm(temporaryPath);
+      const durability = await operations.syncDirectory(parent);
+      if (
+        durability === "unsupported" &&
+        options.allowUnsupportedDirectoryDurability !== true
+      ) {
+        throw new AbsentFilePublicationError(
+          "PUBLICATION_UNSUPPORTED",
+          `Directory durability is unsupported: ${displayPath}.`
         );
-  if (ownership === "match") {
-    await rm(options.temporaryPath);
-    const durability = await syncDirectoryDurably(parent);
-    if (
-      durability === "unsupported" &&
-      options.allowUnsupportedDirectoryDurability !== true
-    ) {
+      }
+    } else if (ownership === "different") {
       throw new AbsentFilePublicationError(
-        "PUBLICATION_UNSUPPORTED",
-        `Directory durability is unsupported: ${options.displayPath}.`
+        "TEMPORARY_REPLACED",
+        `Temporary path was replaced concurrently: ${displayPath}.`,
+        publicationError === undefined ? undefined : { cause: publicationError }
       );
     }
-  } else if (ownership === "different") {
+  } catch (cleanupError) {
+    if (
+      cleanupError instanceof AbsentFilePublicationError &&
+      cleanupError.code === "TEMPORARY_REPLACED"
+    ) {
+      throw cleanupError;
+    }
     throw new AbsentFilePublicationError(
-      "TEMPORARY_REPLACED",
-      `Temporary path was replaced concurrently: ${options.displayPath}.`
+      "CLEANUP_FAILED",
+      `Publication temporary cleanup failed: ${displayPath}.`,
+      {
+        cause: publicationError ?? cleanupError,
+        cleanupError
+      }
     );
   }
   if (publicationError !== undefined) {
     if (!(publicationError instanceof Error)) {
       throw new AbsentFilePublicationError(
         "INVALID_ERROR",
-        `Publication failed with an invalid error value: ${options.displayPath}.`
+        `Publication failed with an invalid error value: ${displayPath}.`
       );
     }
     throw publicationError;
@@ -253,18 +315,18 @@ export async function publishAbsentFile(options: {
   if (!published) {
     throw new AbsentFilePublicationError(
       "PUBLICATION_INCOMPLETE",
-      `Publication did not reach a terminal state: ${options.displayPath}.`
+      `Publication did not reach a terminal state: ${displayPath}.`
     );
   }
   if (
     (await classifyExactFilePostimage(
-      options.destinationPath,
-      options.postimage
+      destinationPath,
+      postimage
     )) !== "exact"
   ) {
     throw new AbsentFilePublicationError(
       "VERIFICATION_FAILED",
-      `Published file failed verification: ${options.displayPath}.`
+      `Published file failed verification: ${displayPath}.`
     );
   }
   return "published";

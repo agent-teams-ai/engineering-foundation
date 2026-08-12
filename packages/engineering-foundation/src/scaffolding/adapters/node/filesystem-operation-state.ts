@@ -126,8 +126,13 @@ function translatePublicationError(
         "SCAFFOLD_RECOVERY_REQUIRED",
         `Scaffolding temporary path was replaced concurrently: ${operation.path}.`
       );
+    case "CLEANUP_FAILED":
+      // Preserve the frozen scaffolding contract: cleanup failures were exposed
+      // directly before publication mechanics moved into the neutral kernel.
+      throw error.cleanupError;
     case "INVALID_ERROR":
     case "INVALID_POSTIMAGE":
+    case "PUBLICATION_INVALID":
       throw new ScaffoldError(
         "SCAFFOLD_RECOVERY_REQUIRED",
         `Scaffolding publication failed with an invalid error value: ${operation.path}.`

@@ -116,6 +116,41 @@ test("binary-sorts every additional metadata key without consumer vocabulary", (
   assert.ok(rendered.indexOf("code_anchors:") < rendered.indexOf("zebra:"));
 });
 
+test("preserves binary order for array-index-like mapping keys", () => {
+  const rendered = renderCanonicalFrontmatter({
+    id: "doc.test",
+    type: "test",
+    status: "active",
+    owner: "tooling",
+    summary: "Numeric-looking keys stay strings.",
+    additionalMetadata: {
+      "2": "top two",
+      "10": "top ten",
+      nested: {
+        alpha: true,
+        "2": "nested two",
+        "10": "nested ten",
+      },
+    },
+  });
+  assert.equal(
+    rendered,
+    [
+      "id: doc.test",
+      "type: test",
+      "status: active",
+      "owner: tooling",
+      "summary: Numeric-looking keys stay strings.",
+      '"10": top ten',
+      '"2": top two',
+      "nested:",
+      '  "10": nested ten',
+      '  "2": nested two',
+      "  alpha: true",
+    ].join("\n"),
+  );
+});
+
 test("roundtrips YAML-sensitive scalars without tags, anchors, or aliases", () => {
   const shared = { text: "same" };
   const rendered = renderCanonicalFrontmatter({

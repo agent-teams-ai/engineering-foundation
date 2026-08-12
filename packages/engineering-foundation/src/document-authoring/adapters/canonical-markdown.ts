@@ -246,9 +246,51 @@ function canonicalFrontmatterObject(
   return result;
 }
 
+function orderedYamlValue(value: CanonicalFrontmatterValue): unknown {
+  if (Array.isArray(value)) {
+    const items = value as readonly CanonicalFrontmatterValue[];
+    return items.map((item) => orderedYamlValue(item));
+  }
+  if (value !== null && typeof value === "object") {
+    const mapping = value as Readonly<Record<string, CanonicalFrontmatterValue>>;
+    return new Map(
+      Reflect.ownKeys(mapping)
+        .map((key) => key as string)
+        .toSorted(compareBinaryStrings)
+        .map((key) => [key, orderedYamlValue(mapping[key] as CanonicalFrontmatterValue)])
+    );
+  }
+  return value;
+}
+
+function orderedYamlFrontmatter(
+  value: Readonly<Record<string, CanonicalFrontmatterValue>>
+): ReadonlyMap<string, unknown> {
+  const entries: [string, unknown][] = [];
+  for (const key of FOUNDATION_FRONTMATTER_KEYS) {
+    if (Object.hasOwn(value, key)) {
+      entries.push([
+        key,
+        orderedYamlValue(value[key] as CanonicalFrontmatterValue)
+      ]);
+    }
+  }
+  const additionalKeys = Reflect.ownKeys(value)
+    .map((key) => key as string)
+    .filter((key) => !FOUNDATION_FRONTMATTER_KEYS.includes(key))
+    .toSorted(compareBinaryStrings);
+  for (const key of additionalKeys) {
+    entries.push([
+      key,
+      orderedYamlValue(value[key] as CanonicalFrontmatterValue)
+    ]);
+  }
+  return new Map(entries);
+}
+
 export function renderCanonicalFrontmatter(input: CanonicalFrontmatter): string {
   const value = canonicalFrontmatterObject(input);
-  const rendered = stringify(value, {
+  const rendered = stringify(orderedYamlFrontmatter(value), {
     aliasDuplicateObjects: false,
     lineWidth: 0,
     sortMapEntries: false

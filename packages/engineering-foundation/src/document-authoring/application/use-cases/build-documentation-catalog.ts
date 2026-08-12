@@ -429,7 +429,12 @@ function createCatalogSnapshot(
   diagnostics.push(...duplicateIdentityDiagnostics(sortedIdentity));
   diagnostics.push(
     ...catalogCollisionDiagnostics(
-      second.documents.map((document) => document.repositoryPath)
+      [...new Set([
+        ...second.documents.map((document) => document.repositoryPath),
+        ...second.issues
+          .filter((issue) => !["root-missing", "root-not-directory"].includes(issue.kind))
+          .map((issue) => issue.repositoryPath)
+      ])]
     )
   );
   const sortedDiagnostics = sortCatalogDiagnostics(diagnostics);

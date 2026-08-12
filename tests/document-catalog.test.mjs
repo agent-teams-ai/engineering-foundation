@@ -425,7 +425,7 @@ function fakeBuilder(documents, overrides = {}) {
             overrides.corpusChanges === true && repositoryReads === 2
               ? [...documents, observedDocument("docs/new.md", "guide.new")]
               : documents,
-          issues: [],
+          issues: overrides.issues ?? [],
         };
       },
       async resolveReference() {
@@ -436,14 +436,16 @@ function fakeBuilder(documents, overrides = {}) {
 }
 
 test("detects case and NFC path collisions independently of the host filesystem", async () => {
-  const documents = [
-    observedDocument("docs/Caf\u00e9.md", "guide.composed"),
-    observedDocument("docs/cafe\u0301.md", "guide.decomposed"),
-  ];
-  const snapshot = await fakeBuilder(documents).execute({
-    consumerRoot: "/fixture",
-    profilePath: "document-authoring.yaml",
-  });
+  const documents = [observedDocument("docs/Caf\u00e9.md", "guide.composed")];
+  const snapshot = await fakeBuilder(documents, {
+    issues: [
+      {
+        kind: "source-invalid",
+        message: "Malformed UTF-8.",
+        repositoryPath: "docs/cafe\u0301.md",
+      },
+    ],
+  }).execute({ consumerRoot: "/fixture", profilePath: "document-authoring.yaml" });
   assert.equal(snapshot.status, "partial");
   assert.equal(
     snapshot.diagnostics.some(

@@ -172,6 +172,51 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   );
   assert.equal(release.jobs["attest-release-pr"]["timeout-minutes"], 40);
   assert.match(attestation.run, /deadline=\$\(\(SECONDS \+ 2100\)\)/u);
+  assert.match(
+    attestation.run,
+    /actions\/workflows\/ci\.yml\/dispatches/u,
+  );
+  assert.match(attestation.run, /-F return_run_details=true/u);
+  assert.match(attestation.run, /\.workflow_run_id \/\/ ""/u);
+  assert.match(
+    attestation.run,
+    /expected_run_url="\$\{GITHUB_SERVER_URL\}\/\$\{GITHUB_REPOSITORY\}\/actions\/runs\/\$\{bound_run_id\}"/u,
+  );
+  assert.match(attestation.run, /bound_run_url.*expected_run_url/su);
+  assert.match(attestation.run, /actions\/runs\/\$\{bound_run_id\}"/u);
+  assert.equal(
+    (attestation.run.match(/run_id.*bound_run_id/gu) ?? []).length,
+    2,
+  );
+  assert.equal(
+    (attestation.run.match(/run_path.*\.github\/workflows\/ci\.yml/gu) ?? [])
+      .length,
+    2,
+  );
+  assert.match(attestation.run, /run_event.*workflow_dispatch/su);
+  assert.match(attestation.run, /run_head_branch.*changeset-release\/main/su);
+  assert.match(attestation.run, /run_head_sha.*head_sha/su);
+  assert.match(attestation.run, /bound_run_attempt.*"1"/su);
+  assert.match(
+    attestation.run,
+    /actions\/runs\/\$\{bound_run_id\}\/attempts\/\$\{bound_run_attempt\}\/jobs/u,
+  );
+  assert.match(attestation.run, /if ! jobs="\$\(gh api/u);
+  assert.match(attestation.run, /\[length, first\.status \/\/ "missing"\]/u);
+  assert.match(attestation.run, /job_count > 1/u);
+  assert.match(attestation.run, /job_count == 0.*run_status.*completed/su);
+  assert.match(attestation.run, /run_conclusion.*success/su);
+  assert.match(attestation.run, /final_bound_run="\$\(gh api/u);
+  assert.match(attestation.run, /final_run_status.*completed/su);
+  assert.match(attestation.run, /final_run_conclusion.*success/su);
+  assert.ok(
+    attestation.run.lastIndexOf("final_bound_run") <
+      attestation.run.lastIndexOf('post_status "${release_gate_context}" success'),
+  );
+  assert.doesNotMatch(attestation.run, /baseline_run_id/u);
+  assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| first/u);
+  assert.doesNotMatch(attestation.run, /commits\/\$\{head_sha\}\/check-runs/u);
+  assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
   assert.ok(
     release.jobs["attest-release-pr"]["timeout-minutes"] >=
       ci.jobs["dependency-review"]["timeout-minutes"] +

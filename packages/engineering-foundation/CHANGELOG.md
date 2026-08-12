@@ -1,5 +1,13 @@
 # @agent-teams/engineering-foundation
 
+## 0.13.1
+
+### Patch Changes
+
+- [#93](https://github.com/agent-teams-ai/engineering-foundation/pull/93) [`e68e0d4`](https://github.com/agent-teams-ai/engineering-foundation/commit/e68e0d4dcde95deec2d0d851274c8cfdbec087ed) Thanks [@777genius](https://github.com/777genius)! - Make concurrent exact repository publications converge when hard-link cleanup briefly changes inode metadata.
+
+- [#91](https://github.com/agent-teams-ai/engineering-foundation/pull/91) [`1c4843d`](https://github.com/agent-teams-ai/engineering-foundation/commit/1c4843d1cc75bf6b9578d94a3e01748d1791e3a1) Thanks [@777genius](https://github.com/777genius)! - Extract private repository-mutation primitives for shared transaction and filesystem safety without changing the public package API.
+
 ## 0.13.0
 
 ### Minor Changes

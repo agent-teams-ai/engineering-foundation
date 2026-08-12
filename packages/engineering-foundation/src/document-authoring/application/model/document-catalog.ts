@@ -10,7 +10,7 @@ export interface DocumentDescriptor {
   readonly id: string;
   readonly owner: string;
   readonly repositoryPath: string;
-  readonly source: string;
+  readonly source: "frontmatter-readme" | "markdown-tree";
   readonly status: string;
   readonly summary: string;
   readonly title: string;

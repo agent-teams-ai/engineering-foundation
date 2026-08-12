@@ -165,17 +165,29 @@ test("builds one deterministic read-only catalog across collection kinds", async
     assert.deepEqual(second, first);
     assert.equal(first.status, "complete");
     assert.deepEqual(
-      first.documents.map(({ id, repositoryPath, title }) => ({
+      first.documents.map(({ id, repositoryPath, source, title }) => ({
         id,
         repositoryPath,
+        source,
         title,
       })),
       [
-        { id: "guide.alpha", repositoryPath: "docs/content/alpha.md", title: "Alpha" },
-        { id: "guide.zeta", repositoryPath: "docs/content/zeta.md", title: "Zeta" },
+        {
+          id: "guide.alpha",
+          repositoryPath: "docs/content/alpha.md",
+          source: "markdown-tree",
+          title: "Alpha",
+        },
+        {
+          id: "guide.zeta",
+          repositoryPath: "docs/content/zeta.md",
+          source: "markdown-tree",
+          title: "Zeta",
+        },
         {
           id: "package.alpha",
           repositoryPath: "packages/alpha/README.md",
+          source: "frontmatter-readme",
           title: "Alpha package",
         },
       ],

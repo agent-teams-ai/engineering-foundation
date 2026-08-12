@@ -75,6 +75,19 @@ function isCatalogDocumentPath(
   );
 }
 
+function catalogDocumentSource(
+  profile: CatalogProfileSnapshot,
+  repositoryPath: string
+): DocumentDescriptor["source"] {
+  return profile.collections.some(
+    (collection) =>
+      collection.kind === "frontmatter-readme" &&
+      collectionContainsPath(collection, repositoryPath)
+  )
+    ? "frontmatter-readme"
+    : "markdown-tree";
+}
+
 function catalogObservation(
   observation: MarkdownRepositoryObservation,
   profile: CatalogProfileSnapshot
@@ -272,7 +285,8 @@ interface InspectedCatalogDocument {
 function inspectCatalogDocument(
   document: MarkdownDocumentObservation,
   metadata: MetadataSchemaSnapshot,
-  ownerIds: ReadonlySet<string>
+  ownerIds: ReadonlySet<string>,
+  source: DocumentDescriptor["source"]
 ): InspectedCatalogDocument {
   if (document.source.startsWith("\uFEFF") || document.source.includes("\u0000")) {
     return {
@@ -363,7 +377,7 @@ function inspectCatalogDocument(
     descriptor: Object.freeze({
       ...fields,
       repositoryPath: document.repositoryPath,
-      source: document.source,
+      source,
       title
     }),
     identity
@@ -391,7 +405,12 @@ function createCatalogSnapshot(
   const identityProjection: DocumentIdentityProjectionEntry[] = [];
   const ownerIds = new Set(authority.owners.ids);
   for (const document of second.documents) {
-    const inspected = inspectCatalogDocument(document, authority.metadata, ownerIds);
+    const inspected = inspectCatalogDocument(
+      document,
+      authority.metadata,
+      ownerIds,
+      catalogDocumentSource(authority.profile, document.repositoryPath)
+    );
     if (inspected.descriptor !== undefined) {
       documents.push(inspected.descriptor);
     }

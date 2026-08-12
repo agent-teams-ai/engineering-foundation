@@ -283,13 +283,18 @@ authoring:
 });
 
 test("authority readers use the same repository path segment bound", async () => {
-  await assert.rejects(
-    new NodeAuthoringProfileReader().read({
-      consumerRoot: tmpdir(),
-      path: "a".repeat(256)
-    }),
-    (error) => error instanceof DocumentCatalogError &&
-      error.code === "DOCUMENT_CATALOG_INPUT_INVALID" &&
-      /portable repository-relative path grammar/u.test(error.message)
-  );
+  const root = await mkdtemp(join(tmpdir(), "document-authority-path-bound-"));
+  try {
+    await assert.rejects(
+      new NodeAuthoringProfileReader().read({
+        consumerRoot: root,
+        path: "a".repeat(256)
+      }),
+      (error) => error instanceof DocumentCatalogError &&
+        error.code === "DOCUMENT_CATALOG_INPUT_INVALID" &&
+        /portable repository-relative path grammar/u.test(error.message)
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });

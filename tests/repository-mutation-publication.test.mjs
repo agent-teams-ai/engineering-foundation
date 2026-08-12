@@ -1,0 +1,260 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+
+import {
+  classifyExactFilePostimage,
+  publishAbsentFile
+} from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-absent-file-publication.js";
+
+const bytes = Buffer.from("exact postimage\n");
+const postimage = {
+  bytes,
+  digest: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+  mode: 0o644,
+  size: bytes.byteLength
+};
+
+async function fixture() {
+  const root = join(
+    tmpdir(),
+    `foundation-publication-${process.pid}-${crypto.randomUUID()}`
+  );
+  await mkdir(root);
+  return {
+    destinationPath: join(root, "result.txt"),
+    root,
+    temporaryPath: join(root, ".result.tmp")
+  };
+}
+
+async function missing(path) {
+  await assert.rejects(access(path), (error) => error?.code === "ENOENT");
+}
+
+test("classifies absent, exact and conflicting postimages", async () => {
+  const paths = await fixture();
+  try {
+    assert.equal(await classifyExactFilePostimage(paths.destinationPath, postimage), "absent");
+    await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
+    assert.equal(await classifyExactFilePostimage(paths.destinationPath, postimage), "exact");
+    await writeFile(paths.destinationPath, "different\n");
+    assert.equal(await classifyExactFilePostimage(paths.destinationPath, postimage), "conflict");
+    await rm(paths.destinationPath);
+    await mkdir(paths.destinationPath);
+    assert.equal(await classifyExactFilePostimage(paths.destinationPath, postimage), "conflict");
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("publishes absent postimage and removes only its temporary", async () => {
+  const paths = await fixture();
+  try {
+    assert.equal(await publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }), "published");
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(paths.temporaryPath);
+    assert.equal(await publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }), "already-satisfied");
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("accepts only an exact concurrent publication", async () => {
+  for (const [content, expected] of [[bytes, "already-satisfied"], [Buffer.from("other\n"), "CONFLICT"]]) {
+    const paths = await fixture();
+    try {
+      const promise = publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link() {
+            await writeFile(paths.destinationPath, content, { mode: 0o644 });
+            const error = new Error("exists");
+            error.code = "EEXIST";
+            throw error;
+          }
+        },
+        postimage
+      });
+      if (expected === "already-satisfied") {
+        assert.equal(await promise, expected);
+      } else {
+        await assert.rejects(promise, (error) => error?.code === expected);
+      }
+      assert.deepEqual(await readFile(paths.destinationPath), content);
+    } finally {
+      await rm(paths.root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("concurrent real-filesystem publishers converge on one exact postimage", async () => {
+  const paths = await fixture();
+  try {
+    const outcomes = await Promise.all([
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        postimage,
+        temporaryPath: join(paths.root, ".first.tmp")
+      }),
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        postimage,
+        temporaryPath: join(paths.root, ".second.tmp")
+      })
+    ]);
+    assert.deepEqual(outcomes.sort(), ["already-satisfied", "published"]);
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(join(paths.root, ".first.tmp"));
+    await missing(join(paths.root, ".second.tmp"));
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("concurrent different postimages preserve the winner and reject the loser", async () => {
+  const paths = await fixture();
+  const otherBytes = Buffer.from("other postimage\n");
+  const otherPostimage = {
+    bytes: otherBytes,
+    digest: `sha256:${createHash("sha256").update(otherBytes).digest("hex")}`,
+    mode: 0o644,
+    size: otherBytes.byteLength
+  };
+  try {
+    const results = await Promise.allSettled([
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        postimage,
+        temporaryPath: join(paths.root, ".first.tmp")
+      }),
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        postimage: otherPostimage,
+        temporaryPath: join(paths.root, ".second.tmp")
+      })
+    ]);
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    const rejection = results.find((result) => result.status === "rejected");
+    assert.equal(rejection?.reason?.code, "CONFLICT");
+    const observed = await readFile(paths.destinationPath);
+    assert.ok(observed.equals(bytes) || observed.equals(otherBytes));
+    await missing(join(paths.root, ".first.tmp"));
+    await missing(join(paths.root, ".second.tmp"));
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("fails closed when hard links are unsupported", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link() {
+            const error = new Error("unsupported");
+            error.code = "EPERM";
+            throw error;
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "PUBLICATION_UNSUPPORTED"
+    );
+    await missing(paths.destinationPath);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("preserves destination after a post-link fault", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        faultInjector(point) {
+          if (point.phase === "after-hard-link") {
+            throw new Error("post-link fault");
+          }
+        },
+        postimage
+      }),
+      /post-link fault/u
+    );
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("preserves a replacement of an owned temporary", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        async faultInjector(point) {
+          if (point.phase === "after-hard-link") {
+            await rename(paths.temporaryPath, `${paths.temporaryPath}.owned`);
+            await writeFile(paths.temporaryPath, "replacement\n");
+          }
+        },
+        postimage
+      }),
+      (error) => error?.code === "TEMPORARY_REPLACED"
+    );
+    assert.equal(await readFile(paths.temporaryPath, "utf8"), "replacement\n");
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("does not overwrite an existing temporary", async () => {
+  const paths = await fixture();
+  try {
+    await writeFile(paths.temporaryPath, "reserved\n");
+    await assert.rejects(
+      publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }),
+      (error) => error?.code === "TEMPORARY_EXISTS"
+    );
+    assert.equal(await readFile(paths.temporaryPath, "utf8"), "reserved\n");
+    await missing(paths.destinationPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("rejects inconsistent postimage metadata before creating files", async () => {
+  const paths = await fixture();
+  try {
+    await assert.rejects(
+      publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        postimage: { ...postimage, size: postimage.size + 1 }
+      }),
+      (error) => error?.code === "INVALID_POSTIMAGE"
+    );
+    await missing(paths.destinationPath);
+    await missing(paths.temporaryPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});

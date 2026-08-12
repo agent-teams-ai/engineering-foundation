@@ -495,10 +495,9 @@ export class NodeFoundationOperationLock implements FoundationOperationLock {
       })();
       try {
         await releaseInProgress;
-      } finally {
-        if (state === "held") {
-          releaseInProgress = undefined;
-        }
+      } catch (error) {
+        releaseInProgress = undefined;
+        throw error;
       }
     };
   }

@@ -25,7 +25,7 @@ No proposed decisions.
 - [ADR-0018: Retire the Conflicting Recipe Qualification Prerequisite](0018-retire-conflicting-recipe-qualification-prerequisite.md)
 - [ADR-0019: Single Current Foundation Contract Version](0019-single-current-foundation-contract-version.md)
 - [ADR-0021: Consumer-Owned State Model Axis Topology](0021-consumer-owned-state-model-axis-topology.md)
-- [ADR-0022: Document Authoring Protocol](0022-document-authoring-protocol.md)
+- [ADR-0023: Correct Document Authoring v1 Semantics](0023-correct-document-authoring-v1-semantics.md)
 
 ## Superseded
 
@@ -35,3 +35,4 @@ No proposed decisions.
 - [ADR-0015: Qualified Buf FILE Evidence](0015-qualified-buf-file-evidence.md)
 - [ADR-0016: Hardened Buf Qualification Boundary](0016-hardened-buf-qualification-boundary.md)
 - [ADR-0020: Static Executable Specification Connectivity](0020-static-executable-specification-connectivity.md)
+- [ADR-0022: Document Authoring Protocol](0022-document-authoring-protocol.md)

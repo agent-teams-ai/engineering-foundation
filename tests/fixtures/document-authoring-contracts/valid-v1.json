@@ -70,7 +70,7 @@
         "code_anchors": []
       }
     },
-    "intentDigest": "sha256:bc3675c6c201eed4b2a88e662c39b255dfa8832c6aa1c57cfb30fb4d4b34f944",
+    "intentDigest": "sha256:a5a727d425b17b0b7ac59721b08b56952438827ffd205060242bb98e175f4a6f",
     "authority": {
       "profile": {
         "path": "architecture/foundation/document-authoring.yaml",
@@ -95,17 +95,17 @@
     },
     "selectedOwner": {
       "id": "architecture/tooling",
-      "membershipDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      "membershipDigest": "sha256:53d01efaa6fa13865cd29829d457cb81eab9eb7c456e4b0c60f5a0624ffd2309"
     },
     "identityProjection": {
-      "entryCount": 82,
-      "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+      "entryCount": 2,
+      "digest": "sha256:181a470f2fb03ce96293ce620dde79a1f3972164fbb4816c0680aa7467ab9a93"
     },
     "referencedDocuments": [
       {
         "id": "ADR-0053",
         "path": "docs/decisions/0053-example.md",
-        "projectionDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+        "projectionDigest": "sha256:050bd718651739452369172ec316d3e5dfccb260930f26a4e6540c641472425b"
       }
     ],
     "destination": "docs/decisions/0083-deterministic-documentation-authoring.md",
@@ -124,12 +124,12 @@
     },
     "requiredAdapterCapabilities": ["create-file-no-replace/v1"],
     "diagnostics": [],
-    "planDigest": "sha256:03837e451674905d039cd9027118b9c7c6430b13a5ddb388351854b5e1279b64"
+    "planDigest": "sha256:48dc0b47e66d127a4cf97fea88e887cc3b8534b95d53f83e92b424eea7e16ff7"
   },
   "receipt": {
     "schemaVersion": 1,
     "protocolVersion": 1,
-    "planDigest": "sha256:03837e451674905d039cd9027118b9c7c6430b13a5ddb388351854b5e1279b64",
+    "planDigest": "sha256:48dc0b47e66d127a4cf97fea88e887cc3b8534b95d53f83e92b424eea7e16ff7",
     "adapter": {
       "id": "foundation.filesystem/v1",
       "contractVersion": 1
@@ -144,7 +144,7 @@
       "recoverability": "not-required"
     },
     "diagnostics": [],
-    "receiptDigest": "sha256:28cd9e1420b4332ed872389e90f6df7f79cbf0a897cf4cf6dd401ac216e516fb"
+    "receiptDigest": "sha256:30b9029b606d4bc93240399fddbe62dc6d8d996cb2eab16781a88ff7444da025"
   },
   "documentEnvelope": {
     "schemaVersion": 2,
@@ -167,9 +167,9 @@
         "state": "pending"
       }
     },
-    "payloadDigest": "sha256:e2a7cb1e511836e529e9356c5ddbef6f223b4663c815a1188d4fc73370cb501c",
+    "payloadDigest": "sha256:1c805fd8ec5554d9be5fa6845192bf796df10cddf0d5cd68c1bf0dcbff64a4a7",
     "state": "PREPARED",
-    "envelopeDigest": "sha256:9e64056153ecd595a3abd483a2e3da93a067381015dc5ce6899ca5689e4eb982"
+    "envelopeDigest": "sha256:2bd3c324c3c6652df882d8c6bbc0369f331d179d9b691fbc8249b5023ced801a"
   },
   "command": {
     "schemaVersion": 1,
@@ -186,5 +186,68 @@
     "value": { "z": true, "a": ["é", 3] },
     "json": "{\"a\":[\"é\",3],\"z\":true}",
     "digest": "sha256:cf3a3a7dba597fa6f26156c0c11581006246864ba4b486265d816d6064e49152"
+  },
+  "identityProjectionEntries": [
+    {
+      "id": "ADR-0001",
+      "repositoryPath": "docs/decisions/0001-foundation.md"
+    },
+    {
+      "id": "ADR-0053",
+      "repositoryPath": "docs/decisions/0053-example.md"
+    }
+  ],
+  "digestPreimages": {
+    "intent": {
+      "domain": "agent-teams.foundation.document-authoring/intent/v1",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "adr",
+        "id": "ADR-0083",
+        "title": "Deterministic documentation authoring",
+        "owner": "architecture/tooling",
+        "summary": "Defines deterministic creation of governed documentation.",
+        "related": ["ADR-0053"],
+        "additionalMetadata": {
+          "blocked_by": [],
+          "code_anchors": []
+        }
+      }
+    },
+    "ownerMembership": {
+      "domain": "agent-teams.foundation.document-authoring/owner-membership/v1",
+      "payload": {
+        "ownerCatalogDigest": "sha256:6f0e3a8c0eb46e8834b43b03374ece43a030621d92a7437beb48f871e90f8d90",
+        "ownerId": "architecture/tooling"
+      }
+    },
+    "identityProjection": {
+      "domain": "agent-teams.foundation.document-authoring/identity-projection/v1",
+      "payload": {
+        "entries": [
+          {
+            "id": "ADR-0001",
+            "repositoryPath": "docs/decisions/0001-foundation.md"
+          },
+          {
+            "id": "ADR-0053",
+            "repositoryPath": "docs/decisions/0053-example.md"
+          }
+        ]
+      }
+    },
+    "referencedDocument": {
+      "domain": "agent-teams.foundation.document-authoring/referenced-document/v1",
+      "payload": {
+        "id": "ADR-0053",
+        "path": "docs/decisions/0053-example.md"
+      }
+    }
+  },
+  "digestPreimageCanonicalJson": {
+    "intent": "{\"domain\":\"agent-teams.foundation.document-authoring/intent/v1\",\"payload\":{\"additionalMetadata\":{\"blocked_by\":[],\"code_anchors\":[]},\"id\":\"ADR-0083\",\"owner\":\"architecture/tooling\",\"related\":[\"ADR-0053\"],\"schemaVersion\":1,\"summary\":\"Defines deterministic creation of governed documentation.\",\"title\":\"Deterministic documentation authoring\",\"type\":\"adr\"}}",
+    "ownerMembership": "{\"domain\":\"agent-teams.foundation.document-authoring/owner-membership/v1\",\"payload\":{\"ownerCatalogDigest\":\"sha256:6f0e3a8c0eb46e8834b43b03374ece43a030621d92a7437beb48f871e90f8d90\",\"ownerId\":\"architecture/tooling\"}}",
+    "identityProjection": "{\"domain\":\"agent-teams.foundation.document-authoring/identity-projection/v1\",\"payload\":{\"entries\":[{\"id\":\"ADR-0001\",\"repositoryPath\":\"docs/decisions/0001-foundation.md\"},{\"id\":\"ADR-0053\",\"repositoryPath\":\"docs/decisions/0053-example.md\"}]}}",
+    "referencedDocument": "{\"domain\":\"agent-teams.foundation.document-authoring/referenced-document/v1\",\"payload\":{\"id\":\"ADR-0053\",\"path\":\"docs/decisions/0053-example.md\"}}"
   }
 }

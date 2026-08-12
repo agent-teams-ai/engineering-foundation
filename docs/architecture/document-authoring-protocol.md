@@ -1,7 +1,8 @@
 # Document Authoring Protocol
 
-Status: Contracts accepted by ADR-0022. The read-only catalog API, shared
-transaction coordinator, and private repository-mutation primitives are
+Status: Corrected v1 contracts accepted by ADR-0023, which supersedes ADR-0022
+under the pre-adoption correction rule in ADR-0019. The read-only catalog API,
+shared transaction coordinator, and private repository-mutation primitives are
 implemented. The document compiler, writer, mutation CLI commands, and envelope
 v2 recovery handlers are not yet implemented or available to consumers.
 
@@ -21,15 +22,18 @@ consumer code or treats a profile as an extension language.
 
 | Rule or fact | Authority | Foundation responsibility |
 | --- | --- | --- |
-| Allowed metadata shape | Consumer metadata schema | Validate the compiled instance |
-| Create-enabled document types | Consumer authoring profile | Select one closed v1 strategy |
+| Allowed metadata shape | Consumer metadata schema | Render canonically, then validate the compiled instance |
+| Create-enabled document types | Consumer authoring profile | Select one closed v1 strategy and reject partial authority |
 | Initial status and creation defaults | Consumer authoring profile | Apply and validate them |
 | Allowed owner identifiers | Consumer owner catalog | Prove exact membership |
 | Meaning of an owner identifier | Consumer domain | Keep it opaque |
 | Path reviewers | Consumer `CODEOWNERS` | No interpretation |
-| Body structure | Consumer body template | Read bounded local bytes |
-| Current identifiers and paths | Rebuilt document catalog | Detect duplicate identity or path |
-| Relations and blockers | Document frontmatter | Preserve bounded data |
+| Body structure | Consumer body template | Extract one strict fenced skeleton and replace its placeholder H1 |
+| Current identifiers and paths | Complete rebuilt document catalog | Detect duplicate identity or path; never plan from `partial` |
+| `related` set | Document Intent | Normalize unique values in binary order |
+| Blockers, code anchors, and other metadata | Document Intent plus consumer schema | Preserve bounded caller order and opaque meaning |
+| Slug or explicit destination | Document Intent when selected placement consumes it | Validate or deterministically derive; never ignore |
+| Qualified identity grammar and placement operators | Consumer authoring profile | Execute only closed v1 operators |
 | Blocker and code-anchor semantics | Consumer validator | No generic interpretation |
 | Generic links and anchors | Foundation documentation checks | Validate read-only integrity |
 | Safe file publication | Foundation authoring protocol | Enforce Plan and adapter contract |
@@ -68,23 +72,68 @@ repository mutation and does not read a generated search index.
 
 ### Document intent v1
 
-An Intent contains an explicit document type, identity, title, owner, summary,
-related identifiers, and bounded inert additional metadata. Foundation does not
-interpret consumer relationship or lifecycle semantics. Foundation-owned sets
-use binary ordering; consumer-owned ordered arrays retain their input order.
+An Intent contains the complete caller-controlled input to compilation:
+
+```text
+schemaVersion
+type
+id
+title
+owner
+summary
+slug?          # path-affecting, closed lowercase ASCII grammar
+destination?   # path-affecting, portable repository-relative path
+related?
+additionalMetadata?
+```
+
+`type`, `id`, `title`, `owner`, and `summary` are required. `slug` and
+`destination` are optional in the schema but their semantic presence is closed
+by placement:
+
+| Placement and filename | `slug` | `destination` |
+| --- | --- | --- |
+| `collection` with `numeric-id-slug`, `id-slug`, or `slug` | Optional input; compiler derives it from title when absent | Forbidden |
+| `collection` with `README.md` | Forbidden | Forbidden |
+| `qualified-leaf-index` | Forbidden | Forbidden |
+| `explicit` | Forbidden | Required |
+
+The identity/placement compatibility matrix is also closed:
+`qualified-leaf-index` is valid only with `identity.format: qualified`, and a
+`collection` using `numeric-id-slug` is valid only with
+`identity.format: adr-four-digits`. Every other v1 identity/placement
+combination admitted by the public schema is allowed.
+
+An unused path-affecting value is invalid; it is never silently ignored. Intent
+normalization NFC-normalizes strings where the v1 schema admits Unicode, derives
+or validates the slug, sorts the Foundation-owned `related` set in binary order,
+and deep-freezes the result. Duplicate `related` entries are invalid.
+
+`additionalMetadata` is bounded inert JSON data. Foundation does not interpret
+consumer lifecycle, blocker, code-anchor, or relationship meaning. It rejects a
+top-level key that could replace `id`, `type`, `status`, `owner`, `summary`,
+`slug`, `destination`, or `related`, and recursively rejects `__proto__`,
+`prototype`, and `constructor`. Consumer-owned arrays preserve caller order.
 
 ### Document plan v1
 
 A Plan binds the exact compiler version and build identity, canonical Intent and
-digest, project identity, profile and metadata schema evidence, selected owner,
-template, minimal identity projection, used document references, logical parent
-expectation, destination, absent-file precondition, exact output bytes, adapter
-capabilities, diagnostics, and Plan digest.
+domain-separated digest, project identity, profile and metadata schema evidence,
+selected owner and membership digest, template, minimal identity projection,
+used document references, logical parent expectation, destination,
+absent-file precondition, exact output bytes, adapter capabilities, diagnostics,
+and domain-separated Plan digest.
 
 A Plan never contains an absolute path, timestamp, process identifier, locale,
 environment value, arbitrary executable configuration, or an unbounded corpus.
-Its parent expectation is repository-logical evidence. The filesystem adapter
-must still recapture physical ancestry under the operation lock.
+Its parent expectation is repository-logical evidence:
+`{path,state:"directory",ancestry:"real-directories"}`. It deliberately does
+not contain inode, device, absolute path, or another platform-specific identity.
+`expectedParent.path` is the POSIX dirname of `destination`; exact `.` denotes
+the repository root and is valid only in this expected-parent coordinate.
+The parent must exist as a real directory before compilation succeeds. The
+filesystem adapter must recapture the physical parent and every ancestor under
+the operation lock immediately before publication.
 
 ### Document receipt v1
 
@@ -118,8 +167,9 @@ Profile v1 is `create-only` and admits only these closed primitives:
 - placement: `collection`, `qualified-leaf-index`, `explicit`;
 - filename: `numeric-id-slug`, `id-slug`, `slug`, `README.md`;
 - heading: `title`, `id-colon-title`;
-- template: one bounded local UTF-8 Markdown body without frontmatter, H1,
-  includes, interpolation, or executable expressions.
+- template: one bounded local UTF-8 file containing exactly one fenced Markdown
+  skeleton with placeholder frontmatter and one leading H1; the compiler strips
+  and replaces those two placeholders.
 
 It prohibits automatic identity allocation, arbitrary regular expressions or
 globs, commands, callbacks, hooks, dynamic imports, environment interpolation,
@@ -127,10 +177,181 @@ remote templates or schema references, inheritance, conditional rules,
 directory creation, updates, deletion, free-form index editing, and arbitrary
 filesystem paths.
 
-Destination parents must already exist and be real directories. Paths use a
-portable ASCII grammar with no absolute form, `..`, backslash, control, trailing
-dot or space, NTFS alternate stream, or Windows device component. Output is
-UTF-8 with LF, one terminal newline, and logical mode `0644`.
+### Identity grammar
+
+`adr-four-digits` accepts exactly `^ADR-[0-9]{4}$`.
+`open-decision-three-digits` accepts exactly `^OD-[0-9]{3}$`.
+
+A qualified identity must declare this data-only grammar:
+
+```yaml
+identity:
+  kind: explicit
+  format: qualified
+  grammar:
+    prefixSegments: [domain, contexts]
+    minSuffixSegments: 1
+    maxSuffixSegments: 1
+```
+
+Every dot-delimited segment matches `^[a-z][a-z0-9-]*$`. The candidate must
+start with the exact declared prefix, and the number of following segments must
+be within the inclusive bounds. The prefix is part of consumer authority;
+Foundation does not infer it from type names or placement.
+
+### Filename and placement operators
+
+The slug algorithm is exact and versioned: NFKD-normalize the title, remove only
+combining marks U+0300 through U+036F, call JavaScript `toLowerCase`, replace
+each maximal run outside ASCII `[a-z0-9]` with `-`, then trim leading and
+trailing `-`. A supplied or derived result must match
+`^[a-z0-9]+(?:-[a-z0-9]+)*$`; an empty derivation requires an explicit slug.
+The algorithm is not the GitHub heading-anchor slugger.
+
+Collection filenames are literal operators:
+
+| Operator | Filename |
+| --- | --- |
+| `numeric-id-slug` | four digits from an `ADR-NNNN` ID, `-`, slug, `.md` |
+| `id-slug` | full ID, `-`, slug, `.md` |
+| `slug` | slug plus `.md` |
+| `README.md` | literal `README.md` |
+
+`qualified-leaf-index` declares singular `root` and `requiredBasename`. It
+removes the qualified identity's declared prefix, maps each remaining identity
+segment to one path segment without rewriting it, and appends the literal
+basename. It accepts no caller destination.
+
+`explicit` requires a caller destination, plural `allowedRoots`, one non-empty
+`requiredSegmentsInOrder` list, and literal `requiredBasename`. A destination is
+valid only when exactly one root matches on a complete segment boundary, the
+required segments occur as one contiguous sequence, and the basename is exact.
+`minimumSegmentsBeforeRequired` counts segments after that matched root and
+before the required sequence; `minimumSegmentsAfterRequired` counts segments
+after the required sequence and before the basename. The basename itself is
+excluded from both counts. The feature donor normalization requires `1` before
+and `1` after, matching `<project>/src/features/<feature>/README.md` beneath an
+allowed top-level root.
+Roots that collide under NFC plus case-folding, duplicate, or are ancestor and
+descendant of one another are invalid profile authority.
+
+### Portable paths and resource limits
+
+Destination parents must already exist and be real directories. Paths use `/`,
+ASCII segments `[A-Za-z0-9._@-]+`, at most 512 UTF-8 bytes total and 255 bytes
+per segment. Empty, `.`, `..`, absolute, drive-qualified, UNC, backslash,
+control, non-ASCII, colon/NTFS ADS, trailing-dot, trailing-space, and Windows
+device-name components are invalid. Collision checks use NFC plus
+locale-independent case folding.
+
+The current limits are part of v1: profile, metadata schema, and owner catalog
+authority files are each at most 1 MiB; a template is at most 256 KiB; compiled
+output is at most 1 MiB; an owner catalog has at most 4,096 owners; catalog
+observation admits at most 10,000 documents and 32 MiB total; identity
+projection admits at most 100,000 entries. Field, item, nesting, scalar,
+diagnostic, and encoded-output limits remain exactly those in the published v1
+schemas. Both character and UTF-8 byte bounds are enforced when specified.
+
+### Template and canonical Markdown transform
+
+The bounded UTF-8 template contains exactly one fenced block whose info string
+is `markdown`. After CRLF-to-LF normalization, the skeleton inside that block
+must begin with a strict YAML mapping and then exactly one leading H1. YAML tags,
+anchors, aliases, duplicate keys, interpolation, includes, callbacks, and
+executable expressions are invalid. Foundation discards the placeholder
+frontmatter, replaces the placeholder H1 through `title` or `id-colon-title`,
+and retains the body beneath that H1. Content outside the single skeleton is
+not copied into output.
+
+Canonical frontmatter uses this key order:
+
+1. `id`, `type`, `status`, `owner`, `summary`;
+2. present `related`;
+3. every additional metadata key in binary order.
+
+`related` is unique and binary-sorted because Foundation owns that set.
+Every consumer-owned array preserves caller order and every nested mapping uses
+binary key order. Foundation has no knowledge of consumer field names. The
+governed keys `id`, `type`, `status`, `owner`, `summary`, `related`, `title`,
+`slug`, and `destination` cannot be supplied as additional metadata. The
+rendered metadata must round-trip through the strict YAML data model and pass
+the consumer metadata schema. Output is UTF-8 with LF, one terminal newline,
+and logical mode `0644`.
+
+The adopted donor corpus remains raw provenance evidence. Five of its six
+documents are exact Foundation output vectors. The feature document is an
+intentional semantic-equivalence vector: the donor preserves insertion order
+inside a `code_anchors` item (`pattern`, then `enforcement`), while Foundation's
+generic canonical mapping rule emits binary order (`enforcement`, then
+`pattern`). Foundation output enforcement takes precedence over donor byte
+parity; no consumer field receives a privileged ordering rule.
+
+The exact temporary-output operator is
+`documentTemporaryPath(destination, planDigest)`. It places a sibling named
+`.foundation-document-<digest>.tmp`, where `<digest>` is the 64 lowercase hex
+characters from the canonical `sha256:` Plan digest. The basename is 89 ASCII
+bytes. Planning fails closed unless the sibling remains within the 512-byte
+repository-path and 255-byte segment budgets; a root destination produces a
+root temporary path without `./`. The transaction slot accepts only this
+derived path. Its creator handle records exact Node-filesystem identity
+`{adapter:"node-filesystem",version:1,dev,ino,birthtimeNs}` using canonical
+unsigned decimal identity strings. A zero field records that the adapter cannot
+provide recovery authority on that filesystem: the evidence is preserved for
+manual recovery and must never authorize publication or cleanup. Otherwise,
+recovery requires an exact physical identity match;
+unverifiable or unsupported identity remains manual-recovery-only.
+
+## Canonical digest preimages
+
+Canonical JSON requires strings and keys to already be NFC, accepts only the
+JSON data model and safe integers, preserves array order, binary-sorts object
+keys, and emits no insignificant whitespace. Canonical document JSON rejects
+negative zero and lone UTF-16 surrogate code units in keys or values; JSON
+Schema validation alone is not authority for either invariant. Every
+document-owned digest hashes
+UTF-8 canonical JSON of the wrapper `{domain,payload}` using SHA-256:
+
+| Evidence | Exact domain | Payload |
+| --- | --- | --- |
+| Intent | `agent-teams.foundation.document-authoring/intent/v1` | canonical Intent |
+| Owner membership | `agent-teams.foundation.document-authoring/owner-membership/v1` | `{ownerCatalogDigest,ownerId}` |
+| Identity projection | `agent-teams.foundation.document-authoring/identity-projection/v1` | `{entries:[{id,repositoryPath}]}` with entries sorted by ID then path |
+| Referenced document | `agent-teams.foundation.document-authoring/referenced-document/v1` | exact wire `{id,path}` |
+| Plan | `agent-teams.foundation.document-authoring/plan/v1` | complete Plan omitting only `planDigest` |
+| Receipt | `agent-teams.foundation.document-authoring/receipt/v1` | complete Receipt omitting only `receiptDigest` |
+
+The identity projection's `entryCount` equals the number of entries used in its
+payload. Authority source digests and output content digests remain raw SHA-256
+of exact bytes. Transaction `payloadDigest` and `envelopeDigest` retain their
+existing envelope contract and are not reinterpreted by this domain separator.
+
+## Compiler and logical preimage
+
+Compilation is a pure operation over one canonical Intent and recaptured
+consumer authorities. It must reject before Plan construction when:
+
+- the catalog is `partial`, a bounded observation was truncated, or either
+  observation pass changed;
+- an ID, normalized path, owner, reference, artifact type, identity grammar,
+  placement, parent, template, or final metadata instance is invalid;
+- any authority exceeds its budget or cannot be strictly decoded;
+- destination classification is conflict rather than absent or the exact
+  planned logical self.
+
+Read-only discovery may return bounded partial results; authoring may not use a
+partial catalog as allocation authority. The minimal identity preimage contains
+only exact `{id,repositoryPath}` entries and is binary-sorted by ID then path.
+Referenced-document evidence is emitted only for IDs actually used by the
+Intent.
+
+For replay or recovery, the planned destination is excluded from the rebuilt
+logical identity preimage only if that exact repository path contains the exact
+planned output bytes and the document's parsed ID exactly equals the planned
+ID. The original Plan must then reproduce byte-for-byte. Matching bytes at a
+different path, matching ID in a different file, conflicting bytes, invalid
+frontmatter, or any second ID/path collision remains a conflict. This is the
+only existing-exact self exception; it is not a general overwrite or adoption
+rule.
 
 ## Transaction and compatibility
 
@@ -183,6 +404,18 @@ scaffolding journal and the version 2 envelope. Unknown, newer, tampered, or
 multiple transaction evidence is preserved and blocks mutation. Journals are
 never migrated automatically.
 
+### Apply-time physical recapture
+
+The compiler's expected parent is logical portable evidence, not a durable
+filesystem handle. Apply and recovery therefore recapture the repository root,
+destination parent, and every ancestor under the shared operation lock. The
+parent must still exist, be a directory, and consist only of real directories.
+A symlink, junction, reparse point, replacement, normalization/case alias,
+containment escape, unsupported observation, or any difference from the Plan's
+logical expectation yields stale authority, conflict, or manual recovery as
+appropriate; publication does not proceed. A portable Plan never claims that a
+stored inode/device tuple remains valid across platforms or process lifetimes.
+
 ## Atomicity vocabulary
 
 | Term | Exact claim |
@@ -208,4 +441,6 @@ unknown schema, protocol, handler, or newer journal fails closed.
 This version does not provide automatic sequence allocation, directory creation,
 managed reachability, generic Markdown updates, persistent indexing, fuzzy or
 semantic search, a documentation portal, a polyglot binary, organization-wide
-policy, or a generic consumer mutation API.
+policy, or a generic consumer mutation API. The complete current semantics are
+accepted by ADR-0023; ADR-0022 is retained only as superseded historical
+evidence.

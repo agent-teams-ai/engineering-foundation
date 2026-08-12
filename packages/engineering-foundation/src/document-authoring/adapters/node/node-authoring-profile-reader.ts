@@ -7,6 +7,11 @@ import type {
   CatalogCollection,
   CatalogProfileSnapshot
 } from "../../application/ports/authoring-profile-reader.js";
+import {
+  assertAuthoringProfileSemantics,
+  AuthoringProfileSemanticError,
+  type AuthoringProfileSemantics
+} from "../../application/policies/authoring-profile-semantics.js";
 import { DocumentCatalogError } from "../../document-catalog-error.js";
 import { readDocumentAuthorityFile } from "./read-document-authority-file.js";
 
@@ -63,9 +68,13 @@ export class NodeAuthoringProfileReader implements AuthoringProfileReader {
         input,
         "document-authoring-profile"
       );
+      assertAuthoringProfileSemantics(input as AuthoringProfileSemantics);
       assertNotCancelled(request.signal);
     } catch (error) {
-      if (error instanceof CapabilityInputError) {
+      if (
+        error instanceof CapabilityInputError ||
+        error instanceof AuthoringProfileSemanticError
+      ) {
         invalidProfile(error);
       }
       throw error;

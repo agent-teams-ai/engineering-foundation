@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { isAbsolute, resolve } from "node:path";
+import { resolve } from "node:path";
 
 import {
   ContainedFileReadError,
@@ -9,9 +9,8 @@ import type {
   DocumentAuthorityDigest,
   DocumentAuthorityEvidence
 } from "../../application/model/document-catalog.js";
+import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 import { DocumentCatalogError } from "../../document-catalog-error.js";
-
-const WINDOWS_DEVICE_COMPONENT = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
 export interface DocumentAuthorityFile {
   readonly bytes: Buffer;
@@ -28,22 +27,7 @@ function inputInvalid(message: string, options?: ErrorOptions): never {
 }
 
 function assertPortableDocumentAuthorityPath(path: string): void {
-  const segments = path.split("/");
-  if (
-    path.length === 0 ||
-    path.length > 512 ||
-    isAbsolute(path) ||
-    path.includes("\\") ||
-    !/^[A-Za-z0-9._@/-]+$/u.test(path) ||
-    segments.some(
-      (segment) =>
-        segment.length === 0 ||
-        segment === "." ||
-        segment === ".." ||
-        segment.endsWith(".") ||
-        WINDOWS_DEVICE_COMPONENT.test(segment)
-    )
-  ) {
+  if (!isDocumentRepositoryPath(path)) {
     inputInvalid(
       "Document authority paths must use the portable repository-relative path grammar."
     );

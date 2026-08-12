@@ -24,6 +24,9 @@ import {
   installedFoundationBuildIdentity,
 } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import {
+  documentPlanDigest,
+} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
+import {
   applyFilesystemScaffold,
   planScaffoldFromFile,
   recoverFilesystemScaffold,
@@ -182,8 +185,7 @@ function buildDocumentEnvelope(
   envelope.journal.plan = structuredClone(documentFixture.plan);
   envelope.journal.plan.compiler.version = version;
   envelope.journal.plan.compiler.buildIdentity = buildIdentity;
-  const { planDigest: _planDigest, ...planBody } = envelope.journal.plan;
-  envelope.journal.plan.planDigest = sha256Json(planBody);
+  envelope.journal.plan.planDigest = documentPlanDigest(envelope.journal.plan);
   envelope.payloadDigest = sha256Json(envelope.journal);
   const { envelopeDigest: _envelopeDigest, ...envelopeBody } = envelope;
   envelope.envelopeDigest = sha256Json(envelopeBody);
@@ -477,8 +479,7 @@ test("fails closed when an envelope is rebound across compiler or installed buil
       name: "intent digest does not bind the embedded intent",
       mutate(envelope) {
         envelope.journal.plan.intent.title = "Rebound intent";
-        const { planDigest: _digest, ...body } = envelope.journal.plan;
-        envelope.journal.plan.planDigest = sha256Json(body);
+        envelope.journal.plan.planDigest = documentPlanDigest(envelope.journal.plan);
       },
     },
     {
@@ -491,8 +492,7 @@ test("fails closed when an envelope is rebound across compiler or installed buil
       name: "output size does not bind decoded output bytes",
       mutate(envelope) {
         envelope.journal.plan.output.size += 1;
-        const { planDigest: _digest, ...body } = envelope.journal.plan;
-        envelope.journal.plan.planDigest = sha256Json(body);
+        envelope.journal.plan.planDigest = documentPlanDigest(envelope.journal.plan);
       },
     },
     {

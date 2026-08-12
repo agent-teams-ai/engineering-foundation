@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 2,
+  "operationKind": "document-authoring",
+  "recoveryHandler": { "id": "foundation.document-authoring", "contractVersion": 1 },
+  "foundation": {
+    "version": "0.13.1",
+    "buildIdentity": "sha256:39dd226ddd4cd861a2535cc59b2fe5c1a23f0e5b2c4be3190851b87f27ad3072"
+  },
+  "adapterContractVersion": 1,
+  "payloadKind": "document-authoring-journal/v1",
+  "journal": {
+    "schemaVersion": 1,
+    "plan": {
+      "schemaVersion": 1,
+      "protocolVersion": 1,
+      "compiler": {
+        "id": "@agent-teams/engineering-foundation",
+        "version": "0.13.1",
+        "buildIdentity": "sha256:39dd226ddd4cd861a2535cc59b2fe5c1a23f0e5b2c4be3190851b87f27ad3072"
+      },
+      "projectId": "foundation-fixture",
+      "intent": {
+        "schemaVersion": 1,
+        "type": "adr",
+        "id": "ADR-0083",
+        "title": "Deterministic documentation authoring",
+        "owner": "architecture/tooling",
+        "summary": "Defines deterministic creation of governed documentation.",
+        "related": ["ADR-0053"],
+        "additionalMetadata": { "blocked_by": [], "code_anchors": [] }
+      },
+      "intentDigest": "sha256:bc3675c6c201eed4b2a88e662c39b255dfa8832c6aa1c57cfb30fb4d4b34f944",
+      "authority": {
+        "profile": { "path": "architecture/foundation/document-authoring.yaml", "digest": "sha256:1900eab6c028483d7126599ee6f50de0d27907b5c65fa90524580b4b0f9852b0", "size": 7 },
+        "metadataSchema": { "path": "docs/metadata.schema.json", "digest": "sha256:df0ad6e43880f09c90ebf95f19110178aba6890df0010ebda7485029e2b543b4", "size": 6 },
+        "ownerCatalog": { "path": "docs/owners.yaml", "digest": "sha256:6f0e3a8c0eb46e8834b43b03374ece43a030621d92a7437beb48f871e90f8d90", "size": 6 },
+        "template": { "path": "docs/templates/adr.md", "digest": "sha256:5cde0f1298f41f7d1c8b907a36992a7a513225a2615bd6e307bf1a9149b06b40", "size": 8 }
+      },
+      "selectedOwner": { "id": "architecture/tooling", "membershipDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" },
+      "identityProjection": { "entryCount": 82, "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333" },
+      "referencedDocuments": [{ "id": "ADR-0053", "path": "docs/decisions/0053-example.md", "projectionDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444" }],
+      "destination": "docs/decisions/0083-deterministic-documentation-authoring.md",
+      "expectedParent": { "path": "docs/decisions", "state": "directory", "ancestry": "real-directories" },
+      "destinationPrecondition": { "state": "absent" },
+      "output": {
+        "digest": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+        "size": 6,
+        "mode": "0644",
+        "mediaType": "text/markdown; charset=utf-8",
+        "contentBase64": "aGVsbG8K"
+      },
+      "requiredAdapterCapabilities": ["create-file-no-replace/v1"],
+      "diagnostics": [],
+      "planDigest": "sha256:0806db3dad48c286b4c23a3ddd38e4883f0f15f4e54a7fbe047b8f6778616a7c"
+    },
+    "destination": { "path": "docs/decisions/0083-deterministic-documentation-authoring.md", "state": "pending" }
+  },
+  "payloadDigest": "sha256:e27709c6fecfb0ad67af65c98afba5d0c09e104a0180c2ed1829e8825343a26a",
+  "state": "PREPARED",
+  "envelopeDigest": "sha256:25522b6d1e5916b41a22243593c0ad8ab1424e02e64889b50ec7638109750d31"
+}

@@ -1,3 +1,5 @@
 architecture/public-api/*.json text eol=lf
 packages/engineering-foundation/schemas/**/*.json text eol=lf
 tests/fixtures/document-authoring-contracts/*.json text eol=lf
+tests/fixtures/document-authoring-canonical-markdown/*.md text eol=lf
+tests/fixtures/document-authoring-contracts/orchestrator-golden-v1/*.md text eol=lf

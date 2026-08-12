@@ -166,6 +166,10 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-release\.yml/u);
   assert.doesNotMatch(attestation.run, /\.context == "ReviewRouter"/u);
   assert.doesNotMatch(attestation.run, /post_status "ReviewRouter"/u);
+  assert.match(
+    attestation.run,
+    /ci_contexts=\(check windows-check macos-qualification\)/u,
+  );
   assert.match(attestation.run, /for context in "\$\{ci_contexts\[@\]\}"/u);
   assert.equal(
     release.jobs["attest-release-pr"].permissions.actions,

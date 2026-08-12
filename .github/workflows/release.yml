@@ -177,7 +177,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ci_contexts=(check windows-check)
+          ci_contexts=(check windows-check macos-qualification)
           release_gate_context=ReviewGate
           head_sha="${EXPECTED_RELEASE_HEAD_SHA}"
           status_finalized=0

@@ -280,10 +280,8 @@ boundaries:
       packages: []
       builtins:
         - node:crypto
-        - node:fs
         - node:fs/promises
         - node:path
-        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication.ts

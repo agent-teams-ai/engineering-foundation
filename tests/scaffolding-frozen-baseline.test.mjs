@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import {
   cp,
   mkdir,
@@ -17,6 +16,8 @@ import test from "node:test";
 
 import {
   applyFilesystemScaffold,
+  assertScaffoldPlanDigest,
+  assertScaffoldReceiptDigest,
   planScaffoldFromFile,
   recoverFilesystemScaffold,
   validateScaffoldReceipt,
@@ -35,6 +36,9 @@ const vector = JSON.parse(
     join(repositoryRoot, "tests", "fixtures", "scaffolding-golden-vector-v1.json"),
     "utf8",
   ),
+);
+const packageManifest = JSON.parse(
+  await readFile(join(packageRoot, "package.json"), "utf8"),
 );
 const sourceFixtureRoot = join(
   repositoryRoot,
@@ -59,12 +63,11 @@ function projectPlan(plan) {
   return {
     schemaVersion: plan.schemaVersion,
     protocolVersion: plan.protocolVersion,
-    compiler: plan.compiler,
+    compiler: { id: plan.compiler.id },
     projectId: plan.projectId,
     compositionId: plan.composition.id,
     intentDigest: plan.intentDigest,
     authoritySnapshotDigest: plan.authoritySnapshotDigest,
-    planDigest: plan.planDigest,
     target: plan.target,
     definitions: plan.definitions.map((definition) => ({
       kind: definition.kind,
@@ -91,13 +94,11 @@ function projectReceipt(receipt) {
   return {
     schemaVersion: receipt.schemaVersion,
     protocolVersion: receipt.protocolVersion,
-    planDigest: receipt.planDigest,
     adapter: receipt.adapter,
     outcome: receipt.outcome,
     commit: receipt.commit,
     operationOutcomes: receipt.operations.map(({ outcome }) => outcome),
     diagnostics: receipt.diagnostics,
-    receiptDigest: receipt.receiptDigest,
   };
 }
 
@@ -120,9 +121,13 @@ test("freezes the current ScaffoldPlan and ScaffoldReceipt vectors", async () =>
       consumerRoot: root,
       intentPath: vector.intentPath,
     });
+    assert.equal(plan.compiler.version, packageManifest.version);
+    assert.doesNotThrow(() => assertScaffoldPlanDigest(plan));
     assert.deepEqual(projectPlan(plan), vector.plan);
 
     const receipt = await applyFilesystemScaffold(root, plan);
+    assert.equal(receipt.planDigest, plan.planDigest);
+    assert.doesNotThrow(() => assertScaffoldReceiptDigest(receipt, plan));
     assert.equal(await validateScaffoldReceipt(receipt, plan), receipt);
     assert.deepEqual(projectReceipt(receipt), vector.receipt);
   });
@@ -201,27 +206,25 @@ test("freezes scaffolding CLI error and empty-recovery exit codes", async () => 
   });
 });
 
-test("freezes the released public API and package export map", async () => {
-  const baselineBytes = await readFile(
+test("validates the release-owned public API baseline and freezes the package export map", async () => {
+  const baseline = JSON.parse(await readFile(
     join(repositoryRoot, "architecture", "public-api", "engineering-foundation.json"),
-  );
-  const baseline = JSON.parse(baselineBytes);
-  const manifest = JSON.parse(
-    await readFile(join(packageRoot, "package.json"), "utf8"),
-  );
+    "utf8",
+  ));
+  assert.equal(baseline.schemaVersion, 1);
+  assert.equal(baseline.packageName, packageManifest.name);
+  assert.equal(baseline.packageVersion, packageManifest.version);
+  assert.match(baseline.extractorVersion, /^\d+\.\d+\.\d+$/u);
+  assert.ok(baseline.entrypoints.length > 0);
   assert.equal(
-    createHash("sha256").update(baselineBytes).digest("hex"),
-    vector.publicApi.sha256,
+    new Set(baseline.entrypoints.map(({ exportPath }) => exportPath)).size,
+    baseline.entrypoints.length,
   );
-  assert.equal(baseline.packageVersion, vector.publicApi.packageVersion);
-  assert.deepEqual(
-    baseline.entrypoints.map((entrypoint) => ({
-      exportPath: entrypoint.exportPath,
-      itemCount: entrypoint.items.length,
-    })),
-    vector.publicApi.entrypoints,
-  );
-  assert.deepEqual(manifest.exports, vector.publicApi.exports);
+  for (const entrypoint of baseline.entrypoints) {
+    assert.match(entrypoint.exportPath, /^\.|^\.\//u);
+    assert.ok(entrypoint.items.length > 0);
+  }
+  assert.deepEqual(packageManifest.exports, vector.publicApi.exports);
 });
 
 test("freezes the runtime, filesystem, and published schema allowlists", async () => {

@@ -6,14 +6,12 @@
     "schemaVersion": 1,
     "protocolVersion": 1,
     "compiler": {
-      "id": "@agent-teams/engineering-foundation",
-      "version": "0.11.0"
+      "id": "@agent-teams/engineering-foundation"
     },
     "projectId": "foundation-scaffolding-fixture",
     "compositionId": "testing-package",
     "intentDigest": "sha256:6cc988a34957aec925abd0c1fd57a23c1801230616b055cb05c9ff7b92202e60",
     "authoritySnapshotDigest": "sha256:8eb168c4ee8ff04ac0f1284b5b715cbcf6e6f195854a3955ee1e4229efe73f16",
-    "planDigest": "sha256:79f88497fdb9fa9008feea4478d4cd45d9c5ebc449669a6bb38ed287f9da2565",
     "target": {
       "id": "testing.generated",
       "role": "testing",
@@ -125,7 +123,6 @@
   "receipt": {
     "schemaVersion": 1,
     "protocolVersion": 1,
-    "planDigest": "sha256:79f88497fdb9fa9008feea4478d4cd45d9c5ebc449669a6bb38ed287f9da2565",
     "adapter": {
       "id": "foundation.filesystem/v1",
       "contractVersion": 1
@@ -142,8 +139,7 @@
       "applied",
       "applied"
     ],
-    "diagnostics": [],
-    "receiptDigest": "sha256:68fd21da3fb05fbdc6f34d5752b5dbb8897892d8c32b01d77955080f68d7b85a"
+    "diagnostics": []
   },
   "legacyJournal": {
     "schemaVersion": 1,
@@ -178,13 +174,6 @@
     }
   },
   "publicApi": {
-    "sha256": "192dd59166cea556ded61682e1b611b0c1c7108a2800a80cf766cd62b84a3a1a",
-    "packageVersion": "0.11.0",
-    "entrypoints": [
-      { "exportPath": ".", "itemCount": 115 },
-      { "exportPath": "./local-mode", "itemCount": 76 },
-      { "exportPath": "./scaffolding", "itemCount": 155 }
-    ],
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",

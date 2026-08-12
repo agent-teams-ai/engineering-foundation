@@ -1,5 +1,17 @@
 # @agent-teams/engineering-foundation
 
+## 0.12.0
+
+### Minor Changes
+
+- [#85](https://github.com/agent-teams-ai/engineering-foundation/pull/85) [`57d1378`](https://github.com/agent-teams-ai/engineering-foundation/commit/57d137871e325649a8ae246b760e9298f7b8cddc) Thanks [@777genius](https://github.com/777genius)! - Add the deterministic read-only document catalog API and strict authority adapters.
+
+- [#84](https://github.com/agent-teams-ai/engineering-foundation/pull/84) [`03f4201`](https://github.com/agent-teams-ai/engineering-foundation/commit/03f4201f46f45bedf1240a8018b919b50fc6859b) Thanks [@777genius](https://github.com/777genius)! - Publish the closed document authoring protocol schemas and transaction envelope
+  contracts without enabling a runtime writer.
+
+- [#86](https://github.com/agent-teams-ai/engineering-foundation/pull/86) [`4123de0`](https://github.com/agent-teams-ai/engineering-foundation/commit/4123de02d0e1e5fc808adf2c284530607dcd0276) Thanks [@777genius](https://github.com/777genius)! - Add deterministic read-only document search with structured filters, canonical
+  JSON output, and the `docs find` CLI command.
+
 ## 0.11.0
 
 ### Minor Changes

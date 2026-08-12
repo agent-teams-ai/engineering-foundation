@@ -29,13 +29,13 @@ interface ActiveOwner {
   readonly host: string;
   readonly kind: "active";
   readonly pid: number;
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 1;
   readonly token: string;
 }
 
 interface TransactionBarrier {
   readonly kind: "transaction-barrier";
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 1;
   readonly token: string;
 }
 
@@ -69,19 +69,19 @@ function parseEvidence(value: unknown): LockEvidence {
       candidate["token"]
     );
   if (
-    candidate["schemaVersion"] === 2 &&
+    candidate["schemaVersion"] === 1 &&
     candidate["kind"] === "transaction-barrier" &&
     tokenIsValid &&
     Object.keys(candidate).toSorted().join(",") === "kind,schemaVersion,token"
   ) {
     return {
       kind: "transaction-barrier",
-      schemaVersion: 2,
+      schemaVersion: 1,
       token: candidate["token"] as string
     };
   }
   if (
-    candidate["schemaVersion"] !== 2 ||
+    candidate["schemaVersion"] !== 1 ||
     candidate["kind"] !== "active" ||
     !tokenIsValid ||
     typeof candidate["host"] !== "string" ||
@@ -97,7 +97,7 @@ function parseEvidence(value: unknown): LockEvidence {
     host: candidate["host"],
     kind: "active",
     pid: candidate["pid"] as number,
-    schemaVersion: 2,
+    schemaVersion: 1,
     token: candidate["token"] as string
   };
 }
@@ -247,7 +247,7 @@ async function createOwnedLock(
     host: hostname(),
     kind: "active",
     pid: process.pid,
-    schemaVersion: 2,
+    schemaVersion: 1,
     token: randomUUID()
   };
   const handle = await open(lockPath, "wx", 0o600);
@@ -285,7 +285,7 @@ async function takeoverLock(
     host: hostname(),
     kind: "active",
     pid: process.pid,
-    schemaVersion: 2,
+    schemaVersion: 1,
     token: randomUUID()
   };
   const claimPath = `${lockPath}.claim.${expected.evidence.token}`;
@@ -379,7 +379,7 @@ async function retainTransactionBarrier(
   }
   const barrier: TransactionBarrier = {
     kind: "transaction-barrier",
-    schemaVersion: 2,
+    schemaVersion: 1,
     token: owned.evidence.token
   };
   const beforePublish = await readLock(lockPath);

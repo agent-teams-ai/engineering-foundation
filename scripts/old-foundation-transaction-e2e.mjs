@@ -254,7 +254,7 @@ export async function verifyOldFoundationTransactionBarrier({ currentCliPath }) 
     if (
       !lockMetadata.isFile() ||
       lockMetadata.isSymbolicLink() ||
-      lockEvidence.schemaVersion !== 2 ||
+      lockEvidence.schemaVersion !== 1 ||
       lockEvidence.kind !== "transaction-barrier"
     ) {
       throw new Error("Current Foundation did not persist a valid downgrade barrier.");

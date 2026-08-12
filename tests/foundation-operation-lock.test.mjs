@@ -39,7 +39,7 @@ async function writeEvidence(root, evidence) {
 
 function activeEvidence(pid, overrides = {}) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 1,
     kind: "active",
     host: hostname(),
     pid,

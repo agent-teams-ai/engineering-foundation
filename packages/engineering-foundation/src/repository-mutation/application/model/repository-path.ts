@@ -12,11 +12,15 @@ export type PortableRepositoryPathProblem =
   | "backslash"
   | "control-character"
   | "empty-segment"
+  | "invalid-character"
   | "invalid-segment"
   | "path-too-long"
   | "reserved-name"
   | "segment-too-long"
-  | "trailing-dot";
+  | "trailing-dot"
+  | "trailing-space";
+
+const PORTABLE_SEGMENT = /^[A-Za-z0-9._@+-]+$/u;
 
 function isPortableAbsolutePath(repositoryPath: string): boolean {
   return (
@@ -29,7 +33,10 @@ function isPortableAbsolutePath(repositoryPath: string): boolean {
 export function portableRepositoryPathProblem(
   repositoryPath: string
 ): PortableRepositoryPathProblem | undefined {
-  if (repositoryPath.length > 512) {
+  if (
+    repositoryPath.length > 512 ||
+    new TextEncoder().encode(repositoryPath).byteLength > 512
+  ) {
     return "path-too-long";
   }
   if (isPortableAbsolutePath(repositoryPath)) {
@@ -46,17 +53,31 @@ export function portableRepositoryPathProblem(
     if (segment === "." || segment === "..") {
       return "invalid-segment";
     }
-    if (segment.length > 255) {
+    if (
+      segment.length > 255 ||
+      new TextEncoder().encode(segment).byteLength > 255
+    ) {
       return "segment-too-long";
     }
     if (segment.endsWith(".")) {
       return "trailing-dot";
     }
-    if (Array.from(segment).some((character) => (character.codePointAt(0) ?? 0) < 32)) {
+    if (segment.endsWith(" ")) {
+      return "trailing-space";
+    }
+    if (
+      Array.from(segment).some((character) => {
+        const codePoint = character.codePointAt(0) ?? 0;
+        return codePoint < 32 || codePoint === 127;
+      })
+    ) {
       return "control-character";
     }
     if (WINDOWS_RESERVED_NAMES.has((segment.split(".")[0] ?? "").toUpperCase())) {
       return "reserved-name";
+    }
+    if (!PORTABLE_SEGMENT.test(segment)) {
+      return "invalid-character";
     }
   }
   return undefined;

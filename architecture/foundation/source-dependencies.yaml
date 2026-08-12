@@ -216,6 +216,7 @@ boundaries:
       - packages/engineering-foundation/src/schema-catalog.ts
   - id: foundation.scaffolding.core
     roots:
+      - packages/engineering-foundation/src/scaffolding/application
       - packages/engineering-foundation/src/scaffolding/contract
       - packages/engineering-foundation/src/scaffolding/definitions
       - packages/engineering-foundation/src/scaffolding/kernel/canonical-json.ts
@@ -226,7 +227,8 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/scaffold-defaults.ts
       - packages/engineering-foundation/src/scaffolding/scaffold-error.ts
     allow:
-      boundaries: []
+      boundaries:
+        - foundation.repository-mutation.application
       packages:
         - ajv
       builtins:
@@ -234,6 +236,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/scaffolding/application/policies/legacy-scaffolding-repository-path.ts
       - packages/engineering-foundation/src/scaffolding/contract/types.ts
       - packages/engineering-foundation/src/scaffolding/contract/scaffold-contract.ts
       - packages/engineering-foundation/src/scaffolding/definitions/registry.ts

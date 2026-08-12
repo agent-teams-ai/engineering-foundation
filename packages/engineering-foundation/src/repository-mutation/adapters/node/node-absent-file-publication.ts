@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { link, open, rm } from "node:fs/promises";
+import { link, lstat, open, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import {
@@ -100,7 +100,7 @@ export async function assertTemporaryPathsAbsent(
 ): Promise<void> {
   for (const entry of entries) {
     try {
-      await readBoundedRegularFile(entry.temporaryPath, 0);
+      await lstat(entry.temporaryPath);
     } catch (error) {
       if (isMissing(error)) {
         continue;

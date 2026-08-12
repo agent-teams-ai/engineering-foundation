@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import {
+  assertTemporaryPathsAbsent,
   classifyExactFilePostimage,
   publishAbsentFile
 } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-absent-file-publication.js";
@@ -236,6 +237,36 @@ test("does not overwrite an existing temporary", async () => {
     );
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "reserved\n");
     await missing(paths.destinationPath);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("classifies every existing temporary by existence alone", async () => {
+  const paths = await fixture();
+  try {
+    await writeFile(paths.temporaryPath, "unreadable\n", { mode: 0o000 });
+    await chmod(paths.temporaryPath, 0o000);
+    await assert.rejects(
+      assertTemporaryPathsAbsent([
+        { displayPath: "result.txt", temporaryPath: paths.temporaryPath }
+      ]),
+      (error) => error?.code === "TEMPORARY_EXISTS"
+    );
+    await rm(paths.temporaryPath);
+    await mkdir(paths.temporaryPath);
+    await assert.rejects(
+      assertTemporaryPathsAbsent([
+        { displayPath: "result.txt", temporaryPath: paths.temporaryPath }
+      ]),
+      (error) => error?.code === "TEMPORARY_EXISTS"
+    );
+    await rm(paths.temporaryPath, { recursive: true });
+    await assert.doesNotReject(
+      assertTemporaryPathsAbsent([
+        { displayPath: "result.txt", temporaryPath: paths.temporaryPath }
+      ])
+    );
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }

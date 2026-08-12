@@ -15,6 +15,7 @@ import {
   portableRepositoryPathIdentity,
   portableRepositoryPathProblem
 } from "../packages/engineering-foundation/dist/repository-mutation/application/model/repository-path.js";
+import { legacyScaffoldingRepositoryPathProblem } from "../packages/engineering-foundation/dist/scaffolding/application/policies/legacy-scaffolding-repository-path.js";
 
 async function withTemporaryRoot(callback) {
   const root = await mkdtemp(join(tmpdir(), "repository-mutation-paths-"));
@@ -33,6 +34,49 @@ test("validates portable repository paths independently of the host", () => {
   assert.equal(portableRepositoryPathProblem("docs/../guide.md"), "invalid-segment");
   assert.equal(portableRepositoryPathProblem("docs/CON.md"), "reserved-name");
   assert.equal(portableRepositoryPathProblem("docs/bad\u0001.md"), "control-character");
+  assert.equal(portableRepositoryPathProblem("docs/bad\u007f.md"), "control-character");
+  assert.equal(portableRepositoryPathProblem("docs/café.md"), "invalid-character");
+  assert.equal(portableRepositoryPathProblem("docs/trailing "), "trailing-space");
+  assert.equal(portableRepositoryPathProblem("docs/stream:secret"), "invalid-character");
+  for (const character of ['*', '?', '"', '<', '>', '|']) {
+    assert.equal(
+      portableRepositoryPathProblem(`docs/bad${character}.md`),
+      "invalid-character"
+    );
+  }
+  assert.equal(
+    portableRepositoryPathProblem(`docs/${"a".repeat(256)}`),
+    "segment-too-long"
+  );
+  assert.equal(
+    portableRepositoryPathProblem(
+      `${"a".repeat(255)}/${"b".repeat(255)}/c`
+    ),
+    "path-too-long"
+  );
+  assert.equal(
+    portableRepositoryPathProblem(`docs/${"é".repeat(128)}`),
+    "segment-too-long"
+  );
+  assert.equal(
+    portableRepositoryPathProblem(
+      `${"é".repeat(127)}/${"é".repeat(127)}/aaa`
+    ),
+    "path-too-long"
+  );
+});
+
+test("keeps the published scaffolding path contract frozen", () => {
+  for (const repositoryPath of [
+    "packages/generated/café.ts",
+    "packages/generated/trailing ",
+    "packages/generated/stream:secret",
+    "packages/generated/bad?.ts",
+    "packages/generated/bad\u007f.ts"
+  ]) {
+    assert.equal(legacyScaffoldingRepositoryPathProblem(repositoryPath), undefined);
+    assert.notEqual(portableRepositoryPathProblem(repositoryPath), undefined);
+  }
 });
 
 test("assigns NFC and case folded portable identities", () => {

@@ -11,6 +11,7 @@ import type {
 import type { ObserveMarkdownRepositoryRequest } from "../../../application/ports/markdown-repository.js";
 import {
   FilesystemMarkdownDocumentReader,
+  MarkdownSourceInvalidError,
   MAX_MARKDOWN_BYTES
 } from "./filesystem-markdown-document-reader.js";
 import {
@@ -52,10 +53,21 @@ function resourceLimit(message: string): never {
 
 interface MarkdownTreeWalkContext {
   readonly collector: MarkdownTreeObservationCollector;
+  readonly excludedPrefixes: readonly string[];
   readonly filesystem: FilesystemMarkdownOperations;
   readonly reader: FilesystemMarkdownDocumentReader;
   readonly repository: FilesystemMarkdownRepositoryContext;
   readonly signal?: AbortSignal;
+}
+
+function matchesRepositoryPrefix(path: string, prefix: string): boolean {
+  return path === prefix || path.startsWith(`${prefix}/`);
+}
+
+function isExcludedPath(walk: MarkdownTreeWalkContext, path: string): boolean {
+  return walk.excludedPrefixes.some((prefix) =>
+    matchesRepositoryPrefix(path, prefix)
+  );
 }
 
 function addIssue(
@@ -74,6 +86,9 @@ async function walkConfiguredRoot(
 ): Promise<void> {
   const { collector, filesystem, repository: context, signal } = walk;
   const absoluteRoot = resolve(context.canonicalRoot, root);
+  if (isExcludedPath(walk, root)) {
+    return;
+  }
   if (!isWithinMarkdownRepository(context.canonicalRoot, absoluteRoot)) {
     addIssue(collector, {
       kind: "symbolic-link",
@@ -139,6 +154,9 @@ async function inspectDirectoryEntry(
 ): Promise<void> {
   const { collector, filesystem, reader, repository: context, signal } = walk;
   const candidateRepositoryPath = markdownRepositoryPath(context.canonicalRoot, candidate);
+  if (isExcludedPath(walk, candidateRepositoryPath)) {
+    return;
+  }
   if (collector.documents.has(candidateRepositoryPath)) {
     return;
   }
@@ -186,7 +204,20 @@ async function inspectDirectoryEntry(
     );
   }
 
-  const document = await reader.read(context, candidate, signal);
+  let document;
+  try {
+    document = await reader.read(context, candidate, signal);
+  } catch (error) {
+    if (error instanceof MarkdownSourceInvalidError) {
+      addIssue(collector, {
+        kind: "source-invalid",
+        message: error.message,
+        repositoryPath: candidateRepositoryPath
+      });
+      return;
+    }
+    throw error;
+  }
   if (document === undefined) {
     try {
       await filesystem.lstat(candidate);
@@ -321,6 +352,7 @@ export async function observeFilesystemMarkdownTree(
   };
   const walk: MarkdownTreeWalkContext = {
     collector,
+    excludedPrefixes: (request.excludedPrefixes ?? []).toSorted(compareBinaryStrings),
     filesystem,
     reader,
     repository: context,

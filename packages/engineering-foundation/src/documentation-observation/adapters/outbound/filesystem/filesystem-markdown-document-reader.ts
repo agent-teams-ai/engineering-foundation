@@ -17,6 +17,23 @@ const MAX_CACHED_MARKDOWN_DOCUMENTS = 10_000;
 const MAX_MARKDOWN_LINES = 50_000;
 const MAX_MARKDOWN_REFERENCE_MARKERS = 25_000;
 
+export class MarkdownSourceInvalidError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MarkdownSourceInvalidError";
+  }
+}
+
+function decodeMarkdownSource(bytes: Buffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    throw new MarkdownSourceInvalidError(
+      "Markdown source must contain well-formed UTF-8."
+    );
+  }
+}
+
 function resourceLimit(message: string): never {
   throw new CapabilityInputError({
     code: "DOCUMENTATION_RESOURCE_LIMIT_EXCEEDED",
@@ -74,10 +91,13 @@ export class FilesystemMarkdownDocumentReader {
           maxBytes: MAX_MARKDOWN_BYTES,
           root: context.canonicalRoot
         });
-      source = bytes.toString("utf8");
+      source = decodeMarkdownSource(bytes);
       sourceBytes = bytes.byteLength;
     } catch (error) {
       assertNotCancelled(signal);
+      if (error instanceof MarkdownSourceInvalidError) {
+        throw error;
+      }
       if (
         error instanceof ContainedFileReadError &&
         ["escape", "invalid", "missing", "symlink"].includes(error.failure)

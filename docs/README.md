@@ -18,7 +18,7 @@ not repeat their rules.
 | Repository security | [Repository security baseline](security/repository-security-baseline.md) | Accepted and implemented for publishing repositories |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
 | Scaffolding compiler | [Scaffolding compiler protocol](architecture/scaffolding-compiler-protocol.md) | Kernel and generic Node TypeScript library recipe implemented; Nx deferred |
-| Document authoring | [Document authoring protocol](architecture/document-authoring-protocol.md) | Contracts accepted; runtime implementation pending |
+| Document authoring | [Document authoring protocol](architecture/document-authoring-protocol.md) | Read-only catalog implemented; mutation runtime pending |
 | Document authoring security | [Cooperative writer threat model](security/document-authoring-threat-model.md) | Accepted contract boundary; runtime implementation pending |
 | Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |

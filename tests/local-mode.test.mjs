@@ -111,6 +111,7 @@ async function createTargetPackage(path, version) {
     compatibleLocalModeProtocolVersions: [1],
     exportPaths: [
       ".",
+      "./document-authoring",
       "./local-mode",
       "./package.json",
       "./presets/*",
@@ -130,6 +131,10 @@ async function createTargetPackage(path, version) {
       ".": {
         types: "./dist/index.d.ts",
         import: "./dist/index.js"
+      },
+      "./document-authoring": {
+        types: "./dist/document-authoring/index.d.ts",
+        import: "./dist/document-authoring/index.js"
       },
       "./local-mode": {
         types: "./dist/local-mode/index.d.ts",
@@ -171,6 +176,11 @@ async function createTargetPackage(path, version) {
   await writeFile(
     join(path, "dist", "index.js"),
     "export class FoundationError extends Error {}\n",
+    "utf8"
+  );
+  await writeFile(
+    join(path, "dist", "document-authoring", "index.js"),
+    "export function buildDocumentationCatalog() {}\n",
     "utf8"
   );
   await writeFile(

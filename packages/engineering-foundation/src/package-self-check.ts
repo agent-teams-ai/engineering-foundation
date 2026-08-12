@@ -18,6 +18,8 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "dist/index.d.ts",
   "dist/index.js",
   "dist/public-api-surface.d.ts",
+  "dist/document-authoring/index.d.ts",
+  "dist/document-authoring/index.js",
   "dist/local-mode/index.d.ts",
   "dist/local-mode/index.js",
   "dist/scaffolding/index.d.ts",
@@ -149,6 +151,53 @@ function parseProtocolMetadata(manifest: Record<string, unknown>): {
   };
 }
 
+function importUnknown(specifier: string): Promise<unknown> {
+  return import(specifier) as Promise<unknown>;
+}
+
+async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> {
+  const [rootExports, documentAuthoringExports, localModeExports, scaffoldingExports] =
+    await Promise.all([
+      importUnknown(pathToFileURL(join(packageRoot, "dist", "index.js")).href),
+      importUnknown(
+        pathToFileURL(join(packageRoot, "dist", "document-authoring", "index.js")).href
+      ),
+      importUnknown(
+        pathToFileURL(join(packageRoot, "dist", "local-mode", "index.js")).href
+      ),
+      importUnknown(
+        pathToFileURL(join(packageRoot, "dist", "scaffolding", "index.js")).href
+      )
+    ]);
+  if (
+    !isRecord(rootExports) ||
+    !isRecord(documentAuthoringExports) ||
+    !isRecord(localModeExports) ||
+    !isRecord(scaffoldingExports)
+  ) {
+    throw new FoundationError(
+      "PACKAGE_INVALID",
+      "Foundation target runtime exports must be module objects."
+    );
+  }
+  const requiredRuntimeExports: readonly (readonly [string, unknown])[] = [
+    ["FoundationError", rootExports.FoundationError],
+    ["buildDocumentationCatalog", documentAuthoringExports.buildDocumentationCatalog],
+    ["FoundationLocalModeService", localModeExports.FoundationLocalModeService],
+    ["planScaffoldFromFile", scaffoldingExports.planScaffoldFromFile],
+    ["applyFilesystemScaffold", scaffoldingExports.applyFilesystemScaffold],
+    ["inspectFoundationMode", localModeExports.inspectFoundationMode]
+  ];
+  for (const [exportName, candidate] of requiredRuntimeExports) {
+    if (typeof candidate !== "function") {
+      throw new FoundationError(
+        "PACKAGE_INVALID",
+        `Foundation target runtime export is unavailable: ${exportName}.`
+      );
+    }
+  }
+}
+
 export async function inspectFoundationPackage(
   packageRoot: string
 ): Promise<FoundationPackageSelfCheck> {
@@ -205,6 +254,10 @@ export async function inspectFoundationPackage(
     types: "./dist/local-mode/index.d.ts",
     import: "./dist/local-mode/index.js"
   });
+  validateExport(manifest.exports, "./document-authoring", {
+    types: "./dist/document-authoring/index.d.ts",
+    import: "./dist/document-authoring/index.js"
+  });
   validateExport(manifest.exports, "./scaffolding", {
     types: "./dist/scaffolding/index.d.ts",
     import: "./dist/scaffolding/index.js"
@@ -225,43 +278,7 @@ export async function inspectFoundationPackage(
       );
     }
   }
-  const rootExports: unknown = await import(
-    pathToFileURL(join(packageRoot, "dist", "index.js")).href
-  );
-  const localModeExports: unknown = await import(
-    pathToFileURL(join(packageRoot, "dist", "local-mode", "index.js")).href
-  );
-  const scaffoldingExports: unknown = await import(
-    pathToFileURL(join(packageRoot, "dist", "scaffolding", "index.js")).href
-  );
-  if (
-    !isRecord(rootExports) ||
-    !isRecord(localModeExports) ||
-    !isRecord(scaffoldingExports)
-  ) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation target runtime exports must be module objects."
-    );
-  }
-  const requiredRuntimeExports: readonly (readonly [string, unknown])[] = [
-    ["FoundationError", rootExports.FoundationError],
-    [
-      "FoundationLocalModeService",
-      localModeExports.FoundationLocalModeService
-    ],
-    ["planScaffoldFromFile", scaffoldingExports.planScaffoldFromFile],
-    ["applyFilesystemScaffold", scaffoldingExports.applyFilesystemScaffold],
-    ["inspectFoundationMode", localModeExports.inspectFoundationMode]
-  ];
-  for (const [exportName, candidate] of requiredRuntimeExports) {
-    if (typeof candidate !== "function") {
-      throw new FoundationError(
-        "PACKAGE_INVALID",
-        `Foundation target runtime export is unavailable: ${exportName}.`
-      );
-    }
-  }
+  await assertRequiredRuntimeExports(packageRoot);
 
   const protocolMetadata = parseProtocolMetadata(manifest);
   const runtimeDependencies = assertStringRecord(

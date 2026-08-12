@@ -6,6 +6,7 @@ import type {
 
 export interface ObserveMarkdownRepositoryRequest {
   readonly consumerRoot: string;
+  readonly excludedPrefixes?: readonly string[];
   readonly roots: readonly string[];
   readonly signal?: AbortSignal;
 }

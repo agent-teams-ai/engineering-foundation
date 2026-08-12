@@ -15,6 +15,23 @@ verifies the allowed owner status before planning, applying, or recovering.
 Consumers cannot provide templates, hooks, callbacks, commands, or definition
 plugins.
 
+The read-only document catalog is available through
+`@agent-teams/engineering-foundation/document-authoring`. It rebuilds a stable
+snapshot from an explicit data-only profile, consumer metadata schema, owner map,
+and Markdown collections. Partial snapshots retain diagnostics without hiding
+valid neighboring documents. This API never writes files and is not a Foundation
+capability.
+
+```ts
+import { buildDocumentationCatalog } from
+  "@agent-teams/engineering-foundation/document-authoring";
+
+const catalog = await buildDocumentationCatalog({
+  consumerRoot: process.cwd(),
+  profilePath: "document-authoring.yaml"
+});
+```
+
 Consumer CI should run both policy gates:
 
 ```bash

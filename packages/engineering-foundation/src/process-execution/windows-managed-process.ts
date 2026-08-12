@@ -14,6 +14,7 @@ const MAX_ENCODED_REQUEST_CHARACTERS = 24_000;
 
 const WINDOWS_JOB_RUNNER = String.raw`
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 Add-Type -TypeDefinition @'
 using System;
 using System.ComponentModel;

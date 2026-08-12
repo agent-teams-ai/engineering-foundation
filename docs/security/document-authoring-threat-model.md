@@ -43,7 +43,9 @@ meaning, completeness, or review quality.
 | Caller mutates an in-memory Plan | Snapshot, validate, and digest before use | Invalid Plan |
 | Journal or payload tampering | Closed schema plus payload and envelope digests | Manual recovery required |
 | Unknown or newer journal | Preserve exact evidence and block every Foundation mutation | Manual recovery required |
-| Package downgrade during a transaction | Exact version and build identity in the envelope | Recovery with compatible version required |
+| Package downgrade or same-version rebuild during a transaction | Version plus package manifest/executable/schema/preset artifact identity in the envelope, bound to the embedded compiler | Preserve evidence; no v2 auto-recovery until handler and dependency-closure compatibility are qualified |
+| Contradictory envelope/document lifecycle | Closed state matrix binding envelope state, destination state, precondition, and owned temporary | Manual recovery required |
+| Interrupted local attach or detach | Shared coordinator recognizes durable phase or orphan registry backup and admits only detach | All foreign mutations blocked |
 | Concurrent Foundation mutation | One operation lock and one physical transaction slot | Recovery required |
 | Crash before publication | Durable prepared evidence and exclusive owned temporary | Recover or preserve |
 | Crash after publication | Verify exact destination and preserve journal | Complete or recover; never delete output |
@@ -64,7 +66,7 @@ The only permitted responses after that boundary are:
 
 - finish verification and commit;
 - preserve destination and transaction evidence;
-- resume with the exact compatible recovery handler;
+- resume only with a compatible implemented and qualified recovery handler;
 - report manual recovery with stable diagnostics.
 
 ## Honest claim

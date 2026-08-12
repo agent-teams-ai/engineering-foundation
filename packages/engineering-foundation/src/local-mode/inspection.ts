@@ -3,7 +3,8 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type {
   FoundationLinkState,
-  FoundationStatus
+  FoundationStatus,
+  FoundationTransactionAwareStatus
 } from "./types.js";
 import {
   inspectFoundationDevOnly,
@@ -16,6 +17,10 @@ import {
   LOCAL_STATE_DIRECTORY,
   LOCAL_STATE_FILE
 } from "./types.js";
+import { installedFoundationVersion } from "../package-version.js";
+import { installedFoundationBuildIdentity } from "../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
+import { NodeFoundationTransactionSlot } from "../transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import type { FoundationTransactionStatus } from "../transaction-coordination/application/model/transaction-status.js";
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown;
@@ -225,8 +230,9 @@ function buildStatus(input: {
   readonly installed: InstalledFoundation;
   readonly provenance?: { readonly lockfilePath: string; readonly packageKey: string; readonly integrity: string };
   readonly linkState?: FoundationLinkState;
+  readonly transaction?: FoundationTransactionStatus;
   readonly issues: readonly string[];
-}): FoundationStatus {
+}): FoundationTransactionAwareStatus {
   return {
     mode: input.issues.length === 0
       ? input.linkState === undefined ? "REGISTRY" : "LOCAL"
@@ -243,6 +249,7 @@ function buildStatus(input: {
           registryIntegrity: input.provenance.integrity
         }),
     ...(input.linkState === undefined ? {} : { linkState: input.linkState }),
+    ...(input.transaction === undefined ? {} : { transaction: input.transaction }),
     issues: input.issues
   };
 }
@@ -251,6 +258,13 @@ export async function inspectFoundationMode(
   consumerPath: string,
   options: { readonly ignoreOperationLock?: boolean } = {}
 ): Promise<FoundationStatus> {
+  return inspectFoundationTransactionAwareMode(consumerPath, options);
+}
+
+export async function inspectFoundationTransactionAwareMode(
+  consumerPath: string,
+  options: { readonly ignoreOperationLock?: boolean } = {}
+): Promise<FoundationTransactionAwareStatus> {
   const consumerRoot = await realpath(resolve(consumerPath));
   const issues: string[] = [];
   const localStateDirectoryIsSafe = await inspectLocalStateDirectory(
@@ -258,7 +272,18 @@ export async function inspectFoundationMode(
     options.ignoreOperationLock === true,
     issues
   );
-
+  const transaction = localStateDirectoryIsSafe
+    ? await new NodeFoundationTransactionSlot({
+        consumerRoot,
+        installedVersion: await installedFoundationVersion(),
+        installedBuildIdentity: await installedFoundationBuildIdentity()
+      }).inspect()
+    : { state: "idle" as const, diagnostics: [] as const };
+  const transactionDiagnostic =
+    transaction.state === "idle" ? undefined : transaction.diagnostics[0]?.message;
+  if (transactionDiagnostic !== undefined) {
+    issues.push(transactionDiagnostic);
+  }
   const dependencyPolicy = await inspectFoundationDevOnly(consumerRoot);
   issues.push(...dependencyPolicy.issues);
   const dependencySpec = dependencyPolicy.dependencySpec;
@@ -280,6 +305,7 @@ export async function inspectFoundationMode(
       installed,
       ...(provenance.provenance === undefined ? {} : { provenance: provenance.provenance }),
       linkState,
+      ...(transaction.state === "idle" ? {} : { transaction }),
       issues
     });
   }
@@ -304,6 +330,7 @@ export async function inspectFoundationMode(
     ...(dependencySpec === undefined ? {} : { dependencySpec }),
     installed,
     ...(provenance.provenance === undefined ? {} : { provenance: provenance.provenance }),
+    ...(transaction.state === "idle" ? {} : { transaction }),
     issues
   });
 }

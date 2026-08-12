@@ -140,6 +140,7 @@ test("preserves no-deadline behavior when timeoutMs is omitted", async () => {
     cwd: process.cwd()
   });
   assert.equal(result.stdout, "done");
+  assert.equal(result.stderr, "");
 });
 
 test("terminates a never-exiting process tree when cancelled", { timeout: TEST_TIMEOUT_MS }, async () => {

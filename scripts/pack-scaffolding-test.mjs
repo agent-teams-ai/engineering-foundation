@@ -2,6 +2,7 @@ import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { runCommand } from "./pack-test-support.mjs";
+import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 
 async function copyScaffoldingFixture(fixtureRoot, consumerRoot) {
   await mkdir(consumerRoot, { recursive: true });
@@ -72,6 +73,11 @@ export async function verifyPackedAuthorityScaffolding({
     "fixtures",
     "scaffolding-authority-consumer"
   );
+  await verifyInstalledTransactionBarrier({
+    cliPath: fixture.toolEntrypoints.foundationCli,
+    consumerRoot: join(fixture.consumerRoot, "transaction-barrier-consumer"),
+    fixtureRoot,
+  });
   const authorityRoot = join(fixture.consumerRoot, "authority-consumer");
   await copyScaffoldingFixture(fixtureRoot, authorityRoot);
   const plan = await runScaffoldingCommand(fixture, authorityRoot, [

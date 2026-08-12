@@ -16,6 +16,11 @@ export type BoundedRegularFileRead =
   | { readonly outcome: "changed" }
   | { readonly outcome: "invalid" };
 
+export type BoundedRegularFileReadFaultInjector = (point: {
+  readonly phase: "before-stability-check";
+  readonly path: string;
+}) => Promise<void> | void;
+
 function identityFromStat(metadata: {
   readonly birthtimeNs: bigint;
   readonly dev: bigint;
@@ -97,7 +102,8 @@ async function readAtMost(
 
 export async function readBoundedRegularFile(
   path: string,
-  maximumBytes: number
+  maximumBytes: number,
+  faultInjector?: BoundedRegularFileReadFaultInjector
 ): Promise<BoundedRegularFileRead> {
   if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 0) {
     throw new TypeError("maximumBytes must be a non-negative safe integer.");
@@ -129,6 +135,7 @@ export async function readBoundedRegularFile(
     if (bytes === undefined) {
       return { outcome: "invalid" };
     }
+    await faultInjector?.({ phase: "before-stability-check", path });
     const after = await handle.stat({ bigint: true });
     if (
       !after.isFile() ||

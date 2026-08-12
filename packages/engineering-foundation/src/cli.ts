@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
@@ -21,18 +20,24 @@ import { NodeProcessRunner } from "./local-mode/process-runner.js";
 import { FoundationLocalModeService } from "./local-mode/service.js";
 import type {
   FoundationDevOnlyStatus,
-  FoundationStatus
+  FoundationStatus,
+  FoundationTransactionAwareStatus
 } from "./local-mode/types.js";
 import { inspectFoundationPackage } from "./package-self-check.js";
+import { installedFoundationVersion } from "./package-version.js";
 import { renderFoundationReportText } from "./report-renderer.js";
 import { runScaffoldingCliCommand } from "./scaffolding/cli-command.js";
 import { ScaffoldError } from "./scaffolding/scaffold-error.js";
+import { FoundationTransactionError } from "./transaction-coordination/application/foundation-transaction-error.js";
 import {
   isFoundationSchemaId,
   readFoundationSchema
 } from "./schema-catalog.js";
 
-function printStatus(status: FoundationStatus, json: boolean): void {
+function printStatus(
+  status: FoundationStatus | FoundationTransactionAwareStatus,
+  json: boolean
+): void {
   if (json) {
     process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
     return;
@@ -68,6 +73,21 @@ function printStatus(status: FoundationStatus, json: boolean): void {
     process.stdout.write(
       `Current dirty: ${status.sourceGitDirty ? "yes" : "no"}\n`
     );
+  }
+  const transaction = "transaction" in status ? status.transaction : undefined;
+  if (transaction !== undefined && transaction.state !== "idle") {
+    process.stdout.write(`Transaction: ${transaction.state}\n`);
+    if (transaction.state === "pending") {
+      process.stdout.write(`Transaction kind: ${transaction.operationKind}\n`);
+      if (transaction.recovery.commandId === "detach") {
+        process.stdout.write("Recovery: detach with the installed Foundation.\n");
+      } else {
+        const buildIdentity = transaction.recovery.exactFoundationBuildIdentity;
+        process.stdout.write(
+          `Recovery: ${transaction.recovery.commandId} with Foundation ${transaction.recovery.exactFoundationVersion}${buildIdentity === undefined ? "" : ` (${buildIdentity})`}\n`
+        );
+      }
+    }
   }
   for (const issue of status.issues) {
     process.stdout.write(`Issue: ${issue}\n`);
@@ -110,20 +130,6 @@ function printHelp(): void {
   agent-teams-foundation self-check [--json]
   agent-teams-foundation version
 `);
-}
-
-async function packageVersion(): Promise<string> {
-  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-  const manifest = JSON.parse(
-    await readFile(resolve(packageRoot, "package.json"), "utf8")
-  ) as { version?: unknown };
-  if (typeof manifest.version !== "string") {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation package version is unavailable."
-    );
-  }
-  return manifest.version;
 }
 
 async function runLocalModeCommand(
@@ -212,7 +218,7 @@ async function runCheckCommand(
   try {
     const report = await runFoundationCheck({
       consumerRoot: parsed.consumerRoot,
-      foundationVersion: await packageVersion(),
+      foundationVersion: await installedFoundationVersion(),
       ...(parsed.positional[0] === undefined
         ? {}
         : { capabilityId: parsed.positional[0] }),
@@ -407,7 +413,7 @@ async function runInformationCommand(
     case "version":
     case "--version":
     case "-v": {
-      process.stdout.write(`${await packageVersion()}\n`);
+      process.stdout.write(`${await installedFoundationVersion()}\n`);
       return true;
     }
     default:
@@ -455,6 +461,9 @@ try {
     const result = documentFindFailure(error);
     process.stdout.write(`${JSON.stringify(result.envelope)}\n`);
     process.exitCode = result.exitCode;
+  } else if (error instanceof FoundationTransactionError) {
+    process.stderr.write(`${error.code}: ${error.message}\n`);
+    process.exitCode = 1;
   } else if (error instanceof ScaffoldError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
     process.exitCode =

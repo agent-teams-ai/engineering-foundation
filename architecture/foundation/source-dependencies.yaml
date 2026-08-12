@@ -35,10 +35,12 @@ boundaries:
         - foundation.core
         - foundation.document-authoring.composition
         - foundation.local-mode
+        - foundation.package-identity
         - foundation.process-execution
         - foundation.schema-validation
         - foundation.scaffolding.canonical-composition
         - foundation.scaffolding.core
+        - foundation.transaction-coordination.application
       packages: []
       builtins:
         - node:fs/promises
@@ -149,6 +151,7 @@ boundaries:
       - packages/engineering-foundation/src/capability-runtime.ts
       - packages/engineering-foundation/src/check-contract.ts
       - packages/engineering-foundation/src/errors.ts
+      - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
     allow:
@@ -161,6 +164,7 @@ boundaries:
       - packages/engineering-foundation/src/capability-runtime.ts
       - packages/engineering-foundation/src/check-contract.ts
       - packages/engineering-foundation/src/errors.ts
+      - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
   - id: foundation.cancellation
@@ -240,8 +244,64 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/kernel/plan-content-validation.ts
       - packages/engineering-foundation/src/scaffolding/scaffold-defaults.ts
       - packages/engineering-foundation/src/scaffolding/scaffold-error.ts
+  - id: foundation.package-identity
+    roots:
+      - packages/engineering-foundation/src/package-version.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:url
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/package-version.ts
+  - id: foundation.transaction-coordination.application
+    roots:
+      - packages/engineering-foundation/src/transaction-coordination/application
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-coordinator.ts
+      - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-error.ts
+      - packages/engineering-foundation/src/transaction-coordination/application/model/transaction-status.ts
+      - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-operation-lock.ts
+      - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-slot.ts
+  - id: foundation.transaction-coordination.adapters
+    roots:
+      - packages/engineering-foundation/src/transaction-coordination/adapters
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.package-identity
+        - foundation.repository-input
+        - foundation.schema-validation
+        - foundation.scaffolding.canonical-kernel
+        - foundation.scaffolding.core
+        - foundation.scaffolding.shared-adapters
+        - foundation.transaction-coordination.application
+      packages: []
+      builtins:
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:url
+        - node:util
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-build-identity.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-operation-lock.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-state-directory.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts
   - id: foundation.scaffolding.canonical-kernel
     roots:
+      - packages/engineering-foundation/src/scaffolding/kernel/authority-journal-validation.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-compiler.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-receipt.ts
@@ -253,6 +313,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/scaffolding/kernel/authority-journal-validation.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-compiler.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-receipt.ts
@@ -268,6 +329,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.package-identity
         - foundation.repository-input
         - foundation.scaffolding.core
       packages: []
@@ -304,6 +366,8 @@ boundaries:
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
         - foundation.scaffolding.shared-adapters
+        - foundation.transaction-coordination.adapters
+        - foundation.transaction-coordination.application
       packages: []
       builtins:
         - node:fs/promises
@@ -349,9 +413,11 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
+        - foundation.package-identity
         - foundation.process-execution
+        - foundation.transaction-coordination.adapters
+        - foundation.transaction-coordination.application
       packages:
-        - proper-lockfile
         - yaml
       builtins:
         - node:fs/promises
@@ -364,6 +430,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/local-mode/index.ts
       - packages/engineering-foundation/src/local-mode/adapters/outbound/time/system-clock.ts
+      - packages/engineering-foundation/src/local-mode/inspection.ts
       - packages/engineering-foundation/src/local-mode/process-runner.ts
       - packages/engineering-foundation/src/local-mode/service.ts
       - packages/engineering-foundation/src/local-mode/types.ts

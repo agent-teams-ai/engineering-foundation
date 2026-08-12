@@ -60,6 +60,20 @@ export function createPnpmRunner() {
     runCommand(executable, entrypoint === undefined ? args : [entrypoint, ...args], cwd);
 }
 
+export function runNpmCommand(args, cwd, options = {}) {
+  if (process.platform !== "win32") {
+    return runCommand("npm", args, cwd, options);
+  }
+  const npmCliPath = join(
+    dirname(process.execPath),
+    "node_modules",
+    "npm",
+    "bin",
+    "npm-cli.js",
+  );
+  return runCommand(process.execPath, [npmCliPath, ...args], cwd, options);
+}
+
 export const localRegistryInstallQualification = Object.freeze({
   requiredBeforeRelease: true,
   status: "not-proven-by-tarball-e2e",

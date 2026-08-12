@@ -257,9 +257,20 @@ test("keeps packed and registry-install qualification wired", async () => {
     repositoryManifest.scripts["registry-install-e2e:built"],
     vector.packedE2e.registryInstallBuilt,
   );
+  assert.equal(
+    repositoryManifest.scripts["published-compatibility:e2e"],
+    "node scripts/published-compatibility-e2e.mjs",
+  );
   assert.match(
     await readFile(join(repositoryRoot, "scripts", "pack-test.mjs"), "utf8"),
     /verifyPackedAuthorityScaffolding/u,
+  );
+  assert.match(
+    await readFile(
+      join(repositoryRoot, "scripts", "pack-scaffolding-test.mjs"),
+      "utf8",
+    ),
+    /verifyInstalledTransactionBarrier/u,
   );
   assert.match(
     await readFile(
@@ -267,5 +278,31 @@ test("keeps packed and registry-install qualification wired", async () => {
       "utf8",
     ),
     /\$\{FOUNDATION_PACKAGE_NAME\}\/scaffolding/u,
+  );
+  assert.doesNotMatch(
+    await readFile(
+      join(repositoryRoot, "scripts", "registry-install-e2e.mjs"),
+      "utf8",
+    ),
+    /published-scaffolding-compatibility|verifyPublishedScaffoldingCompatibility/u,
+    "the hermetic registry gate must not fetch a published package",
+  );
+  assert.match(
+    await readFile(
+      join(repositoryRoot, "scripts", "old-foundation-transaction-e2e.mjs"),
+      "utf8",
+    ),
+    /sha512-L\/mWa40ziy3veWzEwp3uH4PTSNInmQb02Na0FeyTk8VoXHNApJon2tegQLOkpbwxEAZCP9aSywCm\+1hYbxcUrg==/u,
+  );
+  assert.match(
+    await readFile(
+      join(repositoryRoot, "scripts", "published-scaffolding-compatibility-e2e.mjs"),
+      "utf8",
+    ),
+    /sha512-LWey96bQBwA\/91eD1T9pZRKrNUPlAt\/8NEOQ5gnWfW6Mzs\+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==/u,
+  );
+  assert.match(
+    await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
+    /pnpm published-compatibility:e2e/u,
   );
 });

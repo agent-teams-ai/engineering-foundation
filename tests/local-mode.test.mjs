@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -8,6 +9,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
@@ -21,6 +23,14 @@ import { FOUNDATION_REQUIRED_ARTIFACT_PATHS } from "../packages/engineering-foun
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const REGISTRY_INTEGRITY =
   "sha512-bIIjRzA6EHhga2N0sRQ1R5zZSnP3YJ9q8JcD1QmQf3uVn3f2r6q1aXJf0Hb2U5QG6QH0xBvM1nHqN9vQ9w==";
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+const cliPath = join(
+  repositoryRoot,
+  "packages",
+  "engineering-foundation",
+  "dist",
+  "cli.js"
+);
 
 async function writeJson(path, value) {
   await mkdir(dirname(path), { recursive: true });
@@ -343,6 +353,75 @@ test("attaches, reports local evidence, and restores registry mode", async () =>
       fixture.runner.requests.some((request) => request.command === "pnpm"),
       false
     );
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("blocks attach and detach while a foreign Foundation transaction is pending", async () => {
+  const fixture = await createFixture();
+  try {
+    const transactionPath = join(
+      fixture.consumerRoot,
+      ".agent-teams-local",
+      "scaffolding-transaction.json"
+    );
+    await writeJson(transactionPath, {
+      schemaVersion: 99,
+      operationKind: "future-mutation"
+    });
+    const original = await readFile(transactionPath);
+    await assert.rejects(
+      fixture.service.attach(
+        fixture.consumerRoot,
+        fixture.targetRepositoryRoot
+      ),
+      (error) => {
+        assert.equal(
+          error?.code,
+          "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"
+        );
+        return true;
+      }
+    );
+    await assert.rejects(
+      fixture.service.detach(fixture.consumerRoot),
+      (error) => {
+        assert.equal(
+          error?.code,
+          "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"
+        );
+        return true;
+      }
+    );
+    assert.deepEqual(await readFile(transactionPath), original);
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("status JSON remains one parseable object when transaction recovery is required", async () => {
+  const fixture = await createFixture();
+  try {
+    await writeJson(
+      join(
+        fixture.consumerRoot,
+        ".agent-teams-local",
+        "scaffolding-transaction.json"
+      ),
+      { schemaVersion: 99, operationKind: "future-mutation" }
+    );
+    const result = spawnSync(
+      process.execPath,
+      [cliPath, "status", "--consumer", fixture.consumerRoot, "--json"],
+      { encoding: "utf8" }
+    );
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, "");
+    const status = JSON.parse(result.stdout);
+    assert.equal(status.mode, "INVALID");
+    assert.equal(status.transaction.state, "manual-recovery-required");
+    assert.doesNotMatch(result.stdout, /\nTransaction:/u);
   } finally {
     await rm(fixture.root, { force: true, recursive: true });
   }

@@ -19,11 +19,11 @@ import {
 import { isExactVersion } from "../semantic-version.js";
 import { inspectFoundationMode } from "./inspection.js";
 import {
-  acquireFoundationOperationLock,
   removeLinkState,
   syncDirectory,
   writeLinkState
 } from "./local-state-store.js";
+import { createNodeFoundationTransactionCoordinator } from "../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import {
   pathEntryExists,
   resolveTargetPackageRoot,
@@ -282,7 +282,6 @@ async function commitAttach(
   input: AttachTransactionInput,
   preflight: AttachConsumerState
 ): Promise<AttachResult> {
-  const releaseLock = await acquireFoundationOperationLock(preflight.consumerRoot);
   let preparation: AttachPreparation | undefined;
   let state: FoundationLinkState | undefined;
   try {
@@ -345,14 +344,25 @@ async function commitAttach(
       throw error;
     }
     return await recoverFailedAttach(preparation, state, error);
-  } finally {
-    await releaseLock();
   }
 }
 
 export async function attachFoundation(
   input: AttachTransactionInput
 ): Promise<AttachResult> {
-  const preflight = await inspectAttachConsumerState(input, "CONSUMER_INVALID");
-  return await commitAttach(input, preflight);
+  const coordinator = await createNodeFoundationTransactionCoordinator(
+    input.consumerPath
+  );
+  const lease = await coordinator.acquire({ requestedMutation: "attach" });
+  try {
+    const preflight = await inspectAttachConsumerState(
+      input,
+      "CONSUMER_INVALID"
+    );
+    return await commitAttach(input, preflight);
+  } finally {
+    await lease.release({
+      retainTransactionBarrier: (await coordinator.inspect()).state !== "idle"
+    });
+  }
 }

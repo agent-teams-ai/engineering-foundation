@@ -52,6 +52,13 @@ templates, placement meaning, body rules, relationships, and prose or diagram
 tools. Profiles are data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
+Foundation mutation protocols share one private transaction-coordination
+application boundary. Its ports model only cooperative lock ownership and
+persisted-slot observation; Node adapters provide filesystem inspection and the
+composition root. Scaffolding and document authoring retain distinct Plans,
+Receipts, errors, and recovery handlers, and no consumer-programmable mutation
+kernel is exported.
+
 Executable specification connectivity follows the same boundary. Foundation
 owns strict catalogs, contained artifact inspection, local JSON Schema
 validation, and deterministic diagnostics. Consumers own domain schemas and

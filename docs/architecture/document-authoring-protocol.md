@@ -1,8 +1,9 @@
 # Document Authoring Protocol
 
-Status: Contracts accepted by ADR-0022. The read-only catalog API is implemented.
-Compiler, writer, CLI commands, transaction coordinator, and recovery handlers
-are not yet implemented or available to consumers.
+Status: Contracts accepted by ADR-0022. The read-only catalog API and shared
+transaction coordinator are implemented. The document compiler, writer,
+mutation CLI commands, and envelope v2 recovery handlers are not yet implemented
+or available to consumers.
 
 ## Boundary
 
@@ -137,6 +138,43 @@ One repository root has one canonical Foundation operation lock and one active
 transaction slot. A version 2 envelope records operation kind, registered
 recovery handler, exact Foundation version and build identity, adapter contract,
 protocol payload kind and journal, payload digest, state, and envelope digest.
+The canonical lock is a bounded owner-token regular file. New ownership is
+published with no replacement, and reclaim or release is fenced by token plus
+physical file identity. A same-host lock is reclaimed only when its PID is
+provably dead on a single-host/local filesystem; foreign or ambiguous liveness
+fails closed. A takeover claim is exclusive and is never automatically
+reclaimed: partial or stale claim evidence for the current lock generation
+requires manual recovery because portable Node APIs do not provide
+unlink-if-identity CAS. Claims are keyed by the observed lock token, making
+cleanup residue from an older generation inert. Partial canonical or current
+generation claim writes likewise remain regular-file manual-recovery barriers. If transaction
+evidence remains, release retains that same regular-file inode as a durable
+transaction barrier. This intentionally makes released directory-lock clients
+fail closed before they can mutate. Interrupted in-place ownership/barrier
+rewrites also remain regular-file evidence and require recovery rather than
+opening an unlocked window.
+The coordinator now enforces that barrier for scaffolding and local attach or
+detach operations before mutation begins. It recognizes the frozen legacy
+scaffolding journal v1 and verified envelope v2 at the historical physical slot;
+an orphan temporary, invalid regular-file evidence, unknown schema, digest
+failure, or contradictory document lifecycle is preserved and fails closed.
+Incomplete local-mode phases and orphan registry backups share the same
+coordinator and admit only `detach`. Status reports a structured recovery route
+only for an implemented path: legacy `scaffold-recover` or local-mode `detach`.
+Verified envelope v2 evidence remains manual until its closed handler is
+implemented and qualified.
+
+For envelope v2, the recorded package-artifact identity contains SemVer plus a
+canonical SHA-256 digest of the installed package manifest, executable
+JavaScript, and shipped schema and preset contracts. The digest is independent
+of install path and directory enumeration order, is cached for the immutable
+installed package process, and distinguishes rebuilt shipped artifacts at the
+same version. It is not a digest of the package manager's resolved runtime
+dependency closure and is not yet recovery authority. The envelope Foundation
+identity must equal the embedded compiler identity (version plus build identity
+for document Plans; version for the frozen scaffolding Plan v1). Until a v2
+handler also proves its required dependency closure and recovery semantics,
+status preserves that evidence for manual resolution without offering recovery.
 
 The envelope does not merge `ScaffoldPlan` with `DocumentPlan` or their
 Receipts. Recovery dispatch is closed in the Foundation composition root and

@@ -9,10 +9,10 @@ import {
 import { isExactVersion } from "../semantic-version.js";
 import { inspectFoundationMode } from "./inspection.js";
 import {
-  acquireFoundationOperationLock,
   removeLinkState,
   writeLinkState
 } from "./local-state-store.js";
+import { createNodeFoundationTransactionCoordinator } from "../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import {
   restoreRegistryEntry
 } from "./registry-recovery.js";
@@ -121,13 +121,28 @@ export class FoundationLocalModeService {
         `Consumer must retain an exact ${FOUNDATION_PACKAGE_NAME} registry dependency.`
       );
     }
-    const releaseLock = await acquireFoundationOperationLock(
+    const coordinator = await createNodeFoundationTransactionCoordinator(
       before.consumerRoot
     );
+    const lease = await coordinator.acquire({
+      requestedMutation: "detach",
+      allowRecoveryOf: "local-mode"
+    });
     try {
       const current = await inspectFoundationMode(before.consumerRoot, {
         ignoreOperationLock: true
       });
+      if (
+        current.consumerRoot !== before.consumerRoot ||
+        current.dependencySpec === undefined ||
+        current.dependencySpec !== before.dependencySpec ||
+        !isExactVersion(current.dependencySpec)
+      ) {
+        throw new FoundationError(
+          "LOCAL_STATE_INVALID",
+          "Consumer foundation dependency changed before detach acquired its operation lock."
+        );
+      }
       if (current.mode === "REGISTRY") {
         return current;
       }
@@ -139,12 +154,14 @@ export class FoundationLocalModeService {
       }
       await restoreRegistryEntry(
         before.consumerRoot,
-        before.dependencySpec,
+        current.dependencySpec,
         current.linkState
       );
       await removeLinkState(before.consumerRoot);
     } finally {
-      await releaseLock();
+      await lease.release({
+        retainTransactionBarrier: (await coordinator.inspect()).state !== "idle"
+      });
     }
 
     const after = await inspectFoundationMode(before.consumerRoot);

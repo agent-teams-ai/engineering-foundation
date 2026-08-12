@@ -44,11 +44,37 @@ Status reports package version, source path, Git commit, dirty state, and one of
 - `LOCAL`: installed package resolves to the recorded local target;
 - `INVALID`: marker, manifest, installed package, or source evidence disagree.
 
+Status also reports shared transaction evidence. A frozen legacy scaffolding
+journal exposes its exact recovery command and package version. An incomplete
+local-mode phase exposes `detach` as its only automatic recovery route. A
+verified envelope v2 is preserved with its recorded package identity but remains
+manual until its registered handler is implemented and qualified. Attach and
+detach acquire the shared operation lock and refuse to switch package bytes
+while any foreign, incompatible, unknown, or manual-recovery evidence exists.
+
 Detach removes only the foundation link and atomically restores the preserved
 registry package entry. It never runs a workspace install. A consumer-scoped
-`proper-lockfile` lock rejects concurrent mutations and safely reclaims stale
-locks. Durable `ATTACHING` and `DETACHING` phases let a later detach finish
-recovery after process interruption.
+owner-token regular-file lock rejects concurrent mutations. Creation uses a
+no-replace exclusive file creation; takeover and release are token- and
+file-identity-fenced. Takeover and barrier retention rewrite the already verified
+inode in place, so they do not depend on platform-specific replace-rename
+semantics; an interrupted rewrite remains a regular file and therefore fails
+closed. Only a same-host owner whose recorded process is provably dead may be
+reclaimed on a single-host/local filesystem. The lock protocol does not claim
+safe dead-owner detection on a shared filesystem whose machines can reuse the
+same hostname. Foreign, malformed, partial, legacy-directory, stale takeover
+claim for the current lock generation, or otherwise unverifiable evidence fails
+closed and requires manual recovery. Claims are keyed by the observed lock token,
+so cleanup residue from an already-replaced generation is inert. Canonical and
+claim paths are created before their evidence is fully written, so a crash in
+that narrow window deliberately leaves a regular-file manual-recovery barrier
+instead of an unlocked window. Process liveness cannot
+distinguish PID reuse, so that case also prefers an availability block over
+unsafe reclamation. While a transaction remains, release durably publishes
+a persistent regular-file downgrade barrier that older Foundation versions
+cannot mistake for their directory lock. Durable `ATTACHING` and `DETACHING`
+phases and an orphan registry backup block every other Foundation mutation while
+letting only a later detach finish recovery after process interruption.
 
 `NodeProcessRunner` preserves the pre-existing no-deadline behavior when
 `timeoutMs` is omitted and validates an explicit deadline before process

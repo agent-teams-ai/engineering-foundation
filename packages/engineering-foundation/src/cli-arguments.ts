@@ -102,6 +102,26 @@ function requiredOptionValue(
   return candidate;
 }
 
+function requiredBaseRefValue(
+  args: readonly string[],
+  index: number
+): string {
+  const candidate = args[index + 1];
+  if (candidate === undefined || candidate.length === 0) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "--base requires a Git ref."
+    );
+  }
+  if (candidate.startsWith("-")) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      "The base ref cannot start with a dash."
+    );
+  }
+  return candidate;
+}
+
 function provideScalarOption(
   state: ArgumentState,
   identity: string,
@@ -307,7 +327,7 @@ function consumeArgument(
     return 1;
   }
   if (value === "--base") {
-    const candidate = requiredOptionValue(args, index, "--base");
+    const candidate = requiredBaseRefValue(args, index);
     state.baseRef = candidate;
     return 1;
   }

@@ -31,6 +31,21 @@ const OUTPUT_INTENT_KEYS = new Set([
   "title",
   "type"
 ]);
+const INTENT_ROOT_KEYS = new Set([
+  ...OUTPUT_INTENT_KEYS,
+  "destination",
+  "schemaVersion",
+  "slug"
+]);
+const STRING_INTENT_ROOT_KEYS = new Set([
+  "destination",
+  "id",
+  "owner",
+  "slug",
+  "summary",
+  "title",
+  "type"
+]);
 
 interface IntentInspectionBudget {
   outputLowerBoundBytes: number;
@@ -101,6 +116,18 @@ function assertIntrinsicJsonContainer(value: object): void {
   }
 }
 
+function assertIntentRootField(key: string, value: unknown): void {
+  if (!INTENT_ROOT_KEYS.has(key)) {
+    throw new TypeError("Document Intent contains an unknown root field.");
+  }
+  if (STRING_INTENT_ROOT_KEYS.has(key) && typeof value !== "string") {
+    throw new TypeError(`Document Intent root field ${key} must be a string.`);
+  }
+  if (key === "schemaVersion" && value !== 1) {
+    throw new TypeError("Document Intent schemaVersion must equal 1.");
+  }
+}
+
 function assertInertJson(input: unknown): void {
   const pending: (
     | {
@@ -150,6 +177,9 @@ function assertInertJson(input: unknown): void {
         descriptor.enumerable !== true
       ) {
         throw new TypeError("Document Intent must contain only enumerable own data properties.");
+      }
+      if (current.depth === 0) {
+        assertIntentRootField(key, descriptor.value);
       }
       pending.push({
         action: "enter",

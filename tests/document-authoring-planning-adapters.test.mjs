@@ -224,6 +224,18 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
   const amplifiedLeaf = Array.from({ length: 128 }, () => "x".repeat(4096));
   const amplifiedMiddle = Array.from({ length: 128 }, () => amplifiedLeaf);
   const amplifiedRoot = Array.from({ length: 128 }, () => amplifiedMiddle);
+  for (const invalidRoot of [
+    { ...intent, unexpected: amplifiedRoot },
+    { ...intent, schemaVersion: amplifiedRoot },
+    { ...intent, destination: amplifiedRoot }
+  ]) {
+    await assert.rejects(
+      validator.validateIntent(invalidRoot),
+      (error) => error instanceof DocumentPlanningError &&
+        error.code === "DOCUMENT_PLANNING_INPUT_INVALID" &&
+        /unknown root field|root field|schemaVersion/u.test(error.message)
+    );
+  }
   await assert.rejects(
     validator.validateIntent({
       ...intent,

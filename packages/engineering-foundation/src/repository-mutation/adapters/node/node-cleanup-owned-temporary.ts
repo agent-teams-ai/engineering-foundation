@@ -7,6 +7,11 @@ import type { OwnedTemporaryCleanupTransitionPort } from "../../application/port
 import { pathMatchesRegularFileIdentity } from "./node-bounded-regular-file.js";
 import type { DirectoryDurability } from "./node-directory-durability.js";
 import { syncPublicationDirectory } from "./node-absent-file-publication-private.js";
+import {
+  assertTerminalEvidenceDirectory,
+  ensureTerminalEvidenceDirectory,
+  type TerminalEvidenceDirectoryAuthority
+} from "./node-terminal-evidence-directory.js";
 
 export const OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER =
   ".foundation-owned-cleanup-";
@@ -76,12 +81,11 @@ async function removeEmptyQuarantineAfterMissing(options: {
   readonly retiredDirectory: string;
   readonly transition: Awaited<ReturnType<OwnedTemporaryCleanupTransitionPort["begin"]>> | undefined;
 }): Promise<"missing"> {
-  await options.makeDirectory(options.retiredEvidenceRoot, { mode: 0o700 })
-    .catch((error) => {
-      if (errorCode(error) !== "EEXIST") {
-        throw error;
-      }
-    });
+  const terminalRoot = await ensureTerminalEvidenceDirectory(
+    options.retiredEvidenceRoot,
+    { mkdir: options.makeDirectory }
+  );
+  await assertTerminalEvidenceDirectory(terminalRoot);
   await options.move(options.quarantineDirectory, options.retiredDirectory);
   await syncPublicationDirectory(options.cleanupOptions);
   await options.transition?.complete();
@@ -96,6 +100,7 @@ async function logicallyRetireQuarantine(options: {
   readonly quarantinedPath: string;
   readonly quarantineDirectory: string;
   readonly retiredDirectory: string;
+  readonly terminalRoot: TerminalEvidenceDirectoryAuthority;
   readonly beforeLogicalRetirement?: (path: string) => Promise<void> | void;
 }): Promise<"different" | "removed"> {
   await options.beforeLogicalRetirement?.(options.quarantinedPath);
@@ -107,6 +112,7 @@ async function logicallyRetireQuarantine(options: {
   ) {
     return "different";
   }
+  await assertTerminalEvidenceDirectory(options.terminalRoot);
   await options.move(options.quarantineDirectory, options.retiredDirectory);
   await syncPublicationDirectory(options.cleanupOptions);
   return "removed";
@@ -197,11 +203,10 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
   if (ownership !== "match") {
     return "different";
   }
-  await makeDirectory(retiredEvidenceRoot, { mode: 0o700 }).catch((error) => {
-    if (errorCode(error) !== "EEXIST") {
-      throw error;
-    }
-  });
+  const terminalRoot = await ensureTerminalEvidenceDirectory(
+    retiredEvidenceRoot,
+    { mkdir: makeDirectory }
+  );
   await syncCleanupDirectory(options, options.parent);
   // Node exposes no unlink-by-handle or identity-conditional unlink. Moving
   // the whole private directory into a terminal namespace is atomic and can
@@ -214,6 +219,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     quarantinedPath,
     quarantineDirectory,
     retiredDirectory,
+    terminalRoot,
     ...(beforeLogicalRetirement === undefined
       ? {}
       : { beforeLogicalRetirement })

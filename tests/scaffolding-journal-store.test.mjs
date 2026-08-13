@@ -8,6 +8,7 @@ import {
   rename,
   rm,
   stat,
+  symlink,
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -178,6 +179,32 @@ test("logical retirement never deletes a replacement after the final proof", asy
     await assert.rejects(store.create(journal), /identity or bytes changed/u);
     assert.equal(await readFile(swappedPath, "utf8"), "foreign final replacement\n");
     await stat(`${swappedPath}.owned`);
+  });
+});
+
+test("terminal retirement rejects a pre-existing link without escaping state", async () => {
+  await withStore(async ({ journal, root, state }) => {
+    const outside = await mkdtemp(join(tmpdir(), "scaffold-journal-outside-"));
+    try {
+      await symlink(
+        outside,
+        join(state, "scaffolding-transaction.json.completed-scaffold-evidence"),
+        process.platform === "win32" ? "junction" : "dir"
+      );
+      const store = new NodeScaffoldJournalStore(root);
+      await assert.rejects(
+        store.create(journal),
+        /real operation-owned directory/u
+      );
+      assert.deepEqual(await readdir(outside), []);
+      assert.equal(
+        (await readdir(state)).some((entry) =>
+          entry.startsWith("scaffolding-transaction.json.scaffold-retired.")),
+        true
+      );
+    } finally {
+      await rm(outside, { force: true, recursive: true });
+    }
   });
 });
 

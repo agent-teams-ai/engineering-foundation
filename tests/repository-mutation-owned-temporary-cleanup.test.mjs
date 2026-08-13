@@ -7,6 +7,7 @@ import {
   readdir,
   rename,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -91,6 +92,48 @@ test("atomically quarantines and durably retires the expected temporary", async 
     assert.deepEqual(await readdir(paths.parent), [
       ".foundation-retired-evidence-",
     ]);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("rejects a pre-existing terminal-root link without escaping the parent", async () => {
+  const paths = await fixture();
+  const outside = await mkdtemp(join(tmpdir(), "owned-temporary-outside-"));
+  try {
+    await symlink(
+      outside,
+      join(paths.parent, ".foundation-retired-evidence-"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const cleanup = options(paths);
+    await assert.rejects(
+      cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      /real operation-owned directory/u,
+    );
+    assert.deepEqual(await readdir(outside), []);
+    assert.equal(
+      (await readdir(paths.parent)).some((entry) =>
+        entry.includes("foundation-owned-cleanup-deterministic")),
+      true,
+    );
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("rejects a non-directory terminal root without replacing it", async () => {
+  const paths = await fixture();
+  const terminalRoot = join(paths.parent, ".foundation-retired-evidence-");
+  try {
+    await writeFile(terminalRoot, "foreign terminal slot\n");
+    const cleanup = options(paths);
+    await assert.rejects(
+      cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      /real operation-owned directory/u,
+    );
+    assert.equal(await readFile(terminalRoot, "utf8"), "foreign terminal slot\n");
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }

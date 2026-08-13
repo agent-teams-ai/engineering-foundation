@@ -6,6 +6,7 @@ import {
   readdir,
   rename,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -70,6 +71,37 @@ test("retains discoverable marker evidence when marker retirement fails", async 
       .filter((entry) => entry.startsWith(prefix));
     assert.equal(evidence.length, 1);
     assert.match(evidence[0], new RegExp(`^${prefix}${token}\\.retired\\.`));
+  });
+});
+
+test("rejects a pre-existing terminal-root link without escaping state", async () => {
+  await withRoot(async (root) => {
+    const outside = await mkdtemp(join(tmpdir(), "foundation-cleanup-outside-"));
+    try {
+      const active = await createNodeFoundationCleanupTransition(root, token)
+        .begin();
+      await symlink(
+        outside,
+        join(
+          root,
+          ".agent-teams-local",
+          "foundation-cleanup-retired-evidence",
+        ),
+        process.platform === "win32" ? "junction" : "dir",
+      );
+      await assert.rejects(
+        active.complete(),
+        /real operation-owned directory/u,
+      );
+      assert.deepEqual(await readdir(outside), []);
+      assert.equal(
+        (await readdir(join(root, ".agent-teams-local"))).some((entry) =>
+          entry.startsWith(`${prefix}${token}.retired.`)),
+        true,
+      );
+    } finally {
+      await rm(outside, { force: true, recursive: true });
+    }
   });
 });
 

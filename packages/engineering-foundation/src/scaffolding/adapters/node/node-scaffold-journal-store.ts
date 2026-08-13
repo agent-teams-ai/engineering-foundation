@@ -1,4 +1,4 @@
-import { link, mkdir, open, rename } from "node:fs/promises";
+import { link, open, rename } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import {
@@ -10,11 +10,14 @@ import type { AuthorityScaffoldJournal } from "../../contract/types.js";
 import { captureFileHandleIdentity } from "./filesystem-file-identity.js";
 import { syncDirectoryStrictly } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
 import {
+  assertTerminalEvidenceDirectory,
+  ensureTerminalEvidenceDirectory
+} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
+import {
   createPrivateScaffoldJournalEvidencePath,
   observeScaffoldJournalAuthority,
   readStoredScaffoldJournal,
   scaffoldJournalAuthority,
-  scaffoldJournalErrorCode,
   scaffoldJournalRecoveryRequired,
   scaffoldJournalResidueNames,
   scaffoldQuarantinePrefix,
@@ -460,16 +463,16 @@ export class NodeScaffoldJournalStore {
       this.#parent,
       `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
     );
-    await mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
-      if (scaffoldJournalErrorCode(error) !== "EEXIST") {
-        throw error;
-      }
-    });
+    const terminalAuthority = await ensureTerminalEvidenceDirectory(
+      terminalRoot
+    );
     await this.#syncDirectory(this.#parent, mutation, "state-parent");
     const terminalDirectory = join(terminalRoot, basename(retired.directory));
+    await assertTerminalEvidenceDirectory(terminalAuthority);
     await rename(retired.directory, terminalDirectory);
     await this.#syncDirectory(terminalRoot, mutation, "destination");
     if (sourceDirectory !== this.#parent) {
+      await assertTerminalEvidenceDirectory(terminalAuthority);
       await rename(
         sourceDirectory,
         join(terminalRoot, `${basename(sourceDirectory)}.empty`)

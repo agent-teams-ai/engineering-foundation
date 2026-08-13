@@ -18,6 +18,10 @@ import {
   readBoundedRegularFile
 } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 import {
+  assertTerminalEvidenceDirectory,
+  ensureTerminalEvidenceDirectory
+} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
+import {
   ensureFoundationStateDirectory,
   syncFoundationStateDirectoryStrictly
 } from "./node-foundation-state-directory.js";
@@ -121,20 +125,16 @@ export function createNodeFoundationCleanupTransition(
             stateDirectory,
             "foundation-cleanup-retired-evidence"
           );
-          await operations.mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
-            if (
-              !(error instanceof Error) ||
-              !("code" in error) ||
-              (error as NodeJS.ErrnoException).code !== "EEXIST"
-            ) {
-              throw error;
-            }
-          });
+          const terminalAuthority = await ensureTerminalEvidenceDirectory(
+            terminalRoot,
+            { mkdir: operations.mkdir }
+          );
           await operations.syncStateDirectory(stateDirectory);
           const terminalDirectory = join(
             terminalRoot,
             `${token}.${operations.randomToken()}`
           );
+          await assertTerminalEvidenceDirectory(terminalAuthority);
           await operations.rename(retirementDirectory, terminalDirectory);
           await operations.syncStateDirectory(terminalRoot);
           await operations.syncStateDirectory(stateDirectory);

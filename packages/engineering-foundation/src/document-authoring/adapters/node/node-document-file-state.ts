@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
 
 import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
-import { classifyExactFilePostimageWith } from "../../../repository-mutation/adapters/node/node-absent-file-publication-private.js";
 import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
+import {
+  assertDocumentPhysicalIdentity,
+  type DocumentPhysicalIdentity
+} from "../../application/model/document-physical-identity.js";
 import type { DocumentOwnedTemporary } from "../../application/model/document-transaction.js";
 import type { DocumentPlan } from "../../application/model/document-planning.js";
 import type {
@@ -23,9 +26,10 @@ function digest(bytes: Uint8Array): string {
 }
 
 function identity(temporary: DocumentOwnedTemporary): PortablePathIdentity | undefined {
-  const decimal = /^(?:0|[1-9][0-9]{0,31})$/u;
   const value = temporary.identity;
-  if (![value.dev, value.ino, value.birthtimeNs].every((part) => decimal.test(part))) {
+  try {
+    assertDocumentPhysicalIdentity(value);
+  } catch {
     return undefined;
   }
   const result = {
@@ -33,9 +37,19 @@ function identity(temporary: DocumentOwnedTemporary): PortablePathIdentity | und
     ino: BigInt(value.ino),
     birthtimeNs: BigInt(value.birthtimeNs)
   };
-  return result.dev === 0n || result.ino === 0n || result.birthtimeNs === 0n
-    ? undefined
-    : result;
+  return result;
+}
+
+function wireIdentity(identityValue: PortablePathIdentity): DocumentPhysicalIdentity {
+  const result: DocumentPhysicalIdentity = {
+    adapter: "node-filesystem",
+    version: 1,
+    dev: identityValue.dev.toString(10),
+    ino: identityValue.ino.toString(10),
+    birthtimeNs: identityValue.birthtimeNs.toString(10)
+  };
+  assertDocumentPhysicalIdentity(result);
+  return result;
 }
 
 function planPostimage(plan: DocumentPlan) {
@@ -58,37 +72,75 @@ function conflict(error: unknown): { readonly state: "conflict"; readonly reason
   };
 }
 
+function unverifiable(error: unknown): {
+  readonly state: "unverifiable";
+  readonly reason: string;
+} {
+  return {
+    state: "unverifiable",
+    reason: typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : "Filesystem state is unverifiable."
+  };
+}
+
 export class NodeDocumentFileState implements DocumentFileState {
   async classifyDestination(request: {
     readonly consumerRoot: string;
     readonly plan: DocumentPlan;
+    readonly signal?: AbortSignal;
   }): Promise<DocumentDestinationState> {
     try {
+      request.signal?.throwIfAborted();
       const paths = await recaptureDocumentPublicationPaths({
         consumerRoot: request.consumerRoot,
         destination: request.plan.destination
       });
-      const state = await classifyExactFilePostimageWith(
-        readBoundedRegularFile,
-        paths.destinationPath,
-        planPostimage(request.plan)
-      );
-      return state === "conflict" ? conflict("Document destination is not the exact Plan output.") : { state };
+      request.signal?.throwIfAborted();
+      let observed;
+      try {
+        observed = await readBoundedRegularFile(
+          paths.destinationPath,
+          request.plan.output.size
+        );
+      } catch (error) {
+        if (error instanceof Error && "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT") {
+          return { state: "absent" };
+        }
+        throw error;
+      }
+      request.signal?.throwIfAborted();
+      const expected = planPostimage(request.plan);
+      if (observed.outcome !== "read" ||
+        observed.bytes.byteLength !== expected.size ||
+        digest(observed.bytes) !== expected.digest ||
+        (process.platform !== "win32" && (observed.mode & 0o777) !== expected.mode)) {
+        return conflict("Document destination is not the exact Plan output.");
+      }
+      return { state: "exact", identity: wireIdentity(observed.identity) };
     } catch (error) {
-      return conflict(error);
+      if (request.signal?.aborted === true) {
+        throw error;
+      }
+      return unverifiable(error);
     }
   }
 
   async classifyTemporary(request: {
     readonly consumerRoot: string;
+    readonly signal?: AbortSignal;
     readonly temporary: DocumentOwnedTemporary;
   }): Promise<DocumentTemporaryState> {
+    request.signal?.throwIfAborted();
     const expected = identity(request.temporary);
     if (expected === undefined) {
-      return conflict("Document temporary has invalid or zero physical identity.");
+      return unverifiable("Document temporary has invalid or zero physical identity.");
     }
     if (!isDocumentRepositoryPath(request.temporary.path)) {
-      return conflict("Document temporary path is not portable.");
+      return unverifiable("Document temporary path is not portable.");
     }
     try {
       const paths = await recaptureDocumentPublicationPaths({
@@ -97,6 +149,7 @@ export class NodeDocumentFileState implements DocumentFileState {
       });
       let observed;
       try {
+        request.signal?.throwIfAborted();
         observed = await readBoundedRegularFile(paths.destinationPath, MAXIMUM_DOCUMENT_BYTES);
       } catch (error) {
         if (error instanceof Error && "code" in error &&
@@ -105,6 +158,7 @@ export class NodeDocumentFileState implements DocumentFileState {
         }
         throw error;
       }
+      request.signal?.throwIfAborted();
       if (observed.outcome !== "read" ||
         !sameDocumentPhysicalIdentity(observed.identity, expected) ||
         digest(observed.bytes) !== request.temporary.digest ||
@@ -113,7 +167,10 @@ export class NodeDocumentFileState implements DocumentFileState {
       }
       return { state: "owned-exact", temporary: request.temporary };
     } catch (error) {
-      return conflict(error);
+      if (request.signal?.aborted === true) {
+        throw error;
+      }
+      return unverifiable(error);
     }
   }
 }

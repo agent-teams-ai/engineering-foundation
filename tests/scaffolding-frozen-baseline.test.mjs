@@ -237,12 +237,16 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
   const publishedSchemaFiles = manifest.files
     .filter((filePath) => filePath.startsWith("schemas/"))
     .toSorted();
-  assert.deepEqual(runtimeSchemaFiles, vector.schemaFiles);
+  const expectedSchemaFiles = [
+    ...vector.schemaFiles,
+    "schemas/foundation-transaction-envelope/v3.schema.json",
+  ].toSorted();
+  assert.deepEqual(runtimeSchemaFiles, expectedSchemaFiles);
   assert.deepEqual(
     await schemaFilesBelow(join(packageRoot, "schemas")),
-    vector.schemaFiles,
+    expectedSchemaFiles,
   );
-  assert.deepEqual(publishedSchemaFiles, vector.schemaFiles);
+  assert.deepEqual(publishedSchemaFiles, expectedSchemaFiles);
 });
 
 test("keeps packed and registry-install qualification wired", async () => {

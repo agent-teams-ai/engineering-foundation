@@ -27,7 +27,9 @@ async function fixture() {
 
 function options(paths, overrides = {}) {
   const syncs = [];
+  const operations = [];
   return {
+    operations,
     syncs,
     value: {
       allowUnsupportedDirectoryDurability: false,
@@ -35,9 +37,11 @@ function options(paths, overrides = {}) {
       expectedIdentity: paths.expectedIdentity,
       parent: paths.parent,
       async rm(path) {
+        operations.push(`rm:${path}`);
         await rm(path);
       },
       async syncDirectory(path) {
+        operations.push(`sync:${path}`);
         syncs.push(path);
         return "supported";
       },
@@ -55,8 +59,55 @@ test("atomically quarantines and durably removes the expected temporary", async 
   try {
     const cleanup = options(paths);
     assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "removed");
-    assert.deepEqual(cleanup.syncs, [paths.parent, paths.parent]);
+    const quarantine = join(
+      paths.parent,
+      ".result.tmp.foundation-owned-cleanup-deterministic",
+    );
+    assert.deepEqual(cleanup.syncs, [
+      quarantine,
+      paths.parent,
+      quarantine,
+      paths.parent,
+    ]);
+    assert.deepEqual(cleanup.operations, [
+      `sync:${quarantine}`,
+      `sync:${paths.parent}`,
+      `rm:${join(quarantine, "owned-temporary")}`,
+      `sync:${quarantine}`,
+      `sync:${paths.parent}`,
+    ]);
     assert.deepEqual(await readdir(paths.parent), []);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("destination quarantine sync failure preserves captured evidence and never succeeds", async () => {
+  const paths = await fixture();
+  try {
+    const cleanup = options(paths);
+    const quarantine = join(
+      paths.parent,
+      ".result.tmp.foundation-owned-cleanup-deterministic",
+    );
+    cleanup.value.syncDirectory = async (path) => {
+      cleanup.operations.push(`sync:${path}`);
+      if (path === quarantine) {
+        throw new Error("destination quarantine sync failed");
+      }
+      return "supported";
+    };
+    await assert.rejects(
+      cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      /destination quarantine sync failed/u,
+    );
+    assert.deepEqual(cleanup.operations, [`sync:${quarantine}`]);
+    assert.equal(
+      await readFile(join(quarantine, "owned-temporary"), "utf8"),
+      "owned\n",
+    );
+    await assert.rejects(readFile(paths.temporaryPath),
+      (error) => error?.code === "ENOENT");
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }

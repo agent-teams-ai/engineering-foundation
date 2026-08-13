@@ -67,8 +67,10 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     throw error;
   }
   // Persist the atomic capture before deciding whether it grants deletion
-  // authority. A crash now leaves evidence in the operation-private sibling.
-  await syncPublicationDirectory(options);
+  // authority. Rename changes both directories, so durability requires the
+  // destination quarantine first and the source parent second.
+  await syncCleanupDirectory(options, quarantineDirectory);
+  await syncCleanupDirectory(options, options.parent);
   const ownership = await identityMatch(
     quarantinedPath,
     options.expectedIdentity
@@ -77,9 +79,21 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     return "different";
   }
   await options.rm(quarantinedPath);
+  await syncCleanupDirectory(options, quarantineDirectory);
   await removeDirectory(quarantineDirectory);
-  await syncPublicationDirectory(options);
+  await syncCleanupDirectory(options, options.parent);
   return "removed";
+}
+
+async function syncCleanupDirectory(
+  options: {
+    readonly allowUnsupportedDirectoryDurability: boolean;
+    readonly displayPath: string;
+    readonly syncDirectory: (path: string) => Promise<DirectoryDurability>;
+  },
+  parent: string
+): Promise<void> {
+  await syncPublicationDirectory({ ...options, parent });
 }
 
 function errorCode(error: unknown): string | undefined {

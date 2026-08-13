@@ -1,10 +1,9 @@
-import { lstat, readdir } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
 import {
   FOUNDATION_TRANSACTION_FILE,
-  FOUNDATION_TRANSACTION_TEMPORARY_FILE,
   FOUNDATION_LINK_STATE_FILE,
   FOUNDATION_REGISTRY_BACKUP,
   LOCAL_STATE_DIRECTORY
@@ -36,7 +35,7 @@ import {
   inspectCurrentDocumentEnvelope,
   inspectDocumentTransactionBindings
 } from "./document-envelope-bindings.js";
-import { inspectDocumentTransitionEvidence } from "./document-transition-evidence.js";
+import { inspectFoundationTransitionEvidence } from "./foundation-transition-evidence.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
@@ -53,18 +52,6 @@ function isMissing(error: unknown): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await lstat(path);
-    return true;
-  } catch (error) {
-    if (isMissing(error)) {
-      return false;
-    }
-    throw error;
-  }
 }
 
 function manual(
@@ -414,7 +401,6 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
   readonly #installedVersion: string;
   readonly #stateDirectory: string;
   readonly #slotPath: string;
-  readonly #temporaryPath: string;
 
   constructor(options: {
     readonly consumerRoot: string;
@@ -426,24 +412,14 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
     const stateDirectory = join(options.consumerRoot, LOCAL_STATE_DIRECTORY);
     this.#stateDirectory = stateDirectory;
     this.#slotPath = join(stateDirectory, FOUNDATION_TRANSACTION_FILE);
-    this.#temporaryPath = join(
-      stateDirectory,
-      FOUNDATION_TRANSACTION_TEMPORARY_FILE
-    );
   }
 
   async #inspectTransactionEvidence(): Promise<InternalFoundationTransactionStatus> {
-    const documentTransition = await inspectDocumentTransitionEvidence(
+    const transitionEvidence = await inspectFoundationTransitionEvidence(
       this.#stateDirectory
     );
-    if (documentTransition !== undefined) {
-      return documentTransition;
-    }
-    if (await pathExists(this.#temporaryPath)) {
-      return manual(
-        "orphan-temporary",
-        "An orphan Foundation transaction temporary exists; it was preserved and requires manual recovery."
-      );
+    if (transitionEvidence !== undefined) {
+      return transitionEvidence;
     }
     let record;
     try {

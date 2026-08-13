@@ -8,6 +8,7 @@ import { documentPlanDigest } from "../packages/engineering-foundation/dist/docu
 import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
 import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/foundation-transition-evidence.js";
 import { FoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-coordinator.js";
 
 const fixture = JSON.parse(
@@ -247,6 +248,68 @@ test("transition residue alone is preserved and blocks every Foundation mutation
       );
     }
     assert.deepEqual(await readFile(residue), before);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("common coordinator discovers every operation-neutral transition residue after process death", async (context) => {
+  const residues = [
+    "scaffolding-transaction.json.document-transition",
+    "scaffolding-transaction.json.document-quarantine.legacy",
+    "scaffolding-transaction.json.document-retired.legacy",
+    "scaffolding-transaction.json.scaffold-quarantine.interrupted",
+    "scaffolding-transaction.json.scaffold-retired.interrupted",
+    `${FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX}plan-operation`,
+  ];
+  for (const residueName of residues) {
+    await context.test(residueName, async () => {
+      const root = await createRoot();
+      const residue = join(dirname(slotPath(root)), residueName);
+      try {
+        await mkdir(dirname(residue), { recursive: true });
+        await writeFile(residue, "preserved transition evidence\n", "utf8");
+        const before = await readFile(residue);
+        const slot = new NodeFoundationTransactionSlot({
+          consumerRoot: root,
+          installedVersion: version,
+          installedBuildIdentity: buildIdentity,
+        });
+        const status = await slot.inspect();
+        assert.equal(status.state, "manual-recovery-required");
+        assert.equal(status.reason, "journal-transition-residue");
+        await assert.rejects(
+          new FoundationTransactionCoordinator({
+            lock: { async acquire() { return async () => {}; } },
+            slot,
+          }).acquire({ requestedMutation: "scaffolding" }),
+          (error) =>
+            error?.code === "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+        );
+        assert.deepEqual(await readFile(residue), before);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test("nearby transition-like state names remain inert", async () => {
+  const root = await createRoot();
+  try {
+    const state = dirname(slotPath(root));
+    await mkdir(state, { recursive: true });
+    await Promise.all([
+      writeFile(join(state, "prefix.scaffolding-transaction.json.scaffold-retired.x"), "x"),
+      writeFile(join(state, "foundation-transaction.cleanup-residue"), "x"),
+      writeFile(join(state, "scaffolding-transaction.json.scaffold-quarantined.x"), "x"),
+    ]);
+    const status = await new NodeFoundationTransactionSlot({
+      consumerRoot: root,
+      installedVersion: version,
+      installedBuildIdentity: buildIdentity,
+    }).inspect();
+    assert.equal(status.state, "idle");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

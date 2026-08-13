@@ -110,7 +110,7 @@ export interface DocumentCompilerIdentity {
   readonly buildIdentity: DocumentAuthorityDigest;
 }
 
-export type DocumentDestinationObservation =
+type DocumentDestinationObservation =
   | { readonly state: "absent" }
   | { readonly state: "regular-file"; readonly bytes: Uint8Array }
   | {

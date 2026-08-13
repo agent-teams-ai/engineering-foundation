@@ -23,14 +23,14 @@ import { assertDocumentPlanDigests } from "../policies/document-contract-digests
 import { DocumentPlanningError } from "../../document-planning-error.js";
 import { compileDocumentPlan } from "./compile-document-plan.js";
 
-export interface ResolvedDocumentAuthoring {
+interface ResolvedDocumentAuthoring {
   readonly artifact: DocumentArtifactType;
   readonly slug?: string;
   readonly destination: string;
   readonly heading: string;
 }
 
-export interface DocumentLogicalPreimage {
+interface DocumentLogicalPreimage {
   readonly identityProjection: readonly DocumentIdentityProjectionEntry[];
   readonly isExactSelf: boolean;
 }
@@ -40,7 +40,7 @@ export interface DocumentLogicalPreimage {
  * Implementations live in the policy layer; consumer code cannot supply it from
  * the public composition root.
  */
-export interface DocumentPlanningPolicies {
+interface DocumentPlanningPolicies {
   normalizeDocumentIntent(input: DocumentIntent): DocumentIntent;
   selectDocumentArtifact(
     profile: DocumentPlanningProfileSnapshot,

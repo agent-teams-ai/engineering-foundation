@@ -208,14 +208,10 @@ test("syncs the destination directory before accepting an exact EEXIST publicati
         operations: {
           async link() {
             await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
-            const error = new Error("exists");
-            error.code = "EEXIST";
+            const error = Object.assign(new Error("exists"), { code: "EEXIST" });
             throw error;
           },
-          async syncDirectory(path) {
-            synced.push(path);
-            return "durable";
-          }
+          async syncDirectory(path) { synced.push(path); return "durable"; }
         },
         postimage
       }),

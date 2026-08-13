@@ -18,20 +18,20 @@ const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
 
 function preparedBody() {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     operationKind: "document-authoring",
     recoveryHandler: {
       id: "foundation.document-authoring",
-      contractVersion: 1,
+      contractVersion: 2,
     },
     foundation: {
       version: fixture.plan.compiler.version,
       buildIdentity: fixture.plan.compiler.buildIdentity,
     },
     adapterContractVersion: 1,
-    payloadKind: "document-authoring-journal/v1",
+    payloadKind: "document-authoring-journal/v2",
     journal: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       plan: fixture.plan,
       destination: {
         path: fixture.plan.destination,
@@ -42,36 +42,35 @@ function preparedBody() {
   };
 }
 
-test("creates a Receipt that is bound to the exact Plan", () => {
+test("creates a Receipt that is bound to the exact Plan", async () => {
   const { receiptDigest: _ignored, ...body } = fixture.receipt;
-  const receipt = createDocumentReceipt(body, fixture.plan);
+  const receipt = await createDocumentReceipt(body, fixture.plan);
   assert.match(receipt.receiptDigest, /^sha256:[0-9a-f]{64}$/u);
 
-  assert.throws(
-    () => createDocumentReceipt({ ...body, destination: "docs/other.md" }, fixture.plan),
+  await assert.rejects(
+    createDocumentReceipt({ ...body, destination: "docs/other.md" }, fixture.plan),
     /does not bind|result evidence/u,
   );
 });
 
-test("creates and validates the closed PREPARED envelope", () => {
-  const envelope = createDocumentTransactionEnvelope(preparedBody());
+test("creates and validates the closed PREPARED envelope", async () => {
+  const envelope = await createDocumentTransactionEnvelope(preparedBody());
   assert.equal(envelope.state, "PREPARED");
   assert.match(envelope.payloadDigest, /^sha256:[0-9a-f]{64}$/u);
-  assert.doesNotThrow(() => assertDocumentTransactionEnvelope(envelope));
+  await assert.doesNotReject(assertDocumentTransactionEnvelope(envelope));
 });
 
-test("rejects envelope tampering and cross-state lifecycle aliases", () => {
-  const envelope = createDocumentTransactionEnvelope(preparedBody());
-  assert.throws(
-    () => assertDocumentTransactionEnvelope({ ...envelope, payloadDigest: "sha256:" + "0".repeat(64) }),
+test("rejects envelope tampering and cross-state lifecycle aliases", async () => {
+  const envelope = await createDocumentTransactionEnvelope(preparedBody());
+  await assert.rejects(
+    assertDocumentTransactionEnvelope({ ...envelope, payloadDigest: "sha256:" + "0".repeat(64) }),
     /digest/u,
   );
-  assert.throws(
-    () =>
+  await assert.rejects(
       createDocumentTransactionEnvelope({
         ...preparedBody(),
         state: "PUBLISHING",
       }),
-    /lifecycle|temporary/u,
+    /closed v3 schema|lifecycle|temporary/u,
   );
 });

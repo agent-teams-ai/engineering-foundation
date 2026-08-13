@@ -36,6 +36,10 @@ const SCHEMA_DEPENDENCIES: Partial<
     "scaffold-plan/v1",
     "scaffold-recovery-journal/v1"
   ],
+  "foundation-transaction-envelope/v3": [
+    "document-intent/v1",
+    "document-plan/v1"
+  ],
   "scaffold-recovery-journal/v1": ["scaffold-plan/v1"]
 };
 

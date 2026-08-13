@@ -1,20 +1,15 @@
 import type { DocumentAuthorityDigest } from "./document-catalog.js";
+import type { DocumentPhysicalIdentity } from "./document-physical-identity.js";
 import type { DocumentPlan } from "./document-planning.js";
 
 export interface DocumentOwnedTemporary {
   readonly path: string;
   readonly digest: DocumentAuthorityDigest;
-  readonly identity: {
-    readonly adapter: "node-filesystem";
-    readonly version: 1;
-    readonly dev: string;
-    readonly ino: string;
-    readonly birthtimeNs: string;
-  };
+  readonly identity: DocumentPhysicalIdentity;
 }
 
 interface DocumentJournalBase {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly plan: DocumentPlan;
 }
 
@@ -43,22 +38,22 @@ export type DocumentTransactionJournal =
         readonly path: string;
         readonly state: "published";
       };
-      readonly ownedTemporary: DocumentOwnedTemporary;
+      readonly publicationIdentity: DocumentPhysicalIdentity;
     });
 
 interface DocumentTransactionEnvelopeBase {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly operationKind: "document-authoring";
   readonly recoveryHandler: {
     readonly id: "foundation.document-authoring";
-    readonly contractVersion: 1;
+    readonly contractVersion: 2;
   };
   readonly foundation: {
     readonly version: string;
     readonly buildIdentity: DocumentAuthorityDigest;
   };
   readonly adapterContractVersion: 1;
-  readonly payloadKind: "document-authoring-journal/v1";
+  readonly payloadKind: "document-authoring-journal/v2";
   readonly payloadDigest: DocumentAuthorityDigest;
   readonly envelopeDigest: DocumentAuthorityDigest;
 }

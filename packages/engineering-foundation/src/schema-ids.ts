@@ -14,6 +14,7 @@ export const FOUNDATION_SCHEMA_IDS = [
   "foundation-config/v1",
   "foundation-check-report/v1",
   "foundation-transaction-envelope/v2",
+  "foundation-transaction-envelope/v3",
   "governance-architecture-decision-baseline/v1",
   "governance-architecture-decisions/v1",
   "package-public-api-baseline/v1",

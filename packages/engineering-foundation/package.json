@@ -50,6 +50,7 @@
     "schemas/foundation-check-report/v1.schema.json",
     "schemas/foundation-config/v1.schema.json",
     "schemas/foundation-transaction-envelope/v2.schema.json",
+    "schemas/foundation-transaction-envelope/v3.schema.json",
     "schemas/governance-architecture-decision-baseline/v1.schema.json",
     "schemas/governance-architecture-decisions/v1.schema.json",
     "schemas/package-public-api-baseline/v1.schema.json",

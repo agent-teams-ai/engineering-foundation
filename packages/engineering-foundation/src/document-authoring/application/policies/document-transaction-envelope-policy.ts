@@ -2,12 +2,18 @@ import {
   canonicalJson,
   type CanonicalJsonValue
 } from "../../../canonical-json.js";
+import { assertSchema } from "../../../schema-catalog.js";
 import type {
   DocumentTransactionEnvelope,
   DocumentTransactionEnvelopeBody,
   DocumentTransactionJournal
 } from "../model/document-transaction.js";
+import {
+  assertDocumentPhysicalIdentity,
+  assertNonzeroDocumentPhysicalIdentity
+} from "../model/document-physical-identity.js";
 import { assertDocumentPlanDigests } from "./document-contract-digests.js";
+import { documentTemporaryPath } from "./document-temporary-path.js";
 import {
   documentTransactionEnvelopeDigest,
   documentTransactionPayloadDigest
@@ -31,6 +37,26 @@ function canonicalSnapshot<T>(value: T): T {
       { cause: error }
     );
   }
+}
+
+function deepFreezeCanonical<T>(value: T): T {
+  const pending: object[] = [];
+  if (value !== null && typeof value === "object") {
+    pending.push(value);
+  }
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (current === undefined || Object.isFrozen(current)) {
+      continue;
+    }
+    for (const child of Object.values(current)) {
+      if (child !== null && typeof child === "object") {
+        pending.push(child);
+      }
+    }
+    Object.freeze(current);
+  }
+  return value;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,23 +86,36 @@ function assertLifecycleBindings(
       "Document transaction lifecycle does not bind the embedded Plan."
     );
   }
-  const temporaryDigest = hasOwnedTemporary(journal)
-    ? journal.ownedTemporary.digest
-    : undefined;
   if (
-    envelope.state !== "PREPARED" &&
-    temporaryDigest !== journal.plan.output.digest
+    hasOwnedTemporary(journal) &&
+    journal.ownedTemporary.digest !== journal.plan.output.digest
   ) {
     throw new DocumentTransactionEnvelopeError(
       "Document transaction temporary does not bind the planned output."
     );
   }
+  if (hasOwnedTemporary(journal)) {
+    assertDocumentPhysicalIdentity(journal.ownedTemporary.identity);
+    if (
+      journal.ownedTemporary.path !==
+      documentTemporaryPath(journal.plan.destination, journal.plan.planDigest)
+    ) {
+      throw new DocumentTransactionEnvelopeError(
+        "Document transaction temporary path does not bind the embedded Plan."
+      );
+    }
+  }
+  if (envelope.state === "PUBLISHED") {
+    assertNonzeroDocumentPhysicalIdentity(
+      envelope.journal.publicationIdentity
+    );
+  }
 }
 
-export function assertDocumentTransactionEnvelope(
+export async function assertDocumentTransactionEnvelope(
   value: unknown
-): asserts value is DocumentTransactionEnvelope {
-  const candidate = canonicalSnapshot(value);
+): Promise<DocumentTransactionEnvelope> {
+  const candidate = deepFreezeCanonical(canonicalSnapshot(value));
   if (!isRecord(candidate)) {
     throw new DocumentTransactionEnvelopeError(
       "Document transaction envelope must be an object."
@@ -84,19 +123,31 @@ export function assertDocumentTransactionEnvelope(
   }
   const handler = candidate["recoveryHandler"];
   if (
-    candidate["schemaVersion"] !== 2 ||
+    candidate["schemaVersion"] !== 3 ||
     candidate["operationKind"] !== "document-authoring" ||
     !isRecord(handler) ||
     handler["id"] !== "foundation.document-authoring" ||
-    handler["contractVersion"] !== 1 ||
+    handler["contractVersion"] !== 2 ||
     candidate["adapterContractVersion"] !== 1 ||
-    candidate["payloadKind"] !== "document-authoring-journal/v1" ||
+    candidate["payloadKind"] !== "document-authoring-journal/v2" ||
     !["PREPARED", "PUBLISHING", "PUBLISHED"].includes(
       String(candidate["state"])
     )
   ) {
     throw new DocumentTransactionEnvelopeError(
       "Document transaction envelope constants are invalid."
+    );
+  }
+  try {
+    await assertSchema(
+      "foundation-transaction-envelope/v3",
+      candidate,
+      "document-transaction-envelope"
+    );
+  } catch (error) {
+    throw new DocumentTransactionEnvelopeError(
+      "Document transaction envelope does not match the closed v3 schema.",
+      { cause: error }
     );
   }
   const envelope = candidate as unknown as DocumentTransactionEnvelope;
@@ -112,20 +163,26 @@ export function assertDocumentTransactionEnvelope(
       "Document transaction envelope digest is invalid."
     );
   }
+  return envelope;
 }
 
-export function createDocumentTransactionEnvelope(
+export async function createDocumentTransactionEnvelope(
   body: DocumentTransactionEnvelopeBody
-): DocumentTransactionEnvelope {
-  const snapshot = canonicalSnapshot(body);
+): Promise<DocumentTransactionEnvelope> {
+  const snapshot = deepFreezeCanonical(canonicalSnapshot(body));
   const withPayload = {
     ...snapshot,
     payloadDigest: documentTransactionPayloadDigest(snapshot.journal)
   } as Omit<DocumentTransactionEnvelope, "envelopeDigest">;
-  const envelope = Object.freeze({
+  const envelope = deepFreezeCanonical({
     ...withPayload,
     envelopeDigest: documentTransactionEnvelopeDigest(withPayload)
   }) as DocumentTransactionEnvelope;
-  assertDocumentTransactionEnvelope(envelope);
-  return envelope;
+  const validated = await assertDocumentTransactionEnvelope(envelope);
+  if (validated.state === "PUBLISHING") {
+    assertNonzeroDocumentPhysicalIdentity(
+      validated.journal.ownedTemporary.identity
+    );
+  }
+  return validated;
 }

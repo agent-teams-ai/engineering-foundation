@@ -424,6 +424,7 @@ boundaries:
         - foundation.core
         - foundation.local-mode
         - foundation.repository-input
+        - foundation.repository-mutation.node-adapters
         - foundation.schema-validation
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
@@ -435,6 +436,7 @@ boundaries:
         - node:fs/promises
         - node:path
         - node:url
+        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-workspace.ts

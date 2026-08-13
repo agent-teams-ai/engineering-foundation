@@ -71,6 +71,8 @@ export class RunDocumentNew {
     request: RunDocumentNewRequest
   ): Promise<DocumentCommandExecution<DocumentNewResult>> {
     let publicationCommitted = false;
+    let committedDocumentPath: string | undefined;
+    let committedWriteState: "already-applied" | "applied" | undefined;
     try {
       request.signal?.throwIfAborted();
       const inspection = await this.#dependencies.inspect(request.consumerRoot);
@@ -115,6 +117,11 @@ export class RunDocumentNew {
       const outcome = receiptOutcome(receipt);
       publicationCommitted = receipt.outcome === "applied" ||
         receipt.outcome === "already-applied";
+      if (publicationCommitted) {
+        committedDocumentPath = plan.destination;
+        committedWriteState = receipt.outcome === "already-applied"
+          ? "already-applied" : "applied";
+      }
       if (outcome !== "success") {
         return commandExecution({
           command: "docs.new",
@@ -163,13 +170,19 @@ export class RunDocumentNew {
           diagnostics: [{
             ruleId: "document.new.post-publication-verification",
             severity: "error",
-            phase: "recovery",
+            phase: "apply",
             subject: "document.new",
-            message: "The document was published, but post-publication verification did not complete safely.",
-            remediation: { commandId: "docs.doctor", args: {} }
+            message: "The document was published, but post-publication structural verification failed. The created output was preserved."
           }],
-          outcome: "recovery-required",
-          result: { kind: "new", reservation: "none" }
+          outcome: "violation",
+          result: {
+            kind: "new",
+            ...(committedDocumentPath === undefined
+              ? {} : { documentPath: committedDocumentPath }),
+            ...(committedWriteState === undefined
+              ? {} : { writeState: committedWriteState }),
+            reservation: "none"
+          }
         });
       }
       const failure = projectDocumentCommandFailure({

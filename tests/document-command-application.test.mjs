@@ -103,7 +103,7 @@ test("docs new cancellation is 130 before publication", async () => {
   assert.equal(result.envelope.outcome, "cancelled");
 });
 
-test("docs new post-publication cancellation is recovery-required, never 130", async () => {
+test("docs new post-publication cancellation is a committed violation, never 130", async () => {
   const harness = newHarness({
     structure: {
       async verify() { const error = new Error("cancelled"); error.name = "AbortError"; throw error; }
@@ -113,7 +113,9 @@ test("docs new post-publication cancellation is recovery-required, never 130", a
     consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false
   });
   assert.equal(result.exitCode, 1);
-  assert.equal(result.envelope.outcome, "recovery-required");
+  assert.equal(result.envelope.outcome, "violation");
+  assert.equal(result.envelope.result.documentPath, plan.destination);
+  assert.equal(result.envelope.result.writeState, "applied");
 });
 
 test("docs doctor projects exact recovery and unknown versions", async () => {

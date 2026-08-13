@@ -39,24 +39,38 @@ test("preserves every released v1 journal for manual recovery", () => {
   );
 });
 
-test("resumes v2 PREPARED only before an owned temporary exists", () => {
-  const journal = {
+test("distinguishes pending and durable-preexisting v2 PREPARED evidence", () => {
+  const pending = {
     version: "v2",
     fileIdentity: "nonzero",
     lifecycle: "PREPARED",
+    preparedState: "pending",
     boundIdentity: "none",
   };
   assert.deepEqual(
-    classify(journal, absentTemporary, absentDestination),
+    classify(pending, absentTemporary, absentDestination),
     { action: "resume-prepare" },
   );
   assert.deepEqual(
-    classify(journal, exactTemporary, absentDestination),
+    classify(pending, exactTemporary, absentDestination),
     { action: "manual", reason: "orphan-temporary" },
   );
   assert.deepEqual(
-    classify(journal, absentTemporary, { state: "exact", identity: "unbound" }),
+    classify(pending, absentTemporary, { state: "exact", identity: "unbound" }),
     { action: "manual", reason: "inconsistent-lifecycle" },
+  );
+  const preexisting = { ...pending, preparedState: "preexisting" };
+  assert.deepEqual(
+    classify(preexisting, absentTemporary, { state: "exact", identity: "unbound" }),
+    { action: "already-applied", cleanup: "none" },
+  );
+  assert.deepEqual(
+    classify(preexisting, absentTemporary, absentDestination),
+    { action: "manual", reason: "inconsistent-lifecycle" },
+  );
+  assert.deepEqual(
+    classify(preexisting, exactTemporary, { state: "exact", identity: "unbound" }),
+    { action: "manual", reason: "orphan-temporary" },
   );
 });
 
@@ -84,22 +98,22 @@ test("resumes v2 PUBLISHING only from the exact bound temporary", () => {
     { action: "complete-publication" },
   );
   assert.deepEqual(
-    classify(
-      journal,
-      { state: "replaced", identity: "nonzero" },
-      { state: "exact", identity: "bound-temporary" },
-    ),
-    { action: "complete-publication" },
-  );
-  assert.deepEqual(
     classify(journal, exactTemporary, { state: "exact", identity: "different" }),
-    { action: "already-applied", cleanup: "owned-temporary" },
+    { action: "manual", reason: "identity-drift" },
   );
   assert.deepEqual(
     classify(
       journal,
       { state: "replaced", identity: "nonzero" },
       { state: "exact", identity: "different" },
+    ),
+    { action: "manual", reason: "identity-drift" },
+  );
+  assert.deepEqual(
+    classify(
+      journal,
+      { state: "replaced", identity: "nonzero" },
+      { state: "exact", identity: "bound-temporary" },
     ),
     { action: "manual", reason: "identity-drift" },
   );
@@ -135,6 +149,7 @@ test("all zero physical identities fail closed before phase classification", () 
     version: "v2",
     fileIdentity: "nonzero",
     lifecycle: "PREPARED",
+    preparedState: "pending",
     boundIdentity: "none",
   };
   const publishing = {
@@ -199,6 +214,14 @@ test("the finite observation product always returns a closed action", () => {
       version: "v2",
       fileIdentity: "nonzero",
       lifecycle: "PREPARED",
+      preparedState: "pending",
+      boundIdentity: "none",
+    },
+    {
+      version: "v2",
+      fileIdentity: "nonzero",
+      lifecycle: "PREPARED",
+      preparedState: "preexisting",
       boundIdentity: "none",
     },
     {

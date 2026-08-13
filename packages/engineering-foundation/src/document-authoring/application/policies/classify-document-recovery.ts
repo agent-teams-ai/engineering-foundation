@@ -39,6 +39,7 @@ export type DocumentRecoveryJournalObservation =
       readonly version: "v2";
       readonly fileIdentity: "nonzero" | "zero-identity" | "unverifiable";
       readonly lifecycle: "PREPARED";
+      readonly preparedState: "pending" | "preexisting";
       readonly boundIdentity: "none";
     }
   | {
@@ -152,13 +153,21 @@ function classifyPrepared(
   }
   switch (observation.destination.state) {
     case "absent":
-      return { action: "resume-prepare" };
+      return observation.journal.version === "v2" &&
+        observation.journal.lifecycle === "PREPARED" &&
+        observation.journal.preparedState === "pending"
+        ? { action: "resume-prepare" }
+        : manual("inconsistent-lifecycle");
     case "conflict":
       return manual("destination-conflict");
     case "unverifiable":
       return manual("unverifiable-identity");
     case "exact":
-      return manual("inconsistent-lifecycle");
+      return observation.journal.version === "v2" &&
+        observation.journal.lifecycle === "PREPARED" &&
+        observation.journal.preparedState === "preexisting"
+        ? { action: "already-applied", cleanup: "none" }
+        : manual("inconsistent-lifecycle");
   }
 }
 
@@ -179,13 +188,10 @@ function classifyPublishing(
         : manual("identity-drift");
     case "exact":
       if (observation.destination.identity === "bound-temporary") {
-        return { action: "complete-publication" };
-      }
-      if (
-        observation.destination.identity === "different" &&
-        observation.temporary.state === "exact"
-      ) {
-        return { action: "already-applied", cleanup: "owned-temporary" };
+        return observation.temporary.state === "absent" ||
+          observation.temporary.state === "exact"
+          ? { action: "complete-publication" }
+          : manual("identity-drift");
       }
       return manual("identity-drift");
   }

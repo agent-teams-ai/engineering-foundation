@@ -253,6 +253,10 @@ test("keeps packed and registry-install qualification wired", async () => {
   const repositoryManifest = JSON.parse(
     await readFile(join(repositoryRoot, "package.json"), "utf8"),
   );
+  const registryInstallSource = await readFile(
+    join(repositoryRoot, "scripts", "registry-install-e2e.mjs"),
+    "utf8",
+  );
   assert.equal(
     repositoryManifest.scripts["package:check:built"],
     vector.packedE2e.packageCheckBuilt,
@@ -277,17 +281,16 @@ test("keeps packed and registry-install qualification wired", async () => {
     /verifyInstalledTransactionBarrier/u,
   );
   assert.match(
-    await readFile(
-      join(repositoryRoot, "scripts", "registry-install-e2e.mjs"),
-      "utf8",
-    ),
+    registryInstallSource,
     /\$\{FOUNDATION_PACKAGE_NAME\}\/scaffolding/u,
   );
+  assert.match(
+    registryInstallSource,
+    /async function verifyInstalledBufQualifier\(installedRoot\) \{\s+if \(process\.platform === "win32"\) \{\s+return;\s+\}/u,
+    "the Windows registry gate must skip only the unsupported Aqua/Buf qualification",
+  );
   assert.doesNotMatch(
-    await readFile(
-      join(repositoryRoot, "scripts", "registry-install-e2e.mjs"),
-      "utf8",
-    ),
+    registryInstallSource,
     /published-scaffolding-compatibility|verifyPublishedScaffoldingCompatibility/u,
     "the hermetic registry gate must not fetch a published package",
   );

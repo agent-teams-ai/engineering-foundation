@@ -277,6 +277,9 @@ async function seedRegistry(dependencies, registryUrl) {
 }
 
 async function verifyInstalledBufQualifier(installedRoot) {
+  if (process.platform === "win32") {
+    return;
+  }
   const environmentKey = "AGENT_TEAMS_FOUNDATION_CLI_PATH";
   const previousCliPath = process.env[environmentKey];
   process.env[environmentKey] = join(installedRoot, "dist", "cli.js");

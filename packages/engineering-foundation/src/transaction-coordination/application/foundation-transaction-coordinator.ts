@@ -1,8 +1,8 @@
 import { FoundationTransactionError } from "./foundation-transaction-error.js";
 import type {
-  FoundationMutationKind,
-  FoundationTransactionStatus
+  FoundationMutationKind
 } from "./model/transaction-status.js";
+import type { InternalFoundationTransactionStatus } from "./model/internal-transaction-status.js";
 import type { FoundationOperationLock } from "./ports/foundation-operation-lock.js";
 import type { FoundationTransactionSlot } from "./ports/foundation-transaction-slot.js";
 
@@ -38,12 +38,12 @@ function preservePrimaryFailure(
       );
 }
 
-function observedStatusFormat(status: FoundationTransactionStatus): unknown {
+function observedStatusFormat(status: InternalFoundationTransactionStatus): unknown {
   return Reflect.get(status, "format") as unknown;
 }
 
 function isDocumentRecoveryAllowed(
-  status: FoundationTransactionStatus,
+  status: InternalFoundationTransactionStatus,
   options: {
     readonly requestedMutation: FoundationMutationKind;
     readonly allowRecoveryOf?: "document-authoring" | "local-mode" | "scaffolding";
@@ -65,7 +65,7 @@ function isDocumentRecoveryAllowed(
 }
 
 export interface FoundationTransactionLease {
-  readonly status: FoundationTransactionStatus;
+  readonly status: InternalFoundationTransactionStatus;
   release(options?: { readonly retainTransactionBarrier?: boolean }): Promise<void>;
 }
 
@@ -81,7 +81,7 @@ export class FoundationTransactionCoordinator {
     this.#slot = options.slot;
   }
 
-  async inspect(): Promise<FoundationTransactionStatus> {
+  async inspect(): Promise<InternalFoundationTransactionStatus> {
     return this.#slot.inspect();
   }
 

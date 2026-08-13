@@ -20,10 +20,12 @@ import { sha256Json as sha256ScaffoldingJson } from "../../../scaffolding/kernel
 import { parseStrictJson } from "../../../strict-json.js";
 import type {
   FoundationRecoveryRoute,
-  FoundationManualRecoveryReason,
-  FoundationTransactionDiagnostic,
-  FoundationTransactionStatus
+  FoundationTransactionDiagnostic
 } from "../../application/model/transaction-status.js";
+import type {
+  InternalFoundationManualRecoveryReason,
+  InternalFoundationTransactionStatus
+} from "../../application/model/internal-transaction-status.js";
 import type { FoundationTransactionSlot } from "../../application/ports/foundation-transaction-slot.js";
 import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 import {
@@ -66,9 +68,9 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 function manual(
-  reason: FoundationManualRecoveryReason,
+  reason: InternalFoundationManualRecoveryReason,
   message: string
-): FoundationTransactionStatus {
+): InternalFoundationTransactionStatus {
   return {
     state: "manual-recovery-required",
     reason,
@@ -94,7 +96,7 @@ function pending(options: {
   readonly foundationVersion: string;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
-}): FoundationTransactionStatus {
+}): InternalFoundationTransactionStatus {
   const diagnostics: FoundationTransactionDiagnostic[] = [];
   if (options.foundationVersion !== options.installedVersion) {
     diagnostics.push({
@@ -122,7 +124,7 @@ function pendingDocument(options: {
   readonly foundationBuildIdentity: string;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
-}): FoundationTransactionStatus {
+}): InternalFoundationTransactionStatus {
   const exactBuild =
     options.foundationVersion === options.installedVersion &&
     options.foundationBuildIdentity === options.installedBuildIdentity;
@@ -152,7 +154,7 @@ function pendingDocument(options: {
   };
 }
 
-function localModePending(message: string): FoundationTransactionStatus {
+function localModePending(message: string): InternalFoundationTransactionStatus {
   return {
     state: "pending",
     operationKind: "local-mode",
@@ -200,7 +202,7 @@ function parseLinkPhase(value: unknown): "ATTACHING" | "DETACHING" | "LOCAL" {
 
 async function inspectLocalModeEvidence(
   stateDirectory: string
-): Promise<FoundationTransactionStatus> {
+): Promise<InternalFoundationTransactionStatus> {
   let entries: string[];
   try {
     entries = await readdir(stateDirectory);
@@ -283,7 +285,7 @@ async function inspectLegacyScaffoldingJournal(options: {
   readonly value: Record<string, unknown>;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
-}): Promise<FoundationTransactionStatus> {
+}): Promise<InternalFoundationTransactionStatus> {
   await assertSchema(
     "scaffold-recovery-journal/v1",
     options.value,
@@ -308,7 +310,7 @@ async function inspectParsedTransaction(
   value: unknown,
   installedVersion: string,
   installedBuildIdentity: string
-): Promise<FoundationTransactionStatus> {
+): Promise<InternalFoundationTransactionStatus> {
   if (!isRecord(value)) {
     return manual(
       "invalid-slot",
@@ -430,7 +432,7 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
     );
   }
 
-  async #inspectTransactionEvidence(): Promise<FoundationTransactionStatus> {
+  async #inspectTransactionEvidence(): Promise<InternalFoundationTransactionStatus> {
     const documentTransition = await inspectDocumentTransitionEvidence(
       this.#stateDirectory
     );
@@ -479,7 +481,7 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
     }
   }
 
-  async inspect(): Promise<FoundationTransactionStatus> {
+  async inspect(): Promise<InternalFoundationTransactionStatus> {
     const [localMode, transaction] = await Promise.all([
       inspectLocalModeEvidence(this.#stateDirectory),
       this.#inspectTransactionEvidence()

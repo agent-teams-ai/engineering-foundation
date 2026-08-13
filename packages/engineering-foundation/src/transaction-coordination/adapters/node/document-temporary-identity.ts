@@ -1,4 +1,4 @@
-import type { FoundationTransactionStatus } from "../../application/model/transaction-status.js";
+import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -24,7 +24,7 @@ export function classifyNodeTemporaryIdentity(
 export function unverifiableDocumentTemporaryStatus(
   foundation: Record<string, unknown>,
   format: "envelope-v2" | "envelope-v3" = "envelope-v2"
-): FoundationTransactionStatus {
+): InternalFoundationTransactionStatus {
   return {
     state: "manual-recovery-required", reason: "physical-identity-unverifiable",
     operationKind: "document-authoring", format,

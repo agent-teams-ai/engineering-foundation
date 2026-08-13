@@ -2,7 +2,7 @@ import { sha256Json as sha256DocumentJson } from "../../../canonical-json.js";
 import { assertDocumentPlanDigests } from "../../../document-authoring/application/policies/document-contract-digests.js";
 import { documentTemporaryPath } from "../../../document-authoring/application/policies/document-temporary-path.js";
 import type { JsonValue } from "../../../scaffolding/contract/types.js";
-import type { FoundationTransactionStatus } from "../../application/model/transaction-status.js";
+import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import {
   classifyNodeTemporaryIdentity,
@@ -110,7 +110,7 @@ export function inspectDocumentTransactionBindings(options: {
   readonly legacyDigestSemantics?: boolean;
   readonly plan: Record<string, unknown>;
   readonly state: unknown;
-}): FoundationTransactionStatus | undefined {
+}): InternalFoundationTransactionStatus | undefined {
   const legacyDigestSemantics = options.legacyDigestSemantics ?? false;
   if (!legacyDigestSemantics) {
     assertDocumentPlanDigests(options.plan);
@@ -138,8 +138,8 @@ export async function inspectCurrentDocumentEnvelope(options: {
     readonly foundationBuildIdentity: string;
     readonly installedVersion: string;
     readonly installedBuildIdentity: string;
-  }) => FoundationTransactionStatus;
-}): Promise<FoundationTransactionStatus> {
+  }) => InternalFoundationTransactionStatus;
+}): Promise<InternalFoundationTransactionStatus> {
   await assertSchema(
     "foundation-transaction-envelope/v3",
     options.value,

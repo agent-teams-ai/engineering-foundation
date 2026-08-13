@@ -8,10 +8,10 @@ import type {
   FoundationTransactionCoordinator,
   FoundationTransactionLease
 } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
-import type { FoundationTransactionStatus } from "../../../transaction-coordination/application/model/transaction-status.js";
+import type { InternalFoundationTransactionStatus } from "../../../transaction-coordination/application/model/internal-transaction-status.js";
 
 interface FoundationCoordinator {
-  inspect(): Promise<FoundationTransactionStatus>;
+  inspect(): Promise<InternalFoundationTransactionStatus>;
   acquire(options: {
     readonly requestedMutation: "document-authoring";
     readonly allowRecoveryOf?: "document-authoring";
@@ -23,7 +23,7 @@ function observedProperty(value: object, property: string): unknown {
 }
 
 function isExactDocumentRecovery(
-  status: FoundationTransactionStatus
+  status: InternalFoundationTransactionStatus
 ): boolean {
   return (
     status.state === "pending" &&
@@ -39,7 +39,7 @@ function isExactDocumentRecovery(
   );
 }
 
-function manualReason(status: Exclude<FoundationTransactionStatus, {
+function manualReason(status: Exclude<InternalFoundationTransactionStatus, {
   readonly state: "idle";
 }>): string {
   if (status.state === "manual-recovery-required") {
@@ -52,7 +52,7 @@ function manualReason(status: Exclude<FoundationTransactionStatus, {
 }
 
 function toDocumentStatus(
-  status: FoundationTransactionStatus
+  status: InternalFoundationTransactionStatus
 ): DocumentTransactionStatus {
   if (status.state === "idle") {
     return { state: "idle" };
@@ -82,7 +82,7 @@ async function releaseSafely(options: {
   readonly lease: FoundationTransactionLease;
   readonly retainRequested: boolean;
 }): Promise<void> {
-  let status: FoundationTransactionStatus;
+  let status: InternalFoundationTransactionStatus;
   try {
     status = await options.coordinator.inspect();
   } catch (inspectionError) {

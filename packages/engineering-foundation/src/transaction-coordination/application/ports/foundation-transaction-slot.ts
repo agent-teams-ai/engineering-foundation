@@ -1,5 +1,5 @@
-import type { FoundationTransactionStatus } from "../model/transaction-status.js";
+import type { InternalFoundationTransactionStatus } from "../model/internal-transaction-status.js";
 
 export interface FoundationTransactionSlot {
-  inspect(): Promise<FoundationTransactionStatus>;
+  inspect(): Promise<InternalFoundationTransactionStatus>;
 }

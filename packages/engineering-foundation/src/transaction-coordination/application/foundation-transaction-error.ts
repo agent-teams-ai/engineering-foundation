@@ -1,8 +1,8 @@
 import type {
   FoundationMutationKind,
-  FoundationTransactionDiagnostic,
-  FoundationTransactionStatus
+  FoundationTransactionDiagnostic
 } from "./model/transaction-status.js";
+import type { InternalFoundationTransactionStatus } from "./model/internal-transaction-status.js";
 
 export class FoundationTransactionError extends Error {
   readonly code:
@@ -11,11 +11,11 @@ export class FoundationTransactionError extends Error {
     | "FOUNDATION_TRANSACTION_VERSION_MISMATCH";
   readonly diagnostics: readonly FoundationTransactionDiagnostic[];
   readonly requestedMutation: FoundationMutationKind;
-  readonly status: Exclude<FoundationTransactionStatus, { readonly state: "idle" }>;
+  readonly status: Exclude<InternalFoundationTransactionStatus, { readonly state: "idle" }>;
 
   constructor(options: {
     readonly requestedMutation: FoundationMutationKind;
-    readonly status: Exclude<FoundationTransactionStatus, { readonly state: "idle" }>;
+    readonly status: Exclude<InternalFoundationTransactionStatus, { readonly state: "idle" }>;
   }) {
     const primary = options.status.diagnostics[0] ?? {
       code: "FOUNDATION_TRANSACTION_ACTIVE" as const,

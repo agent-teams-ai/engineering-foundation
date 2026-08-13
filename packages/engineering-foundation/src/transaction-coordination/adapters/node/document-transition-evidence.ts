@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 
 import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.js";
-import type { FoundationTransactionStatus } from "../../application/model/transaction-status.js";
+import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 
 const maximumStateDirectoryEntries = 1024;
 const transition = `${FOUNDATION_TRANSACTION_FILE}.document-transition`;
@@ -12,7 +12,7 @@ function isMissing(error: unknown): boolean {
     (error as NodeJS.ErrnoException).code === "ENOENT";
 }
 
-function manual(message: string): FoundationTransactionStatus {
+function manual(message: string): InternalFoundationTransactionStatus {
   return {
     state: "manual-recovery-required",
     reason: "journal-transition-residue",
@@ -25,7 +25,7 @@ function manual(message: string): FoundationTransactionStatus {
 
 export async function inspectDocumentTransitionEvidence(
   stateDirectory: string
-): Promise<FoundationTransactionStatus | undefined> {
+): Promise<InternalFoundationTransactionStatus | undefined> {
   let entries: string[];
   try {
     entries = await readdir(stateDirectory);

@@ -171,6 +171,36 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
     (error) => error instanceof DocumentPlanningError &&
       error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
   );
+  let proxyTraps = 0;
+  const proxyIntent = new Proxy(intent, {
+    getOwnPropertyDescriptor() {
+      proxyTraps += 1;
+      throw new Error("must not execute");
+    },
+    getPrototypeOf() {
+      proxyTraps += 1;
+      throw new Error("must not execute");
+    },
+    ownKeys() {
+      proxyTraps += 1;
+      throw new Error("must not execute");
+    }
+  });
+  await assert.rejects(
+    validator.validateIntent(proxyIntent),
+    (error) => error instanceof DocumentPlanningError &&
+      error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
+  );
+  assert.equal(proxyTraps, 0);
+  let deepIntent = {};
+  for (let depth = 0; depth < 10_000; depth += 1) {
+    deepIntent = { nested: deepIntent };
+  }
+  await assert.rejects(
+    validator.validateIntent(deepIntent),
+    (error) => error instanceof DocumentPlanningError &&
+      error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
+  );
   await assert.rejects(
     validator.validatePlan({ schemaVersion: 1 }),
     (error) => error instanceof DocumentPlanningError &&

@@ -1,3 +1,5 @@
+import { isProxy } from "node:util/types";
+
 import { CapabilityInputError } from "../../../capability-runtime.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import type {
@@ -17,8 +19,27 @@ function invalidContract(kind: "Intent" | "Plan", error: CapabilityInputError): 
   );
 }
 
-function isJsonScalar(value: unknown): boolean {
+const MAXIMUM_INTENT_DEPTH = 8;
+const MAXIMUM_INTENT_NODES = 16_384;
+const MAXIMUM_INTENT_CONTAINER_ITEMS = 128;
+const MAXIMUM_INTENT_STRING_CODE_UNITS = 1_048_576;
+
+interface IntentInspectionBudget {
+  nodes: number;
+  stringCodeUnits: number;
+}
+
+function isJsonScalar(
+  value: unknown,
+  budget: IntentInspectionBudget
+): boolean {
   if (value === null || typeof value === "boolean" || typeof value === "string") {
+    if (typeof value === "string") {
+      budget.stringCodeUnits += value.length;
+      if (budget.stringCodeUnits > MAXIMUM_INTENT_STRING_CODE_UNITS) {
+        throw new TypeError("Document Intent text exceeds the inspection budget.");
+      }
+    }
     return true;
   }
   if (typeof value === "number") {
@@ -34,6 +55,10 @@ function inertContainerKeys(value: object): readonly string[] {
   const keys = Reflect.ownKeys(value);
   if (keys.some((key) => typeof key !== "string")) {
     throw new TypeError("Document Intent must not contain symbol keys.");
+  }
+  const itemCount = Array.isArray(value) ? keys.length - 1 : keys.length;
+  if (itemCount > MAXIMUM_INTENT_CONTAINER_ITEMS) {
+    throw new TypeError("Document Intent container exceeds the item budget.");
   }
   if (Array.isArray(value) && keys.length !== value.length + 1) {
     throw new TypeError("Document Intent arrays must be dense and contain no extra properties.");
@@ -51,24 +76,37 @@ function assertIntrinsicJsonContainer(value: object): void {
   }
 }
 
-function assertInertJson(value: unknown, ancestors = new WeakSet<object>()): void {
-  if (isJsonScalar(value)) {
-    return;
-  }
-  if (value === null || typeof value !== "object") {
-    throw new TypeError("Document Intent must use the closed JSON data model.");
-  }
-  if (ancestors.has(value)) {
-    throw new TypeError("Document Intent must not contain cycles.");
-  }
-  assertIntrinsicJsonContainer(value);
-  ancestors.add(value);
-  try {
-    for (const key of inertContainerKeys(value)) {
-      if (key === "length" && Array.isArray(value)) {
+function assertInertJson(input: unknown): void {
+  const pending: { readonly depth: number; readonly value: unknown }[] = [
+    { depth: 0, value: input }
+  ];
+  const seen = new WeakSet<object>();
+  const budget: IntentInspectionBudget = { nodes: 0, stringCodeUnits: 0 };
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    budget.nodes += 1;
+    if (budget.nodes > MAXIMUM_INTENT_NODES) {
+      throw new TypeError("Document Intent exceeds the node inspection budget.");
+    }
+    if (isJsonScalar(current.value, budget)) {
+      continue;
+    }
+    if (current.value === null || typeof current.value !== "object") {
+      throw new TypeError("Document Intent must use the closed JSON data model.");
+    }
+    if (isProxy(current.value)) {
+      throw new TypeError("Document Intent must not contain Proxy objects.");
+    }
+    if (current.depth > MAXIMUM_INTENT_DEPTH || seen.has(current.value)) {
+      throw new TypeError("Document Intent must be a bounded acyclic JSON tree.");
+    }
+    assertIntrinsicJsonContainer(current.value);
+    seen.add(current.value);
+    for (const key of inertContainerKeys(current.value)) {
+      if (key === "length" && Array.isArray(current.value)) {
         continue;
       }
-      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      const descriptor = Object.getOwnPropertyDescriptor(current.value, key);
       if (
         descriptor === undefined ||
         !("value" in descriptor) ||
@@ -76,10 +114,8 @@ function assertInertJson(value: unknown, ancestors = new WeakSet<object>()): voi
       ) {
         throw new TypeError("Document Intent must contain only enumerable own data properties.");
       }
-      assertInertJson(descriptor.value, ancestors);
+      pending.push({ depth: current.depth + 1, value: descriptor.value });
     }
-  } finally {
-    ancestors.delete(value);
   }
 }
 

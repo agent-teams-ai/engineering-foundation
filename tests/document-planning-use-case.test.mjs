@@ -210,6 +210,82 @@ test("fails closed when recaptured authority changes", async () => {
   );
 });
 
+test("fails closed when the final catalog or destination snapshot changes", async () => {
+  const catalogSetup = fixture();
+  let catalogReads = 0;
+  const stableCatalog = await catalogSetup.dependencies.catalog.execute();
+  catalogSetup.dependencies.catalog.execute = async () => {
+    catalogReads += 1;
+    return catalogReads === 1
+      ? stableCatalog
+      : { ...stableCatalog, identityProjection: [
+          { id: "ADR-0099", repositoryPath: "docs/decisions/0099-race.md" }
+        ] };
+  };
+  await assert.rejects(
+    new PlanDocumentationDocument(catalogSetup.dependencies).execute({
+      consumerRoot: "/disposable-fixture",
+      profilePath: "architecture/foundation/document-authoring.yaml",
+      intent: catalogSetup.intent
+    }),
+    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
+  );
+
+  const stateSetup = fixture();
+  let stateReads = 0;
+  stateSetup.dependencies.state.observe = async () => {
+    stateReads += 1;
+    return {
+      destination: stateReads === 1
+        ? { state: "absent" }
+        : { state: "regular-file", bytes: new TextEncoder().encode("raced") },
+      expectedParent: {
+        path: "docs/decisions",
+        state: "directory",
+        ancestry: "real-directories"
+      }
+    };
+  };
+  await assert.rejects(
+    new PlanDocumentationDocument(stateSetup.dependencies).execute({
+      consumerRoot: "/disposable-fixture",
+      profilePath: "architecture/foundation/document-authoring.yaml",
+      intent: stateSetup.intent
+    }),
+    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
+  );
+});
+
+test("honors cancellation before dependency calls and before returning", async () => {
+  const early = fixture();
+  const earlyAbort = new AbortController();
+  earlyAbort.abort();
+  await assert.rejects(
+    new PlanDocumentationDocument(early.dependencies).execute({
+      consumerRoot: "/disposable-fixture",
+      profilePath: "architecture/foundation/document-authoring.yaml",
+      intent: early.intent,
+      signal: earlyAbort.signal
+    })
+  );
+  assert.deepEqual(early.calls, []);
+
+  const late = fixture();
+  const lateAbort = new AbortController();
+  late.dependencies.contracts.validatePlan = async (plan) => {
+    lateAbort.abort();
+    return plan;
+  };
+  await assert.rejects(
+    new PlanDocumentationDocument(late.dependencies).execute({
+      consumerRoot: "/disposable-fixture",
+      profilePath: "architecture/foundation/document-authoring.yaml",
+      intent: late.intent,
+      signal: lateAbort.signal
+    })
+  );
+});
+
 test("rejects a partial catalog before emitting a Plan", async () => {
   const setup = fixture();
   setup.dependencies.catalog.execute = async () => ({

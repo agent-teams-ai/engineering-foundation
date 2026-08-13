@@ -875,6 +875,7 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/document-planning-error.ts
     allow:
       boundaries:
+        - foundation.cancellation
         - foundation.canonical-json
         - foundation.core
         - foundation.documentation-observation.application
@@ -931,6 +932,7 @@ boundaries:
         - node:crypto
         - node:fs/promises
         - node:path
+        - node:util/types
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/adapters/canonical-markdown.ts

@@ -1,3 +1,8 @@
+import { assertNotCancelled } from "../../../cancellation.js";
+import {
+  canonicalJson,
+  type CanonicalJsonValue
+} from "../../../canonical-json.js";
 import type {
   DocumentAuthorityEvidence,
   DocumentIdentityProjectionEntry,
@@ -7,7 +12,8 @@ import type {
   DocumentArtifactType,
   DocumentIntent,
   DocumentPlan,
-  DocumentPlanningProfileSnapshot
+  DocumentPlanningProfileSnapshot,
+  DocumentPlanningStateSnapshot
 } from "../model/document-planning.js";
 import type { CanonicalDocumentRenderer } from "../ports/canonical-document-renderer.js";
 import type { DocumentContractValidator } from "../ports/document-contract-validator.js";
@@ -123,6 +129,59 @@ function outputBytes(output: string): Uint8Array {
   return new TextEncoder().encode(output);
 }
 
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  return left.length === right.length &&
+    left.every((value, index) => value === right[index]);
+}
+
+function samePlanningState(
+  left: DocumentPlanningStateSnapshot,
+  right: DocumentPlanningStateSnapshot
+): boolean {
+  if (
+    left.expectedParent.path !== right.expectedParent.path ||
+    left.destination.state !== right.destination.state
+  ) {
+    return false;
+  }
+  if (left.destination.state === "absent" || right.destination.state === "absent") {
+    return left.destination.state === right.destination.state;
+  }
+  if (left.destination.state === "conflict" || right.destination.state === "conflict") {
+    return left.destination.state === "conflict" &&
+      right.destination.state === "conflict" &&
+      left.destination.kind === right.destination.kind;
+  }
+  return sameBytes(left.destination.bytes, right.destination.bytes);
+}
+
+function assertStablePlanningState(
+  before: DocumentPlanningStateSnapshot,
+  after: DocumentPlanningStateSnapshot
+): void {
+  if (!samePlanningState(before, after)) {
+    throw new DocumentPlanningError(
+      "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
+      "Document destination or parent changed while the Plan was compiled."
+    );
+  }
+}
+
+function assertStableCatalog(
+  before: DocumentationCatalogSnapshot,
+  after: DocumentationCatalogSnapshot
+): void {
+  if (
+    canonicalJson(before as unknown as CanonicalJsonValue) !==
+    canonicalJson(after as unknown as CanonicalJsonValue)
+  ) {
+    throw new DocumentPlanningError(
+      "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
+      "Document catalog changed while the Plan was compiled."
+    );
+  }
+}
+
 async function loadPlanningAuthority(
   dependencies: Dependencies,
   request: PlanDocumentationDocumentRequest,
@@ -190,13 +249,24 @@ function assertCatalogAuthority(
   }
 }
 
-async function recaptureAuthority(
-  dependencies: Dependencies,
-  request: PlanDocumentationDocumentRequest,
-  profile: DocumentPlanningProfileSnapshot,
-  templatePath: string,
-  authority: LoadedPlanningAuthority
-): Promise<void> {
+async function recaptureAuthority(input: {
+  readonly authority: LoadedPlanningAuthority;
+  readonly dependencies: Dependencies;
+  readonly destination: string;
+  readonly profile: DocumentPlanningProfileSnapshot;
+  readonly request: PlanDocumentationDocumentRequest;
+  readonly state: DocumentPlanningStateSnapshot;
+  readonly templatePath: string;
+}): Promise<void> {
+  const {
+    authority,
+    dependencies,
+    destination,
+    profile,
+    request,
+    state,
+    templatePath
+  } = input;
   const options = signalOption(request.signal);
   const [profileAfter, metadataAfter, ownersAfter, templateAfter] =
     await Promise.all([
@@ -238,6 +308,24 @@ async function recaptureAuthority(
     authority.template.evidence,
     templateAfter.evidence
   );
+  const stateBeforeCatalog = await dependencies.state.observe({
+    consumerRoot: request.consumerRoot,
+    destination,
+    ...options
+  });
+  assertStablePlanningState(state, stateBeforeCatalog);
+  const catalogAfter = await dependencies.catalog.execute({
+    consumerRoot: request.consumerRoot,
+    profilePath: request.profilePath,
+    ...options
+  });
+  assertStableCatalog(authority.catalog, catalogAfter);
+  const stateAfterCatalog = await dependencies.state.observe({
+    consumerRoot: request.consumerRoot,
+    destination,
+    ...options
+  });
+  assertStablePlanningState(state, stateAfterCatalog);
 }
 
 export class PlanDocumentationDocument {
@@ -250,10 +338,12 @@ export class PlanDocumentationDocument {
   async execute(
     request: PlanDocumentationDocumentRequest
   ): Promise<DocumentPlan> {
+    assertNotCancelled(request.signal);
     const options = signalOption(request.signal);
     const validatedIntent = await this.#dependencies.contracts.validateIntent(
       request.intent
     );
+    assertNotCancelled(request.signal);
     const intent = this.#dependencies.policies.normalizeDocumentIntent(
       validatedIntent
     );
@@ -359,14 +449,17 @@ export class PlanDocumentationDocument {
       );
     }
 
-    await recaptureAuthority(
-      this.#dependencies,
-      request,
+    await recaptureAuthority({
+      authority,
+      dependencies: this.#dependencies,
+      destination: resolved.destination,
       profile,
-      resolved.artifact.template.path,
-      authority
-    );
+      request,
+      state,
+      templatePath: resolved.artifact.template.path
+    });
 
+    assertNotCancelled(request.signal);
     const plan = compileDocumentPlan({
       catalog: authority.catalog,
       compiler: this.#dependencies.compiler,
@@ -382,6 +475,7 @@ export class PlanDocumentationDocument {
     });
     const validatedPlan = await this.#dependencies.contracts.validatePlan(plan);
     assertDocumentPlanDigests(validatedPlan);
+    assertNotCancelled(request.signal);
     return validatedPlan;
   }
 }

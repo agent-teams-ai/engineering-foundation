@@ -7,6 +7,15 @@ import { pathMatchesRegularFileIdentity } from "./node-bounded-regular-file.js";
 import type { DirectoryDurability } from "./node-directory-durability.js";
 import { syncPublicationDirectory } from "./node-absent-file-publication-private.js";
 
+export const OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER =
+  ".foundation-owned-cleanup-";
+
+export function ownedTemporaryCleanupResiduePrefix(
+  temporaryPath: string
+): string {
+  return `.${basename(temporaryPath)}${OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER}`;
+}
+
 export async function cleanupIdentityMatchingOwnedTemporary(options: {
   readonly allowUnsupportedDirectoryDurability: boolean;
   readonly displayPath: string;
@@ -33,7 +42,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
   const token = options.operations?.quarantineToken?.() ?? randomUUID();
   const quarantineDirectory = join(
     options.parent,
-    `.${basename(options.temporaryPath)}.cleanup-${token}`
+    `${ownedTemporaryCleanupResiduePrefix(options.temporaryPath)}${token}`
   );
   const quarantinedPath = join(quarantineDirectory, "owned-temporary");
   try {

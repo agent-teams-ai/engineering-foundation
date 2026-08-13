@@ -2,6 +2,7 @@ import { lstat, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
+import { OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER } from "../../../repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 
 export interface RecapturedDocumentPublicationPaths {
@@ -29,6 +30,16 @@ async function assertNoPortableAlias(parent: string, segment: string): Promise<v
   if (entries.some((entry) =>
     entry !== segment && portableNameIdentity(entry) === identity)) {
     throw new Error(`Document publication ancestry has a portable name alias: ${segment}.`);
+  }
+}
+
+async function assertNoOwnedCleanupResidue(parent: string): Promise<void> {
+  const entries = await readdir(parent);
+  if (entries.some((entry) =>
+    entry.includes(OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER))) {
+    throw new Error(
+      "A document temporary cleanup residue was preserved for manual recovery."
+    );
   }
 }
 
@@ -66,6 +77,7 @@ export async function recaptureDocumentPublicationPaths(request: {
   let parent = root;
   const ancestryIdentities = [pathIdentity(rootMetadata)];
   for (const segment of request.destination.split("/").slice(0, -1)) {
+    await assertNoOwnedCleanupResidue(parent);
     await assertNoPortableAlias(parent, segment);
     const candidate = join(parent, segment);
     const metadata = await lstat(candidate, { bigint: true });
@@ -84,6 +96,7 @@ export async function recaptureDocumentPublicationPaths(request: {
     throw new Error("Document publication parent changed during recapture.");
   }
   const basename = request.destination.split("/").at(-1)!;
+  await assertNoOwnedCleanupResidue(parent);
   await assertNoPortableAlias(parent, basename);
   return Object.freeze({
     ancestryIdentities: Object.freeze(ancestryIdentities),

@@ -35,7 +35,8 @@ async function missing(path) {
 }
 
 async function quarantinedEvidence(root) {
-  const entry = (await readdir(root)).find((name) => name.includes(".cleanup-"));
+  const entry = (await readdir(root)).find((name) =>
+    name.includes(".foundation-owned-cleanup-"));
   assert.ok(entry, "expected preserved cleanup quarantine");
   return readFile(join(root, entry, "owned-temporary"));
 }

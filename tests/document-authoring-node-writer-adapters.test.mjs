@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -256,6 +256,35 @@ test("already-satisfied publication reports the destination identity without cla
     assert.equal(second.outcome, "already-satisfied");
     assert.deepEqual(second.publicationIdentity, first.publicationIdentity);
     assert.notDeepEqual(second.publicationIdentity, secondTemporary.identity);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("derived temporary inspection exposes cleanup quarantine as manual residue", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
+  try {
+    await mkdir(join(root, "docs"));
+    const plan = planFor(Buffer.from("# Test\n"));
+    const publisher = new NodeDocumentPublisher();
+    const state = new NodeDocumentFileState();
+    const temporary = await publisher.prepare({ consumerRoot: root, plan });
+    await rename(join(root, temporary.path), `${join(root, temporary.path)}.owned`);
+    await writeFile(join(root, temporary.path), "foreign replacement\n");
+    await assert.rejects(
+      publisher.removeOwnedTemporary({ consumerRoot: root, temporary }),
+      /replaced and was preserved/u
+    );
+    const derived = await state.classifyDerivedTemporary({ consumerRoot: root, plan });
+    assert.equal(derived.state, "unverifiable");
+    assert.match(derived.reason, /cleanup residue/u);
+    const residue = (await readdir(join(root, "docs"))).find((entry) =>
+      entry.includes("foundation-owned-cleanup-"));
+    assert.ok(residue);
+    assert.equal(
+      await readFile(join(root, "docs", residue, "owned-temporary"), "utf8"),
+      "foreign replacement\n"
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

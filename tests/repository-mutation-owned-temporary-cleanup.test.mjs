@@ -75,7 +75,8 @@ test("preserves a foreign replacement captured immediately before rename", async
     assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");
     assert.equal(await readFile(`${paths.temporaryPath}.owned`, "utf8"), "owned\n");
     const entries = await readdir(paths.parent);
-    const quarantine = entries.find((entry) => entry.includes("cleanup-deterministic"));
+    const quarantine = entries.find((entry) =>
+      entry.includes("foundation-owned-cleanup-deterministic"));
     assert.ok(quarantine);
     assert.equal(
       await readFile(join(paths.parent, quarantine, "owned-temporary"), "utf8"),
@@ -105,7 +106,10 @@ test("never deletes a new source replacement created after quarantine rename", a
 test("fails closed when the operation-private quarantine collides", async () => {
   const paths = await fixture();
   try {
-    const collision = join(paths.parent, ".result.tmp.cleanup-deterministic");
+    const collision = join(
+      paths.parent,
+      ".result.tmp.foundation-owned-cleanup-deterministic",
+    );
     await mkdir(collision);
     const cleanup = options(paths);
     assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");

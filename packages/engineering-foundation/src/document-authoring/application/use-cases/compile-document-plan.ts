@@ -163,8 +163,8 @@ function assertSortedIdentityProjection(
   if (
     sorted.some(
       (entry, index) =>
-        entry.id !== projection[index]?.id ||
-        entry.repositoryPath !== projection[index]?.repositoryPath
+        entry.id !== projection[index]!.id ||
+        entry.repositoryPath !== projection[index]!.repositoryPath
     )
   ) {
     fail(

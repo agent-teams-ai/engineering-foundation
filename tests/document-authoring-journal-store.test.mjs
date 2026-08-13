@@ -349,10 +349,29 @@ requiresStrictDirectoryDurability("never overwrites a foreign canonical slot and
       /slot is occupied/u
     );
     assert.equal(await readFile(path, "utf8"), "foreign evidence\n");
-    assert.ok(
+    assert.equal(
       (await readdir(state)).includes(
         "scaffolding-transaction.json.document-transition"
-      )
+      ),
+      false
+    );
+  });
+});
+
+requiresStrictDirectoryDurability("occupied create preserves a readable canonical journal without transition residue", async () => {
+  await withFixture(async ({ state, store }) => {
+    const first = await envelope();
+    await store.create(first);
+    await assert.rejects(
+      store.create(await envelope("preexisting")),
+      /slot is already occupied/u
+    );
+    assert.deepEqual((await store.read()).envelope, first);
+    assert.equal(
+      (await readdir(state)).includes(
+        "scaffolding-transaction.json.document-transition"
+      ),
+      false
     );
   });
 });

@@ -337,6 +337,20 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
   }
   async create(envelope: DocumentTransactionEnvelope): Promise<JournalAuthority> {
     await this.#assertNoTransitionEvidence();
+    let canonicalSlotExists = true;
+    try {
+      await readBoundedRegularFile(this.journalPath, maximumJournalBytes);
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT") {
+        throw error;
+      }
+      canonicalSlotExists = false;
+    }
+    if (canonicalSlotExists) {
+      throw new NodeDocumentJournalStoreError(
+        "Canonical document journal slot is already occupied; it was preserved."
+      );
+    }
     const authority = await this.#prepareCandidate(envelope);
     try {
       await link(this.#candidatePath, this.journalPath);

@@ -116,6 +116,11 @@ test("keeps v1 find parsing compatible", () => {
   assert.equal(parsed.documentStatus, "accepted");
 });
 
+test("preserves a second option terminator as positional input", () => {
+  const parsed = parseArguments(["docs", "find", "--", "--"]);
+  assert.deepEqual(parsed.positional, ["--"]);
+});
+
 test("accepts every v2 command fixture and rejects cross-command results", async () => {
   for (const envelope of Object.values(fixtures)) {
     await assertSchema("document-command-envelope/v2", envelope, "document-command-v2");

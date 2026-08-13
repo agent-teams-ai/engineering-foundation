@@ -252,7 +252,7 @@ function consumePositionalControl(
   value: string,
   state: ArgumentState
 ): boolean {
-  if (value === "--") {
+  if (!state.optionsEnded && value === "--") {
     state.optionsEnded = true;
     return true;
   }

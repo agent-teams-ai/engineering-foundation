@@ -8,10 +8,7 @@ import type {
   DocumentTransactionEnvelopeBody,
   DocumentTransactionJournal
 } from "../model/document-transaction.js";
-import {
-  assertDocumentPhysicalIdentity,
-  assertNonzeroDocumentPhysicalIdentity
-} from "../model/document-physical-identity.js";
+import { assertNonzeroDocumentPhysicalIdentity } from "../model/document-physical-identity.js";
 import { assertDocumentPlanDigests } from "./document-contract-digests.js";
 import { documentTemporaryPath } from "./document-temporary-path.js";
 import {
@@ -99,7 +96,7 @@ function assertLifecycleBindings(
     );
   }
   if (hasOwnedTemporary(journal)) {
-    assertDocumentPhysicalIdentity(journal.ownedTemporary.identity);
+    assertNonzeroDocumentPhysicalIdentity(journal.ownedTemporary.identity);
     if (
       journal.ownedTemporary.path !==
       documentTemporaryPath(journal.plan.destination, journal.plan.planDigest)
@@ -182,11 +179,5 @@ export async function createDocumentTransactionEnvelope(
     ...withPayload,
     envelopeDigest: documentTransactionEnvelopeDigest(withPayload)
   }) as DocumentTransactionEnvelope;
-  const validated = await assertDocumentTransactionEnvelope(envelope);
-  if (validated.state === "PUBLISHING") {
-    assertNonzeroDocumentPhysicalIdentity(
-      validated.journal.ownedTemporary.identity
-    );
-  }
-  return validated;
+  return assertDocumentTransactionEnvelope(envelope);
 }

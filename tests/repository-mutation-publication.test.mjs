@@ -69,6 +69,31 @@ test("publishes absent postimage and removes only its temporary", async () => {
   }
 });
 
+test("uses the injected bounded reader for every publication verification", async () => {
+  const paths = await fixture();
+  let reads = 0;
+  try {
+    assert.equal(
+      await publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async readBoundedRegularFile(path, maximumBytes) {
+            reads += 1;
+            return readBoundedRegularFile(path, maximumBytes);
+          }
+        },
+        postimage
+      }),
+      "published"
+    );
+    assert.equal(reads, 3);
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
 test("rejects identical or cross-directory publication paths before I/O", async () => {
   const paths = await fixture();
   const otherRoot = await fixture();

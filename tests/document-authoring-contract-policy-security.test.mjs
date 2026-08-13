@@ -12,8 +12,13 @@ import {
   createDocumentReceipt,
 } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-receipt-policy.js";
 import {
+  assertDocumentTransactionEnvelope,
   createDocumentTransactionEnvelope,
 } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
+import {
+  documentTransactionEnvelopeDigest,
+  documentTransactionPayloadDigest,
+} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-digests.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
@@ -79,6 +84,27 @@ test("enforces the closed v3 lifecycle matrix and physical publication identity"
       identity: { ...identity, ino: "0" },
     },
   })), /zero/u);
+
+  const persisted = await createDocumentTransactionEnvelope(body("PUBLISHING", {
+    destination: { path: fixture.plan.destination, state: "publishing" },
+    ownedTemporary: {
+      path: `docs/decisions/.foundation-document-${fixture.plan.planDigest.slice(7)}.tmp`,
+      digest: fixture.plan.output.digest,
+      identity,
+    },
+  }));
+  const zeroPersisted = structuredClone(persisted);
+  zeroPersisted.journal.ownedTemporary.identity.ino = "0";
+  zeroPersisted.payloadDigest = documentTransactionPayloadDigest(
+    zeroPersisted.journal,
+  );
+  zeroPersisted.envelopeDigest = documentTransactionEnvelopeDigest(
+    zeroPersisted,
+  );
+  await assert.rejects(
+    assertDocumentTransactionEnvelope(zeroPersisted),
+    /zero/u,
+  );
 });
 
 test("strict receipt policy rejects extras, unsafe paths, excessive diagnostics, and missing Plan", async () => {

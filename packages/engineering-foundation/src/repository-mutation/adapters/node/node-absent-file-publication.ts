@@ -164,7 +164,7 @@ async function runPublicationPhase(
       link: context.operations.link,
       parent: context.parent,
       postimage: context.postimage,
-      readBoundedRegularFile,
+      readBoundedRegularFile: context.operations.readBoundedRegularFile,
       syncDirectory: context.operations.syncDirectory,
       temporaryPath: context.temporaryPath
     });
@@ -261,7 +261,7 @@ async function publicationOutcome(
     displayPath: context.displayPath,
     expectedIdentity: state.temporaryIdentity,
     postimage: context.postimage,
-    readBoundedRegularFile
+    readBoundedRegularFile: context.operations.readBoundedRegularFile
   });
   return "published";
 }

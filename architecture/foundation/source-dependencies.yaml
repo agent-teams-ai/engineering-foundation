@@ -282,6 +282,7 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/application/model/exact-postimage.ts
       - packages/engineering-foundation/src/repository-mutation/application/model/path-identity.ts
       - packages/engineering-foundation/src/repository-mutation/application/model/repository-path.ts
+      - packages/engineering-foundation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
   - id: foundation.repository-mutation.node-adapters
     roots:
       - packages/engineering-foundation/src/repository-mutation/adapters/node
@@ -348,6 +349,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-build-identity.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-operation-lock.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-cleanup-transition.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-state-directory.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts
@@ -411,6 +413,12 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-receipt-validator.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-owner-document-resolver.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-plan-authority.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-evidence.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-gateway.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-reconciliation.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store-faults.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
     allow:
       boundaries:
         - foundation.core
@@ -438,6 +446,12 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-input-loader.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-receipt-validator.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-plan-authority.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-evidence.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-gateway.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-reconciliation.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store-faults.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
   - id: foundation.scaffolding.canonical-composition
     roots:
       - packages/engineering-foundation/src/scaffolding/authority-service.ts

@@ -269,13 +269,17 @@ async function verifyOrphanTemporaryBarrier({
   }
 }
 
-export async function verifyOldFoundationTransactionBarrier({ currentCliPath }) {
+export async function verifyOldFoundationTransactionBarrier({
+  currentCliPath,
+  installPackage,
+}) {
   const temporaryRoot = await mkdtemp(
     join(tmpdir(), "foundation-old-version-e2e-"),
   );
   try {
     const installed = await installPublishedFoundation({
       expectedIntegrity,
+      installPackage,
       root: join(temporaryRoot, "published-package"),
       version,
     });

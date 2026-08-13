@@ -14,7 +14,6 @@ import { isDeepStrictEqual } from "node:util";
 import {
   createPnpmRunner,
   runCommand,
-  runNpmCommand,
 } from "./pack-test-support.mjs";
 import { installPublishedFoundation } from "./published-foundation-install.mjs";
 
@@ -56,6 +55,7 @@ async function runScaffolding(cliPath, consumerRoot, args) {
 async function installPackedCurrentPackage({
   candidateVersion,
   currentPackageRoot,
+  installPackage,
   temporaryRoot,
 }) {
   const packRoot = join(temporaryRoot, "current-pack");
@@ -89,7 +89,7 @@ async function installPackedCurrentPackage({
     )}\n`,
     "utf8",
   );
-  await runNpmCommand(
+  await installPackage(
     [
       "install",
       "--ignore-scripts",
@@ -207,6 +207,7 @@ export async function verifyPublishedScaffoldingCompatibility({
     "fixtures",
     "scaffolding-authority-consumer",
   ),
+  installPackage,
   temporaryRoot,
 }) {
   const candidateManifest = JSON.parse(
@@ -221,12 +222,14 @@ export async function verifyPublishedScaffoldingCompatibility({
   const candidateVersion = candidateManifest.version;
   const published = await installPublishedFoundation({
     expectedIntegrity,
+    installPackage,
     root: join(temporaryRoot, "published-0.12-package"),
     version: publishedVersion,
   });
   const current = await installPackedCurrentPackage({
     candidateVersion,
     currentPackageRoot,
+    installPackage,
     temporaryRoot,
   });
   const currentConsumer = join(temporaryRoot, "current-consumer");

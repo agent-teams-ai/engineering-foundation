@@ -1,12 +1,11 @@
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { runNpmCommand } from "./pack-test-support.mjs";
-
 const packageName = "@agent-teams/engineering-foundation";
 
 export async function installPublishedFoundation({
   expectedIntegrity,
+  installPackage,
   root,
   version,
 }) {
@@ -25,7 +24,7 @@ export async function installPublishedFoundation({
     )}\n`,
     "utf8",
   );
-  await runNpmCommand(
+  await installPackage(
     [
       "install",
       "--ignore-scripts",

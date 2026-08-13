@@ -247,7 +247,10 @@ test("packaging subprocesses have a bounded deadline", async () => {
       repositoryRoot,
       { timeoutMs: 200 },
     ),
-    (error) => error?.killed === true || error?.signal === "SIGKILL",
+    (error) =>
+      error?.timedOut === true &&
+      error?.killed === true &&
+      error?.terminationConfirmed === true,
   );
 });
 

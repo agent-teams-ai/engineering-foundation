@@ -9,6 +9,7 @@ const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4"
 const commandMaxBufferBytes = 16 * 1024 * 1024;
 const commandMaxTimeoutMs = 2_147_483_647;
 const commandTerminationSignal = "SIGKILL";
+export const commandDefaultTimeoutMs = 120_000;
 const secretPatterns = [
   /-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/u,
   /\bAKIA[0-9A-Z]{16}\b/u,
@@ -91,6 +92,7 @@ class CommandExecutionError extends Error {
     this.signal = input.signal;
     this.stderr = input.stderr;
     this.stdout = input.stdout;
+    this.terminationConfirmed = input.terminationConfirmed;
     this.timedOut = input.timedOut;
   }
 }
@@ -182,7 +184,7 @@ async function cleanUpAfterNormalExit(child) {
 }
 
 export async function runCommand(command, args, cwd, options = {}) {
-  const timeoutMs = options.timeoutMs ?? 120_000;
+  const timeoutMs = options.timeoutMs ?? commandDefaultTimeoutMs;
   if (
     !Number.isSafeInteger(timeoutMs) ||
     timeoutMs <= 0 ||
@@ -202,6 +204,7 @@ export async function runCommand(command, args, cwd, options = {}) {
       signal: null,
       stderr: "",
       stdout: "",
+      terminationConfirmed: false,
       timedOut: false,
       timeoutMs
     });
@@ -229,6 +232,7 @@ export async function runCommand(command, args, cwd, options = {}) {
     let cause;
     let completing = false;
     let forceTerminationRequested = false;
+    let terminationFailed = false;
     let terminationPromise;
     let timedOut = false;
 
@@ -260,6 +264,7 @@ export async function runCommand(command, args, cwd, options = {}) {
         try {
           await terminateCommandTree(child);
         } catch (error) {
+          terminationFailed = true;
           cause ??= error;
         }
       })();
@@ -279,8 +284,10 @@ export async function runCommand(command, args, cwd, options = {}) {
       } else {
         await cleanUpAfterNormalExit(child);
       }
+      let streamsClosed = false;
       try {
         await waitForBoundedClose(close);
+        streamsClosed = true;
       } catch (error) {
         cause ??= error;
       }
@@ -298,6 +305,8 @@ export async function runCommand(command, args, cwd, options = {}) {
             killed: forceTerminationRequested || result.signal !== null,
             signal: result.signal,
             ...text,
+            terminationConfirmed:
+              forceTerminationRequested && !terminationFailed && streamsClosed,
             timedOut,
             timeoutMs
           })

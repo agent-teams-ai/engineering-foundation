@@ -2,10 +2,7 @@ import { link, mkdir, open, readdir, rename, type FileHandle } from "node:fs/pro
 import { createHash, randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { TextDecoder } from "node:util";
-import {
-  canonicalJson,
-  type CanonicalJsonValue
-} from "../../../canonical-json.js";
+import { canonicalJson, type CanonicalJsonValue } from "../../../canonical-json.js";
 import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.js";
 import type {
   DocumentJournalStore,
@@ -22,12 +19,10 @@ import {
   readBoundedRegularFile
 } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 import { syncDirectoryStrictly } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
-import {
-  assertTerminalEvidenceDirectory,
-  ensureTerminalEvidenceDirectory
-} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
+import { assertTerminalEvidenceDirectory, ensureTerminalEvidenceDirectory } from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
 import { parseStrictJson } from "../../../strict-json.js";
 import type { NodeDocumentJournalFaultInjector } from "./node-document-journal-store-faults.js";
+import { documentJournalSlotExists } from "./node-document-journal-slot.js";
 const maximumJournalBytes = 32 * 1024 * 1024;
 const maximumDirectoryEntries = 1024;
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
@@ -337,16 +332,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
   }
   async create(envelope: DocumentTransactionEnvelope): Promise<JournalAuthority> {
     await this.#assertNoTransitionEvidence();
-    let canonicalSlotExists = true;
-    try {
-      await readBoundedRegularFile(this.journalPath, maximumJournalBytes);
-    } catch (error) {
-      if (errorCode(error) !== "ENOENT") {
-        throw error;
-      }
-      canonicalSlotExists = false;
-    }
-    if (canonicalSlotExists) {
+    if (await documentJournalSlotExists(this.journalPath, maximumJournalBytes)) {
       throw new NodeDocumentJournalStoreError(
         "Canonical document journal slot is already occupied; it was preserved."
       );

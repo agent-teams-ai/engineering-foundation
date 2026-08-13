@@ -280,7 +280,7 @@ test("corrupt, unknown, and duplicate journal evidence is preserved fail-closed"
   }
 });
 
-requiresStrictDirectoryDurability("file-state refuses cleanup after a temporary inode replacement", async () => {
+requiresStrictDirectoryDurability("file-state preserves a temporary inode replacement before cleanup authority", async () => {
   await withPlanningRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher();
     const state = new NodeDocumentFileState();
@@ -299,27 +299,19 @@ requiresStrictDirectoryDurability("file-state refuses cleanup after a temporary 
       /replaced and was preserved/u
     );
     const derived = await state.classifyDerivedTemporary({ consumerRoot: root, plan });
-    assert.equal(derived.state, "unverifiable");
-    assert.match(derived.reason, /cleanup residue/u);
+    assert.equal(derived.state, "present");
     const temporaryParent = dirname(path);
     const residue = (await readdir(temporaryParent)).find((entry) =>
       entry.includes("foundation-owned-cleanup-"));
-    assert.ok(residue);
-    assert.deepEqual(
-      await readFile(join(temporaryParent, residue, "owned-temporary")),
-      Buffer.from(plan.output.contentBase64, "base64")
-    );
-    const before = await readFile(join(temporaryParent, residue, "owned-temporary"));
+    assert.equal(residue, undefined);
+    const before = await readFile(path);
     const receipt = await applyNodeDocumentationPlanPrivately({ consumerRoot: root, plan });
     assert.equal(receipt.outcome, "manual-recovery-required");
     assert.match(
       receipt.diagnostics.map(({ message }) => message).join("\n"),
-      /cleanup residue|evidence was preserved/u
+      /temporary|evidence was preserved/u
     );
-    assert.deepEqual(
-      await readFile(join(temporaryParent, residue, "owned-temporary")),
-      before
-    );
+    assert.deepEqual(await readFile(path), before);
     await assert.rejects(lstat(join(root, plan.destination)),
       (error) => error?.code === "ENOENT");
   });

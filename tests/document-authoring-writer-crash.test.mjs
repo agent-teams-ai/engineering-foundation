@@ -18,6 +18,9 @@ const fixtures = fileURLToPath(
 const worker = fileURLToPath(
   new URL("support/document-authoring-crash-worker.mjs", import.meta.url)
 );
+const requiresStrictDirectoryDurability = process.platform === "win32"
+  ? test.skip
+  : test;
 
 const automaticallyRecoverable = [
   "after-prepared-journal-durable",
@@ -101,7 +104,7 @@ async function withFixture(callback) {
 }
 
 for (const checkpoint of automaticallyRecoverable) {
-  test(`SIGKILL at ${checkpoint} is recovered to an exact receipt`, async () => {
+  requiresStrictDirectoryDurability(`SIGKILL at ${checkpoint} is recovered to an exact receipt`, async () => {
     await withFixture(async (consumerRoot, scratch) => {
       const plan = await adrPlan(consumerRoot);
       await crashAt(consumerRoot, plan, checkpoint, scratch);
@@ -117,7 +120,7 @@ for (const checkpoint of automaticallyRecoverable) {
   });
 }
 
-test("SIGKILL after temporary sync preserves orphan evidence for manual recovery", async () => {
+requiresStrictDirectoryDurability("SIGKILL after temporary sync preserves orphan evidence for manual recovery", async () => {
   await withFixture(async (consumerRoot, scratch) => {
     const plan = await adrPlan(consumerRoot);
     await crashAt(consumerRoot, plan, "after-temporary-synced", scratch);
@@ -131,7 +134,7 @@ test("SIGKILL after temporary sync preserves orphan evidence for manual recovery
   });
 });
 
-test("SIGKILL after durable journal removal loses only the receipt and exact replay closes it", async () => {
+requiresStrictDirectoryDurability("SIGKILL after durable journal removal loses only the receipt and exact replay closes it", async () => {
   await withFixture(async (consumerRoot, scratch) => {
     const plan = await adrPlan(consumerRoot);
     await crashAt(

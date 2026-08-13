@@ -94,6 +94,8 @@ jobs:
       - run: pnpm check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Qualify unsupported durable document writing fails closed
+        run: node --test tests/document-authoring-windows-qualification.test.mjs
       - name: Qualify published transaction and scaffolding compatibility
         run: pnpm published-compatibility:e2e
       - run: pnpm parser-spike:check

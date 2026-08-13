@@ -17,6 +17,9 @@ const fixtures = fileURLToPath(
 const worker = fileURLToPath(
   new URL("support/document-authoring-concurrency-worker.mjs", import.meta.url)
 );
+const requiresStrictDirectoryDurability = process.platform === "win32"
+  ? test.skip
+  : test;
 
 async function withFixture(callback) {
   const scratch = await mkdtemp(join(tmpdir(), "foundation-document-concurrency-"));
@@ -138,7 +141,7 @@ async function assertNoTransactionResidue(consumerRoot) {
 }
 
 for (const winnerIndex of [0, 1]) {
-  test(`independent writers preserve exact-vs-conflict truth when plan ${winnerIndex + 1} wins`, async () => {
+  requiresStrictDirectoryDurability(`independent writers preserve exact-vs-conflict truth when plan ${winnerIndex + 1} wins`, async () => {
     await withFixture(async (consumerRoot, scratch) => {
       const plans = await competingPlans(consumerRoot);
       const loserIndex = 1 - winnerIndex;

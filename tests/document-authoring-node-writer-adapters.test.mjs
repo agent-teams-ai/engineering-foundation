@@ -14,6 +14,10 @@ import {
 import { documentPlanDigest } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
 import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
 
+const requiresStrictDirectoryDurability = process.platform === "win32"
+  ? test.skip
+  : test;
+
 function planFor(bytes) {
   const plan = {
     schemaVersion: 1,
@@ -45,7 +49,7 @@ function planFor(bytes) {
   return plan;
 }
 
-test("Node document publisher prepares, resumes, publishes, and cleans exact Plan output", async () => {
+requiresStrictDirectoryDurability("Node document publisher prepares, resumes, publishes, and cleans exact Plan output", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
   try {
     await mkdir(join(root, "docs"));
@@ -78,7 +82,7 @@ test("Node document publisher prepares, resumes, publishes, and cleans exact Pla
   }
 });
 
-test("publication completion verifies bound identity and supports absent temporary", async () => {
+requiresStrictDirectoryDurability("publication completion verifies bound identity and supports absent temporary", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
   try {
     await mkdir(join(root, "docs"));
@@ -104,7 +108,7 @@ test("publication completion verifies bound identity and supports absent tempora
   }
 });
 
-test("publication completion rejects same bytes with a different identity", async () => {
+requiresStrictDirectoryDurability("publication completion rejects same bytes with a different identity", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
   try {
     await mkdir(join(root, "docs"));
@@ -232,7 +236,7 @@ test("zero identity remains wire evidence but grants no mutation authority", asy
   }
 });
 
-test("already-satisfied publication reports the destination identity without claiming ownership", async () => {
+requiresStrictDirectoryDurability("already-satisfied publication reports the destination identity without claiming ownership", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
   try {
     await mkdir(join(root, "docs"));
@@ -261,7 +265,7 @@ test("already-satisfied publication reports the destination identity without cla
   }
 });
 
-test("derived temporary inspection exposes cleanup quarantine as manual residue", async () => {
+requiresStrictDirectoryDurability("derived temporary inspection exposes cleanup quarantine as manual residue", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
   try {
     await mkdir(join(root, "docs"));

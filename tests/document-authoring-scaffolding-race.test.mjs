@@ -36,6 +36,9 @@ const scaffoldingFixtureRoot = fileURLToPath(new URL(
   "fixtures/scaffolding-authority-consumer/",
   import.meta.url,
 ));
+const requiresStrictDirectoryDurability = process.platform === "win32"
+  ? test.skip
+  : test;
 
 function deferred() {
   let settle;
@@ -154,7 +157,7 @@ test(
   }),
 );
 
-test(
+requiresStrictDirectoryDurability(
   "a durable document transaction serializes scaffold apply without evidence loss",
   { timeout: 30_000 },
   async () => withPlans(async ({ documentPlan, root, scaffoldPlan }) => {

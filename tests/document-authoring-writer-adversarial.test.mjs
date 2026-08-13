@@ -32,6 +32,9 @@ const planningFixture = fileURLToPath(new URL(
   "fixtures/document-planning/orchestrator/",
   import.meta.url
 ));
+const requiresStrictDirectoryDurability = process.platform === "win32"
+  ? test.skip
+  : test;
 
 function planFor(bytes = Buffer.from("# Adversarial fixture\n")) {
   const plan = {
@@ -124,7 +127,7 @@ function systemError(code, message) {
   return error;
 }
 
-test("zero temporary identity grants no publication or cleanup authority", async () => {
+requiresStrictDirectoryDurability("zero temporary identity grants no publication or cleanup authority", async () => {
   await withRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher();
     const temporary = await publisher.prepare({ consumerRoot: root, plan });
@@ -146,7 +149,7 @@ test("zero temporary identity grants no publication or cleanup authority", async
   });
 });
 
-test("a replaced temporary is preserved and never published", async () => {
+requiresStrictDirectoryDurability("a replaced temporary is preserved and never published", async () => {
   await withRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher();
     const temporary = await publisher.prepare({ consumerRoot: root, plan });
@@ -162,7 +165,7 @@ test("a replaced temporary is preserved and never published", async () => {
   });
 });
 
-test("same bytes with a replaced destination inode cannot finalize publication", async () => {
+requiresStrictDirectoryDurability("same bytes with a replaced destination inode cannot finalize publication", async () => {
   await withRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher();
     const temporary = await publisher.prepare({ consumerRoot: root, plan });
@@ -183,7 +186,7 @@ test("same bytes with a replaced destination inode cannot finalize publication",
   });
 });
 
-test("ENOSPC during temporary creation leaves no destination or temporary", async () => {
+requiresStrictDirectoryDurability("ENOSPC during temporary creation leaves no destination or temporary", async () => {
   await withRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher({
       async open() { throw systemError("ENOSPC", "injected ENOSPC"); }
@@ -197,7 +200,7 @@ test("ENOSPC during temporary creation leaves no destination or temporary", asyn
   });
 });
 
-test("unsupported hard links preserve the exact temporary and no destination", async () => {
+requiresStrictDirectoryDurability("unsupported hard links preserve the exact temporary and no destination", async () => {
   await withRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher({
       async link() { throw systemError("ENOTSUP", "hard links unsupported"); }
@@ -229,7 +232,7 @@ test("directory sync failure before temporary creation is mutation-free", async 
   });
 });
 
-test("directory sync failure after hard-link preserves both publication evidence paths", async () => {
+requiresStrictDirectoryDurability("directory sync failure after hard-link preserves both publication evidence paths", async () => {
   await withRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher({
       async syncDirectoryDurably() {
@@ -277,7 +280,7 @@ test("corrupt, unknown, and duplicate journal evidence is preserved fail-closed"
   }
 });
 
-test("file-state refuses cleanup after a temporary inode replacement", async () => {
+requiresStrictDirectoryDurability("file-state refuses cleanup after a temporary inode replacement", async () => {
   await withPlanningRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher();
     const state = new NodeDocumentFileState();
@@ -322,7 +325,7 @@ test("file-state refuses cleanup after a temporary inode replacement", async () 
   });
 });
 
-test("post-publication authority drift retains the destination and durable recovery journal", async () => {
+requiresStrictDirectoryDurability("post-publication authority drift retains the destination and durable recovery journal", async () => {
   await withPlanningRepository(async (root, plan) => {
     let drifted = false;
     const receipt = await applyNodeDocumentationPlanPrivately(
@@ -348,7 +351,7 @@ test("post-publication authority drift retains the destination and durable recov
   });
 });
 
-test("cancellation before publication is reported only after journal and temp cleanup", async () => {
+requiresStrictDirectoryDurability("cancellation before publication is reported only after journal and temp cleanup", async () => {
   await withPlanningRepository(async (root, plan) => {
     const controller = new AbortController();
     const receipt = await applyNodeDocumentationPlanPrivately(
@@ -368,7 +371,7 @@ test("cancellation before publication is reported only after journal and temp cl
   });
 });
 
-test("cancellation after hard-link is masked until a truthful committed receipt", async () => {
+requiresStrictDirectoryDurability("cancellation after hard-link is masked until a truthful committed receipt", async () => {
   await withPlanningRepository(async (root, plan) => {
     const controller = new AbortController();
     let linked = false;

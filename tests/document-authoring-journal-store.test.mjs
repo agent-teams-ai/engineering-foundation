@@ -22,6 +22,10 @@ import {
   replaceJournalReconciled
 } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/document-journal-reconciliation.js";
 
+const requiresStrictDirectoryDurability = process.platform === "win32"
+  ? test.skip
+  : test;
+
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)
 );
@@ -76,7 +80,7 @@ async function withFixture(run, options) {
   }
 }
 
-test("creates, reads, replaces, and removes canonical document journal evidence", async () => {
+requiresStrictDirectoryDurability("creates, reads, replaces, and removes canonical document journal evidence", async () => {
   await withFixture(async ({ path, store }) => {
     const first = await envelope();
     const firstAuthority = await store.create(first);
@@ -108,7 +112,7 @@ test("creates, reads, replaces, and removes canonical document journal evidence"
   });
 });
 
-test("reconciles create, replace, and remove only after a fresh directory sync", async () => {
+requiresStrictDirectoryDurability("reconciles create, replace, and remove only after a fresh directory sync", async () => {
   await withFixture(async ({ path }) => {
     let operation = "create";
     let failedFinalSync = false;
@@ -151,7 +155,7 @@ test("reconciles create, replace, and remove only after a fresh directory sync",
   });
 });
 
-test("a failed reconciliation sync never acknowledges an apparently committed journal", async () => {
+requiresStrictDirectoryDurability("a failed reconciliation sync never acknowledges an apparently committed journal", async () => {
   await withFixture(async ({ path }) => {
     let finalFailed = false;
     const store = new NodeDocumentJournalStore(path, {
@@ -174,7 +178,7 @@ test("a failed reconciliation sync never acknowledges an apparently committed jo
 });
 
 for (const operation of ["create", "replace", "remove"]) {
-  test(`${operation} preserves a manual barrier when destination directory sync fails`, async () => {
+  requiresStrictDirectoryDurability(`${operation} preserves a manual barrier when destination directory sync fails`, async () => {
     await withFixture(async ({ path, state, store }) => {
       let activeAuthority;
       let replacement;
@@ -223,7 +227,7 @@ for (const operation of ["create", "replace", "remove"]) {
   });
 }
 
-test("nested quarantine retirement syncs destination, source, then state parent", async () => {
+requiresStrictDirectoryDurability("nested quarantine retirement syncs destination, source, then state parent", async () => {
   await withFixture(async ({ path, state, store }) => {
     const authority = await store.create(await envelope());
     const observed = [];
@@ -255,7 +259,7 @@ test("nested quarantine retirement syncs destination, source, then state parent"
   });
 });
 
-test("real Node create and replace commit-then-throw reconcile with opaque authority", async () => {
+requiresStrictDirectoryDurability("real Node create and replace commit-then-throw reconcile with opaque authority", async () => {
   await withFixture(async ({ path }) => {
     let operation = "create";
     let injected = false;
@@ -307,7 +311,7 @@ test("real Node create and replace commit-then-throw reconcile with opaque autho
   });
 });
 
-test("never overwrites a foreign canonical slot and preserves its candidate", async () => {
+requiresStrictDirectoryDurability("never overwrites a foreign canonical slot and preserves its candidate", async () => {
   await withFixture(async ({ path, state, store }) => {
     await writeFile(path, "foreign evidence\n", { flag: "wx", mode: 0o600 });
     await assert.rejects(
@@ -323,7 +327,7 @@ test("never overwrites a foreign canonical slot and preserves its candidate", as
   });
 });
 
-test("replace detects a canonical substitution and preserves all evidence", async () => {
+requiresStrictDirectoryDurability("replace detects a canonical substitution and preserves all evidence", async () => {
   let attacked = false;
   await withFixture(
     async ({ path, state, store }) => {
@@ -360,7 +364,7 @@ test("replace detects a canonical substitution and preserves all evidence", asyn
   );
 });
 
-test("replace rejects same-inode byte mutation and preserves transition evidence", async () => {
+requiresStrictDirectoryDurability("replace rejects same-inode byte mutation and preserves transition evidence", async () => {
   await withFixture(async ({ path, state, store }) => {
     const originalAuthority = await store.create(await envelope());
     const replacementStore = new NodeDocumentJournalStore(path, {
@@ -388,7 +392,7 @@ test("replace rejects same-inode byte mutation and preserves transition evidence
   });
 });
 
-test("create rejects same-inode mutation after publication and preserves evidence", async () => {
+requiresStrictDirectoryDurability("create rejects same-inode mutation after publication and preserves evidence", async () => {
   await withFixture(async ({ path, state }) => {
     const store = new NodeDocumentJournalStore(path, {
       async faultInjector(point) {
@@ -412,7 +416,7 @@ test("create rejects same-inode mutation after publication and preserves evidenc
   });
 });
 
-test("remove rejects same-inode mutation before quarantine and preserves it", async () => {
+requiresStrictDirectoryDurability("remove rejects same-inode mutation before quarantine and preserves it", async () => {
   await withFixture(async ({ path, state, store }) => {
     const authority = await store.create(await envelope());
     const attacked = new NodeDocumentJournalStore(path, {
@@ -438,7 +442,7 @@ test("remove rejects same-inode mutation before quarantine and preserves it", as
   });
 });
 
-test("private cleanup never deletes a pathname-swapped foreign file", async () => {
+requiresStrictDirectoryDurability("private cleanup never deletes a pathname-swapped foreign file", async () => {
   await withFixture(async ({ path, state }) => {
     let ownedCandidatePath;
     const store = new NodeDocumentJournalStore(path, {
@@ -478,7 +482,7 @@ test("private cleanup never deletes a pathname-swapped foreign file", async () =
   });
 });
 
-test("shared quarantine preserves a pathname replacement made after proof", async () => {
+requiresStrictDirectoryDurability("shared quarantine preserves a pathname replacement made after proof", async () => {
   await withFixture(async ({ path, state, store }) => {
     const authority = await store.create(await envelope());
     const originalPath = `${path}.owned-preserved`;
@@ -515,7 +519,7 @@ test("shared quarantine preserves a pathname replacement made after proof", asyn
   });
 });
 
-test("shared quarantine is synced before rejecting captured foreign evidence", async () => {
+requiresStrictDirectoryDurability("shared quarantine is synced before rejecting captured foreign evidence", async () => {
   await withFixture(async ({ path, state, store }) => {
     const authority = await store.create(await envelope());
     const events = [];
@@ -548,7 +552,7 @@ test("shared quarantine is synced before rejecting captured foreign evidence", a
   });
 });
 
-test("retired capture is synced before rejecting a private pathname swap", async () => {
+requiresStrictDirectoryDurability("retired capture is synced before rejecting a private pathname swap", async () => {
   await withFixture(async ({ path, state }) => {
     const events = [];
     const store = new NodeDocumentJournalStore(path, {
@@ -587,7 +591,7 @@ test("retired capture is synced before rejecting a private pathname swap", async
   });
 });
 
-test("an interrupted removal leaves a quarantine barrier and fails closed", async () => {
+requiresStrictDirectoryDurability("an interrupted removal leaves a quarantine barrier and fails closed", async () => {
   await withFixture(async ({ path, state, store }) => {
     const authority = await store.create(await envelope());
     const interrupted = new NodeDocumentJournalStore(path, {
@@ -613,7 +617,7 @@ test("an interrupted removal leaves a quarantine barrier and fails closed", asyn
   });
 });
 
-test("rejects non-canonical slots, invalid identities, and non-regular journals", async () => {
+requiresStrictDirectoryDurability("rejects non-canonical slots, invalid identities, and non-regular journals", async () => {
   await withFixture(async ({ path, store }) => {
     assert.throws(
       () => new NodeDocumentJournalStore(`${path}.other`),

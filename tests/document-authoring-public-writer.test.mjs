@@ -14,6 +14,9 @@ import {
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)
 );
+const requiresStrictDirectoryDurability = process.platform === "win32"
+  ? test.skip
+  : test;
 
 async function withFixture(callback) {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-public-writer-"));
@@ -38,7 +41,7 @@ async function adrPlan(consumerRoot) {
   });
 }
 
-test("public writer applies once and returns exact-self on replay", async () => {
+requiresStrictDirectoryDurability("public writer applies once and returns exact-self on replay", async () => {
   await withFixture(async (consumerRoot) => {
     const plan = await adrPlan(consumerRoot);
     const applied = await applyDocumentationPlan({ consumerRoot, plan });

@@ -49,7 +49,10 @@ async function safelyCancelBeforePublication(
     readonly request: ApplyDocumentPlanRequest;
     readonly temporary?: DocumentOwnedTemporary;
   }
-): Promise<DocumentReceipt> {
+): Promise<{
+  readonly cleanupFailure?: unknown;
+  readonly receipt: DocumentReceipt;
+}> {
   const { active, failure, outcome, plan, request, temporary } = input;
   try {
     const destination = await dependencies.fileState.classifyDestination({
@@ -107,33 +110,33 @@ async function safelyCancelBeforePublication(
       );
     }
     if (finalDestination.state !== "absent") {
-      return noPublicationReceipt(
+      return { receipt: await noPublicationReceipt(
         plan,
         "rejected",
         "document.transaction.destination-raced",
         finalDestination.state === "exact"
           ? "Destination appeared after Foundation evidence cleanup."
           : finalDestination.reason
-      );
+      ) };
     }
-    return noPublicationReceipt(
+    return { receipt: await noPublicationReceipt(
       plan,
       outcome,
       outcome === "cancelled"
         ? "document.transaction.cancelled"
         : "document.transaction.failed-before-publication",
       errorMessage(failure)
-    );
+    ) };
   } catch (cleanupError) {
-    if (cleanupError instanceof DocumentTransactionUseCaseError &&
-      cleanupError.code === "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE") {
-      throw cleanupError;
-    }
-    return recoveryReceipt(plan, {
-      message: `Prepublication cleanup could not prove an empty durable state: ${errorMessage(cleanupError)}`,
+    return {
+      cleanupFailure: cleanupError,
+      receipt: await recoveryReceipt(plan, {
+      manual: true,
+      message: `Prepublication cleanup could not prove an empty durable state: ${errorMessage(cleanupError)} Original operation failure: ${errorMessage(failure)}`,
       publication: "unknown",
       ruleId: "document.transaction.cleanup-unproven"
-    });
+      })
+    };
   }
 }
 
@@ -230,7 +233,10 @@ async function handleApplyFailure(
   plan: DocumentPlan,
   state: ApplyExecutionState,
   error: unknown
-): Promise<DocumentReceipt> {
+): Promise<{
+  readonly cleanupFailure?: unknown;
+  readonly receipt: DocumentReceipt;
+}> {
   let journalVerifiable = true;
   try {
     await dependencies.journal.read();
@@ -240,15 +246,15 @@ async function handleApplyFailure(
   if (!journalVerifiable || error instanceof DocumentJournalReconciliationError ||
     (error instanceof Error && error.name === "DocumentJournalReconciliationError")) {
     state.retainTransactionBarrier = true;
-    return recoveryReceipt(plan, {
+    return { receipt: await recoveryReceipt(plan, {
       manual: true,
       message: `Journal mutation is not reconcilable; all evidence was preserved: ${errorMessage(error)}`,
       publication: state.publicationPossible ? "unknown" : "none",
       ruleId: "document.transaction.journal-reconciliation"
-    });
+    }) };
   }
   if (!state.publicationPossible) {
-    const receipt = await safelyCancelBeforePublication(dependencies, {
+    const handled = await safelyCancelBeforePublication(dependencies, {
       ...(state.active === undefined ? {} : { active: state.active }),
       failure: error,
       outcome: isCancellation(error, request.signal)
@@ -257,15 +263,27 @@ async function handleApplyFailure(
       request,
       ...(state.temporary === undefined ? {} : { temporary: state.temporary })
     });
-    state.retainTransactionBarrier = receipt.outcome === "recovery-required" ||
-      receipt.outcome === "manual-recovery-required";
-    return receipt;
+    state.retainTransactionBarrier = handled.receipt.outcome === "recovery-required" ||
+      handled.receipt.outcome === "manual-recovery-required";
+    return handled;
   }
-  return recoveryReceipt(plan, {
+  return { receipt: await recoveryReceipt(plan, {
     message: `Publication may have occurred; output and evidence were preserved: ${errorMessage(error)}`,
     publication: "unknown",
     ruleId: "document.transaction.publication-ambiguous"
-  });
+  }) };
+}
+
+function applyFailureEvidence(primary: unknown, cleanup: unknown): unknown {
+  const body = primary instanceof Error && primary.cause instanceof AggregateError
+    ? primary.cause : primary;
+  return cleanup === undefined
+    ? body
+    : new AggregateError(
+        [body, cleanup],
+        "Document apply and prepublication cleanup both failed.",
+        { cause: body }
+      );
 }
 
 async function executeApply(
@@ -288,13 +306,11 @@ async function executeApply(
     const value = await runApplyTransaction(dependencies, request, plan, state);
     return { retainTransactionBarrier: state.retainTransactionBarrier, value };
   } catch (error) {
-    const value = await handleApplyFailure(dependencies, request, plan, state, error);
-    const primaryFailure = error instanceof Error && error.cause instanceof AggregateError
-      ? error.cause : error;
+    const handled = await handleApplyFailure(dependencies, request, plan, state, error);
     return {
-      primaryFailure,
+      primaryFailure: applyFailureEvidence(error, handled.cleanupFailure),
       retainTransactionBarrier: state.retainTransactionBarrier,
-      value
+      value: handled.receipt
     };
   }
 }

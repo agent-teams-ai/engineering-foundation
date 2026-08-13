@@ -19,6 +19,7 @@ package catalog, dependency permissions, security classifications, and ADRs.
 - explicit registry and local-link modes;
 - deterministic attach, status, detach, and registry assertions;
 - closed deterministic `Intent -> Plan -> Apply -> Receipt` scaffolding;
+- read-only document catalog and deterministic non-reserving document Plan compiler;
 - isolated package-content and consumer verification;
 - release automation for immutable public npm versions.
 

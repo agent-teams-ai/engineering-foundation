@@ -1,7 +1,8 @@
 # Document Authoring Cooperative Writer Threat Model
 
-Status: Corrected contract boundary accepted by ADR-0023. The document authoring
-runtime is not yet implemented.
+Status: Corrected contract boundary accepted by ADR-0023. Read-only catalog and
+Plan compilation are implemented. The mutation and recovery runtime is not yet
+implemented.
 
 ## Protected assets
 

@@ -3,3 +3,6 @@ packages/engineering-foundation/schemas/**/*.json text eol=lf
 tests/fixtures/document-authoring-contracts/*.json text eol=lf
 tests/fixtures/document-authoring-canonical-markdown/*.md text eol=lf
 tests/fixtures/document-authoring-contracts/orchestrator-golden-v1/*.md text eol=lf
+tests/fixtures/document-planning/**/*.md text eol=lf
+tests/fixtures/document-planning/**/*.json text eol=lf
+tests/fixtures/document-planning/**/*.yaml text eol=lf

@@ -2,9 +2,10 @@
 
 Status: Corrected v1 contracts accepted by ADR-0023, which supersedes ADR-0022
 under the pre-adoption correction rule in ADR-0019. The read-only catalog API,
-shared transaction coordinator, and private repository-mutation primitives are
-implemented. The document compiler, writer, mutation CLI commands, and envelope
-v2 recovery handlers are not yet implemented or available to consumers.
+pure document compiler, shared transaction coordinator, and private
+repository-mutation primitives are implemented. The writer, mutation CLI
+commands, and envelope v2 recovery handlers are not yet implemented or
+available to consumers.
 
 ## Boundary
 
@@ -67,6 +68,17 @@ projection contains only ID and repository path. Referenced-document projection
 is built only for the explicit IDs a later use case actually consumes; unrelated
 document bodies never enter that evidence. Catalog construction performs no
 repository mutation and does not read a generated search index.
+
+## Read-only planning
+
+`planDocumentationDocument` validates and normalizes one Intent, rebuilds a
+complete catalog, resolves a closed profile strategy, renders exact canonical
+UTF-8/LF bytes, recaptures authority, and returns a schema-valid Document Plan.
+It requires the destination parent to exist as real directory ancestry and
+fails closed on portable-name, identity, path, special-file, or false-self
+collisions. The function does not acquire a mutation lock, reserve an ID, write
+a file, or promise that a later apply will succeed; apply must recompile and
+compare the exact Plan under the operation lock.
 
 ## Published language
 
@@ -251,6 +263,10 @@ observation admits at most 10,000 documents and 32 MiB total; identity
 projection admits at most 100,000 entries. Field, item, nesting, scalar,
 diagnostic, and encoded-output limits remain exactly those in the published v1
 schemas. Both character and UTF-8 byte bounds are enforced when specified.
+For in-memory callers, Foundation rejects shared-object amplification as soon
+as an NFC-normalized lower bound of the logically expanded document fields
+exceeds the same public 1 MiB output ceiling. This proves an existing output
+failure before schema traversal; it does not add a wire-contract limit.
 
 ### Template and canonical Markdown transform
 

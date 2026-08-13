@@ -1,0 +1,6 @@
+version: 1
+owners:
+  architecture/tooling:
+    kind: architecture
+  example/create-widget:
+    kind: feature

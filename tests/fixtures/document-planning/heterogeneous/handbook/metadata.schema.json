@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "status", "owner", "summary", "labels"],
+  "properties": {
+    "id": {"type": "string"},
+    "type": {"const": "playbook"},
+    "status": {"const": "draft"},
+    "owner": {"type": "string"},
+    "summary": {"type": "string"},
+    "labels": {"type": "object", "additionalProperties": {"type": "string"}}
+  }
+}

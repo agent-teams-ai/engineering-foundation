@@ -7,6 +7,7 @@ import {
 import type { MarkdownRepository } from "../../../documentation-observation/application/ports/markdown-repository.js";
 import type { DocumentAuthorityEvidence, DocumentDescriptor, DocumentIdentityProjectionEntry, DocumentationCatalogDiagnostic, DocumentationCatalogSnapshot, DocumentationSearchCatalogSnapshot, DocumentSearchCorpusEntry } from "../model/document-catalog.js";
 import type { DocumentationCatalogReadRequest, DocumentationSearchCatalogReader } from "../ports/documentation-search-catalog-reader.js";
+import type { DocumentationCatalogReader } from "../ports/documentation-catalog-reader.js";
 import type {
   AuthoringProfileReader,
   CatalogCollection,
@@ -348,7 +349,9 @@ function createCatalogSnapshot(
   });
 }
 
-export class BuildDocumentationCatalog implements DocumentationSearchCatalogReader {
+export class BuildDocumentationCatalog
+  implements DocumentationCatalogReader, DocumentationSearchCatalogReader
+{
   readonly #metadata: MetadataInstanceValidator;
   readonly #owners: OwnerMembershipReader;
   readonly #profile: AuthoringProfileReader;

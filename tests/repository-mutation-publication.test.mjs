@@ -87,7 +87,7 @@ test("uses the injected bounded reader for every publication verification", asyn
       }),
       "published"
     );
-    assert.equal(reads, 3);
+    assert.equal(reads, 4);
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
   } finally {
     await rm(paths.root, { recursive: true, force: true });

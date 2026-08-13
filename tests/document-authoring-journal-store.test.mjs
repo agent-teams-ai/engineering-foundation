@@ -364,7 +364,7 @@ requiresStrictDirectoryDurability("occupied create preserves a readable canonica
     await store.create(first);
     await assert.rejects(
       store.create(await envelope("preexisting")),
-      /slot is already occupied/u
+      /slot is occupied/u
     );
     assert.deepEqual((await store.read()).envelope, first);
     assert.equal(

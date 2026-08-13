@@ -334,7 +334,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     await this.#assertNoTransitionEvidence();
     if (await documentJournalSlotExists(this.journalPath, maximumJournalBytes)) {
       throw new NodeDocumentJournalStoreError(
-        "Canonical document journal slot is already occupied; it was preserved."
+        "Canonical document journal slot is occupied; it was preserved."
       );
     }
     const authority = await this.#prepareCandidate(envelope);

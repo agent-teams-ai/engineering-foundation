@@ -1,5 +1,16 @@
 # @agent-teams/engineering-foundation
 
+## 0.16.0-rc.0
+
+### Minor Changes
+
+- [#99](https://github.com/agent-teams-ai/engineering-foundation/pull/99) [`a030267`](https://github.com/agent-teams-ai/engineering-foundation/commit/a0302673c0ba5d2dd2e38f9e32942f0aea80772f) Thanks [@777genius](https://github.com/777genius)! - Add the durable document-writer release candidate with exact Plan application,
+  transaction recovery, receipt evidence, and the versioned envelope v3 schema.
+  Expose versioned document transaction inspection for exact `docs-recover`
+  routing while preserving the legacy local-mode status contract.
+  Correct selected-capability coverage semantics and add a versioned JSON failure
+  envelope for non-document CLI commands.
+
 ## 0.15.0
 
 ### Minor Changes

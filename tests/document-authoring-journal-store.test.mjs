@@ -250,6 +250,56 @@ test("replace rejects same-inode byte mutation and preserves transition evidence
   });
 });
 
+test("create rejects same-inode mutation after publication and preserves evidence", async () => {
+  await withFixture(async ({ path, state }) => {
+    const store = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (point.phase === "after-canonical-published") {
+          await writeFile(path, "mutated published journal\n");
+        }
+      }
+    });
+
+    await assert.rejects(
+      store.create(await envelope()),
+      /canonical bytes changed concurrently/u
+    );
+
+    assert.equal(await readFile(path, "utf8"), "mutated published journal\n");
+    assert.ok(
+      (await readdir(state)).includes(
+        "scaffolding-transaction.json.document-transition"
+      )
+    );
+  });
+});
+
+test("remove rejects same-inode mutation before quarantine and preserves it", async () => {
+  await withFixture(async ({ path, state, store }) => {
+    const identity = await store.create(await envelope());
+    const attacked = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (point.phase === "before-shared-quarantine") {
+          await writeFile(path, "mutated removal journal\n");
+        }
+      }
+    });
+
+    await assert.rejects(
+      attacked.remove(identity),
+      /canonical bytes changed concurrently/u
+    );
+
+    const quarantineDirectory = (await readdir(state)).find((entry) =>
+      entry.includes(".document-quarantine.")
+    );
+    assert.equal(
+      await readFile(join(state, quarantineDirectory, "evidence"), "utf8"),
+      "mutated removal journal\n"
+    );
+  });
+});
+
 test("private cleanup never deletes a pathname-swapped foreign file", async () => {
   await withFixture(async ({ path, state }) => {
     let ownedCandidatePath;

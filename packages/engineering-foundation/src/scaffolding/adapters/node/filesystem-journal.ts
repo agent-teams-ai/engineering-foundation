@@ -172,7 +172,7 @@ async function createPrivateQuarantine(path: string, identity: PortableFileIdent
     quarantineSequence += 1;
     const directory = join(
       parent,
-      `${SCAFFOLD_JOURNAL_QUARANTINE_PREFIX}${identity.dev}.${identity.ino}.${identity.birthtimeNs}.${process.pid}.${Date.now()}.${quarantineSequence}`
+      `${SCAFFOLD_JOURNAL_QUARANTINE_PREFIX}${identity.dev}.${identity.ino}.${identity.birthtimeNs}.${process.pid}.${quarantineSequence}`
     );
     try {
       await mkdir(directory, { mode: 0o700 });

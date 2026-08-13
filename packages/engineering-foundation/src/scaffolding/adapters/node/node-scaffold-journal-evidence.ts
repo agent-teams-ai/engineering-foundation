@@ -221,7 +221,7 @@ export async function createPrivateScaffoldJournalEvidencePath(
     privateSequence += 1;
     const directory = join(
       parent,
-      `${prefix}${process.pid}.${Date.now()}.${privateSequence}`
+      `${prefix}${process.pid}.${privateSequence}`
     );
     try {
       await mkdir(directory, { mode: 0o700 });

@@ -36,7 +36,11 @@ function harness(options = {}) {
           async release(value) { releases.push(value); }
         };
       },
-      async inspect() { return { state: coordinatorState }; }
+      async inspect() {
+        return envelope === undefined
+          ? { state: "idle" }
+          : { state: "recoverable" };
+      }
     },
     authority: {
       async assess({ plan }) { events.push("authority"); return { state: "current", plan }; }
@@ -241,8 +245,182 @@ test("journal create transition residue prevents a false terminal failure Receip
   const receipt = await applyDocumentPlan(subject.dependencies, {
     consumerRoot: "/fixture", plan: fixture.plan
   });
-  assert.equal(receipt.outcome, "recovery-required");
+  assert.equal(receipt.outcome, "manual-recovery-required");
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
+});
+
+test("journal create that commits then throws is reconciled and continued", async () => {
+  const subject = harness();
+  const create = subject.dependencies.journal.create;
+  subject.dependencies.journal.create = async (envelope) => {
+    await create(envelope);
+    throw new Error("lost create acknowledgement");
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "applied");
+  assert.equal(subject.events.filter((event) => event === "journal:create").length, 1);
+  assert.equal(subject.state().envelope, undefined);
+});
+
+test("PUBLISHING replacement that commits then throws preserves temp and continues", async () => {
+  const subject = harness();
+  const replace = subject.dependencies.journal.replace;
+  let thrown = false;
+  subject.dependencies.journal.replace = async (request) => {
+    const result = await replace(request);
+    if (request.envelope.state === "PUBLISHING" && !thrown) {
+      thrown = true;
+      throw new Error("lost PUBLISHING acknowledgement");
+    }
+    return result;
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "applied");
+  assert.equal(subject.events.includes("publish"), true);
+  assert.equal(subject.state().temporary, undefined);
+});
+
+test("PUBLISHED replacement that commits then throws is reconciled and finalized", async () => {
+  const subject = harness();
+  const replace = subject.dependencies.journal.replace;
+  subject.dependencies.journal.replace = async (request) => {
+    const result = await replace(request);
+    if (request.envelope.state === "PUBLISHED") {
+      throw new Error("lost PUBLISHED acknowledgement");
+    }
+    return result;
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "applied");
+  assert.equal(subject.state().envelope, undefined);
+});
+
+test("final journal removal that commits then throws is reconciled as success", async () => {
+  const subject = harness();
+  const remove = subject.dependencies.journal.remove;
+  subject.dependencies.journal.remove = async (expected) => {
+    await remove(expected);
+    throw new Error("lost removal acknowledgement");
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "applied");
+  assert.equal(subject.state().envelope, undefined);
+});
+
+test("unverifiable journal replacement returns manual receipt and preserves temp", async () => {
+  const subject = harness();
+  let first = true;
+  const read = subject.dependencies.journal.read;
+  subject.dependencies.journal.replace = async () => {
+    throw new Error("replace acknowledgement lost");
+  };
+  subject.dependencies.journal.read = async () => {
+    if (first) {
+      first = false;
+      return read();
+    }
+    throw new Error("transition residue cannot be classified");
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "manual-recovery-required");
+  assert.notEqual(subject.state().temporary, undefined);
+  assert.notEqual(subject.state().envelope, undefined);
+  assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
+});
+
+test("same-identity already-satisfied publication completes instead of going manual", async () => {
+  const subject = harness();
+  subject.dependencies.publisher.publishPrepared = async () => {
+    subject.setDestination("exact");
+    return { outcome: "already-satisfied", publicationIdentity: identity };
+  };
+  subject.dependencies.publisher.completePublication = async () => ({
+    publicationIdentity: identity
+  });
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "applied");
+});
+
+test("different-identity already-satisfied publication requires manual recovery", async () => {
+  const subject = harness();
+  subject.dependencies.publisher.publishPrepared = async () => {
+    subject.setDestination("exact");
+    return {
+      outcome: "already-satisfied",
+      publicationIdentity: { ...identity, ino: "999" }
+    };
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "manual-recovery-required");
+  assert.notEqual(subject.state().temporary, undefined);
+});
+
+test("recovery preserves primary failure when lease release also fails", async () => {
+  const subject = harness();
+  subject.setCoordinatorState("idle");
+  subject.dependencies.coordinator.acquire = async () => ({
+    status: { state: "idle" },
+    async release() { throw new Error("release failed"); }
+  });
+  await assert.rejects(
+    recoverDocumentTransaction(subject.dependencies, { consumerRoot: "/fixture" }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.match(error.errors[0].message, /requires a coordinator-qualified/u);
+      assert.match(error.errors[1].message, /release failed/u);
+      assert.equal(error.cause, error.errors[0]);
+      return true;
+    }
+  );
+});
+
+test("apply preserves journal failure when lease release also fails", async () => {
+  const subject = harness();
+  subject.dependencies.journal.create = async () => {
+    throw new Error("create failed");
+  };
+  const originalRead = subject.dependencies.journal.read;
+  let reads = 0;
+  subject.dependencies.journal.read = async () => {
+    reads += 1;
+    if (reads === 1) {
+      return originalRead();
+    }
+    throw new Error("transition unverifiable");
+  };
+  subject.dependencies.coordinator.acquire = async () => ({
+    status: { state: "idle" },
+    async release() { throw new Error("release failed"); }
+  });
+  await assert.rejects(
+    applyDocumentPlan(subject.dependencies, {
+      consumerRoot: "/fixture", plan: fixture.plan
+    }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      const primary = error.errors[0];
+      assert.ok(primary instanceof AggregateError);
+      assert.match(primary.errors[0].message, /create failed/u);
+      assert.match(primary.errors[1].message, /transition unverifiable/u);
+      assert.match(error.errors[1].message, /release failed/u);
+      assert.equal(error.cause, primary);
+      return true;
+    }
+  );
 });
 
 test("recovery resumes an exact bound PUBLISHING temporary", async () => {

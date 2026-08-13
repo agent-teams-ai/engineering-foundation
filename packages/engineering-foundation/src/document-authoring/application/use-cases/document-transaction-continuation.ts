@@ -12,9 +12,18 @@ import type {
   JournalIdentity
 } from "../ports/document-journal-store.js";
 import type { DocumentPublisher } from "../ports/document-publisher.js";
+import type { DocumentTransactionCoordinator } from "../ports/document-transaction-coordinator.js";
 import { assertNonzeroDocumentPhysicalIdentity } from "../model/document-physical-identity.js";
 import { createDocumentReceipt } from "../policies/document-receipt-policy.js";
 import { createDocumentTransactionEnvelope } from "../policies/document-transaction-envelope-policy.js";
+import {
+  createJournalReconciled,
+  DocumentJournalReconciliationError,
+  removeJournalReconciled,
+  replaceJournalReconciled
+} from "./document-journal-reconciliation.js";
+
+export { DocumentJournalReconciliationError, removeJournalReconciled };
 
 export interface DocumentTransactionRuntime {
   readonly authority: DocumentAuthorityRecompiler;
@@ -22,6 +31,7 @@ export interface DocumentTransactionRuntime {
   readonly faultInjector?: DocumentTransactionFaultInjector;
   readonly journal: DocumentJournalStore;
   readonly publisher: DocumentPublisher;
+  readonly coordinator: DocumentTransactionCoordinator;
 }
 
 export type DocumentTransactionFaultPoint =
@@ -248,7 +258,7 @@ export async function createPreparedJournal(
   const envelope = await createDocumentTransactionEnvelope(
     envelopeBody(plan, { destination, state: "PREPARED" })
   );
-  const active = { envelope, identity: await runtime.journal.create(envelope) };
+  const active = { envelope, identity: await createJournalReconciled(runtime, envelope) };
   await runtime.faultInjector?.({ phase: "after-prepared-journal-durable" });
   return active;
 }
@@ -267,10 +277,7 @@ export async function replaceWithPublishing(
   );
   const result = {
     envelope,
-    identity: await runtime.journal.replace({
-      envelope,
-      expectedIdentity: active.identity
-    })
+    identity: await replaceJournalReconciled(runtime, active, envelope)
   };
   await runtime.faultInjector?.({ phase: "after-publishing-journal-durable" });
   return result;
@@ -290,10 +297,7 @@ export async function replaceWithPublished(
   );
   const result = {
     envelope,
-    identity: await runtime.journal.replace({
-      envelope,
-      expectedIdentity: active.identity
-    })
+    identity: await replaceJournalReconciled(runtime, active, envelope)
   };
   await runtime.faultInjector?.({ phase: "after-published-journal-durable" });
   return result;
@@ -368,7 +372,7 @@ export async function finalizeDocumentTransaction(
   if (!c2.exact) {
     return undefined;
   }
-  await runtime.journal.remove(active.identity);
+  await removeJournalReconciled(runtime, active);
   await runtime.faultInjector?.({
     phase: "after-final-journal-removal-synced"
   });
@@ -454,12 +458,18 @@ export async function continuePendingPublication(
     ...signalOption(request.signal)
   });
   if (publication.outcome === "already-satisfied") {
-    return recoveryReceipt(plan, {
-      manual: true,
-      message: "Destination became exact after PUBLISHING without owned publication evidence.",
-      publication: "unknown",
-      ruleId: "document.transaction.concurrent-exact-publication"
-    });
+    const owned = publication.publicationIdentity.dev === temporary.identity.dev &&
+      publication.publicationIdentity.ino === temporary.identity.ino &&
+      publication.publicationIdentity.birthtimeNs === temporary.identity.birthtimeNs;
+    if (!owned) {
+      return recoveryReceipt(plan, {
+        manual: true,
+        message: "Destination became exact with a different physical identity.",
+        publication: "unknown",
+        ruleId: "document.transaction.concurrent-exact-publication"
+      });
+    }
+    return completePublishedTransaction(runtime, request, current, temporary);
   }
   // The publication boundary has been crossed. Cancellation is deliberately
   // not forwarded to cleanup, verification, journaling, or final checks.

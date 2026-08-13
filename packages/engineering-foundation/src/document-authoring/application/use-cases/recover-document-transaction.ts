@@ -13,6 +13,7 @@ import {
   errorMessage,
   finalizeDocumentTransaction,
   recoveryReceipt,
+  isCancellation,
   type ActiveDocumentJournal,
   type DocumentTransactionRequest,
   type DocumentTransactionRuntime
@@ -183,12 +184,14 @@ async function observe(
 }
 
 /** Recovers only a current, strictly validated v3/v2 transaction. */
+/* eslint-disable complexity -- closed recovery decision matrix */
 export async function recoverDocumentTransaction(
   dependencies: RecoverDocumentTransactionDependencies,
   request: RecoverDocumentTransactionRequest
 ): Promise<DocumentReceipt> {
   const lease = await dependencies.coordinator.acquire({ mode: "recover" });
   let retainBarrier = true;
+  let primaryFailure: unknown;
   try {
     if (lease.status.state !== "recoverable") {
       throw new DocumentTransactionUseCaseError(
@@ -305,8 +308,24 @@ export async function recoverDocumentTransaction(
     retainBarrier = receipt.outcome !== "applied" && receipt.outcome !== "already-applied";
     return receipt;
   } catch (error) {
-    throw transactionFailure(error);
+    primaryFailure = isCancellation(error, request.signal)
+      ? error
+      : transactionFailure(error);
+    throw primaryFailure;
   } finally {
-    await lease.release({ retainTransactionBarrier: retainBarrier });
+    try {
+      await lease.release({ retainTransactionBarrier: retainBarrier });
+    } catch (releaseFailure) {
+      if (primaryFailure !== undefined) {
+        /* eslint-disable no-unsafe-finally, preserve-caught-error -- retain both failures */
+        throw new AggregateError(
+          [primaryFailure, releaseFailure],
+          "Document recovery and transaction lease release both failed.",
+          { cause: primaryFailure }
+        );
+      }
+      throw releaseFailure;
+    }
   }
 }
+/* eslint-enable complexity, no-unsafe-finally, preserve-caught-error */

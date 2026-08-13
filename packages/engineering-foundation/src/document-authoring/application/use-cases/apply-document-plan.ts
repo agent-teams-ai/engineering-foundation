@@ -5,10 +5,12 @@ import type { DocumentTransactionCoordinator } from "../ports/document-transacti
 import {
   continuePendingPublication,
   createPreparedJournal,
+  DocumentJournalReconciliationError,
   errorMessage,
   finalizeDocumentTransaction,
   isCancellation,
   noPublicationReceipt,
+  removeJournalReconciled,
   recoveryReceipt,
   type ActiveDocumentJournal,
   type DocumentTransactionRuntime
@@ -78,11 +80,21 @@ async function safelyCancelBeforePublication(
       }
     }
     if (active !== undefined) {
-      await dependencies.journal.remove(active.identity);
+      await removeJournalReconciled(dependencies, active);
     }
-    if (await dependencies.journal.read() !== undefined) {
+    const finalJournal = await dependencies.journal.read();
+    const finalDestination = await dependencies.fileState.classifyDestination({
+      consumerRoot: request.consumerRoot,
+      plan
+    });
+    const finalTemporary = await dependencies.fileState.classifyDerivedTemporary({
+      consumerRoot: request.consumerRoot,
+      plan
+    });
+    if (finalJournal !== undefined || finalDestination.state !== "absent" ||
+      finalTemporary.state !== "absent") {
       throw new Error(
-        "Document journal evidence remains after prepublication cleanup."
+        "Final prepublication proof did not establish absent destination, temporary, and journal."
       );
     }
     return noPublicationReceipt(
@@ -103,6 +115,7 @@ async function safelyCancelBeforePublication(
 }
 
 /** Applies one validated create-only Plan through the durable writer protocol. */
+/* eslint-disable complexity, max-lines-per-function -- closed transaction state machine */
 export async function applyDocumentPlan(
   dependencies: ApplyDocumentPlanDependencies,
   request: ApplyDocumentPlanRequest
@@ -124,6 +137,7 @@ export async function applyDocumentPlan(
   let active: ActiveDocumentJournal | undefined;
   let temporary: DocumentOwnedTemporary | undefined;
   const publication = { possible: false };
+  let bodyFailure: unknown;
   try {
     if (lease.status.state !== "idle") {
       throw new DocumentTransactionUseCaseError(
@@ -218,6 +232,26 @@ export async function applyDocumentPlan(
     retainBarrier = receipt.outcome !== "applied";
     return receipt;
   } catch (error) {
+    bodyFailure = error;
+    let journalVerifiable = true;
+    try {
+      await dependencies.journal.read();
+    } catch {
+      journalVerifiable = false;
+    }
+    if (!journalVerifiable || error instanceof DocumentJournalReconciliationError ||
+      (error instanceof Error && error.name === "DocumentJournalReconciliationError")) {
+      retainBarrier = true;
+      bodyFailure = error instanceof Error && error.cause instanceof AggregateError
+        ? error.cause
+        : error;
+      return recoveryReceipt(plan, {
+        manual: true,
+        message: `Journal mutation is not reconcilable; all evidence was preserved: ${errorMessage(error)}`,
+        publication: publication.possible ? "unknown" : "none",
+        ruleId: "document.transaction.journal-reconciliation"
+      });
+    }
     if (!publication.possible) {
       const receipt = await safelyCancelBeforePublication(dependencies, {
         ...(active === undefined ? {} : { active }),
@@ -239,6 +273,19 @@ export async function applyDocumentPlan(
       ruleId: "document.transaction.publication-ambiguous"
     });
   } finally {
-    await lease.release({ retainTransactionBarrier: retainBarrier });
+    try {
+      await lease.release({ retainTransactionBarrier: retainBarrier });
+    } catch (releaseFailure) {
+      if (bodyFailure !== undefined) {
+        /* eslint-disable no-unsafe-finally, preserve-caught-error -- retain both failures */
+        throw new AggregateError(
+          [bodyFailure, releaseFailure],
+          "Document apply and transaction lease release both failed.",
+          { cause: bodyFailure }
+        );
+      }
+      throw releaseFailure;
+    }
   }
 }
+/* eslint-enable complexity, max-lines-per-function, no-unsafe-finally, preserve-caught-error */

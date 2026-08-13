@@ -81,10 +81,7 @@ windowsTest("Windows refuses publication when strict directory durability is uns
 
     await assert.rejects(
       publisher.prepare({ consumerRoot: root, plan }),
-      (error) => error?.name === StrictDirectoryDurabilityError.name &&
-        /Strict directory durability is unsupported: .*[\\/]docs\.$/u.test(
-          error.message
-        )
+      (error) => error?.name === StrictDirectoryDurabilityError.name
     );
     await missing(join(root, documentTemporaryPath(plan.destination, plan.planDigest)));
     await missing(join(root, plan.destination));

@@ -173,6 +173,88 @@ test("a failed reconciliation sync never acknowledges an apparently committed jo
   });
 });
 
+for (const operation of ["create", "replace", "remove"]) {
+  test(`${operation} preserves a manual barrier when destination directory sync fails`, async () => {
+    await withFixture(async ({ path, state, store }) => {
+      let activeAuthority;
+      let replacement;
+      if (operation !== "create") {
+        activeAuthority = await store.create(await envelope());
+      }
+      if (operation === "replace") {
+        replacement = await envelope("preexisting");
+      }
+      let injected = false;
+      const attacked = new NodeDocumentJournalStore(path, {
+        faultInjector(point) {
+          if (
+            point.phase === "before-directory-sync" &&
+            point.operation === operation &&
+            point.role === "destination" &&
+            !injected
+          ) {
+            injected = true;
+            throw new Error(`injected ${operation} destination sync failure`);
+          }
+        }
+      });
+
+      const action = operation === "create"
+        ? attacked.create(await envelope())
+        : operation === "replace"
+          ? attacked.replace({
+              envelope: replacement,
+              expectedAuthority: activeAuthority
+            })
+          : attacked.remove(activeAuthority);
+      await assert.rejects(action, new RegExp(`${operation} destination sync`, "u"));
+
+      assert.ok(
+        (await readdir(state)).some((entry) =>
+          entry.includes(".document-quarantine.") ||
+          entry.includes(".document-retired.")
+        )
+      );
+      await assert.rejects(
+        store.stabilizeForReconciliation(),
+        /transition evidence was preserved/u
+      );
+    });
+  });
+}
+
+test("nested quarantine retirement syncs destination, source, then state parent", async () => {
+  await withFixture(async ({ path, state, store }) => {
+    const authority = await store.create(await envelope());
+    const observed = [];
+    const subject = new NodeDocumentJournalStore(path, {
+      faultInjector(point) {
+        if (
+          point.phase === "before-directory-sync" &&
+          point.operation === "remove"
+        ) {
+          observed.push({ path: point.path, role: point.role });
+        }
+      }
+    });
+
+    await subject.remove(authority);
+
+    const nestedRetirement = observed.findIndex(
+      (entry, index) =>
+        entry.role === "destination" &&
+        observed[index + 1]?.role === "source" &&
+        observed[index + 2]?.role === "state-parent"
+    );
+    assert.notEqual(nestedRetirement, -1);
+    assert.equal(observed[nestedRetirement + 2].path, state);
+    assert.equal(
+      observed.filter((entry) => entry.role === "destination").length,
+      3
+    );
+  });
+});
+
 test("real Node create and replace commit-then-throw reconcile with opaque authority", async () => {
   await withFixture(async ({ path }) => {
     let operation = "create";

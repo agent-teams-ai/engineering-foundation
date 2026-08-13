@@ -2,7 +2,6 @@ import { link, mkdir, open, readdir, rename, rm, rmdir, type FileHandle } from "
 import { createHash, randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { TextDecoder } from "node:util";
-
 import {
   canonicalJson,
   type CanonicalJsonValue
@@ -24,54 +23,24 @@ import {
 } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 import { syncDirectoryStrictly } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
 import { parseStrictJson } from "../../../strict-json.js";
-
+import type { NodeDocumentJournalFaultInjector } from "./node-document-journal-store-faults.js";
 const maximumJournalBytes = 32 * 1024 * 1024;
 const maximumDirectoryEntries = 1024;
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-
-export type NodeDocumentJournalFaultPoint =
-  | { readonly phase: "after-candidate-synced" }
-  | { readonly phase: "after-canonical-quarantined" }
-  | { readonly phase: "after-canonical-published" }
-  | { readonly phase: "after-quarantine-removed" }
-  | {
-      readonly operation: "create" | "remove" | "replace";
-      readonly phase: "before-final-directory-sync";
-    }
-  | { readonly phase: "before-reconciliation-directory-sync" }
-  | {
-      readonly evidence: "candidate" | "quarantine";
-      readonly operation: "create" | "remove" | "replace";
-      readonly path: string;
-      readonly phase: "before-private-cleanup";
-    }
-  | {
-      readonly operation: "remove" | "replace";
-      readonly path: string;
-      readonly phase: "before-shared-quarantine";
-    };
-
-export type NodeDocumentJournalFaultInjector = (
-  point: NodeDocumentJournalFaultPoint
-) => Promise<void> | void;
-
 export class NodeDocumentJournalStoreError extends Error {
   public constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "NodeDocumentJournalStoreError";
   }
 }
-
 interface NodeDocumentJournalOperations {
   readonly faultInjector?: NodeDocumentJournalFaultInjector;
 }
-
 function errorCode(error: unknown): string | undefined {
   return error instanceof Error && "code" in error
     ? (error as NodeJS.ErrnoException).code
     : undefined;
 }
-
 function portableIdentity(identity: JournalIdentity): PortablePathIdentity {
   if (
     !/^[1-9][0-9]{0,19}$/u.test(identity.dev) ||
@@ -88,11 +57,9 @@ function portableIdentity(identity: JournalIdentity): PortablePathIdentity {
     ino: BigInt(identity.ino)
   };
 }
-
 function contentDigest(bytes: Uint8Array): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
-
 function journalIdentity(identity: PortablePathIdentity): JournalIdentity {
   const result: JournalIdentity = {
     adapter: "node-filesystem",
@@ -104,7 +71,6 @@ function journalIdentity(identity: PortablePathIdentity): JournalIdentity {
   portableIdentity(result);
   return result;
 }
-
 async function canonicalEnvelopeBytes(
   envelope: DocumentTransactionEnvelope
 ): Promise<Buffer> {
@@ -120,16 +86,13 @@ async function canonicalEnvelopeBytes(
   }
   return bytes;
 }
-
 function quarantineName(canonicalName: string, identity: JournalIdentity): string {
   portableIdentity(identity);
   return `${canonicalName}.document-quarantine.${identity.dev}.${identity.ino}.${identity.birthtimeNs}.${randomUUID()}`;
 }
-
 function retiredName(canonicalName: string): string {
   return `${canonicalName}.document-retired.${randomUUID()}`;
 }
-
 async function createPrivateEvidencePath(
   parent: string,
   directoryName: string
@@ -138,7 +101,6 @@ async function createPrivateEvidencePath(
   await mkdir(directory, { mode: 0o700 });
   return { directory, path: join(directory, "evidence") };
 }
-
 async function proveAuthority(
   path: string,
   expected: JournalAuthority,
@@ -157,12 +119,10 @@ async function proveAuthority(
   }
   return expected;
 }
-
 export class NodeDocumentJournalStore implements DocumentJournalStore {
   readonly #candidatePath: string;
   readonly #canonicalName: string;
   readonly #parent: string;
-
   public constructor(
     readonly journalPath: string,
     readonly operations: NodeDocumentJournalOperations = {}
@@ -179,7 +139,32 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       `${this.#canonicalName}.document-transition`
     );
   }
-
+  async #syncDirectory(
+    path: string,
+    operation: "create" | "remove" | "replace",
+    role: "destination" | "source" | "state-parent"
+  ): Promise<void> {
+    await this.operations.faultInjector?.({
+      operation,
+      path,
+      phase: "before-directory-sync",
+      role
+    });
+    await syncDirectoryStrictly(path);
+  }
+  async #syncRenameBoundary(
+    destination: string,
+    source: string,
+    operation: "create" | "remove" | "replace"
+  ): Promise<void> {
+    await this.#syncDirectory(destination, operation, "destination");
+    if (source !== destination) {
+      await this.#syncDirectory(source, operation, "source");
+    }
+    if (this.#parent !== destination && this.#parent !== source) {
+      await this.#syncDirectory(this.#parent, operation, "state-parent");
+    }
+  }
   async #assertNoTransitionEvidence(): Promise<void> {
     let entries: string[];
     try {
@@ -213,7 +198,6 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       );
     }
   }
-
   async #retireOwnedEvidence(
     path: string,
     expected: JournalAuthority,
@@ -236,17 +220,23 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     const sourceDirectory = dirname(path);
     await rename(path, retired.path);
     await proveAuthority(retired.path, expected, `Retired ${description}`);
+    await this.#syncRenameBoundary(
+      retired.directory,
+      sourceDirectory,
+      operation
+    );
     // `retired.path` lives in a fresh 0700 operation-private directory and is
     // never exposed as mutation authority. Pure Node has no unlink-by-handle
     // primitive; the
     // operation lease and same-UID threat boundary bound the cleanup window.
     await rm(retired.path);
+    await this.#syncDirectory(retired.directory, operation, "destination");
     await rmdir(retired.directory);
     if (sourceDirectory !== this.#parent) {
       await rmdir(sourceDirectory);
     }
+    await this.#syncDirectory(this.#parent, operation, "state-parent");
   }
-
   async #prepareCandidate(
     envelope: DocumentTransactionEnvelope
   ): Promise<JournalAuthority> {
@@ -283,7 +273,6 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     await this.operations.faultInjector?.({ phase: "after-candidate-synced" });
     return authority;
   }
-
   async read(): Promise<StoredDocumentJournal | undefined> {
     await this.#assertNoTransitionEvidence();
     let record;
@@ -327,7 +316,6 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       }
     };
   }
-
   public async stabilizeForReconciliation(): Promise<StoredDocumentJournal | undefined> {
     await this.operations.faultInjector?.({
       phase: "before-reconciliation-directory-sync"
@@ -336,7 +324,6 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     await this.#assertNoTransitionEvidence();
     return this.read();
   }
-
   async create(envelope: DocumentTransactionEnvelope): Promise<JournalAuthority> {
     await this.#assertNoTransitionEvidence();
     const authority = await this.#prepareCandidate(envelope);
@@ -370,7 +357,6 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     await syncDirectoryStrictly(this.#parent);
     return authority;
   }
-
   async replace(request: {
     readonly expectedAuthority: JournalAuthority;
     readonly envelope: DocumentTransactionEnvelope;
@@ -402,7 +388,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       );
     }
     await proveAuthority(quarantine.path, expected, "Quarantined document journal");
-    await syncDirectoryStrictly(this.#parent);
+    await this.#syncRenameBoundary(quarantine.directory, this.#parent, "replace");
     await this.operations.faultInjector?.({
       phase: "after-canonical-quarantined"
     });
@@ -448,7 +434,6 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     await this.operations.faultInjector?.({ phase: "after-quarantine-removed" });
     return candidateIdentity;
   }
-
   async remove(expectedAuthority: JournalAuthority): Promise<void> {
     await this.#assertNoTransitionEvidence();
     await proveAuthority(
@@ -483,7 +468,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       expectedAuthority,
       "Quarantined document journal"
     );
-    await syncDirectoryStrictly(this.#parent);
+    await this.#syncRenameBoundary(quarantine.directory, this.#parent, "remove");
     await this.operations.faultInjector?.({
       phase: "after-canonical-quarantined"
     });

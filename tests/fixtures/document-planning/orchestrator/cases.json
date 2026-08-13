@@ -1,0 +1,11 @@
+{
+  "profilePath": "document-authoring.yaml",
+  "cases": [
+    {"name":"adr","destination":"docs/decisions/9001-frozen-adr.md","expected":"expected/adr.md","intent":{"schemaVersion":1,"type":"adr","id":"ADR-9001","title":"Frozen ADR","owner":"architecture/tooling","summary":"Freezes the current ADR document creation contract.","slug":"frozen-adr"}},
+    {"name":"open-decision","destination":"docs/open-decisions/OD-901-frozen-choice.md","expected":"expected/open-decision.md","intent":{"schemaVersion":1,"type":"open-decision","id":"OD-901","title":"Frozen Choice","owner":"architecture/tooling","summary":"Freezes the current open decision creation contract.","slug":"frozen-choice"}},
+    {"name":"bounded-context","destination":"docs/domain/contexts/frozen/README.md","expected":"expected/bounded-context.md","intent":{"schemaVersion":1,"type":"bounded-context","id":"domain.contexts.frozen","title":"Frozen Context","owner":"architecture/tooling","summary":"Freezes the current bounded context creation contract."}},
+    {"name":"contract","destination":"docs/contracts/frozen-widgets-v1.md","expected":"expected/contract.md","intent":{"schemaVersion":1,"type":"contract","id":"contract.frozen.widgets.v1","title":"Frozen Widgets v1","owner":"architecture/tooling","summary":"Freezes the current contract document creation behavior.","slug":"frozen-widgets-v1"}},
+    {"name":"feature","destination":"packages/example/src/features/create-widget/README.md","expected":"expected/feature.md","intent":{"schemaVersion":1,"type":"feature","id":"feature.example.create-widget","title":"Create Widget","owner":"example/create-widget","summary":"Freezes the current feature document creation behavior.","destination":"packages/example/src/features/create-widget/README.md","related":["OD-001","ADR-0001"],"additionalMetadata":{"code_anchors":[{"pattern":"packages/example/src/features/create-widget/*.ts","enforcement":"required"}],"blocked_by":["OD-001"]}}},
+    {"name":"runbook","destination":"docs/operations/frozen-widget-outage.md","expected":"expected/runbook.md","intent":{"schemaVersion":1,"type":"runbook","id":"runbook.frozen.widget-outage","title":"Frozen Widget Outage","owner":"architecture/tooling","summary":"Freezes the current runbook document creation behavior.","slug":"frozen-widget-outage"}}
+  ]
+}

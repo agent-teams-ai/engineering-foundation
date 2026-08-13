@@ -1,0 +1,33 @@
+schemaVersion: 1
+projectId: atlas-handbook
+catalog:
+  metadataSchemaPath: handbook/metadata.schema.json
+  ownerCatalog:
+    path: handbook/owners.yaml
+    contract: foundation.owner-map/v1
+  collections:
+    - kind: markdown-tree
+      root: handbook/content
+  excludedPrefixes:
+    - handbook/templates
+authoring:
+  mode: create-only
+  artifactTypes:
+    - type: playbook
+      initialStatus: draft
+      identity:
+        kind: explicit
+        format: qualified
+        grammar:
+          prefixSegments: [knowledge, playbooks]
+          minSuffixSegments: 2
+          maxSuffixSegments: 3
+      placement:
+        kind: qualified-leaf-index
+        root: handbook/content
+        requiredBasename: README.md
+      template:
+        kind: fenced-markdown-body
+        path: handbook/templates/playbook.md
+      heading:
+        kind: title

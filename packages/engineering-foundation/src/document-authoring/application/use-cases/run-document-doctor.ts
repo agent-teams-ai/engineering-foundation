@@ -35,6 +35,28 @@ function inspectionDiagnostics(
   }));
 }
 
+function manualTransactionState(
+  inspection: Extract<DocumentTransactionInspectionV1, {
+    readonly state: "manual-recovery-required";
+  }>
+): DocumentDoctorResult["transactionState"] {
+  if (inspection.transactionKind !== undefined) {
+    return inspection.transactionKind;
+  }
+  if (inspection.diagnostics.some(
+    ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
+  )) {
+    return "version-mismatch";
+  }
+  switch (inspection.operationKind) {
+    case "document-authoring": return "document";
+    case "local-mode": return "local-mode";
+    case "scaffolding": return "scaffold";
+    case undefined: return "unknown";
+  }
+  return "unknown";
+}
+
 export class RunDocumentDoctor {
   readonly #dependencies: Dependencies;
 
@@ -59,29 +81,40 @@ export class RunDocumentDoctor {
           diagnostics: inspectionDiagnostics(inspection),
           outcome: "recovery-required",
           result: {
-            kind: "doctor", transactionState: "pending",
+            kind: "doctor", transactionState: "document",
             protocolKind: "document-authoring",
             foundationVersion: inspection.foundationVersion,
-            recoveryClass: "auto-recoverable"
+            foundationBuildIdentity: inspection.foundationBuildIdentity,
+            recoveryClass: "auto-recoverable",
+            recoveryCommand: { commandId: "docs.recover", args: {} }
           }
         });
       }
-      const unknownVersion = inspection.diagnostics.some(
-        ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
-      );
+      const exactRecovery = inspection.recovery;
       return commandExecution({
         command: "docs.doctor",
         diagnostics: inspectionDiagnostics(inspection),
         outcome: "recovery-required",
         result: {
           kind: "doctor",
-          transactionState: unknownVersion ? "unknown-version" : "tampered",
+          transactionState: manualTransactionState(inspection),
           ...(inspection.operationKind === "document-authoring" ||
             inspection.operationKind === "local-mode" ||
             inspection.operationKind === "scaffolding"
             ? { protocolKind: inspection.operationKind }
-            : {}),
-          recoveryClass: "manual"
+            : { protocolKind: "unknown" as const }),
+          ...(inspection.foundationVersion === undefined
+            ? {} : { foundationVersion: inspection.foundationVersion }),
+          ...(inspection.foundationBuildIdentity === undefined
+            ? {} : { foundationBuildIdentity: inspection.foundationBuildIdentity }),
+          recoveryClass: "manual",
+          ...(exactRecovery === undefined
+            ? {}
+            : { recoveryCommand: {
+                commandId: exactRecovery.commandId === "docs-recover"
+                  ? "docs.recover" as const : exactRecovery.commandId,
+                args: exactRecovery.args
+              } })
         }
       });
     } catch (error) {
@@ -90,7 +123,10 @@ export class RunDocumentDoctor {
       });
       return commandExecution({
         command: "docs.doctor", diagnostics: [failure.diagnostic], outcome: failure.outcome,
-        result: { kind: "doctor", transactionState: "tampered", recoveryClass: "manual" }
+        result: {
+          kind: "doctor", transactionState: "unknown", protocolKind: "unknown",
+          recoveryClass: "manual"
+        }
       });
     }
   }

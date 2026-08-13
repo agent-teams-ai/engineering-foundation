@@ -37,5 +37,19 @@ export type DocumentTransactionInspectionV1 =
       readonly state: "manual-recovery-required";
       readonly reason: string;
       readonly operationKind?: "document-authoring" | "local-mode" | "scaffolding";
+      readonly transactionKind?:
+        | "corrupt"
+        | "document"
+        | "local-mode"
+        | "scaffold"
+        | "transition-residue"
+        | "unknown"
+        | "version-mismatch";
+      readonly foundationVersion?: string;
+      readonly foundationBuildIdentity?: string;
+      readonly recovery?: {
+        readonly commandId: "detach" | "docs-recover" | "scaffold-recover";
+        readonly args: Readonly<Record<string, string>>;
+      };
       readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];
     };

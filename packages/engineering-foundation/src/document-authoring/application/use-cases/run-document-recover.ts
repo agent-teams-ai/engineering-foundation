@@ -38,6 +38,30 @@ function manualDiagnostics(
   }));
 }
 
+function writeState(receipt: DocumentReceipt): DocumentRecoverResult["writeState"] {
+  switch (receipt.commit.publication) {
+    case "published": return "committed";
+    case "preexisting-exact": return "already-committed";
+    case "none": return "unchanged";
+    case "unknown": return "unknown";
+  }
+}
+
+function recoveryState(
+  receipt: DocumentReceipt
+): DocumentRecoverResult["transactionState"] {
+  switch (receipt.outcome) {
+    case "applied": return "recovered";
+    case "already-applied": return "already-applied";
+    case "cancelled": return "cancelled";
+    case "recovery-required": return "recovery-required";
+    case "manual-recovery-required": return "manual-required";
+    case "authority-stale":
+    case "failed-before-publication":
+    case "rejected": return "failed";
+  }
+}
+
 export class RunDocumentRecover {
   readonly #dependencies: Dependencies;
 
@@ -55,14 +79,27 @@ export class RunDocumentRecover {
       if (inspection.state === "idle") {
         return commandExecution({
           command: "docs.recover", outcome: "success",
-          result: { kind: "recover", transactionState: "no-pending-transaction" }
+          result: {
+            kind: "recover", transactionState: "no-pending-transaction",
+            writeState: "unchanged", recoveryRequired: false
+          }
         });
       }
       if (inspection.state === "manual-recovery-required") {
         return commandExecution({
           command: "docs.recover", diagnostics: manualDiagnostics(inspection),
           outcome: "recovery-required",
-          result: { kind: "recover", transactionState: "manual-required" }
+          result: {
+            kind: "recover", transactionState: "manual-required",
+            writeState: "unknown", recoveryRequired: true,
+            ...(inspection.recovery === undefined
+              ? {}
+              : { recoveryCommand: {
+                  commandId: inspection.recovery.commandId === "docs-recover"
+                    ? "docs.recover" as const : inspection.recovery.commandId,
+                  args: inspection.recovery.args
+                } })
+          }
         });
       }
       const receipt = await this.#dependencies.recover({
@@ -81,11 +118,9 @@ export class RunDocumentRecover {
         outcome,
         result: {
           kind: "recover",
-          transactionState: receipt.outcome === "already-applied"
-            ? "already-applied"
-            : receipt.outcome === "applied"
-              ? "recovered"
-              : "manual-required",
+          transactionState: recoveryState(receipt),
+          writeState: writeState(receipt),
+          recoveryRequired: outcome === "recovery-required",
           receiptDigest: receipt.receiptDigest
         }
       });
@@ -95,7 +130,12 @@ export class RunDocumentRecover {
       });
       return commandExecution({
         command: "docs.recover", diagnostics: [failure.diagnostic], outcome: failure.outcome,
-        result: { kind: "recover", transactionState: "manual-required" }
+        result: {
+          kind: "recover",
+          transactionState: failure.outcome === "cancelled" ? "cancelled" : "failed",
+          writeState: "unknown",
+          recoveryRequired: false
+        }
       });
     }
   }

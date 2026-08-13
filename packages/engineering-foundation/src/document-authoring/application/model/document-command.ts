@@ -17,10 +17,15 @@ export type DocumentCommandOutcome =
 
 export type DocumentCommandExitCode = 0 | 1 | 2 | 3 | 130;
 
-export interface DocumentCommandRemediation {
-  readonly commandId: DocumentCommandId;
+export interface DocumentRecoveryCommand {
+  readonly commandId: "detach" | "docs.recover" | "scaffold-recover";
   readonly args: Readonly<Record<string, string>>;
 }
+
+export type DocumentCommandRemediation = DocumentRecoveryCommand | {
+  readonly commandId: DocumentCommandId;
+  readonly args: Readonly<Record<string, string>>;
+};
 
 export interface DocumentCommandDiagnostic {
   readonly ruleId: string;
@@ -66,10 +71,20 @@ export interface DocumentNewResult {
 
 export interface DocumentDoctorResult {
   readonly kind: "doctor";
-  readonly transactionState: "none" | "pending" | "tampered" | "unknown-version";
-  readonly protocolKind?: "document-authoring" | "local-mode" | "scaffolding";
+  readonly transactionState:
+    | "corrupt"
+    | "document"
+    | "local-mode"
+    | "none"
+    | "scaffold"
+    | "transition-residue"
+    | "unknown"
+    | "version-mismatch";
+  readonly protocolKind?: "document-authoring" | "local-mode" | "scaffolding" | "unknown";
   readonly foundationVersion?: string;
+  readonly foundationBuildIdentity?: string;
   readonly recoveryClass: "auto-recoverable" | "manual" | "not-required";
+  readonly recoveryCommand?: DocumentRecoveryCommand;
 }
 
 export interface DocumentRecoverResult {
@@ -78,6 +93,12 @@ export interface DocumentRecoverResult {
     | "already-applied"
     | "manual-required"
     | "no-pending-transaction"
-    | "recovered";
+    | "recovered"
+    | "recovery-required"
+    | "cancelled"
+    | "failed";
+  readonly writeState: "already-committed" | "committed" | "unchanged" | "unknown";
+  readonly recoveryRequired: boolean;
   readonly receiptDigest?: string;
+  readonly recoveryCommand?: DocumentRecoveryCommand;
 }

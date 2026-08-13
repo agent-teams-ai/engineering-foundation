@@ -132,6 +132,9 @@ test("docs doctor projects exact recovery and unknown versions", async () => {
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(recoverable.envelope.result.recoveryClass, "auto-recoverable");
   assert.equal(recoverable.envelope.result.foundationVersion, "0.16.0");
+  assert.deepEqual(recoverable.envelope.result.recoveryCommand, {
+    commandId: "docs.recover", args: {}
+  });
 
   const unknown = await new RunDocumentDoctor({
     async inspect() {
@@ -142,8 +145,9 @@ test("docs doctor projects exact recovery and unknown versions", async () => {
       };
     }
   }).execute({ consumerRoot: "/fixture" });
-  assert.equal(unknown.envelope.result.transactionState, "unknown-version");
+  assert.equal(unknown.envelope.result.transactionState, "version-mismatch");
   assert.equal(unknown.envelope.result.protocolKind, "local-mode");
+  assert.equal(unknown.envelope.result.recoveryCommand, undefined);
 });
 
 test("docs recover is a no-op when idle and refuses manual evidence", async () => {
@@ -153,6 +157,8 @@ test("docs recover is a no-op when idle and refuses manual evidence", async () =
     async recover() { recoverCalls += 1; return successfulReceipt; }
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(idle.envelope.result.transactionState, "no-pending-transaction");
+  assert.equal(idle.envelope.result.writeState, "unchanged");
+  assert.equal(idle.envelope.result.recoveryRequired, false);
   assert.equal(recoverCalls, 0);
 
   const manual = await new RunDocumentRecover({
@@ -166,5 +172,45 @@ test("docs recover is a no-op when idle and refuses manual evidence", async () =
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(manual.exitCode, 1);
   assert.equal(manual.envelope.result.transactionState, "manual-required");
+  assert.equal(manual.envelope.result.writeState, "unknown");
+  assert.equal(manual.envelope.result.recoveryRequired, true);
+  assert.equal(manual.envelope.result.recoveryCommand, undefined);
   assert.equal(recoverCalls, 0);
+});
+
+test("docs recover projects committed and unresolved receipts without guessing", async () => {
+  const recoverable = {
+    schemaVersion: 1, state: "recoverable", operationKind: "document-authoring",
+    format: "document-authoring-envelope-v3", foundationVersion: "0.16.0",
+    foundationBuildIdentity: digest,
+    recovery: { commandId: "docs-recover", exactFoundationVersion: "0.16.0", exactFoundationBuildIdentity: digest },
+    diagnostics: []
+  };
+  const applied = await new RunDocumentRecover({
+    async inspect() { return recoverable; },
+    async recover() {
+      return {
+        ...successfulReceipt,
+        commit: { publication: "published" }
+      };
+    }
+  }).execute({ consumerRoot: "/fixture" });
+  assert.equal(applied.envelope.result.transactionState, "recovered");
+  assert.equal(applied.envelope.result.writeState, "committed");
+  assert.equal(applied.envelope.result.recoveryRequired, false);
+
+  const pending = await new RunDocumentRecover({
+    async inspect() { return recoverable; },
+    async recover() {
+      return {
+        outcome: "recovery-required",
+        receiptDigest: digest,
+        diagnostics: [],
+        commit: { publication: "unknown" }
+      };
+    }
+  }).execute({ consumerRoot: "/fixture" });
+  assert.equal(pending.envelope.result.transactionState, "recovery-required");
+  assert.equal(pending.envelope.result.writeState, "unknown");
+  assert.equal(pending.envelope.result.recoveryRequired, true);
 });

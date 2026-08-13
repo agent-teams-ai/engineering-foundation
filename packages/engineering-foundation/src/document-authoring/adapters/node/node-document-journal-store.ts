@@ -31,7 +31,7 @@ import type { NodeDocumentJournalFaultInjector } from "./node-document-journal-s
 const maximumJournalBytes = 32 * 1024 * 1024;
 const maximumDirectoryEntries = 1024;
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-export class NodeDocumentJournalStoreError extends Error {
+class NodeDocumentJournalStoreError extends Error {
   public constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "NodeDocumentJournalStoreError";

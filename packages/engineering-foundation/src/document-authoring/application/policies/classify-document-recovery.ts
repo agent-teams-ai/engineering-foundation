@@ -25,7 +25,7 @@ export type DocumentRecoveryDestinationObservation =
     }
   | { readonly state: "unverifiable" };
 
-export type DocumentRecoveryJournalObservation =
+type DocumentRecoveryJournalObservation =
   | {
       readonly version: "none";
       readonly fileIdentity: "none";
@@ -61,7 +61,7 @@ export interface DocumentRecoveryObservation {
   readonly destination: DocumentRecoveryDestinationObservation;
 }
 
-export type DocumentRecoveryManualReason =
+type DocumentRecoveryManualReason =
   | "destination-conflict"
   | "identity-drift"
   | "inconsistent-lifecycle"

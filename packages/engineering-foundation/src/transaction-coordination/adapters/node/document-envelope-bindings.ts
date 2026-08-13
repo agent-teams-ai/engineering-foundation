@@ -13,7 +13,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function assertDocumentEnvelopeDigests(
+function assertDocumentEnvelopeDigests(
   envelope: Record<string, unknown>
 ): void {
   const journal = envelope["journal"];

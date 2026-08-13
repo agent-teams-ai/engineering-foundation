@@ -29,11 +29,11 @@ import {
 } from "../application/use-cases/recover-document-transaction.js";
 import { NodeDocumentAuthorityRecompiler } from "./node-document-authority-recompiler.js";
 
-export type NodeDocumentWritingFaultPoint =
+type NodeDocumentWritingFaultPoint =
   | DocumentTransactionFaultPoint
-  | import("../adapters/node/node-document-publisher.js").NodeDocumentPublisherFaultPoint;
+  | Parameters<NonNullable<NodeDocumentPublisherOperations["faultInjector"]>>[0];
 
-export type NodeDocumentWritingFaultInjector = (
+type NodeDocumentWritingFaultInjector = (
   point: NodeDocumentWritingFaultPoint
 ) => Promise<void> | void;
 

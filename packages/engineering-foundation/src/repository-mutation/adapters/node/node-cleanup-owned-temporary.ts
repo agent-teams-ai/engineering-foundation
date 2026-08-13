@@ -15,7 +15,7 @@ import {
 
 export const OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER =
   ".foundation-owned-cleanup-";
-export const OWNED_TEMPORARY_RETIRED_EVIDENCE_MARKER =
+const OWNED_TEMPORARY_RETIRED_EVIDENCE_MARKER =
   ".foundation-retired-evidence-";
 
 export function ownedTemporaryCleanupResiduePrefix(

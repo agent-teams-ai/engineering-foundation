@@ -1,6 +1,3 @@
 export {
-  NodeDocumentPublisher,
-  type NodeDocumentPublisherFaultInjector,
-  type NodeDocumentPublisherFaultPoint,
-  type NodeDocumentPublisherOperations
+  NodeDocumentPublisher
 } from "./node-document-publisher.js";

@@ -1,11 +1,8 @@
-import { lstat, link, mkdir, open, rename } from "node:fs/promises";
+import { link, mkdir, open, rename } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import type { AuthorityScaffoldJournal } from "../../contract/types.js";
-import { assertAuthorityScaffoldJournal } from "../../kernel/authority-journal-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import { assertSchema } from "../../../schema-catalog.js";
-import { parseStrictYamlSource } from "../../../strict-yaml.js";
 import { syncDirectory } from "./filesystem-path-guard.js";
 import {
   captureFileHandleIdentity,
@@ -136,12 +133,6 @@ export async function writeAuthorityScaffoldJournal(
   return writeAuthorityJournalFile(path, journal, options);
 }
 
-export interface ScaffoldJournalRecord {
-  readonly authorityDigest: string;
-  readonly identity: PortableFileIdentity;
-  readonly journal: AuthorityScaffoldJournal;
-}
-
 export interface ScaffoldJournalAuthority {
   readonly identity: PortableFileIdentity;
   readonly authorityDigest: string;
@@ -224,129 +215,6 @@ async function retirePrivateEvidence(
   await rename(quarantine.directory, terminalDirectory);
   await syncDirectory(terminalRoot);
   await syncDirectory(dirname(quarantine.directory));
-}
-
-async function readJournalSource(path: string): Promise<{
-  readonly identity: PortableFileIdentity;
-  readonly source: string;
-} | undefined> {
-  try {
-    const result = await readBoundedRegularFile(path, MAX_SCAFFOLD_PLAN_BYTES);
-    if (result.outcome === "invalid") {
-      throw new ScaffoldError(
-        "SCAFFOLD_RECOVERY_REQUIRED",
-        "Scaffolding recovery journal is not a bounded regular file."
-      );
-    }
-    if (result.outcome === "changed") {
-      throw new ScaffoldError(
-        "SCAFFOLD_RECOVERY_REQUIRED",
-        "Scaffolding recovery journal changed while it was being read."
-      );
-    }
-    return {
-      identity: result.identity,
-      source: result.bytes.toString("utf8")
-    };
-  } catch (error) {
-    if (isMissing(error)) {
-      return undefined;
-    }
-    throw error;
-  }
-}
-
-export async function readScaffoldJournalRecord(
-  path: string
-): Promise<ScaffoldJournalRecord | undefined> {
-  const record = await readJournalSource(path);
-  if (record === undefined) {
-    return undefined;
-  }
-  const value = parseStrictYamlSource(
-    record.source,
-    "scaffold-recovery-journal"
-  );
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
-    !("schemaVersion" in value)
-  ) {
-    throw new ScaffoldError(
-      "SCAFFOLD_RECOVERY_REQUIRED",
-      "Scaffolding recovery journal is invalid."
-    );
-  }
-  if (value.schemaVersion !== 1) {
-    throw new ScaffoldError(
-      "SCAFFOLD_RECOVERY_REQUIRED",
-      "A released 0.5 scaffolding journal must be recovered before upgrading."
-    );
-  }
-  await assertSchema(
-    "scaffold-recovery-journal/v1",
-    value,
-    "scaffold-recovery-journal"
-  );
-  const journal = value as AuthorityScaffoldJournal;
-  await assertSchema(
-    "scaffold-plan/v1",
-    journal.plan,
-    "scaffold-recovery-journal"
-  );
-  assertAuthorityScaffoldJournal(journal);
-  return {
-    authorityDigest: contentDigest(Buffer.from(record.source, "utf8")),
-    identity: record.identity,
-    journal
-  };
-}
-
-export async function readScaffoldJournalEnvelope(
-  path: string
-): Promise<AuthorityScaffoldJournal | undefined> {
-  return (await readScaffoldJournalRecord(path))?.journal;
-}
-
-export async function captureExpectedAuthorityScaffoldJournal(
-  path: string,
-  expected: AuthorityScaffoldJournal
-): Promise<ScaffoldJournalAuthority> {
-  const record = await readScaffoldJournalRecord(path);
-  if (
-    record === undefined ||
-    JSON.stringify(record.journal) !== JSON.stringify(expected)
-  ) {
-    throw new ScaffoldError(
-      "SCAFFOLD_RECOVERY_REQUIRED",
-      "Scaffolding recovery journal changed before finalization."
-    );
-  }
-  return {
-    identity: record.identity,
-    authorityDigest: record.authorityDigest
-  };
-}
-
-export async function assertAuthorityScaffoldJournalTemporaryAbsent(
-  path: string
-): Promise<void> {
-  const temporary = `${path}.tmp`;
-  try {
-    await lstat(temporary);
-  } catch (error) {
-    if (isMissing(error)) {
-      return;
-    }
-    throw error;
-  }
-  // Creator-handle identity does not survive a crash, so restart recovery has
-  // no evidence that authorizes promotion or deletion of this path.
-  throw new ScaffoldError(
-    "SCAFFOLD_RECOVERY_REQUIRED",
-    "Scaffolding journal temporary cannot be proven transaction-owned; it was preserved and requires manual recovery."
-  );
 }
 
 export async function removeExpectedAuthorityScaffoldJournal(

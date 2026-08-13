@@ -5,7 +5,7 @@ export type NodeScaffoldJournalEvidence =
   | "previous"
   | "retired";
 
-export type NodeScaffoldJournalStoreFaultPoint =
+type NodeScaffoldJournalStoreFaultPoint =
   | {
       readonly mutation: NodeScaffoldJournalMutation;
       readonly phase: "after-candidate-synced";

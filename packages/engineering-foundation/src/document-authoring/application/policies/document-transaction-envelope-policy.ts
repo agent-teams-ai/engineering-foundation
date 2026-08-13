@@ -19,7 +19,7 @@ import {
   documentTransactionPayloadDigest
 } from "./document-transaction-digests.js";
 
-export class DocumentTransactionEnvelopeError extends Error {
+class DocumentTransactionEnvelopeError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "DocumentTransactionEnvelopeError";

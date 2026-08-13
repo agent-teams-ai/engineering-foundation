@@ -15,7 +15,7 @@ export type DocumentCommandOutcome =
   | "success"
   | "violation";
 
-export type DocumentCommandExitCode = 0 | 1 | 2 | 3 | 130;
+type DocumentCommandExitCode = 0 | 1 | 2 | 3 | 130;
 
 export interface DocumentRecoveryCommand {
   readonly commandId: "detach" | "docs.recover" | "scaffold-recover";
@@ -41,7 +41,7 @@ export interface DocumentCommandDiagnostic {
   readonly remediation?: DocumentCommandRemediation;
 }
 
-export interface DocumentCommandEnvelope<Result> {
+interface DocumentCommandEnvelope<Result> {
   readonly schemaVersion: 2;
   readonly command: DocumentCommandId;
   readonly outcome: DocumentCommandOutcome;

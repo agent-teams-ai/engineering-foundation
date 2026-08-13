@@ -13,7 +13,7 @@ import {
 } from "./local-mode/types.js";
 
 export const FOUNDATION_METADATA_SCHEMA_VERSION = 1 as const;
-export const FOUNDATION_REQUIRED_PRESET_PATHS = [
+const FOUNDATION_REQUIRED_PRESET_PATHS = [
   "presets/oxlint/base.json",
   "presets/oxlint/maintainability-tests.json",
   "presets/oxlint/maintainability.json",

@@ -88,13 +88,13 @@ function assertTemporaryBinding(plan: DocumentPlan, temporary: DocumentOwnedTemp
   }
 }
 
-export type NodeDocumentPublisherFaultPoint =
+type NodeDocumentPublisherFaultPoint =
   | { readonly phase: "after-temporary-synced" }
   | { readonly phase: "after-hard-link" }
   | { readonly phase: "after-publication-synced" }
   | { readonly phase: "after-temporary-cleanup-synced" };
 
-export type NodeDocumentPublisherFaultInjector = (
+type NodeDocumentPublisherFaultInjector = (
   point: NodeDocumentPublisherFaultPoint
 ) => Promise<void> | void;
 

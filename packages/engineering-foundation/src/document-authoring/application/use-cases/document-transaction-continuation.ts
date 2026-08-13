@@ -92,7 +92,7 @@ function receiptBase(plan: DocumentPlan) {
   };
 }
 
-export async function successReceipt(
+async function successReceipt(
   plan: DocumentPlan,
   outcome: "already-applied" | "applied"
 ): Promise<DocumentReceipt> {
@@ -266,7 +266,7 @@ export async function createPreparedJournal(
   return active;
 }
 
-export async function replaceWithPublishing(
+async function replaceWithPublishing(
   runtime: DocumentTransactionRuntime,
   active: ActiveDocumentJournal,
   temporary: DocumentOwnedTemporary
@@ -286,7 +286,7 @@ export async function replaceWithPublishing(
   return result;
 }
 
-export async function replaceWithPublished(
+async function replaceWithPublished(
   runtime: DocumentTransactionRuntime,
   active: ActiveDocumentJournal,
   publicationIdentity: import("../model/document-physical-identity.js").DocumentPhysicalIdentity

@@ -29,7 +29,7 @@ export function commandExecution<Result>(input: {
   });
 }
 
-export function exitCodeForDocumentCommandOutcome(
+function exitCodeForDocumentCommandOutcome(
   outcome: DocumentCommandOutcome
 ): 0 | 1 | 2 | 3 | 130 {
   switch (outcome) {

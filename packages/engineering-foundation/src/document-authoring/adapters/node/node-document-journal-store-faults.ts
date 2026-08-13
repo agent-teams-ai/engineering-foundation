@@ -1,4 +1,4 @@
-export type NodeDocumentJournalFaultPoint =
+type NodeDocumentJournalFaultPoint =
   | { readonly phase: "after-candidate-synced" }
   | { readonly phase: "after-canonical-quarantined" }
   | { readonly phase: "after-canonical-published" }

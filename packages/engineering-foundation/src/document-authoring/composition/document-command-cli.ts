@@ -1,7 +1,4 @@
 export {
-  documentMutationFailure,
-} from "../adapters/inbound/cli/document-command-failure.js";
-export {
   renderDocumentCommandJson,
   renderDocumentCommandText,
 } from "../adapters/inbound/cli/document-command-renderer.js";

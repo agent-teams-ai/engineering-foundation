@@ -15,6 +15,10 @@ const fixture = JSON.parse(await readFile(fileURLToPath(
 const identity = Object.freeze({
   adapter: "node-filesystem", birthtimeNs: "3", dev: "1", ino: "2", version: 1
 });
+const journalAuthority = Object.freeze({
+  authorityDigest: `sha256:${"1".repeat(64)}`,
+  identity
+});
 
 function harness(options = {}) {
   let destination = options.destination ?? "absent";
@@ -64,16 +68,20 @@ function harness(options = {}) {
       }
     },
     journal: {
-      async create(value) { envelope = value; journalIdentity = identity; events.push("journal:create"); return identity; },
-      async read() { return envelope === undefined ? undefined : { envelope, identity: journalIdentity }; },
+      async create(value) { envelope = value; journalIdentity = journalAuthority; events.push("journal:create"); return journalAuthority; },
+      async read() { return envelope === undefined ? undefined : { authority: journalIdentity, envelope }; },
       async stabilizeForReconciliation() {
         events.push("journal:stabilize");
-        return envelope === undefined ? undefined : { envelope, identity: journalIdentity };
+        return envelope === undefined ? undefined : { authority: journalIdentity, envelope };
       },
       async remove(expected) { assert.deepEqual(expected, journalIdentity); envelope = undefined; journalIdentity = undefined; events.push("journal:remove"); },
-      async replace({ envelope: value, expectedIdentity }) {
-        assert.deepEqual(expectedIdentity, journalIdentity);
-        envelope = value; journalIdentity = { ...identity, ino: String(Number(identity.ino) + 1) };
+      async replace({ envelope: value, expectedAuthority }) {
+        assert.deepEqual(expectedAuthority, journalIdentity);
+        envelope = value;
+        journalIdentity = {
+          authorityDigest: `sha256:${"2".repeat(64)}`,
+          identity: { ...identity, ino: String(Number(identity.ino) + 1) }
+        };
         events.push(`journal:${value.state}`);
         return journalIdentity;
       }
@@ -95,7 +103,7 @@ function harness(options = {}) {
   };
   return {
     dependencies, events, releases,
-    seedJournal(value) { envelope = value; journalIdentity = identity; },
+    seedJournal(value) { envelope = value; journalIdentity = journalAuthority; },
     setCoordinatorState(value) { coordinatorState = value; },
     setDestination(value) { destination = value; },
     state: () => ({ destination, envelope, temporary })

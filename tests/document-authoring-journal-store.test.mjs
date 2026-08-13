@@ -17,6 +17,10 @@ import test from "node:test";
 import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
 import { createDocumentTransactionEnvelope } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
 import { NodeDocumentJournalStore } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-journal-store-private.js";
+import {
+  createJournalReconciled,
+  replaceJournalReconciled
+} from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/document-journal-reconciliation.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)
@@ -75,10 +79,10 @@ async function withFixture(run, options) {
 test("creates, reads, replaces, and removes canonical document journal evidence", async () => {
   await withFixture(async ({ path, store }) => {
     const first = await envelope();
-    const firstIdentity = await store.create(first);
-    assert.notEqual(firstIdentity.dev, "0");
-    assert.notEqual(firstIdentity.ino, "0");
-    assert.notEqual(firstIdentity.birthtimeNs, "0");
+    const firstAuthority = await store.create(first);
+    assert.notEqual(firstAuthority.identity.dev, "0");
+    assert.notEqual(firstAuthority.identity.ino, "0");
+    assert.notEqual(firstAuthority.identity.birthtimeNs, "0");
     assert.deepEqual((await store.read()).envelope, first);
     assert.equal(
       await readFile(path, "utf8"),
@@ -91,14 +95,14 @@ test("creates, reads, replaces, and removes canonical document journal evidence"
       ...second,
       state: "PREPARED"
     });
-    const secondIdentity = await store.replace({
-      expectedIdentity: firstIdentity,
+    const secondAuthority = await store.replace({
+      expectedAuthority: firstAuthority,
       envelope: replacement
     });
-    assert.notEqual(secondIdentity.ino, firstIdentity.ino);
+    assert.notEqual(secondAuthority.identity.ino, firstAuthority.identity.ino);
     assert.deepEqual((await store.read()).envelope, replacement);
 
-    await store.remove(secondIdentity);
+    await store.remove(secondAuthority);
     assert.equal(await store.read(), undefined);
     assert.deepEqual(await readdir(join(path, "..")), []);
   });
@@ -133,7 +137,7 @@ test("reconciles create, replace, and remove only after a fresh directory sync",
     replacementBody.journal.destination.state = "preexisting";
     const replacement = await createDocumentTransactionEnvelope(replacementBody);
     await assert.rejects(
-      store.replace({ expectedIdentity: created.identity, envelope: replacement }),
+      store.replace({ expectedAuthority: created.authority, envelope: replacement }),
       /replace final directory sync/u
     );
     const replaced = await store.stabilizeForReconciliation();
@@ -141,7 +145,7 @@ test("reconciles create, replace, and remove only after a fresh directory sync",
 
     operation = "remove";
     failedFinalSync = false;
-    await assert.rejects(store.remove(replaced.identity), /remove final directory sync/u);
+    await assert.rejects(store.remove(replaced.authority), /remove final directory sync/u);
     assert.equal(await store.stabilizeForReconciliation(), undefined);
     assert.equal(reconciliationSyncs, 3);
   });
@@ -169,6 +173,58 @@ test("a failed reconciliation sync never acknowledges an apparently committed jo
   });
 });
 
+test("real Node create and replace commit-then-throw reconcile with opaque authority", async () => {
+  await withFixture(async ({ path }) => {
+    let operation = "create";
+    let injected = false;
+    const store = new NodeDocumentJournalStore(path, {
+      faultInjector(point) {
+        if (
+          point.phase === "before-final-directory-sync" &&
+          point.operation === operation &&
+          !injected
+        ) {
+          injected = true;
+          throw new Error(`injected ${operation} commit-then-throw`);
+        }
+      }
+    });
+    const runtime = {
+      coordinator: {
+        async inspect() {
+          return { state: "recoverable" };
+        }
+      },
+      journal: store
+    };
+
+    const first = await envelope();
+    const firstAuthority = await createJournalReconciled(runtime, first);
+    assert.deepEqual(Object.keys(firstAuthority.identity).toSorted(), [
+      "adapter",
+      "birthtimeNs",
+      "dev",
+      "ino",
+      "version"
+    ]);
+    assert.match(firstAuthority.authorityDigest, /^sha256:[0-9a-f]{64}$/u);
+
+    operation = "replace";
+    injected = false;
+    const replacement = await envelope("preexisting");
+    const replacementAuthority = await replaceJournalReconciled(
+      runtime,
+      { authority: firstAuthority, envelope: first },
+      replacement
+    );
+    assert.notEqual(
+      replacementAuthority.identity.ino,
+      firstAuthority.identity.ino
+    );
+    assert.deepEqual((await store.read()).envelope, replacement);
+  });
+});
+
 test("never overwrites a foreign canonical slot and preserves its candidate", async () => {
   await withFixture(async ({ path, state, store }) => {
     await writeFile(path, "foreign evidence\n", { flag: "wx", mode: 0o600 });
@@ -189,7 +245,7 @@ test("replace detects a canonical substitution and preserves all evidence", asyn
   let attacked = false;
   await withFixture(
     async ({ path, state, store }) => {
-      const originalIdentity = await store.create(await envelope());
+      const originalAuthority = await store.create(await envelope());
       const originalPath = `${path}.attacker-preserved-original`;
       const replacementStore = new NodeDocumentJournalStore(path, {
         async faultInjector(point) {
@@ -205,7 +261,7 @@ test("replace detects a canonical substitution and preserves all evidence", asyn
       });
       await assert.rejects(
         replacementStore.replace({
-          expectedIdentity: originalIdentity,
+          expectedAuthority: originalAuthority,
           envelope: await envelope()
         }),
         /changed concurrently/u
@@ -224,7 +280,7 @@ test("replace detects a canonical substitution and preserves all evidence", asyn
 
 test("replace rejects same-inode byte mutation and preserves transition evidence", async () => {
   await withFixture(async ({ path, state, store }) => {
-    const originalIdentity = await store.create(await envelope());
+    const originalAuthority = await store.create(await envelope());
     const replacementStore = new NodeDocumentJournalStore(path, {
       async faultInjector(point) {
         if (point.phase === "after-candidate-synced") {
@@ -235,7 +291,7 @@ test("replace rejects same-inode byte mutation and preserves transition evidence
 
     await assert.rejects(
       replacementStore.replace({
-        expectedIdentity: originalIdentity,
+        expectedAuthority: originalAuthority,
         envelope: await envelope("preexisting")
       }),
       /canonical bytes changed concurrently/u
@@ -276,7 +332,7 @@ test("create rejects same-inode mutation after publication and preserves evidenc
 
 test("remove rejects same-inode mutation before quarantine and preserves it", async () => {
   await withFixture(async ({ path, state, store }) => {
-    const identity = await store.create(await envelope());
+    const authority = await store.create(await envelope());
     const attacked = new NodeDocumentJournalStore(path, {
       async faultInjector(point) {
         if (point.phase === "before-shared-quarantine") {
@@ -286,7 +342,7 @@ test("remove rejects same-inode mutation before quarantine and preserves it", as
     });
 
     await assert.rejects(
-      attacked.remove(identity),
+      attacked.remove(authority),
       /canonical bytes changed concurrently/u
     );
 
@@ -342,7 +398,7 @@ test("private cleanup never deletes a pathname-swapped foreign file", async () =
 
 test("shared quarantine preserves a pathname replacement made after proof", async () => {
   await withFixture(async ({ path, state, store }) => {
-    const identity = await store.create(await envelope());
+    const authority = await store.create(await envelope());
     const originalPath = `${path}.owned-preserved`;
     const attacked = new NodeDocumentJournalStore(path, {
       async faultInjector(point) {
@@ -357,7 +413,7 @@ test("shared quarantine preserves a pathname replacement made after proof", asyn
     });
 
     await assert.rejects(
-      attacked.remove(identity),
+      attacked.remove(authority),
       /canonical bytes changed concurrently/u
     );
 
@@ -379,7 +435,7 @@ test("shared quarantine preserves a pathname replacement made after proof", asyn
 
 test("an interrupted removal leaves a quarantine barrier and fails closed", async () => {
   await withFixture(async ({ path, state, store }) => {
-    const identity = await store.create(await envelope());
+    const authority = await store.create(await envelope());
     const interrupted = new NodeDocumentJournalStore(path, {
       faultInjector(point) {
         if (point.phase === "after-canonical-quarantined") {
@@ -388,7 +444,7 @@ test("an interrupted removal leaves a quarantine barrier and fails closed", asyn
       }
     });
     await assert.rejects(
-      interrupted.remove(identity),
+      interrupted.remove(authority),
       /injected removal interruption/u
     );
     assert.ok(
@@ -409,13 +465,16 @@ test("rejects non-canonical slots, invalid identities, and non-regular journals"
       () => new NodeDocumentJournalStore(`${path}.other`),
       /historical Foundation transaction slot/u
     );
-    const identity = await store.create(await envelope());
+    const authority = await store.create(await envelope());
     await assert.rejects(
-      store.remove({ ...identity, ino: "0" }),
+      store.remove({ ...authority, identity: { ...authority.identity, ino: "0" } }),
       /identity is invalid or zero/u
     );
     await assert.rejects(
-      store.remove({ ...identity, ino: "9".repeat(21) }),
+      store.remove({
+        ...authority,
+        identity: { ...authority.identity, ino: "9".repeat(21) }
+      }),
       /identity is invalid or zero/u
     );
   });

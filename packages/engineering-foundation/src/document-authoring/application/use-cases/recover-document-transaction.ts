@@ -157,7 +157,7 @@ async function observe(
   const journal = active.envelope.state === "PREPARED"
     ? {
         boundIdentity: "none" as const,
-        fileIdentity: nonzero(active.identity) ? "nonzero" as const : "zero-identity" as const,
+        fileIdentity: nonzero(active.authority.identity) ? "nonzero" as const : "zero-identity" as const,
         lifecycle: "PREPARED" as const,
         preparedState: active.envelope.journal.destination.state,
         version: "v2" as const
@@ -166,14 +166,14 @@ async function observe(
       ? {
           boundIdentity: nonzero(active.envelope.journal.ownedTemporary.identity)
             ? "temporary" as const : "zero-identity" as const,
-          fileIdentity: nonzero(active.identity) ? "nonzero" as const : "zero-identity" as const,
+          fileIdentity: nonzero(active.authority.identity) ? "nonzero" as const : "zero-identity" as const,
           lifecycle: "PUBLISHING" as const,
           version: "v2" as const
         }
       : {
           boundIdentity: nonzero(active.envelope.journal.publicationIdentity)
             ? "publication" as const : "zero-identity" as const,
-          fileIdentity: nonzero(active.identity) ? "nonzero" as const : "zero-identity" as const,
+          fileIdentity: nonzero(active.authority.identity) ? "nonzero" as const : "zero-identity" as const,
           lifecycle: "PUBLISHED" as const,
           version: "v2" as const
         };
@@ -206,7 +206,7 @@ async function readActiveJournal(
       "Coordinator reported recovery but the trusted document journal is absent."
     );
   }
-  return { envelope: stored.envelope, identity: stored.identity };
+  return { authority: stored.authority, envelope: stored.envelope };
 }
 
 async function executeRecoveryDecision(

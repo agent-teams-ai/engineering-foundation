@@ -9,7 +9,7 @@ import type { DocumentAuthorityRecompiler } from "../ports/document-authority-re
 import type { DocumentFileState } from "../ports/document-file-state.js";
 import type {
   DocumentJournalStore,
-  JournalIdentity
+  JournalAuthority
 } from "../ports/document-journal-store.js";
 import type { DocumentPublisher } from "../ports/document-publisher.js";
 import type { DocumentTransactionCoordinator } from "../ports/document-transaction-coordinator.js";
@@ -55,7 +55,7 @@ export interface DocumentTransactionRequest {
 
 export interface ActiveDocumentJournal {
   readonly envelope: DocumentTransactionEnvelope;
-  readonly identity: JournalIdentity;
+  readonly authority: JournalAuthority;
 }
 
 function signalOption(signal: AbortSignal | undefined): {
@@ -258,7 +258,10 @@ export async function createPreparedJournal(
   const envelope = await createDocumentTransactionEnvelope(
     envelopeBody(plan, { destination, state: "PREPARED" })
   );
-  const active = { envelope, identity: await createJournalReconciled(runtime, envelope) };
+  const active = {
+    authority: await createJournalReconciled(runtime, envelope),
+    envelope
+  };
   await runtime.faultInjector?.({ phase: "after-prepared-journal-durable" });
   return active;
 }
@@ -276,8 +279,8 @@ export async function replaceWithPublishing(
     })
   );
   const result = {
-    envelope,
-    identity: await replaceJournalReconciled(runtime, active, envelope)
+    authority: await replaceJournalReconciled(runtime, active, envelope),
+    envelope
   };
   await runtime.faultInjector?.({ phase: "after-publishing-journal-durable" });
   return result;
@@ -296,8 +299,8 @@ export async function replaceWithPublished(
     })
   );
   const result = {
-    envelope,
-    identity: await replaceJournalReconciled(runtime, active, envelope)
+    authority: await replaceJournalReconciled(runtime, active, envelope),
+    envelope
   };
   await runtime.faultInjector?.({ phase: "after-published-journal-durable" });
   return result;

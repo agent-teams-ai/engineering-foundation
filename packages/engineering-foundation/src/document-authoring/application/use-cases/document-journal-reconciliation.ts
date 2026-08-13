@@ -1,6 +1,6 @@
 import { assertNonzeroDocumentPhysicalIdentity } from "../model/document-physical-identity.js";
 import type { DocumentTransactionEnvelope } from "../model/document-transaction.js";
-import type { DocumentJournalStore, JournalIdentity } from "../ports/document-journal-store.js";
+import type { DocumentJournalStore, JournalAuthority } from "../ports/document-journal-store.js";
 import type { DocumentTransactionCoordinator } from "../ports/document-transaction-coordinator.js";
 
 export interface ReconciliationRuntime {
@@ -10,7 +10,7 @@ export interface ReconciliationRuntime {
 
 export interface ActiveJournalEvidence {
   readonly envelope: DocumentTransactionEnvelope;
-  readonly identity: JournalIdentity;
+  readonly authority: JournalAuthority;
 }
 
 export class DocumentJournalReconciliationError extends Error {
@@ -42,7 +42,7 @@ function failure(operation: string, primary: unknown, inspection?: unknown) {
 export async function createJournalReconciled(
   runtime: ReconciliationRuntime,
   envelope: DocumentTransactionEnvelope
-): Promise<JournalIdentity> {
+): Promise<JournalAuthority> {
   try {
     return await runtime.journal.create(envelope);
   } catch (primary) {
@@ -52,8 +52,8 @@ export async function createJournalReconciled(
     }
     if (observed.status.state === "recoverable" && observed.stored !== undefined &&
       sameEnvelope(observed.stored.envelope, envelope)) {
-      assertNonzeroDocumentPhysicalIdentity(observed.stored.identity);
-      return observed.stored.identity;
+      assertNonzeroDocumentPhysicalIdentity(observed.stored.authority.identity);
+      return observed.stored.authority;
     }
     if (observed.status.state === "idle" && observed.stored === undefined) {
       throw primary;
@@ -66,9 +66,9 @@ export async function replaceJournalReconciled(
   runtime: ReconciliationRuntime,
   active: ActiveJournalEvidence,
   envelope: DocumentTransactionEnvelope
-): Promise<JournalIdentity> {
+): Promise<JournalAuthority> {
   try {
-    return await runtime.journal.replace({ envelope, expectedIdentity: active.identity });
+    return await runtime.journal.replace({ envelope, expectedAuthority: active.authority });
   } catch (primary) {
     let observed;
     try { observed = await evidence(runtime); } catch (inspection) {
@@ -76,13 +76,14 @@ export async function replaceJournalReconciled(
     }
     if (observed.status.state !== "manual-recovery-required" && observed.stored !== undefined) {
       if (sameEnvelope(observed.stored.envelope, envelope)) {
-        assertNonzeroDocumentPhysicalIdentity(observed.stored.identity);
-        return observed.stored.identity;
+        assertNonzeroDocumentPhysicalIdentity(observed.stored.authority.identity);
+        return observed.stored.authority;
       }
       if (sameEnvelope(observed.stored.envelope, active.envelope) &&
-        observed.stored.identity.dev === active.identity.dev &&
-        observed.stored.identity.ino === active.identity.ino &&
-        observed.stored.identity.birthtimeNs === active.identity.birthtimeNs) {
+        observed.stored.authority.authorityDigest === active.authority.authorityDigest &&
+        observed.stored.authority.identity.dev === active.authority.identity.dev &&
+        observed.stored.authority.identity.ino === active.authority.identity.ino &&
+        observed.stored.authority.identity.birthtimeNs === active.authority.identity.birthtimeNs) {
         throw primary;
       }
     }
@@ -94,7 +95,7 @@ export async function removeJournalReconciled(
   runtime: ReconciliationRuntime,
   active: ActiveJournalEvidence
 ): Promise<void> {
-  try { await runtime.journal.remove(active.identity); } catch (primary) {
+  try { await runtime.journal.remove(active.authority); } catch (primary) {
     let observed;
     try { observed = await evidence(runtime); } catch (inspection) {
       throw failure("Journal removal", primary, inspection);

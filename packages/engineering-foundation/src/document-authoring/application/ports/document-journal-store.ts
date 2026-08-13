@@ -6,12 +6,16 @@ export interface JournalIdentity {
   readonly dev: string;
   readonly ino: string;
   readonly birthtimeNs: string;
+}
+
+export interface JournalAuthority {
+  readonly identity: JournalIdentity;
   readonly authorityDigest: `sha256:${string}`;
 }
 
 export interface StoredDocumentJournal {
   readonly envelope: DocumentTransactionEnvelope;
-  readonly identity: JournalIdentity;
+  readonly authority: JournalAuthority;
 }
 
 export interface DocumentJournalStore {
@@ -21,10 +25,10 @@ export interface DocumentJournalStore {
    * a residue-free stable observation of the canonical slot.
    */
   stabilizeForReconciliation(): Promise<StoredDocumentJournal | undefined>;
-  create(envelope: DocumentTransactionEnvelope): Promise<JournalIdentity>;
+  create(envelope: DocumentTransactionEnvelope): Promise<JournalAuthority>;
   replace(request: {
-    readonly expectedIdentity: JournalIdentity;
+    readonly expectedAuthority: JournalAuthority;
     readonly envelope: DocumentTransactionEnvelope;
-  }): Promise<JournalIdentity>;
-  remove(expectedIdentity: JournalIdentity): Promise<void>;
+  }): Promise<JournalAuthority>;
+  remove(expectedAuthority: JournalAuthority): Promise<void>;
 }

@@ -10,6 +10,7 @@ import {
 import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.js";
 import type {
   DocumentJournalStore,
+  JournalAuthority,
   JournalIdentity,
   StoredDocumentJournal
 } from "../../application/ports/document-journal-store.js";
@@ -73,7 +74,6 @@ function errorCode(error: unknown): string | undefined {
 
 function portableIdentity(identity: JournalIdentity): PortablePathIdentity {
   if (
-    !/^sha256:[0-9a-f]{64}$/u.test(identity.authorityDigest) ||
     !/^[1-9][0-9]{0,19}$/u.test(identity.dev) ||
     !/^[1-9][0-9]{0,19}$/u.test(identity.ino) ||
     !/^[1-9][0-9]{0,19}$/u.test(identity.birthtimeNs)
@@ -93,14 +93,10 @@ function contentDigest(bytes: Uint8Array): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function journalIdentity(
-  identity: PortablePathIdentity,
-  authorityDigest: `sha256:${string}`
-): JournalIdentity {
+function journalIdentity(identity: PortablePathIdentity): JournalIdentity {
   const result: JournalIdentity = {
     adapter: "node-filesystem",
     version: 1,
-    authorityDigest,
     birthtimeNs: identity.birthtimeNs.toString(),
     dev: identity.dev.toString(),
     ino: identity.ino.toString()
@@ -143,20 +139,15 @@ async function createPrivateEvidencePath(
   return { directory, path: join(directory, "evidence") };
 }
 
-interface JournalAuthority {
-  readonly identity: JournalIdentity;
-  readonly digest: `sha256:${string}`;
-}
-
 async function proveAuthority(
   path: string,
-  expected: JournalIdentity,
+  expected: JournalAuthority,
   description: string
 ): Promise<JournalAuthority> {
   const observed = await readBoundedRegularFile(path, maximumJournalBytes);
   if (
     observed.outcome !== "read" ||
-    (await pathMatchesRegularFileIdentity(path, portableIdentity(expected))) !==
+    (await pathMatchesRegularFileIdentity(path, portableIdentity(expected.identity))) !==
       "match" ||
     contentDigest(observed.bytes) !== expected.authorityDigest
   ) {
@@ -164,7 +155,7 @@ async function proveAuthority(
       `${description} identity or canonical bytes changed concurrently; all evidence was preserved.`
     );
   }
-  return { digest: expected.authorityDigest, identity: expected };
+  return expected;
 }
 
 export class NodeDocumentJournalStore implements DocumentJournalStore {
@@ -225,7 +216,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
 
   async #retireOwnedEvidence(
     path: string,
-    expected: JournalIdentity,
+    expected: JournalAuthority,
     operation: "create" | "remove" | "replace",
     evidence: "candidate" | "quarantine",
     description: string
@@ -258,7 +249,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
 
   async #prepareCandidate(
     envelope: DocumentTransactionEnvelope
-  ): Promise<JournalIdentity> {
+  ): Promise<JournalAuthority> {
     const bytes = await canonicalEnvelopeBytes(envelope);
     let handle: FileHandle;
     try {
@@ -272,12 +263,12 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       }
       throw error;
     }
-    let identity: JournalIdentity;
+    let authority: JournalAuthority;
     try {
-      identity = journalIdentity(
-        await captureFileHandleIdentity(handle),
-        contentDigest(bytes)
-      );
+      authority = {
+        authorityDigest: contentDigest(bytes),
+        identity: journalIdentity(await captureFileHandleIdentity(handle))
+      };
       await handle.writeFile(bytes);
       await handle.sync();
     } finally {
@@ -285,12 +276,12 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     }
     await proveAuthority(
       this.#candidatePath,
-      identity,
+      authority,
       "Document journal transition candidate"
     );
     await syncDirectoryStrictly(this.#parent);
     await this.operations.faultInjector?.({ phase: "after-candidate-synced" });
-    return identity;
+    return authority;
   }
 
   async read(): Promise<StoredDocumentJournal | undefined> {
@@ -330,7 +321,10 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     }
     return {
       envelope,
-      identity: journalIdentity(record.identity, contentDigest(record.bytes))
+      authority: {
+        authorityDigest: contentDigest(record.bytes),
+        identity: journalIdentity(record.identity)
+      }
     };
   }
 
@@ -343,9 +337,9 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     return this.read();
   }
 
-  async create(envelope: DocumentTransactionEnvelope): Promise<JournalIdentity> {
+  async create(envelope: DocumentTransactionEnvelope): Promise<JournalAuthority> {
     await this.#assertNoTransitionEvidence();
-    const identity = await this.#prepareCandidate(envelope);
+    const authority = await this.#prepareCandidate(envelope);
     try {
       await link(this.#candidatePath, this.journalPath);
     } catch (error) {
@@ -354,19 +348,19 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
         { cause: error }
       );
     }
-    await proveAuthority(this.journalPath, identity, "Canonical document journal");
+    await proveAuthority(this.journalPath, authority, "Canonical document journal");
     await syncDirectoryStrictly(this.#parent);
     await this.operations.faultInjector?.({ phase: "after-canonical-published" });
     await this.#retireOwnedEvidence(
       this.#candidatePath,
-      identity,
+      authority,
       "create",
       "candidate",
       "Document journal transition candidate"
     );
     await proveAuthority(
       this.journalPath,
-      identity,
+      authority,
       "Canonical document journal"
     );
     await this.operations.faultInjector?.({
@@ -374,15 +368,15 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       phase: "before-final-directory-sync"
     });
     await syncDirectoryStrictly(this.#parent);
-    return identity;
+    return authority;
   }
 
   async replace(request: {
-    readonly expectedIdentity: JournalIdentity;
+    readonly expectedAuthority: JournalAuthority;
     readonly envelope: DocumentTransactionEnvelope;
-  }): Promise<JournalIdentity> {
+  }): Promise<JournalAuthority> {
     await this.#assertNoTransitionEvidence();
-    const expected = request.expectedIdentity;
+    const expected = request.expectedAuthority;
     await proveAuthority(this.journalPath, expected, "Canonical document journal");
     const candidateIdentity = await this.#prepareCandidate(request.envelope);
     await proveAuthority(
@@ -392,7 +386,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     );
     const quarantine = await createPrivateEvidencePath(
       this.#parent,
-      quarantineName(this.#canonicalName, expected)
+      quarantineName(this.#canonicalName, expected.identity)
     );
     await this.operations.faultInjector?.({
       operation: "replace",
@@ -455,20 +449,20 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     return candidateIdentity;
   }
 
-  async remove(expectedIdentity: JournalIdentity): Promise<void> {
+  async remove(expectedAuthority: JournalAuthority): Promise<void> {
     await this.#assertNoTransitionEvidence();
     await proveAuthority(
       this.journalPath,
-      expectedIdentity,
+      expectedAuthority,
       "Canonical document journal"
     );
     const quarantine = await createPrivateEvidencePath(
       this.#parent,
-      quarantineName(this.#canonicalName, expectedIdentity)
+      quarantineName(this.#canonicalName, expectedAuthority.identity)
     );
     await proveAuthority(
       this.journalPath,
-      expectedIdentity,
+      expectedAuthority,
       "Canonical document journal"
     );
     await this.operations.faultInjector?.({
@@ -486,7 +480,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     }
     await proveAuthority(
       quarantine.path,
-      expectedIdentity,
+      expectedAuthority,
       "Quarantined document journal"
     );
     await syncDirectoryStrictly(this.#parent);
@@ -495,7 +489,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     });
     await this.#retireOwnedEvidence(
       quarantine.path,
-      expectedIdentity,
+      expectedAuthority,
       "remove",
       "quarantine",
       "Quarantined document journal"

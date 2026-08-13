@@ -22,6 +22,10 @@ import {
   readBoundedRegularFile
 } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 import { syncDirectoryStrictly } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
+import {
+  assertTerminalEvidenceDirectory,
+  ensureTerminalEvidenceDirectory
+} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
 import { parseStrictJson } from "../../../strict-json.js";
 import type { NodeDocumentJournalFaultInjector } from "./node-document-journal-store-faults.js";
 const maximumJournalBytes = 32 * 1024 * 1024;
@@ -230,16 +234,14 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     await proveAuthority(retired.path, expected, `Retired ${description}`);
     const terminalRoot = join(this.#parent,
       `${this.#canonicalName}.completed-document-evidence`);
-    await mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
-      if (errorCode(error) !== "EEXIST") {
-        throw error;
-      }
-    });
+    const terminalAuthority = await ensureTerminalEvidenceDirectory(terminalRoot);
     await this.#syncDirectory(this.#parent, operation, "state-parent");
     const terminalDirectory = join(terminalRoot, basename(retired.directory));
+    await assertTerminalEvidenceDirectory(terminalAuthority);
     await rename(retired.directory, terminalDirectory);
     await this.#syncDirectory(terminalRoot, operation, "destination");
     if (sourceDirectory !== this.#parent) {
+      await assertTerminalEvidenceDirectory(terminalAuthority);
       await rename(sourceDirectory,
         join(terminalRoot, `${basename(sourceDirectory)}.empty`));
       await this.#syncDirectory(terminalRoot, operation, "destination");

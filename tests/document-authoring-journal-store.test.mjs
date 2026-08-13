@@ -7,6 +7,7 @@ import {
   readdir,
   rename,
   rm,
+  symlink,
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -113,6 +114,31 @@ requiresStrictDirectoryDurability("creates, reads, replaces, and removes canonic
         entry.endsWith(".completed-document-evidence")),
       true
     );
+  });
+});
+
+requiresStrictDirectoryDurability("terminal retirement rejects a pre-existing link without escaping state", async () => {
+  await withFixture(async ({ path, state, store }) => {
+    const outside = await mkdtemp(join(tmpdir(), "document-journal-outside-"));
+    try {
+      await symlink(
+        outside,
+        `${path}.completed-document-evidence`,
+        process.platform === "win32" ? "junction" : "dir"
+      );
+      await assert.rejects(
+        store.create(await envelope()),
+        /real operation-owned directory/u
+      );
+      assert.deepEqual(await readdir(outside), []);
+      assert.equal(
+        (await readdir(state)).some((entry) =>
+          entry.startsWith("scaffolding-transaction.json.document-retired.")),
+        true
+      );
+    } finally {
+      await rm(outside, { force: true, recursive: true });
+    }
   });
 });
 

@@ -10,6 +10,7 @@ import {
   rename,
   rm,
   stat,
+  symlink,
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -23,11 +24,73 @@ import {
   applyFilesystemScaffold,
   planScaffoldFromFile
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
-import { writeAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal.js";
+import {
+  removeExpectedAuthorityScaffoldJournal,
+  writeAuthorityScaffoldJournal
+} from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal.js";
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
 import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
 import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-plan-authority.js";
 import { ownedTemporaryCleanupResiduePrefix } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
+
+test("legacy journal retirement rejects a pre-existing link without escaping state", async () => {
+  const root = await createConsumer();
+  const outside = await mkdtemp(join(tmpdir(), "legacy-scaffold-journal-outside-"));
+  try {
+    const scaffoldPlan = await plan(root);
+    const path = journalPath(root);
+    await mkdir(dirname(path), { recursive: true });
+    await symlink(
+      outside,
+      `${path}.completed-scaffold-evidence`,
+      process.platform === "win32" ? "junction" : "dir"
+    );
+    await assert.rejects(
+      writeAuthorityScaffoldJournal(
+        path,
+        freshAuthorityScaffoldJournal(scaffoldPlan)
+      ),
+      /real operation-owned directory/u
+    );
+    assert.deepEqual(await readdir(outside), []);
+    assert.equal(
+      (await readdir(dirname(path))).some((entry) =>
+        entry.startsWith("scaffolding-transaction.json.document-quarantine.")),
+      true
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("legacy journal removal rejects a replacement terminal-root link", async () => {
+  const root = await createConsumer();
+  const outside = await mkdtemp(join(tmpdir(), "legacy-scaffold-remove-outside-"));
+  try {
+    const scaffoldPlan = await plan(root);
+    const path = journalPath(root);
+    const authority = await writeAuthorityScaffoldJournal(
+      path,
+      freshAuthorityScaffoldJournal(scaffoldPlan)
+    );
+    const terminalRoot = `${path}.completed-scaffold-evidence`;
+    await rm(terminalRoot, { force: true, recursive: true });
+    await symlink(
+      outside,
+      terminalRoot,
+      process.platform === "win32" ? "junction" : "dir"
+    );
+    await assert.rejects(
+      removeExpectedAuthorityScaffoldJournal(path, authority),
+      /real operation-owned directory/u
+    );
+    assert.deepEqual(await readdir(outside), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));

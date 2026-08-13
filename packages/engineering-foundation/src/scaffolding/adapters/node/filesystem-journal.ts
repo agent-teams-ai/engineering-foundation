@@ -16,6 +16,10 @@ import {
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
 import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.js";
 import { sha256Bytes } from "../../kernel/canonical-json.js";
+import {
+  assertTerminalEvidenceDirectory,
+  ensureTerminalEvidenceDirectory
+} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
 
 export const SCAFFOLD_JOURNAL_FILE = FOUNDATION_TRANSACTION_FILE;
 export const SCAFFOLD_JOURNAL_QUARANTINE_PREFIX =
@@ -28,12 +32,6 @@ function isMissing(error: unknown): boolean {
     "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT"
   );
-}
-
-function errorCode(error: unknown): string | undefined {
-  return error instanceof Error && "code" in error
-    ? (error as NodeJS.ErrnoException).code
-    : undefined;
 }
 
 async function writeAuthorityJournalFile(
@@ -219,13 +217,10 @@ async function retirePrivateEvidence(
     dirname(quarantine.directory),
     `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
   );
-  await mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
-    if (errorCode(error) !== "EEXIST") {
-      throw error;
-    }
-  });
+  const terminalAuthority = await ensureTerminalEvidenceDirectory(terminalRoot);
   await syncDirectory(dirname(quarantine.directory));
   const terminalDirectory = join(terminalRoot, basename(quarantine.directory));
+  await assertTerminalEvidenceDirectory(terminalAuthority);
   await rename(quarantine.directory, terminalDirectory);
   await syncDirectory(terminalRoot);
   await syncDirectory(dirname(quarantine.directory));
@@ -379,13 +374,10 @@ export async function removeExpectedAuthorityScaffoldJournal(
     dirname(quarantine.directory),
     `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
   );
-  await mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
-    if (errorCode(error) !== "EEXIST") {
-      throw error;
-    }
-  });
+  const terminalAuthority = await ensureTerminalEvidenceDirectory(terminalRoot);
   await syncDirectory(dirname(quarantine.directory));
   const terminalDirectory = join(terminalRoot, basename(quarantine.directory));
+  await assertTerminalEvidenceDirectory(terminalAuthority);
   await rename(quarantine.directory, terminalDirectory);
   await syncDirectory(terminalRoot);
   await syncDirectory(dirname(path));

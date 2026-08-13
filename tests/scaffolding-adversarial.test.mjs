@@ -319,7 +319,7 @@ test("rechecks outputs before an already-applied Receipt", async () => {
   }
 });
 
-test("preserves an exact replacement of a transaction temporary", async () => {
+test("preserves an exact replacement before cleanup transition authority", async () => {
   const root = await createConsumer();
   try {
     const scaffoldPlan = await plan(root);
@@ -366,20 +366,14 @@ test("preserves an exact replacement of a transaction temporary", async () => {
     const residueEntries = (await readdir(evidence.parent)).filter((entry) =>
       entry.startsWith(evidence.residuePrefix)
     );
-    assert.equal(residueEntries.length, 1);
-    const quarantinedReplacement = join(
-      evidence.parent,
-      residueEntries[0],
-      "owned-temporary",
-    );
-    assert.deepEqual(await readFile(quarantinedReplacement), evidence.bytes);
+    assert.deepEqual(residueEntries, []);
+    assert.deepEqual(await readFile(evidence.temporary), evidence.bytes);
     assert.deepEqual(await readFile(evidence.originalPath), evidence.bytes);
-    const quarantinedIdentity = await stat(quarantinedReplacement, { bigint: true });
+    const replacementIdentity = await stat(evidence.temporary, { bigint: true });
     const originalIdentity = await stat(evidence.originalPath, { bigint: true });
-    assert.equal(quarantinedIdentity.ino, evidence.replacementIdentity.ino);
+    assert.equal(replacementIdentity.ino, evidence.replacementIdentity.ino);
     assert.equal(originalIdentity.ino, evidence.ownedIdentity.ino);
-    assert.notEqual(quarantinedIdentity.ino, originalIdentity.ino);
-    await assertMissing(evidence.temporary);
+    assert.notEqual(replacementIdentity.ino, originalIdentity.ino);
     assert.match(await readFile(journalPath(root), "utf8"), /"publishing"/u);
   } finally {
     await rm(root, { recursive: true, force: true });

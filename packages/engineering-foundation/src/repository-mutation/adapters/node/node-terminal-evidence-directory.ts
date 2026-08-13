@@ -1,11 +1,18 @@
 import { lstat, mkdir, realpath } from "node:fs/promises";
-import type { BigIntStats } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
 import type { PortablePathIdentity } from "../../application/model/path-identity.js";
 
+interface TerminalEvidenceDirectoryStat {
+  readonly birthtimeNs: bigint;
+  readonly dev: bigint;
+  readonly ino: bigint;
+  readonly isDirectory: () => boolean;
+  readonly isSymbolicLink: () => boolean;
+}
+
 interface TerminalEvidenceDirectoryOperations {
-  readonly lstat: (path: string) => Promise<BigIntStats>;
+  readonly lstat: (path: string) => Promise<TerminalEvidenceDirectoryStat>;
   readonly mkdir: typeof mkdir;
   readonly realpath: typeof realpath;
 }
@@ -22,7 +29,7 @@ const nodeOperations: TerminalEvidenceDirectoryOperations = {
 };
 
 function identityFromStat(
-  metadata: BigIntStats
+  metadata: TerminalEvidenceDirectoryStat
 ): PortablePathIdentity {
   return {
     birthtimeNs: metadata.birthtimeNs,

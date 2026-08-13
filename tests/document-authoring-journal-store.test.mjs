@@ -515,6 +515,78 @@ test("shared quarantine preserves a pathname replacement made after proof", asyn
   });
 });
 
+test("shared quarantine is synced before rejecting captured foreign evidence", async () => {
+  await withFixture(async ({ path, state, store }) => {
+    const authority = await store.create(await envelope());
+    const events = [];
+    const attacked = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (point.phase === "before-shared-quarantine") {
+          await writeFile(path, "captured foreign bytes\n");
+          events.push("mutated");
+        }
+        if (
+          point.phase === "before-directory-sync" &&
+          point.operation === "remove"
+        ) {
+          events.push(`sync:${point.role}`);
+        }
+      }
+    });
+
+    await assert.rejects(attacked.remove(authority), /canonical bytes/u);
+    assert.deepEqual(events.slice(0, 3), [
+      "mutated",
+      "sync:destination",
+      "sync:source"
+    ]);
+    assert.ok(
+      (await readdir(state)).some((entry) =>
+        entry.includes(".document-quarantine.")
+      )
+    );
+  });
+});
+
+test("retired capture is synced before rejecting a private pathname swap", async () => {
+  await withFixture(async ({ path, state }) => {
+    const events = [];
+    const store = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (
+          point.phase === "before-directory-sync" &&
+          point.operation === "create" &&
+          point.role === "destination"
+        ) {
+          await writeFile(
+            join(point.path, "evidence"),
+            "captured retired foreign bytes\n"
+          );
+          events.push("mutated");
+        }
+        if (
+          point.phase === "before-directory-sync" &&
+          point.operation === "create"
+        ) {
+          events.push(`sync:${point.role}`);
+        }
+      }
+    });
+
+    await assert.rejects(store.create(await envelope()), /canonical bytes/u);
+    assert.deepEqual(events.slice(0, 3), [
+      "mutated",
+      "sync:destination",
+      "sync:source"
+    ]);
+    assert.ok(
+      (await readdir(state)).some((entry) =>
+        entry.includes(".document-retired.")
+      )
+    );
+  });
+});
+
 test("an interrupted removal leaves a quarantine barrier and fails closed", async () => {
   await withFixture(async ({ path, state, store }) => {
     const authority = await store.create(await envelope());

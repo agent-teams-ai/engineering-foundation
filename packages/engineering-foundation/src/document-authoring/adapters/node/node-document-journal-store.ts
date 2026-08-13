@@ -219,12 +219,12 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     );
     const sourceDirectory = dirname(path);
     await rename(path, retired.path);
-    await proveAuthority(retired.path, expected, `Retired ${description}`);
     await this.#syncRenameBoundary(
       retired.directory,
       sourceDirectory,
       operation
     );
+    await proveAuthority(retired.path, expected, `Retired ${description}`);
     // `retired.path` lives in a fresh 0700 operation-private directory and is
     // never exposed as mutation authority. Pure Node has no unlink-by-handle
     // primitive; the
@@ -387,8 +387,8 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
         { cause: error }
       );
     }
-    await proveAuthority(quarantine.path, expected, "Quarantined document journal");
     await this.#syncRenameBoundary(quarantine.directory, this.#parent, "replace");
+    await proveAuthority(quarantine.path, expected, "Quarantined document journal");
     await this.operations.faultInjector?.({
       phase: "after-canonical-quarantined"
     });
@@ -463,12 +463,12 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
         { cause: error }
       );
     }
+    await this.#syncRenameBoundary(quarantine.directory, this.#parent, "remove");
     await proveAuthority(
       quarantine.path,
       expectedAuthority,
       "Quarantined document journal"
     );
-    await this.#syncRenameBoundary(quarantine.directory, this.#parent, "remove");
     await this.operations.faultInjector?.({
       phase: "after-canonical-quarantined"
     });

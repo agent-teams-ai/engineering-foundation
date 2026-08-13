@@ -57,7 +57,9 @@ function isJsonScalar(
     if (contributesToOutput) {
       addOutputLowerBound(
         budget,
-        1 + (typeof value === "string" ? Buffer.byteLength(value, "utf8") : 1)
+        1 + (typeof value === "string"
+          ? Buffer.byteLength(value.normalize("NFC"), "utf8")
+          : 1)
       );
     }
     return true;

@@ -207,6 +207,20 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
     additionalMetadata: { first: shared, second: shared }
   };
   assert.equal(await validator.validateIntent(sharedIntent), sharedIntent);
+  const decomposedValue = "e\u0301".repeat(2048);
+  const decomposedLeaf = Array.from({ length: 16 }, () => decomposedValue);
+  const normalizationShrinksBelowLimit = Array.from(
+    { length: 11 },
+    () => decomposedLeaf
+  );
+  const normalizationIntent = {
+    ...intent,
+    additionalMetadata: { normalizationShrinksBelowLimit }
+  };
+  assert.equal(
+    await validator.validateIntent(normalizationIntent),
+    normalizationIntent
+  );
   const amplifiedLeaf = Array.from({ length: 128 }, () => "x".repeat(4096));
   const amplifiedMiddle = Array.from({ length: 128 }, () => amplifiedLeaf);
   const amplifiedRoot = Array.from({ length: 128 }, () => amplifiedMiddle);

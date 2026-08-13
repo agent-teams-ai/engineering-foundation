@@ -264,9 +264,9 @@ projection admits at most 100,000 entries. Field, item, nesting, scalar,
 diagnostic, and encoded-output limits remain exactly those in the published v1
 schemas. Both character and UTF-8 byte bounds are enforced when specified.
 For in-memory callers, Foundation rejects shared-object amplification as soon
-as a lower bound of the logically expanded document fields exceeds the same
-public 1 MiB output ceiling. This proves an existing output failure before
-schema traversal; it does not add a wire-contract limit.
+as an NFC-normalized lower bound of the logically expanded document fields
+exceeds the same public 1 MiB output ceiling. This proves an existing output
+failure before schema traversal; it does not add a wire-contract limit.
 
 ### Template and canonical Markdown transform
 

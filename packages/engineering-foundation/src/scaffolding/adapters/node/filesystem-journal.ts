@@ -18,6 +18,8 @@ import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.
 import { sha256Bytes } from "../../kernel/canonical-json.js";
 
 export const SCAFFOLD_JOURNAL_FILE = FOUNDATION_TRANSACTION_FILE;
+export const SCAFFOLD_JOURNAL_QUARANTINE_PREFIX =
+  `${FOUNDATION_TRANSACTION_FILE}.document-quarantine.`;
 let quarantineSequence = 0;
 
 function isMissing(error: unknown): boolean {
@@ -32,10 +34,10 @@ async function writeAuthorityJournalFile(
   path: string,
   journal: AuthorityScaffoldJournal,
   options: {
-    readonly expectedPrevious?: AuthorityScaffoldJournal;
+    readonly expectedAuthority?: ScaffoldJournalAuthority;
     readonly faultInjector?: (() => Promise<void> | void) | undefined;
   }
-): Promise<PortableFileIdentity> {
+): Promise<ScaffoldJournalAuthority> {
   const parent = dirname(path);
   await mkdir(parent, { recursive: true });
   const temporary = `${path}.tmp`;
@@ -75,9 +77,7 @@ async function writeAuthorityJournalFile(
         "Scaffolding journal temporary path was replaced concurrently."
       );
     }
-    const existing = options.expectedPrevious === undefined
-      ? undefined
-      : await captureExpectedAuthorityScaffoldJournal(path, options.expectedPrevious);
+    const existing = options.expectedAuthority;
     let quarantine: { readonly directory: string; readonly path: string } | undefined;
     if (existing !== undefined) {
       quarantine = await createPrivateQuarantine(path, existing.identity);
@@ -108,7 +108,7 @@ async function writeAuthorityJournalFile(
       await rmdir(quarantine.directory);
       await syncDirectory(parent);
     }
-    return temporaryIdentity;
+    return temporaryAuthority;
   } finally {
     if (!renamed && temporaryIdentity !== undefined) {
       const expected = {
@@ -126,20 +126,20 @@ export async function writeAuthorityScaffoldJournal(
   path: string,
   journal: AuthorityScaffoldJournal,
   options: {
-    readonly expectedPrevious?: AuthorityScaffoldJournal;
+    readonly expectedAuthority?: ScaffoldJournalAuthority;
     readonly faultInjector?: (() => Promise<void> | void) | undefined;
   } = {}
-): Promise<PortableFileIdentity> {
+): Promise<ScaffoldJournalAuthority> {
   return writeAuthorityJournalFile(path, journal, options);
 }
 
-interface ScaffoldJournalRecord {
+export interface ScaffoldJournalRecord {
   readonly authorityDigest: string;
   readonly identity: PortableFileIdentity;
   readonly journal: AuthorityScaffoldJournal;
 }
 
-interface ScaffoldJournalAuthority {
+export interface ScaffoldJournalAuthority {
   readonly identity: PortableFileIdentity;
   readonly authorityDigest: string;
 }
@@ -172,7 +172,7 @@ async function createPrivateQuarantine(path: string, identity: PortableFileIdent
     quarantineSequence += 1;
     const directory = join(
       parent,
-      `${FOUNDATION_TRANSACTION_FILE}.document-quarantine.${identity.dev}.${identity.ino}.${identity.birthtimeNs}.${process.pid}.${Date.now()}.${quarantineSequence}`
+      `${SCAFFOLD_JOURNAL_QUARANTINE_PREFIX}${identity.dev}.${identity.ino}.${identity.birthtimeNs}.${process.pid}.${Date.now()}.${quarantineSequence}`
     );
     try {
       await mkdir(directory, { mode: 0o700 });
@@ -246,7 +246,7 @@ async function readJournalSource(path: string): Promise<{
   }
 }
 
-async function readScaffoldJournalRecord(
+export async function readScaffoldJournalRecord(
   path: string
 ): Promise<ScaffoldJournalRecord | undefined> {
   const record = await readJournalSource(path);

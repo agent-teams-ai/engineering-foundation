@@ -255,6 +255,43 @@ test("preserves a pathname replacement between proof and journal quarantine", as
   }
 });
 
+test("rejects a same-bytes different-inode journal substitution before replace", async () => {
+  const root = await createConsumer();
+  try {
+    const scaffoldPlan = await plan(root);
+    let substituted;
+    await assert.rejects(
+      applyAuthorityFilesystemScaffoldWithFaultInjection(root, scaffoldPlan, async (point) => {
+        if (point.phase === "after-journal-temporary-synced" && substituted === undefined) {
+          const journal = journalPath(root);
+          try {
+            const bytes = await readFile(journal);
+            await rename(journal, `${journal}.owned-original`);
+            await writeFile(journal, bytes);
+            substituted = bytes;
+          } catch (error) {
+            if (error?.code !== "ENOENT") {
+              throw error;
+            }
+          }
+        }
+      }),
+      /journal changed before it could be removed|Quarantined scaffolding journal changed concurrently/u
+    );
+    assert.ok(substituted);
+    const quarantine = (await readdir(dirname(journalPath(root)))).find((entry) =>
+      entry.startsWith("scaffolding-transaction.json.document-quarantine.")
+    );
+    assert.ok(quarantine);
+    assert.deepEqual(
+      await readFile(join(dirname(journalPath(root)), quarantine, "evidence")),
+      substituted
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("rechecks outputs before an already-applied Receipt", async () => {
   const root = await createConsumer();
   try {

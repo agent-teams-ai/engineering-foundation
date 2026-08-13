@@ -315,6 +315,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-error.ts
+      - packages/engineering-foundation/src/transaction-coordination/application/model/internal-transaction-status.ts
       - packages/engineering-foundation/src/transaction-coordination/application/model/transaction-status.ts
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-operation-lock.ts
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-slot.ts

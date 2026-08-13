@@ -906,6 +906,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/application/model/document-catalog.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-command.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-find.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-planning.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-physical-identity.ts
@@ -921,6 +922,8 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-state-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-publisher.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-reachability-projector.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-structure-verifier.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-template-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-transaction-coordinator.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/documentation-catalog-reader.ts
@@ -943,11 +946,16 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/application/use-cases/build-documentation-catalog.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/compile-document-plan.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/apply-document-plan.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-command-projection.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/project-document-reachability.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/document-transaction-continuation.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/document-transaction-error.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/find-documents.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/plan-documentation-document.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/recover-document-transaction.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-doctor.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-new.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-recover.ts
       - packages/engineering-foundation/src/document-authoring/document-catalog-error.ts
       - packages/engineering-foundation/src/document-authoring/document-planning-error.ts
   - id: foundation.document-authoring.adapters
@@ -980,6 +988,8 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/adapters/canonical-markdown.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/inbound/cli/document-command-failure.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/inbound/cli/document-command-renderer.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-authoring-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-contract-validator.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-file-state.ts
@@ -987,6 +997,8 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-planning-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-planning-state-reader.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-publisher.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-reachability-projector.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-structure-verifier.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-template-reader.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-transaction-coordinator.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-metadata-instance-validator.ts
@@ -1013,6 +1025,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/document-authoring/composition/document-command-cli.ts
       - packages/engineering-foundation/src/document-authoring/composition/node-document-planning.ts
       - packages/engineering-foundation/src/document-authoring/composition/node-document-authority-recompiler.ts
       - packages/engineering-foundation/src/document-authoring/composition/node-document-writing-private.ts

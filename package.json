@@ -39,7 +39,7 @@
     "parser-spike:check": "pnpm --filter @agent-teams/source-dependency-parser-spike run check",
     "registry-install-e2e": "pnpm package:check && pnpm registry-install-e2e:built",
     "registry-install-e2e:built": "node scripts/registry-install-e2e.mjs",
-    "release:publish": "pnpm check && pnpm buf-qualification:e2e:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e && changeset publish",
+    "release:publish": "pnpm check && pnpm buf-qualification:e2e:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e && node scripts/release-publish.mjs",
     "release-owned-files:check": "node scripts/check-release-owned-files.mjs",
     "security:workflows": "node scripts/security-toolchain.mjs",
     "release:version": "changeset version && pnpm build && node packages/engineering-foundation/dist/cli.js public-api-promote-release --consumer .",

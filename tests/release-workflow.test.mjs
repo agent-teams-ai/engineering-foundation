@@ -318,6 +318,14 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["release:publish"],
     /published-compatibility:e2e/u,
   );
+  assert.match(
+    manifest.scripts["release:publish"],
+    /node scripts\/release-publish\.mjs/u,
+  );
+  assert.doesNotMatch(
+    manifest.scripts["release:publish"],
+    /(?:^|&&\s*)changeset publish(?:\s|$)/u,
+  );
   assert.equal(
     manifest.scripts["registry-install-e2e:built"],
     "node scripts/registry-install-e2e.mjs",

@@ -9,6 +9,7 @@ const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4"
 const commandMaxBufferBytes = 16 * 1024 * 1024;
 const commandMaxTimeoutMs = 2_147_483_647;
 const commandTerminationSignal = "SIGKILL";
+export const commandDefaultTimeoutMs = 120_000;
 const secretPatterns = [
   /-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/u,
   /\bAKIA[0-9A-Z]{16}\b/u,
@@ -182,7 +183,7 @@ async function cleanUpAfterNormalExit(child) {
 }
 
 export async function runCommand(command, args, cwd, options = {}) {
-  const timeoutMs = options.timeoutMs ?? 120_000;
+  const timeoutMs = options.timeoutMs ?? commandDefaultTimeoutMs;
   if (
     !Number.isSafeInteger(timeoutMs) ||
     timeoutMs <= 0 ||

@@ -277,3 +277,53 @@ test("canonical journal plus quarantine residue preserves both and reports trans
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("retired journal evidence blocks every Foundation mutation without deletion", async (context) => {
+  for (const kind of ["file", "directory"]) {
+    await context.test(kind, async () => {
+      const root = await createRoot();
+      const residue = `${slotPath(root)}.document-retired.1.2.3`;
+      try {
+        await mkdir(dirname(residue), { recursive: true });
+        if (kind === "directory") {
+          await mkdir(residue);
+          await writeFile(join(residue, "evidence"), "retired evidence\n", "utf8");
+        } else {
+          await writeFile(residue, "retired evidence\n", "utf8");
+        }
+        const before = kind === "directory"
+          ? await readFile(join(residue, "evidence"))
+          : await readFile(residue);
+        const slot = new NodeFoundationTransactionSlot({
+          consumerRoot: root,
+          installedVersion: version,
+          installedBuildIdentity: buildIdentity,
+        });
+        const status = await slot.inspect();
+        assert.equal(status.state, "manual-recovery-required");
+        assert.equal(status.reason, "journal-transition-residue");
+
+        for (const requestedMutation of ["document-authoring", "scaffolding"]) {
+          const coordinator = new FoundationTransactionCoordinator({
+            lock: { async acquire() { return async () => {}; } },
+            slot,
+          });
+          await assert.rejects(
+            coordinator.acquire({ requestedMutation }),
+            (error) =>
+              error?.code === "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+          );
+        }
+
+        assert.deepEqual(
+          kind === "directory"
+            ? await readFile(join(residue, "evidence"))
+            : await readFile(residue),
+          before,
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});

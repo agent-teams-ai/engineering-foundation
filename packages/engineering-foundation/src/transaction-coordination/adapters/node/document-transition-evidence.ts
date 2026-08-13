@@ -6,6 +6,7 @@ import type { InternalFoundationTransactionStatus } from "../../application/mode
 const maximumStateDirectoryEntries = 1024;
 const transition = `${FOUNDATION_TRANSACTION_FILE}.document-transition`;
 const quarantine = `${FOUNDATION_TRANSACTION_FILE}.document-quarantine.`;
+const retired = `${FOUNDATION_TRANSACTION_FILE}.document-retired.`;
 
 function isMissing(error: unknown): boolean {
   return error instanceof Error && "code" in error &&
@@ -40,7 +41,9 @@ export async function inspectDocumentTransitionEvidence(
     );
   }
   return entries.includes(transition) ||
-    entries.some((entry) => entry.startsWith(quarantine))
+    entries.some(
+      (entry) => entry.startsWith(quarantine) || entry.startsWith(retired)
+    )
     ? manual(
         "An incomplete document journal transition was preserved and requires recovery before another Foundation mutation can start."
       )

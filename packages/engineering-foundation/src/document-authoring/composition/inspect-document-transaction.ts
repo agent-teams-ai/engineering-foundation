@@ -48,6 +48,83 @@ function operationKind(status: Exclude<ObservedTransactionStatus, {
     | undefined;
 }
 
+function stringProperty(value: unknown, key: string): string | undefined {
+  const candidate = property(value, key);
+  return typeof candidate === "string" ? candidate : undefined;
+}
+
+function hasVersionMismatch(status: Exclude<ObservedTransactionStatus, {
+  readonly state: "idle";
+}>): boolean {
+  return status.diagnostics.some(
+    ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+  );
+}
+
+function transactionKind(
+  status: Exclude<ObservedTransactionStatus, { readonly state: "idle" }>,
+): Exclude<DocumentTransactionInspectionV1, {
+  readonly state: "idle" | "recoverable";
+}>["transactionKind"] & {} {
+  if (hasVersionMismatch(status)) {
+    return "version-mismatch";
+  }
+  if (status.state === "pending") {
+    switch (status.operationKind) {
+      case "document-authoring": return "document";
+      case "local-mode": return "local-mode";
+      case "scaffolding": return "scaffold";
+    }
+  }
+  switch (status.reason) {
+    case "journal-transition-residue":
+    case "orphan-temporary": return "transition-residue";
+    case "corrupt-or-incompatible":
+    case "invalid-slot":
+    case "local-mode-evidence-invalid":
+    case "physical-identity-unverifiable":
+    case "unstable-slot": return "corrupt";
+    case "unsupported-schema": return "version-mismatch";
+    case "recovery-handler-unavailable":
+      switch (status.operationKind) {
+        case "document-authoring": return "document";
+        case "scaffolding": return "scaffold";
+        case undefined: return "unknown";
+      }
+      return "unknown";
+    case "multiple-transactions": return "unknown";
+  }
+}
+
+function exactRecovery(
+  status: Exclude<ObservedTransactionStatus, { readonly state: "idle" }>,
+): Extract<DocumentTransactionInspectionV1, {
+  readonly state: "manual-recovery-required";
+}>["recovery"] {
+  const recovery = property(status, "recovery");
+  const commandId = stringProperty(recovery, "commandId");
+  if (commandId === "detach") {
+    return { commandId, args: {} };
+  }
+  if (commandId !== "docs-recover" && commandId !== "scaffold-recover") {
+    return undefined;
+  }
+  const exactFoundationVersion = stringProperty(recovery, "exactFoundationVersion");
+  if (exactFoundationVersion === undefined) {
+    return undefined;
+  }
+  const exactFoundationBuildIdentity =
+    stringProperty(recovery, "exactFoundationBuildIdentity");
+  return {
+    commandId,
+    args: {
+      exactFoundationVersion,
+      ...(exactFoundationBuildIdentity === undefined
+        ? {} : { exactFoundationBuildIdentity }),
+    },
+  };
+}
+
 export function projectDocumentTransactionInspectionV1(
   status: ObservedTransactionStatus,
 ): DocumentTransactionInspectionV1 {
@@ -67,6 +144,13 @@ export function projectDocumentTransactionInspectionV1(
     };
   }
   const kind = operationKind(status);
+  const format = stringProperty(status, "format");
+  const foundationVersion = stringProperty(status, "foundationVersion");
+  const foundationBuildIdentity = stringProperty(
+    status,
+    "foundationBuildIdentity",
+  );
+  const recovery = exactRecovery(status);
   return {
     schemaVersion: 1,
     state: "manual-recovery-required",
@@ -75,6 +159,12 @@ export function projectDocumentTransactionInspectionV1(
       : status.diagnostics[0]?.message ??
         "A foreign Foundation transaction blocks document authoring.",
     ...(kind === undefined ? {} : { operationKind: kind }),
+    transactionKind: transactionKind(status),
+    ...(format === undefined ? {} : { format }),
+    ...(foundationVersion === undefined ? {} : { foundationVersion }),
+    ...(foundationBuildIdentity === undefined
+      ? {} : { foundationBuildIdentity }),
+    ...(recovery === undefined ? {} : { recovery }),
     diagnostics: status.diagnostics,
   };
 }
@@ -118,6 +208,7 @@ function unsafeTransactionPathInspection(): DocumentTransactionInspectionV1 {
     schemaVersion: 1,
     state: "manual-recovery-required",
     reason: "Foundation transaction evidence path is redirected or cannot be inspected safely.",
+    transactionKind: "corrupt",
     diagnostics: [{
       code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
       message: "Foundation transaction evidence path is redirected or cannot be inspected safely.",

@@ -77,6 +77,17 @@ test("projects only an exact v3/v2 document handler as docs-recover", () => {
     state: "manual-recovery-required",
     reason: "exact build unavailable",
     operationKind: "document-authoring",
+    transactionKind: "version-mismatch",
+    format: "document-authoring-envelope-v3",
+    foundationVersion: "0.16.0",
+    foundationBuildIdentity: `sha256:${"a".repeat(64)}`,
+    recovery: {
+      commandId: "docs-recover",
+      args: {
+        exactFoundationVersion: "0.16.0",
+        exactFoundationBuildIdentity: `sha256:${"a".repeat(64)}`,
+      },
+    },
     diagnostics: mismatch.diagnostics,
   });
 
@@ -104,6 +115,8 @@ test("projects only an exact v3/v2 document handler as docs-recover", () => {
     state: "manual-recovery-required",
     reason: "physical-identity-unverifiable",
     operationKind: "document-authoring",
+    transactionKind: "corrupt",
+    format: "envelope-v3",
     diagnostics: manual.diagnostics,
   });
 
@@ -126,8 +139,36 @@ test("projects only an exact v3/v2 document handler as docs-recover", () => {
     state: "manual-recovery-required",
     reason: "recover scaffold first",
     operationKind: "scaffolding",
+    transactionKind: "scaffold",
+    format: "legacy-scaffolding-v1",
+    foundationVersion: "0.16.0",
+    recovery: {
+      commandId: "scaffold-recover",
+      args: { exactFoundationVersion: "0.16.0" },
+    },
     diagnostics: foreign.diagnostics,
   });
+});
+
+test("projects manual status by structured reason without message heuristics", () => {
+  const diagnostic = [{
+    code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+    message: "the message intentionally contains unsupported version and document words",
+  }];
+  for (const [reason, transactionKind] of [
+    ["journal-transition-residue", "transition-residue"],
+    ["orphan-temporary", "transition-residue"],
+    ["invalid-slot", "corrupt"],
+    ["corrupt-or-incompatible", "corrupt"],
+    ["unsupported-schema", "version-mismatch"],
+    ["multiple-transactions", "unknown"],
+  ]) {
+    const projected = projectDocumentTransactionInspectionV1({
+      state: "manual-recovery-required", reason, diagnostics: diagnostic,
+    });
+    assert.equal(projected.transactionKind, transactionKind);
+    assert.equal(projected.recovery, undefined);
+  }
 });
 
 test("public document inspection exposes docs-recover while legacy local-mode stays lossy", async () => {

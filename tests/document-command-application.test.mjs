@@ -92,6 +92,25 @@ test("docs new blocks planning when transaction recovery is pending", async () =
   assert.deepEqual(harness.calls, ["inspect"]);
 });
 
+test("docs new never invents docs recovery for foreign or corrupt evidence", async () => {
+  for (const inspection of [
+    {
+      schemaVersion: 1, state: "manual-recovery-required", reason: "corrupt",
+      transactionKind: "corrupt", diagnostics: []
+    },
+    {
+      schemaVersion: 1, state: "manual-recovery-required", reason: "foreign",
+      operationKind: "scaffolding", transactionKind: "scaffold", diagnostics: []
+    }
+  ]) {
+    const harness = newHarness({ async inspect() { return inspection; } });
+    const result = await harness.subject.execute({
+      consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false
+    });
+    assert.equal(result.envelope.diagnostics[0].remediation, undefined);
+  }
+});
+
 test("docs new cancellation is 130 before publication", async () => {
   const controller = new AbortController();
   controller.abort();

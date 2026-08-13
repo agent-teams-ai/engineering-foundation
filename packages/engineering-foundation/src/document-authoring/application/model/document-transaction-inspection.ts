@@ -47,6 +47,7 @@ export type DocumentTransactionInspectionV1 =
         | "version-mismatch";
       readonly foundationVersion?: string;
       readonly foundationBuildIdentity?: string;
+      readonly format?: string;
       readonly recovery?: {
         readonly commandId: "detach" | "docs-recover" | "scaffold-recover";
         readonly args: Readonly<Record<string, string>>;

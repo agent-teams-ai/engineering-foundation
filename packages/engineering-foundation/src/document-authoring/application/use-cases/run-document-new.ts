@@ -38,6 +38,15 @@ function signalOption(signal: AbortSignal | undefined): { readonly signal?: Abor
 function transactionDiagnostic(
   inspection: Exclude<DocumentTransactionInspectionV1, { readonly state: "idle" }>
 ): DocumentCommandDiagnostic {
+  const recovery = inspection.state === "recoverable"
+    ? { commandId: "docs.recover" as const, args: {} }
+    : inspection.recovery === undefined
+      ? undefined
+      : {
+          commandId: inspection.recovery.commandId === "docs-recover"
+            ? "docs.recover" as const : inspection.recovery.commandId,
+          args: inspection.recovery.args,
+        };
   return {
     ruleId: "document.new.transaction-active",
     severity: "error",
@@ -46,7 +55,7 @@ function transactionDiagnostic(
     message: inspection.state === "recoverable"
       ? "A recoverable Foundation document transaction must be completed first."
       : inspection.reason,
-    remediation: { commandId: "docs.recover", args: {} }
+    ...(recovery === undefined ? {} : { remediation: recovery }),
   };
 }
 

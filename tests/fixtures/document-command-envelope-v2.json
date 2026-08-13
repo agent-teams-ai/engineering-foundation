@@ -37,6 +37,12 @@
     "diagnostics": [],
     "result": {
       "kind": "doctor",
+      "installedFoundationVersion": "0.15.0",
+      "installedFoundationBuildIdentity": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "filesystem": {
+        "basis": "platform-contract",
+        "strictDirectoryDurability": "platform-supported"
+      },
       "transactionState": "version-mismatch",
       "protocolKind": "document-authoring",
       "foundationVersion": "0.15.0",

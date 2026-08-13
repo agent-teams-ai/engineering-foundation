@@ -21,6 +21,18 @@ const fixturePath = fileURLToPath(
   new URL("fixtures/document-command-envelope-v2.json", import.meta.url),
 );
 const fixtures = JSON.parse(await readFile(fixturePath, "utf8"));
+const doctorEnvironment = {
+  async inspect() {
+    return {
+      installedFoundationVersion: "0.16.0",
+      installedFoundationBuildIdentity: `sha256:${"a".repeat(64)}`,
+      filesystem: {
+        basis: "platform-contract",
+        strictDirectoryDurability: "platform-supported",
+      },
+    };
+  },
+};
 
 test("parses the closed docs new surface and preserves repeatable relations", () => {
   const parsed = parseArguments([
@@ -88,11 +100,16 @@ test("accepts every v2 command fixture and rejects cross-command results", async
 
 test("validates representative real application envelopes against v2", async () => {
   const digest = `sha256:${"a".repeat(64)}`;
-  const plan = { destination: "docs/decisions/0083-test.md", planDigest: digest };
+  const plan = {
+    destination: "docs/decisions/0083-test.md", planDigest: digest,
+    intent: { title: "Test document" },
+    authority: { profile: { path: "profile.yaml" } },
+  };
   const newCommand = new RunDocumentNew({
     async inspect() { return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
     async plan() { return plan; },
     async apply() { return assert.fail("dry-run must not apply"); },
+    similar: { async advise() { return { matches: [], query: "test" }; } },
     reachability: { async project() { return { state: "not-required" }; } },
     structure: { async verify() { return { valid: true, diagnostics: [] }; } },
   });
@@ -111,12 +128,14 @@ test("validates representative real application envelopes against v2", async () 
     async apply() {
       return { outcome: "applied", receiptDigest: digest, diagnostics: [] };
     },
+    similar: { async advise() { return { matches: [], query: "test" }; } },
     reachability: { async project() { return { state: "not-required" }; } },
     structure: { async verify() { throw new Error("verification failed"); } },
   }).execute({
     consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false,
   });
   const doctor = await new RunDocumentDoctor({
+    environment: doctorEnvironment,
     async inspect() {
       return {
         schemaVersion: 1,
@@ -189,6 +208,20 @@ test("pure renderers emit one JSON object and a human recovery command", () => {
   assert.equal(renderDocumentCommandJson(execution), `${JSON.stringify(fixtures.preview)}\n`);
   const human = renderDocumentCommandText({ envelope: fixtures.doctor, exitCode: 1 });
   assert.match(human, /Run: agent-teams-foundation docs recover/u);
+});
+
+test("human renderer preserves an exact recovery package version", () => {
+  const doctor = structuredClone(fixtures.doctor);
+  doctor.result.recoveryCommand.args = {
+    exactFoundationVersion: "0.14.3",
+    exactFoundationBuildIdentity: `sha256:${"a".repeat(64)}`,
+  };
+  const human = renderDocumentCommandText({ envelope: doctor, exitCode: 1 });
+  assert.match(
+    human,
+    /Run: pnpm dlx @agent-teams\/engineering-foundation@0\.14\.3 docs recover/u,
+  );
+  assert.match(human, /Required build: sha256:a{64}/u);
 });
 
 test("JSON parse failures use one object and no stderr", async () => {

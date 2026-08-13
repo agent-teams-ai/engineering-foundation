@@ -105,6 +105,17 @@
       "required": ["kind", "transactionState", "recoveryClass"],
       "properties": {
         "kind": { "const": "doctor" },
+        "installedFoundationVersion": { "$ref": "#/$defs/semver" },
+        "installedFoundationBuildIdentity": { "$ref": "#/$defs/digest" },
+        "filesystem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["basis", "strictDirectoryDurability"],
+          "properties": {
+            "basis": { "const": "platform-contract" },
+            "strictDirectoryDurability": { "enum": ["platform-supported", "platform-unsupported"] }
+          }
+        },
         "transactionState": { "enum": ["none", "document", "scaffold", "local-mode", "transition-residue", "unknown", "corrupt", "version-mismatch"] },
         "protocolKind": { "enum": ["document-authoring", "scaffolding", "local-mode", "unknown"] },
         "foundationVersion": { "$ref": "#/$defs/semver" },
@@ -138,7 +149,27 @@
     },
     "doctorEnvelope": {
       "if": { "type": "object", "properties": { "command": { "const": "docs.doctor" } }, "required": ["command"] },
-      "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/doctorResult" } } }
+      "then": {
+        "type": "object",
+        "properties": { "result": { "$ref": "#/$defs/doctorResult" } },
+        "allOf": [{
+          "if": { "type": "object", "properties": { "outcome": { "not": { "enum": ["execution-failure", "cancelled"] } } }, "required": ["outcome"] },
+          "then": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "object",
+                "required": ["installedFoundationVersion", "installedFoundationBuildIdentity", "filesystem"],
+                "properties": {
+                  "installedFoundationVersion": { "$ref": "#/$defs/semver" },
+                  "installedFoundationBuildIdentity": { "$ref": "#/$defs/digest" },
+                  "filesystem": { "type": "object" }
+                }
+              }
+            }
+          }
+        }]
+      }
     },
     "recoverEnvelope": {
       "if": { "type": "object", "properties": { "command": { "const": "docs.recover" } }, "required": ["command"] },
@@ -159,7 +190,7 @@
           "additionalProperties": false,
           "required": ["commandId", "args"],
           "properties": {
-            "commandId": { "enum": ["detach", "docs.doctor", "docs.new", "docs.recover", "scaffold-recover"] },
+            "commandId": { "enum": ["detach", "docs.doctor", "docs.find", "docs.new", "docs.recover", "scaffold-recover"] },
             "args": {
               "type": "object",
               "maxProperties": 16,

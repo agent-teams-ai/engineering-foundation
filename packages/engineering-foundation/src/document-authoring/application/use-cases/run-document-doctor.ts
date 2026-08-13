@@ -4,6 +4,10 @@ import type {
   DocumentDoctorResult
 } from "../model/document-command.js";
 import type { DocumentTransactionInspectionV1 } from "../model/document-transaction-inspection.js";
+import type {
+  DocumentEnvironmentInspection,
+  DocumentEnvironmentInspector
+} from "../ports/document-environment-inspector.js";
 import {
   commandExecution,
   projectDocumentCommandFailure
@@ -15,7 +19,32 @@ export interface RunDocumentDoctorRequest {
 }
 
 interface Dependencies {
+  readonly environment: DocumentEnvironmentInspector;
   inspect(consumerRoot: string): Promise<DocumentTransactionInspectionV1>;
+}
+
+function environmentResult(environment: Awaited<
+  ReturnType<DocumentEnvironmentInspector["inspect"]>
+>): Pick<
+  DocumentDoctorResult,
+  "filesystem" | "installedFoundationBuildIdentity" | "installedFoundationVersion"
+> {
+  return {
+    filesystem: environment.filesystem,
+    installedFoundationBuildIdentity: environment.installedFoundationBuildIdentity,
+    installedFoundationVersion: environment.installedFoundationVersion
+  };
+}
+
+function unsupportedDurabilityDiagnostic(): DocumentCommandDiagnostic {
+  return {
+    ruleId: "document.environment.strict-directory-durability-unsupported",
+    severity: "error",
+    phase: "authority",
+    subject: "filesystem.directory-durability",
+    message:
+      "Strict directory durability is unsupported for this consumer repository; document publication is unavailable on this filesystem."
+  };
 }
 
 function inspectionDiagnostics(
@@ -68,14 +97,38 @@ export class RunDocumentDoctor {
   async execute(
     request: RunDocumentDoctorRequest
   ): Promise<DocumentCommandExecution<DocumentDoctorResult>> {
+    let environment: DocumentEnvironmentInspection | undefined;
     try {
       request.signal?.throwIfAborted();
+      environment = await this.#dependencies.environment.inspect(
+        request.consumerRoot,
+        request.signal
+      );
       const inspection = await this.#dependencies.inspect(request.consumerRoot);
       request.signal?.throwIfAborted();
       if (inspection.state === "idle") {
+        if (
+          environment.filesystem.strictDirectoryDurability ===
+            "platform-unsupported"
+        ) {
+          return commandExecution({
+            command: "docs.doctor",
+            diagnostics: [unsupportedDurabilityDiagnostic()],
+            outcome: "violation",
+            result: {
+              kind: "doctor",
+              ...environmentResult(environment),
+              transactionState: "none",
+              recoveryClass: "not-required"
+            }
+          });
+        }
         return commandExecution({
           command: "docs.doctor", outcome: "success",
-          result: { kind: "doctor", transactionState: "none", recoveryClass: "not-required" }
+          result: {
+            kind: "doctor", ...environmentResult(environment),
+            transactionState: "none", recoveryClass: "not-required"
+          }
         });
       }
       if (inspection.state === "recoverable") {
@@ -84,7 +137,8 @@ export class RunDocumentDoctor {
           diagnostics: inspectionDiagnostics(inspection),
           outcome: "recovery-required",
           result: {
-            kind: "doctor", transactionState: "document",
+            kind: "doctor", ...environmentResult(environment),
+            transactionState: "document",
             protocolKind: "document-authoring",
             foundationVersion: inspection.foundationVersion,
             foundationBuildIdentity: inspection.foundationBuildIdentity,
@@ -100,6 +154,7 @@ export class RunDocumentDoctor {
         outcome: "recovery-required",
         result: {
           kind: "doctor",
+          ...environmentResult(environment),
           transactionState: manualTransactionState(inspection),
           ...(inspection.operationKind === "document-authoring" ||
             inspection.operationKind === "local-mode" ||
@@ -127,7 +182,9 @@ export class RunDocumentDoctor {
       return commandExecution({
         command: "docs.doctor", diagnostics: [failure.diagnostic], outcome: failure.outcome,
         result: {
-          kind: "doctor", transactionState: "unknown", protocolKind: "unknown",
+          kind: "doctor",
+          ...(environment === undefined ? {} : environmentResult(environment)),
+          transactionState: "unknown", protocolKind: "unknown",
           recoveryClass: "manual"
         }
       });

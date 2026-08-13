@@ -917,6 +917,7 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/application/ports/canonical-document-renderer.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-authority-recompiler.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-contract-validator.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-environment-inspector.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-file-state.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-journal-store.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-profile-reader.ts
@@ -992,6 +993,7 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/adapters/inbound/cli/document-command-renderer.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-authoring-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-contract-validator.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-environment-inspector.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-file-state.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-journal-store.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-planning-profile-reader.ts

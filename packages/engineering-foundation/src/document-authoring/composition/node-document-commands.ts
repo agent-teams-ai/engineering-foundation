@@ -1,10 +1,13 @@
 import { FilesystemMarkdownRepository } from "../../documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
+import { installedFoundationVersion } from "../../package-version.js";
+import { installedFoundationBuildIdentity } from "../../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import { NodeAuthoringProfileReader } from "../adapters/node/node-authoring-profile-reader.js";
 import { NodeDocumentPlanningProfileReader } from "../adapters/node/node-document-planning-profile-reader.js";
 import { NodeDocumentReachabilityProjector } from "../adapters/node/node-document-reachability-projector.js";
 import { NodeDocumentStructureVerifier } from "../adapters/node/node-document-structure-verifier.js";
 import { NodeMetadataInstanceValidator } from "../adapters/node/node-metadata-instance-validator.js";
 import { NodeOwnerMembershipReader } from "../adapters/node/node-owner-membership-reader.js";
+import { NodeDocumentEnvironmentInspector } from "../adapters/node/node-document-environment-inspector.js";
 import { BuildDocumentationCatalog } from "../application/use-cases/build-documentation-catalog.js";
 import { RunDocumentDoctor } from "../application/use-cases/run-document-doctor.js";
 import { FindDocuments } from "../application/use-cases/find-documents.js";
@@ -33,7 +36,13 @@ export function createNodeDocumentCommands(): Readonly<{
   });
   const find = new FindDocuments(catalog);
   return Object.freeze({
-    doctor: new RunDocumentDoctor({ inspect }),
+    doctor: new RunDocumentDoctor({
+      environment: new NodeDocumentEnvironmentInspector({
+        buildIdentity: installedFoundationBuildIdentity,
+        version: installedFoundationVersion
+      }),
+      inspect
+    }),
     newDocument: new RunDocumentNew({
       apply: applyNodeDocumentationPlan,
       inspect,

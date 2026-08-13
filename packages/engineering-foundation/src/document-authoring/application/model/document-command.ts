@@ -71,6 +71,14 @@ export interface DocumentNewResult {
 
 export interface DocumentDoctorResult {
   readonly kind: "doctor";
+  readonly installedFoundationVersion?: string;
+  readonly installedFoundationBuildIdentity?: string;
+  readonly filesystem?: {
+    readonly basis: "platform-contract";
+    readonly strictDirectoryDurability:
+      | "platform-supported"
+      | "platform-unsupported";
+  };
   readonly transactionState:
     | "corrupt"
     | "document"

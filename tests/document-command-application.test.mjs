@@ -17,6 +17,18 @@ const successfulReceipt = {
   receiptDigest: digest,
   diagnostics: []
 };
+const environment = {
+  async inspect() {
+    return {
+      installedFoundationVersion: "0.16.0",
+      installedFoundationBuildIdentity: digest,
+      filesystem: {
+        basis: "platform-contract",
+        strictDirectoryDurability: "platform-supported",
+      },
+    };
+  },
+};
 
 function newHarness(overrides = {}) {
   const calls = [];
@@ -209,6 +221,7 @@ test("docs new post-publication cancellation is a committed violation, never 130
 
 test("docs doctor projects exact recovery and unknown versions", async () => {
   const recoverable = await new RunDocumentDoctor({
+    environment,
     async inspect() {
       return {
         schemaVersion: 1, state: "recoverable", operationKind: "document-authoring",
@@ -226,6 +239,7 @@ test("docs doctor projects exact recovery and unknown versions", async () => {
   });
 
   const unknown = await new RunDocumentDoctor({
+    environment,
     async inspect() {
       return {
         schemaVersion: 1, state: "manual-recovery-required", reason: "version mismatch",
@@ -243,6 +257,7 @@ test("docs doctor cancellation is 130 before and after inspection", async () => 
   const before = new AbortController();
   before.abort();
   const cancelledBefore = await new RunDocumentDoctor({
+    environment,
     async inspect() { throw new Error("must not inspect"); }
   }).execute({ consumerRoot: "/fixture", signal: before.signal });
   assert.equal(cancelledBefore.exitCode, 130);
@@ -250,6 +265,7 @@ test("docs doctor cancellation is 130 before and after inspection", async () => 
 
   const after = new AbortController();
   const cancelledAfter = await new RunDocumentDoctor({
+    environment,
     async inspect() {
       after.abort();
       return { schemaVersion: 1, state: "idle", diagnostics: [] };
@@ -261,6 +277,7 @@ test("docs doctor cancellation is 130 before and after inspection", async () => 
 
 test("docs doctor preserves exact version and build recovery authority", async () => {
   const result = await new RunDocumentDoctor({
+    environment,
     async inspect() {
       return {
         schemaVersion: 1,

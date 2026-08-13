@@ -222,6 +222,111 @@ test("replace detects a canonical substitution and preserves all evidence", asyn
   );
 });
 
+test("replace rejects same-inode byte mutation and preserves transition evidence", async () => {
+  await withFixture(async ({ path, state, store }) => {
+    const originalIdentity = await store.create(await envelope());
+    const replacementStore = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (point.phase === "after-candidate-synced") {
+          await writeFile(path, "same inode foreign bytes\n");
+        }
+      }
+    });
+
+    await assert.rejects(
+      replacementStore.replace({
+        expectedIdentity: originalIdentity,
+        envelope: await envelope("preexisting")
+      }),
+      /canonical bytes changed concurrently/u
+    );
+
+    assert.equal(await readFile(path, "utf8"), "same inode foreign bytes\n");
+    assert.ok(
+      (await readdir(state)).includes(
+        "scaffolding-transaction.json.document-transition"
+      )
+    );
+  });
+});
+
+test("private cleanup never deletes a pathname-swapped foreign file", async () => {
+  await withFixture(async ({ path, state }) => {
+    let ownedCandidatePath;
+    const store = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (
+          point.phase === "before-private-cleanup" &&
+          point.evidence === "candidate"
+        ) {
+          ownedCandidatePath = `${point.path}.owned-preserved`;
+          await rename(point.path, ownedCandidatePath);
+          await writeFile(point.path, "foreign cleanup target\n", {
+            flag: "wx",
+            mode: 0o600
+          });
+        }
+      }
+    });
+
+    await assert.rejects(
+      store.create(await envelope()),
+      /changed concurrently/u
+    );
+
+    assert.equal(
+      await readFile(
+        join(state, "scaffolding-transaction.json.document-transition"),
+        "utf8"
+      ),
+      "foreign cleanup target\n"
+    );
+    await lstat(ownedCandidatePath);
+    assert.ok(
+      (await readdir(state)).some((entry) =>
+        entry.endsWith(".document-transition.owned-preserved")
+      )
+    );
+  });
+});
+
+test("shared quarantine preserves a pathname replacement made after proof", async () => {
+  await withFixture(async ({ path, state, store }) => {
+    const identity = await store.create(await envelope());
+    const originalPath = `${path}.owned-preserved`;
+    const attacked = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (point.phase === "before-shared-quarantine") {
+          await rename(path, originalPath);
+          await writeFile(path, "foreign shared target\n", {
+            flag: "wx",
+            mode: 0o600
+          });
+        }
+      }
+    });
+
+    await assert.rejects(
+      attacked.remove(identity),
+      /canonical bytes changed concurrently/u
+    );
+
+    await lstat(originalPath);
+    assert.ok(
+      (await readdir(state)).some((entry) =>
+        entry.includes(".document-quarantine.")
+      )
+    );
+    const quarantineDirectory = (await readdir(state)).find((entry) =>
+      entry.includes(".document-quarantine.")
+    );
+    assert.equal(
+      await readFile(join(state, quarantineDirectory, "evidence"), "utf8"),
+      "foreign shared target\n"
+    );
+  });
+});
+
 test("an interrupted removal leaves a quarantine barrier and fails closed", async () => {
   await withFixture(async ({ path, state, store }) => {
     const identity = await store.create(await envelope());

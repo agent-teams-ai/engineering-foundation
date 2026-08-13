@@ -6,6 +6,7 @@ export interface JournalIdentity {
   readonly dev: string;
   readonly ino: string;
   readonly birthtimeNs: string;
+  readonly authorityDigest: `sha256:${string}`;
 }
 
 export interface StoredDocumentJournal {

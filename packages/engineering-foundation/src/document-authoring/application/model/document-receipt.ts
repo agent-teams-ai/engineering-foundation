@@ -31,7 +31,7 @@ export interface DocumentCommitObservation {
     | "preserved-for-recovery";
 }
 
-interface DocumentReceiptBase {
+export interface DocumentReceiptBase {
   readonly schemaVersion: 1;
   readonly protocolVersion: 1;
   readonly planDigest: DocumentAuthorityDigest;

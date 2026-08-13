@@ -12,6 +12,12 @@ import {
 } from "./application/use-cases/find-documents.js";
 import type { PlanDocumentationDocumentRequest } from "./application/use-cases/plan-documentation-document.js";
 import { planNodeDocumentationDocument } from "./composition/node-document-planning.js";
+import type { ApplyDocumentPlanRequest } from "./application/use-cases/apply-document-plan.js";
+import type { RecoverDocumentTransactionRequest } from "./application/use-cases/recover-document-transaction.js";
+import {
+  applyNodeDocumentationPlan,
+  recoverNodeDocumentationTransaction
+} from "./composition/node-document-writing.js";
 
 export type {
   DocumentAuthorityDigest,
@@ -38,6 +44,16 @@ export type {
   DocumentPlan,
   DocumentPlanDiagnostic
 } from "./application/model/document-planning.js";
+export type {
+  DocumentCommitObservation,
+  DocumentReceipt,
+  DocumentReceiptBase,
+  DocumentReceiptDiagnostic,
+  DocumentReceiptOutcome
+} from "./application/model/document-receipt.js";
+export type { ApplyDocumentPlanRequest } from "./application/use-cases/apply-document-plan.js";
+export type { RecoverDocumentTransactionRequest } from "./application/use-cases/recover-document-transaction.js";
+export type { DocumentTransactionRequest } from "./application/use-cases/document-transaction-continuation.js";
 export type { BuildDocumentationCatalogRequest } from "./application/use-cases/build-documentation-catalog.js";
 export type { FindDocumentsRequest } from "./application/use-cases/find-documents.js";
 export type { PlanDocumentationDocumentRequest } from "./application/use-cases/plan-documentation-document.js";
@@ -77,4 +93,18 @@ export async function planDocumentationDocument(
   request: PlanDocumentationDocumentRequest
 ) {
   return planNodeDocumentationDocument(request);
+}
+
+/** Applies one exact Document Plan through the durable create-only writer. */
+export async function applyDocumentationPlan(
+  request: ApplyDocumentPlanRequest
+): Promise<import("./application/model/document-receipt.js").DocumentReceipt> {
+  return applyNodeDocumentationPlan(request);
+}
+
+/** Recovers one coordinator-qualified document transaction. */
+export async function recoverDocumentationTransaction(
+  request: RecoverDocumentTransactionRequest
+): Promise<import("./application/model/document-receipt.js").DocumentReceipt> {
+  return recoverNodeDocumentationTransaction(request);
 }

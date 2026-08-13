@@ -6,10 +6,13 @@ import type {
 } from "./document-catalog.js";
 
 export type DocumentJsonPrimitive = boolean | null | number | string;
+export interface DocumentJsonObject {
+  readonly [key: string]: DocumentJsonValue;
+}
 export type DocumentJsonValue =
   | DocumentJsonPrimitive
   | readonly DocumentJsonValue[]
-  | Readonly<Record<string, DocumentJsonValue>>;
+  | DocumentJsonObject;
 
 export interface DocumentIntent {
   readonly schemaVersion: 1;

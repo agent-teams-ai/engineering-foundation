@@ -92,6 +92,7 @@ class CommandExecutionError extends Error {
     this.signal = input.signal;
     this.stderr = input.stderr;
     this.stdout = input.stdout;
+    this.terminationConfirmed = input.terminationConfirmed;
     this.timedOut = input.timedOut;
   }
 }
@@ -203,6 +204,7 @@ export async function runCommand(command, args, cwd, options = {}) {
       signal: null,
       stderr: "",
       stdout: "",
+      terminationConfirmed: false,
       timedOut: false,
       timeoutMs
     });
@@ -230,6 +232,7 @@ export async function runCommand(command, args, cwd, options = {}) {
     let cause;
     let completing = false;
     let forceTerminationRequested = false;
+    let terminationFailed = false;
     let terminationPromise;
     let timedOut = false;
 
@@ -261,6 +264,7 @@ export async function runCommand(command, args, cwd, options = {}) {
         try {
           await terminateCommandTree(child);
         } catch (error) {
+          terminationFailed = true;
           cause ??= error;
         }
       })();
@@ -280,8 +284,10 @@ export async function runCommand(command, args, cwd, options = {}) {
       } else {
         await cleanUpAfterNormalExit(child);
       }
+      let streamsClosed = false;
       try {
         await waitForBoundedClose(close);
+        streamsClosed = true;
       } catch (error) {
         cause ??= error;
       }
@@ -299,6 +305,8 @@ export async function runCommand(command, args, cwd, options = {}) {
             killed: forceTerminationRequested || result.signal !== null,
             signal: result.signal,
             ...text,
+            terminationConfirmed:
+              forceTerminationRequested && !terminationFailed && streamsClosed,
             timedOut,
             timeoutMs
           })

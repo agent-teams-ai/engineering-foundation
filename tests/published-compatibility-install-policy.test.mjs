@@ -8,7 +8,12 @@ import { fileURLToPath } from "node:url";
 import { commandDefaultTimeoutMs } from "../scripts/pack-test-support.mjs";
 import { createPublishedCompatibilityInstallPolicy } from "../scripts/published-compatibility-install-policy.mjs";
 
-const timeout = () => Object.assign(new Error("timeout"), { killed: true, timedOut: true });
+const timeout = () =>
+  Object.assign(new Error("timeout"), {
+    killed: true,
+    terminationConfirmed: true,
+    timedOut: true,
+  });
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
 test("published compatibility cleans up and retries one timeout", async () => {
@@ -96,6 +101,7 @@ test("generic command default remains 120 seconds", () => {
 test("published compatibility does not retry non-timeout failure classes", async () => {
   for (const failure of [
     { killed: false, timedOut: true },
+    { killed: true, terminationConfirmed: false, timedOut: true },
     { killed: true, timedOut: false },
     { code: 1, killed: false, timedOut: false },
     { killed: true, timedOut: false, cause: new Error("output limit") },

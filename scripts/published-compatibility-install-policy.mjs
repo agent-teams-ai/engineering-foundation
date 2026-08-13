@@ -27,7 +27,12 @@ export function createPublishedCompatibilityInstallPolicy({
     try {
       return await runInstall(args, root, { timeoutMs: firstAttemptTimeoutMs });
     } catch (error) {
-      if (!retryAvailable || error?.timedOut !== true || error?.killed !== true) {
+      if (
+        !retryAvailable ||
+        error?.timedOut !== true ||
+        error?.killed !== true ||
+        error?.terminationConfirmed !== true
+      ) {
         throw error;
       }
       retryAvailable = false;

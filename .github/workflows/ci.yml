@@ -98,6 +98,8 @@ jobs:
         run: node --test tests/document-authoring-windows-qualification.test.mjs
       - name: Qualify published transaction and scaffolding compatibility
         run: pnpm published-compatibility:e2e
+      - name: Qualify registry package and fail-closed document authoring boundary
+        run: pnpm registry-install-e2e:built
       - run: pnpm parser-spike:check
 
   macos-qualification:
@@ -131,3 +133,5 @@ jobs:
           tests/document-authoring-scaffolding-race.test.mjs
       - name: Qualify packed package boundary
         run: pnpm package:check:built
+      - name: Qualify registry-installed document authoring
+        run: pnpm registry-install-e2e:built

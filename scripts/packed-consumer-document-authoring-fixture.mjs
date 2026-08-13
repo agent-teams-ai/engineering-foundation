@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { writeJson } from "./pack-test-support.mjs";
 
 export async function writePackedConsumerDocumentAuthoringFixture(consumerRoot) {
+  await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
   await mkdir(join(consumerRoot, "docs", "catalog"), { recursive: true });
   await writeFile(
     join(consumerRoot, "architecture", "foundation", "document-authoring.yaml"),
@@ -57,6 +58,11 @@ authoring:
   await writeFile(
     join(consumerRoot, "docs", "owners.yaml"),
     "version: 1\nowners:\n  architecture:\n    kind: architecture\n",
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "docs", "template.md"),
+    "````markdown\n---\nplaceholder: true\n---\n\n# ADR-NNNN: Decision Title\n\n## Context\n\nDescribe the forces.\n\n## Decision\n\nDescribe the decision.\n````\n",
     "utf8"
   );
   await writeFile(

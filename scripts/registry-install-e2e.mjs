@@ -21,6 +21,7 @@ import {
   runNpmCommand,
 } from "./pack-test-support.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
+import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const COMMAND_TIMEOUT_MS = 120_000;
@@ -362,7 +363,7 @@ async function verifyConsumer(target, registryUrl) {
     [
       "--input-type=module",
       "--eval",
-      `await Promise.all([import(${JSON.stringify(FOUNDATION_PACKAGE_NAME)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/local-mode`)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/scaffolding`)})]);`,
+      `await Promise.all([import(${JSON.stringify(FOUNDATION_PACKAGE_NAME)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/document-authoring`)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/local-mode`)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/scaffolding`)})]);`,
     ],
     consumerRoot,
     { timeoutMs: COMMAND_TIMEOUT_MS },
@@ -377,6 +378,10 @@ async function verifyConsumer(target, registryUrl) {
       "fixtures",
       "scaffolding-authority-consumer",
     ),
+  });
+  await verifyRegistryDocumentAuthoring({
+    consumerRoot,
+    version: target.manifest.version
   });
   const { stdout: viewedVersion } = await runNpm(
     [

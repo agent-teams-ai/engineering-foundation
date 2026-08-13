@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -146,6 +146,29 @@ async function pathExistsAtRevision(cwd, revision, path) {
   }
 }
 
+async function prereleaseState(cwd, revision) {
+  const path = ".changeset/pre.json";
+  if (!(await pathExistsAtRevision(cwd, revision, path))) {
+    return;
+  }
+  const state = JSON.parse(await fileAtRevision(cwd, revision, path));
+  if (
+    state === null ||
+    typeof state !== "object" ||
+    Array.isArray(state) ||
+    state.mode !== "pre" ||
+    !Array.isArray(state.changesets) ||
+    state.changesets.some((id) => typeof id !== "string" || id.length === 0)
+  ) {
+    throw new Error(`${path} must contain a valid Changesets prerelease state`);
+  }
+  return new Set(state.changesets);
+}
+
+function changesetId(path) {
+  return basename(path, ".md");
+}
+
 async function expectedChangesets(cwd, revision) {
   const { stdout } = await git(cwd, [
     "ls-tree",
@@ -161,10 +184,14 @@ async function expectedChangesets(cwd, revision) {
       (path) =>
         /^\.changeset\/[^/]+\.md$/u.test(path) && path !== ".changeset/README.md",
     );
+  const consumed = await prereleaseState(cwd, revision);
   const changesets = await Promise.all(
     paths.map(async (path) => parseChangeset(path, await fileAtRevision(cwd, revision, path))),
   );
-  return changesets.filter((changeset) => changeset !== null);
+  return changesets.filter(
+    (changeset) =>
+      changeset !== null && !consumed?.has(changesetId(changeset.path)),
+  );
 }
 
 function optionalExactSha(value, label) {
@@ -237,12 +264,15 @@ export async function releasePullRequestFreshnessViolations(
   }
 
   const changesets = await expectedChangesets(cwd, processedMainSha);
+  const headPrereleaseChangesets = await prereleaseState(cwd, headSha);
   if (changesets.length === 0) {
     violations.push("processed main must contain at least one package release changeset");
   }
   for (const changeset of changesets) {
     if (await pathExistsAtRevision(cwd, headSha, changeset.path)) {
-      violations.push(`release head did not consume ${changeset.path}`);
+      if (!headPrereleaseChangesets?.has(changesetId(changeset.path))) {
+        violations.push(`release head did not consume ${changeset.path}`);
+      }
     }
   }
 

@@ -50,7 +50,7 @@ async function jsonCommand(consumerRoot, args, expectedExitCode = 0) {
 
 async function jsonAliasCommand(consumerRoot, alias, args) {
   const { stderr, stdout } = await runPnpm([
-    "--silent", alias, "--", ...args, "--json"
+    "--silent", "run", alias, "--", ...args, "--json"
   ], consumerRoot);
   assert(stderr === "", `${alias} wrote unexpected stderr output.`);
   const lines = stdout.trim().split(/\r?\n/u);

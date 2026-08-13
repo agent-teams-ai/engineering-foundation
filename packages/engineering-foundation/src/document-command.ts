@@ -50,11 +50,19 @@ function requiredDocumentIntent(parsed: ParsedArguments): {
   };
 }
 
+type NodeDocumentCommands = ReturnType<typeof createNodeDocumentCommands>;
+
+export interface DocumentCommandComposition {
+  readonly doctor: Pick<NodeDocumentCommands["doctor"], "execute">;
+  readonly newDocument: Pick<NodeDocumentCommands["newDocument"], "execute">;
+  readonly recover: Pick<NodeDocumentCommands["recover"], "execute">;
+}
+
 async function runDocumentMutation(
   parsed: ParsedArguments,
-  signal: AbortSignal
+  signal: AbortSignal,
+  commands: DocumentCommandComposition
 ) {
-  const commands = createNodeDocumentCommands();
   switch (parsed.command) {
     case "docs.new":
       return commands.newDocument.execute({
@@ -65,7 +73,10 @@ async function runDocumentMutation(
         ...signalOption(signal)
       });
     case "docs.doctor":
-      return commands.doctor.execute({ consumerRoot: parsed.consumerRoot });
+      return commands.doctor.execute({
+        consumerRoot: parsed.consumerRoot,
+        ...signalOption(signal)
+      });
     case "docs.recover":
       return commands.recover.execute({
         consumerRoot: parsed.consumerRoot,
@@ -80,6 +91,18 @@ export async function runDocumentCommand(
   parsed: ParsedArguments,
   json: boolean
 ): Promise<boolean> {
+  return runDocumentCommandWithComposition(
+    parsed,
+    json,
+    createNodeDocumentCommands
+  );
+}
+
+export async function runDocumentCommandWithComposition(
+  parsed: ParsedArguments,
+  json: boolean,
+  createCommands: () => DocumentCommandComposition
+): Promise<boolean> {
   const controller = new AbortController();
   const cancel = () => {
     controller.abort();
@@ -88,7 +111,11 @@ export async function runDocumentCommand(
   process.once("SIGTERM", cancel);
   try {
     if (parsed.command !== "docs.find") {
-      const execution = await runDocumentMutation(parsed, controller.signal);
+      const execution = await runDocumentMutation(
+        parsed,
+        controller.signal,
+        createCommands()
+      );
       if (execution === null) {
         return false;
       }

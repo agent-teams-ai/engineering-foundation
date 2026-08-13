@@ -159,10 +159,22 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
       error.code === "DOCUMENT_PLANNING_INPUT_INVALID" &&
       error.message.length < 1200
   );
+  const accessorIntent = { ...intent };
+  Object.defineProperty(accessorIntent, "summary", {
+    enumerable: true,
+    get() {
+      throw new Error("must not execute");
+    }
+  });
+  await assert.rejects(
+    validator.validateIntent(accessorIntent),
+    (error) => error instanceof DocumentPlanningError &&
+      error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
+  );
   await assert.rejects(
     validator.validatePlan({ schemaVersion: 1 }),
     (error) => error instanceof DocumentPlanningError &&
-      error.code === "DOCUMENT_PLANNING_INPUT_INVALID" &&
+      error.code === "DOCUMENT_PLANNING_OUTPUT_INVALID" &&
       error.message.length < 1200
   );
 });

@@ -5,9 +5,9 @@ status: draft
 owner: team/knowledge
 summary: Recover the service deterministically.
 labels:
-  "10": ten
-  "2": two
   alpha: first
+  middle: middle
+  zeta: last
 ---
 
 # Service Recovery

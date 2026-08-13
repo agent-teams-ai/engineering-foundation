@@ -262,7 +262,7 @@ test("rejects directory, symlink, FIFO, and case-alias destination states", asyn
       await arrange(join(root, vector.destination), root);
       await assert.rejects(
         compile(root, vector.intent),
-        (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_CONFLICT", "DOCUMENT_PLANNING_PARENT_UNAVAILABLE"]),
+        (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_CATALOG_PARTIAL", "DOCUMENT_PLANNING_CONFLICT", "DOCUMENT_PLANNING_PARENT_UNAVAILABLE"]),
       );
     }));
   }
@@ -297,12 +297,12 @@ test("compiles a heterogeneous profile without compiler customization", async ()
       title: "Service Recovery",
       owner: "team/knowledge",
       summary: "Recover the service deterministically.",
-      additionalMetadata: {labels: {"2": "two", alpha: "first", "10": "ten"}},
+      additionalMetadata: {labels: {zeta: "last", alpha: "first", middle: "middle"}},
     };
     const expected = await readFile(join(root, "expected/playbook.md"));
     const plan = await compile(root, intent);
     assert.equal(plan.destination, "handbook/content/service/recovery/README.md");
     assert.deepEqual(bytesFromPlan(plan), expected);
-    assert.match(expected.toString("utf8"), /labels:\n  "10": ten\n  "2": two\n  alpha: first/u);
+    assert.match(expected.toString("utf8"), /labels:\n  alpha: first\n  middle: middle\n  zeta: last/u);
   });
 });

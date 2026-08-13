@@ -15,7 +15,7 @@
   "properties": {
     "reportSchemaVersion": { "const": 1 },
     "foundationVersion": { "type": "string" },
-    "coverage": { "const": "full" },
+    "coverage": { "enum": ["full", "selected"] },
     "outcome": { "$ref": "#/$defs/outcome" },
     "summary": { "$ref": "#/$defs/summary" },
     "capabilities": {

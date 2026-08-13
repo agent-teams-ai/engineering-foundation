@@ -239,6 +239,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     .toSorted();
   const expectedSchemaFiles = [
     ...vector.schemaFiles,
+    "schemas/foundation-command-error/v1.schema.json",
     "schemas/foundation-transaction-envelope/v3.schema.json",
   ].toSorted();
   assert.deepEqual(runtimeSchemaFiles, expectedSchemaFiles);
@@ -310,6 +311,6 @@ test("keeps packed and registry-install qualification wired", async () => {
   );
   assert.match(
     await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
-    /pnpm published-compatibility:e2e/u,
+    /pnpm verify/u,
   );
 });

@@ -827,9 +827,11 @@ test("CLI keeps checks read-only and promotes only a declared ADR governance cap
       { encoding: "utf8" }
     );
     assert.equal(undeclared.status, 2);
+    assert.equal(undeclared.stderr, "");
+    assert.equal(JSON.parse(undeclared.stdout).error.code, "CONSUMER_INVALID");
     assert.match(
-      undeclared.stderr,
-      /^CONSUMER_INVALID: governance\.architecture-decisions must be declared/u
+      JSON.parse(undeclared.stdout).error.message,
+      /^governance\.architecture-decisions must be declared/u
     );
   });
 });

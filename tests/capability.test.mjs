@@ -602,7 +602,26 @@ test("rejects unsupported YAML features and invalid capability selection", async
   await withFixture(async (consumerRoot) => {
     const selection = check(consumerRoot, "architecture.source-dependencies");
     assert.equal(selection.result.status, 2);
+    assert.equal(selection.report.coverage, "selected");
     assert.equal(selection.report.problem.code, "CAPABILITY_NOT_DECLARED");
+  });
+});
+
+test("distinguishes complete and explicitly selected capability coverage", async () => {
+  await withFixture(async (consumerRoot) => {
+    const complete = check(consumerRoot);
+    assert.equal(complete.report.coverage, "full");
+
+    const selected = check(
+      consumerRoot,
+      "workspace.dependency-declarations",
+    );
+    assert.equal(selected.result.status, 0);
+    assert.equal(selected.report.coverage, "selected");
+    assert.deepEqual(
+      selected.report.capabilities.map(({ capabilityId }) => capabilityId),
+      ["workspace.dependency-declarations"],
+    );
   });
 });
 

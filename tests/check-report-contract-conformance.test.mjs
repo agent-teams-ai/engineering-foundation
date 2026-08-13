@@ -14,13 +14,11 @@ const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
   "engineering-foundation",
   "dist",
 );
-const schemaPath = join(
+const schemaRoot = join(
   repositoryRoot,
   "packages",
   "engineering-foundation",
   "schemas",
-  "foundation-check-report",
-  "v1.schema.json",
 );
 
 function schemaType(schema, root, referenceStack = []) {
@@ -61,18 +59,17 @@ function schemaType(schema, root, referenceStack = []) {
   assert.fail(`unsupported schema shape: ${JSON.stringify(schema)}`);
 }
 
-test("FoundationCheckReport is structurally exhaustive with its released v1 schema", async () => {
+async function assertSchemaConformance({ declarationName, declarationPath, schemaPath }) {
   const schema = JSON.parse(await readFile(schemaPath, "utf8"));
   const temporaryRoot = await mkdtemp(join(repositoryRoot, ".foundation-report-conformance-"));
   const sourcePath = join(temporaryRoot, "contract-conformance.ts");
-  const declarationPath = join(distRoot, "check-contract.js");
   const relativeDeclarationPath = relative(temporaryRoot, declarationPath).split(sep).join("/");
   const declarationSpecifier = relativeDeclarationPath.startsWith(".")
     ? relativeDeclarationPath
     : `./${relativeDeclarationPath}`;
   const source = [
-    `import type { FoundationCheckReport } from ${JSON.stringify(declarationSpecifier)};`,
-    `type SchemaReport = ${schemaType(schema, schema)};`,
+    `import type { ${declarationName} } from ${JSON.stringify(declarationSpecifier)};`,
+    `type SchemaContract = ${schemaType(schema, schema)};`,
     "type Equal<Left, Right> =",
     "  (<Value>() => Value extends Left ? 1 : 2) extends",
     "  (<Value>() => Value extends Right ? 1 : 2)",
@@ -82,8 +79,8 @@ test("FoundationCheckReport is structurally exhaustive with its released v1 sche
     "      : false",
     "    : false;",
     "type Assert<Condition extends true> = Condition;",
-    "type CheckReportSchemaConformance = Assert<Equal<FoundationCheckReport, SchemaReport>>;",
-    "export type { CheckReportSchemaConformance };",
+    `type SchemaConformance = Assert<Equal<${declarationName}, SchemaContract>>;`,
+    "export type { SchemaConformance };",
     "",
   ].join("\n");
 
@@ -106,4 +103,20 @@ test("FoundationCheckReport is structurally exhaustive with its released v1 sche
   } finally {
     await rm(temporaryRoot, { force: true, recursive: true });
   }
+}
+
+test("FoundationCheckReport is structurally exhaustive with its released v1 schema", async () => {
+  await assertSchemaConformance({
+    declarationName: "FoundationCheckReport",
+    declarationPath: join(distRoot, "check-contract.js"),
+    schemaPath: join(schemaRoot, "foundation-check-report", "v1.schema.json"),
+  });
+});
+
+test("FoundationCommandErrorEnvelope is exhaustive with its released v1 schema", async () => {
+  await assertSchemaConformance({
+    declarationName: "FoundationCommandErrorEnvelope",
+    declarationPath: join(distRoot, "command-error.js"),
+    schemaPath: join(schemaRoot, "foundation-command-error", "v1.schema.json"),
+  });
 });

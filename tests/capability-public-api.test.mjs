@@ -590,9 +590,10 @@ test("promotes a public API baseline only after a sufficient package release", a
       { encoding: "utf8" },
     );
     assert.equal(insufficient.status, 2);
-    assert.match(
-      insufficient.stderr,
-      /^PUBLIC_API_BASELINE_PROMOTION_VERSION_INSUFFICIENT:/u,
+    assert.equal(insufficient.stderr, "");
+    assert.equal(
+      JSON.parse(insufficient.stdout).error.code,
+      "PUBLIC_API_BASELINE_PROMOTION_VERSION_INSUFFICIENT",
     );
 
     manifest.version = "1.3.0";

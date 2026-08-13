@@ -32,6 +32,12 @@ function compareStrings(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function jsonErrorCode(failure) {
+  return failure?.stdout.length === 0
+    ? undefined
+    : JSON.parse(failure.stdout).error?.code;
+}
+
 function pnpmLockSource() {
   const packageKey = `${packageName}@${version}`;
   return [
@@ -246,8 +252,8 @@ async function verifyOrphanTemporaryBarrier({
   );
   if (
     failure?.code !== 1 ||
-    failure.stdout !== "" ||
-    !/SCAFFOLD_RECOVERY_REQUIRED/u.test(failure.stderr)
+    failure.stderr !== "" ||
+    jsonErrorCode(failure) !== "SCAFFOLD_RECOVERY_REQUIRED"
   ) {
     throw new Error(
       "Current Foundation did not establish a downgrade barrier for orphan temporary evidence.",
@@ -338,8 +344,8 @@ export async function verifyOldFoundationTransactionBarrier({
     );
     if (
       currentFailure?.code !== 1 ||
-      currentFailure.stdout !== "" ||
-      !/SCAFFOLD_RECOVERY_REQUIRED/u.test(currentFailure.stderr)
+      currentFailure.stderr !== "" ||
+      jsonErrorCode(currentFailure) !== "SCAFFOLD_RECOVERY_REQUIRED"
     ) {
       throw new Error(
         "Current Foundation did not establish the persistent downgrade barrier.",

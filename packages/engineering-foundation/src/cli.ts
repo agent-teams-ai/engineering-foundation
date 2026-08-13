@@ -9,6 +9,7 @@ import { promotePublicApiRelease } from "./capabilities/public-api-compatibility
 import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
 import { runFoundationCheck } from "./check-runner.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
+import { foundationCommandFailure } from "./command-error.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
 import { projectDocumentLaunchFailure } from "./document-authoring/composition/document-command-cli.js";
@@ -456,6 +457,16 @@ try {
   if (documentFailure !== undefined) {
     process.stdout.write(documentFailure.stdout);
     process.exitCode = documentFailure.exitCode;
+  } else if (
+    process.argv.slice(2).includes("--json") ||
+    process.argv.slice(2).some(
+      (argument, index, arguments_) =>
+        argument === "--format" && arguments_[index + 1] === "json"
+    )
+  ) {
+    const failure = foundationCommandFailure(error);
+    process.stdout.write(`${JSON.stringify(failure.envelope)}\n`);
+    process.exitCode = failure.exitCode;
   } else if (error instanceof FoundationTransactionError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
     process.exitCode = 1;

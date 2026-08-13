@@ -12,6 +12,7 @@ export const FOUNDATION_SCHEMA_IDS = [
   "document-plan/v1",
   "document-receipt/v1",
   "documentation-local-references/v1",
+  "foundation-command-error/v1",
   "foundation-config/v1",
   "foundation-check-report/v1",
   "foundation-transaction-envelope/v2",

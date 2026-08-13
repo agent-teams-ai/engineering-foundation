@@ -305,6 +305,13 @@ test("release publishing requires real Buf and hermetic registry qualification",
   const manifest = JSON.parse(
     await readFile(join(repositoryRoot, "package.json"), "utf8"),
   );
+  for (const threshold of ["lines", "branches", "functions"]) {
+    assert.match(
+      manifest.scripts["test:coverage:built"],
+      new RegExp(`--test-coverage-${threshold}=[1-9]\\d*`, "u"),
+    );
+  }
+  assert.match(manifest.scripts.check, /pnpm test:coverage:built/u);
   const ci = await workflow("ci.yml");
   assert.match(
     manifest.scripts["release:publish"],
@@ -332,7 +339,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   );
   assert.ok(
     ci.jobs.check.steps.some(
-      (step) => step.run === "pnpm registry-install-e2e:built",
+      (step) => step.run === "pnpm verify",
     ),
   );
   assert.equal(
@@ -341,7 +348,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   );
   assert.ok(
     ci.jobs.check.steps.some(
-      (step) => step.run === "pnpm published-compatibility:e2e",
+      (step) => step.run === "pnpm verify",
     ),
   );
   assert.ok(

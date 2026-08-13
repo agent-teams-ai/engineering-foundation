@@ -44,6 +44,7 @@ pnpm install
 pnpm check:changed
 pnpm check:fast
 pnpm check
+pnpm verify
 pnpm package:check
 ```
 
@@ -81,7 +82,7 @@ for the complete CLI and JSON contract.
 declared capability. See [consumer adoption](docs/development/consumer-adoption.md).
 The optional `repository.agent-workflow` capability keeps `AGENTS.md` canonical
 across coding agents and routes `check:changed` through the shared Foundation
-implementation; required CI still runs the complete `check` command.
+implementation; required CI still runs the complete `verify` command.
 
 `foundation:assert-dev-only` rejects runtime dependency placement.
 `foundation:assert-registry` additionally proves that the exact declared version

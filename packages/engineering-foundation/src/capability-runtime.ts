@@ -1,6 +1,7 @@
 import type {
   CapabilityReport,
   DiagnosticSummary,
+  FoundationCheckCoverage,
   FoundationCheckReport,
   FoundationDiagnostic,
   FoundationOutcome,
@@ -104,6 +105,7 @@ function highestOutcome(outcomes: readonly FoundationOutcome[]): FoundationOutco
 
 export function foundationReport(input: {
   readonly foundationVersion: string;
+  readonly coverage: FoundationCheckCoverage;
   readonly capabilities?: readonly CapabilityReport[];
   readonly problem?: FoundationProblem;
   readonly outcome?: FoundationOutcome;
@@ -122,7 +124,7 @@ export function foundationReport(input: {
   return {
     reportSchemaVersion: FOUNDATION_REPORT_SCHEMA_VERSION,
     foundationVersion: input.foundationVersion,
-    coverage: "full",
+    coverage: input.coverage,
     outcome:
       input.outcome ?? highestOutcome(capabilities.map((report) => report.outcome)),
     summary,

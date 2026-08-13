@@ -9,7 +9,7 @@ updates:
       timezone: Europe/Kyiv
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 5
     groups:
       api-extractor:
         patterns:
@@ -35,4 +35,4 @@ updates:
       timezone: Europe/Kyiv
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 3

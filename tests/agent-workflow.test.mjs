@@ -166,6 +166,10 @@ setInterval(() => {}, 1000);
       ],
       { encoding: "utf8" },
     );
+    let stdout = "";
+    command.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
     let stderr = "";
     command.stderr.on("data", (chunk) => {
       stderr += chunk;
@@ -187,7 +191,8 @@ setInterval(() => {}, 1000);
       }
 
       assert.equal(exitCode, 130, stderr);
-      assert.match(stderr, /PROCESS_CANCELLED/u);
+      assert.equal(stderr, "");
+      assert.equal(JSON.parse(stdout).error.code, "PROCESS_CANCELLED");
       assert.equal(processIsRunning(descendantPid), false);
     } finally {
       if (descendantPid !== undefined && processIsRunning(descendantPid)) {
@@ -468,8 +473,10 @@ test("rejects option-shaped Git base refs before invoking Git", async () => {
     initializeRepository(consumerRoot);
     const { result, report } = runChanged(consumerRoot, "--base", "--malicious");
     assert.equal(result.status, 2);
-    assert.equal(report, null);
-    assert.match(result.stderr, /The base ref cannot start with a dash/u);
+    assert.equal(result.stderr, "");
+    assert.equal(report.outcome, "invalid-input");
+    assert.equal(report.error.code, "CONSUMER_INVALID");
+    assert.match(report.error.message, /The base ref cannot start with a dash/u);
   });
 });
 
@@ -486,8 +493,10 @@ test("rejects ambiguous repository path characters instead of rewriting them", a
     );
     const { result, report } = runChanged(consumerRoot);
     assert.equal(result.status, 2);
-    assert.equal(report, null);
-    assert.match(result.stderr, /Git reported an unsafe repository path/u);
+    assert.equal(result.stderr, "");
+    assert.equal(report.outcome, "invalid-input");
+    assert.equal(report.error.code, "CONSUMER_INVALID");
+    assert.match(report.error.message, /Git reported an unsafe repository path/u);
   });
 });
 
@@ -500,7 +509,9 @@ test("rejects changed symbolic links before invoking consumer scripts", async ()
     await symlink("index.ts", join(consumerRoot, "src", "linked.ts"));
     const { result, report } = runChanged(consumerRoot);
     assert.equal(result.status, 2);
-    assert.equal(report, null);
-    assert.match(result.stderr, /Changed path is not a regular file/u);
+    assert.equal(result.stderr, "");
+    assert.equal(report.outcome, "invalid-input");
+    assert.equal(report.error.code, "CONSUMER_INVALID");
+    assert.match(report.error.message, /Changed path is not a regular file/u);
   });
 });

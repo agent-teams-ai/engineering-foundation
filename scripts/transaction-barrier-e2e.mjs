@@ -20,6 +20,12 @@ async function assertAbsent(path) {
   throw new Error(`Foreign transaction did not block target publication: ${path}.`);
 }
 
+function jsonErrorCode(failure) {
+  return failure?.stdout.length === 0
+    ? undefined
+    : JSON.parse(failure.stdout).error?.code;
+}
+
 export async function verifyInstalledTransactionBarrier({
   cliPath,
   consumerRoot,
@@ -69,8 +75,8 @@ export async function verifyInstalledTransactionBarrier({
   );
   if (
     mutationFailure?.code !== 1 ||
-    mutationFailure.stdout !== "" ||
-    !/SCAFFOLD_RECOVERY_REQUIRED/u.test(mutationFailure.stderr)
+    mutationFailure.stderr !== "" ||
+    jsonErrorCode(mutationFailure) !== "SCAFFOLD_RECOVERY_REQUIRED"
   ) {
     throw new Error("Installed package did not fail closed on a foreign transaction.");
   }

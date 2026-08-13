@@ -24,6 +24,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/cli-arguments.ts
       - packages/engineering-foundation/src/cli.ts
+      - packages/engineering-foundation/src/command-error.ts
       - packages/engineering-foundation/src/document-command.ts
     allow:
       boundaries:

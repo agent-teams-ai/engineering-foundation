@@ -152,6 +152,11 @@ Changesets version workflow. Normal feature checks never update released API
 baselines. Publishing consumers must also enforce release-owned baseline
 mutation in required pull-request CI.
 
+Every command that accepts `--json` or `--format json` returns one JSON value on
+success and failure. Generic command failures use
+`foundation-command-error/v1`; document commands keep their command-specific
+envelopes.
+
 Property suites may import deterministic seed and replay helpers from the package
 root while keeping `fast-check` in the consumer's development dependencies.
 

@@ -25,6 +25,7 @@ import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const COMMAND_TIMEOUT_MS = 120_000;
+const REGISTRY_TOKEN_ENVIRONMENT_KEY = "FOUNDATION_REGISTRY_E2E_TOKEN";
 const repositoryRoot = resolvePath(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
 const temporaryRoot = await mkdtemp(
@@ -33,6 +34,7 @@ const temporaryRoot = await mkdtemp(
 const keepTemporaryRoot =
   process.env.AGENT_TEAMS_KEEP_REGISTRY_E2E_ARTIFACTS === "1";
 const runPnpm = createPnpmRunner();
+const previousRegistryToken = process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
 let npmUserConfigPath;
 
 function compareStrings(left, right) {
@@ -209,20 +211,22 @@ async function configureRegistryAuthentication(registryUrl) {
     throw new Error("Hermetic registry did not issue a publication token.");
   }
   const host = new URL(registryUrl).host;
-  npmUserConfigPath = join(temporaryRoot, "npmrc");
+  npmUserConfigPath = join(temporaryRoot, "auth", "npmrc");
+  await mkdir(dirname(npmUserConfigPath), { recursive: true, mode: 0o700 });
   await writeFile(
     npmUserConfigPath,
     [
       `registry=${registryUrl}`,
       `@agent-teams:registry=${registryUrl}`,
-      `//${host}/:_authToken=${body.token}`,
+      `//${host}/:_authToken=\${${REGISTRY_TOKEN_ENVIRONMENT_KEY}}`,
       "audit=false",
       "fund=false",
       "provenance=false",
       "",
     ].join("\n"),
-    "utf8",
+    { encoding: "utf8", mode: 0o600 },
   );
+  process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = body.token;
 }
 
 async function closeServer(server) {
@@ -417,6 +421,11 @@ try {
     `Registry-install qualification PASS: ${target.manifest.name}@${target.manifest.version}; ${dependencies.length} runtime packages; lock sha256:${lockDigest}.\n`,
   );
 } finally {
+  if (previousRegistryToken === undefined) {
+    delete process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
+  } else {
+    process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = previousRegistryToken;
+  }
   if (registry !== undefined) {
     await closeServer(registry.server);
   }

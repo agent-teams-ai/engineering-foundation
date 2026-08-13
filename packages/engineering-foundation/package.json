@@ -54,6 +54,7 @@
     "schemas/document-plan/v1.schema.json",
     "schemas/document-receipt/v1.schema.json",
     "schemas/documentation-local-references/v1.schema.json",
+    "schemas/foundation-command-error/v1.schema.json",
     "schemas/foundation-config/v1.schema.json",
     "schemas/foundation-check-report/v1.schema.json",
     "schemas/foundation-transaction-envelope/v2.schema.json",

@@ -7,6 +7,7 @@ import { NodeMetadataInstanceValidator } from "../adapters/node/node-metadata-in
 import { NodeOwnerMembershipReader } from "../adapters/node/node-owner-membership-reader.js";
 import { BuildDocumentationCatalog } from "../application/use-cases/build-documentation-catalog.js";
 import { RunDocumentDoctor } from "../application/use-cases/run-document-doctor.js";
+import { FindDocuments } from "../application/use-cases/find-documents.js";
 import { RunDocumentNew } from "../application/use-cases/run-document-new.js";
 import { RunDocumentRecover } from "../application/use-cases/run-document-recover.js";
 import { inspectDocumentTransactionV1 } from "./inspect-document-transaction.js";
@@ -30,6 +31,7 @@ export function createNodeDocumentCommands(): Readonly<{
     profile: new NodeAuthoringProfileReader(),
     repository: new FilesystemMarkdownRepository(),
   });
+  const find = new FindDocuments(catalog);
   return Object.freeze({
     doctor: new RunDocumentDoctor({ inspect }),
     newDocument: new RunDocumentNew({
@@ -37,6 +39,22 @@ export function createNodeDocumentCommands(): Readonly<{
       inspect,
       plan: planNodeDocumentationDocument,
       reachability: new NodeDocumentReachabilityProjector(planningProfiles),
+      similar: {
+        async advise(request) {
+          const result = await find.execute({
+            consumerRoot: request.consumerRoot,
+            profilePath: request.profilePath,
+            query: { text: request.title },
+            ...(request.signal === undefined ? {} : { signal: request.signal }),
+          });
+          return Object.freeze({
+            matches: Object.freeze(result.documents.map(({ id, repositoryPath }) =>
+              Object.freeze({ id, repositoryPath })
+            )),
+            query: request.title,
+          });
+        },
+      },
       structure: new NodeDocumentStructureVerifier({
         catalog,
         profiles: planningProfiles,

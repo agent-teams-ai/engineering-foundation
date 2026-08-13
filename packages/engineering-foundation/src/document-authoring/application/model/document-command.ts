@@ -23,7 +23,7 @@ export interface DocumentRecoveryCommand {
 }
 
 export type DocumentCommandRemediation = DocumentRecoveryCommand | {
-  readonly commandId: DocumentCommandId;
+  readonly commandId: DocumentCommandId | "docs.find";
   readonly args: Readonly<Record<string, string>>;
 };
 

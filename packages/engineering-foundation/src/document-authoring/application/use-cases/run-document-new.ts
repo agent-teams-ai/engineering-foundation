@@ -8,12 +8,14 @@ import type { DocumentReceipt } from "../model/document-receipt.js";
 import type { DocumentTransactionInspectionV1 } from "../model/document-transaction-inspection.js";
 import type { DocumentReachabilityProjector } from "../ports/document-reachability-projector.js";
 import type { DocumentStructureVerifier } from "../ports/document-structure-verifier.js";
+import type { SimilarDocumentAdvisor } from "../ports/similar-document-advisor.js";
 import type { PlanDocumentationDocumentRequest } from "./plan-documentation-document.js";
 import {
   commandExecution,
   projectDocumentCommandFailure,
   receiptOutcome
 } from "../policies/document-command-projection.js";
+import { projectSimilarDocumentAdvice } from "../policies/project-similar-document-advice.js";
 
 export interface RunDocumentNewRequest extends PlanDocumentationDocumentRequest {
   readonly dryRun: boolean;
@@ -27,6 +29,7 @@ interface Dependencies {
   }): Promise<DocumentReceipt>;
   inspect(consumerRoot: string): Promise<DocumentTransactionInspectionV1>;
   plan(request: PlanDocumentationDocumentRequest): Promise<DocumentPlan>;
+  readonly similar: SimilarDocumentAdvisor;
   readonly reachability: DocumentReachabilityProjector;
   readonly structure: DocumentStructureVerifier;
 }
@@ -69,6 +72,26 @@ function receiptDiagnostics(receipt: DocumentReceipt): readonly DocumentCommandD
   }));
 }
 
+async function similarDocumentDiagnostics(input: {
+  readonly dependencies: Pick<Dependencies, "similar">;
+  readonly consumerRoot: string;
+  readonly plan: DocumentPlan;
+  readonly signal?: AbortSignal;
+}): Promise<readonly DocumentCommandDiagnostic[]> {
+  try {
+    const advice = await input.dependencies.similar.advise({
+      consumerRoot: input.consumerRoot,
+      profilePath: input.plan.authority.profile.path,
+      title: input.plan.intent.title,
+      ...signalOption(input.signal),
+    });
+    return projectSimilarDocumentAdvice(advice);
+  } catch (error) {
+    input.signal?.throwIfAborted();
+    throw error;
+  }
+}
+
 export class RunDocumentNew {
   readonly #dependencies: Dependencies;
 
@@ -85,6 +108,7 @@ export class RunDocumentNew {
     let projectedReachability: Awaited<ReturnType<
       DocumentReachabilityProjector["project"]
     >> | undefined;
+    let advisoryDiagnostics: readonly DocumentCommandDiagnostic[] = [];
     try {
       request.signal?.throwIfAborted();
       const inspection = await this.#dependencies.inspect(request.consumerRoot);
@@ -103,6 +127,13 @@ export class RunDocumentNew {
         intent: request.intent,
         ...signalOption(request.signal)
       });
+      advisoryDiagnostics = await similarDocumentDiagnostics({
+        dependencies: this.#dependencies,
+        consumerRoot: request.consumerRoot,
+        plan,
+        ...signalOption(request.signal),
+      });
+      request.signal?.throwIfAborted();
       const reachability = await this.#dependencies.reachability.project({
         consumerRoot: request.consumerRoot,
         plan
@@ -112,6 +143,7 @@ export class RunDocumentNew {
       if (request.dryRun) {
         return commandExecution({
           command: "docs.new",
+          diagnostics: advisoryDiagnostics,
           outcome: "success",
           result: {
             kind: "new",
@@ -138,7 +170,7 @@ export class RunDocumentNew {
       if (outcome !== "success") {
         return commandExecution({
           command: "docs.new",
-          diagnostics: receiptDiagnostics(receipt),
+          diagnostics: [...advisoryDiagnostics, ...receiptDiagnostics(receipt)],
           outcome,
           result: {
             kind: "new",
@@ -155,6 +187,7 @@ export class RunDocumentNew {
         ...signalOption(request.signal)
       });
       const diagnostics: readonly DocumentCommandDiagnostic[] = [
+        ...advisoryDiagnostics,
         ...receiptDiagnostics(receipt),
         ...verification.diagnostics.map((entry) => ({
           ...entry,
@@ -180,7 +213,7 @@ export class RunDocumentNew {
       if (publicationCommitted) {
         return commandExecution({
           command: "docs.new",
-          diagnostics: [{
+          diagnostics: [...advisoryDiagnostics, {
             ruleId: "document.new.post-publication-verification",
             severity: "error",
             phase: "apply",
@@ -206,7 +239,7 @@ export class RunDocumentNew {
       });
       return commandExecution({
         command: "docs.new",
-        diagnostics: [failure.diagnostic],
+        diagnostics: [...advisoryDiagnostics, failure.diagnostic],
         outcome: failure.outcome,
         result: { kind: "new", reservation: "none" }
       });

@@ -6,7 +6,12 @@ import { RunDocumentNew } from "../packages/engineering-foundation/dist/document
 import { RunDocumentRecover } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-recover.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
-const plan = { destination: "docs/decisions/0083-test.md", planDigest: digest };
+const plan = {
+  destination: "docs/decisions/0083-test.md",
+  planDigest: digest,
+  intent: { title: "Test document" },
+  authority: { profile: { path: "profile.yaml" } }
+};
 const successfulReceipt = {
   outcome: "applied",
   receiptDigest: digest,
@@ -21,6 +26,9 @@ function newHarness(overrides = {}) {
       async inspect() { calls.push("inspect"); return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
       async plan() { calls.push("plan"); return plan; },
       async apply() { calls.push("apply"); return successfulReceipt; },
+      similar: {
+        async advise() { calls.push("similar"); return { matches: [], query: "test" }; }
+      },
       reachability: {
         async project() {
           calls.push("reachability");
@@ -53,7 +61,7 @@ test("docs new dry-run plans a preview without reservation or mutation", async (
       markdownLink: "[ADR-0083](decisions/0083-test.md)"
     }
   });
-  assert.deepEqual(harness.calls, ["inspect", "plan", "reachability"]);
+  assert.deepEqual(harness.calls, ["inspect", "plan", "similar", "reachability"]);
 });
 
 test("docs new reports an already-applied replay as success and verifies structure", async () => {
@@ -68,7 +76,64 @@ test("docs new reports an already-applied replay as success and verifies structu
   });
   assert.equal(result.exitCode, 0);
   assert.equal(result.envelope.result.writeState, "already-applied");
-  assert.deepEqual(harness.calls, ["inspect", "plan", "reachability", "apply", "verify"]);
+  assert.deepEqual(harness.calls, ["inspect", "plan", "similar", "reachability", "apply", "verify"]);
+});
+
+test("docs new emits deterministic similar-document advice without blocking", async () => {
+  const harness = newHarness({
+    similar: {
+      async advise() {
+        harness.calls.push("similar");
+        return {
+          matches: [{ id: "ADR-0007", repositoryPath: "docs/adr/0007-existing.md" }],
+          query: "Exact title"
+        };
+      }
+    }
+  });
+  const result = await harness.subject.execute({
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: { title: "Exact title" },
+    dryRun: true
+  });
+  assert.equal(result.envelope.outcome, "success");
+  assert.deepEqual(result.envelope.diagnostics, [{
+    ruleId: "document.new.similar-documents",
+    severity: "info",
+    phase: "planning",
+    subject: "ADR-0007",
+    message: "1 existing document(s) contain the exact title query. Review them before publishing if they overlap.",
+    remediation: { commandId: "docs.find", args: { text: "Exact title" } }
+  }]);
+});
+
+test("docs new fails closed on advisory failure and preserves cancellation", async () => {
+  const failed = newHarness({
+    similar: { async advise() { throw new Error("catalog unavailable"); } }
+  });
+  const result = await failed.subject.execute({
+    consumerRoot: "/fixture", profilePath: "profile.yaml",
+    intent: { title: "Exact title" }, dryRun: true
+  });
+  assert.equal(result.envelope.outcome, "execution-failure");
+  assert.deepEqual(failed.calls, ["inspect", "plan"]);
+
+  const controller = new AbortController();
+  const cancelled = newHarness({
+    similar: {
+      async advise() {
+        controller.abort();
+        throw new Error("catalog observation cancelled");
+      }
+    }
+  });
+  const cancelledResult = await cancelled.subject.execute({
+    consumerRoot: "/fixture", profilePath: "profile.yaml",
+    intent: { title: "Exact title" }, dryRun: true, signal: controller.signal
+  });
+  assert.equal(cancelledResult.exitCode, 130);
+  assert.equal(cancelledResult.envelope.outcome, "cancelled");
 });
 
 test("docs new blocks planning when transaction recovery is pending", async () => {

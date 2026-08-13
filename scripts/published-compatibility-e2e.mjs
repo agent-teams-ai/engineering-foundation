@@ -3,21 +3,24 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
 import { verifyOldFoundationTransactionBarrier } from "./old-foundation-transaction-e2e.mjs";
+import { createPublishedCompatibilityInstallPolicy } from "./published-compatibility-install-policy.mjs";
 import { verifyPublishedScaffoldingCompatibility } from "./published-scaffolding-compatibility-e2e.mjs";
 
 const temporaryRoot = await mkdtemp(
   resolve(tmpdir(), "foundation-published-compatibility-e2e-"),
 );
 try {
+  const installPackage = createPublishedCompatibilityInstallPolicy();
   const currentCliPath = resolve(
     "packages",
     "engineering-foundation",
     "dist",
     "cli.js",
   );
-  await verifyOldFoundationTransactionBarrier({ currentCliPath });
+  await verifyOldFoundationTransactionBarrier({ currentCliPath, installPackage });
   await verifyPublishedScaffoldingCompatibility({
     currentPackageRoot: resolve("packages", "engineering-foundation"),
+    installPackage,
     temporaryRoot,
   });
   process.stdout.write(

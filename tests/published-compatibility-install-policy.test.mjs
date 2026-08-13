@@ -3,12 +3,13 @@ import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { commandDefaultTimeoutMs } from "../scripts/pack-test-support.mjs";
 import { createPublishedCompatibilityInstallPolicy } from "../scripts/published-compatibility-install-policy.mjs";
 
 const timeout = () => Object.assign(new Error("timeout"), { killed: true, timedOut: true });
-const repositoryRoot = new URL("..", import.meta.url).pathname;
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
 test("published compatibility cleans up and retries one timeout", async () => {
   const root = await mkdtemp(join(tmpdir(), "published-install-policy-"));

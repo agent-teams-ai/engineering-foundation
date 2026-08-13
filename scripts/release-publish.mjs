@@ -19,11 +19,15 @@ export function releasePublishPolicy({ packageVersion, preState }) {
     !isRecord(preState) ||
     preState.mode !== "pre" ||
     preState.tag !== allowedPrereleaseTag ||
-    !packageVersion.includes(`-${allowedPrereleaseTag}.`)
+    !new RegExp(`-${allowedPrereleaseTag}\\.\\d+$`, "u").test(packageVersion)
   ) {
     throw new Error("Prerelease publication requires exact Changesets rc mode and an -rc.N package version.");
   }
   return { tag: allowedPrereleaseTag };
+}
+
+export function changesetsPublishArguments() {
+  return ["changeset", "publish"];
 }
 
 async function readJson(path) {
@@ -40,14 +44,11 @@ export async function main() {
       throw error;
     }
   }
-  const policy = releasePublishPolicy({
+  releasePublishPolicy({
     packageVersion: manifest.version,
     preState,
   });
-  const publishArguments = ["changeset", "publish"];
-  if (policy.tag !== undefined) {
-    publishArguments.push("--tag", policy.tag);
-  }
+  const publishArguments = changesetsPublishArguments();
   const result = spawnSync("pnpm", publishArguments, { stdio: "inherit" });
   if (result.error !== undefined) {
     throw result.error;

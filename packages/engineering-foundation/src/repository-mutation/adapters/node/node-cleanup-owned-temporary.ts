@@ -203,7 +203,10 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     quarantinedPath,
     options.expectedIdentity
   );
-  if (ownership !== "match") {
+  if (ownership === "missing") {
+    return "different";
+  }
+  if (ownership === "different") {
     try {
       await restore(quarantinedPath, options.temporaryPath);
     } catch (error) {

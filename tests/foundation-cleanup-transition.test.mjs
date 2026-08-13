@@ -44,7 +44,11 @@ function portableTransition(root, overrides = {}) {
 test("creates and syncs the global marker before begin returns", async () => {
   await withRoot(async (root) => {
     const syncs = [];
+    const tokens = ["retirement", "terminal"];
     const port = portableTransition(root, {
+      randomToken() {
+        return tokens.shift();
+      },
       async syncStateDirectory(path) {
         syncs.push(path);
       },
@@ -57,11 +61,8 @@ test("creates and syncs the global marker before begin returns", async () => {
     );
     assert.deepEqual(syncs, [state]);
     await active.complete();
-    assert.equal(
-      (await readdir(state)).some((entry) =>
-        entry === "foundation-cleanup-retired-evidence"),
-      true,
-    );
+    const terminalRoot = join(state, "foundation-cleanup-retired-evidence");
+    assert.deepEqual(await readdir(terminalRoot), ["terminal"]);
   });
 });
 

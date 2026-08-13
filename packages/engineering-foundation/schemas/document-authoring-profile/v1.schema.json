@@ -100,7 +100,7 @@
     "artifactType": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "initialStatus", "identity", "placement", "template", "heading", "reachability"],
+      "required": ["type", "initialStatus", "identity", "placement", "template", "heading"],
       "properties": {
         "type": { "$ref": "#/$defs/lowerId" },
         "initialStatus": { "$ref": "#/$defs/lowerId" },

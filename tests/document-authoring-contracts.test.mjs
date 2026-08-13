@@ -743,6 +743,10 @@ test("retains consumer-selected roots only for explicit placement", async () => 
 });
 
 test("closes bounded reachability strategies and their placement compatibility", async () => {
+  const legacy = clone(fixture.profile);
+  delete legacy.authoring.artifactTypes[0].reachability;
+  await assertSchema("document-authoring-profile/v1", legacy, "legacy-profile");
+
   for (const reachability of [
     { kind: "manual-fixed-index", indexPath: "docs/README.md" },
     { kind: "not-required" },

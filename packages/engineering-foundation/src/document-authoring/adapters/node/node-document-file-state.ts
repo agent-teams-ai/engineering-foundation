@@ -122,13 +122,7 @@ export class NodeDocumentFileState implements DocumentFileState {
       if (observed.outcome !== "read") {
         return unverifiable("Derived document temporary is not a stable regular file.");
       }
-      const identityValue: DocumentPhysicalIdentity = {
-        adapter: "node-filesystem",
-        version: 1,
-        dev: observed.identity.dev.toString(10),
-        ino: observed.identity.ino.toString(10),
-        birthtimeNs: observed.identity.birthtimeNs.toString(10)
-      };
+      const identityValue = wireIdentity(observed.identity);
       return {
         state: "present",
         path,

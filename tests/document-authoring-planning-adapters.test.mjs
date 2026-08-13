@@ -80,6 +80,23 @@ test("planning profile reader returns a deeply immutable full snapshot", async (
   });
 });
 
+test("planning profile reader defaults legacy reachability to not-required", async () => {
+  await disposableRepository("document-planning-legacy-profile-", async (root) => {
+    const legacy = profileSource().replace(
+      "      reachability:\n        kind: not-required\n",
+      "",
+    );
+    await writeFile(join(root, "profile.yaml"), legacy, "utf8");
+    const snapshot = await new NodeDocumentPlanningProfileReader().read({
+      consumerRoot: root,
+      path: "profile.yaml",
+    });
+    assert.deepEqual(snapshot.artifactTypes[0].reachability, {
+      kind: "not-required",
+    });
+  });
+});
+
 test("planning profile maps schema and semantic failures to stable planning errors", async () => {
   await disposableRepository("document-planning-invalid-profile-", async (root) => {
     await writeFile(

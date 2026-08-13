@@ -132,7 +132,7 @@ export function createNodeFoundationCleanupTransition(
           await operations.syncStateDirectory(stateDirectory);
           const terminalDirectory = join(
             terminalRoot,
-            `${token}.${operations.randomToken()}`
+            operations.randomToken()
           );
           await assertTerminalEvidenceDirectory(terminalAuthority);
           await operations.rename(retirementDirectory, terminalDirectory);

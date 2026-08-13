@@ -82,3 +82,30 @@ test("the Node document authority assessment propagates cancellation", async () 
     },
   );
 });
+
+test("the Node document authority replay propagates cancellation", async () => {
+  const {cases, profilePath} = JSON.parse(
+    await readFile(join(fixtures, "cases.json"), "utf8"),
+  );
+  const vector = cases.find(({name}) => name === "adr");
+  assert.ok(vector);
+
+  await withFixture(async (consumerRoot) => {
+    const plan = await planNodeDocumentationDocument({
+      consumerRoot,
+      profilePath,
+      intent: vector.intent,
+    });
+    const controller = new AbortController();
+    const assessment = new NodeDocumentAuthorityRecompiler().assess({
+      consumerRoot,
+      plan,
+      signal: controller.signal,
+    });
+    controller.abort();
+    await assert.rejects(assessment, (error) => {
+      assert.equal(error.problem?.code, "EXECUTION_CANCELLED");
+      return true;
+    });
+  });
+});

@@ -10,7 +10,8 @@ import { DocumentCatalogError } from "../../document-catalog-error.js";
 import { DocumentPlanningError } from "../../document-planning-error.js";
 import {
   InvalidDocumentAuthoringProfileError,
-  loadValidatedDocumentAuthoringProfile
+  loadValidatedDocumentAuthoringProfile,
+  type ValidatedDocumentAuthoringProfile
 } from "./load-validated-document-authoring-profile.js";
 
 function freezeIdentity(identity: DocumentIdentityStrategy): DocumentIdentityStrategy {
@@ -37,13 +38,17 @@ function freezePlacement(placement: DocumentPlacementStrategy): DocumentPlacemen
     : Object.freeze({ ...placement });
 }
 
-function freezeArtifactType(artifactType: DocumentArtifactType): DocumentArtifactType {
+function freezeArtifactType(
+  artifactType: ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number]
+): DocumentArtifactType {
   return Object.freeze({
     ...artifactType,
     heading: Object.freeze({ ...artifactType.heading }),
     identity: freezeIdentity(artifactType.identity),
     placement: freezePlacement(artifactType.placement),
-    reachability: Object.freeze({ ...artifactType.reachability }),
+    reachability: Object.freeze({
+      ...(artifactType.reachability ?? { kind: "not-required" })
+    }),
     template: Object.freeze({ ...artifactType.template })
   });
 }

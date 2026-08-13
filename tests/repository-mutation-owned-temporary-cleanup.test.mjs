@@ -241,6 +241,32 @@ test("keeps a colliding restored path and quarantined foreign evidence", async (
   }
 });
 
+test("does not restore a quarantine entry that disappeared after capture", async () => {
+  const paths = await fixture();
+  try {
+    let identityChecks = 0;
+    const cleanup = options(paths, {
+      async link() {
+        throw new Error("missing quarantine must not be restored");
+      },
+      async pathMatchesRegularFileIdentity() {
+        identityChecks += 1;
+        return identityChecks === 1 ? "match" : "missing";
+      },
+    });
+    assert.equal(
+      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      "different",
+    );
+    await assert.rejects(
+      readFile(paths.temporaryPath),
+      (error) => error?.code === "ENOENT",
+    );
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
 test("preserves quarantined foreign evidence when restoration link fails", async () => {
   const paths = await fixture();
   try {

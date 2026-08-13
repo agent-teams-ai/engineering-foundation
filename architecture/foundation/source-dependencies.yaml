@@ -996,6 +996,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/composition/node-document-planning.ts
       - packages/engineering-foundation/src/document-authoring/composition/node-document-authority-recompiler.ts
+      - packages/engineering-foundation/src/document-authoring/composition/node-document-writing-private.ts
       - packages/engineering-foundation/src/document-authoring/composition/node-document-writing.ts
       - packages/engineering-foundation/src/document-authoring/index.ts
       - packages/engineering-foundation/src/document-authoring/find-command.ts

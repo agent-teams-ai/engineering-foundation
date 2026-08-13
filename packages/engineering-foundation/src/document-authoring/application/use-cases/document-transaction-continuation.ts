@@ -19,9 +19,24 @@ import { createDocumentTransactionEnvelope } from "../policies/document-transact
 export interface DocumentTransactionRuntime {
   readonly authority: DocumentAuthorityRecompiler;
   readonly fileState: DocumentFileState;
+  readonly faultInjector?: DocumentTransactionFaultInjector;
   readonly journal: DocumentJournalStore;
   readonly publisher: DocumentPublisher;
 }
+
+export type DocumentTransactionFaultPoint =
+  | { readonly phase: "after-prepared-journal-durable" }
+  | { readonly phase: "after-publishing-journal-durable" }
+  | { readonly phase: "after-published-journal-durable" }
+  | { readonly phase: "after-a1" }
+  | { readonly phase: "after-c1" }
+  | { readonly phase: "after-a2" }
+  | { readonly phase: "after-c2" }
+  | { readonly phase: "after-final-journal-removal-synced" };
+
+export type DocumentTransactionFaultInjector = (
+  point: DocumentTransactionFaultPoint
+) => Promise<void> | void;
 
 export interface DocumentTransactionRequest {
   readonly consumerRoot: string;
@@ -233,7 +248,9 @@ export async function createPreparedJournal(
   const envelope = await createDocumentTransactionEnvelope(
     envelopeBody(plan, { destination, state: "PREPARED" })
   );
-  return { envelope, identity: await runtime.journal.create(envelope) };
+  const active = { envelope, identity: await runtime.journal.create(envelope) };
+  await runtime.faultInjector?.({ phase: "after-prepared-journal-durable" });
+  return active;
 }
 
 export async function replaceWithPublishing(
@@ -248,13 +265,15 @@ export async function replaceWithPublishing(
       temporary
     })
   );
-  return {
+  const result = {
     envelope,
     identity: await runtime.journal.replace({
       envelope,
       expectedIdentity: active.identity
     })
   };
+  await runtime.faultInjector?.({ phase: "after-publishing-journal-durable" });
+  return result;
 }
 
 export async function replaceWithPublished(
@@ -269,13 +288,15 @@ export async function replaceWithPublished(
       state: "PUBLISHED"
     })
   );
-  return {
+  const result = {
     envelope,
     identity: await runtime.journal.replace({
       envelope,
       expectedIdentity: active.identity
     })
   };
+  await runtime.faultInjector?.({ phase: "after-published-journal-durable" });
+  return result;
 }
 
 async function exactCurrentAuthority(
@@ -328,22 +349,29 @@ export async function finalizeDocumentTransaction(
     ? active.envelope.journal.publicationIdentity
     : undefined;
   const a1 = await exactCurrentAuthority(runtime, request, plan);
+  await runtime.faultInjector?.({ phase: "after-a1" });
   if (!a1.current) {
     return undefined;
   }
   const c1 = await exactDestination(runtime, request, plan, expectedIdentity);
+  await runtime.faultInjector?.({ phase: "after-c1" });
   if (!c1.exact) {
     return undefined;
   }
   const a2 = await exactCurrentAuthority(runtime, request, plan);
+  await runtime.faultInjector?.({ phase: "after-a2" });
   if (!a2.current) {
     return undefined;
   }
   const c2 = await exactDestination(runtime, request, plan, expectedIdentity);
+  await runtime.faultInjector?.({ phase: "after-c2" });
   if (!c2.exact) {
     return undefined;
   }
   await runtime.journal.remove(active.identity);
+  await runtime.faultInjector?.({
+    phase: "after-final-journal-removal-synced"
+  });
   return successReceipt(plan, outcome);
 }
 

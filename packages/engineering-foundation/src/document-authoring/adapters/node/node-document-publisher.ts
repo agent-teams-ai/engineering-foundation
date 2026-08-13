@@ -81,10 +81,6 @@ async function readExactPublicationIdentity(
   return wireIdentity(observed.identity, true);
 }
 
-async function requireDirectoryDurability(parent: string): Promise<void> {
-  await syncDirectoryStrictly(parent);
-}
-
 function assertTemporaryBinding(plan: DocumentPlan, temporary: DocumentOwnedTemporary): void {
   if (temporary.path !== documentTemporaryPath(plan.destination, plan.planDigest) ||
     temporary.digest !== plan.output.digest) {
@@ -92,7 +88,42 @@ function assertTemporaryBinding(plan: DocumentPlan, temporary: DocumentOwnedTemp
   }
 }
 
+export type NodeDocumentPublisherFaultPoint =
+  | { readonly phase: "after-temporary-synced" }
+  | { readonly phase: "after-hard-link" }
+  | { readonly phase: "after-publication-synced" }
+  | { readonly phase: "after-temporary-cleanup-synced" };
+
+export type NodeDocumentPublisherFaultInjector = (
+  point: NodeDocumentPublisherFaultPoint
+) => Promise<void> | void;
+
+export interface NodeDocumentPublisherOperations {
+  readonly faultInjector?: NodeDocumentPublisherFaultInjector;
+  readonly link?: typeof link;
+  readonly open?: typeof open;
+  readonly remove?: typeof rm;
+  readonly syncDirectoryDurably?: typeof syncDirectoryDurably;
+  readonly syncDirectoryStrictly?: typeof syncDirectoryStrictly;
+}
+
 export class NodeDocumentPublisher implements DocumentPublisher {
+  readonly #operations: Required<Omit<NodeDocumentPublisherOperations, "faultInjector">> &
+    Pick<NodeDocumentPublisherOperations, "faultInjector">;
+
+  public constructor(operations: NodeDocumentPublisherOperations = {}) {
+    this.#operations = {
+      link: operations.link ?? link,
+      open: operations.open ?? open,
+      remove: operations.remove ?? rm,
+      syncDirectoryDurably: operations.syncDirectoryDurably ?? syncDirectoryDurably,
+      syncDirectoryStrictly: operations.syncDirectoryStrictly ?? syncDirectoryStrictly,
+      ...(operations.faultInjector === undefined
+        ? {}
+        : { faultInjector: operations.faultInjector })
+    };
+  }
+
   async prepare(request: {
     readonly consumerRoot: string;
     readonly plan: DocumentPlan;
@@ -112,7 +143,7 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       consumerRoot: request.consumerRoot,
       destination: temporaryPath
     });
-    await requireDirectoryDurability(paths.parent);
+    await this.#operations.syncDirectoryStrictly(paths.parent);
     const recaptured = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
       destination: request.plan.destination
@@ -125,11 +156,12 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       displayPath: temporaryPath,
       faultInjector: undefined,
       onIdentityCaptured() {},
-      open,
+      open: this.#operations.open,
       postimage: postimage(request.plan),
       temporaryPath: temporaryAbsolutePath
     });
-    await requireDirectoryDurability(recaptured.parent);
+    await this.#operations.syncDirectoryStrictly(recaptured.parent);
+    await this.#operations.faultInjector?.({ phase: "after-temporary-synced" });
     const temporary: DocumentOwnedTemporary = {
       path: temporaryPath,
       digest: request.plan.output.digest,
@@ -154,7 +186,7 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       consumerRoot: request.consumerRoot,
       destination: request.plan.destination
     });
-    await requireDirectoryDurability(before.parent);
+    await this.#operations.syncDirectoryStrictly(before.parent);
     const paths = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
       destination: request.plan.destination
@@ -172,14 +204,17 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       destinationPath: paths.destinationPath,
       displayPath: request.plan.destination,
       expectedIdentity,
-      faultInjector: undefined,
-      link,
+      faultInjector: async () => this.#operations.faultInjector?.({
+        phase: "after-hard-link"
+      }),
+      link: this.#operations.link,
       parent: paths.parent,
       postimage: postimage(request.plan),
       readBoundedRegularFile,
-      syncDirectory: syncDirectoryDurably,
+      syncDirectory: this.#operations.syncDirectoryDurably,
       temporaryPath
     });
+    await this.#operations.faultInjector?.({ phase: "after-publication-synced" });
     if (outcome === "published") {
       return Object.freeze({
         outcome,
@@ -243,7 +278,7 @@ export class NodeDocumentPublisher implements DocumentPublisher {
         throw error;
       }
     }
-    await requireDirectoryDurability(before.parent);
+    await this.#operations.syncDirectoryStrictly(before.parent);
     const after = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
       destination: request.plan.destination
@@ -276,7 +311,7 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       consumerRoot: request.consumerRoot,
       destination: request.temporary.path
     });
-    await requireDirectoryDurability(paths.parent);
+    await this.#operations.syncDirectoryStrictly(paths.parent);
     const recaptured = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
       destination: request.temporary.path
@@ -292,12 +327,15 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       displayPath: request.temporary.path,
       expectedIdentity,
       parent: recaptured.parent,
-      rm,
-      syncDirectory: syncDirectoryDurably,
+      rm: this.#operations.remove,
+      syncDirectory: this.#operations.syncDirectoryDurably,
       temporaryPath: recaptured.destinationPath
     });
     if (outcome === "different") {
       throw new Error("Document temporary was replaced and was preserved.");
     }
+    await this.#operations.faultInjector?.({
+      phase: "after-temporary-cleanup-synced"
+    });
   }
 }

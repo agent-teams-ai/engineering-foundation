@@ -20,6 +20,10 @@ import {
 } from "./document-transaction-continuation.js";
 import { DocumentTransactionUseCaseError } from "./document-transaction-error.js";
 import { assertNonzeroDocumentPhysicalIdentity } from "../model/document-physical-identity.js";
+import {
+  executeWithDocumentTransactionLease,
+  type DocumentTransactionExecution
+} from "./document-transaction-execution.js";
 
 export interface RecoverDocumentTransactionDependencies
 extends DocumentTransactionRuntime {
@@ -183,149 +187,151 @@ async function observe(
   };
 }
 
+async function readActiveJournal(
+  dependencies: RecoverDocumentTransactionDependencies
+): Promise<ActiveDocumentJournal> {
+  let stored;
+  try {
+    stored = await dependencies.journal.read();
+  } catch (error) {
+    throw new DocumentTransactionUseCaseError(
+      "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE",
+      "Document recovery evidence cannot be trusted; no Receipt can be bound safely.",
+      { cause: error }
+    );
+  }
+  if (stored === undefined) {
+    throw new DocumentTransactionUseCaseError(
+      "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE",
+      "Coordinator reported recovery but the trusted document journal is absent."
+    );
+  }
+  return { envelope: stored.envelope, identity: stored.identity };
+}
+
+async function executeRecoveryDecision(
+  dependencies: RecoverDocumentTransactionDependencies,
+  request: RecoverDocumentTransactionRequest,
+  active: ActiveDocumentJournal,
+  observed: Awaited<ReturnType<typeof observe>>,
+  action: Exclude<ReturnType<typeof classifyDocumentRecovery>["action"], "manual">
+): Promise<DocumentReceipt> {
+  switch (action) {
+    case "resume-prepare":
+      return continuePendingPublication(dependencies, request, active);
+    case "resume-publish":
+      if (observed.temporary === undefined) {
+        throw new DocumentTransactionUseCaseError(
+          "DOCUMENT_TRANSACTION_INCONSISTENT",
+          "Recovery classifier requested publication without a bound temporary."
+        );
+      }
+      return continuePendingPublication(
+        dependencies, request, active, observed.temporary
+      );
+    case "complete-publication":
+      if (observed.temporary === undefined) {
+        throw new DocumentTransactionUseCaseError(
+          "DOCUMENT_TRANSACTION_INCONSISTENT",
+          "Recovery classifier requested completion without temporary evidence."
+        );
+      }
+      return completePublishedTransaction(
+        dependencies, request, active, observed.temporary
+      );
+    case "finalize-checks": {
+      assertNonzeroDocumentPhysicalIdentity(active.envelope.state === "PUBLISHED"
+        ? active.envelope.journal.publicationIdentity : undefined);
+      const finalized = await finalizeDocumentTransaction(
+        dependencies, { consumerRoot: request.consumerRoot }, active, "applied"
+      );
+      return finalized ?? recoveryReceipt(active.envelope.journal.plan, {
+        message: "Recovered publication failed stable final verification.",
+        publication: "published",
+        ruleId: "document.transaction.final-verification"
+      });
+    }
+    case "already-applied": {
+      const finalized = await finalizeDocumentTransaction(
+        dependencies, request, active, "already-applied"
+      );
+      return finalized ?? recoveryReceipt(active.envelope.journal.plan, {
+        message: "Preexisting exact output failed stable final verification.",
+        publication: "none",
+        ruleId: "document.transaction.final-verification"
+      });
+    }
+  }
+}
+
+async function runRecovery(
+  dependencies: RecoverDocumentTransactionDependencies,
+  request: RecoverDocumentTransactionRequest
+): Promise<DocumentReceipt> {
+  const active = await readActiveJournal(dependencies);
+  const plan = active.envelope.journal.plan;
+  const observed = await observe(dependencies, request, active);
+  const decision = classifyDocumentRecovery(observed.observation);
+  if (decision.action === "manual") {
+    return recoveryReceipt(plan, {
+      manual: true,
+      message: `Automatic recovery is unsafe: ${decision.reason}.`,
+      publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
+      ruleId: `document.transaction.${decision.reason}`
+    });
+  }
+  const authority = await dependencies.authority.assess({
+    consumerRoot: request.consumerRoot,
+    plan,
+    ...signalOption(request.signal)
+  });
+  if (authority.state !== "current") {
+    return recoveryReceipt(plan, {
+      message: authority.reason,
+      publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
+      ruleId: "document.transaction.recovery-authority"
+    });
+  }
+  return executeRecoveryDecision(
+    dependencies, request, active, observed, decision.action
+  );
+}
+
+async function executeRecovery(
+  dependencies: RecoverDocumentTransactionDependencies,
+  request: RecoverDocumentTransactionRequest
+): Promise<DocumentTransactionExecution<DocumentReceipt>> {
+  try {
+    const value = await runRecovery(dependencies, request);
+    return {
+      retainTransactionBarrier: value.outcome !== "applied" &&
+        value.outcome !== "already-applied",
+      value
+    };
+  } catch (error) {
+    const failure = isCancellation(error, request.signal)
+      ? error : transactionFailure(error);
+    throw failure;
+  }
+}
+
 /** Recovers only a current, strictly validated v3/v2 transaction. */
-/* eslint-disable complexity -- closed recovery decision matrix */
 export async function recoverDocumentTransaction(
   dependencies: RecoverDocumentTransactionDependencies,
   request: RecoverDocumentTransactionRequest
 ): Promise<DocumentReceipt> {
   const lease = await dependencies.coordinator.acquire({ mode: "recover" });
-  let retainBarrier = true;
-  let primaryFailure: unknown;
-  try {
-    if (lease.status.state !== "recoverable") {
+  return executeWithDocumentTransactionLease(
+    lease,
+    async () => {
+      if (lease.status.state !== "recoverable") {
       throw new DocumentTransactionUseCaseError(
-        "DOCUMENT_TRANSACTION_COORDINATION_FAILED",
-        "Document recovery requires a coordinator-qualified recoverable transaction."
-      );
-    }
-    let stored;
-    try {
-      stored = await dependencies.journal.read();
-    } catch (error) {
-      throw new DocumentTransactionUseCaseError(
-        "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE",
-        "Document recovery evidence cannot be trusted; no Receipt can be bound safely.",
-        { cause: error }
-      );
-    }
-    if (stored === undefined) {
-      throw new DocumentTransactionUseCaseError(
-        "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE",
-        "Coordinator reported recovery but the trusted document journal is absent."
-      );
-    }
-    const active = { envelope: stored.envelope, identity: stored.identity };
-    const plan = active.envelope.journal.plan;
-    const observed = await observe(dependencies, request, active);
-    const decision = classifyDocumentRecovery(observed.observation);
-    if (decision.action === "manual") {
-      return recoveryReceipt(plan, {
-        manual: true,
-        message: `Automatic recovery is unsafe: ${decision.reason}.`,
-        publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
-        ruleId: `document.transaction.${decision.reason}`
-      });
-    }
-    const authority = await dependencies.authority.assess({
-      consumerRoot: request.consumerRoot,
-      plan,
-      ...signalOption(request.signal)
-    });
-    if (authority.state !== "current") {
-      return recoveryReceipt(plan, {
-        message: authority.reason,
-        publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
-        ruleId: "document.transaction.recovery-authority"
-      });
-    }
-    let receipt: DocumentReceipt;
-    // A closed recovery matrix is intentionally explicit; each branch maps to
-    // one mutation continuation and never falls through optimistically.
-    switch (decision.action) {
-      case "resume-prepare":
-        receipt = await continuePendingPublication(dependencies, request, active);
-        break;
-      case "resume-publish":
-        if (observed.temporary === undefined) {
-          throw new DocumentTransactionUseCaseError(
-            "DOCUMENT_TRANSACTION_INCONSISTENT",
-            "Recovery classifier requested publication without a bound temporary."
-          );
-        }
-        receipt = await continuePendingPublication(
-          dependencies,
-          request,
-          active,
-          observed.temporary
-        );
-        break;
-      case "complete-publication":
-        if (observed.temporary === undefined) {
-          throw new DocumentTransactionUseCaseError(
-            "DOCUMENT_TRANSACTION_INCONSISTENT",
-            "Recovery classifier requested completion without temporary evidence."
-          );
-        }
-        receipt = await completePublishedTransaction(
-          dependencies,
-          request,
-          active,
-          observed.temporary
-        );
-        break;
-      case "finalize-checks": {
-        assertNonzeroDocumentPhysicalIdentity(active.envelope.state === "PUBLISHED"
-          ? active.envelope.journal.publicationIdentity : undefined);
-        const finalized = await finalizeDocumentTransaction(
-          dependencies,
-          { consumerRoot: request.consumerRoot },
-          active,
-          "applied"
-        );
-        receipt = finalized ?? await recoveryReceipt(plan, {
-          message: "Recovered publication failed stable final verification.",
-          publication: "published",
-          ruleId: "document.transaction.final-verification"
-        });
-        break;
-      }
-      case "already-applied": {
-        const finalized = await finalizeDocumentTransaction(
-          dependencies,
-          request,
-          active,
-          "already-applied"
-        );
-        receipt = finalized ?? await recoveryReceipt(plan, {
-          message: "Preexisting exact output failed stable final verification.",
-          publication: "none",
-          ruleId: "document.transaction.final-verification"
-        });
-        break;
-      }
-    }
-    retainBarrier = receipt.outcome !== "applied" && receipt.outcome !== "already-applied";
-    return receipt;
-  } catch (error) {
-    primaryFailure = isCancellation(error, request.signal)
-      ? error
-      : transactionFailure(error);
-    throw primaryFailure;
-  } finally {
-    try {
-      await lease.release({ retainTransactionBarrier: retainBarrier });
-    } catch (releaseFailure) {
-      if (primaryFailure !== undefined) {
-        /* eslint-disable no-unsafe-finally, preserve-caught-error -- retain both failures */
-        throw new AggregateError(
-          [primaryFailure, releaseFailure],
-          "Document recovery and transaction lease release both failed.",
-          { cause: primaryFailure }
+          "DOCUMENT_TRANSACTION_COORDINATION_FAILED",
+          "Document recovery requires a coordinator-qualified recoverable transaction."
         );
       }
-      throw releaseFailure;
-    }
-  }
+      return executeRecovery(dependencies, request);
+    },
+    "Document recovery and transaction lease release both failed."
+  );
 }
-/* eslint-enable complexity, no-unsafe-finally, preserve-caught-error */

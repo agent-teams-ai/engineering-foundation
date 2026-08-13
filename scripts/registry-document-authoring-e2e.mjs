@@ -3,11 +3,16 @@ import { lstat, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { captureFailure, runCommand } from "./pack-test-support.mjs";
+import {
+  captureFailure,
+  createPnpmRunner,
+  runCommand
+} from "./pack-test-support.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 
 const packageName = "@agent-teams/engineering-foundation";
 const timeoutMs = 120_000;
+const runPnpm = createPnpmRunner();
 
 function assert(condition, message) {
   if (!condition) {
@@ -40,6 +45,16 @@ async function jsonCommand(consumerRoot, args, expectedExitCode = 0) {
   assert(stderr === "", "JSON document command wrote unexpected stderr output.");
   const lines = stdout.trim().split(/\r?\n/u);
   assert(lines.length === 1, "JSON document command did not write exactly one envelope.");
+  return JSON.parse(lines[0]);
+}
+
+async function jsonAliasCommand(consumerRoot, alias, args) {
+  const { stderr, stdout } = await runPnpm([
+    "--silent", alias, "--", ...args, "--json"
+  ], consumerRoot);
+  assert(stderr === "", `${alias} wrote unexpected stderr output.`);
+  const lines = stdout.trim().split(/\r?\n/u);
+  assert(lines.length === 1, `${alias} did not write exactly one JSON envelope.`);
   return JSON.parse(lines[0]);
 }
 
@@ -89,11 +104,44 @@ export async function verifyRegistryDocumentAuthoring(input) {
   await assertInstalledBoundary(input);
   await writePackedConsumerDocumentAuthoringFixture(input.consumerRoot);
 
+  await assertConsumerAliases(input.consumerRoot);
   await assertPreview(input.consumerRoot);
   await assertIdleCommands(input.consumerRoot);
   if (process.platform !== "win32") {
     await assertApplyAndReplay(input.consumerRoot);
     await assertCrashRecovery(input.consumerRoot);
+  }
+}
+
+async function assertConsumerAliases(consumerRoot) {
+  const manifest = JSON.parse(await readFile(join(consumerRoot, "package.json"), "utf8"));
+  const expected = {
+    "docs:find": "agent-teams-foundation docs find",
+    "docs:new": "agent-teams-foundation docs new",
+    "docs:doctor": "agent-teams-foundation docs doctor",
+    check: "agent-teams-foundation repo check"
+  };
+  assert(JSON.stringify(manifest.scripts) === JSON.stringify(expected),
+    "Disposable consumer does not expose the canonical Node/pnpm aliases.");
+  const found = await jsonAliasCommand(consumerRoot, "docs:find", [
+    "Hermetic search marker", "--consumer", consumerRoot
+  ]);
+  assert(found.command === "docs.find" && found.outcome === "success" &&
+    found.result?.matches?.length === 1,
+  "pnpm docs:find did not execute the installed CLI alias.");
+  const preview = await jsonAliasCommand(
+    consumerRoot,
+    "docs:new",
+    newArgs(consumerRoot, true).slice(2)
+  );
+  assert(preview.command === "docs.new" && preview.result?.writeState === "preview",
+    "pnpm docs:new did not execute a non-mutating installed CLI preview.");
+  if (process.platform !== "win32") {
+    const doctor = await jsonAliasCommand(consumerRoot, "docs:doctor", [
+      "--consumer", consumerRoot
+    ]);
+    assert(doctor.command === "docs.doctor" && doctor.outcome === "success",
+      "pnpm docs:doctor did not execute the installed CLI alias.");
   }
 }
 

@@ -9,6 +9,13 @@ const transactionEnvelopeV2Path =
   "schemas/foundation-transaction-envelope/v2.schema.json";
 const transactionEnvelopeV3Path =
   "schemas/foundation-transaction-envelope/v3.schema.json";
+const documentCommandEnvelopeV2Path =
+  "schemas/document-command-envelope/v2.schema.json";
+const acceptedNonV1SchemaPaths = [
+  documentCommandEnvelopeV2Path,
+  transactionEnvelopeV2Path,
+  transactionEnvelopeV3Path,
+];
 const acceptedTransactionEnvelopePaths = [
   transactionEnvelopeV2Path,
   transactionEnvelopeV3Path,
@@ -65,11 +72,11 @@ test("ships v1 contracts plus the accepted transaction envelope v2 and v3 bounda
   );
   const nonV1SchemaPaths = schemaRelativePaths
     .filter((path) => !path.endsWith("/v1.schema.json"));
-  assert.deepEqual(nonV1SchemaPaths, acceptedTransactionEnvelopePaths);
+  assert.deepEqual(nonV1SchemaPaths, acceptedNonV1SchemaPaths);
   const forbiddenSchemaPaths = schemaRelativePaths
     .filter(
       (path) =>
-        !acceptedTransactionEnvelopePaths.includes(path) &&
+        !acceptedNonV1SchemaPaths.includes(path) &&
         /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path),
     );
   assert.deepEqual(forbiddenSchemaPaths, []);
@@ -77,6 +84,11 @@ test("ships v1 contracts plus the accepted transaction envelope v2 and v3 bounda
   for (const path of schemaFiles) {
     const schema = JSON.parse(await readFile(path, "utf8"));
     const relativePath = relative(packageRoot, path).replaceAll("\\", "/");
+    if (relativePath === documentCommandEnvelopeV2Path) {
+      assert.equal(schema.$id.endsWith("/v2"), true);
+      assert.equal(schema.properties.schemaVersion.const, 2);
+      continue;
+    }
     if (acceptedTransactionEnvelopePaths.includes(relativePath)) {
       const envelopeVersion = relativePath === transactionEnvelopeV2Path ? 2 : 3;
       assert.equal(schema.$id.endsWith(`/v${envelopeVersion}`), true);
@@ -107,6 +119,8 @@ test("ships v1 contracts plus the accepted transaction envelope v2 and v3 bounda
   const versionedContractLiterals =
     /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
   const acceptedVersionedSourceLiterals = {
+    "src/document-authoring/application/model/document-command.ts": [2],
+    "src/document-authoring/application/policies/document-command-projection.ts": [2],
     "src/document-authoring/application/model/document-transaction.ts": [2, 3],
     "src/document-authoring/application/use-cases/document-transaction-continuation.ts": [
       3, 2, 2, 2, 2,
@@ -134,7 +148,7 @@ test("ships v1 contracts plus the accepted transaction envelope v2 and v3 bounda
   );
   assert.deepEqual(packageManifest.files.filter(
     (path) => /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path),
-  ), acceptedTransactionEnvelopePaths);
+  ), acceptedNonV1SchemaPaths);
 });
 
 test("documents the transaction envelope v2 migration and retirement gate", async () => {

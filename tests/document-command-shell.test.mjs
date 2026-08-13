@@ -57,6 +57,35 @@ test("parses the closed docs new surface and preserves repeatable relations", ()
   assert.equal(parsed.format, "json");
 });
 
+test("keeps the repeatable related bound aligned with DocumentIntent v1", () => {
+  const base = [
+    "docs", "new", "--type", "adr", "--id", "ADR-0083",
+    "--title", "Title", "--owner", "architecture", "--summary", "Summary",
+  ];
+  const atLimit = Array.from({ length: 128 }, (_value, index) => [
+    "--related", `ADR-${String(index).padStart(4, "0")}`,
+  ]).flat();
+  assert.equal(parseArguments([...base, ...atLimit]).documentRelated.length, 128);
+  assert.throws(
+    () => parseArguments([...base, ...atLimit, "--related", "ADR-9999"]),
+    /--related accepts at most 128 values/u,
+  );
+});
+
+test("rejects duplicate global scalar options and overlong consumer roots", () => {
+  for (const args of [
+    ["docs", "doctor", "--json", "--json"],
+    ["docs", "doctor", "--json", "--format", "text"],
+    ["docs", "doctor", "--consumer", "/first", "--consumer", "/second"],
+    ["docs", "doctor", "--consumer", `/${"x".repeat(513)}`],
+  ]) {
+    assert.throws(
+      () => parseArguments(args),
+      /may be specified only once|512 UTF-8 bytes/u,
+    );
+  }
+});
+
 test("rejects mutation shortcuts, duplicate scalar options, missing values, and positionals", () => {
   const base = [
     "docs", "new", "--type", "adr", "--id", "ADR-0083",
@@ -234,4 +263,38 @@ test("JSON parse failures use one object and no stderr", async () => {
   assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
   await assertSchema("document-command-envelope/v2", invalidEnvelope, "invalid-docs-new");
 
+});
+
+test("doctor JSON parse failures remain valid without runtime environment evidence", async () => {
+  const invalid = spawnSync(process.execPath, [
+    cliPath, "docs", "doctor", "--bogus", "--json",
+  ], { encoding: "utf8" });
+  assert.equal(invalid.status, 2, invalid.stderr);
+  assert.equal(invalid.stderr, "");
+  const invalidEnvelope = JSON.parse(invalid.stdout);
+  assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
+  assert.equal(invalidEnvelope.command, "docs.doctor");
+  assert.equal(invalidEnvelope.outcome, "invalid-input");
+  await assertSchema(
+    "document-command-envelope/v2",
+    invalidEnvelope,
+    "invalid-docs-doctor",
+  );
+});
+
+test("doctor JSON preserves machine output when consumer value is missing", async () => {
+  const invalid = spawnSync(process.execPath, [
+    cliPath, "docs", "doctor", "--consumer", "--json",
+  ], { encoding: "utf8" });
+  assert.equal(invalid.status, 2, invalid.stderr);
+  assert.equal(invalid.stderr, "");
+  const invalidEnvelope = JSON.parse(invalid.stdout);
+  assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
+  assert.equal(invalidEnvelope.command, "docs.doctor");
+  assert.equal(invalidEnvelope.outcome, "invalid-input");
+  await assertSchema(
+    "document-command-envelope/v2",
+    invalidEnvelope,
+    "missing-consumer-docs-doctor",
+  );
 });

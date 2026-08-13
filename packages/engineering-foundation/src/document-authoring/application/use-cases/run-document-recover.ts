@@ -10,6 +10,7 @@ import {
   projectDocumentCommandFailure,
   receiptOutcome
 } from "../policies/document-command-projection.js";
+import { projectDocumentCommandConsumerRoot } from "../policies/document-command-consumer-root.js";
 
 export interface RunDocumentRecoverRequest {
   readonly consumerRoot: string;
@@ -41,7 +42,10 @@ function manualDiagnostics(
       : { remediation: {
           commandId: inspection.recovery.commandId === "docs-recover"
             ? "docs.recover" as const : inspection.recovery.commandId,
-          args: { ...inspection.recovery.args, consumerRoot }
+          args: {
+            ...inspection.recovery.args,
+            consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot)
+          }
         } })
   }));
 }
@@ -108,7 +112,7 @@ export class RunDocumentRecover {
                     ? "docs.recover" as const : inspection.recovery.commandId,
                   args: {
                     ...inspection.recovery.args,
-                    consumerRoot: request.consumerRoot
+                    consumerRoot: projectDocumentCommandConsumerRoot(request.consumerRoot)
                   }
                 } })
           }
@@ -126,7 +130,9 @@ export class RunDocumentRecover {
           ...(outcome === "recovery-required"
             ? { remediation: {
                 commandId: "docs.doctor" as const,
-                args: { consumerRoot: request.consumerRoot }
+                args: {
+                  consumerRoot: projectDocumentCommandConsumerRoot(request.consumerRoot)
+                }
               } }
             : {})
         })),

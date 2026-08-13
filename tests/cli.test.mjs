@@ -70,6 +70,21 @@ test("uses the stable invalid-invocation exit code", () => {
   }
 });
 
+test("accepts the canonical repo check namespace", () => {
+  const direct = spawnSync(process.execPath, [
+    cliPath, "check", "--consumer", "/definitely-missing-foundation-consumer",
+    "--format", "json",
+  ], { encoding: "utf8" });
+  const namespaced = spawnSync(process.execPath, [
+    cliPath, "repo", "check", "--consumer", "/definitely-missing-foundation-consumer",
+    "--format", "json",
+  ], { encoding: "utf8" });
+
+  assert.equal(namespaced.status, direct.status);
+  assert.equal(namespaced.stdout, direct.stdout);
+  assert.equal(namespaced.stderr, direct.stderr);
+});
+
 test("SIGTERM cancels Buf qualification with exit code 130", {
   skip: process.platform === "win32",
   timeout: 10_000,

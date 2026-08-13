@@ -39,9 +39,24 @@ v1 query is a normalized, case-independent literal substring over document ID,
 title, summary, headings, and body. Filters are exact and combine with AND;
 results sort by ID and then repository path.
 
+Node/pnpm consumers expose the short agent-facing commands through their own
+repository manifest; Foundation keeps the underlying CLI package-manager
+neutral:
+
+```json
+{
+  "scripts": {
+    "docs:find": "agent-teams-foundation docs find",
+    "docs:new": "agent-teams-foundation docs new",
+    "docs:doctor": "agent-teams-foundation docs doctor",
+    "check": "agent-teams-foundation repo check"
+  }
+}
+```
+
 ```bash
-agent-teams-foundation docs find "tenant isolation" --consumer /repo
-agent-teams-foundation docs find --type adr --status proposed --owner architecture --consumer /repo --json
+pnpm docs:find -- "tenant isolation" --consumer /repo
+pnpm docs:find -- --type adr --status proposed --owner architecture --consumer /repo --json
 ```
 
 The default profile is

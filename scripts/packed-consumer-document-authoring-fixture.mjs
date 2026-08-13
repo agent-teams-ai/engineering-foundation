@@ -1,9 +1,19 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { writeJson } from "./pack-test-support.mjs";
 
 export async function writePackedConsumerDocumentAuthoringFixture(consumerRoot) {
+  const manifestPath = join(consumerRoot, "package.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.scripts = {
+    ...manifest.scripts,
+    "docs:find": "agent-teams-foundation docs find",
+    "docs:new": "agent-teams-foundation docs new",
+    "docs:doctor": "agent-teams-foundation docs doctor",
+    check: "agent-teams-foundation repo check"
+  };
+  await writeJson(manifestPath, manifest);
   await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
   await mkdir(join(consumerRoot, "docs", "catalog"), { recursive: true });
   await writeFile(

@@ -112,6 +112,7 @@ function printDevOnlyStatus(
 function printHelp(): void {
   process.stdout.write(`Usage:
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
+  agent-teams-foundation repo check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]

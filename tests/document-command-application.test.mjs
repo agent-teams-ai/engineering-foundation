@@ -4,6 +4,7 @@ import test from "node:test";
 import { RunDocumentDoctor } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-doctor.js";
 import { RunDocumentNew } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-new.js";
 import { RunDocumentRecover } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-recover.js";
+import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const plan = {
@@ -114,14 +115,14 @@ test("docs new emits deterministic similar-document advice without blocking", as
     ruleId: "document.new.similar-documents",
     severity: "info",
     phase: "planning",
-    subject: "ADR-0007",
+    subject: "document.new",
     message: "1 existing document(s) contain the exact title query. Review them before publishing if they overlap.",
     remediation: { commandId: "docs.find", args: { text: "Exact title" } }
   }]);
 });
 
 test("docs new bounds similar-document diagnostics independently of match IDs", async () => {
-  const harness = createHarness({
+  const harness = newHarness({
     similar: {
       async advise() {
         return {
@@ -134,7 +135,7 @@ test("docs new bounds similar-document diagnostics independently of match IDs", 
       },
     },
   });
-  const execution = await harness.command.execute({
+  const execution = await harness.subject.execute({
     consumerRoot: "/fixture", profilePath: "profile.yaml",
     intent: { title: "Bounded advisory" }, dryRun: true,
   });
@@ -372,6 +373,79 @@ test("docs new exact recovery remediation retains non-cwd consumer root", async 
       exactFoundationBuildIdentity: digest
     }
   });
+});
+
+test("docs new sends manual recovery receipts to doctor and normalizes Windows roots", async () => {
+  const harness = newHarness({
+    async apply() {
+      return {
+        outcome: "manual-recovery-required",
+        diagnostics: [{
+          ruleId: "document.writer.manual-recovery",
+          severity: "error",
+          phase: "recovery",
+          subject: "document.transaction",
+          message: "Manual inspection is required.",
+        }],
+        commit: {
+          state: "manual-recovery-required",
+          publication: "unknown",
+          atomicity: "not-applicable",
+          recoverability: "preserved-for-recovery",
+        },
+      };
+    },
+  });
+  const execution = await harness.subject.execute({
+    consumerRoot: "C:\\disposable\\consumer",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
+  });
+
+  assert.equal(execution.envelope.outcome, "recovery-required");
+  assert.deepEqual(execution.envelope.diagnostics.at(-1)?.remediation, {
+    commandId: "docs.doctor",
+    args: { consumerRoot: "C:/disposable/consumer" },
+  });
+  await assertSchema(
+    "document-command-envelope/v2",
+    execution.envelope,
+    "manual-recovery-remediation",
+  );
+});
+
+test("recovery context preserves a literal POSIX backslash as filename data", async () => {
+  const consumerRoot = "/disposable/consumer\\literal";
+  const harness = newHarness({
+    async inspect() {
+      return {
+        schemaVersion: 1,
+        state: "recoverable",
+        operationKind: "document-authoring",
+        format: "document-authoring-envelope-v3",
+        foundationVersion: "0.16.0",
+        foundationBuildIdentity: digest,
+        recovery: {
+          commandId: "docs-recover",
+          exactFoundationVersion: "0.16.0",
+          exactFoundationBuildIdentity: digest,
+        },
+        diagnostics: [],
+      };
+    },
+  });
+  const execution = await harness.subject.execute({
+    consumerRoot,
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
+  });
+
+  assert.equal(
+    execution.envelope.diagnostics[0]?.remediation?.args.consumerRoot,
+    consumerRoot,
+  );
 });
 
 test("docs recover is a no-op when idle and refuses manual evidence", async () => {

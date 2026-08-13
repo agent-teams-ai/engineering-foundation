@@ -132,3 +132,28 @@ test("new completed result renders the canonical repository quality gate", () =>
 
   assert.match(text, /Next: agent-teams-foundation repo check/u);
 });
+
+test("human diagnostics render manual doctor guidance without shell interpolation", () => {
+  const consumerRoot = "/tmp/manual project; echo unsafe";
+  const value = execution("docs.new", {
+    kind: "new",
+    reservation: "none",
+  }, "recovery-required");
+  value.envelope.diagnostics = [{
+    ruleId: "document.writer.manual-recovery",
+    severity: "error",
+    phase: "recovery",
+    subject: "document.transaction",
+    message: "Manual inspection is required.",
+    remediation: {
+      commandId: "docs.doctor",
+      args: { consumerRoot },
+    },
+  }];
+
+  const text = renderDocumentCommandText(value);
+  assert.match(text, /Run: agent-teams-foundation docs doctor/u);
+  assert.match(text, /Run from consumer root: \/tmp\/manual project; echo unsafe/u);
+  const runLine = text.split("\n").find((line) => line.startsWith("Run: "));
+  assert.equal(runLine?.includes(consumerRoot), false);
+});

@@ -83,7 +83,38 @@ interface ArgumentState {
 
 const DEFAULT_DOCUMENT_AUTHORING_PROFILE_PATH =
   "architecture/foundation/document-authoring.yaml";
-const MAXIMUM_RELATED_DOCUMENTS = 256;
+const MAXIMUM_RELATED_DOCUMENTS = 128;
+const MAXIMUM_CONSUMER_ROOT_BYTES = 512;
+
+function requiredOptionValue(
+  args: readonly string[],
+  index: number,
+  option: string
+): string {
+  const candidate = args[index + 1];
+  if (
+    candidate === undefined ||
+    candidate.length === 0 ||
+    candidate.startsWith("-")
+  ) {
+    throw new FoundationError("CONSUMER_INVALID", `${option} requires a value.`);
+  }
+  return candidate;
+}
+
+function provideScalarOption(
+  state: ArgumentState,
+  identity: string,
+  displayName: string
+): void {
+  if (state.providedOptions.has(identity)) {
+    throw new FoundationError(
+      "CONSUMER_INVALID",
+      `${displayName} may be specified only once.`
+    );
+  }
+  state.providedOptions.add(identity);
+}
 
 function documentOptionValue(
   args: readonly string[],
@@ -174,13 +205,7 @@ function consumeQualificationOption(
   if (value !== "--buf-executable") {
     return undefined;
   }
-  const candidate = args[index + 1];
-  if (candidate === undefined || candidate.length === 0) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--buf-executable requires an absolute path."
-    );
-  }
+  const candidate = requiredOptionValue(args, index, "--buf-executable");
   state.bufExecutablePath = candidate;
   return 1;
 }
@@ -218,6 +243,29 @@ function consumePositionalControl(
   return false;
 }
 
+function consumeOutputFormatOption(
+  args: readonly string[],
+  index: number,
+  state: ArgumentState
+): number | undefined {
+  const value = args[index];
+  if (value === "--json") {
+    provideScalarOption(state, "output-format", "--json or --format");
+    state.format = "json";
+    return 0;
+  }
+  if (value !== "--format") {
+    return undefined;
+  }
+  const candidate = args[index + 1];
+  if (candidate !== "json" && candidate !== "text") {
+    throw new FoundationError("CONSUMER_INVALID", "--format requires json or text.");
+  }
+  provideScalarOption(state, "output-format", "--json or --format");
+  state.format = candidate;
+  return 1;
+}
+
 function consumeArgument(
   args: readonly string[],
   index: number,
@@ -230,9 +278,9 @@ function consumeArgument(
   if (consumePositionalControl(value, state)) {
     return 0;
   }
-  if (value === "--json") {
-    state.format = "json";
-    return 0;
+  const outputFormatOption = consumeOutputFormatOption(args, index, state);
+  if (outputFormatOption !== undefined) {
+    return outputFormatOption;
   }
   if (consumeDocumentBooleanOption(value, state)) {
     return 0;
@@ -246,39 +294,27 @@ function consumeArgument(
     return qualificationOption;
   }
   if (value === "--consumer") {
-    const candidate = args[index + 1];
-    if (candidate === undefined || candidate.length === 0) {
-      throw new FoundationError("CONSUMER_INVALID", "--consumer requires a path.");
+    const candidate = requiredOptionValue(args, index, "--consumer");
+    provideScalarOption(state, "--consumer", "--consumer");
+    const consumerRoot = resolve(candidate);
+    if (Buffer.byteLength(consumerRoot, "utf8") > MAXIMUM_CONSUMER_ROOT_BYTES) {
+      throw new FoundationError(
+        "CONSUMER_INVALID",
+        `--consumer resolves beyond ${MAXIMUM_CONSUMER_ROOT_BYTES} UTF-8 bytes.`
+      );
     }
-    state.consumerRoot = resolve(candidate);
+    state.consumerRoot = consumerRoot;
     return 1;
   }
   if (value === "--base") {
-    const candidate = args[index + 1];
-    if (candidate === undefined || candidate.length === 0) {
-      throw new FoundationError("CONSUMER_INVALID", "--base requires a Git ref.");
-    }
+    const candidate = requiredOptionValue(args, index, "--base");
     state.baseRef = candidate;
     return 1;
   }
   if (value === "--config") {
-    const candidate = args[index + 1];
-    if (candidate === undefined || candidate.length === 0) {
-      throw new FoundationError(
-        "CONSUMER_INVALID",
-        "--config requires a repository-relative path."
-      );
-    }
+    const candidate = requiredOptionValue(args, index, "--config");
     state.configPath = candidate;
     state.configPathProvided = true;
-    return 1;
-  }
-  if (value === "--format") {
-    const candidate = args[index + 1];
-    if (candidate !== "json" && candidate !== "text") {
-      throw new FoundationError("CONSUMER_INVALID", "--format requires json or text.");
-    }
-    state.format = candidate;
     return 1;
   }
   if (value.startsWith("-")) {
@@ -409,8 +445,11 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
 
   const command = args[0] === "docs"
     ? `docs.${args[1] ?? ""}`
-    : (args[0] ?? "help");
-  const firstArgumentIndex = args[0] === "docs" ? 2 : 1;
+    : args[0] === "repo" && args[1] === "check"
+      ? "check"
+      : (args[0] ?? "help");
+  const firstArgumentIndex = args[0] === "docs" ||
+    (args[0] === "repo" && args[1] === "check") ? 2 : 1;
   for (let index = firstArgumentIndex; index < args.length; index += 1) {
     index += consumeArgument(args, index, state);
   }

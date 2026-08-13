@@ -16,6 +16,7 @@ import {
   receiptOutcome
 } from "../policies/document-command-projection.js";
 import { projectSimilarDocumentAdvice } from "../policies/project-similar-document-advice.js";
+import { projectDocumentCommandConsumerRoot } from "../policies/document-command-consumer-root.js";
 
 export interface RunDocumentNewRequest extends PlanDocumentationDocumentRequest {
   readonly dryRun: boolean;
@@ -46,7 +47,7 @@ function transactionDiagnostic(
     ? {
         commandId: "docs.recover" as const,
         args: {
-          consumerRoot,
+          consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot),
           exactFoundationVersion: inspection.recovery.exactFoundationVersion,
           exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
         }
@@ -56,7 +57,10 @@ function transactionDiagnostic(
       : {
           commandId: inspection.recovery.commandId === "docs-recover"
             ? "docs.recover" as const : inspection.recovery.commandId,
-          args: { ...inspection.recovery.args, consumerRoot },
+          args: {
+            ...inspection.recovery.args,
+            consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot)
+          },
         };
   return {
     ruleId: "document.new.transaction-active",
@@ -76,11 +80,15 @@ function receiptDiagnostics(
 ): readonly DocumentCommandDiagnostic[] {
   return receipt.diagnostics.map((entry) => ({
     ...entry,
-    ...(receipt.outcome === "recovery-required" ||
-      receipt.outcome === "manual-recovery-required"
+    ...(receipt.outcome === "recovery-required"
       ? { remediation: {
           commandId: "docs.recover" as const,
-          args: { consumerRoot }
+          args: { consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot) }
+        } }
+      : receipt.outcome === "manual-recovery-required"
+        ? { remediation: {
+          commandId: "docs.doctor" as const,
+          args: { consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot) }
         } }
       : {})
   }));

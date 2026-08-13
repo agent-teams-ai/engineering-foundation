@@ -12,6 +12,7 @@ import {
   commandExecution,
   projectDocumentCommandFailure
 } from "../policies/document-command-projection.js";
+import { projectDocumentCommandConsumerRoot } from "../policies/document-command-consumer-root.js";
 
 export interface RunDocumentDoctorRequest {
   readonly consumerRoot: string;
@@ -64,7 +65,7 @@ function inspectionDiagnostics(
       ? { remediation: {
           commandId: "docs.recover" as const,
           args: {
-            consumerRoot,
+            consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot),
             exactFoundationVersion: inspection.recovery.exactFoundationVersion,
             exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
           }
@@ -74,7 +75,10 @@ function inspectionDiagnostics(
         : { remediation: {
             commandId: inspection.recovery.commandId === "docs-recover"
               ? "docs.recover" as const : inspection.recovery.commandId,
-            args: { ...inspection.recovery.args, consumerRoot }
+            args: {
+              ...inspection.recovery.args,
+              consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot)
+            }
           } })
   }));
 }
@@ -160,7 +164,7 @@ export class RunDocumentDoctor {
             recoveryCommand: {
               commandId: "docs.recover",
               args: {
-                consumerRoot: request.consumerRoot,
+                consumerRoot: projectDocumentCommandConsumerRoot(request.consumerRoot),
                 exactFoundationVersion: inspection.recovery.exactFoundationVersion,
                 exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
               }
@@ -192,7 +196,10 @@ export class RunDocumentDoctor {
             : { recoveryCommand: {
                 commandId: exactRecovery.commandId === "docs-recover"
                   ? "docs.recover" as const : exactRecovery.commandId,
-                args: { ...exactRecovery.args, consumerRoot: request.consumerRoot }
+                args: {
+                  ...exactRecovery.args,
+                  consumerRoot: projectDocumentCommandConsumerRoot(request.consumerRoot)
+                }
               } })
         }
       });

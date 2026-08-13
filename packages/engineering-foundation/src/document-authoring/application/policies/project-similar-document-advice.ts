@@ -11,7 +11,7 @@ export function projectSimilarDocumentAdvice(
     ruleId: "document.new.similar-documents",
     severity: "info",
     phase: "planning",
-    subject: advice.matches.map(({ id }) => id).join(","),
+    subject: "document.new",
     message: `${advice.matches.length} existing document(s) contain the exact title query. Review them before publishing if they overlap.`,
     remediation: Object.freeze({
       commandId: "docs.find",

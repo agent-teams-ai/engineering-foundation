@@ -124,7 +124,7 @@ async function assertConsumerAliases(consumerRoot) {
   assert(JSON.stringify(manifest.scripts) === JSON.stringify(expected),
     "Disposable consumer does not expose the canonical Node/pnpm aliases.");
   const found = await jsonAliasCommand(consumerRoot, "docs:find", [
-    "Hermetic search marker", "--consumer", consumerRoot
+    "Hermetic", "--consumer", consumerRoot
   ]);
   assert(found.command === "docs.find" && found.outcome === "success" &&
     found.result?.matches?.length === 1,
@@ -132,7 +132,12 @@ async function assertConsumerAliases(consumerRoot) {
   const preview = await jsonAliasCommand(
     consumerRoot,
     "docs:new",
-    newArgs(consumerRoot, true).slice(2)
+    [
+      "--type", "adr", "--id", "ADR-0041", "--title", "Alias",
+      "--owner", "architecture", "--summary", "Packed-alias-preview.",
+      "--slug", "packed-alias-preview", "--consumer", consumerRoot,
+      "--profile", "architecture/foundation/document-authoring.yaml", "--dry-run"
+    ]
   );
   assert(preview.command === "docs.new" && preview.result?.writeState === "preview",
     "pnpm docs:new did not execute a non-mutating installed CLI preview.");

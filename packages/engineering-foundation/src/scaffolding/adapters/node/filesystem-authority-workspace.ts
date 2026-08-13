@@ -369,7 +369,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
           "A different scaffolding transaction requires recovery before this Plan can apply."
         );
       }
-      return continueJournal({
+      return await continueJournal({
         root: canonicalRoot,
         journalPath,
         journal: existing,
@@ -427,7 +427,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       });
     }
     if (classifications.every(({ state }) => state === "after")) {
-      return verifyAlreadyAppliedScaffold({
+      return await verifyAlreadyAppliedScaffold({
         root: canonicalRoot,
         plan,
         ...(faultInjector === undefined ? {} : { faultInjector })
@@ -445,7 +445,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       journalFault(faultInjector)
     );
     await faultInjector?.({ phase: "after-journal-prepared" });
-    return continueJournal({
+    return await continueJournal({
       root: canonicalRoot,
       journalPath,
       journal,
@@ -472,7 +472,7 @@ export async function recoverAuthorityFilesystemScaffold(
       return undefined;
     }
     assertSafeOperationPaths(journal.plan);
-    return continueJournal({
+    return await continueJournal({
       root: canonicalRoot,
       journalPath,
       journal,

@@ -9,6 +9,7 @@ const CHANGESET_PATTERN = /^\.changeset\/[^/]+\.md$/u;
 const CONTRACT_BASELINE_PATTERN =
   /^architecture\/contracts\/(?:(?!\.{1,2}\/)[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:json|ya?ml)$/u;
 const PUBLIC_API_PATTERN = /^architecture\/public-api\/[^/]+\.json$/u;
+const PRERELEASE_STATE = ".changeset/pre.json";
 const PACKAGE_MANIFEST = "packages/engineering-foundation/package.json";
 const PACKAGE_CHANGELOG = "packages/engineering-foundation/CHANGELOG.md";
 
@@ -20,26 +21,114 @@ export async function readStreamText(stream) {
   return text;
 }
 
-function stableVersionTuple(value) {
-  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.exec(value);
-  return match === null ? undefined : match.slice(1).map((part) => BigInt(part));
+function semanticVersion(value) {
+  const match =
+    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/u.exec(
+      value,
+    );
+  if (match === null) {
+    return;
+  }
+  const prerelease = match[4]?.split(".");
+  if (prerelease?.some((part) => /^\d+$/u.test(part) && /^0\d/u.test(part))) {
+    return;
+  }
+  return {
+    core: match.slice(1, 4).map((part) => BigInt(part)),
+    prerelease,
+  };
 }
 
-function isNewerStableVersion(baseVersion, headVersion) {
-  const base = stableVersionTuple(baseVersion);
-  const head = stableVersionTuple(headVersion);
+function comparePrereleaseIdentifiers(base, head) {
+  for (let index = 0; index < Math.max(base.length, head.length); index += 1) {
+    if (base[index] === undefined) {
+      return 1;
+    }
+    if (head[index] === undefined) {
+      return -1;
+    }
+    if (base[index] === head[index]) {
+      continue;
+    }
+    const baseNumeric = /^\d+$/u.test(base[index]);
+    const headNumeric = /^\d+$/u.test(head[index]);
+    if (baseNumeric && headNumeric) {
+      return BigInt(head[index]) > BigInt(base[index]) ? 1 : -1;
+    }
+    if (baseNumeric !== headNumeric) {
+      return headNumeric ? -1 : 1;
+    }
+    return head[index] > base[index] ? 1 : -1;
+  }
+  return 0;
+}
+
+function isNewerVersion(baseVersion, headVersion) {
+  const base = semanticVersion(baseVersion);
+  const head = semanticVersion(headVersion);
   if (base === undefined || head === undefined) {
     return false;
   }
-  for (let index = 0; index < base.length; index += 1) {
-    if (base[index] !== head[index]) {
-      return head[index] > base[index];
+  for (let index = 0; index < base.core.length; index += 1) {
+    if (base.core[index] !== head.core[index]) {
+      return head.core[index] > base.core[index];
     }
   }
-  return false;
+  if (base.prerelease === undefined) {
+    return false;
+  }
+  if (head.prerelease === undefined) {
+    return true;
+  }
+  return comparePrereleaseIdentifiers(base.prerelease, head.prerelease) > 0;
+}
+
+function validPrereleaseState(state) {
+  return (
+    state !== null &&
+    typeof state === "object" &&
+    !Array.isArray(state) &&
+    state.mode === "pre" &&
+    typeof state.tag === "string" &&
+    /^[0-9A-Za-z-]+$/u.test(state.tag) &&
+    state.initialVersions !== null &&
+    typeof state.initialVersions === "object" &&
+    !Array.isArray(state.initialVersions) &&
+    Array.isArray(state.changesets) &&
+    state.changesets.every(
+      (id) => typeof id === "string" && /^[A-Za-z0-9_-]+$/u.test(id),
+    ) &&
+    new Set(state.changesets).size === state.changesets.length
+  );
+}
+
+function prereleaseStateViolations(baseState, headState, headVersion) {
+  if (baseState === undefined && headState === undefined) {
+    return [];
+  }
+  if (!validPrereleaseState(baseState) || !validPrereleaseState(headState)) {
+    return ["release pull request must preserve a valid Changesets prerelease state"];
+  }
+  const normalizedBase = structuredClone(baseState);
+  const normalizedHead = structuredClone(headState);
+  const baseChangesets = new Set(normalizedBase.changesets);
+  const headChangesets = new Set(normalizedHead.changesets);
+  delete normalizedBase.changesets;
+  delete normalizedHead.changesets;
+  const stateChanged = !isDeepStrictEqual(normalizedBase, normalizedHead);
+  const removed = [...baseChangesets].some((id) => !headChangesets.has(id));
+  const added = [...headChangesets].some((id) => !baseChangesets.has(id));
+  const version = semanticVersion(headVersion);
+  const tagMatches = version?.prerelease?.[0] === headState.tag;
+  return stateChanged || removed || !added || !tagMatches
+    ? ["release pull request must only append consumed Changesets to matching prerelease state"]
+    : [];
 }
 
 function isAllowedReleaseFile(file) {
+  if (file.filename === PRERELEASE_STATE) {
+    return file.status === "modified";
+  }
   if (CHANGESET_PATTERN.test(file.filename)) {
     return file.status === "removed";
   }
@@ -83,7 +172,13 @@ export function releasePullRequestFileViolations(files) {
   if (!hasModifiedFile(PACKAGE_CHANGELOG)) {
     violations.push(`release pull request must modify ${PACKAGE_CHANGELOG}`);
   }
-  if (!files.some((file) => CHANGESET_PATTERN.test(file?.filename ?? "") && file.status === "removed")) {
+  if (
+    !files.some(
+      (file) =>
+        (CHANGESET_PATTERN.test(file?.filename ?? "") && file.status === "removed") ||
+        (file?.filename === PRERELEASE_STATE && file.status === "modified"),
+    )
+  ) {
     violations.push("release pull request must consume at least one Changeset");
   }
   return violations;
@@ -94,6 +189,8 @@ export function releasePullRequestContentViolations({
   headManifest,
   baseChangelog,
   headChangelog,
+  basePrereleaseState,
+  headPrereleaseState,
 }) {
   const violations = [];
   const normalizedBaseManifest = structuredClone(baseManifest);
@@ -106,13 +203,20 @@ export function releasePullRequestContentViolations({
   if (
     typeof baseVersion !== "string" ||
     typeof headVersion !== "string" ||
-    !isNewerStableVersion(baseVersion, headVersion)
+    !isNewerVersion(baseVersion, headVersion)
   ) {
     violations.push("release pull request must change the package to a valid new version");
   }
   if (!isDeepStrictEqual(normalizedBaseManifest, normalizedHeadManifest)) {
     violations.push("release pull request may change only package.json version");
   }
+  violations.push(
+    ...prereleaseStateViolations(
+      basePrereleaseState,
+      headPrereleaseState,
+      headVersion,
+    ),
+  );
   const changelogTitleEnd =
     typeof baseChangelog === "string" ? baseChangelog.indexOf("\n\n") + 2 : 0;
   const changelogTitle =
@@ -151,16 +255,36 @@ async function fileAtRevision(revision, path) {
   return stdout;
 }
 
+async function optionalJsonAtRevision(revision, path) {
+  try {
+    return JSON.parse(await fileAtRevision(revision, path));
+  } catch (error) {
+    if (error?.code === 128) {
+      return;
+    }
+    throw error;
+  }
+}
+
 async function main() {
   const pages = JSON.parse(await readStreamText(process.stdin));
   const files = Array.isArray(pages) ? pages.flat() : pages;
   const baseRevision = revisionArgument("--base");
   const headRevision = revisionArgument("--head");
-  const [baseManifestText, headManifestText, baseChangelog, headChangelog] = await Promise.all([
+  const [
+    baseManifestText,
+    headManifestText,
+    baseChangelog,
+    headChangelog,
+    basePrereleaseState,
+    headPrereleaseState,
+  ] = await Promise.all([
     fileAtRevision(baseRevision, PACKAGE_MANIFEST),
     fileAtRevision(headRevision, PACKAGE_MANIFEST),
     fileAtRevision(baseRevision, PACKAGE_CHANGELOG),
     fileAtRevision(headRevision, PACKAGE_CHANGELOG),
+    optionalJsonAtRevision(baseRevision, PRERELEASE_STATE),
+    optionalJsonAtRevision(headRevision, PRERELEASE_STATE),
   ]);
   const violations = [
     ...releasePullRequestFileViolations(files),
@@ -169,6 +293,8 @@ async function main() {
       headManifest: JSON.parse(headManifestText),
       baseChangelog,
       headChangelog,
+      basePrereleaseState,
+      headPrereleaseState,
     }),
   ];
   if (violations.length > 0) {

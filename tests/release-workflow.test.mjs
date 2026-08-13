@@ -394,6 +394,58 @@ test("release ReviewGate permits only version and generated changelog changes", 
   );
 });
 
+test("release ReviewGate validates Changesets prerelease consumption", () => {
+  const basePrereleaseState = {
+    mode: "pre",
+    tag: "rc",
+    initialVersions: { "@agent-teams/engineering-foundation": "0.15.0" },
+    changesets: [],
+  };
+  const evidence = {
+    baseManifest: { name: "@agent-teams/engineering-foundation", version: "0.15.0" },
+    headManifest: {
+      name: "@agent-teams/engineering-foundation",
+      version: "0.16.0-rc.0",
+    },
+    baseChangelog: "# Changelog\n\n## 0.15.0\n",
+    headChangelog: "# Changelog\n\n## 0.16.0-rc.0\n\nNew capability.\n\n## 0.15.0\n",
+    basePrereleaseState,
+    headPrereleaseState: {
+      ...basePrereleaseState,
+      changesets: ["durable-document-writer"],
+    },
+  };
+
+  assert.deepEqual(releasePullRequestContentViolations(evidence), []);
+  assert.match(
+    releasePullRequestContentViolations({
+      ...evidence,
+      headPrereleaseState: { ...evidence.headPrereleaseState, tag: "beta" },
+    }).join("\n"),
+    /only append consumed Changesets/u,
+  );
+  assert.match(
+    releasePullRequestContentViolations({
+      ...evidence,
+      headManifest: { ...evidence.headManifest, version: "0.16.0-beta.0" },
+    }).join("\n"),
+    /matching prerelease state/u,
+  );
+  const nextPrerelease = {
+    ...evidence,
+    baseManifest: { ...evidence.headManifest, version: "0.16.0-rc.0" },
+    headManifest: { ...evidence.headManifest, version: "0.16.0-rc.1" },
+  };
+  assert.deepEqual(releasePullRequestContentViolations(nextPrerelease), []);
+  assert.match(
+    releasePullRequestContentViolations({
+      ...nextPrerelease,
+      headManifest: { ...nextPrerelease.headManifest, version: "0.16.0-rc.01" },
+    }).join("\n"),
+    /valid new version/u,
+  );
+});
+
 test("release ReviewGate accepts only normalized Changesets output", () => {
   const validFiles = [
     { filename: ".changeset/portable-agent-workflow.md", status: "removed" },
@@ -424,6 +476,25 @@ test("release ReviewGate accepts only normalized Changesets output", () => {
       validFiles.filter(({ filename }) => !filename.endsWith("package.json")),
     )[0],
     /must modify/u,
+  );
+});
+
+test("release ReviewGate accepts normalized prerelease Changesets output", () => {
+  const validFiles = [
+    { filename: ".changeset/pre.json", status: "modified" },
+    { filename: "architecture/public-api/engineering-foundation.json", status: "modified" },
+    { filename: "packages/engineering-foundation/CHANGELOG.md", status: "modified" },
+    { filename: "packages/engineering-foundation/package.json", status: "modified" },
+  ];
+
+  assert.deepEqual(releasePullRequestFileViolations(validFiles), []);
+  assert.match(
+    releasePullRequestFileViolations(
+      validFiles.map((file) =>
+        file.filename === ".changeset/pre.json" ? { ...file, status: "added" } : file,
+      ),
+    ).join("\n"),
+    /forbidden change/u,
   );
 });
 

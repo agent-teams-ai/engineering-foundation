@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { open, rename, unlink, type FileHandle } from "node:fs/promises";
+import { mkdir, open, rename, unlink, type FileHandle } from "node:fs/promises";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
@@ -16,7 +16,6 @@ import type {
 } from "../../application/ports/foundation-operation-lock.js";
 import {
   ensureFoundationStateDirectory,
-  pruneFoundationStateDirectory,
   syncFoundationStateDirectory
 } from "./node-foundation-state-directory.js";
 
@@ -42,6 +41,14 @@ type LockEvidence = ActiveOwner | TransactionBarrier;
 interface OwnedLock {
   readonly evidence: ActiveOwner;
   readonly identity: PortablePathIdentity;
+}
+
+interface OperationLockOperations {
+  readonly faultInjector?: (point: {
+    readonly path: string;
+    readonly phase: "after-release-retirement";
+  }) => Promise<void> | void;
+  readonly retirementToken?: () => string;
 }
 
 function isErrorCode(error: unknown, code: string): boolean {
@@ -347,10 +354,31 @@ async function quarantineObservedLock(
   directory: string,
   lockPath: string,
   observed: Awaited<ReturnType<typeof readLock>>,
-  phase: "recovered" | "released"
+  phase: "recovered" | "released",
+  operations: OperationLockOperations = {}
 ): Promise<string> {
-  const quarantinePath = `${lockPath}.${phase}.${observed.evidence.token}`;
+  const retirementToken = operations.retirementToken?.() ?? randomUUID();
+  const quarantineDirectory =
+    `${lockPath}.${phase}.${observed.evidence.token}.${retirementToken}`;
+  try {
+    await mkdir(quarantineDirectory, { mode: 0o700 });
+  } catch (error) {
+    throw new Error(
+      "Foundation operation lock retirement destination is occupied; all evidence was preserved.",
+      { cause: error }
+    );
+  }
+  await syncFoundationStateDirectory(directory);
+  const quarantinePath = join(quarantineDirectory, "evidence");
   await rename(lockPath, quarantinePath);
+  await syncFoundationStateDirectory(quarantineDirectory);
+  await syncFoundationStateDirectory(directory);
+  if (phase === "released") {
+    await operations.faultInjector?.({
+      path: quarantinePath,
+      phase: "after-release-retirement"
+    });
+  }
   const quarantined = await readLock(quarantinePath);
   if (
     quarantined.evidence.token !== observed.evidence.token ||
@@ -358,7 +386,6 @@ async function quarantineObservedLock(
   ) {
     throw new Error("Foundation operation lock ownership changed during cleanup.");
   }
-  await syncFoundationStateDirectory(directory);
   return quarantinePath;
 }
 
@@ -394,9 +421,11 @@ async function retainTransactionBarrier(
 
 export class NodeFoundationOperationLock implements FoundationOperationLock {
   readonly #consumerRoot: string;
+  readonly #operations: OperationLockOperations;
 
-  constructor(consumerRoot: string) {
+  constructor(consumerRoot: string, operations: OperationLockOperations = {}) {
     this.#consumerRoot = consumerRoot;
+    this.#operations = operations;
   }
 
   async acquire(): Promise<
@@ -448,13 +477,14 @@ export class NodeFoundationOperationLock implements FoundationOperationLock {
             directory,
             lockPath,
             current,
-            "released"
+            "released",
+            this.#operations
           );
           state = "released";
-          await unlink(quarantinePath);
-          await syncFoundationStateDirectory(directory);
-          await pruneFoundationStateDirectory(this.#consumerRoot);
-          await syncFoundationStateDirectory(this.#consumerRoot);
+          // The verified evidence is logically retired inside a fresh 0700
+          // directory. Node has no unlink-by-handle primitive, so retaining it
+          // avoids a pathname proof-to-delete race with foreign substitution.
+          void quarantinePath;
         } catch (error) {
           throw new FoundationError(
             "LOCAL_STATE_INVALID",

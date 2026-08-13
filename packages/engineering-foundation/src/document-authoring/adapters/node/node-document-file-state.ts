@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
 import {
-  assertDocumentPhysicalIdentity,
+  assertNonzeroDocumentPhysicalIdentity,
   type DocumentPhysicalIdentity
 } from "../../application/model/document-physical-identity.js";
 import type { DocumentOwnedTemporary } from "../../application/model/document-transaction.js";
@@ -28,7 +28,7 @@ function digest(bytes: Uint8Array): string {
 function identity(temporary: DocumentOwnedTemporary): PortablePathIdentity | undefined {
   const value = temporary.identity;
   try {
-    assertDocumentPhysicalIdentity(value);
+    assertNonzeroDocumentPhysicalIdentity(value);
   } catch {
     return undefined;
   }
@@ -48,7 +48,7 @@ function wireIdentity(identityValue: PortablePathIdentity): DocumentPhysicalIden
     ino: identityValue.ino.toString(10),
     birthtimeNs: identityValue.birthtimeNs.toString(10)
   };
-  assertDocumentPhysicalIdentity(result);
+  assertNonzeroDocumentPhysicalIdentity(result);
   return result;
 }
 

@@ -13,6 +13,7 @@ import { readBoundedRegularFile } from "../../../repository-mutation/adapters/no
 import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
 import {
   assertDocumentPhysicalIdentity,
+  assertNonzeroDocumentPhysicalIdentity,
   type DocumentPhysicalIdentity
 } from "../../application/model/document-physical-identity.js";
 import type { DocumentOwnedTemporary } from "../../application/model/document-transaction.js";
@@ -36,7 +37,10 @@ function postimage(plan: DocumentPlan) {
   };
 }
 
-function wireIdentity(identity: PortablePathIdentity): DocumentPhysicalIdentity {
+function wireIdentity(
+  identity: PortablePathIdentity,
+  authorityRequired: boolean
+): DocumentPhysicalIdentity {
   const result: DocumentPhysicalIdentity = {
     adapter: "node-filesystem",
     version: 1,
@@ -45,12 +49,15 @@ function wireIdentity(identity: PortablePathIdentity): DocumentPhysicalIdentity 
     birthtimeNs: identity.birthtimeNs.toString(10)
   };
   assertDocumentPhysicalIdentity(result);
+  if (authorityRequired) {
+    assertNonzeroDocumentPhysicalIdentity(result);
+  }
   return result;
 }
 
 function physicalIdentity(temporary: DocumentOwnedTemporary): PortablePathIdentity {
   const value = temporary.identity;
-  assertDocumentPhysicalIdentity(value);
+  assertNonzeroDocumentPhysicalIdentity(value);
   const result = {
     dev: BigInt(value.dev),
     ino: BigInt(value.ino),
@@ -70,7 +77,7 @@ async function readExactPublicationIdentity(
     (process.platform !== "win32" && (observed.mode & 0o777) !== 0o644)) {
     throw new Error("Published document identity could not be verified.");
   }
-  return wireIdentity(observed.identity);
+  return wireIdentity(observed.identity, true);
 }
 
 async function requireDirectoryDurability(parent: string): Promise<void> {
@@ -125,7 +132,7 @@ export class NodeDocumentPublisher implements DocumentPublisher {
     const temporary: DocumentOwnedTemporary = {
       path: temporaryPath,
       digest: request.plan.output.digest,
-      identity: wireIdentity(captured)
+      identity: wireIdentity(captured, false)
     };
     physicalIdentity(temporary);
     return Object.freeze({
@@ -176,7 +183,7 @@ export class NodeDocumentPublisher implements DocumentPublisher {
     if (outcome === "published") {
       return Object.freeze({
         outcome,
-        publicationIdentity: Object.freeze(wireIdentity(expectedIdentity)),
+        publicationIdentity: Object.freeze(wireIdentity(expectedIdentity, true)),
         identityEvidence: "owned-temporary"
       });
     }

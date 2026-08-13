@@ -7,6 +7,10 @@ import test from "node:test";
 import { sha256Bytes } from "../packages/engineering-foundation/dist/canonical-json.js";
 import { NodeDocumentFileState } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-file-state.js";
 import { NodeDocumentPublisher } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-publisher.js";
+import {
+  assertDocumentPhysicalIdentity,
+  assertNonzeroDocumentPhysicalIdentity
+} from "../packages/engineering-foundation/dist/document-authoring/application/model/document-physical-identity.js";
 import { documentPlanDigest } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
 import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
 
@@ -134,6 +138,44 @@ test("Node document adapters reject conflicts, zero identity, and linked ancestr
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("zero identity remains wire evidence but grants no mutation authority", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
+  try {
+    await mkdir(join(root, "docs"));
+    const plan = planFor(Buffer.from("# Test\n"));
+    const temporary = {
+      path: documentTemporaryPath(plan.destination, plan.planDigest),
+      digest: plan.output.digest,
+      identity: {
+        adapter: "node-filesystem",
+        version: 1,
+        dev: "0",
+        ino: "0",
+        birthtimeNs: "0"
+      }
+    };
+    assert.doesNotThrow(() => assertDocumentPhysicalIdentity(temporary.identity));
+    assert.throws(
+      () => assertNonzeroDocumentPhysicalIdentity(temporary.identity),
+      /grants no mutation authority/u
+    );
+    await writeFile(join(root, temporary.path), Buffer.from("# Test\n"), { mode: 0o644 });
+    const publisher = new NodeDocumentPublisher();
+    await assert.rejects(
+      publisher.publishPrepared({ consumerRoot: root, plan, temporary }),
+      /grants no mutation authority/u
+    );
+    await assert.rejects(
+      publisher.removeOwnedTemporary({ consumerRoot: root, temporary }),
+      /grants no mutation authority/u
+    );
+    assert.deepEqual(await readFile(join(root, temporary.path)), Buffer.from("# Test\n"));
+    await assert.rejects(readFile(join(root, plan.destination)), /ENOENT/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

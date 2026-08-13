@@ -28,13 +28,23 @@ export function assertDocumentPhysicalIdentity(
       candidate.ino,
       candidate.birthtimeNs
     ].every((part) => typeof part === "string" &&
-      DECIMAL_IDENTITY_COMPONENT.test(part)) ||
-    candidate.dev === "0" ||
-    candidate.ino === "0" ||
-    candidate.birthtimeNs === "0"
+      DECIMAL_IDENTITY_COMPONENT.test(part))
+  ) {
+    throw new Error("Document physical identity wire evidence is invalid.");
+  }
+}
+
+export function assertNonzeroDocumentPhysicalIdentity(
+  value: unknown
+): asserts value is DocumentPhysicalIdentity {
+  assertDocumentPhysicalIdentity(value);
+  if (
+    value.dev === "0" ||
+    value.ino === "0" ||
+    value.birthtimeNs === "0"
   ) {
     throw new Error(
-      "Document physical identity is invalid or contains a zero component."
+      "Document physical identity contains zero and grants no mutation authority."
     );
   }
 }

@@ -895,6 +895,7 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/application/model/document-physical-identity.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-receipt.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-transaction.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-transaction-inspection.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/authoring-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/canonical-document-renderer.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-authority-recompiler.ts
@@ -999,6 +1000,7 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/composition/node-document-authority-recompiler.ts
       - packages/engineering-foundation/src/document-authoring/composition/node-document-writing-private.ts
       - packages/engineering-foundation/src/document-authoring/composition/node-document-writing.ts
+      - packages/engineering-foundation/src/document-authoring/composition/inspect-document-transaction.ts
       - packages/engineering-foundation/src/document-authoring/index.ts
       - packages/engineering-foundation/src/document-authoring/find-command.ts
   - id: foundation.documentation-observation.application

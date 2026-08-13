@@ -400,6 +400,12 @@ coordinator and admit only `detach`. Status reports a structured recovery route
 only for an implemented path: legacy `scaffold-recover`, local-mode `detach`, or
 `docs-recover` for an exact compatible envelope v3 handler. Envelope v2 and
 document journal v1 are permanently manual-recovery-only in current packages.
+The legacy local-mode `FoundationTransactionStatus` projection remains
+type-compatible and intentionally lossy for document envelope v3: it reports
+`recovery-handler-unavailable` and does not expose `docs-recover`. Automation
+that routes document recovery must use the versioned
+`inspectDocumentTransactionV1` API from `./document-authoring`; only its exact
+v3 envelope/v2 journal result exposes the recorded version and build identity.
 
 For envelope v3, the recorded package-artifact identity contains SemVer plus a
 canonical SHA-256 digest of the installed package manifest, executable

@@ -51,6 +51,10 @@ export type {
   DocumentReceiptDiagnostic,
   DocumentReceiptOutcome
 } from "./application/model/document-receipt.js";
+export type {
+  DocumentTransactionInspectionDiagnostic,
+  DocumentTransactionInspectionV1
+} from "./application/model/document-transaction-inspection.js";
 export type { ApplyDocumentPlanRequest } from "./application/use-cases/apply-document-plan.js";
 export type { RecoverDocumentTransactionRequest } from "./application/use-cases/recover-document-transaction.js";
 export type { DocumentTransactionRequest } from "./application/use-cases/document-transaction-continuation.js";
@@ -62,6 +66,7 @@ export { DocumentCatalogError } from "./document-catalog-error.js";
 export type { DocumentCatalogErrorCode } from "./document-catalog-error.js";
 export { DocumentPlanningError } from "./document-planning-error.js";
 export type { DocumentPlanningErrorCode } from "./document-planning-error.js";
+export { inspectDocumentTransactionV1 } from "./composition/inspect-document-transaction.js";
 
 export async function buildDocumentationCatalog(
   request: BuildDocumentationCatalogRequest

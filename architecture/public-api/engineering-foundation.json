@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.15.0",
+  "packageVersion": "0.16.0-rc.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -867,6 +867,34 @@
       "exportPath": "./document-authoring",
       "items": [
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!ApplyDocumentPlanRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ApplyDocumentPlanRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ApplyDocumentPlanRequest#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ApplyDocumentPlanRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: unknown;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ApplyDocumentPlanRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ApplyDocumentPlanRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ApplyDocumentPlanRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ApplyDocumentPlanRequest"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!BuildDocumentationCatalogRequest#consumerRoot:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!BuildDocumentationCatalogRequest:interface",
@@ -956,6 +984,41 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export type DocumentCatalogErrorCode = \"DOCUMENT_CATALOG_AUTHORITY_CHANGED\" | \"DOCUMENT_CATALOG_AUTHORITY_UNAVAILABLE\" | \"DOCUMENT_CATALOG_INPUT_INVALID\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentCommitObservation#atomicity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentCommitObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly atomicity: \"not-applicable\" | \"single-file-atomic-create\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentCommitObservation#publication:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentCommitObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentCommitObservation#recoverability:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentCommitObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoverability: \"not-required\" | \"preserved-for-recovery\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentCommitObservation#state:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentCommitObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly state: \"committed\" | \"not-published\" | \"recovery-required\" | \"manual-recovery-required\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentCommitObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentCommitObservation"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!DocumentCompilerIdentity#buildIdentity:member",
@@ -1462,6 +1525,153 @@
           "signature": "export type DocumentPlanningErrorCode = \"DOCUMENT_PLANNING_AUTHORITY_CHANGED\" | \"DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE\" | \"DOCUMENT_PLANNING_CATALOG_PARTIAL\" | \"DOCUMENT_PLANNING_CONFLICT\" | \"DOCUMENT_PLANNING_INPUT_INVALID\" | \"DOCUMENT_PLANNING_OUTPUT_INVALID\" | \"DOCUMENT_PLANNING_PARENT_UNAVAILABLE\";"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceipt:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentReceipt = (DocumentReceiptBase & {\n    readonly outcome: \"applied\";\n    readonly resultDigest: DocumentAuthorityDigest;\n    readonly commit: {\n        readonly state: \"committed\";\n        readonly publication: \"published\";\n        readonly atomicity: \"single-file-atomic-create\";\n        readonly recoverability: \"not-required\";\n    };\n}) | (DocumentReceiptBase & {\n    readonly outcome: \"already-applied\";\n    readonly resultDigest: DocumentAuthorityDigest;\n    readonly commit: {\n        readonly state: \"committed\";\n        readonly publication: \"preexisting-exact\";\n        readonly atomicity: \"not-applicable\";\n        readonly recoverability: \"not-required\";\n    };\n}) | (DocumentReceiptBase & {\n    readonly outcome: \"authority-stale\" | \"rejected\" | \"failed-before-publication\" | \"cancelled\";\n    readonly commit: {\n        readonly state: \"not-published\";\n        readonly publication: \"none\";\n        readonly atomicity: \"not-applicable\";\n        readonly recoverability: \"not-required\";\n    };\n}) | (DocumentReceiptBase & {\n    readonly outcome: \"recovery-required\";\n    readonly commit: {\n        readonly state: \"recovery-required\";\n        readonly publication: \"none\" | \"published\" | \"unknown\";\n        readonly atomicity: \"not-applicable\" | \"single-file-atomic-create\";\n        readonly recoverability: \"preserved-for-recovery\";\n    };\n}) | (DocumentReceiptBase & {\n    readonly outcome: \"manual-recovery-required\";\n    readonly commit: {\n        readonly state: \"manual-recovery-required\";\n        readonly publication: \"none\" | \"published\" | \"unknown\";\n        readonly atomicity: \"not-applicable\" | \"single-file-atomic-create\";\n        readonly recoverability: \"preserved-for-recovery\";\n    };\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptBase#adapter:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapter: {\n        readonly id: \"foundation.filesystem/v1\";\n        readonly contractVersion: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptBase#destination:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destination: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptBase#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly DocumentReceiptDiagnostic[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptBase#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptBase#protocolVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocolVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptBase#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptBase#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptBase:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentReceiptBase"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic#phase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phase: \"apply\" | \"authority\" | \"input\" | \"recovery\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic#ruleId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ruleId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic#severity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly severity: \"error\" | \"info\" | \"warning\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptDiagnostic:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentReceiptDiagnostic"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentReceiptOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentReceiptOutcome = \"applied\" | \"already-applied\" | \"authority-stale\" | \"rejected\" | \"recovery-required\" | \"manual-recovery-required\" | \"failed-before-publication\" | \"cancelled\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentTransactionInspectionDiagnostic:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionInspectionDiagnostic = {\n    readonly code: \"FOUNDATION_TRANSACTION_ACTIVE\";\n    readonly message: string;\n} | {\n    readonly code: \"FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED\";\n    readonly message: string;\n} | {\n    readonly code: \"FOUNDATION_TRANSACTION_VERSION_MISMATCH\";\n    readonly message: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentTransactionInspectionV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionInspectionV1 = {\n    readonly schemaVersion: 1;\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly schemaVersion: 1;\n    readonly state: \"recoverable\";\n    readonly operationKind: \"document-authoring\";\n    readonly format: \"document-authoring-envelope-v3\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: {\n        readonly commandId: \"docs-recover\";\n        readonly exactFoundationVersion: string;\n        readonly exactFoundationBuildIdentity: string;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n} | {\n    readonly schemaVersion: 1;\n    readonly state: \"manual-recovery-required\";\n    readonly reason: string;\n    readonly operationKind?: \"document-authoring\" | \"local-mode\" | \"scaffolding\";\n    readonly transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly format?: string;\n    readonly recovery?: {\n        readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n        readonly args: Readonly<Record<string, string>>;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentTransactionRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentTransactionRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentTransactionRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DocumentTransactionRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentTransactionRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentTransactionRequest"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!DocumentationCatalogAuthority#metadataSchema:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!DocumentationCatalogAuthority:interface",
@@ -1651,6 +1861,13 @@
           "signature": "export interface PlanDocumentationDocumentRequest"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!RecoverDocumentTransactionRequest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RecoverDocumentTransactionRequest = DocumentTransactionRequest;"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!ReferencedDocumentProjection#id:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ReferencedDocumentProjection:interface",
@@ -1700,6 +1917,13 @@
           "signature": "export interface ReferencedDocumentProjectionResult"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!applyDocumentationPlan:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function applyDocumentationPlan(request: ApplyDocumentPlanRequest): Promise<import(\"./application/model/document-receipt.js\").DocumentReceipt>;"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!buildDocumentationCatalog:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/engineering-foundation!",
@@ -1714,6 +1938,13 @@
           "signature": "export declare function findDocumentationDocuments(request: FindDocumentsRequest): Promise<import(\"./application/model/document-find.js\").DocumentFindResult>;"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!inspectDocumentTransactionV1:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function inspectDocumentTransactionV1(consumerRoot: string): Promise<DocumentTransactionInspectionV1>;"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!planDocumentationDocument:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/engineering-foundation!",
@@ -1726,6 +1957,13 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function projectReferencedDocuments(snapshot: DocumentationCatalogSnapshot, referencedIds: readonly string[]): ReferencedDocumentProjectionResult;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!recoverDocumentationTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function recoverDocumentationTransaction(request: RecoverDocumentTransactionRequest): Promise<import(\"./application/model/document-receipt.js\").DocumentReceipt>;"
         }
       ]
     },

@@ -132,6 +132,69 @@ test("cancellation before publication reports cancelled only after durable clean
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: false }]);
 });
 
+test("pre-aborted apply validates Plan then returns cancelled without lock or filesystem I/O", async () => {
+  const subject = harness();
+  const controller = new AbortController();
+  controller.abort(new Error("cancel before apply"));
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan, signal: controller.signal
+  });
+  assert.equal(receipt.outcome, "cancelled");
+  assert.deepEqual(subject.events, ["validate"]);
+  assert.deepEqual(subject.releases, []);
+});
+
+test("abort swallowed by authority adapter is rechecked and reported as cancelled", async () => {
+  const subject = harness();
+  const controller = new AbortController();
+  subject.dependencies.authority.assess = async () => {
+    controller.abort(new Error("cancel during authority"));
+    return { state: "unverifiable", reason: "adapter masked cancellation" };
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan, signal: controller.signal
+  });
+  assert.equal(receipt.outcome, "cancelled");
+  assert.equal(subject.events.includes("journal:create"), false);
+  assert.deepEqual(subject.releases, [{ retainTransactionBarrier: false }]);
+});
+
+test("abort after durable PREPARED removes journal before reporting cancelled", async () => {
+  const subject = harness();
+  const controller = new AbortController();
+  const originalCreate = subject.dependencies.journal.create;
+  subject.dependencies.journal.create = async (envelope) => {
+    const result = await originalCreate(envelope);
+    controller.abort(new Error("cancel after PREPARED"));
+    return result;
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan, signal: controller.signal
+  });
+  assert.equal(receipt.outcome, "cancelled");
+  assert.equal(subject.state().envelope, undefined);
+  assert.equal(subject.events.includes("prepare"), false);
+  assert.deepEqual(subject.releases, [{ retainTransactionBarrier: false }]);
+});
+
+test("abort after temp preparation but before PUBLISHING cleans temp and journal", async () => {
+  const subject = harness();
+  const controller = new AbortController();
+  const originalPrepare = subject.dependencies.publisher.prepare;
+  subject.dependencies.publisher.prepare = async (request) => {
+    const result = await originalPrepare(request);
+    controller.abort(new Error("cancel before PUBLISHING"));
+    return result;
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan, signal: controller.signal
+  });
+  assert.equal(receipt.outcome, "cancelled");
+  assert.equal(subject.state().temporary, undefined);
+  assert.equal(subject.state().envelope, undefined);
+  assert.equal(subject.events.includes("publish"), false);
+});
+
 test("ambiguous publication preserves transaction evidence and masks cancellation", async () => {
   const subject = harness();
   subject.dependencies.publisher.publishPrepared = async () => {

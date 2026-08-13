@@ -106,7 +106,14 @@ export async function applyDocumentPlan(
   // implementation snapshots and rejects hostile in-memory Plans synchronously
   // before its first await.
   const plan = await dependencies.contractValidator.validatePlan(request.plan);
-  request.signal?.throwIfAborted();
+  if (request.signal?.aborted === true) {
+    return noPublicationReceipt(
+      plan,
+      "cancelled",
+      "document.transaction.cancelled",
+      "Document transaction was cancelled before coordination."
+    );
+  }
   const lease = await dependencies.coordinator.acquire({ mode: "apply" });
   let retainBarrier = true;
   let active: ActiveDocumentJournal | undefined;
@@ -141,6 +148,7 @@ export async function applyDocumentPlan(
       plan,
       ...signalOption(request.signal)
     });
+    request.signal?.throwIfAborted();
     if (authority.state !== "current") {
       retainBarrier = false;
       return noPublicationReceipt(
@@ -184,11 +192,13 @@ export async function applyDocumentPlan(
       return receipt;
     }
     active = await createPreparedJournal(dependencies, plan, "pending");
+    request.signal?.throwIfAborted();
     temporary = await dependencies.publisher.prepare({
       consumerRoot: request.consumerRoot,
       plan,
       ...signalOption(request.signal)
     });
+    request.signal?.throwIfAborted();
     const receipt = await continuePendingPublication(
       dependencies,
       request,

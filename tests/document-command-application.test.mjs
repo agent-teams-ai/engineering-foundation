@@ -174,6 +174,60 @@ test("docs doctor projects exact recovery and unknown versions", async () => {
   assert.equal(unknown.envelope.result.recoveryCommand, undefined);
 });
 
+test("docs doctor cancellation is 130 before and after inspection", async () => {
+  const before = new AbortController();
+  before.abort();
+  const cancelledBefore = await new RunDocumentDoctor({
+    async inspect() { throw new Error("must not inspect"); }
+  }).execute({ consumerRoot: "/fixture", signal: before.signal });
+  assert.equal(cancelledBefore.exitCode, 130);
+  assert.equal(cancelledBefore.envelope.outcome, "cancelled");
+
+  const after = new AbortController();
+  const cancelledAfter = await new RunDocumentDoctor({
+    async inspect() {
+      after.abort();
+      return { schemaVersion: 1, state: "idle", diagnostics: [] };
+    }
+  }).execute({ consumerRoot: "/fixture", signal: after.signal });
+  assert.equal(cancelledAfter.exitCode, 130);
+  assert.equal(cancelledAfter.envelope.outcome, "cancelled");
+});
+
+test("docs doctor preserves exact version and build recovery authority", async () => {
+  const result = await new RunDocumentDoctor({
+    async inspect() {
+      return {
+        schemaVersion: 1,
+        state: "manual-recovery-required",
+        reason: "exact external handler required",
+        operationKind: "document-authoring",
+        transactionKind: "version-mismatch",
+        foundationVersion: "0.14.7",
+        foundationBuildIdentity: digest,
+        recovery: {
+          commandId: "docs-recover",
+          args: {
+            exactFoundationVersion: "0.14.7",
+            exactFoundationBuildIdentity: digest
+          }
+        },
+        diagnostics: [{
+          code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+          message: "exact handler required"
+        }]
+      };
+    }
+  }).execute({ consumerRoot: "/fixture" });
+  assert.deepEqual(result.envelope.result.recoveryCommand, {
+    commandId: "docs.recover",
+    args: {
+      exactFoundationVersion: "0.14.7",
+      exactFoundationBuildIdentity: digest
+    }
+  });
+});
+
 test("docs recover is a no-op when idle and refuses manual evidence", async () => {
   let recoverCalls = 0;
   const idle = await new RunDocumentRecover({

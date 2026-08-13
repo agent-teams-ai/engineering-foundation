@@ -11,6 +11,7 @@ import {
 
 export interface RunDocumentDoctorRequest {
   readonly consumerRoot: string;
+  readonly signal?: AbortSignal;
 }
 
 interface Dependencies {
@@ -68,7 +69,9 @@ export class RunDocumentDoctor {
     request: RunDocumentDoctorRequest
   ): Promise<DocumentCommandExecution<DocumentDoctorResult>> {
     try {
+      request.signal?.throwIfAborted();
       const inspection = await this.#dependencies.inspect(request.consumerRoot);
+      request.signal?.throwIfAborted();
       if (inspection.state === "idle") {
         return commandExecution({
           command: "docs.doctor", outcome: "success",

@@ -116,6 +116,11 @@
       "id": "ADR-0023",
       "path": "docs/decisions/0023-correct-document-authoring-v1-semantics.md",
       "immutableDigest": "sha256:a631c19f0ed7ca45e1b1104cbd6ac3a82dc3080244626788c35365b98bf8b154"
+    },
+    {
+      "id": "ADR-0024",
+      "path": "docs/decisions/0024-versioned-document-transaction-recovery.md",
+      "immutableDigest": "sha256:fd9c8900768834d90d89f3f506ecbdca777b2acb83cc0d35781be25dd518ad95"
     }
   ]
 }

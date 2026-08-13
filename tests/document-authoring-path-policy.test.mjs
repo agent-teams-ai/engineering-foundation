@@ -224,6 +224,8 @@ authoring:
         path: docs/template.md
       heading:
         kind: title
+      reachability:
+        kind: not-required
 `, "utf8");
     await assert.rejects(
       new NodeAuthoringProfileReader().read({ consumerRoot: root, path: "profile.yaml" }),
@@ -270,12 +272,47 @@ authoring:
         path: docs/template.md
       heading:
         kind: title
+      reachability:
+        kind: not-required
 `, "utf8");
     await assert.rejects(
       new NodeAuthoringProfileReader().read({ consumerRoot: root, path: "profile.yaml" }),
       (error) => error instanceof DocumentCatalogError &&
         error.code === "DOCUMENT_CATALOG_INPUT_INVALID" &&
         /incompatible-identity-placement/u.test(error.message)
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("profile reader rejects colocated reachability outside explicit placement", async () => {
+  const root = await mkdtemp(join(tmpdir(), "document-profile-reachability-"));
+  try {
+    await writeFile(join(root, "profile.yaml"), `schemaVersion: 1
+projectId: fixture
+catalog:
+  metadataSchemaPath: docs/metadata.schema.json
+  ownerCatalog: {path: docs/owners.yaml, contract: foundation.owner-map/v1}
+  collections: [{kind: markdown-tree, root: docs}]
+authoring:
+  mode: create-only
+  artifactTypes:
+    - type: guide
+      initialStatus: proposed
+      identity:
+        kind: explicit
+        format: qualified
+        grammar: {prefixSegments: [guide], minSuffixSegments: 1, maxSuffixSegments: 2}
+      placement: {kind: qualified-leaf-index, root: docs/guides, requiredBasename: README.md}
+      template: {kind: fenced-markdown-body, path: docs/template.md}
+      heading: {kind: title}
+      reachability: {kind: manual-colocated-index, pathPrefix: before-required-segments, indexBasename: README.md}
+`, "utf8");
+    await assert.rejects(
+      new NodeAuthoringProfileReader().read({ consumerRoot: root, path: "profile.yaml" }),
+      (error) => error instanceof DocumentCatalogError &&
+        /incompatible-reachability-placement/u.test(error.message)
     );
   } finally {
     await rm(root, { force: true, recursive: true });

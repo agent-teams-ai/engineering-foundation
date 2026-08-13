@@ -37,6 +37,27 @@ async function assertPrivateMutationImportsRejected(fixture) {
   }
 }
 
+async function assertDocumentAuthoringPackageExport(fixture) {
+  const probe = [
+    "const module = await import('@agent-teams/engineering-foundation/document-authoring');",
+    "if (typeof module.buildDocumentationCatalog !== 'function') process.exit(2);",
+    "process.stdout.write(import.meta.resolve('@agent-teams/engineering-foundation/document-authoring'));",
+  ].join("\n");
+  const { stdout } = await runCommand(
+    process.execPath,
+    ["--input-type=module", "--eval", probe],
+    fixture.consumerRoot
+  );
+  const resolved = new URL(stdout.trim());
+  if (
+    resolved.protocol !== "file:" ||
+    !resolved.pathname.includes("/node_modules/@agent-teams/engineering-foundation/dist/document-authoring/index.js") ||
+    resolved.pathname.includes("/.worktrees/")
+  ) {
+    throw new Error("Packed document-authoring export resolved outside the installed package.");
+  }
+}
+
 async function runFoundationJson(fixture, args) {
   const { stdout } = await runCommand(
     process.execPath,
@@ -463,6 +484,7 @@ async function assertDocumentFind(fixture) {
 export async function verifyPackedConsumer(input) {
   const fixture = input.fixture;
   await assertPrivateMutationImportsRejected(fixture);
+  await assertDocumentAuthoringPackageExport(fixture);
   await assertAdrPromotion(fixture);
   await assertCapabilityCheck(fixture);
   await assertSourceGraphViolation(fixture);

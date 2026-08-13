@@ -21,9 +21,11 @@ import {
   runNpmCommand,
 } from "./pack-test-support.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
+import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const COMMAND_TIMEOUT_MS = 120_000;
+const REGISTRY_TOKEN_ENVIRONMENT_KEY = "FOUNDATION_REGISTRY_E2E_TOKEN";
 const repositoryRoot = resolvePath(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
 const temporaryRoot = await mkdtemp(
@@ -32,6 +34,7 @@ const temporaryRoot = await mkdtemp(
 const keepTemporaryRoot =
   process.env.AGENT_TEAMS_KEEP_REGISTRY_E2E_ARTIFACTS === "1";
 const runPnpm = createPnpmRunner();
+const previousRegistryToken = process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
 let npmUserConfigPath;
 
 function compareStrings(left, right) {
@@ -208,20 +211,22 @@ async function configureRegistryAuthentication(registryUrl) {
     throw new Error("Hermetic registry did not issue a publication token.");
   }
   const host = new URL(registryUrl).host;
-  npmUserConfigPath = join(temporaryRoot, "npmrc");
+  npmUserConfigPath = join(temporaryRoot, "auth", "npmrc");
+  await mkdir(dirname(npmUserConfigPath), { recursive: true, mode: 0o700 });
   await writeFile(
     npmUserConfigPath,
     [
       `registry=${registryUrl}`,
       `@agent-teams:registry=${registryUrl}`,
-      `//${host}/:_authToken=${body.token}`,
+      `//${host}/:_authToken=\${${REGISTRY_TOKEN_ENVIRONMENT_KEY}}`,
       "audit=false",
       "fund=false",
       "provenance=false",
       "",
     ].join("\n"),
-    "utf8",
+    { encoding: "utf8", mode: 0o600 },
   );
+  process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = body.token;
 }
 
 async function closeServer(server) {
@@ -276,6 +281,9 @@ async function seedRegistry(dependencies, registryUrl) {
 }
 
 async function verifyInstalledBufQualifier(installedRoot) {
+  if (process.platform === "win32") {
+    return;
+  }
   const environmentKey = "AGENT_TEAMS_FOUNDATION_CLI_PATH";
   const previousCliPath = process.env[environmentKey];
   process.env[environmentKey] = join(installedRoot, "dist", "cli.js");
@@ -362,7 +370,7 @@ async function verifyConsumer(target, registryUrl) {
     [
       "--input-type=module",
       "--eval",
-      `await Promise.all([import(${JSON.stringify(FOUNDATION_PACKAGE_NAME)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/local-mode`)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/scaffolding`)})]);`,
+      `await Promise.all([import(${JSON.stringify(FOUNDATION_PACKAGE_NAME)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/document-authoring`)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/local-mode`)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/scaffolding`)})]);`,
     ],
     consumerRoot,
     { timeoutMs: COMMAND_TIMEOUT_MS },
@@ -377,6 +385,10 @@ async function verifyConsumer(target, registryUrl) {
       "fixtures",
       "scaffolding-authority-consumer",
     ),
+  });
+  await verifyRegistryDocumentAuthoring({
+    consumerRoot,
+    version: target.manifest.version
   });
   const { stdout: viewedVersion } = await runNpm(
     [
@@ -409,6 +421,11 @@ try {
     `Registry-install qualification PASS: ${target.manifest.name}@${target.manifest.version}; ${dependencies.length} runtime packages; lock sha256:${lockDigest}.\n`,
   );
 } finally {
+  if (previousRegistryToken === undefined) {
+    delete process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
+  } else {
+    process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = previousRegistryToken;
+  }
   if (registry !== undefined) {
     await closeServer(registry.server);
   }

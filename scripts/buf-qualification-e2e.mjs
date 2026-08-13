@@ -286,7 +286,14 @@ async function assertBreakingQualification(root, bufExecutable, bufConfigDigest)
     qualificationArguments(root, bufExecutable),
     [0, 2]
   );
-  if (fabricated.exitCode !== 2 || !fabricated.stderr.includes("BUF_QUALIFICATION_EVIDENCE_MISMATCH")) {
+  const fabricatedError = fabricated.stdout.length === 0
+    ? undefined
+    : JSON.parse(fabricated.stdout);
+  if (
+    fabricated.exitCode !== 2 ||
+    fabricated.stderr !== "" ||
+    fabricatedError?.error?.code !== "BUF_QUALIFICATION_EVIDENCE_MISMATCH"
+  ) {
     throw new Error("Qualifier accepted fabricated evidence instead of rerunning Buf.");
   }
 }

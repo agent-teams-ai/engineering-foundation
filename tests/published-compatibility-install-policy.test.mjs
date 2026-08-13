@@ -77,21 +77,28 @@ test("published compatibility shares its single retry across installs", async ()
 });
 
 test("published compatibility callsites share one install policy", async () => {
-  const [entrypoint, publishedInstall, scaffolding] = await Promise.all([
+  const [entrypoint, publishedInstall, scaffolding, documentTransactions] = await Promise.all([
     readFile(join(repositoryRoot, "scripts", "published-compatibility-e2e.mjs"), "utf8"),
     readFile(join(repositoryRoot, "scripts", "published-foundation-install.mjs"), "utf8"),
     readFile(
       join(repositoryRoot, "scripts", "published-scaffolding-compatibility-e2e.mjs"),
       "utf8",
     ),
+    readFile(
+      join(repositoryRoot, "scripts", "published-document-transaction-compatibility-e2e.mjs"),
+      "utf8",
+    ),
   ]);
   assert.equal(entrypoint.match(/createPublishedCompatibilityInstallPolicy\(\)/gu)?.length, 1);
   assert.match(entrypoint, /verifyOldFoundationTransactionBarrier\(\{ currentCliPath, installPackage \}\)/u);
+  assert.match(entrypoint, /verifyPublishedDocumentTransactionCompatibility\(\{[\s\S]*installPackage,/u);
   assert.match(entrypoint, /verifyPublishedScaffoldingCompatibility\(\{[\s\S]*installPackage,/u);
   assert.doesNotMatch(publishedInstall, /runNpmCommand/u);
   assert.match(publishedInstall, /await installPackage\(/u);
   assert.doesNotMatch(scaffolding, /runNpmCommand/u);
   assert.match(scaffolding, /await installPackage\(/u);
+  assert.doesNotMatch(documentTransactions, /runNpmCommand/u);
+  assert.match(documentTransactions, /await installPublishedFoundation\(/u);
 });
 
 test("generic command default remains 120 seconds", () => {

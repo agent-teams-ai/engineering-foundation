@@ -1,8 +1,12 @@
-import { lstat, opendir, readFile, realpath, stat } from "node:fs/promises";
+import { opendir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 
 import { CapabilityInputError } from "../../../../capability-runtime.js";
-import { pathTraversesSymbolicLink } from "../../../../filesystem-path-safety.js";
+import {
+  ContainedFileReadError,
+  pathTraversesSymbolicLink,
+  readContainedRegularFile
+} from "../../../../filesystem-path-safety.js";
 import {
   assertNotCancelled,
   assertRepositoryRelativePath
@@ -167,20 +171,24 @@ async function readSourceFiles(
     const loaded = await Promise.all(
       paths.slice(index, index + READ_CONCURRENCY).map(async (path) => {
         assertNotCancelled(signal);
-        const absolutePath = resolve(canonicalRoot, path);
-        const metadata = await lstat(absolutePath);
-        if (
-          !metadata.isFile() ||
-          metadata.isSymbolicLink() ||
-          metadata.size > MAX_SOURCE_FILE_BYTES
-        ) {
-          inputError(
-            "SOURCE_FILE_INVALID",
-            `Source must be a regular file no larger than ${MAX_SOURCE_FILE_BYTES} bytes: ${path}.`,
-            "source-read"
-          );
+        let bytes: Buffer;
+        try {
+          bytes = await readContainedRegularFile({
+            candidate: resolve(canonicalRoot, path),
+            maxBytes: MAX_SOURCE_FILE_BYTES,
+            root: canonicalRoot
+          });
+        } catch (error) {
+          if (error instanceof ContainedFileReadError) {
+            inputError(
+              "SOURCE_FILE_INVALID",
+              `Source changed, escaped containment, or is not one stable regular file: ${path}.`,
+              "source-read"
+            );
+          }
+          throw error;
         }
-        const source = await readFile(absolutePath, "utf8");
+        const source = bytes.toString("utf8");
         if (source.includes("\0")) {
           inputError(
             "SOURCE_FILE_INVALID",
@@ -188,7 +196,7 @@ async function readSourceFiles(
             "source-read"
           );
         }
-        return { path, source, bytes: metadata.size };
+        return { path, source, bytes: bytes.byteLength };
       })
     );
     for (const file of loaded) {

@@ -426,7 +426,7 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   const ci = parseYaml(workflow);
 
   assert.ok(
-    workflow.indexOf("uses: actions/setup-node@") < workflow.indexOf("run: pnpm security:workflows"),
+    workflow.indexOf("uses: actions/setup-node@") < workflow.indexOf("run: pnpm verify"),
   );
   assert.match(
     ci.jobs["dependency-review"].steps[1].uses,
@@ -441,14 +441,15 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   );
   assert.ok(
     workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts") <
-      workflow.indexOf("run: pnpm security:workflows"),
+      workflow.indexOf("run: pnpm verify"),
   );
   assert.ok(
-    workflow.indexOf("run: pnpm security:workflows") < workflow.indexOf("run: pnpm rebuild"),
+    workflow.indexOf("run: pnpm rebuild") < workflow.indexOf("run: pnpm verify"),
   );
   assert.match(workflow, /uses: actions\/dependency-review-action@[a-f0-9]{40}/u);
   assert.match(policy, /workflowPath: \.github\/workflows\/ci\.yml/u);
   assert.equal(securityScript, "node scripts/security-toolchain.mjs");
+  assert.equal(ci.jobs.check.steps.some(({ run }) => run === "pnpm verify"), true);
   assert.doesNotMatch(workflow, /aquaproj\/aqua-installer/u);
   assert.doesNotMatch(policy, /aquaproj\/aqua-installer/u);
 });

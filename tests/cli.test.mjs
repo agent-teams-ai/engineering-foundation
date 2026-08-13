@@ -70,6 +70,43 @@ test("uses the stable invalid-invocation exit code", () => {
   }
 });
 
+test("renders every requested JSON invocation failure as one JSON envelope", () => {
+  for (const commandArguments of [
+    ["check", "--format", "json", "--unknown-option"],
+    ["explain", "missing.rule", "--json"],
+    ["schema", "missing/v1", "--format", "json"],
+    ["unknown-command", "--json"],
+  ]) {
+    const result = spawnSync(process.execPath, [cliPath, ...commandArguments], {
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 2, commandArguments.join(" "));
+    assert.equal(result.stderr, "");
+    const envelope = JSON.parse(result.stdout);
+    assert.equal(envelope.schemaVersion, 1);
+    assert.equal(envelope.outcome, "invalid-input");
+    assert.equal(typeof envelope.error.code, "string");
+    assert.equal(typeof envelope.error.message, "string");
+    assert.equal(envelope.error.retryable, false);
+  }
+});
+
+test("accepts the canonical repo check namespace", () => {
+  const direct = spawnSync(process.execPath, [
+    cliPath, "check", "--consumer", "/definitely-missing-foundation-consumer",
+    "--format", "json",
+  ], { encoding: "utf8" });
+  const namespaced = spawnSync(process.execPath, [
+    cliPath, "repo", "check", "--consumer", "/definitely-missing-foundation-consumer",
+    "--format", "json",
+  ], { encoding: "utf8" });
+
+  assert.equal(namespaced.status, direct.status);
+  assert.equal(namespaced.stdout, direct.stdout);
+  assert.equal(namespaced.stderr, direct.stderr);
+});
+
 test("SIGTERM cancels Buf qualification with exit code 130", {
   skip: process.platform === "win32",
   timeout: 10_000,

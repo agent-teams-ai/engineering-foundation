@@ -21,6 +21,7 @@ import { installedFoundationVersion } from "../package-version.js";
 import { installedFoundationBuildIdentity } from "../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import { NodeFoundationTransactionSlot } from "../transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 import type { FoundationTransactionStatus } from "../transaction-coordination/application/model/transaction-status.js";
+import type { InternalFoundationTransactionStatus } from "../transaction-coordination/application/model/internal-transaction-status.js";
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown;
@@ -254,6 +255,54 @@ function buildStatus(input: {
   };
 }
 
+function projectPublicTransactionStatus(
+  status: InternalFoundationTransactionStatus
+): FoundationTransactionStatus {
+  if (
+    status.state === "pending" &&
+    status.operationKind === "document-authoring"
+  ) {
+    return {
+      state: "manual-recovery-required",
+      reason: "recovery-handler-unavailable",
+      operationKind: "document-authoring",
+      diagnostics: status.diagnostics
+    };
+  }
+  if (status.state === "manual-recovery-required") {
+    if (
+      status.reason === "journal-transition-residue" ||
+      status.reason === "physical-identity-unverifiable" ||
+      status.format === "envelope-v3"
+    ) {
+      return {
+        state: "manual-recovery-required",
+        reason: "recovery-handler-unavailable",
+        ...(status.operationKind === undefined
+          ? {}
+          : { operationKind: status.operationKind }),
+        diagnostics: status.diagnostics
+      };
+    }
+    return {
+      state: "manual-recovery-required",
+      reason: status.reason,
+      ...(status.operationKind === undefined
+        ? {}
+        : { operationKind: status.operationKind }),
+      ...(status.format === undefined ? {} : { format: status.format }),
+      ...(status.foundationVersion === undefined
+        ? {}
+        : { foundationVersion: status.foundationVersion }),
+      ...(status.foundationBuildIdentity === undefined
+        ? {}
+        : { foundationBuildIdentity: status.foundationBuildIdentity }),
+      diagnostics: status.diagnostics
+    };
+  }
+  return status;
+}
+
 export async function inspectFoundationMode(
   consumerPath: string,
   options: { readonly ignoreOperationLock?: boolean } = {}
@@ -279,8 +328,11 @@ export async function inspectFoundationTransactionAwareMode(
         installedBuildIdentity: await installedFoundationBuildIdentity()
       }).inspect()
     : { state: "idle" as const, diagnostics: [] as const };
+  const publicTransaction = projectPublicTransactionStatus(transaction);
   const transactionDiagnostic =
-    transaction.state === "idle" ? undefined : transaction.diagnostics[0]?.message;
+    publicTransaction.state === "idle"
+      ? undefined
+      : publicTransaction.diagnostics[0]?.message;
   if (transactionDiagnostic !== undefined) {
     issues.push(transactionDiagnostic);
   }
@@ -305,7 +357,9 @@ export async function inspectFoundationTransactionAwareMode(
       installed,
       ...(provenance.provenance === undefined ? {} : { provenance: provenance.provenance }),
       linkState,
-      ...(transaction.state === "idle" ? {} : { transaction }),
+      ...(publicTransaction.state === "idle"
+        ? {}
+        : { transaction: publicTransaction }),
       issues
     });
   }
@@ -330,7 +384,9 @@ export async function inspectFoundationTransactionAwareMode(
     ...(dependencySpec === undefined ? {} : { dependencySpec }),
     installed,
     ...(provenance.provenance === undefined ? {} : { provenance: provenance.provenance }),
-    ...(transaction.state === "idle" ? {} : { transaction }),
+    ...(publicTransaction.state === "idle"
+      ? {}
+      : { transaction: publicTransaction }),
     issues
   });
 }

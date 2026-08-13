@@ -34,6 +34,7 @@ function fixture(overrides = {}) {
     },
     template: { kind: "fenced-markdown-body", path: templateEvidence.path },
     heading: { kind: "id-colon-title" }
+    ,reachability: { kind: "not-required" }
   };
   const profile = {
     artifactTypes: [artifact],

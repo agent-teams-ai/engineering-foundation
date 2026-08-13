@@ -90,7 +90,9 @@ test("preserves a canonical zero identity as unverifiable manual evidence", asyn
     (identity) => { identity.ino = "0"; },
   );
   assert.equal(status.state, "manual-recovery-required");
-  assert.equal(status.reason, "recovery-handler-unavailable");
+  assert.equal(status.reason, "physical-identity-unverifiable");
+  assert.equal(status.operationKind, "document-authoring");
+  assert.equal(status.format, "envelope-v2");
   assert.match(status.diagnostics[0].message, /cannot authorize automatic recovery/u);
 });
 

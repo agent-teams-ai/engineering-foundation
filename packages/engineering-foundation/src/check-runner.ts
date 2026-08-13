@@ -2,7 +2,10 @@ import {
   CapabilityInputError,
   foundationReport
 } from "./capability-runtime.js";
-import type { FoundationCheckReport } from "./check-contract.js";
+import type {
+  FoundationCheckCoverage,
+  FoundationCheckReport
+} from "./check-contract.js";
 import { CAPABILITY_REGISTRY } from "./composition/capability-registry.js";
 import { loadFoundationConfig } from "./foundation-config.js";
 
@@ -15,18 +18,21 @@ export interface FoundationCheckInvocation {
 
 function rootProblemReport(
   foundationVersion: string,
+  coverage: FoundationCheckCoverage,
   error: unknown
 ): FoundationCheckReport {
   if (error instanceof CapabilityInputError) {
     const cancelled = error.problem.code === "EXECUTION_CANCELLED";
     return foundationReport({
       foundationVersion,
+      coverage,
       outcome: cancelled ? "cancelled" : "invalid-input",
       problem: error.problem
     });
   }
   return foundationReport({
     foundationVersion,
+    coverage,
     outcome: "failed",
     problem: {
       code: "FOUNDATION_CHECK_FAILED",
@@ -40,6 +46,7 @@ function rootProblemReport(
 export async function runFoundationCheck(
   invocation: FoundationCheckInvocation
 ): Promise<FoundationCheckReport> {
+  const coverage = invocation.capabilityId === undefined ? "full" : "selected";
   try {
     const config = await loadFoundationConfig(
       invocation.consumerRoot,
@@ -79,9 +86,10 @@ export async function runFoundationCheck(
     );
     return foundationReport({
       foundationVersion: invocation.foundationVersion,
+      coverage,
       capabilities: reports
     });
   } catch (error) {
-    return rootProblemReport(invocation.foundationVersion, error);
+    return rootProblemReport(invocation.foundationVersion, coverage, error);
   }
 }

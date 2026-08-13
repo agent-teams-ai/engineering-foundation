@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { readFile, stat } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -13,6 +13,15 @@ import {
 } from "./local-mode/types.js";
 
 export const FOUNDATION_METADATA_SCHEMA_VERSION = 1 as const;
+const FOUNDATION_REQUIRED_PRESET_PATHS = [
+  "presets/oxlint/base.json",
+  "presets/oxlint/maintainability-tests.json",
+  "presets/oxlint/maintainability.json",
+  "presets/oxlint/node.json",
+  "presets/oxlint/type-aware.json",
+  "presets/typescript/base.json",
+  "presets/typescript/node.json"
+] as const;
 export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "dist/cli.js",
   "dist/index.d.ts",
@@ -24,12 +33,15 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "dist/local-mode/index.js",
   "dist/scaffolding/index.d.ts",
   "dist/scaffolding/index.js",
-  "presets/oxlint/base.json",
-  "presets/oxlint/node.json",
-  "presets/oxlint/type-aware.json",
-  "presets/typescript/base.json",
-  "presets/typescript/node.json",
+  ...FOUNDATION_REQUIRED_PRESET_PATHS,
   ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`)
+] as const;
+export const FOUNDATION_PACKAGE_FILE_ALLOWLIST = [
+  "dist",
+  ...FOUNDATION_REQUIRED_PRESET_PATHS,
+  ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`),
+  "LICENSE",
+  "README.md"
 ] as const;
 
 export interface FoundationPackageSelfCheck {
@@ -72,6 +84,25 @@ function assertStringRecord(
     );
   }
   return Object.fromEntries(entries) as Record<string, string>;
+}
+
+function assertExactStringArray(
+  value: unknown,
+  field: string,
+  expected: readonly string[]
+): void {
+  if (
+    !Array.isArray(value) ||
+    value.some((entry) => typeof entry !== "string") ||
+    new Set(value).size !== value.length ||
+    value.length !== expected.length ||
+    value.some((entry, index) => entry !== expected[index])
+  ) {
+    throw new FoundationError(
+      "PACKAGE_INVALID",
+      `Foundation target ${field} must match the exact release allowlist.`
+    );
+  }
 }
 
 function validateExport(
@@ -239,6 +270,11 @@ export async function inspectFoundationPackage(
       "Foundation target CLI entry is invalid."
     );
   }
+  assertExactStringArray(
+    manifest.files,
+    "files",
+    FOUNDATION_PACKAGE_FILE_ALLOWLIST
+  );
 
   if (!isRecord(manifest.exports)) {
     throw new FoundationError(
@@ -267,7 +303,8 @@ export async function inspectFoundationPackage(
   validateExport(manifest.exports, "./package.json", "./package.json");
   for (const outputPath of FOUNDATION_REQUIRED_ARTIFACT_PATHS) {
     try {
-      if (!(await stat(join(packageRoot, outputPath))).isFile()) {
+      const metadata = await lstat(join(packageRoot, outputPath));
+      if (metadata.isSymbolicLink() || !metadata.isFile()) {
         throw new Error("not a regular file");
       }
     } catch (error) {

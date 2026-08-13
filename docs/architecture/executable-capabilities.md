@@ -323,7 +323,7 @@ change when repositories enable multiple capabilities.
 FoundationCheckReport
   reportSchemaVersion
   foundationVersion
-  coverage: full
+  coverage: full | selected
   outcome: passed | violations | invalid-input | failed | cancelled
   summary
   capabilities[]
@@ -369,6 +369,16 @@ scheduling cannot change output. Reports contain no timestamps, absolute paths,
 stack traces, credentials, raw environment values, or unbounded source excerpts.
 JSON mode writes one aggregate report to stdout; incidental logging cannot
 corrupt the stream.
+
+`coverage: full` means every capability declared by the consumer was selected.
+An explicit capability argument reports `coverage: selected`, including when
+selection fails before capability execution. Consumers must never treat a
+`selected` report as complete repository evidence.
+
+Every CLI invocation that requests JSON writes exactly one JSON value to stdout,
+including argument parsing and command-launch failures. Non-document commands
+use the versioned `foundation-command-error/v1` envelope; document commands keep
+their command-specific versioned envelopes.
 
 Each rule's ID and metadata are declared once in its owning capability. The same
 registry powers diagnostics, generated reference material, and:

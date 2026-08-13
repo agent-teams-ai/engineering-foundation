@@ -10,6 +10,7 @@ import {
   resolveAuthority,
   safeClassifyPlan
 } from "./filesystem-authority.js";
+import { assertNoOwnedCleanupResidue } from "./filesystem-operation-state.js";
 import {
   createAuthorityDiagnostic,
   freshAuthorityScaffoldJournal,
@@ -17,16 +18,21 @@ import {
   receiptFromJournalStates
 } from "./filesystem-journal-state.js";
 import {
-  captureExpectedAuthorityScaffoldJournal,
-  removeExpectedAuthorityScaffoldJournal,
-  writeAuthorityScaffoldJournal
-} from "./filesystem-journal.js";
+  createScaffoldJournalReconciled,
+  removeScaffoldJournalReconciled,
+  replaceScaffoldJournalReconciled
+} from "./node-scaffold-journal-gateway.js";
+import {
+  NodeScaffoldJournalStore,
+  type ScaffoldJournalAuthority
+} from "./node-scaffold-journal-store.js";
 import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
 
 interface FinalizationFaultPoint {
   readonly phase:
     | "after-final-verification"
     | "after-journal-unlinked"
+    | "before-journal-quarantine"
     | "before-final-authority-recheck";
 }
 
@@ -74,6 +80,7 @@ async function classifyBeforeJournal(options: {
 }): Promise<AuthorityScaffoldReceipt | Awaited<ReturnType<typeof safeClassifyPlan>>> {
   let states;
   try {
+    await assertNoOwnedCleanupResidue(options.root, options.plan);
     states = await safeClassifyPlan(options.root, options.plan);
   } catch {
     return recoveryRequiredForAuthority({
@@ -112,6 +119,8 @@ async function classifyBeforeJournal(options: {
 
 export async function verifyAlreadyAppliedScaffold(options: {
   readonly root: string;
+  readonly journalPath: string;
+  readonly journalStore: NodeScaffoldJournalStore;
   readonly plan: AuthorityScaffoldPlan;
   readonly faultInjector?: FinalizationFaultInjector;
 }): Promise<AuthorityScaffoldReceipt> {
@@ -133,6 +142,16 @@ export async function verifyAlreadyAppliedScaffold(options: {
     }
   }
   await options.faultInjector?.({ phase: "after-final-verification" });
+  try {
+    await assertNoOwnedCleanupResidue(options.root, options.plan);
+  } catch (error) {
+    let journal = freshAuthorityScaffoldJournal(options.plan);
+    for (const operation of options.plan.operations) {
+      journal = replaceScaffoldJournalOperation(journal, operation.id, "preexisting");
+    }
+    await createScaffoldJournalReconciled(options.journalStore, journal);
+    throw error;
+  }
   return createAuthorityScaffoldReceipt({
     plan: options.plan,
     outcome: "already-applied",
@@ -150,6 +169,9 @@ interface FinalizationOptions {
   readonly root: string;
   readonly journalPath: string;
   readonly journal: AuthorityScaffoldJournal;
+  readonly journalAuthority: ScaffoldJournalAuthority;
+  readonly journalStore: NodeScaffoldJournalStore;
+  readonly journalFaultContext: { finalizing?: boolean };
   readonly recovered: boolean;
   readonly receipts: ReadonlyMap<string, AuthorityScaffoldOperationReceipt>;
   readonly faultInjector?: FinalizationFaultInjector;
@@ -170,6 +192,7 @@ async function verifyOutputs(
 > {
   let states;
   try {
+    await assertNoOwnedCleanupResidue(options.root, options.journal.plan);
     states = await safeClassifyPlan(options.root, options.journal.plan);
   } catch {
     return recoveryRequiredForAuthority({
@@ -188,7 +211,11 @@ async function verifyOutputs(
   if (conflictIds.size === 0) {
     return states;
   }
-  await writeAuthorityScaffoldJournal(options.journalPath, options.journal);
+  await replaceScaffoldJournalReconciled(
+    options.journalStore,
+    { journal: options.journal, journalAuthority: options.journalAuthority },
+    options.journal
+  );
   return receiptFromJournalStates({
     plan: options.journal.plan,
     journal: options.journal,
@@ -235,18 +262,25 @@ export async function finalizeAuthorityScaffoldJournal(
   if (isReceipt(finalStates)) {
     return finalStates;
   }
-  const journalIdentity = await captureExpectedAuthorityScaffoldJournal(
-    options.journalPath,
-    options.journal
-  );
   await options.faultInjector?.({ phase: "after-final-verification" });
-  await removeExpectedAuthorityScaffoldJournal(
-    options.journalPath,
-    journalIdentity,
-    options.faultInjector === undefined
-      ? undefined
-      : () => options.faultInjector?.({ phase: "after-journal-unlinked" })
-  );
+  await assertNoOwnedCleanupResidue(options.root, options.journal.plan);
+  options.journalFaultContext.finalizing = true;
+  await removeScaffoldJournalReconciled(options.journalStore, {
+    journal: options.journal,
+    journalAuthority: options.journalAuthority
+  });
+  options.journalFaultContext.finalizing = false;
+  try {
+    await options.faultInjector?.({ phase: "after-journal-unlinked" });
+  } catch (error) {
+    const observed = await options.journalStore.stabilizeForReconciliation();
+    if (
+      observed.outcome !== "stable" ||
+      observed.stored !== undefined
+    ) {
+      throw error;
+    }
+  }
   return createAuthorityScaffoldReceipt({
     plan: options.journal.plan,
     outcome: options.recovered ? "failed-recovered" : "applied",

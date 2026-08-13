@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, chmod, link as hardLink, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, link as hardLink, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -34,6 +34,13 @@ async function missing(path) {
   await assert.rejects(access(path), (error) => error?.code === "ENOENT");
 }
 
+async function quarantinedEvidence(root) {
+  const entry = (await readdir(root)).find((name) =>
+    name.includes(".foundation-owned-cleanup-"));
+  assert.ok(entry, "expected preserved cleanup quarantine");
+  return readFile(join(root, entry, "owned-temporary"));
+}
+
 test("classifies absent, exact and conflicting postimages", async () => {
   const paths = await fixture();
   try {
@@ -57,6 +64,31 @@ test("publishes absent postimage and removes only its temporary", async () => {
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
     await missing(paths.temporaryPath);
     assert.equal(await publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }), "already-satisfied");
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("uses the injected bounded reader for every publication verification", async () => {
+  const paths = await fixture();
+  let reads = 0;
+  try {
+    assert.equal(
+      await publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async readBoundedRegularFile(path, maximumBytes) {
+            reads += 1;
+            return readBoundedRegularFile(path, maximumBytes);
+          }
+        },
+        postimage
+      }),
+      "published"
+    );
+    assert.equal(reads, 4);
+    assert.deepEqual(await readFile(paths.destinationPath), bytes);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }
@@ -162,6 +194,32 @@ test("accepts only an exact concurrent publication", async () => {
     } finally {
       await rm(paths.root, { recursive: true, force: true });
     }
+  }
+});
+
+test("syncs the destination directory before accepting an exact EEXIST publication", async () => {
+  const paths = await fixture();
+  const synced = [];
+  try {
+    assert.equal(
+      await publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link() {
+            await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
+            const error = Object.assign(new Error("exists"), { code: "EEXIST" });
+            throw error;
+          },
+          async syncDirectory(path) { synced.push(path); return "durable"; }
+        },
+        postimage
+      }),
+      "already-satisfied"
+    );
+    assert.ok(synced.includes(paths.root));
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
   }
 });
 
@@ -528,7 +586,7 @@ test("retains the primary publication failure when cleanup also fails", async ()
           }
         },
         operations: {
-          async rm() {
+          async syncDirectory() {
             throw cleanup;
           }
         },
@@ -539,7 +597,7 @@ test("retains the primary publication failure when cleanup also fails", async ()
         error.cause === primary &&
         error.cleanupError === cleanup
     );
-    assert.deepEqual(await readFile(paths.temporaryPath), bytes);
+    assert.deepEqual(await quarantinedEvidence(paths.root), bytes);
     await missing(paths.destinationPath);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
@@ -564,6 +622,11 @@ test("preserves a replacement of an owned temporary", async () => {
       (error) => error?.code === "TEMPORARY_REPLACED"
     );
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "replacement\n");
+    assert.equal(
+      (await readdir(paths.root)).some((entry) =>
+        entry.includes(".foundation-owned-cleanup-")),
+      false,
+    );
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
@@ -589,6 +652,11 @@ test("rejects an exact pre-link temporary replacement by identity", async () => 
     );
     await missing(paths.destinationPath);
     assert.deepEqual(await readFile(paths.temporaryPath), bytes);
+    assert.equal(
+      (await readdir(paths.root)).some((entry) =>
+        entry.includes(".foundation-owned-cleanup-")),
+      false,
+    );
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }
@@ -637,6 +705,11 @@ test("does not claim success when the pathname is replaced inside link", async (
     );
     assert.equal(await readFile(paths.destinationPath, "utf8"), "foreign replacement\n");
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "foreign replacement\n");
+    assert.equal(
+      (await readdir(paths.root)).some((entry) =>
+        entry.includes(".foundation-owned-cleanup-")),
+      false,
+    );
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }

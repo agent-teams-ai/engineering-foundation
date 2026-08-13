@@ -7,3 +7,5 @@ export const FOUNDATION_TRANSACTION_FILE =
   "scaffolding-transaction.json" as const;
 export const FOUNDATION_TRANSACTION_TEMPORARY_FILE =
   `${FOUNDATION_TRANSACTION_FILE}.tmp` as const;
+export const FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX =
+  "foundation-transaction.cleanup-residue." as const;

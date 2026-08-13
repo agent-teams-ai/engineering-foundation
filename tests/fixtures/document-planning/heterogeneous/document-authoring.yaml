@@ -31,3 +31,5 @@ authoring:
         path: handbook/templates/playbook.md
       heading:
         kind: title
+      reachability:
+        kind: not-required

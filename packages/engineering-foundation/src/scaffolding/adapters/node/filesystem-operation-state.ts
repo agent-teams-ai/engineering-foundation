@@ -1,3 +1,4 @@
+import { readdir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 import {
@@ -7,9 +8,11 @@ import {
   type AbsentFilePublicationFaultPoint
 } from "../../../repository-mutation/adapters/node/node-absent-file-publication.js";
 import { AbsentFilePublicationError } from "../../../repository-mutation/application/model/exact-postimage.js";
+import { ownedTemporaryCleanupResiduePrefix } from "../../../repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 import type { MaterializeFileOperation } from "../../contract/scaffold-contract.js";
 import { sha256Text } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
+import type { OwnedTemporaryCleanupTransitionPort } from "../../../repository-mutation/application/ports/owned-temporary-cleanup-transition.js";
 import {
   assertSafeExistingAncestors,
   ensureSafeParent,
@@ -27,6 +30,11 @@ interface FilesystemPublicationFaultPoint {
 export type FilesystemPublicationFaultInjector = (
   point: FilesystemPublicationFaultPoint
 ) => Promise<void> | void;
+
+interface FilesystemPublicationOptions {
+  readonly cleanupTransition: OwnedTemporaryCleanupTransitionPort;
+  readonly faultInjector?: FilesystemPublicationFaultInjector;
+}
 
 function postimage(operation: MaterializeFileOperation) {
   return {
@@ -59,6 +67,42 @@ function transactionTemporaryName(
   return `.foundation-${identity}.tmp`;
 }
 
+export async function assertNoOwnedCleanupResidue(
+  root: string,
+  plan: {
+    readonly planDigest: string;
+    readonly operations: readonly MaterializeFileOperation[];
+  }
+): Promise<void> {
+  for (const operation of plan.operations) {
+    const parent = dirname(resolve(root, operation.path));
+    const temporary = join(
+      parent,
+      transactionTemporaryName(plan.planDigest, operation)
+    );
+    const prefix = ownedTemporaryCleanupResiduePrefix(temporary);
+    let entries: string[];
+    try {
+      entries = await readdir(parent);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      ) {
+        continue;
+      }
+      throw error;
+    }
+    if (entries.some((entry) => entry.startsWith(prefix))) {
+      throw new ScaffoldError(
+        "SCAFFOLD_RECOVERY_REQUIRED",
+        `Scaffolding owned temporary cleanup residue requires manual recovery: ${operation.path}.`
+      );
+    }
+  }
+}
+
 export async function assertTransactionTemporariesAbsent(
   root: string,
   plan: {
@@ -66,6 +110,7 @@ export async function assertTransactionTemporariesAbsent(
     readonly operations: readonly MaterializeFileOperation[];
   }
 ): Promise<void> {
+  await assertNoOwnedCleanupResidue(root, plan);
   try {
     await assertTemporaryPathsAbsent(
       plan.operations.map((operation) => {
@@ -157,9 +202,23 @@ export async function publishFilesystemOperation(
   operation: MaterializeFileOperation,
   planDigest: string,
   operationIndex: number,
-  faultInjector?: FilesystemPublicationFaultInjector
+  faultInjectorOrOptions?:
+    | FilesystemPublicationFaultInjector
+    | FilesystemPublicationOptions
 ): Promise<"already-satisfied" | "applied"> {
+  const faultInjector =
+    typeof faultInjectorOrOptions === "function"
+      ? faultInjectorOrOptions
+      : faultInjectorOrOptions?.faultInjector;
+  const cleanupTransition =
+    typeof faultInjectorOrOptions === "function"
+      ? undefined
+      : faultInjectorOrOptions?.cleanupTransition;
   await assertSafeExistingAncestors(root, operation.path);
+  await assertNoOwnedCleanupResidue(root, {
+    planDigest,
+    operations: [operation]
+  });
   const state = await classifyFilesystemOperation(root, operation);
   if (state === "after") {
     return "already-satisfied";
@@ -192,7 +251,10 @@ export async function publishFilesystemOperation(
               })
           }),
       postimage: postimage(operation),
-      temporaryPath: temporary
+      temporaryPath: temporary,
+      ...(cleanupTransition === undefined
+        ? {}
+        : { transition: cleanupTransition })
     });
     return outcome === "published" ? "applied" : "already-satisfied";
   } catch (error) {

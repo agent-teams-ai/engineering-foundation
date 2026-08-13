@@ -5,6 +5,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   realpath,
   rename,
   rm,
@@ -193,6 +194,87 @@ test("coalesces concurrent release calls without deleting unrelated state", asyn
     await Promise.all([release(), release(), release()]);
     await release();
     await assert.rejects(lstat(paths(root).lock), { code: "ENOENT" });
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("release preserves a foreign predictable retirement destination", async () => {
+  const root = await createRoot();
+  try {
+    const target = paths(root);
+    const release = await new NodeFoundationOperationLock(root).acquire();
+    const owned = JSON.parse(await readFile(target.lock, "utf8"));
+    const legacyDestination = `${target.lock}.released.${owned.token}`;
+    await writeFile(legacyDestination, "foreign retirement evidence\n", "utf8");
+
+    await release();
+
+    assert.equal(
+      await readFile(legacyDestination, "utf8"),
+      "foreign retirement evidence\n",
+    );
+    const terminalRoot = join(
+      target.directory,
+      "foundation-operation-lock.completed-evidence",
+    );
+    const retirement = (await readdir(terminalRoot)).find((entry) =>
+      entry.startsWith("released."),
+    );
+    assert.ok(retirement);
+    assert.equal(retirement.includes(owned.token), false);
+    assert.deepEqual(
+      JSON.parse(await readFile(join(terminalRoot, retirement, "evidence"), "utf8")),
+      owned,
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("release preserves a substituted retirement pathname", async () => {
+  const root = await createRoot();
+  try {
+    let foreignPath;
+    const release = await new NodeFoundationOperationLock(root, {
+      async faultInjector(point) {
+        if (point.phase !== "after-release-retirement") {
+          return;
+        }
+        await rename(point.path, `${point.path}.owned-original`);
+        await writeFile(point.path, "foreign substituted evidence\n", "utf8");
+        foreignPath = point.path;
+      },
+    }).acquire();
+
+    await assert.rejects(release(), (error) => error.code === "LOCAL_STATE_INVALID");
+    assert.ok(foreignPath);
+    assert.equal(await readFile(foreignPath, "utf8"), "foreign substituted evidence\n");
+    assert.equal((await lstat(`${foreignPath}.owned-original`)).isFile(), true);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("successful releases keep state-directory cardinality constant", async () => {
+  const root = await createRoot();
+  try {
+    const target = paths(root);
+    for (let iteration = 0; iteration < 8; iteration += 1) {
+      const release = await new NodeFoundationOperationLock(root).acquire();
+      await release();
+    }
+    assert.deepEqual(
+      await readdir(target.directory),
+      ["foundation-operation-lock.completed-evidence"],
+    );
+    assert.equal(
+      (await readdir(join(
+        target.directory,
+        "foundation-operation-lock.completed-evidence",
+      ))).length,
+      8,
+    );
   } finally {
     await rm(root, { force: true, recursive: true });
   }

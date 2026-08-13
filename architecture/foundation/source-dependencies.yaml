@@ -24,6 +24,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/cli-arguments.ts
       - packages/engineering-foundation/src/cli.ts
+      - packages/engineering-foundation/src/command-error.ts
       - packages/engineering-foundation/src/document-command.ts
     allow:
       boundaries:
@@ -282,6 +283,7 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/application/model/exact-postimage.ts
       - packages/engineering-foundation/src/repository-mutation/application/model/path-identity.ts
       - packages/engineering-foundation/src/repository-mutation/application/model/repository-path.ts
+      - packages/engineering-foundation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
   - id: foundation.repository-mutation.node-adapters
     roots:
       - packages/engineering-foundation/src/repository-mutation/adapters/node
@@ -296,10 +298,15 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-durability.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-repository-path.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
   - id: foundation.transaction-coordination.application
     roots:
       - packages/engineering-foundation/src/transaction-coordination/application
@@ -311,6 +318,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-error.ts
+      - packages/engineering-foundation/src/transaction-coordination/application/model/internal-transaction-status.ts
       - packages/engineering-foundation/src/transaction-coordination/application/model/transaction-status.ts
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-operation-lock.ts
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-slot.ts
@@ -343,6 +351,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-build-identity.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-operation-lock.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-cleanup-transition.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-state-directory.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts
@@ -406,11 +415,18 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-receipt-validator.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-owner-document-resolver.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-plan-authority.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-evidence.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-gateway.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-reconciliation.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store-faults.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
     allow:
       boundaries:
         - foundation.core
         - foundation.local-mode
         - foundation.repository-input
+        - foundation.repository-mutation.node-adapters
         - foundation.schema-validation
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
@@ -422,6 +438,7 @@ boundaries:
         - node:fs/promises
         - node:path
         - node:url
+        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-workspace.ts
@@ -433,6 +450,12 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-input-loader.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-receipt-validator.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-plan-authority.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-evidence.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-gateway.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-reconciliation.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store-faults.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
   - id: foundation.scaffolding.canonical-composition
     roots:
       - packages/engineering-foundation/src/scaffolding/authority-service.ts
@@ -879,20 +902,35 @@ boundaries:
         - foundation.canonical-json
         - foundation.core
         - foundation.documentation-observation.application
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/application/model/document-catalog.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-command.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-find.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-planning.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-physical-identity.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-receipt.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-transaction.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-transaction-inspection.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/authoring-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/canonical-document-renderer.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-authority-recompiler.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-contract-validator.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-environment-inspector.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-file-state.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-journal-store.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-state-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-publisher.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-reachability-projector.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-structure-verifier.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-template-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-transaction-coordinator.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/documentation-catalog-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/similar-document-advisor.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/documentation-search-catalog-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/metadata-instance-validator.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/owner-membership-reader.ts
@@ -901,15 +939,27 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/application/policies/document-contract-digests.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/document-logical-preimage.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/document-planning-policy-error.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-receipt-policy.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/document-repository-path.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/document-temporary-path.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-transaction-digests.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-transaction-envelope-policy.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/inspect-catalog-document.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/normalize-document-intent.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/resolve-document-authoring.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/build-documentation-catalog.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/compile-document-plan.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/apply-document-plan.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-command-projection.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/project-document-reachability.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/document-transaction-continuation.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/document-transaction-error.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/find-documents.ts
       - packages/engineering-foundation/src/document-authoring/application/use-cases/plan-documentation-document.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/recover-document-transaction.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-doctor.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-new.ts
+      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-recover.ts
       - packages/engineering-foundation/src/document-authoring/document-catalog-error.ts
       - packages/engineering-foundation/src/document-authoring/document-planning-error.ts
   - id: foundation.document-authoring.adapters
@@ -920,8 +970,13 @@ boundaries:
         - foundation.cancellation
         - foundation.core
         - foundation.document-authoring.application
+        - foundation.canonical-json
         - foundation.repository-input
+        - foundation.repository-mutation.application
+        - foundation.repository-mutation.node-adapters
         - foundation.schema-validation
+        - foundation.transaction-coordination.adapters
+        - foundation.transaction-coordination.application
       packages:
         - ajv
         - remark-parse
@@ -932,23 +987,37 @@ boundaries:
         - node:crypto
         - node:fs/promises
         - node:path
+        - node:util
         - node:util/types
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/adapters/canonical-markdown.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/inbound/cli/document-command-failure.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/inbound/cli/document-command-renderer.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-authoring-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-contract-validator.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-environment-inspector.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-file-state.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-journal-store.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-planning-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-planning-state-reader.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-publisher.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-reachability-projector.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-structure-verifier.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-template-reader.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-transaction-coordinator.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-metadata-instance-validator.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-owner-membership-reader.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/recapture-document-publication-paths.ts
   - id: foundation.document-authoring.composition
     roots:
+      - packages/engineering-foundation/src/document-authoring/composition
       - packages/engineering-foundation/src/document-authoring/index.ts
       - packages/engineering-foundation/src/document-authoring/find-command.ts
     allow:
       boundaries:
+        - foundation.cancellation
+        - foundation.canonical-json
         - foundation.document-authoring.adapters
         - foundation.document-authoring.application
         - foundation.documentation-observation.adapters
@@ -956,9 +1025,17 @@ boundaries:
         - foundation.package-identity
         - foundation.transaction-coordination.adapters
       packages: []
-      builtins: []
+      builtins:
+        - node:fs/promises
+        - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/document-authoring/composition/document-command-cli.ts
+      - packages/engineering-foundation/src/document-authoring/composition/node-document-planning.ts
+      - packages/engineering-foundation/src/document-authoring/composition/node-document-authority-recompiler.ts
+      - packages/engineering-foundation/src/document-authoring/composition/node-document-writing-private.ts
+      - packages/engineering-foundation/src/document-authoring/composition/node-document-writing.ts
+      - packages/engineering-foundation/src/document-authoring/composition/inspect-document-transaction.ts
       - packages/engineering-foundation/src/document-authoring/index.ts
       - packages/engineering-foundation/src/document-authoring/find-command.ts
   - id: foundation.documentation-observation.application

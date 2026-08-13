@@ -18,6 +18,7 @@ export function renderFoundationReportText(report: FoundationCheckReport): strin
   const lines = [
     `Foundation check: ${report.outcome}`,
     `Foundation version: ${report.foundationVersion}`,
+    `Coverage: ${report.coverage}`,
     `Diagnostics: ${report.summary.errors} error(s), ${report.summary.warnings} warning(s), ${report.summary.infos} info`
   ];
   if (report.problem !== undefined) {

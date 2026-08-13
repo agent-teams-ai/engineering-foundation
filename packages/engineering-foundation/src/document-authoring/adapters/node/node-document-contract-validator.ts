@@ -8,6 +8,7 @@ import type {
 } from "../../application/model/document-planning.js";
 import type { DocumentContractValidator } from "../../application/ports/document-contract-validator.js";
 import { DocumentPlanningError } from "../../document-planning-error.js";
+import { assertDocumentPlanDigests } from "../../application/policies/document-contract-digests.js";
 
 function invalidContract(kind: "Intent" | "Plan", error: CapabilityInputError): never {
   throw new DocumentPlanningError(
@@ -22,6 +23,9 @@ function invalidContract(kind: "Intent" | "Plan", error: CapabilityInputError): 
 const MAXIMUM_INTENT_DEPTH = 8;
 const MAXIMUM_INTENT_CONTAINER_ITEMS = 128;
 const MAXIMUM_DOCUMENT_OUTPUT_BYTES = 1024 * 1024;
+const MAXIMUM_PLAN_DEPTH = 12;
+const MAXIMUM_PLAN_JSON_BYTES = 4 * MAXIMUM_DOCUMENT_OUTPUT_BYTES;
+const MAXIMUM_PLAN_VALUES = MAXIMUM_DOCUMENT_OUTPUT_BYTES;
 const OUTPUT_INTENT_KEYS = new Set([
   "additionalMetadata",
   "id",
@@ -193,6 +197,164 @@ function assertInertJson(input: unknown): void {
   }
 }
 
+interface PlanSnapshotFrame {
+  readonly depth: number;
+  readonly source: object;
+  readonly target: Record<string, unknown> | unknown[];
+}
+
+interface PlanInspectionBudget {
+  bytes: number;
+  values: number;
+}
+
+function planContractTypeError(message: string): TypeError {
+  return new TypeError(`Document Plan ${message}`);
+}
+
+function defineSnapshotValue(
+  target: Record<string, unknown> | unknown[],
+  key: string,
+  value: unknown
+): void {
+  Object.defineProperty(target, key, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true
+  });
+}
+
+function inspectPlanContainer(source: object): {
+  readonly isArray: boolean;
+  readonly keys: readonly string[];
+} {
+  if (isProxy(source)) {
+    throw planContractTypeError("must not contain Proxy objects.");
+  }
+  const isArray = Array.isArray(source);
+  const prototype = Object.getPrototypeOf(source) as object | null;
+  if (
+    (isArray && prototype !== Array.prototype) ||
+    (!isArray && prototype !== Object.prototype && prototype !== null)
+  ) {
+    throw planContractTypeError("containers must use intrinsic JSON prototypes.");
+  }
+  const keys = Reflect.ownKeys(source);
+  if (keys.some((key) => typeof key !== "string")) {
+    throw planContractTypeError("must not contain symbol keys.");
+  }
+  if (isArray && keys.length !== source.length + 1) {
+    throw planContractTypeError("arrays must be dense and contain no extra properties.");
+  }
+  if (
+    isArray &&
+    keys.some(
+      (key) =>
+        key !== "length" &&
+        (!/^(?:0|[1-9]\d*)$/u.test(String(key)) ||
+          Number(key) >= source.length ||
+          String(Number(key)) !== key)
+    )
+  ) {
+    throw planContractTypeError("arrays must be dense and contain no extra properties.");
+  }
+  return {
+    isArray,
+    keys: (keys as string[])
+      .filter((key) => !(isArray && key === "length"))
+      .toSorted()
+  };
+}
+
+function planDataValue(source: object, key: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(source, key);
+  if (
+    descriptor === undefined ||
+    !("value" in descriptor) ||
+    descriptor.enumerable !== true
+  ) {
+    throw planContractTypeError("must contain only enumerable own data properties.");
+  }
+  return descriptor.value as unknown;
+}
+
+function accountPlanValue(
+  budget: PlanInspectionBudget,
+  key: string,
+  value: unknown
+): void {
+  budget.values += 1;
+  budget.bytes += Buffer.byteLength(key, "utf8") + 1;
+  if (typeof value === "string") {
+    budget.bytes += Buffer.byteLength(value, "utf8") + 1;
+  } else if (value === null || ["boolean", "number"].includes(typeof value)) {
+    budget.bytes += 1;
+  }
+  if (budget.values > MAXIMUM_PLAN_VALUES || budget.bytes > MAXIMUM_PLAN_JSON_BYTES) {
+    throw planContractTypeError("exceeds the bounded v1 contract input budget.");
+  }
+}
+
+function assertPlanScalar(value: unknown): boolean {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return true;
+  }
+  if (typeof value !== "number") {
+    return false;
+  }
+  if (!Number.isSafeInteger(value) || Object.is(value, -0)) {
+    throw planContractTypeError(
+      "numbers must be safe integers other than negative zero."
+    );
+  }
+  return true;
+}
+
+function snapshotInertPlan(input: unknown): DocumentPlan {
+  if (input === null || typeof input !== "object") {
+    throw planContractTypeError("must be a JSON object.");
+  }
+  if (isProxy(input) || Array.isArray(input)) {
+    throw planContractTypeError("must be an intrinsic, non-Proxy JSON object.");
+  }
+  const root: Record<string, unknown> = {};
+  const pending: PlanSnapshotFrame[] = [{ depth: 0, source: input, target: root }];
+  const observed = new WeakSet<object>();
+  const budget: PlanInspectionBudget = { bytes: 0, values: 0 };
+
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    if (observed.has(current.source)) {
+      throw planContractTypeError("must be an acyclic JSON tree without shared containers.");
+    }
+    observed.add(current.source);
+    if (current.depth > MAXIMUM_PLAN_DEPTH) {
+      throw planContractTypeError("exceeds the supported JSON depth.");
+    }
+    const { keys } = inspectPlanContainer(current.source);
+    for (const key of keys) {
+      const value = planDataValue(current.source, key);
+      accountPlanValue(budget, key, value);
+      if (assertPlanScalar(value)) {
+        defineSnapshotValue(current.target, key, value);
+        continue;
+      }
+      if (value === null || typeof value !== "object") {
+        throw planContractTypeError("must use the closed JSON data model.");
+      }
+      if (isProxy(value)) {
+        throw planContractTypeError("must not contain Proxy objects.");
+      }
+      const child: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {};
+      defineSnapshotValue(current.target, key, child);
+      pending.push({ depth: current.depth + 1, source: value, target: child });
+    }
+    Object.freeze(current.target);
+  }
+  return root as unknown as DocumentPlan;
+}
+
 export class NodeDocumentContractValidator implements DocumentContractValidator {
   async validateIntent(input: unknown): Promise<DocumentIntent> {
     try {
@@ -216,11 +378,20 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
 
   async validatePlan(input: unknown): Promise<DocumentPlan> {
     try {
-      await assertSchema("document-plan/v1", input, "document-plan");
-      return input as DocumentPlan;
+      const snapshot = snapshotInertPlan(input);
+      await assertSchema("document-plan/v1", snapshot, "document-plan");
+      assertDocumentPlanDigests(snapshot);
+      return snapshot;
     } catch (error) {
       if (error instanceof CapabilityInputError) {
         invalidContract("Plan", error);
+      }
+      if (error instanceof Error) {
+        throw new DocumentPlanningError(
+          "DOCUMENT_PLANNING_OUTPUT_INVALID",
+          `Document Plan must use inert canonical JSON data and valid content bindings: ${error.message.slice(0, 1000)}`,
+          { cause: error }
+        );
       }
       throw error;
     }

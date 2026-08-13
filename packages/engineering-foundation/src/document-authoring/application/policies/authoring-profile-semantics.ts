@@ -21,6 +21,10 @@ interface ArtifactTypeSemantics {
     };
   };
   readonly placement: PlacementSemantics;
+  readonly reachability?: {
+    readonly indexPath?: string;
+    readonly kind: string;
+  };
   readonly type: string;
 }
 
@@ -34,6 +38,7 @@ export type AuthoringProfileSemanticProblem =
   | "duplicate-artifact-type"
   | "incompatible-identity-placement"
   | "invalid-qualified-grammar-range"
+  | "incompatible-reachability-placement"
   | "overlapping-placement-roots"
   | "portable-root-collision";
 
@@ -66,6 +71,19 @@ function hasCompatibleIdentityPlacement(artifactType: ArtifactTypeSemantics): bo
   return true;
 }
 
+function assertCompatibleReachabilityPlacement(
+  artifactType: ArtifactTypeSemantics
+): void {
+  if (
+    artifactType.reachability?.kind === "manual-colocated-index" &&
+    artifactType.placement.kind !== "explicit"
+  ) {
+    throw new AuthoringProfileSemanticError(
+      "incompatible-reachability-placement"
+    );
+  }
+}
+
 export function assertAuthoringProfileSemantics(profile: AuthoringProfileSemantics): void {
   const types = new Set<string>();
   for (const artifactType of profile.authoring.artifactTypes) {
@@ -87,6 +105,7 @@ export function assertAuthoringProfileSemantics(profile: AuthoringProfileSemanti
     if (!hasCompatibleIdentityPlacement(artifactType)) {
       throw new AuthoringProfileSemanticError("incompatible-identity-placement");
     }
+    assertCompatibleReachabilityPlacement(artifactType);
     const roots = placement.kind === "qualified-leaf-index"
       ? (placement.root === undefined ? [] : [placement.root])
       : [...(placement.allowedRoots ?? [])];

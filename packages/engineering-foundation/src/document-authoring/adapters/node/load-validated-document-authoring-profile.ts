@@ -4,7 +4,8 @@ import { assertSchema } from "../../../schema-catalog.js";
 import { parseStrictYamlSource } from "../../../strict-yaml.js";
 import type {
   DocumentArtifactType,
-  DocumentCatalogCollection
+  DocumentCatalogCollection,
+  DocumentReachabilityStrategy
 } from "../../application/model/document-planning.js";
 import {
   assertAuthoringProfileSemantics,
@@ -17,7 +18,11 @@ const MAX_PROFILE_BYTES = 1024 * 1024;
 
 export interface ValidatedDocumentAuthoringProfile {
   readonly authoring: {
-    readonly artifactTypes: readonly DocumentArtifactType[];
+    readonly artifactTypes: readonly (
+      Omit<DocumentArtifactType, "reachability"> & {
+        readonly reachability?: DocumentReachabilityStrategy;
+      }
+    )[];
     readonly mode: "create-only";
   };
   readonly catalog: {

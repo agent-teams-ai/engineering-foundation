@@ -2,6 +2,13 @@ import { open } from "node:fs/promises";
 
 export type DirectoryDurability = "durable" | "unsupported";
 
+export class StrictDirectoryDurabilityError extends Error {
+  public constructor(path: string) {
+    super(`Strict directory durability is unsupported: ${path}.`);
+    this.name = "StrictDirectoryDurabilityError";
+  }
+}
+
 interface DirectorySyncHandle {
   close(): Promise<void>;
   sync(): Promise<void>;
@@ -45,5 +52,19 @@ export async function syncDirectoryDurably(
       return "unsupported";
     }
     throw error;
+  }
+}
+
+/** For evidence whose protocol cannot honestly admit best-effort durability. */
+export async function syncDirectoryStrictly(path: string): Promise<void> {
+  return syncDirectoryStrictlyWith(path, syncDirectoryDurably);
+}
+
+export async function syncDirectoryStrictlyWith(
+  path: string,
+  syncDirectory: (path: string) => Promise<DirectoryDurability>
+): Promise<void> {
+  if ((await syncDirectory(path)) === "unsupported") {
+    throw new StrictDirectoryDurabilityError(path);
   }
 }

@@ -38,6 +38,7 @@ function artifact(overrides = {}) {
     },
     template: { kind: "fenced-markdown-body", path: "docs/templates/adr.md" },
     heading: { kind: "id-colon-title" },
+    reachability: { kind: "not-required" },
     ...overrides
   };
 }

@@ -1,8 +1,8 @@
 # Document Authoring Cooperative Writer Threat Model
 
-Status: Corrected contract boundary accepted by ADR-0023. Read-only catalog and
-Plan compilation are implemented. The mutation and recovery runtime is not yet
-implemented.
+Status: Intent, Plan, and Receipt v1 remain governed by ADR-0023. Envelope v3,
+document journal v2, and recovery-handler contract v2 are accepted by ADR-0024.
+Published envelope v2 and journal v1 are immutable manual-recovery evidence.
 
 ## Protected assets
 
@@ -50,17 +50,19 @@ meaning, completeness, or review quality.
 | Caller mutates an in-memory Plan | Snapshot, validate, and digest before use | Invalid Plan |
 | Journal or payload tampering | Closed schema plus payload and envelope digests | Manual recovery required |
 | Unknown or newer journal | Preserve exact evidence and block every Foundation mutation | Manual recovery required |
-| Exact released 0.13.0/0.13.1 legacy envelope | Frozen read-only recognition without handler or recovery authority | Preserve as manual-recovery evidence; never resume mutation |
+| Published envelope v2 or document journal v1 | Frozen read-only recognition without handler or recovery authority | Preserve as manual-recovery evidence; never resume mutation |
 | Temporary path substitution or inode reuse | Exact Plan-derived sibling plus creator-handle dev/ino/birthtime identity | Reject or preserve for manual recovery; never act on a merely matching pathname |
-| Package downgrade or same-version rebuild during a transaction | Version plus package manifest/executable/schema/preset artifact identity in the envelope, bound to the embedded compiler | Preserve evidence; no v2 auto-recovery until handler and dependency-closure compatibility are qualified |
-| Contradictory envelope/document lifecycle | Closed state matrix binding envelope state, destination state, precondition, and owned temporary | Manual recovery required |
+| Package downgrade or same-version rebuild during a transaction | Exact SemVer plus package build identity in envelope v3, bound to the embedded compiler and closed handler v2 | Preserve evidence; only the exact qualified package may recover |
+| Contradictory envelope/document lifecycle | Closed PREPARED/PUBLISHING/PUBLISHED matrix binding destination state, temporary, and publication identity | Manual recovery required |
 | Interrupted local attach or detach | Shared coordinator recognizes durable phase or orphan registry backup and admits only detach | All foreign mutations blocked |
 | Concurrent Foundation mutation | One operation lock and one physical transaction slot | Recovery required |
 | Crash before publication | Durable prepared evidence and exclusive owned temporary | Recover or preserve |
-| Crash after publication | Verify exact destination and preserve journal | Complete or recover; never delete output |
-| Destination replaced after observation | Repeat classification and identity checks | Preserve output and evidence |
+| Crash after publication | Persist PUBLISHED with non-zero `publicationIdentity`; verify exact destination bytes and identity | Complete or recover; never delete output |
+| Destination replaced after observation | Repeat bytes, mode, ancestry, and physical identity checks | Preserve output and evidence |
 | Parent or ancestor replaced after planning | Recapture the complete physical chain under lock; Plan stores no portable inode promise | Authority-stale, conflict, or manual recovery |
 | Temporary identity unavailable on the filesystem | Preserve canonical zero identity evidence; never publish, delete, or auto-recover from it | Manual recovery |
+| Same-byte replacement after publication | Require destination identity to equal journal v2 `publicationIdentity` | Manual recovery; never adopt or delete replacement |
+| Cancellation races with publication | Report cancellation only after proving no publication and durable cleanup; mask cancellation after possible publication | Complete or preserve transaction evidence |
 | Orphan unknown temporary | Delete only a temporary whose ownership and identity are proven | Manual cleanup instruction |
 | Remote schema or template | Local-only profile paths and closed Foundation schema references | Invalid authority |
 | Resource exhaustion | Fixed byte, item, depth, path, and diagnostic limits | Typed invalid input or execution failure |
@@ -80,9 +82,26 @@ The only permitted responses after that boundary are:
 - resume only with a compatible implemented and qualified recovery handler;
 - report manual recovery with stable diagnostics.
 
+Envelope v3 recovery is version-exact, not range-compatible. It requires the
+recorded Foundation SemVer and build identity, the closed handler contract v2,
+the embedded compiler identity, qualified dependencies, and the exact journal
+v2 state matrix. Older packages preserve unknown v3 evidence and block
+mutation. New packages preserve v2/journal v1 evidence and require manual
+resolution. No package migrates an active journal.
+
+Cancellation is a claim about durable state, not merely an observed signal. It
+is truthful only when destination absence is proven and all identity-owned
+temporary and journal evidence is durably gone. After publication or ambiguity,
+the signal cannot turn the outcome into cancellation.
+
+Legacy recognition and current recovery handlers cannot be retired by age
+alone. Retirement requires organization-wide zero-instance inventory, removal
+of every supported producing writer, expiry of the declared support window,
+recovery-fixture evidence, and a new accepted removal ADR.
+
 ## Honest claim
 
-On a qualified adapter, the future protocol may claim cooperative serialization,
+On a qualified adapter, the protocol may claim cooperative serialization,
 single-file atomic create-no-replace, exact-byte verification, journaled
 recoverability, known ancestry hazard rejection, and no automatic deletion
 after publication. It may not claim a hostile-writer sandbox, a true multi-file

@@ -1,9 +1,20 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { writeJson } from "./pack-test-support.mjs";
 
 export async function writePackedConsumerDocumentAuthoringFixture(consumerRoot) {
+  const manifestPath = join(consumerRoot, "package.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.scripts = {
+    ...manifest.scripts,
+    "docs:find": "agent-teams-foundation docs find",
+    "docs:new": "agent-teams-foundation docs new",
+    "docs:doctor": "agent-teams-foundation docs doctor",
+    check: "agent-teams-foundation repo check"
+  };
+  await writeJson(manifestPath, manifest);
+  await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
   await mkdir(join(consumerRoot, "docs", "catalog"), { recursive: true });
   await writeFile(
     join(consumerRoot, "architecture", "foundation", "document-authoring.yaml"),
@@ -35,6 +46,9 @@ authoring:
         path: docs/template.md
       heading:
         kind: id-colon-title
+      reachability:
+        kind: manual-fixed-index
+        indexPath: docs/catalog/README.md
 `,
     "utf8"
   );
@@ -54,6 +68,11 @@ authoring:
   await writeFile(
     join(consumerRoot, "docs", "owners.yaml"),
     "version: 1\nowners:\n  architecture:\n    kind: architecture\n",
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, "docs", "template.md"),
+    "````markdown\n---\nplaceholder: true\n---\n\n# ADR-NNNN: Decision Title\n\n## Context\n\nDescribe the forces.\n\n## Decision\n\nDescribe the decision.\n````\n",
     "utf8"
   );
   await writeFile(

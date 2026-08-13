@@ -54,20 +54,10 @@ jobs:
         env:
           FOUNDATION_CHANGESET_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: pnpm changeset:coverage
-      - name: Validate GitHub Actions
-        run: pnpm security:workflows
       - run: pnpm rebuild
-      - run: pnpm check
+      - run: pnpm verify
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-      - name: Qualify pinned Buf FILE compatibility evidence
-        run: pnpm buf-qualification:e2e:built
-      - name: Qualify registry publish and clean install
-        run: pnpm registry-install-e2e:built
-      - name: Qualify published transaction and scaffolding compatibility
-        run: pnpm published-compatibility:e2e
-      - run: pnpm dead-code:check
-      - run: pnpm parser-spike:check
       - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           path: .
@@ -79,7 +69,7 @@ jobs:
     name: windows-check
     needs: dependency-review
     runs-on: windows-2022
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -94,8 +84,12 @@ jobs:
       - run: pnpm check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Qualify unsupported durable document writing fails closed
+        run: node --test tests/document-authoring-windows-qualification.test.mjs
       - name: Qualify published transaction and scaffolding compatibility
         run: pnpm published-compatibility:e2e
+      - name: Qualify registry package and fail-closed document authoring boundary
+        run: pnpm registry-install-e2e:built
       - run: pnpm parser-spike:check
 
   macos-qualification:
@@ -116,7 +110,18 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - name: Qualify repository mutation and scaffolding integration
-        run: node --test --test-concurrency=1 tests/repository-mutation-*.test.mjs tests/scaffolding-authority.test.mjs
+      - name: Qualify repository mutation, scaffolding, and durable document writing
+        run: >-
+          node --test --test-concurrency=1
+          tests/repository-mutation-*.test.mjs
+          tests/scaffolding-authority.test.mjs
+          tests/document-authoring-application-use-cases.test.mjs
+          tests/document-authoring-journal-store.test.mjs
+          tests/document-authoring-node-writer-adapters.test.mjs
+          tests/document-authoring-public-writer.test.mjs
+          tests/document-authoring-writer-*.test.mjs
+          tests/document-authoring-scaffolding-race.test.mjs
       - name: Qualify packed package boundary
         run: pnpm package:check:built
+      - name: Qualify registry-installed document authoring
+        run: pnpm registry-install-e2e:built

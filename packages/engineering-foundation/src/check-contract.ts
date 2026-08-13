@@ -7,6 +7,8 @@ export type FoundationOutcome =
   | "failed"
   | "cancelled";
 
+export type FoundationCheckCoverage = "full" | "selected";
+
 export type DiagnosticSeverity = "error" | "warning" | "info";
 
 interface DiagnosticPosition {
@@ -62,7 +64,7 @@ export interface CapabilityReport {
 export interface FoundationCheckReport {
   readonly reportSchemaVersion: typeof FOUNDATION_REPORT_SCHEMA_VERSION;
   readonly foundationVersion: string;
-  readonly coverage: "full";
+  readonly coverage: FoundationCheckCoverage;
   readonly outcome: FoundationOutcome;
   readonly summary: DiagnosticSummary;
   readonly capabilities: readonly CapabilityReport[];

@@ -1,9 +1,13 @@
-import { glob, readFile, realpath, stat } from "node:fs/promises";
+import { glob, realpath } from "node:fs/promises";
 import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../capability-runtime.js";
-import { pathTraversesSymbolicLink } from "../../../../filesystem-path-safety.js";
+import {
+  ContainedFileReadError,
+  pathTraversesSymbolicLink,
+  readContainedRegularFile
+} from "../../../../filesystem-path-safety.js";
 import {
   assertNotCancelled,
   loadStrictYamlFile
@@ -237,21 +241,21 @@ async function readJsonManifest(
       "package-manifest"
     );
   }
-  const metadata = await stat(canonicalPath);
-  if (!metadata.isFile() || metadata.size > MAX_MANIFEST_BYTES) {
-    inputError(
-      "PACKAGE_MANIFEST_INVALID",
-      `Workspace package manifest must be a regular file no larger than ${MAX_MANIFEST_BYTES} bytes: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
   let input: unknown;
   try {
-    input = JSON.parse(await readFile(canonicalPath, "utf8")) as unknown;
-  } catch {
+    const bytes = await readContainedRegularFile({
+      candidate: canonicalPath,
+      maxBytes: MAX_MANIFEST_BYTES,
+      root: canonicalRoot
+    });
+    input = JSON.parse(bytes.toString("utf8")) as unknown;
+  } catch (error) {
+    if (!(error instanceof SyntaxError) && !(error instanceof ContainedFileReadError)) {
+      throw error;
+    }
     inputError(
       "PACKAGE_MANIFEST_INVALID",
-      `Workspace package manifest is not valid JSON: ${manifestPath}.`,
+      `Workspace package manifest changed, escaped containment, or is not stable valid JSON: ${manifestPath}.`,
       "package-manifest"
     );
   }

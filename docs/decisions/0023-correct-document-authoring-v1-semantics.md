@@ -1,9 +1,10 @@
 ---
 id: ADR-0023
-status: accepted
+status: superseded
 supersedes:
   - ADR-0022
-superseded_by: []
+superseded_by:
+  - ADR-0024
 ---
 
 # ADR-0023: Correct Document Authoring v1 Semantics

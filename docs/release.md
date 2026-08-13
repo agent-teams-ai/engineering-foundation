@@ -12,6 +12,13 @@ manually with npm 2FA after `pnpm check` passes. After that release:
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
+Release-candidate waves use committed Changesets prerelease state with the exact
+`rc` tag. The publish policy then requires an `-rc.N` package version and invokes
+Changesets with `--tag rc`; contradictory or unknown prerelease state fails
+closed before npm publication. Therefore an RC cannot move npm's `latest`
+dist-tag. Returning to stable publication requires a separately reviewed
+Changesets prerelease-exit change.
+
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against
 the pull request's exact base commit. Repository-only tests, CI configuration,

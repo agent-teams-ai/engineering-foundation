@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 
 import { verifyOldFoundationTransactionBarrier } from "./old-foundation-transaction-e2e.mjs";
 import { createPublishedCompatibilityInstallPolicy } from "./published-compatibility-install-policy.mjs";
+import { verifyPublishedDocumentTransactionCompatibility } from "./published-document-transaction-compatibility-e2e.mjs";
 import { verifyPublishedScaffoldingCompatibility } from "./published-scaffolding-compatibility-e2e.mjs";
 
 const temporaryRoot = await mkdtemp(
@@ -18,6 +19,10 @@ try {
     "cli.js",
   );
   await verifyOldFoundationTransactionBarrier({ currentCliPath, installPackage });
+  await verifyPublishedDocumentTransactionCompatibility({
+    installPackage,
+    temporaryRoot,
+  });
   await verifyPublishedScaffoldingCompatibility({
     currentPackageRoot: resolve("packages", "engineering-foundation"),
     installPackage,

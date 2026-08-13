@@ -17,7 +17,21 @@ weakening the merge gate.
 | Buf qualification E2E | `pnpm buf-qualification:e2e` | Real pinned Buf `FILE` compatible, breaking and fabricated-evidence scenarios |
 | Patterns | `pnpm architecture:patterns` | Consumer-owned deterministic AST prohibitions |
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
-| Full | `pnpm check` | Complete deterministic package and consumer conformance |
+| Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
+| Merge-ready | `pnpm verify` | The complete Linux merge lane, including external tool and registry qualification |
+| Coverage | `pnpm test:coverage` | Stable native Node coverage qualification with line, branch, and function thresholds |
+
+`pnpm check` is the deterministic repository and package conformance layer. It
+does not claim networked, hosted, or external-tool qualification. `pnpm verify`
+is the single local command matching the Linux merge lane: workflow security,
+the deterministic check, Buf, hermetic registry installation, published-version
+compatibility, dead-code analysis, and parser parity.
+
+Coverage instrumentation runs a stable cross-layer qualification set separately
+from process timing, crash, and exhaustive compatibility tests. The normal full
+suite remains mandatory; this separation prevents instrumentation overhead from
+changing process-timeout semantics while still enforcing production-code
+coverage floors.
 
 Knip is blocking in the Linux CI job but is not repeated by Windows or the fast
 local loop. Nx supplies project discovery, affected builds, and caching; it does

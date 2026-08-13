@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-command-envelope/v2",
+  "title": "Document Mutation Command Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "command", "outcome", "diagnostics", "result"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "command": { "enum": ["docs.doctor", "docs.new", "docs.recover"] },
+    "outcome": { "enum": ["success", "conflict", "violation", "authority-stale", "recovery-required", "invalid-input", "execution-failure", "cancelled"] },
+    "diagnostics": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/diagnostic" } },
+    "result": {
+      "oneOf": [
+        { "$ref": "#/$defs/newResult" },
+        { "$ref": "#/$defs/doctorResult" },
+        { "$ref": "#/$defs/recoverResult" }
+      ]
+    }
+  },
+  "allOf": [
+    { "$ref": "#/$defs/newEnvelope" },
+    { "$ref": "#/$defs/doctorEnvelope" },
+    { "$ref": "#/$defs/recoverEnvelope" }
+  ],
+  "$defs": {
+    "opaqueId": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "semver": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$" },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[A-Za-z0-9._@-]*)?(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$"
+    },
+    "recoveryCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "args"],
+      "properties": {
+        "commandId": { "enum": ["detach", "docs.recover", "scaffold-recover"] },
+        "args": {
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": { "pattern": "^[a-z][a-zA-Z0-9]*$", "maxLength": 64 },
+          "additionalProperties": { "type": "string", "maxLength": 512 }
+        }
+      }
+    },
+    "reachability": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "indexPath", "markdownLink"],
+          "properties": {
+            "state": { "const": "manual-required" },
+            "indexPath": { "$ref": "#/$defs/repositoryPath" },
+            "markdownLink": { "type": "string", "minLength": 1, "maxLength": 1024 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "managed" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "not-required" } }
+        }
+      ]
+    },
+    "newResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reservation"],
+      "properties": {
+        "kind": { "const": "new" },
+        "reservation": { "const": "none" },
+        "writeState": { "enum": ["preview", "applied", "already-applied"] },
+        "documentPath": { "$ref": "#/$defs/repositoryPath" },
+        "receiptOutcome": { "enum": ["applied", "already-applied", "authority-stale", "rejected", "recovery-required", "manual-recovery-required", "failed-before-publication", "cancelled"] },
+        "reachability": { "$ref": "#/$defs/reachability" }
+      },
+      "allOf": [
+        {
+          "if": { "type": "object", "properties": { "writeState": {} }, "required": ["writeState"] },
+          "then": {
+            "type": "object",
+            "required": ["documentPath", "reachability"],
+            "properties": {
+              "documentPath": { "$ref": "#/$defs/repositoryPath" },
+              "reachability": { "$ref": "#/$defs/reachability" }
+            }
+          }
+        }
+      ]
+    },
+    "doctorResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "transactionState", "recoveryClass"],
+      "properties": {
+        "kind": { "const": "doctor" },
+        "installedFoundationVersion": { "$ref": "#/$defs/semver" },
+        "installedFoundationBuildIdentity": { "$ref": "#/$defs/digest" },
+        "filesystem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["basis", "strictDirectoryDurability"],
+          "properties": {
+            "basis": { "const": "platform-contract" },
+            "strictDirectoryDurability": { "enum": ["platform-supported", "platform-unsupported"] }
+          }
+        },
+        "transactionState": { "enum": ["none", "document", "scaffold", "local-mode", "transition-residue", "unknown", "corrupt", "version-mismatch"] },
+        "protocolKind": { "enum": ["document-authoring", "scaffolding", "local-mode", "unknown"] },
+        "foundationVersion": { "$ref": "#/$defs/semver" },
+        "foundationBuildIdentity": { "$ref": "#/$defs/digest" },
+        "recoveryClass": { "enum": ["auto-recoverable", "manual", "not-required"] },
+        "recoveryCommand": { "$ref": "#/$defs/recoveryCommand" }
+      },
+      "allOf": [
+        {
+          "if": { "type": "object", "properties": { "recoveryClass": { "const": "not-required" } }, "required": ["recoveryClass"] },
+          "then": { "type": "object", "properties": { "recoveryCommand": false } }
+        }
+      ]
+    },
+    "recoverResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "transactionState", "writeState", "recoveryRequired"],
+      "properties": {
+        "kind": { "const": "recover" },
+        "transactionState": { "enum": ["already-applied", "manual-required", "no-pending-transaction", "recovered", "recovery-required", "cancelled", "failed"] },
+        "writeState": { "enum": ["already-committed", "committed", "unchanged", "unknown"] },
+        "recoveryRequired": { "type": "boolean" },
+        "receiptDigest": { "$ref": "#/$defs/digest" },
+        "recoveryCommand": { "$ref": "#/$defs/recoveryCommand" }
+      }
+    },
+    "newEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.new" } }, "required": ["command"] },
+      "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/newResult" } } }
+    },
+    "doctorEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.doctor" } }, "required": ["command"] },
+      "then": {
+        "type": "object",
+        "properties": { "result": { "$ref": "#/$defs/doctorResult" } },
+        "allOf": [{
+          "if": { "type": "object", "properties": { "outcome": { "enum": ["success", "violation", "recovery-required"] } }, "required": ["outcome"] },
+          "then": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "object",
+                "required": ["installedFoundationVersion", "installedFoundationBuildIdentity", "filesystem"],
+                "properties": {
+                  "installedFoundationVersion": { "$ref": "#/$defs/semver" },
+                  "installedFoundationBuildIdentity": { "$ref": "#/$defs/digest" },
+                  "filesystem": { "type": "object" }
+                }
+              }
+            }
+          }
+        }]
+      }
+    },
+    "recoverEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.recover" } }, "required": ["command"] },
+      "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/recoverResult" } } }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "severity", "phase", "subject", "message"],
+      "properties": {
+        "ruleId": { "$ref": "#/$defs/opaqueId" },
+        "severity": { "enum": ["error", "info", "warning"] },
+        "phase": { "enum": ["apply", "authority", "input", "planning", "recovery"] },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "remediation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commandId", "args"],
+          "properties": {
+            "commandId": { "enum": ["detach", "docs.doctor", "docs.find", "docs.new", "docs.recover", "scaffold-recover"] },
+            "args": {
+              "type": "object",
+              "maxProperties": 16,
+              "propertyNames": { "pattern": "^[a-z][a-zA-Z0-9]*$", "maxLength": 64 },
+              "additionalProperties": { "type": "string", "maxLength": 512 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

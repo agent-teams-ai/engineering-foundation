@@ -9,9 +9,10 @@ import { promotePublicApiRelease } from "./capabilities/public-api-compatibility
 import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
 import { runFoundationCheck } from "./check-runner.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
+import { foundationCommandFailure } from "./command-error.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
-import { documentFindFailure } from "./document-authoring/find-command.js";
+import { projectDocumentLaunchFailure } from "./document-authoring/composition/document-command-cli.js";
 import { runDocumentCommand } from "./document-command.js";
 import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { loadFoundationConfig } from "./foundation-config.js";
@@ -112,6 +113,7 @@ function printDevOnlyStatus(
 function printHelp(): void {
   process.stdout.write(`Usage:
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
+  agent-teams-foundation repo check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
@@ -121,6 +123,9 @@ function printHelp(): void {
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
   agent-teams-foundation scaffold-recover [--consumer <path>] [--json]
   agent-teams-foundation docs find [text] [--id <id>] [--type <type>] [--status <status>] [--owner <owner>] [--consumer <path>] [--profile <path>] [--json]
+  agent-teams-foundation docs new --type <type> --id <id> --title <title> --owner <owner> --summary <summary> [--slug <slug>] [--destination <path>] [--related <id>...] [--dry-run] [--consumer <path>] [--profile <path>] [--json]
+  agent-teams-foundation docs doctor [--consumer <path>] [--json]
+  agent-teams-foundation docs recover [--consumer <path>] [--json]
   agent-teams-foundation schema <schema-id>
   agent-teams-foundation attach <path> [--consumer <path>]
   agent-teams-foundation status [--consumer <path>] [--json]
@@ -448,19 +453,20 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
 try {
   await main(process.env);
 } catch (error) {
-  const rawArguments = process.argv.slice(2);
-  const documentJsonInvocation =
-    rawArguments[0] === "docs" &&
-    rawArguments[1] === "find" &&
-    (rawArguments.includes("--json") ||
-      rawArguments.some(
-        (argument, index) =>
-          argument === "--format" && rawArguments[index + 1] === "json"
-      ));
-  if (documentJsonInvocation) {
-    const result = documentFindFailure(error);
-    process.stdout.write(`${JSON.stringify(result.envelope)}\n`);
-    process.exitCode = result.exitCode;
+  const documentFailure = projectDocumentLaunchFailure(process.argv.slice(2), error);
+  if (documentFailure !== undefined) {
+    process.stdout.write(documentFailure.stdout);
+    process.exitCode = documentFailure.exitCode;
+  } else if (
+    process.argv.slice(2).includes("--json") ||
+    process.argv.slice(2).some(
+      (argument, index, arguments_) =>
+        argument === "--format" && arguments_[index + 1] === "json"
+    )
+  ) {
+    const failure = foundationCommandFailure(error);
+    process.stdout.write(`${JSON.stringify(failure.envelope)}\n`);
+    process.exitCode = failure.exitCode;
   } else if (error instanceof FoundationTransactionError) {
     process.stderr.write(`${error.code}: ${error.message}\n`);
     process.exitCode = 1;

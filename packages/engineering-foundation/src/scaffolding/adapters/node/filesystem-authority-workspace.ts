@@ -1,11 +1,10 @@
-import { lstat, realpath } from "node:fs/promises";
+import { realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import type {
   AuthorityScaffoldJournal,
   AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan,
-  AuthorityScaffoldReceipt
+  AuthorityScaffoldPlan, AuthorityScaffoldReceipt
 } from "../../contract/types.js";
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
@@ -16,12 +15,10 @@ import { FoundationTransactionError } from "../../../transaction-coordination/ap
 import type { FoundationTransactionLease } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
 import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
 import {
-  assertSafeExistingAncestors,
-  assertSafeOperationPaths
+  assertSafeExistingAncestors, assertSafeOperationPaths
 } from "./filesystem-path-guard.js";
 import {
-  assertTransactionTemporariesAbsent,
-  publishFilesystemOperation
+  assertTransactionTemporariesAbsent, publishFilesystemOperation
 } from "./filesystem-operation-state.js";
 import {
   freshAuthorityScaffoldJournal,
@@ -35,16 +32,24 @@ import {
   verifyAlreadyAppliedScaffold
 } from "./filesystem-finalization.js";
 import {
-  recoveryRequiredForAuthority,
-  resolveAuthority,
-  safeClassifyPlan
+  recoveryRequiredForAuthority, resolveAuthority, safeClassifyPlan
 } from "./filesystem-authority.js";
 import {
-  assertAuthorityScaffoldJournalTemporaryAbsent,
-  readScaffoldJournalEnvelope,
-  SCAFFOLD_JOURNAL_FILE,
-  writeAuthorityScaffoldJournal
+  SCAFFOLD_JOURNAL_FILE
 } from "./filesystem-journal.js";
+import {
+  createScaffoldJournalReconciled,
+  readScaffoldJournal,
+  replaceScaffoldJournalReconciled
+} from "./node-scaffold-journal-gateway.js";
+import {
+  NodeScaffoldJournalStore,
+  type ScaffoldJournalAuthority
+} from "./node-scaffold-journal-store.js";
+import { scaffoldTransactionEvidenceExists } from "./node-scaffold-journal-transaction-evidence.js";
+import { createNodeFoundationCleanupTransition } from "../../../transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
+import { syncFoundationStateDirectory } from "../../../transaction-coordination/adapters/node/node-foundation-state-directory.js";
+import { sha256Text } from "../../kernel/canonical-json.js";
 
 interface ScaffoldAuthorityFaultPoint {
   readonly phase:
@@ -57,31 +62,15 @@ interface ScaffoldAuthorityFaultPoint {
     | "after-temporary-synced"
     | "after-temporary-written"
     | "after-final-verification"
+    | "before-journal-quarantine"
     | "before-final-authority-recheck"
     | "before-operation-authority-recheck";
   readonly operationIndex?: number;
   readonly operationPath?: string;
 }
-
 type ScaffoldAuthorityFaultInjector = (
   point: ScaffoldAuthorityFaultPoint
 ) => Promise<void> | void;
-
-function journalFault(
-  faultInjector: ScaffoldAuthorityFaultInjector | undefined,
-  operationIndex?: number,
-  operationPath?: string
-): (() => Promise<void> | void) | undefined {
-  return faultInjector === undefined
-    ? undefined
-    : () =>
-        faultInjector({
-          phase: "after-journal-temporary-synced",
-          ...(operationIndex === undefined ? {} : { operationIndex }),
-          ...(operationPath === undefined ? {} : { operationPath })
-        });
-}
-
 function recoveryRequired(
   plan: AuthorityScaffoldPlan,
   phase: "apply" | "recovery",
@@ -96,14 +85,20 @@ interface AuthorityContinuationOptions {
   readonly root: string;
   readonly journalPath: string;
   readonly journal: AuthorityScaffoldJournal;
+  readonly journalAuthority: ScaffoldJournalAuthority;
+  readonly journalStore: NodeScaffoldJournalStore;
+  readonly journalFaultContext: ScaffoldJournalFaultContext;
   readonly recovered: boolean;
   readonly faultInjector?: ScaffoldAuthorityFaultInjector;
 }
-
+interface ScaffoldJournalFaultContext {
+  finalizing?: boolean;
+  operationIndex?: number;
+  operationPath?: string;
+}
 function isReceipt(value: unknown): value is AuthorityScaffoldReceipt {
   return typeof value === "object" && value !== null && "receiptDigest" in value;
 }
-
 function deepFreezePlanValue(value: unknown, visited: Set<object>): void {
   if (typeof value !== "object" || value === null || visited.has(value)) {
     return;
@@ -114,7 +109,6 @@ function deepFreezePlanValue(value: unknown, visited: Set<object>): void {
   }
   Object.freeze(value);
 }
-
 function snapshotAuthorityScaffoldPlan(
   plan: AuthorityScaffoldPlan
 ): AuthorityScaffoldPlan {
@@ -131,29 +125,6 @@ function snapshotAuthorityScaffoldPlan(
     );
   }
   return snapshot;
-}
-
-async function pathEntryExists(path: string): Promise<boolean> {
-  try {
-    await lstat(path);
-    return true;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      (error as NodeJS.ErrnoException).code === "ENOENT"
-    ) {
-      return false;
-    }
-    throw error;
-  }
-}
-
-async function transactionEvidenceExists(journalPath: string): Promise<boolean> {
-  return (
-    (await pathEntryExists(journalPath)) ||
-    (await pathEntryExists(`${journalPath}.tmp`))
-  );
 }
 
 async function acquireScaffoldingTransaction(
@@ -182,7 +153,10 @@ async function acquireScaffoldingTransaction(
 
 async function prepareJournal(
   options: AuthorityContinuationOptions
-): Promise<AuthorityScaffoldJournal | AuthorityScaffoldReceipt> {
+): Promise<
+  | { readonly journal: AuthorityScaffoldJournal; readonly journalAuthority: ScaffoldJournalAuthority }
+  | AuthorityScaffoldReceipt
+> {
   let journal = options.journal;
   const initialAuthority = await resolveAuthority({ ...options, journal });
   if (initialAuthority !== undefined) {
@@ -193,10 +167,10 @@ async function prepareJournal(
     const reconciled = await reconcileAuthorityScaffoldJournal(options.root, journal);
     journal = reconciled.journal;
     if (reconciled.conflictIds.size !== 0) {
-      await writeAuthorityScaffoldJournal(
-        options.journalPath,
+      await replaceScaffoldJournalReconciled(
+        options.journalStore,
+        { journal: options.journal, journalAuthority: options.journalAuthority },
         journal,
-        journalFault(options.faultInjector)
       );
       return receiptFromJournalStates({
         plan: journal.plan,
@@ -215,26 +189,29 @@ async function prepareJournal(
       "Resolve the filesystem state manually, then retry recovery."
     );
   }
-  await writeAuthorityScaffoldJournal(
-    options.journalPath,
-    journal,
-    journalFault(options.faultInjector)
+  const journalAuthority = await replaceScaffoldJournalReconciled(
+    options.journalStore,
+    { journal: options.journal, journalAuthority: options.journalAuthority },
+    journal
   );
-  return journal;
+  return { journal, journalAuthority };
 }
 
 async function publishPendingOperations(options: {
   readonly continuation: AuthorityContinuationOptions;
   readonly journal: AuthorityScaffoldJournal;
+  readonly journalAuthority: ScaffoldJournalAuthority;
 }): Promise<
   | AuthorityScaffoldReceipt
   | {
       readonly journal: AuthorityScaffoldJournal;
+      readonly journalAuthority: ScaffoldJournalAuthority;
       readonly receipts: ReadonlyMap<string, AuthorityScaffoldOperationReceipt>;
     }
 > {
   const { continuation } = options;
   let journal = options.journal;
+  let journalAuthority = options.journalAuthority;
   const receipts = new Map<string, AuthorityScaffoldOperationReceipt>();
   for (const [operationIndex, operation] of journal.plan.operations.entries()) {
     const current = journal.operations.find(
@@ -275,11 +252,14 @@ async function publishPendingOperations(options: {
         "Resolve the filesystem state manually, then retry recovery."
       );
     }
+    const beforePublishing = journal;
     journal = replaceScaffoldJournalOperation(journal, operation.id, "publishing");
-    await writeAuthorityScaffoldJournal(
-      continuation.journalPath,
-      journal,
-      journalFault(continuation.faultInjector, operationIndex, operation.path)
+    continuation.journalFaultContext.operationIndex = operationIndex;
+    continuation.journalFaultContext.operationPath = operation.path;
+    journalAuthority = await replaceScaffoldJournalReconciled(
+      continuation.journalStore,
+      { journal: beforePublishing, journalAuthority },
+      journal
     );
     await continuation.faultInjector?.({
       phase: "after-journal-operation-publishing",
@@ -291,17 +271,29 @@ async function publishPendingOperations(options: {
       operation,
       journal.plan.planDigest,
       operationIndex,
-      continuation.faultInjector
+      {
+        ...(continuation.faultInjector === undefined
+          ? {}
+          : { faultInjector: continuation.faultInjector }),
+        cleanupTransition: createNodeFoundationCleanupTransition(
+          continuation.root,
+          sha256Text(
+            `${journal.plan.planDigest}:${operation.id}:cleanup`
+          ).slice("sha256:".length),
+          { syncStateDirectory: syncFoundationStateDirectory }
+        )
+      }
     );
+    const beforePublished = journal;
     journal = replaceScaffoldJournalOperation(
       journal,
       operation.id,
       outcome === "applied" ? "published" : "preexisting"
     );
-    await writeAuthorityScaffoldJournal(
-      continuation.journalPath,
-      journal,
-      journalFault(continuation.faultInjector, operationIndex, operation.path)
+    journalAuthority = await replaceScaffoldJournalReconciled(
+      continuation.journalStore,
+      { journal: beforePublished, journalAuthority },
+      journal
     );
     await continuation.faultInjector?.({
       phase: "after-journal-operation-published",
@@ -315,7 +307,7 @@ async function publishPendingOperations(options: {
       resultDigest: operation.after.digest
     });
   }
-  return { journal, receipts };
+  return { journal, journalAuthority, receipts };
 }
 
 async function continueJournal(
@@ -327,7 +319,8 @@ async function continueJournal(
   }
   const published = await publishPendingOperations({
     continuation: options,
-    journal: prepared
+    journal: prepared.journal,
+    journalAuthority: prepared.journalAuthority
   });
   if (isReceipt(published)) {
     return published;
@@ -358,21 +351,43 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
     LOCAL_STATE_DIRECTORY,
     SCAFFOLD_JOURNAL_FILE
   );
+  const journalFaultContext: ScaffoldJournalFaultContext = {};
+  const journalStore = new NodeScaffoldJournalStore(canonicalRoot, {
+    faultInjector: async (point) => {
+      if (point.phase === "after-candidate-synced") {
+        await faultInjector?.({
+          phase: "after-journal-temporary-synced",
+          ...(journalFaultContext.operationIndex === undefined
+            ? {}
+            : { operationIndex: journalFaultContext.operationIndex }),
+          ...(journalFaultContext.operationPath === undefined
+            ? {}
+            : { operationPath: journalFaultContext.operationPath })
+        });
+      }
+      if (point.phase === "before-shared-quarantine" &&
+        journalFaultContext.finalizing === true) {
+        await faultInjector?.({ phase: "before-journal-quarantine" });
+      }
+    }
+  });
   const lease = await acquireScaffoldingTransaction(canonicalRoot);
   try {
-    await assertAuthorityScaffoldJournalTemporaryAbsent(journalPath);
-    const existing = await readScaffoldJournalEnvelope(journalPath);
+    const existing = await readScaffoldJournal(journalStore);
     if (existing !== undefined) {
-      if (existing.plan.planDigest !== plan.planDigest) {
+      if (existing.journal.plan.planDigest !== plan.planDigest) {
         throw new ScaffoldError(
           "SCAFFOLD_RECOVERY_REQUIRED",
           "A different scaffolding transaction requires recovery before this Plan can apply."
         );
       }
-      return continueJournal({
+      return await continueJournal({
         root: canonicalRoot,
         journalPath,
-        journal: existing,
+        journal: existing.journal,
+        journalAuthority: existing.journalAuthority,
+        journalStore,
+        journalFaultContext,
         recovered: true,
         ...(faultInjector === undefined ? {} : { faultInjector })
       });
@@ -427,8 +442,10 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       });
     }
     if (classifications.every(({ state }) => state === "after")) {
-      return verifyAlreadyAppliedScaffold({
+      return await verifyAlreadyAppliedScaffold({
         root: canonicalRoot,
+        journalPath,
+        journalStore,
         plan,
         ...(faultInjector === undefined ? {} : { faultInjector })
       });
@@ -439,22 +456,24 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
         journal = replaceScaffoldJournalOperation(journal, operation.id, "preexisting");
       }
     }
-    await writeAuthorityScaffoldJournal(
-      journalPath,
-      journal,
-      journalFault(faultInjector)
+    const journalAuthority = await createScaffoldJournalReconciled(
+      journalStore,
+      journal
     );
     await faultInjector?.({ phase: "after-journal-prepared" });
-    return continueJournal({
+    return await continueJournal({
       root: canonicalRoot,
       journalPath,
       journal,
+      journalAuthority,
+      journalStore,
+      journalFaultContext,
       recovered: false,
       ...(faultInjector === undefined ? {} : { faultInjector })
     });
   } finally {
     await lease.release({
-      retainTransactionBarrier: await transactionEvidenceExists(journalPath)
+      retainTransactionBarrier: await scaffoldTransactionEvidenceExists(journalPath)
     });
   }
 }
@@ -466,21 +485,25 @@ export async function recoverAuthorityFilesystemScaffold(
   const lease = await acquireScaffoldingTransaction(canonicalRoot);
   try {
     const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
-    await assertAuthorityScaffoldJournalTemporaryAbsent(journalPath);
-    const journal = await readScaffoldJournalEnvelope(journalPath);
-    if (journal === undefined) {
+    const journalStore = new NodeScaffoldJournalStore(canonicalRoot);
+    const journalFaultContext: ScaffoldJournalFaultContext = {};
+    const record = await readScaffoldJournal(journalStore);
+    if (record === undefined) {
       return undefined;
     }
-    assertSafeOperationPaths(journal.plan);
-    return continueJournal({
+    assertSafeOperationPaths(record.journal.plan);
+    return await continueJournal({
       root: canonicalRoot,
       journalPath,
-      journal,
+      journal: record.journal,
+      journalAuthority: record.journalAuthority,
+      journalStore,
+      journalFaultContext,
       recovered: true
     });
   } finally {
     await lease.release({
-      retainTransactionBarrier: await transactionEvidenceExists(
+      retainTransactionBarrier: await scaffoldTransactionEvidenceExists(
         join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE)
       )
     });

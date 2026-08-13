@@ -25,9 +25,9 @@ allowedUses:
     transitiveUses: []
   - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d
     transitiveUses: []
-  - uses: github/codeql-action/analyze@f205ea1c3313d32999d8d6a48b4f6530d4437b38
+  - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3
     transitiveUses: []
-  - uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38
+  - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3
     transitiveUses: []
   - uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9
     transitiveUses: []

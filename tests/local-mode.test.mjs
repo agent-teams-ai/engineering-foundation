@@ -18,7 +18,10 @@ import {
   NodeProcessRunner,
   inspectFoundationMode
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
-import { FOUNDATION_REQUIRED_ARTIFACT_PATHS } from "../packages/engineering-foundation/dist/package-self-check.js";
+import {
+  FOUNDATION_PACKAGE_FILE_ALLOWLIST,
+  FOUNDATION_REQUIRED_ARTIFACT_PATHS,
+} from "../packages/engineering-foundation/dist/package-self-check.js";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const REGISTRY_INTEGRITY =
@@ -134,6 +137,7 @@ async function createTargetPackage(path, version) {
     name: FOUNDATION_PACKAGE_NAME,
     version,
     type: "module",
+    files: FOUNDATION_PACKAGE_FILE_ALLOWLIST,
     bin: {
       "agent-teams-foundation": "./dist/cli.js"
     },

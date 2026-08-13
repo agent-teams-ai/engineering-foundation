@@ -126,8 +126,38 @@
           "additionalProperties": false,
           "required": ["kind"],
           "properties": { "kind": { "enum": ["id-colon-title", "title"] } }
-        }
+        },
+        "reachability": { "$ref": "#/$defs/reachability" }
       }
+    },
+    "reachability": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "indexPath"],
+          "properties": {
+            "kind": { "const": "manual-fixed-index" },
+            "indexPath": { "$ref": "#/$defs/repositoryPath" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "pathPrefix", "indexBasename"],
+          "properties": {
+            "kind": { "const": "manual-colocated-index" },
+            "pathPrefix": { "const": "before-required-segments" },
+            "indexBasename": { "const": "README.md" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "not-required" } }
+        }
+      ]
     },
     "identity": {
       "oneOf": [

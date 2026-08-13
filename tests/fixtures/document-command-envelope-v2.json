@@ -1,0 +1,67 @@
+{
+  "preview": {
+    "schemaVersion": 2,
+    "command": "docs.new",
+    "outcome": "success",
+    "diagnostics": [],
+    "result": {
+      "kind": "new",
+      "documentPath": "docs/decisions/0083-deterministic-docs.md",
+      "reservation": "none",
+      "writeState": "preview",
+      "reachability": {
+        "state": "manual-required",
+        "indexPath": "docs/decisions/README.md",
+        "markdownLink": "[ADR-0083: Deterministic docs](0083-deterministic-docs.md)"
+      }
+    }
+  },
+  "applied": {
+    "schemaVersion": 2,
+    "command": "docs.new",
+    "outcome": "success",
+    "diagnostics": [],
+    "result": {
+      "kind": "new",
+      "documentPath": "docs/decisions/0083-deterministic-docs.md",
+      "reservation": "none",
+      "writeState": "applied",
+      "receiptOutcome": "applied",
+      "reachability": { "state": "not-required" }
+    }
+  },
+  "doctor": {
+    "schemaVersion": 2,
+    "command": "docs.doctor",
+    "outcome": "recovery-required",
+    "diagnostics": [],
+    "result": {
+      "kind": "doctor",
+      "installedFoundationVersion": "0.15.0",
+      "installedFoundationBuildIdentity": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "filesystem": {
+        "basis": "platform-contract",
+        "strictDirectoryDurability": "platform-supported"
+      },
+      "transactionState": "version-mismatch",
+      "protocolKind": "document-authoring",
+      "foundationVersion": "0.15.0",
+      "foundationBuildIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "recoveryClass": "manual",
+      "recoveryCommand": { "commandId": "docs.recover", "args": {} }
+    }
+  },
+  "recover": {
+    "schemaVersion": 2,
+    "command": "docs.recover",
+    "outcome": "success",
+    "diagnostics": [],
+    "result": {
+      "kind": "recover",
+      "transactionState": "recovered",
+      "writeState": "committed",
+      "recoveryRequired": false,
+      "receiptDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  }
+}

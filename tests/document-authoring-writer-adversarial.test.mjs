@@ -11,7 +11,7 @@ import {
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -278,7 +278,7 @@ test("corrupt, unknown, and duplicate journal evidence is preserved fail-closed"
 });
 
 test("file-state refuses cleanup after a temporary inode replacement", async () => {
-  await withRepository(async (root, plan) => {
+  await withPlanningRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher();
     const state = new NodeDocumentFileState();
     const temporary = await publisher.prepare({ consumerRoot: root, plan });
@@ -295,7 +295,30 @@ test("file-state refuses cleanup after a temporary inode replacement", async () 
       publisher.removeOwnedTemporary({ consumerRoot: root, temporary }),
       /replaced and was preserved/u
     );
-    await lstat(path);
+    const derived = await state.classifyDerivedTemporary({ consumerRoot: root, plan });
+    assert.equal(derived.state, "unverifiable");
+    assert.match(derived.reason, /cleanup residue/u);
+    const temporaryParent = dirname(path);
+    const residue = (await readdir(temporaryParent)).find((entry) =>
+      entry.includes("foundation-owned-cleanup-"));
+    assert.ok(residue);
+    assert.deepEqual(
+      await readFile(join(temporaryParent, residue, "owned-temporary")),
+      Buffer.from(plan.output.contentBase64, "base64")
+    );
+    const before = await readFile(join(temporaryParent, residue, "owned-temporary"));
+    const receipt = await applyNodeDocumentationPlanPrivately({ consumerRoot: root, plan });
+    assert.equal(receipt.outcome, "manual-recovery-required");
+    assert.match(
+      receipt.diagnostics.map(({ message }) => message).join("\n"),
+      /cleanup residue|evidence was preserved/u
+    );
+    assert.deepEqual(
+      await readFile(join(temporaryParent, residue, "owned-temporary")),
+      before
+    );
+    await assert.rejects(lstat(join(root, plan.destination)),
+      (error) => error?.code === "ENOENT");
   });
 });
 

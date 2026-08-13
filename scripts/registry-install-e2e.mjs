@@ -27,6 +27,7 @@ import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const COMMAND_TIMEOUT_MS = 120_000;
 const REGISTRY_TOKEN_ENVIRONMENT_KEY = "FOUNDATION_REGISTRY_E2E_TOKEN";
+const USER_CONFIG_ENVIRONMENT_KEY = "NPM_CONFIG_USERCONFIG";
 const repositoryRoot = resolvePath(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
 const temporaryRoot = await mkdtemp(
@@ -36,6 +37,7 @@ const keepTemporaryRoot =
   process.env.AGENT_TEAMS_KEEP_REGISTRY_E2E_ARTIFACTS === "1";
 const runPnpm = createPnpmRunner();
 const previousRegistryToken = process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
+const previousUserConfig = process.env[USER_CONFIG_ENVIRONMENT_KEY];
 let npmUserConfigPath;
 
 function compareStrings(left, right) {
@@ -228,6 +230,7 @@ async function configureRegistryAuthentication(registryUrl) {
     { encoding: "utf8", mode: 0o600 },
   );
   process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = body.token;
+  process.env[USER_CONFIG_ENVIRONMENT_KEY] = npmUserConfigPath;
 }
 
 async function closeServer(server) {
@@ -425,6 +428,11 @@ try {
     delete process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
   } else {
     process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = previousRegistryToken;
+  }
+  if (previousUserConfig === undefined) {
+    delete process.env[USER_CONFIG_ENVIRONMENT_KEY];
+  } else {
+    process.env[USER_CONFIG_ENVIRONMENT_KEY] = previousUserConfig;
   }
   if (registry !== undefined) {
     await closeServer(registry.server);

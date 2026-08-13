@@ -200,6 +200,20 @@ requiresStrictDirectoryDurability("ENOSPC during temporary creation leaves no de
   });
 });
 
+requiresStrictDirectoryDurability("read-only filesystem rejects temporary creation without mutation", async () => {
+  await withRepository(async (root, plan) => {
+    const publisher = new NodeDocumentPublisher({
+      async open() { throw systemError("EROFS", "injected read-only filesystem"); }
+    });
+    await assert.rejects(
+      publisher.prepare({ consumerRoot: root, plan }),
+      (error) => error?.code === "EROFS"
+    );
+    await assertAbsent(temporaryAbsolute(root, plan));
+    await assertAbsent(join(root, plan.destination));
+  });
+});
+
 requiresStrictDirectoryDurability("unsupported hard links preserve the exact temporary and no destination", async () => {
   await withRepository(async (root, plan) => {
     const publisher = new NodeDocumentPublisher({

@@ -68,10 +68,25 @@ async function createFixture() {
   return { root, mainA: await git(root, "rev-parse", "HEAD") };
 }
 
-async function createRelease(root, baseRevision, version, summaries) {
+async function createRelease(
+  root,
+  baseRevision,
+  version,
+  summaries,
+  { prereleaseChangesets = [] } = {},
+) {
   await git(root, "checkout", "--detach", baseRevision);
-  await rm(join(root, ".changeset", "alpha.md"), { force: true });
-  await rm(join(root, ".changeset", "beta.md"), { force: true });
+  for (const id of ["alpha", "beta"]) {
+    if (!prereleaseChangesets.includes(id)) {
+      await rm(join(root, ".changeset", id + ".md"), { force: true });
+    }
+  }
+  if (prereleaseChangesets.length > 0) {
+    await writeFile(
+      join(root, ".changeset", "pre.json"),
+      JSON.stringify({ mode: "pre", tag: "rc", changesets: prereleaseChangesets }),
+    );
+  }
   const generated = generatedRelease(version, summaries);
   await writeFile(
     join(root, "packages", "engineering-foundation", "package.json"),
@@ -85,6 +100,40 @@ async function createRelease(root, baseRevision, version, summaries) {
   await git(root, "commit", "-m", "release " + version);
   return { head: await git(root, "rev-parse", "HEAD"), body: generated.body };
 }
+
+test("accepts Changesets prerelease consumption recorded in pre.json", async () => {
+  const fixture = await createFixture();
+  try {
+    await git(fixture.root, "checkout", "--detach", fixture.mainA);
+    await writeFile(
+      join(fixture.root, ".changeset", "pre.json"),
+      JSON.stringify({ mode: "pre", tag: "rc", changesets: [] }),
+    );
+    await git(fixture.root, "add", ".changeset/pre.json");
+    await git(fixture.root, "commit", "-m", "enter prerelease mode");
+    const prereleaseMain = await git(fixture.root, "rev-parse", "HEAD");
+    const release = await createRelease(
+      fixture.root,
+      prereleaseMain,
+      "1.1.0-rc.0",
+      ["Alpha package change."],
+      { prereleaseChangesets: ["alpha"] },
+    );
+
+    assert.deepEqual(
+      await violations(
+        fixture.root,
+        prereleaseMain,
+        prereleaseMain,
+        release,
+        release.head,
+      ),
+      [],
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
 
 function pullRequest(baseSha, headSha, body, number = 74) {
   return {

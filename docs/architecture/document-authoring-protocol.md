@@ -1,11 +1,9 @@
 # Document Authoring Protocol
 
-Status: Corrected v1 contracts accepted by ADR-0023, which supersedes ADR-0022
-under the pre-adoption correction rule in ADR-0019. The read-only catalog API,
-pure document compiler, shared transaction coordinator, and private
-repository-mutation primitives are implemented. The writer, mutation CLI
-commands, and envelope v2 recovery handlers are not yet implemented or
-available to consumers.
+Status: Corrected Intent, Plan, and Receipt v1 contracts are retained from
+ADR-0023. ADR-0024 supersedes its transaction and recovery semantics with
+envelope v3, document journal v2, and recovery-handler contract v2. The
+published envelope v2 and journal v1 remain immutable manual-recovery evidence.
 
 ## Boundary
 
@@ -372,9 +370,10 @@ rule.
 ## Transaction and compatibility
 
 One repository root has one canonical Foundation operation lock and one active
-transaction slot. A version 2 envelope records operation kind, registered
-recovery handler, exact Foundation version and build identity, adapter contract,
-protocol payload kind and journal, payload digest, state, and envelope digest.
+transaction slot. A version 3 envelope records operation kind, registered
+recovery-handler contract v2, exact Foundation version and build identity,
+adapter contract, `document-authoring-journal/v2`, payload digest, lifecycle
+state, and envelope digest.
 The canonical lock is a bounded owner-token regular file. New ownership is
 published with no replacement, and reclaim or release is fenced by token plus
 physical file identity. A same-host lock is reclaimed only when its PID is
@@ -390,35 +389,77 @@ transaction barrier. This intentionally makes released directory-lock clients
 fail closed before they can mutate. Interrupted in-place ownership/barrier
 rewrites also remain regular-file evidence and require recovery rather than
 opening an unlocked window.
-The coordinator now enforces that barrier for scaffolding and local attach or
-detach operations before mutation begins. It recognizes the frozen legacy
-scaffolding journal v1 and verified envelope v2 at the historical physical slot;
-an orphan temporary, invalid regular-file evidence, unknown schema, digest
-failure, or contradictory document lifecycle is preserved and fails closed.
+The coordinator enforces that barrier for scaffolding, document authoring, and
+local attach or detach before mutation begins. It recognizes the frozen legacy
+scaffolding journal v1, immutable envelope v2, and current envelope v3 at the
+historical physical slot; an orphan temporary, invalid regular-file evidence,
+unknown schema, digest failure, or contradictory document lifecycle is
+preserved and fails closed.
 Incomplete local-mode phases and orphan registry backups share the same
 coordinator and admit only `detach`. Status reports a structured recovery route
-only for an implemented path: legacy `scaffold-recover` or local-mode `detach`.
-Verified envelope v2 evidence remains manual until its closed handler is
-implemented and qualified.
+only for an implemented path: legacy `scaffold-recover`, local-mode `detach`, or
+`docs-recover` for an exact compatible envelope v3 handler. Envelope v2 and
+document journal v1 are permanently manual-recovery-only in current packages.
 
-For envelope v2, the recorded package-artifact identity contains SemVer plus a
+For envelope v3, the recorded package-artifact identity contains SemVer plus a
 canonical SHA-256 digest of the installed package manifest, executable
 JavaScript, and shipped schema and preset contracts. The digest is independent
 of install path and directory enumeration order, is cached for the immutable
 installed package process, and distinguishes rebuilt shipped artifacts at the
-same version. It is not a digest of the package manager's resolved runtime
-dependency closure and is not yet recovery authority. The envelope Foundation
-identity must equal the embedded compiler identity (version plus build identity
-for document Plans; version for the frozen scaffolding Plan v1). Until a v2
-handler also proves its required dependency closure and recovery semantics,
-status preserves that evidence for manual resolution without offering recovery.
+same version. Recovery is available only from the exact recorded SemVer and
+build identity through the closed v2 handler after its required dependency
+closure and adapter semantics are qualified. The envelope Foundation identity
+must equal the embedded document compiler version and build identity. A version
+range, same-version rebuild, or merely schema-compatible package is not recovery
+authority.
+
+The journal v2 lifecycle is closed:
+
+| Envelope state | Destination state | Additional evidence | Authority |
+| --- | --- | --- | --- |
+| `PREPARED` | `pending` or `preexisting` | No temporary or publication identity | May restart only after exact Plan reproduction |
+| `PUBLISHING` | `publishing` | Exact Plan-derived temporary, output digest, and creator-handle identity | May publish only when identity is non-zero and every precondition is recaptured |
+| `PUBLISHED` | `published` | Non-zero destination `publicationIdentity`; no temporary | May finalize only when bytes and physical identity both match |
+
+A zero component in a PUBLISHING temporary identity is valid preserved wire
+evidence, but provides no publication or cleanup authority. A PUBLISHED journal
+cannot contain zero publication identity. Missing, substituted, same-byte but
+different-identity, or otherwise ambiguous evidence requires manual recovery.
+
+Publication proceeds only after durable PREPARED and PUBLISHING evidence. The
+writer rechecks authority, real-directory ancestry, destination absence,
+temporary identity, bytes, and mode immediately before create-no-replace. After
+publication it verifies destination bytes, mode, non-zero identity, and
+same-file relationship, syncs the parent, removes only the identity-matched
+temporary, records PUBLISHED durably, then removes the identity-fenced journal
+and emits the Receipt. A crash at any boundary either leaves sufficient exact
+v3 evidence for the exact handler or produces manual-recovery evidence; it does
+not authorize rollback of a possibly published destination.
+
+Cancellation returns `cancelled` only before publication when destination
+absence is proven and every owned temporary and journal has been durably
+removed. Once publication has occurred or is ambiguous, cancellation is masked:
+the writer completes a provable commit or preserves evidence. It never reports
+cancelled while a transaction or possible output remains.
 
 The envelope does not merge `ScaffoldPlan` with `DocumentPlan` or their
 Receipts. Recovery dispatch is closed in the Foundation composition root and
-cannot call consumer code. A compatible Foundation version may read the legacy
-scaffolding journal and the version 2 envelope. Unknown, newer, tampered, or
-multiple transaction evidence is preserved and blocks mutation. Journals are
-never migrated automatically.
+cannot call consumer code. A current Foundation package reads the legacy
+scaffolding journal, envelope v2, and envelope v3. Only envelope v3 with the
+exact recorded Foundation version and build identity may select `docs-recover`.
+Envelope v2 is preserved as manual-recovery evidence. Packages older than v3
+preserve its unknown regular-file slot and block mutation. Unknown, newer,
+tampered, or multiple transaction evidence is likewise preserved. Journals are
+never migrated, rewritten, downgraded, or automatically deleted.
+
+Recognition of envelope v2 and journal v1 cannot be retired until governed
+inventory proves zero instances in every admitted repository, all producing
+writers are retired from supported package policy, a complete support window
+has elapsed after that retirement, and a new accepted ADR identifies the
+removal release and audit evidence. The same inventory, producer-retirement,
+support-window, recovery-fixture, and ADR gates apply before a v3 handler can be
+retired. Exact recorded registry artifacts remain recovery authority while any
+active transaction produced by them can still be supported.
 
 ### Apply-time physical recapture
 
@@ -457,6 +498,7 @@ unknown schema, protocol, handler, or newer journal fails closed.
 This version does not provide automatic sequence allocation, directory creation,
 managed reachability, generic Markdown updates, persistent indexing, fuzzy or
 semantic search, a documentation portal, a polyglot binary, organization-wide
-policy, or a generic consumer mutation API. The complete current semantics are
-accepted by ADR-0023; ADR-0022 is retained only as superseded historical
-evidence.
+policy, or a generic consumer mutation API. The current transaction and
+recovery semantics are accepted by ADR-0024. ADR-0023 remains normative for the
+corrected Intent, Plan, Receipt, and compiler v1 contracts; ADR-0022 is retained
+only as superseded historical evidence.

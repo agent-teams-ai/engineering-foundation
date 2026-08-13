@@ -34,6 +34,7 @@ import {
   inspectCurrentDocumentEnvelope,
   inspectDocumentTransactionBindings
 } from "./document-envelope-bindings.js";
+import { inspectDocumentTransitionEvidence } from "./document-transition-evidence.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
@@ -278,6 +279,31 @@ function assertEnvelopeDigests(envelope: Record<string, unknown>): void {
   }
 }
 
+async function inspectLegacyScaffoldingJournal(options: {
+  readonly value: Record<string, unknown>;
+  readonly installedVersion: string;
+  readonly installedBuildIdentity: string;
+}): Promise<FoundationTransactionStatus> {
+  await assertSchema(
+    "scaffold-recovery-journal/v1",
+    options.value,
+    "foundation-transaction-slot"
+  );
+  const journal = options.value as unknown as AuthorityScaffoldJournal;
+  assertAuthorityScaffoldJournal(journal);
+  const compiler = journal.plan["compiler"];
+  if (!isRecord(compiler) || typeof compiler["version"] !== "string") {
+    throw new Error("Legacy scaffolding journal compiler version is invalid.");
+  }
+  return pending({
+    operationKind: "scaffolding",
+    format: "legacy-scaffolding-v1",
+    foundationVersion: compiler["version"],
+    installedVersion: options.installedVersion,
+    installedBuildIdentity: options.installedBuildIdentity
+  });
+}
+
 async function inspectParsedTransaction(
   value: unknown,
   installedVersion: string,
@@ -294,27 +320,12 @@ async function inspectParsedTransaction(
     return manual("invalid-slot", "The Foundation transaction slot is invalid and was preserved.");
   }
   switch (schemaVersion) {
-  case 1: {
-    await assertSchema(
-      "scaffold-recovery-journal/v1",
+  case 1:
+    return inspectLegacyScaffoldingJournal({
       value,
-      "foundation-transaction-slot"
-    );
-    const journal = value as unknown as AuthorityScaffoldJournal;
-    assertAuthorityScaffoldJournal(journal);
-    const plan = journal.plan;
-    const compiler = plan["compiler"];
-    if (!isRecord(compiler) || typeof compiler["version"] !== "string") {
-      throw new Error("Legacy scaffolding journal compiler version is invalid.");
-    }
-    return pending({
-      operationKind: "scaffolding",
-      format: "legacy-scaffolding-v1",
-      foundationVersion: compiler["version"],
       installedVersion,
       installedBuildIdentity
     });
-  }
   case 3:
     return inspectCurrentDocumentEnvelope({
       value, installedVersion, installedBuildIdentity, pending: pendingDocument
@@ -420,6 +431,12 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
   }
 
   async #inspectTransactionEvidence(): Promise<FoundationTransactionStatus> {
+    const documentTransition = await inspectDocumentTransitionEvidence(
+      this.#stateDirectory
+    );
+    if (documentTransition !== undefined) {
+      return documentTransition;
+    }
     if (await pathExists(this.#temporaryPath)) {
       return manual(
         "orphan-temporary",

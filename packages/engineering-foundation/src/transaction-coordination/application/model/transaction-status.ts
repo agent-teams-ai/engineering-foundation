@@ -36,6 +36,7 @@ export type FoundationTransactionDiagnostic =
 export type FoundationManualRecoveryReason =
   | "corrupt-or-incompatible"
   | "invalid-slot"
+  | "journal-transition-residue"
   | "local-mode-evidence-invalid"
   | "multiple-transactions"
   | "orphan-temporary"

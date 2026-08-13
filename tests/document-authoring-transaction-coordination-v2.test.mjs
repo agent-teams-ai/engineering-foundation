@@ -215,3 +215,65 @@ test("coordinator admits only exact document v2 recovery and blocks confused dep
     (error) => error?.code === "FOUNDATION_TRANSACTION_ACTIVE",
   );
 });
+
+test("transition residue alone is preserved and blocks every Foundation mutation", async () => {
+  const root = await createRoot();
+  const residue = `${slotPath(root)}.document-transition`;
+  try {
+    await mkdir(dirname(residue), { recursive: true });
+    await writeFile(residue, "durable candidate evidence\n", "utf8");
+    const before = await readFile(residue);
+    const slot = new NodeFoundationTransactionSlot({
+      consumerRoot: root,
+      installedVersion: version,
+      installedBuildIdentity: buildIdentity,
+    });
+    const status = await slot.inspect();
+    assert.equal(status.state, "manual-recovery-required");
+    assert.equal(status.reason, "journal-transition-residue");
+    for (const requestedMutation of [
+      "attach",
+      "detach",
+      "document-authoring",
+      "scaffolding",
+    ]) {
+      const coordinator = new FoundationTransactionCoordinator({
+        lock: { async acquire() { return async () => {}; } },
+        slot,
+      });
+      await assert.rejects(
+        coordinator.acquire({ requestedMutation }),
+        (error) => error?.code === "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+      );
+    }
+    assert.deepEqual(await readFile(residue), before);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("canonical journal plus quarantine residue preserves both and reports transition recovery", async () => {
+  const root = await createRoot();
+  const canonical = slotPath(root);
+  const residue = `${canonical}.document-quarantine.1.2.3`;
+  try {
+    const envelope = envelopeFor("PREPARED");
+    await writeEnvelope(root, envelope);
+    await writeFile(residue, "durable quarantine evidence\n", "utf8");
+    const [canonicalBefore, residueBefore] = await Promise.all([
+      readFile(canonical),
+      readFile(residue),
+    ]);
+    const status = await new NodeFoundationTransactionSlot({
+      consumerRoot: root,
+      installedVersion: version,
+      installedBuildIdentity: buildIdentity,
+    }).inspect();
+    assert.equal(status.state, "manual-recovery-required");
+    assert.equal(status.reason, "journal-transition-residue");
+    assert.deepEqual(await readFile(canonical), canonicalBefore);
+    assert.deepEqual(await readFile(residue), residueBefore);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

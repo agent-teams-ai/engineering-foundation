@@ -1,14 +1,14 @@
-import { canonicalJson, type CanonicalJsonValue } from "../../../canonical-json.js";
-import { assertNotCancelled } from "../../../cancellation.js";
-import type { DocumentPlan } from "../../application/model/document-planning.js";
+import { canonicalJson, type CanonicalJsonValue } from "../../canonical-json.js";
+import { assertNotCancelled } from "../../cancellation.js";
+import type { DocumentPlan } from "../application/model/document-planning.js";
 import type {
   DocumentAuthorityAssessment,
   DocumentAuthorityRecompiler
-} from "../../application/ports/document-authority-recompiler.js";
-import { assertDocumentPlanDigests } from "../../application/policies/document-contract-digests.js";
-import { planNodeDocumentationDocument } from "../../composition/node-document-planning.js";
-import { DocumentPlanningError } from "../../document-planning-error.js";
-import { NodeDocumentContractValidator } from "./node-document-contract-validator.js";
+} from "../application/ports/document-authority-recompiler.js";
+import { assertDocumentPlanDigests } from "../application/policies/document-contract-digests.js";
+import { DocumentPlanningError } from "../document-planning-error.js";
+import { NodeDocumentContractValidator } from "../adapters/node/node-document-contract-validator.js";
+import { planNodeDocumentationDocument } from "./node-document-planning.js";
 
 function exactPlan(left: DocumentPlan, right: DocumentPlan): boolean {
   return canonicalJson(left as unknown as CanonicalJsonValue) ===

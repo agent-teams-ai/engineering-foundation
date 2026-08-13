@@ -296,9 +296,13 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-durability.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-repository-path.ts
   - id: foundation.transaction-coordination.application
     roots:
@@ -886,12 +890,19 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/application/model/document-catalog.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-find.ts
       - packages/engineering-foundation/src/document-authoring/application/model/document-planning.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-receipt.ts
+      - packages/engineering-foundation/src/document-authoring/application/model/document-transaction.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/authoring-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/canonical-document-renderer.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-authority-recompiler.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-contract-validator.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-file-state.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-journal-store.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-profile-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-state-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-publisher.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-template-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/document-transaction-coordinator.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/documentation-catalog-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/documentation-search-catalog-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/metadata-instance-validator.ts
@@ -901,8 +912,11 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/application/policies/document-contract-digests.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/document-logical-preimage.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/document-planning-policy-error.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-receipt-policy.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/document-repository-path.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/document-temporary-path.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-transaction-digests.ts
+      - packages/engineering-foundation/src/document-authoring/application/policies/document-transaction-envelope-policy.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/inspect-catalog-document.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/normalize-document-intent.ts
       - packages/engineering-foundation/src/document-authoring/application/policies/resolve-document-authoring.ts
@@ -920,7 +934,10 @@ boundaries:
         - foundation.cancellation
         - foundation.core
         - foundation.document-authoring.application
+        - foundation.canonical-json
         - foundation.repository-input
+        - foundation.repository-mutation.application
+        - foundation.repository-mutation.node-adapters
         - foundation.schema-validation
       packages:
         - ajv
@@ -932,6 +949,7 @@ boundaries:
         - node:crypto
         - node:fs/promises
         - node:path
+        - node:util
         - node:util/types
       runtimeReferences: []
     entrypoints:
@@ -950,6 +968,8 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/find-command.ts
     allow:
       boundaries:
+        - foundation.cancellation
+        - foundation.canonical-json
         - foundation.document-authoring.adapters
         - foundation.document-authoring.application
         - foundation.documentation-observation.adapters
@@ -961,6 +981,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/document-authoring/composition/node-document-planning.ts
+      - packages/engineering-foundation/src/document-authoring/composition/node-document-authority-recompiler.ts
       - packages/engineering-foundation/src/document-authoring/index.ts
       - packages/engineering-foundation/src/document-authoring/find-command.ts
   - id: foundation.documentation-observation.application

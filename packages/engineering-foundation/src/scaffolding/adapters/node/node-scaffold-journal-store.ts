@@ -8,7 +8,7 @@ import {
 } from "../../../foundation-state-contract.js";
 import type { AuthorityScaffoldJournal } from "../../contract/types.js";
 import { captureFileHandleIdentity } from "./filesystem-file-identity.js";
-import { syncDirectoryStrictly } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
+import { syncDirectory } from "./filesystem-path-guard.js";
 import {
   assertTerminalEvidenceDirectory,
   ensureTerminalEvidenceDirectory
@@ -46,7 +46,7 @@ export type {
 
 export interface NodeScaffoldJournalStoreOperations {
   readonly faultInjector?: NodeScaffoldJournalStoreFaultInjector;
-  readonly syncDirectoryStrictly?: typeof syncDirectoryStrictly;
+  readonly syncDirectoryStrictly?: typeof syncDirectory;
 }
 
 export class NodeScaffoldJournalStore {
@@ -69,7 +69,7 @@ export class NodeScaffoldJournalStore {
     this.#operations = {
       ...operations,
       syncDirectoryStrictly:
-        operations.syncDirectoryStrictly ?? syncDirectoryStrictly
+        operations.syncDirectoryStrictly ?? syncDirectory
     };
   }
 

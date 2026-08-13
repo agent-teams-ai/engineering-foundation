@@ -34,10 +34,17 @@ async function withRoot(run) {
   }
 }
 
+function portableTransition(root, overrides = {}) {
+  return createNodeFoundationCleanupTransition(root, token, {
+    async syncStateDirectory() {},
+    ...overrides,
+  });
+}
+
 test("creates and syncs the global marker before begin returns", async () => {
   await withRoot(async (root) => {
     const syncs = [];
-    const port = createNodeFoundationCleanupTransition(root, token, {
+    const port = portableTransition(root, {
       async syncStateDirectory(path) {
         syncs.push(path);
       },
@@ -60,7 +67,7 @@ test("creates and syncs the global marker before begin returns", async () => {
 
 test("retains discoverable marker evidence when marker retirement fails", async () => {
   await withRoot(async (root) => {
-    const port = createNodeFoundationCleanupTransition(root, token, {
+    const port = portableTransition(root, {
       async beforeLogicalRetirement() {
         throw new Error("marker removal failed");
       },
@@ -78,7 +85,7 @@ test("rejects a pre-existing terminal-root link without escaping state", async (
   await withRoot(async (root) => {
     const outside = await mkdtemp(join(tmpdir(), "foundation-cleanup-outside-"));
     try {
-      const active = await createNodeFoundationCleanupTransition(root, token)
+      const active = await portableTransition(root)
         .begin();
       await symlink(
         outside,
@@ -108,7 +115,7 @@ test("rejects a pre-existing terminal-root link without escaping state", async (
 test("never deletes a marker replacement swapped after the final proof", async () => {
   await withRoot(async (root) => {
     let retiredMarker;
-    const active = await createNodeFoundationCleanupTransition(root, token, {
+    const active = await portableTransition(root, {
       async beforeLogicalRetirement(path) {
         retiredMarker = path;
         await rename(path, `${path}.owned`);
@@ -127,7 +134,7 @@ test("never deletes a marker replacement swapped after the final proof", async (
 test("rejects a swapped marker without deleting foreign evidence", async () => {
   await withRoot(async (root) => {
     let reads = 0;
-    const port = createNodeFoundationCleanupTransition(root, token, {
+    const port = portableTransition(root, {
       async readBoundedRegularFile(path, maximumBytes) {
         reads += 1;
         if (reads === 1) {
@@ -150,7 +157,7 @@ test("rejects a swapped marker without deleting foreign evidence", async () => {
 
 test("foreign retirement collision retains the canonical marker", async () => {
   await withRoot(async (root) => {
-    const active = await createNodeFoundationCleanupTransition(root, token, {
+    const active = await portableTransition(root, {
       randomToken: () => "collision",
     }).begin();
     const state = join(root, ".agent-teams-local");
@@ -166,7 +173,7 @@ test("foreign retirement collision retains the canonical marker", async () => {
 
 test("marker without a journal globally blocks a new mutation", async () => {
   await withRoot(async (root) => {
-    const active = await createNodeFoundationCleanupTransition(root, token).begin();
+    const active = await portableTransition(root).begin();
     assert.equal(
       await scaffoldTransactionEvidenceExists(
         join(root, ".agent-teams-local", "scaffolding-transaction.json"),

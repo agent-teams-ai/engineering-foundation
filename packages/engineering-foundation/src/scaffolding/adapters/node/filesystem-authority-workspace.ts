@@ -48,6 +48,7 @@ import {
 } from "./node-scaffold-journal-store.js";
 import { scaffoldTransactionEvidenceExists } from "./node-scaffold-journal-transaction-evidence.js";
 import { createNodeFoundationCleanupTransition } from "../../../transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
+import { syncFoundationStateDirectory } from "../../../transaction-coordination/adapters/node/node-foundation-state-directory.js";
 import { sha256Text } from "../../kernel/canonical-json.js";
 
 interface ScaffoldAuthorityFaultPoint {
@@ -277,7 +278,8 @@ async function publishPendingOperations(options: {
         continuation.root,
         sha256Text(
           `${journal.plan.planDigest}:${operation.id}:cleanup`
-        ).slice("sha256:".length)
+        ).slice("sha256:".length),
+        { syncStateDirectory: syncFoundationStateDirectory }
       )
     });
     const beforePublished = journal;

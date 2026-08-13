@@ -60,6 +60,9 @@ requiresStrictDirectoryDurability("Node document publisher prepares, resumes, pu
     assert.deepEqual(await state.classifyDerivedTemporary({ consumerRoot: root, plan }), { state: "absent" });
     const temporary = await publisher.prepare({ consumerRoot: root, plan });
     assert.equal(temporary.path, documentTemporaryPath(plan.destination, plan.planDigest));
+    assert.ok([temporary.identity.dev, temporary.identity.ino, temporary.identity.birthtimeNs]
+      .every((value) => typeof value === "string"));
+    assert.doesNotThrow(() => JSON.stringify(temporary));
     assert.ok([temporary.identity.dev, temporary.identity.ino, temporary.identity.birthtimeNs].every((value) => value !== "0"));
     const derived = await state.classifyDerivedTemporary({ consumerRoot: root, plan });
     assert.equal(derived.state, "present");

@@ -140,6 +140,7 @@ async function assertNoTransactionResidue(consumerRoot) {
   assert.deepEqual(
     entries.filter((entry) =>
       !entry.startsWith("foundation-operation.lock.released.") &&
+      entry !== "foundation-operation-lock.completed-evidence" &&
       entry !== "scaffolding-transaction.json.completed-document-evidence"),
     []
   );

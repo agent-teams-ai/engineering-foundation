@@ -9,6 +9,10 @@ import { FoundationError } from "../../../errors.js";
 import { LOCAL_OPERATION_LOCK } from "../../../foundation-state-contract.js";
 import { parseStrictJson } from "../../../strict-json.js";
 import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+import {
+  assertTerminalEvidenceDirectory,
+  ensureTerminalEvidenceDirectory
+} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
 import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
 import type {
   FoundationOperationLock,
@@ -21,6 +25,8 @@ import {
 
 const maximumLockBytes = 8 * 1024;
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+const terminalEvidenceDirectoryName =
+  "foundation-operation-lock.completed-evidence";
 
 interface ActiveOwner {
   readonly host: string;
@@ -358,8 +364,15 @@ async function quarantineObservedLock(
   operations: OperationLockOperations = {}
 ): Promise<string> {
   const retirementToken = operations.retirementToken?.() ?? randomUUID();
-  const quarantineDirectory =
-    `${lockPath}.${phase}.${observed.evidence.token}.${retirementToken}`;
+  const terminalRoot = await ensureTerminalEvidenceDirectory(
+    join(directory, terminalEvidenceDirectoryName)
+  );
+  await syncFoundationStateDirectory(directory);
+  await assertTerminalEvidenceDirectory(terminalRoot);
+  const quarantineDirectory = join(
+    terminalRoot.path,
+    `${phase}.${observed.evidence.token}.${retirementToken}`
+  );
   try {
     await mkdir(quarantineDirectory, { mode: 0o700 });
   } catch (error) {
@@ -368,7 +381,7 @@ async function quarantineObservedLock(
       { cause: error }
     );
   }
-  await syncFoundationStateDirectory(directory);
+  await syncFoundationStateDirectory(terminalRoot.path);
   const quarantinePath = join(quarantineDirectory, "evidence");
   await rename(lockPath, quarantinePath);
   await syncFoundationStateDirectory(quarantineDirectory);

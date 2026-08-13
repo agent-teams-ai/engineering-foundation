@@ -214,12 +214,16 @@ test("release preserves a foreign predictable retirement destination", async () 
       await readFile(legacyDestination, "utf8"),
       "foreign retirement evidence\n",
     );
-    const retirement = (await readdir(target.directory)).find((entry) =>
-      entry.startsWith(`foundation-operation.lock.released.${owned.token}.`),
+    const terminalRoot = join(
+      target.directory,
+      "foundation-operation-lock.completed-evidence",
+    );
+    const retirement = (await readdir(terminalRoot)).find((entry) =>
+      entry.startsWith(`released.${owned.token}.`),
     );
     assert.ok(retirement);
     assert.deepEqual(
-      JSON.parse(await readFile(join(target.directory, retirement, "evidence"), "utf8")),
+      JSON.parse(await readFile(join(terminalRoot, retirement, "evidence"), "utf8")),
       owned,
     );
   } finally {
@@ -246,6 +250,30 @@ test("release preserves a substituted retirement pathname", async () => {
     assert.ok(foreignPath);
     assert.equal(await readFile(foreignPath, "utf8"), "foreign substituted evidence\n");
     assert.equal((await lstat(`${foreignPath}.owned-original`)).isFile(), true);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("successful releases keep state-directory cardinality constant", async () => {
+  const root = await createRoot();
+  try {
+    const target = paths(root);
+    for (let iteration = 0; iteration < 8; iteration += 1) {
+      const release = await new NodeFoundationOperationLock(root).acquire();
+      await release();
+    }
+    assert.deepEqual(
+      await readdir(target.directory),
+      ["foundation-operation-lock.completed-evidence"],
+    );
+    assert.equal(
+      (await readdir(join(
+        target.directory,
+        "foundation-operation-lock.completed-evidence",
+      ))).length,
+      8,
+    );
   } finally {
     await rm(root, { force: true, recursive: true });
   }

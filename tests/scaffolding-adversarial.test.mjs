@@ -27,6 +27,7 @@ import { writeAuthorityScaffoldJournal } from "../packages/engineering-foundatio
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
 import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
 import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-plan-authority.js";
+import { ownedTemporaryCleanupResiduePrefix } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -227,7 +228,7 @@ test("preserves an exact replacement of a transaction temporary", async () => {
   const root = await createConsumer();
   try {
     const scaffoldPlan = await plan(root);
-    let replacementPath;
+    let evidence;
     await assert.rejects(
       applyAuthorityFilesystemScaffoldWithFaultInjection(
         root,
@@ -245,18 +246,45 @@ test("preserves an exact replacement of a transaction temporary", async () => {
           assert.ok(temporaryName);
           const temporary = join(parent, temporaryName);
           const bytes = await readFile(temporary);
-          await rename(temporary, `${temporary}.original`);
+          const ownedIdentity = await stat(temporary, { bigint: true });
+          const originalPath = `${temporary}.original`;
+          await rename(temporary, originalPath);
           await writeFile(temporary, bytes);
           if (process.platform !== "win32") {
             await chmod(temporary, 0o644);
           }
-          replacementPath = temporary;
+          const replacementIdentity = await stat(temporary, { bigint: true });
+          evidence = {
+            bytes,
+            originalPath,
+            ownedIdentity,
+            parent,
+            replacementIdentity,
+            residuePrefix: ownedTemporaryCleanupResiduePrefix(temporary),
+            temporary,
+          };
         }
       ),
       /temporary path was replaced concurrently/u
     );
-    assert.ok(replacementPath);
-    assert.ok((await stat(replacementPath)).isFile());
+    assert.ok(evidence);
+    const residueEntries = (await readdir(evidence.parent)).filter((entry) =>
+      entry.startsWith(evidence.residuePrefix)
+    );
+    assert.equal(residueEntries.length, 1);
+    const quarantinedReplacement = join(
+      evidence.parent,
+      residueEntries[0],
+      "owned-temporary",
+    );
+    assert.deepEqual(await readFile(quarantinedReplacement), evidence.bytes);
+    assert.deepEqual(await readFile(evidence.originalPath), evidence.bytes);
+    const quarantinedIdentity = await stat(quarantinedReplacement, { bigint: true });
+    const originalIdentity = await stat(evidence.originalPath, { bigint: true });
+    assert.equal(quarantinedIdentity.ino, evidence.replacementIdentity.ino);
+    assert.equal(originalIdentity.ino, evidence.ownedIdentity.ino);
+    assert.notEqual(quarantinedIdentity.ino, originalIdentity.ino);
+    await assertMissing(evidence.temporary);
     assert.match(await readFile(journalPath(root), "utf8"), /"publishing"/u);
   } finally {
     await rm(root, { recursive: true, force: true });

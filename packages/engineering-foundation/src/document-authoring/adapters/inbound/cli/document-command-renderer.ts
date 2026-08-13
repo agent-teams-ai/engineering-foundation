@@ -40,10 +40,40 @@ function renderNew(result: DocumentNewResult, lines: string[]): void {
     lines.push(`Reachability: update ${String(result.reachability.indexPath)}`);
     lines.push(`Link: ${String(result.reachability.markdownLink)}`);
   }
+  if (result.writeState === "preview") {
+    lines.push("Next: review this preview, then run docs new without --dry-run");
+  } else if (result.reachability?.state === "manual-required") {
+    lines.push(`Next: add the exact link to ${String(result.reachability.indexPath)}`);
+  } else if (
+    result.writeState === "applied" ||
+    result.writeState === "already-applied"
+  ) {
+    lines.push("Next: agent-teams-foundation repo check");
+  }
 }
 
 function renderDoctor(result: DocumentDoctorResult, lines: string[]): void {
+  if (result.installedFoundationVersion !== undefined) {
+    lines.push(`Installed Foundation: ${result.installedFoundationVersion}`);
+  }
+  if (result.installedFoundationBuildIdentity !== undefined) {
+    lines.push(`Installed build: ${result.installedFoundationBuildIdentity}`);
+  }
+  if (result.filesystem !== undefined) {
+    lines.push(
+      `Filesystem durability: ${result.filesystem.strictDirectoryDurability} (${result.filesystem.basis})`
+    );
+  }
   lines.push(`Transaction: ${result.transactionState}`);
+  if (result.protocolKind !== undefined) {
+    lines.push(`Transaction protocol: ${result.protocolKind}`);
+  }
+  if (result.foundationVersion !== undefined) {
+    lines.push(`Journal Foundation: ${result.foundationVersion}`);
+  }
+  if (result.foundationBuildIdentity !== undefined) {
+    lines.push(`Journal build: ${result.foundationBuildIdentity}`);
+  }
   lines.push(`Recovery: ${result.recoveryClass}`);
   if (result.recoveryCommand !== undefined) {
     lines.push(`Run: ${humanCommand(result.recoveryCommand)}`);

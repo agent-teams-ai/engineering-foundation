@@ -53,9 +53,14 @@ test("Node document publisher prepares, resumes, publishes, and cleans exact Pla
     const publisher = new NodeDocumentPublisher();
     const state = new NodeDocumentFileState();
     assert.deepEqual(await state.classifyDestination({ consumerRoot: root, plan }), { state: "absent" });
+    assert.deepEqual(await state.classifyDerivedTemporary({ consumerRoot: root, plan }), { state: "absent" });
     const temporary = await publisher.prepare({ consumerRoot: root, plan });
     assert.equal(temporary.path, documentTemporaryPath(plan.destination, plan.planDigest));
     assert.ok([temporary.identity.dev, temporary.identity.ino, temporary.identity.birthtimeNs].every((value) => value !== "0"));
+    const derived = await state.classifyDerivedTemporary({ consumerRoot: root, plan });
+    assert.equal(derived.state, "present");
+    assert.equal(derived.path, temporary.path);
+    assert.deepEqual(derived.identity, temporary.identity);
     assert.equal((await state.classifyTemporary({ consumerRoot: root, temporary })).state, "owned-exact");
     const publication = await publisher.publishPrepared({ consumerRoot: root, plan, temporary });
     assert.equal(publication.outcome, "published");
@@ -68,6 +73,50 @@ test("Node document publisher prepares, resumes, publishes, and cleans exact Pla
       .every((value) => value !== "0"));
     await publisher.removeOwnedTemporary({ consumerRoot: root, temporary });
     assert.deepEqual(await state.classifyTemporary({ consumerRoot: root, temporary }), { state: "absent" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publication completion verifies bound identity and supports absent temporary", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
+  try {
+    await mkdir(join(root, "docs"));
+    const plan = planFor(Buffer.from("# Test\n"));
+    const publisher = new NodeDocumentPublisher();
+    const temporary = await publisher.prepare({ consumerRoot: root, plan });
+    await publisher.publishPrepared({ consumerRoot: root, plan, temporary });
+    const withTemporary = await publisher.completePublication({
+      consumerRoot: root,
+      plan,
+      temporary
+    });
+    assert.deepEqual(withTemporary.publicationIdentity, temporary.identity);
+    await publisher.removeOwnedTemporary({ consumerRoot: root, temporary });
+    const withoutTemporary = await publisher.completePublication({
+      consumerRoot: root,
+      plan,
+      temporary
+    });
+    assert.deepEqual(withoutTemporary.publicationIdentity, temporary.identity);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publication completion rejects same bytes with a different identity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
+  try {
+    await mkdir(join(root, "docs"));
+    const plan = planFor(Buffer.from("# Test\n"));
+    const publisher = new NodeDocumentPublisher();
+    const temporary = await publisher.prepare({ consumerRoot: root, plan });
+    await writeFile(join(root, plan.destination), Buffer.from("# Test\n"), { mode: 0o644 });
+    await assert.rejects(
+      publisher.completePublication({ consumerRoot: root, plan, temporary }),
+      /does not match its bound temporary identity/u
+    );
+    assert.deepEqual(await readFile(join(root, temporary.path)), Buffer.from("# Test\n"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -88,6 +137,10 @@ test("Node document adapters honor cancellation only before mutations may start"
     );
     await assert.rejects(
       state.classifyDestination({ consumerRoot: root, plan, signal: controller.signal }),
+      /cancel test/u
+    );
+    await assert.rejects(
+      state.classifyDerivedTemporary({ consumerRoot: root, plan, signal: controller.signal }),
       /cancel test/u
     );
     await assert.rejects(

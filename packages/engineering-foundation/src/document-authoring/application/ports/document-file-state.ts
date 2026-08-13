@@ -17,6 +17,15 @@ export type DocumentTemporaryState =
   | { readonly state: "conflict"; readonly reason: string }
   | { readonly state: "unverifiable"; readonly reason: string };
 
+export type DocumentDerivedTemporaryState =
+  | { readonly state: "absent" }
+  | {
+      readonly state: "present";
+      readonly path: string;
+      readonly identity: DocumentPhysicalIdentity;
+    }
+  | { readonly state: "unverifiable"; readonly reason: string };
+
 export interface DocumentFileState {
   classifyDestination(request: {
     readonly consumerRoot: string;
@@ -28,4 +37,9 @@ export interface DocumentFileState {
     readonly signal?: AbortSignal;
     readonly temporary: DocumentOwnedTemporary;
   }): Promise<DocumentTemporaryState>;
+  classifyDerivedTemporary(request: {
+    readonly consumerRoot: string;
+    readonly plan: DocumentPlan;
+    readonly signal?: AbortSignal;
+  }): Promise<DocumentDerivedTemporaryState>;
 }

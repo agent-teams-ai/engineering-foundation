@@ -9,11 +9,13 @@ import {
 import type { DocumentOwnedTemporary } from "../../application/model/document-transaction.js";
 import type { DocumentPlan } from "../../application/model/document-planning.js";
 import type {
+  DocumentDerivedTemporaryState,
   DocumentDestinationState,
   DocumentFileState,
   DocumentTemporaryState
 } from "../../application/ports/document-file-state.js";
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
+import { documentTemporaryPath } from "../../application/policies/document-temporary-path.js";
 import {
   recaptureDocumentPublicationPaths,
   sameDocumentPhysicalIdentity
@@ -87,6 +89,59 @@ function unverifiable(error: unknown): {
 }
 
 export class NodeDocumentFileState implements DocumentFileState {
+  async classifyDerivedTemporary(request: {
+    readonly consumerRoot: string;
+    readonly plan: DocumentPlan;
+    readonly signal?: AbortSignal;
+  }): Promise<DocumentDerivedTemporaryState> {
+    request.signal?.throwIfAborted();
+    const path = documentTemporaryPath(
+      request.plan.destination,
+      request.plan.planDigest
+    );
+    try {
+      const paths = await recaptureDocumentPublicationPaths({
+        consumerRoot: request.consumerRoot,
+        destination: path
+      });
+      request.signal?.throwIfAborted();
+      let observed;
+      try {
+        observed = await readBoundedRegularFile(
+          paths.destinationPath,
+          MAXIMUM_DOCUMENT_BYTES
+        );
+      } catch (error) {
+        if (error instanceof Error && "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT") {
+          return { state: "absent" };
+        }
+        throw error;
+      }
+      request.signal?.throwIfAborted();
+      if (observed.outcome !== "read") {
+        return unverifiable("Derived document temporary is not a stable regular file.");
+      }
+      const identityValue: DocumentPhysicalIdentity = {
+        adapter: "node-filesystem",
+        version: 1,
+        dev: observed.identity.dev.toString(10),
+        ino: observed.identity.ino.toString(10),
+        birthtimeNs: observed.identity.birthtimeNs.toString(10)
+      };
+      return {
+        state: "present",
+        path,
+        identity: identityValue
+      };
+    } catch (error) {
+      if (request.signal?.aborted === true) {
+        throw error;
+      }
+      return unverifiable(error);
+    }
+  }
+
   async classifyDestination(request: {
     readonly consumerRoot: string;
     readonly plan: DocumentPlan;

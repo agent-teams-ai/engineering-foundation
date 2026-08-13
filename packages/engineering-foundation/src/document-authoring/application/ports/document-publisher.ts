@@ -25,6 +25,14 @@ export interface DocumentPublisher {
     readonly signal?: AbortSignal;
     readonly temporary: DocumentOwnedTemporary;
   }): Promise<DocumentPublicationResult>;
+  completePublication(request: {
+    readonly consumerRoot: string;
+    readonly plan: DocumentPlan;
+    readonly signal?: AbortSignal;
+    readonly temporary: DocumentOwnedTemporary;
+  }): Promise<{
+    readonly publicationIdentity: DocumentPhysicalIdentity;
+  }>;
   removeOwnedTemporary(request: {
     readonly consumerRoot: string;
     readonly signal?: AbortSignal;

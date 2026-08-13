@@ -25,7 +25,8 @@ import type {
 import { documentTemporaryPath } from "../../application/policies/document-temporary-path.js";
 import {
   recaptureDocumentPublicationPaths,
-  sameDocumentAncestry
+  sameDocumentAncestry,
+  sameDocumentPhysicalIdentity
 } from "./recapture-document-publication-paths.js";
 
 function postimage(plan: DocumentPlan) {
@@ -134,7 +135,6 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       digest: request.plan.output.digest,
       identity: wireIdentity(captured, false)
     };
-    physicalIdentity(temporary);
     return Object.freeze({
       ...temporary,
       identity: Object.freeze(temporary.identity)
@@ -192,6 +192,76 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       publicationIdentity: Object.freeze(
         await readExactPublicationIdentity(paths.destinationPath, request.plan)
       )
+    });
+  }
+
+  async completePublication(request: {
+    readonly consumerRoot: string;
+    readonly plan: DocumentPlan;
+    readonly signal?: AbortSignal;
+    readonly temporary: DocumentOwnedTemporary;
+  }): Promise<{ readonly publicationIdentity: DocumentPhysicalIdentity }> {
+    request.signal?.throwIfAborted();
+    assertTemporaryBinding(request.plan, request.temporary);
+    const expectedIdentity = physicalIdentity(request.temporary);
+    const before = await recaptureDocumentPublicationPaths({
+      consumerRoot: request.consumerRoot,
+      destination: request.plan.destination
+    });
+    const temporaryPath = join(before.root, ...request.temporary.path.split("/"));
+    request.signal?.throwIfAborted();
+    // From this point recovery completion is cancellation-masked: publication
+    // may already exist and its durability must reach a verified postcondition.
+    const publicationIdentity = await readExactPublicationIdentity(
+      before.destinationPath,
+      request.plan
+    );
+    if (!sameDocumentPhysicalIdentity(
+      {
+        dev: BigInt(publicationIdentity.dev),
+        ino: BigInt(publicationIdentity.ino),
+        birthtimeNs: BigInt(publicationIdentity.birthtimeNs)
+      },
+      expectedIdentity
+    )) {
+      throw new Error("Published document does not match its bound temporary identity.");
+    }
+    try {
+      const observedTemporary = await readBoundedRegularFile(
+        temporaryPath,
+        request.plan.output.size
+      );
+      if (observedTemporary.outcome !== "read" ||
+        !sameDocumentPhysicalIdentity(observedTemporary.identity, expectedIdentity) ||
+        `sha256:${createHash("sha256").update(observedTemporary.bytes).digest("hex")}` !== request.plan.output.digest ||
+        (process.platform !== "win32" && (observedTemporary.mode & 0o777) !== 0o644)) {
+        throw new Error("Bound document temporary changed during publication completion.");
+      }
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT")) {
+        throw error;
+      }
+    }
+    await requireDirectoryDurability(before.parent);
+    const after = await recaptureDocumentPublicationPaths({
+      consumerRoot: request.consumerRoot,
+      destination: request.plan.destination
+    });
+    if (!sameDocumentAncestry(before.ancestryIdentities, after.ancestryIdentities)) {
+      throw new Error("Document publication parent changed during completion.");
+    }
+    const verifiedIdentity = await readExactPublicationIdentity(
+      after.destinationPath,
+      request.plan
+    );
+    if (verifiedIdentity.dev !== publicationIdentity.dev ||
+      verifiedIdentity.ino !== publicationIdentity.ino ||
+      verifiedIdentity.birthtimeNs !== publicationIdentity.birthtimeNs) {
+      throw new Error("Published document identity changed during completion.");
+    }
+    return Object.freeze({
+      publicationIdentity: Object.freeze(verifiedIdentity)
     });
   }
 

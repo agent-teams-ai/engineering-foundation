@@ -133,10 +133,8 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
         "Document journal store must use the historical Foundation transaction slot."
       );
     }
-    this.#candidatePath = join(
-      this.#parent,
-      `${this.#canonicalName}.document-transition`
-    );
+    this.#candidatePath = join(this.#parent,
+      `${this.#canonicalName}.document-transition`);
   }
   async #syncDirectory(
     path: string,
@@ -390,6 +388,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       path: this.journalPath,
       phase: "before-shared-quarantine"
     });
+    await proveAuthority(this.journalPath, expected, "Canonical document journal");
     try {
       await rename(this.journalPath, quarantine.path);
     } catch (error) {
@@ -466,6 +465,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       path: this.journalPath,
       phase: "before-shared-quarantine"
     });
+    await proveAuthority(this.journalPath, expectedAuthority, "Canonical document journal");
     try {
       await rename(this.journalPath, quarantine.path);
     } catch (error) {

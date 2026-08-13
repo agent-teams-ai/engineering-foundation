@@ -197,6 +197,36 @@ test("accepts only an exact concurrent publication", async () => {
   }
 });
 
+test("syncs the destination directory before accepting an exact EEXIST publication", async () => {
+  const paths = await fixture();
+  const synced = [];
+  try {
+    assert.equal(
+      await publishAbsentFile({
+        ...paths,
+        displayPath: "result.txt",
+        operations: {
+          async link() {
+            await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
+            const error = new Error("exists");
+            error.code = "EEXIST";
+            throw error;
+          },
+          async syncDirectory(path) {
+            synced.push(path);
+            return "durable";
+          }
+        },
+        postimage
+      }),
+      "already-satisfied"
+    );
+    assert.ok(synced.includes(paths.root));
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
 test("concurrent real-filesystem publishers converge on one exact postimage", async () => {
   const paths = await fixture();
   try {

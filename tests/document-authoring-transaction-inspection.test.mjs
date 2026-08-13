@@ -219,6 +219,19 @@ test("public document inspection exposes docs-recover while legacy local-mode st
   }
 });
 
+test("public document inspection reports an absent state directory as idle", async () => {
+  const root = await mkdtemp(join(tmpdir(), "document-public-inspection-"));
+  try {
+    assert.deepEqual(await inspectDocumentTransactionV1(root), {
+      schemaVersion: 1,
+      state: "idle",
+      diagnostics: [],
+    });
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 test("public document inspection never follows a redirected state directory", async () => {
   const root = await mkdtemp(join(tmpdir(), "document-public-inspection-"));
   const outside = await mkdtemp(join(tmpdir(), "document-public-inspection-outside-"));

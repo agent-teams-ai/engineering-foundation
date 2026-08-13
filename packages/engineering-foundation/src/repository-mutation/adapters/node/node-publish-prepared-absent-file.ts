@@ -94,6 +94,7 @@ export async function publishPreparedAbsentFile(options: {
         options.postimage
       );
       if (state === "exact") {
+        await syncPublicationDirectory(options);
         return "already-satisfied";
       }
       throw new AbsentFilePublicationError(

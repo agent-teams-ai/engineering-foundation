@@ -193,6 +193,14 @@ export async function inspectDocumentTransactionV1(
       destination: `${LOCAL_STATE_DIRECTORY}/${FOUNDATION_TRANSACTION_FILE}`,
     });
   } catch {
+    try {
+      await lstat(stateDirectory);
+    } catch (error) {
+      if (error instanceof Error && "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT") {
+        return { schemaVersion: 1, state: "idle", diagnostics: [] };
+      }
+    }
     return unsafeTransactionPathInspection();
   }
   const status = await new NodeFoundationTransactionSlot({

@@ -465,8 +465,8 @@ requiresStrictDirectoryDurability("create rejects same-inode mutation after publ
   });
 });
 
-requiresStrictDirectoryDurability("remove rejects same-inode mutation before quarantine and preserves it", async () => {
-  await withFixture(async ({ path, state, store }) => {
+requiresStrictDirectoryDurability("remove rejects same-inode mutation before quarantine and preserves it in place", async () => {
+  await withFixture(async ({ path, store }) => {
     const authority = await store.create(await envelope());
     const attacked = new NodeDocumentJournalStore(path, {
       async faultInjector(point) {
@@ -481,11 +481,8 @@ requiresStrictDirectoryDurability("remove rejects same-inode mutation before qua
       /canonical bytes changed concurrently/u
     );
 
-    const quarantineDirectory = (await readdir(state)).find((entry) =>
-      entry.includes(".document-quarantine.")
-    );
     assert.equal(
-      await readFile(join(state, quarantineDirectory, "evidence"), "utf8"),
+      await readFile(path, "utf8"),
       "mutated removal journal\n"
     );
   });
@@ -555,7 +552,7 @@ requiresStrictDirectoryDurability("logical retirement never deletes a replacemen
   });
 });
 
-requiresStrictDirectoryDurability("shared quarantine preserves a pathname replacement made after proof", async () => {
+requiresStrictDirectoryDurability("shared quarantine preserves a pathname replacement at the canonical path", async () => {
   await withFixture(async ({ path, state, store }) => {
     const authority = await store.create(await envelope());
     const originalPath = `${path}.owned-preserved`;
@@ -577,23 +574,21 @@ requiresStrictDirectoryDurability("shared quarantine preserves a pathname replac
     );
 
     await lstat(originalPath);
-    assert.ok(
-      (await readdir(state)).some((entry) =>
-        entry.includes(".document-quarantine.")
-      )
-    );
-    const quarantineDirectory = (await readdir(state)).find((entry) =>
-      entry.includes(".document-quarantine.")
+    assert.equal(
+      await readFile(path, "utf8"),
+      "foreign shared target\n"
     );
     assert.equal(
-      await readFile(join(state, quarantineDirectory, "evidence"), "utf8"),
-      "foreign shared target\n"
+      (await readdir(state)).some((entry) =>
+        entry.includes(".document-quarantine.")
+      ),
+      true
     );
   });
 });
 
-requiresStrictDirectoryDurability("shared quarantine is synced before rejecting captured foreign evidence", async () => {
-  await withFixture(async ({ path, state, store }) => {
+requiresStrictDirectoryDurability("shared quarantine verifies canonical evidence after the mutation hook", async () => {
+  await withFixture(async ({ path, store }) => {
     const authority = await store.create(await envelope());
     const events = [];
     const attacked = new NodeDocumentJournalStore(path, {
@@ -612,16 +607,8 @@ requiresStrictDirectoryDurability("shared quarantine is synced before rejecting 
     });
 
     await assert.rejects(attacked.remove(authority), /canonical bytes/u);
-    assert.deepEqual(events.slice(0, 3), [
-      "mutated",
-      "sync:destination",
-      "sync:source"
-    ]);
-    assert.ok(
-      (await readdir(state)).some((entry) =>
-        entry.includes(".document-quarantine.")
-      )
-    );
+    assert.deepEqual(events, ["mutated"]);
+    assert.equal(await readFile(path, "utf8"), "captured foreign bytes\n");
   });
 });
 

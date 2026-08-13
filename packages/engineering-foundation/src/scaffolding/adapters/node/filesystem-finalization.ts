@@ -10,6 +10,7 @@ import {
   resolveAuthority,
   safeClassifyPlan
 } from "./filesystem-authority.js";
+import { assertNoOwnedCleanupResidue } from "./filesystem-operation-state.js";
 import {
   createAuthorityDiagnostic,
   freshAuthorityScaffoldJournal,
@@ -74,6 +75,7 @@ async function classifyBeforeJournal(options: {
 }): Promise<AuthorityScaffoldReceipt | Awaited<ReturnType<typeof safeClassifyPlan>>> {
   let states;
   try {
+    await assertNoOwnedCleanupResidue(options.root, options.plan);
     states = await safeClassifyPlan(options.root, options.plan);
   } catch {
     return recoveryRequiredForAuthority({
@@ -170,6 +172,7 @@ async function verifyOutputs(
 > {
   let states;
   try {
+    await assertNoOwnedCleanupResidue(options.root, options.journal.plan);
     states = await safeClassifyPlan(options.root, options.journal.plan);
   } catch {
     return recoveryRequiredForAuthority({
@@ -240,6 +243,7 @@ export async function finalizeAuthorityScaffoldJournal(
     options.journal
   );
   await options.faultInjector?.({ phase: "after-final-verification" });
+  await assertNoOwnedCleanupResidue(options.root, options.journal.plan);
   await removeExpectedAuthorityScaffoldJournal(
     options.journalPath,
     journalIdentity,

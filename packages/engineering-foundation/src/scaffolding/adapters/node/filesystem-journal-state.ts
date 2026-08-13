@@ -8,7 +8,10 @@ import type {
 } from "../../contract/types.js";
 import { createAuthorityScaffoldReceipt } from "../../kernel/authority-receipt.js";
 import { assertSafeExistingAncestors } from "./filesystem-path-guard.js";
-import { classifyFilesystemOperation } from "./filesystem-operation-state.js";
+import {
+  assertNoOwnedCleanupResidue,
+  classifyFilesystemOperation
+} from "./filesystem-operation-state.js";
 
 export function createAuthorityDiagnostic(
   ruleId: string,
@@ -153,6 +156,7 @@ export async function reconcileAuthorityScaffoldJournal(
   readonly journal: AuthorityScaffoldJournal;
   readonly conflictIds: ReadonlySet<string>;
 }> {
+  await assertNoOwnedCleanupResidue(root, journal.plan);
   let next = journal;
   const conflictIds = new Set<string>();
   for (const operation of journal.plan.operations) {

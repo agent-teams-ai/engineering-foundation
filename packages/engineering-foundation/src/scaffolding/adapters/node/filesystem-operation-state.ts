@@ -1,3 +1,4 @@
+import { readdir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 import {
@@ -7,6 +8,7 @@ import {
   type AbsentFilePublicationFaultPoint
 } from "../../../repository-mutation/adapters/node/node-absent-file-publication.js";
 import { AbsentFilePublicationError } from "../../../repository-mutation/application/model/exact-postimage.js";
+import { ownedTemporaryCleanupResiduePrefix } from "../../../repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 import type { MaterializeFileOperation } from "../../contract/scaffold-contract.js";
 import { sha256Text } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
@@ -59,6 +61,42 @@ function transactionTemporaryName(
   return `.foundation-${identity}.tmp`;
 }
 
+export async function assertNoOwnedCleanupResidue(
+  root: string,
+  plan: {
+    readonly planDigest: string;
+    readonly operations: readonly MaterializeFileOperation[];
+  }
+): Promise<void> {
+  for (const operation of plan.operations) {
+    const parent = dirname(resolve(root, operation.path));
+    const temporary = join(
+      parent,
+      transactionTemporaryName(plan.planDigest, operation)
+    );
+    const prefix = ownedTemporaryCleanupResiduePrefix(temporary);
+    let entries: string[];
+    try {
+      entries = await readdir(parent);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      ) {
+        continue;
+      }
+      throw error;
+    }
+    if (entries.some((entry) => entry.startsWith(prefix))) {
+      throw new ScaffoldError(
+        "SCAFFOLD_RECOVERY_REQUIRED",
+        `Scaffolding owned temporary cleanup residue requires manual recovery: ${operation.path}.`
+      );
+    }
+  }
+}
+
 export async function assertTransactionTemporariesAbsent(
   root: string,
   plan: {
@@ -66,6 +104,7 @@ export async function assertTransactionTemporariesAbsent(
     readonly operations: readonly MaterializeFileOperation[];
   }
 ): Promise<void> {
+  await assertNoOwnedCleanupResidue(root, plan);
   try {
     await assertTemporaryPathsAbsent(
       plan.operations.map((operation) => {
@@ -160,6 +199,10 @@ export async function publishFilesystemOperation(
   faultInjector?: FilesystemPublicationFaultInjector
 ): Promise<"already-satisfied" | "applied"> {
   await assertSafeExistingAncestors(root, operation.path);
+  await assertNoOwnedCleanupResidue(root, {
+    planDigest,
+    operations: [operation]
+  });
   const state = await classifyFilesystemOperation(root, operation);
   if (state === "after") {
     return "already-satisfied";

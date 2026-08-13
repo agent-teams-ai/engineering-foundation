@@ -22,7 +22,7 @@ const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const MAX_ARCHIVE_ENTRIES = 2_500;
 const generatedPackageEntries = new Set(["dist", "node_modules", "tsconfig.tsbuildinfo"]);
 
-function assertArchiveListing(listing, requiredArtifactPaths) {
+export function assertArchiveListing(listing, requiredArtifactPaths) {
   for (const forbidden of forbiddenEntries) {
     if (listing.includes(forbidden)) {
       throw new Error(`Forbidden package entry detected: ${forbidden}`);
@@ -41,6 +41,24 @@ function assertArchiveListing(listing, requiredArtifactPaths) {
   for (const required of requiredEntries) {
     if (!entries.has(required)) {
       throw new Error(`Required package entry missing: ${required}`);
+    }
+  }
+  const requiredDirectories = new Set(["package/"]);
+  for (const required of requiredEntries) {
+    let boundary = required.lastIndexOf("/");
+    while (boundary >= "package".length) {
+      requiredDirectories.add(`${required.slice(0, boundary)}/`);
+      boundary = required.lastIndexOf("/", boundary - 1);
+    }
+  }
+  for (const entry of entries) {
+    if (
+      entry.length > 0 &&
+      !requiredDirectories.has(entry) &&
+      !entry.startsWith("package/dist/") &&
+      !requiredEntries.includes(entry)
+    ) {
+      throw new Error(`Package entry is outside the release allowlist: ${entry}`);
     }
   }
 }

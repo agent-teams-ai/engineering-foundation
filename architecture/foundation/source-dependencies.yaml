@@ -945,6 +945,7 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-owner-membership-reader.ts
   - id: foundation.document-authoring.composition
     roots:
+      - packages/engineering-foundation/src/document-authoring/composition
       - packages/engineering-foundation/src/document-authoring/index.ts
       - packages/engineering-foundation/src/document-authoring/find-command.ts
     allow:
@@ -959,6 +960,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/document-authoring/composition/node-document-planning.ts
       - packages/engineering-foundation/src/document-authoring/index.ts
       - packages/engineering-foundation/src/document-authoring/find-command.ts
   - id: foundation.documentation-observation.application

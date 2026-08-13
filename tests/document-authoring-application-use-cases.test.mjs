@@ -6,6 +6,7 @@ import test from "node:test";
 import { applyDocumentPlan } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/apply-document-plan.js";
 import { recoverDocumentTransaction } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/recover-document-transaction.js";
 import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
+import { createDocumentTransactionEnvelope } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
 
 const fixture = JSON.parse(await readFile(fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)
@@ -86,7 +87,9 @@ function harness(options = {}) {
   };
   return {
     dependencies, events, releases,
+    seedJournal(value) { envelope = value; journalIdentity = identity; },
     setCoordinatorState(value) { coordinatorState = value; },
+    setDestination(value) { destination = value; },
     state: () => ({ destination, envelope, temporary })
   };
 }
@@ -227,6 +230,21 @@ test("failed PREPARED to PUBLISHING CAS cleans exact prepublication evidence", a
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: false }]);
 });
 
+test("journal create transition residue prevents a false terminal failure Receipt", async () => {
+  const subject = harness();
+  subject.dependencies.journal.create = async () => {
+    throw new Error("create failed with hidden transition residue");
+  };
+  subject.dependencies.journal.read = async () => {
+    throw new Error("incomplete journal transition evidence");
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "recovery-required");
+  assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
+});
+
 test("recovery resumes an exact bound PUBLISHING temporary", async () => {
   const subject = harness();
   subject.dependencies.publisher.publishPrepared = async () => {
@@ -254,3 +272,49 @@ test("recovery resumes an exact bound PUBLISHING temporary", async () => {
   assert.equal(recovered.outcome, "applied");
   assert.equal(subject.state().envelope, undefined);
 });
+
+async function publishedEnvelope(publicationIdentity = identity) {
+  return createDocumentTransactionEnvelope({
+    adapterContractVersion: 1,
+    foundation: {
+      buildIdentity: fixture.plan.compiler.buildIdentity,
+      version: fixture.plan.compiler.version
+    },
+    journal: {
+      destination: { path: fixture.plan.destination, state: "published" },
+      plan: fixture.plan,
+      publicationIdentity,
+      schemaVersion: 2
+    },
+    operationKind: "document-authoring",
+    payloadKind: "document-authoring-journal/v2",
+    recoveryHandler: { contractVersion: 2, id: "foundation.document-authoring" },
+    schemaVersion: 3,
+    state: "PUBLISHED"
+  });
+}
+
+for (const scenario of [
+  { name: "missing", destination: "absent" },
+  { name: "changed bytes", destination: "conflict" },
+  { name: "identity drift", destination: "exact", drift: true }
+]) {
+  test(`PUBLISHED ${scenario.name} is manual before authority replay`, async () => {
+    const subject = harness({ destination: scenario.destination });
+    subject.setCoordinatorState("recoverable");
+    subject.seedJournal(await publishedEnvelope());
+    if (scenario.drift === true) {
+      subject.dependencies.fileState.classifyDestination = async () => ({
+        state: "exact",
+        identity: { ...identity, ino: "999" }
+      });
+    }
+    const receipt = await recoverDocumentTransaction(subject.dependencies, {
+      consumerRoot: "/fixture"
+    });
+    assert.equal(receipt.outcome, "manual-recovery-required");
+    assert.equal(subject.events.includes("authority"), false);
+    assert.notEqual(subject.state().envelope, undefined);
+    assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
+  });
+}

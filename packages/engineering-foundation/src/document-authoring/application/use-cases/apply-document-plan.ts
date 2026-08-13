@@ -80,6 +80,11 @@ async function safelyCancelBeforePublication(
     if (active !== undefined) {
       await dependencies.journal.remove(active.identity);
     }
+    if (await dependencies.journal.read() !== undefined) {
+      throw new Error(
+        "Document journal evidence remains after prepublication cleanup."
+      );
+    }
     return noPublicationReceipt(
       plan,
       outcome,

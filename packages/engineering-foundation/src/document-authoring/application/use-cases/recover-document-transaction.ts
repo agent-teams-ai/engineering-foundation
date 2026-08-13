@@ -33,6 +33,17 @@ function signalOption(signal: AbortSignal | undefined): {
   return signal === undefined ? {} : { signal };
 }
 
+function transactionFailure(error: unknown): DocumentTransactionUseCaseError {
+  if (error instanceof DocumentTransactionUseCaseError) {
+    return error;
+  }
+  return new DocumentTransactionUseCaseError(
+    "DOCUMENT_TRANSACTION_INCONSISTENT",
+    `Document recovery could not establish a truthful outcome: ${errorMessage(error)}`,
+    { cause: error }
+  );
+}
+
 function nonzero(identity: {
   readonly birthtimeNs: string;
   readonly dev: string;
@@ -203,6 +214,16 @@ export async function recoverDocumentTransaction(
     }
     const active = { envelope: stored.envelope, identity: stored.identity };
     const plan = active.envelope.journal.plan;
+    const observed = await observe(dependencies, request, active);
+    const decision = classifyDocumentRecovery(observed.observation);
+    if (decision.action === "manual") {
+      return recoveryReceipt(plan, {
+        manual: true,
+        message: `Automatic recovery is unsafe: ${decision.reason}.`,
+        publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
+        ruleId: `document.transaction.${decision.reason}`
+      });
+    }
     const authority = await dependencies.authority.assess({
       consumerRoot: request.consumerRoot,
       plan,
@@ -215,8 +236,6 @@ export async function recoverDocumentTransaction(
         ruleId: "document.transaction.recovery-authority"
       });
     }
-    const observed = await observe(dependencies, request, active);
-    const decision = classifyDocumentRecovery(observed.observation);
     let receipt: DocumentReceipt;
     // A closed recovery matrix is intentionally explicit; each branch maps to
     // one mutation continuation and never falls through optimistically.
@@ -282,26 +301,11 @@ export async function recoverDocumentTransaction(
         });
         break;
       }
-      case "manual":
-        receipt = await recoveryReceipt(plan, {
-          manual: true,
-          message: `Automatic recovery is unsafe: ${decision.reason}.`,
-          publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
-          ruleId: `document.transaction.${decision.reason}`
-        });
-        break;
     }
     retainBarrier = receipt.outcome !== "applied" && receipt.outcome !== "already-applied";
     return receipt;
   } catch (error) {
-    if (error instanceof DocumentTransactionUseCaseError) {
-      throw error;
-    }
-    throw new DocumentTransactionUseCaseError(
-      "DOCUMENT_TRANSACTION_INCONSISTENT",
-      `Document recovery could not establish a truthful outcome: ${errorMessage(error)}`,
-      { cause: error }
-    );
+    throw transactionFailure(error);
   } finally {
     await lease.release({ retainTransactionBarrier: retainBarrier });
   }

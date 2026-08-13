@@ -66,6 +66,10 @@ function harness(options = {}) {
     journal: {
       async create(value) { envelope = value; journalIdentity = identity; events.push("journal:create"); return identity; },
       async read() { return envelope === undefined ? undefined : { envelope, identity: journalIdentity }; },
+      async stabilizeForReconciliation() {
+        events.push("journal:stabilize");
+        return envelope === undefined ? undefined : { envelope, identity: journalIdentity };
+      },
       async remove(expected) { assert.deepEqual(expected, journalIdentity); envelope = undefined; journalIdentity = undefined; events.push("journal:remove"); },
       async replace({ envelope: value, expectedIdentity }) {
         assert.deepEqual(expectedIdentity, journalIdentity);
@@ -137,6 +141,54 @@ test("cancellation before publication reports cancelled only after durable clean
   assert.equal(receipt.outcome, "cancelled");
   assert.equal(subject.state().envelope, undefined);
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: false }]);
+});
+
+for (const finalState of ["exact", "conflict"]) {
+  test(`cancellation rejects a late external ${finalState} destination after clean evidence removal`, async () => {
+    const subject = harness();
+    const classify = subject.dependencies.fileState.classifyDestination;
+    subject.dependencies.fileState.classifyDestination = async () => {
+      if (subject.events.includes("journal:remove")) {
+        return finalState === "exact"
+          ? { state: "exact", identity }
+          : { state: "conflict", reason: "external writer won the race" };
+      }
+      return classify();
+    };
+    subject.dependencies.publisher.prepare = async () => {
+      const error = new Error("cancelled"); error.name = "AbortError";
+      throw error;
+    };
+    const receipt = await applyDocumentPlan(subject.dependencies, {
+      consumerRoot: "/fixture", plan: fixture.plan
+    });
+    assert.equal(receipt.outcome, "rejected");
+    assert.equal(receipt.commit.publication, "none");
+    assert.equal(subject.state().envelope, undefined);
+    assert.deepEqual(subject.releases, [{ retainTransactionBarrier: false }]);
+  });
+}
+
+test("cancellation throws typed evidence-unavailable when the final destination cannot be verified", async () => {
+  const subject = harness();
+  const classify = subject.dependencies.fileState.classifyDestination;
+  subject.dependencies.fileState.classifyDestination = async () =>
+    subject.events.includes("journal:remove")
+      ? { state: "unverifiable", reason: "injected final lstat failure" }
+      : classify();
+  subject.dependencies.publisher.prepare = async () => {
+    const error = new Error("cancelled"); error.name = "AbortError";
+    throw error;
+  };
+  await assert.rejects(
+    applyDocumentPlan(subject.dependencies, {
+      consumerRoot: "/fixture", plan: fixture.plan
+    }),
+    (error) => error?.name === "DocumentTransactionUseCaseError" &&
+      error.code === "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE"
+  );
+  assert.equal(subject.state().envelope, undefined);
+  assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
 });
 
 test("pre-aborted apply validates Plan then returns cancelled without lock or filesystem I/O", async () => {
@@ -393,13 +445,7 @@ test("apply preserves journal failure when lease release also fails", async () =
   subject.dependencies.journal.create = async () => {
     throw new Error("create failed");
   };
-  const originalRead = subject.dependencies.journal.read;
-  let reads = 0;
-  subject.dependencies.journal.read = async () => {
-    reads += 1;
-    if (reads === 1) {
-      return originalRead();
-    }
+  subject.dependencies.journal.stabilizeForReconciliation = async () => {
     throw new Error("transition unverifiable");
   };
   subject.dependencies.coordinator.acquire = async () => ({

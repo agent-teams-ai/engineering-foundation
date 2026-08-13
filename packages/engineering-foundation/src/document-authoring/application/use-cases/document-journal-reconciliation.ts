@@ -26,7 +26,8 @@ function sameEnvelope(left: DocumentTransactionEnvelope, right: DocumentTransact
 }
 
 async function evidence(runtime: ReconciliationRuntime) {
-  return { status: await runtime.coordinator.inspect(), stored: await runtime.journal.read() };
+  const stored = await runtime.journal.stabilizeForReconciliation();
+  return { status: await runtime.coordinator.inspect(), stored };
 }
 
 function failure(operation: string, primary: unknown, inspection?: unknown) {

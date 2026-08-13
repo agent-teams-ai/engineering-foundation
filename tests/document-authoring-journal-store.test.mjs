@@ -104,6 +104,71 @@ test("creates, reads, replaces, and removes canonical document journal evidence"
   });
 });
 
+test("reconciles create, replace, and remove only after a fresh directory sync", async () => {
+  await withFixture(async ({ path }) => {
+    let operation = "create";
+    let failedFinalSync = false;
+    let reconciliationSyncs = 0;
+    const store = new NodeDocumentJournalStore(path, {
+      faultInjector(point) {
+        if (point.phase === "before-reconciliation-directory-sync") {
+          reconciliationSyncs += 1;
+        }
+        if (point.phase === "before-final-directory-sync" &&
+          point.operation === operation && !failedFinalSync) {
+          failedFinalSync = true;
+          throw new Error(`injected ${operation} final directory sync failure`);
+        }
+      }
+    });
+
+    const first = await envelope();
+    await assert.rejects(store.create(first), /create final directory sync/u);
+    const created = await store.stabilizeForReconciliation();
+    assert.deepEqual(created.envelope, first);
+
+    operation = "replace";
+    failedFinalSync = false;
+    const replacementBody = structuredClone(first);
+    replacementBody.journal.destination.state = "preexisting";
+    const replacement = await createDocumentTransactionEnvelope(replacementBody);
+    await assert.rejects(
+      store.replace({ expectedIdentity: created.identity, envelope: replacement }),
+      /replace final directory sync/u
+    );
+    const replaced = await store.stabilizeForReconciliation();
+    assert.deepEqual(replaced.envelope, replacement);
+
+    operation = "remove";
+    failedFinalSync = false;
+    await assert.rejects(store.remove(replaced.identity), /remove final directory sync/u);
+    assert.equal(await store.stabilizeForReconciliation(), undefined);
+    assert.equal(reconciliationSyncs, 3);
+  });
+});
+
+test("a failed reconciliation sync never acknowledges an apparently committed journal", async () => {
+  await withFixture(async ({ path }) => {
+    let finalFailed = false;
+    const store = new NodeDocumentJournalStore(path, {
+      faultInjector(point) {
+        if (point.phase === "before-final-directory-sync" && !finalFailed) {
+          finalFailed = true;
+          throw new Error("injected final directory sync failure");
+        }
+        if (point.phase === "before-reconciliation-directory-sync") {
+          throw new Error("injected reconciliation directory sync failure");
+        }
+      }
+    });
+    await assert.rejects(store.create(await envelope()), /final directory sync/u);
+    await assert.rejects(
+      store.stabilizeForReconciliation(),
+      /reconciliation directory sync/u
+    );
+  });
+});
+
 test("never overwrites a foreign canonical slot and preserves its candidate", async () => {
   await withFixture(async ({ path, state, store }) => {
     await writeFile(path, "foreign evidence\n", { flag: "wx", mode: 0o600 });

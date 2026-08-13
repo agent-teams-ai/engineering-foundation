@@ -38,7 +38,12 @@ export type NodeDocumentJournalFaultPoint =
   | { readonly phase: "after-candidate-synced" }
   | { readonly phase: "after-canonical-quarantined" }
   | { readonly phase: "after-canonical-published" }
-  | { readonly phase: "after-quarantine-removed" };
+  | { readonly phase: "after-quarantine-removed" }
+  | {
+      readonly operation: "create" | "remove" | "replace";
+      readonly phase: "before-final-directory-sync";
+    }
+  | { readonly phase: "before-reconciliation-directory-sync" };
 
 export type NodeDocumentJournalFaultInjector = (
   point: NodeDocumentJournalFaultPoint
@@ -278,6 +283,15 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     };
   }
 
+  public async stabilizeForReconciliation(): Promise<StoredDocumentJournal | undefined> {
+    await this.operations.faultInjector?.({
+      phase: "before-reconciliation-directory-sync"
+    });
+    await syncDirectoryStrictly(this.#parent);
+    await this.#assertNoTransitionEvidence();
+    return this.read();
+  }
+
   async create(envelope: DocumentTransactionEnvelope): Promise<JournalIdentity> {
     await this.#assertNoTransitionEvidence();
     const identity = await this.#prepareCandidate(envelope);
@@ -297,6 +311,10 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       identity,
       "Document journal transition candidate"
     );
+    await this.operations.faultInjector?.({
+      operation: "create",
+      phase: "before-final-directory-sync"
+    });
     await syncDirectoryStrictly(this.#parent);
     return identity;
   }
@@ -362,6 +380,10 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       expected,
       "Quarantined document journal"
     );
+    await this.operations.faultInjector?.({
+      operation: "replace",
+      phase: "before-final-directory-sync"
+    });
     await syncDirectoryStrictly(this.#parent);
     await this.operations.faultInjector?.({ phase: "after-quarantine-removed" });
     return candidateIdentity;
@@ -411,6 +433,10 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       expectedIdentity,
       "Quarantined document journal"
     );
+    await this.operations.faultInjector?.({
+      operation: "remove",
+      phase: "before-final-directory-sync"
+    });
     await syncDirectoryStrictly(this.#parent);
     await this.operations.faultInjector?.({ phase: "after-quarantine-removed" });
   }

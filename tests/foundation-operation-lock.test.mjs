@@ -219,9 +219,10 @@ test("release preserves a foreign predictable retirement destination", async () 
       "foundation-operation-lock.completed-evidence",
     );
     const retirement = (await readdir(terminalRoot)).find((entry) =>
-      entry.startsWith(`released.${owned.token}.`),
+      entry.startsWith("released."),
     );
     assert.ok(retirement);
+    assert.equal(retirement.includes(owned.token), false);
     assert.deepEqual(
       JSON.parse(await readFile(join(terminalRoot, retirement, "evidence"), "utf8")),
       owned,

@@ -371,7 +371,7 @@ async function quarantineObservedLock(
   await assertTerminalEvidenceDirectory(terminalRoot);
   const quarantineDirectory = join(
     terminalRoot.path,
-    `${phase}.${observed.evidence.token}.${retirementToken}`
+    `${phase}.${retirementToken}`
   );
   try {
     await mkdir(quarantineDirectory, { mode: 0o700 });

@@ -21,14 +21,53 @@ function invalidContract(kind: "Intent" | "Plan", error: CapabilityInputError): 
 
 const MAXIMUM_INTENT_DEPTH = 8;
 const MAXIMUM_INTENT_CONTAINER_ITEMS = 128;
+const MAXIMUM_DOCUMENT_OUTPUT_BYTES = 1024 * 1024;
+const OUTPUT_INTENT_KEYS = new Set([
+  "additionalMetadata",
+  "id",
+  "owner",
+  "related",
+  "summary",
+  "title",
+  "type"
+]);
 
-function isJsonScalar(value: unknown): boolean {
+interface IntentInspectionBudget {
+  outputLowerBoundBytes: number;
+}
+
+function addOutputLowerBound(
+  budget: IntentInspectionBudget,
+  bytes: number
+): void {
+  budget.outputLowerBoundBytes += bytes;
+  if (budget.outputLowerBoundBytes > MAXIMUM_DOCUMENT_OUTPUT_BYTES) {
+    throw new TypeError(
+      "Document Intent logically expands beyond the public document output byte limit."
+    );
+  }
+}
+
+function isJsonScalar(
+  value: unknown,
+  contributesToOutput: boolean,
+  budget: IntentInspectionBudget
+): boolean {
   if (value === null || typeof value === "boolean" || typeof value === "string") {
+    if (contributesToOutput) {
+      addOutputLowerBound(
+        budget,
+        1 + (typeof value === "string" ? Buffer.byteLength(value, "utf8") : 1)
+      );
+    }
     return true;
   }
   if (typeof value === "number") {
     if (!Number.isSafeInteger(value) || Object.is(value, -0)) {
       throw new TypeError("Document Intent numbers must be safe integers other than negative zero.");
+    }
+    if (contributesToOutput) {
+      addOutputLowerBound(budget, 1);
     }
     return true;
   }
@@ -62,19 +101,25 @@ function assertIntrinsicJsonContainer(value: object): void {
 
 function assertInertJson(input: unknown): void {
   const pending: (
-    | { readonly action: "enter"; readonly depth: number; readonly value: unknown }
+    | {
+        readonly action: "enter";
+        readonly contributesToOutput: boolean;
+        readonly depth: number;
+        readonly value: unknown;
+      }
     | { readonly action: "leave"; readonly value: object }
   )[] = [
-    { action: "enter", depth: 0, value: input }
+    { action: "enter", contributesToOutput: false, depth: 0, value: input }
   ];
   const ancestors = new WeakSet<object>();
+  const budget: IntentInspectionBudget = { outputLowerBoundBytes: 0 };
   while (pending.length > 0) {
     const current = pending.pop()!;
     if (current.action === "leave") {
       ancestors.delete(current.value);
       continue;
     }
-    if (isJsonScalar(current.value)) {
+    if (isJsonScalar(current.value, current.contributesToOutput, budget)) {
       continue;
     }
     if (current.value === null || typeof current.value !== "object") {
@@ -87,6 +132,9 @@ function assertInertJson(input: unknown): void {
       throw new TypeError("Document Intent must be a bounded acyclic JSON tree.");
     }
     assertIntrinsicJsonContainer(current.value);
+    if (current.contributesToOutput) {
+      addOutputLowerBound(budget, 1);
+    }
     ancestors.add(current.value);
     pending.push({ action: "leave", value: current.value });
     for (const key of inertContainerKeys(current.value)) {
@@ -103,6 +151,9 @@ function assertInertJson(input: unknown): void {
       }
       pending.push({
         action: "enter",
+        contributesToOutput: current.depth === 0
+          ? OUTPUT_INTENT_KEYS.has(key)
+          : current.contributesToOutput,
         depth: current.depth + 1,
         value: descriptor.value
       });

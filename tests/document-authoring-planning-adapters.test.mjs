@@ -207,6 +207,18 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
     additionalMetadata: { first: shared, second: shared }
   };
   assert.equal(await validator.validateIntent(sharedIntent), sharedIntent);
+  const amplifiedLeaf = Array.from({ length: 128 }, () => "x".repeat(4096));
+  const amplifiedMiddle = Array.from({ length: 128 }, () => amplifiedLeaf);
+  const amplifiedRoot = Array.from({ length: 128 }, () => amplifiedMiddle);
+  await assert.rejects(
+    validator.validateIntent({
+      ...intent,
+      additionalMetadata: { amplified: amplifiedRoot }
+    }),
+    (error) => error instanceof DocumentPlanningError &&
+      error.code === "DOCUMENT_PLANNING_INPUT_INVALID" &&
+      /output byte limit/u.test(error.message)
+  );
   await assert.rejects(
     validator.validatePlan({ schemaVersion: 1 }),
     (error) => error instanceof DocumentPlanningError &&

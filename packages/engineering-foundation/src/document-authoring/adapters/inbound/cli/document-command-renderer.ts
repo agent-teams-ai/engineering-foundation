@@ -29,6 +29,21 @@ function humanCommand(command: DocumentRecoveryCommand): string {
   }
 }
 
+function renderRecoveryCommand(
+  command: DocumentRecoveryCommand,
+  lines: string[]
+): void {
+  lines.push(`Run: ${humanCommand(command)}`);
+  const consumerRoot = command.args["consumerRoot"];
+  if (consumerRoot !== undefined) {
+    lines.push(`Run from consumer root: ${consumerRoot}`);
+  }
+  const exactBuild = command.args["exactFoundationBuildIdentity"];
+  if (exactBuild !== undefined) {
+    lines.push(`Required build: ${exactBuild}`);
+  }
+}
+
 function renderNew(result: DocumentNewResult, lines: string[]): void {
   if (result.documentPath !== undefined) {
     lines.push(`Document: ${result.documentPath}`);
@@ -76,11 +91,7 @@ function renderDoctor(result: DocumentDoctorResult, lines: string[]): void {
   }
   lines.push(`Recovery: ${result.recoveryClass}`);
   if (result.recoveryCommand !== undefined) {
-    lines.push(`Run: ${humanCommand(result.recoveryCommand)}`);
-    const exactBuild = result.recoveryCommand.args["exactFoundationBuildIdentity"];
-    if (exactBuild !== undefined) {
-      lines.push(`Required build: ${exactBuild}`);
-    }
+    renderRecoveryCommand(result.recoveryCommand, lines);
   }
 }
 
@@ -88,11 +99,7 @@ function renderRecover(result: DocumentRecoverResult, lines: string[]): void {
   lines.push(`Transaction: ${result.transactionState}`);
   lines.push(`Write: ${result.writeState}`);
   if (result.recoveryCommand !== undefined) {
-    lines.push(`Run: ${humanCommand(result.recoveryCommand)}`);
-    const exactBuild = result.recoveryCommand.args["exactFoundationBuildIdentity"];
-    if (exactBuild !== undefined) {
-      lines.push(`Required build: ${exactBuild}`);
-    }
+    renderRecoveryCommand(result.recoveryCommand, lines);
   }
 }
 

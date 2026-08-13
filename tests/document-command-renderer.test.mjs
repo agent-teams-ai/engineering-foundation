@@ -48,6 +48,49 @@ test("doctor omits unavailable evidence instead of inventing it", () => {
   assert.match(text, /Transaction: unknown/u);
 });
 
+test("recovery instruction renders consumer root separately from shell tokens", () => {
+  const consumerRoot = "/tmp/project with spaces; echo unsafe";
+  const exactBuild = `sha256:${"c".repeat(64)}`;
+  const text = renderDocumentCommandText(execution("docs.doctor", {
+    kind: "doctor",
+    transactionState: "document",
+    recoveryClass: "auto-recoverable",
+    recoveryCommand: {
+      commandId: "docs.recover",
+      args: {
+        consumerRoot,
+        exactFoundationVersion: "0.14.3",
+        exactFoundationBuildIdentity: exactBuild,
+      },
+    },
+  }, "recovery-required"));
+
+  assert.match(
+    text,
+    /Run: pnpm dlx @agent-teams\/engineering-foundation@0\.14\.3 docs recover/u,
+  );
+  assert.match(text, /Run from consumer root: \/tmp\/project with spaces; echo unsafe/u);
+  assert.match(text, /Required build: sha256:c{64}/u);
+  const runLine = text.split("\n").find((line) => line.startsWith("Run: "));
+  assert.equal(runLine?.includes(consumerRoot), false);
+});
+
+test("recover result uses the same separate consumer-root instruction", () => {
+  const text = renderDocumentCommandText(execution("docs.recover", {
+    kind: "recover",
+    transactionState: "recovery-required",
+    writeState: "unchanged",
+    recoveryRequired: true,
+    recoveryCommand: {
+      commandId: "docs.recover",
+      args: { consumerRoot: "/tmp/exact root" },
+    },
+  }, "recovery-required"));
+
+  assert.match(text, /Run: agent-teams-foundation docs recover/u);
+  assert.match(text, /Run from consumer root: \/tmp\/exact root/u);
+});
+
 test("new preview renders the canonical non-mutating next step", () => {
   const text = renderDocumentCommandText(execution("docs.new", {
     kind: "new",

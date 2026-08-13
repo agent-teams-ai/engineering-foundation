@@ -49,8 +49,12 @@ function deepFreezeCanonical<T>(value: T): T {
     if (current === undefined || Object.isFrozen(current)) {
       continue;
     }
-    for (const child of Object.values(current)) {
-      if (child !== null && typeof child === "object") {
+    for (const key of Reflect.ownKeys(current)) {
+      const descriptor = Object.getOwnPropertyDescriptor(current, key);
+      const child: unknown = descriptor !== undefined && "value" in descriptor
+        ? descriptor.value
+        : undefined;
+      if (typeof child === "object" && child !== null) {
         pending.push(child);
       }
     }

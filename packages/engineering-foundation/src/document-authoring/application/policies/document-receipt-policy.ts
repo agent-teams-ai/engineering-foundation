@@ -29,8 +29,12 @@ function deepFreezeCanonical<T>(value: T): T {
     if (current === undefined || Object.isFrozen(current)) {
       continue;
     }
-    for (const child of Object.values(current)) {
-      if (child !== null && typeof child === "object") {
+    for (const key of Reflect.ownKeys(current)) {
+      const descriptor = Object.getOwnPropertyDescriptor(current, key);
+      const child: unknown = descriptor !== undefined && "value" in descriptor
+        ? descriptor.value
+        : undefined;
+      if (typeof child === "object" && child !== null) {
         pending.push(child);
       }
     }
@@ -39,13 +43,18 @@ function deepFreezeCanonical<T>(value: T): T {
   return value;
 }
 
-export async function createDocumentReceipt(
-  body: DocumentReceiptBody,
-  plan: DocumentPlan
-): Promise<DocumentReceipt> {
+function requireDocumentPlan(
+  plan: DocumentPlan | undefined
+): asserts plan is DocumentPlan {
   if (plan === undefined) {
     throw new TypeError("Document Receipt requires the exact referenced Plan.");
   }
+}
+
+export async function createDocumentReceipt(
+  body: DocumentReceiptBody,
+  plan: DocumentPlan | undefined
+): Promise<DocumentReceipt> {
   const snapshot = deepFreezeCanonical(snapshotBody(body));
   const receipt = deepFreezeCanonical({
     ...snapshot,
@@ -54,21 +63,20 @@ export async function createDocumentReceipt(
     )
   }) as DocumentReceipt;
   await assertSchema("document-receipt/v1", receipt, "document-receipt");
+  requireDocumentPlan(plan);
   assertDocumentReceiptDigest(receipt, plan);
   return receipt;
 }
 
 export async function assertDocumentReceipt(
   receipt: unknown,
-  plan: DocumentPlan
+  plan: DocumentPlan | undefined
 ): Promise<DocumentReceipt> {
-  if (plan === undefined) {
-    throw new TypeError("Document Receipt requires the exact referenced Plan.");
-  }
   const snapshot = deepFreezeCanonical(
     JSON.parse(canonicalJson(receipt as CanonicalJsonValue)) as unknown
   );
   await assertSchema("document-receipt/v1", snapshot, "document-receipt");
+  requireDocumentPlan(plan);
   assertDocumentReceiptDigest(snapshot, plan);
   return snapshot as DocumentReceipt;
 }

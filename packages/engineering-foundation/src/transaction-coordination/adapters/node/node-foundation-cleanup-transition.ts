@@ -21,7 +21,7 @@ import {
 } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
 import {
   ensureFoundationStateDirectory,
-  syncFoundationStateDirectory
+  syncFoundationStateDirectoryStrictly
 } from "./node-foundation-state-directory.js";
 
 interface CleanupTransitionOperations {
@@ -33,7 +33,7 @@ interface CleanupTransitionOperations {
   readonly rename: typeof rename;
   readonly rm: (path: string) => Promise<void>;
   readonly rmdir: typeof rmdir;
-  readonly syncStateDirectory: typeof syncFoundationStateDirectory;
+  readonly syncStateDirectory: typeof syncFoundationStateDirectoryStrictly;
 }
 
 const nodeOperations: CleanupTransitionOperations = {
@@ -45,7 +45,7 @@ const nodeOperations: CleanupTransitionOperations = {
   rename,
   rm: async (path) => rm(path),
   rmdir,
-  syncStateDirectory: syncFoundationStateDirectory
+  syncStateDirectory: syncFoundationStateDirectoryStrictly
 };
 
 const markerBytes = Buffer.from("foundation cleanup transition\n", "utf8");

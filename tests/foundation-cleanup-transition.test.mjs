@@ -13,6 +13,10 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createNodeFoundationCleanupTransition } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
+import {
+  syncFoundationStateDirectory,
+  syncFoundationStateDirectoryStrictly,
+} from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-state-directory.js";
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import { readBoundedRegularFile } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-bounded-regular-file.js";
 import { scaffoldTransactionEvidenceExists } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.js";
@@ -124,4 +128,32 @@ test("marker without a journal globally blocks a new mutation", async () => {
     );
     await active.complete();
   });
+});
+
+test("cleanup marker creation fails closed when strict directory sync is unsupported", async () => {
+  await withRoot(async (root) => {
+    let opened = false;
+    const port = createNodeFoundationCleanupTransition(root, token, {
+      async syncStateDirectory() {
+        const error = new Error("unsupported marker directory fsync");
+        error.code = "EINVAL";
+        throw error;
+      },
+      async open(...args) {
+        opened = true;
+        return import("node:fs/promises").then(({ open }) => open(...args));
+      },
+    });
+    await assert.rejects(
+      port.begin(),
+      (error) => error?.code === "EINVAL",
+    );
+    assert.equal(opened, true);
+    const entries = await readdir(join(root, ".agent-teams-local"));
+    assert.deepEqual(entries, [`${prefix}${token}`]);
+  });
+});
+
+test("strict marker sync is a separate fail-closed operation", async () => {
+  assert.notEqual(syncFoundationStateDirectoryStrictly, syncFoundationStateDirectory);
 });

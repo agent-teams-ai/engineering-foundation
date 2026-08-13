@@ -15,6 +15,7 @@ import {
   planDocumentationDocument
 } from "../packages/engineering-foundation/dist/document-authoring/index.js";
 import { StrictDirectoryDurabilityError } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-directory-durability.js";
+import { createNodeFoundationCleanupTransition } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)
@@ -131,6 +132,25 @@ windowsTest("Windows public writer fails closed and preserves recovery evidence"
     const inspection = await inspectDocumentTransactionV1(root);
     assert.equal(inspection.state, "manual-recovery-required");
     assert.equal(inspection.reason, "journal-transition-residue");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+windowsTest("Windows cleanup marker authority fails closed on unsupported directory fsync", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-cleanup-marker-windows-"));
+  try {
+    const token = "d".repeat(64);
+    await assert.rejects(
+      createNodeFoundationCleanupTransition(root, token).begin(),
+      (error) => error instanceof Error &&
+        "code" in error &&
+        ["EACCES", "EINVAL", "EISDIR", "EPERM"].includes(error.code)
+    );
+    assert.deepEqual(
+      await readdir(join(root, ".agent-teams-local")),
+      [`foundation-transaction.cleanup-residue.${token}`]
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

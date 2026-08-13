@@ -81,6 +81,23 @@ export async function syncFoundationStateDirectory(path: string): Promise<void> 
   }
 }
 
+/**
+ * Persists recovery-authority metadata without treating unsupported directory
+ * fsync as success. Ordinary local state may use the tolerant operation above;
+ * transaction cleanup markers must fail closed because their durable presence
+ * is what globally excludes another mutation after a crash.
+ */
+export async function syncFoundationStateDirectoryStrictly(
+  path: string
+): Promise<void> {
+  const handle = await open(path, "r");
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function pruneFoundationStateDirectory(
   consumerRoot: string
 ): Promise<void> {

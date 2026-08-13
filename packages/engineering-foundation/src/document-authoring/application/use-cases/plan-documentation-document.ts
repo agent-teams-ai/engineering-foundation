@@ -1,8 +1,4 @@
 import { assertNotCancelled } from "../../../cancellation.js";
-import {
-  canonicalJson,
-  type CanonicalJsonValue
-} from "../../../canonical-json.js";
 import type {
   DocumentAuthorityEvidence,
   DocumentIdentityProjectionEntry,
@@ -171,15 +167,43 @@ function assertStableCatalog(
   before: DocumentationCatalogSnapshot,
   after: DocumentationCatalogSnapshot
 ): void {
-  if (
-    canonicalJson(before as unknown as CanonicalJsonValue) !==
-    canonicalJson(after as unknown as CanonicalJsonValue)
-  ) {
+  if (!sameCatalogSnapshot(before, after)) {
     throw new DocumentPlanningError(
       "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
       "Document catalog changed while the Plan was compiled."
     );
   }
+}
+
+function sameEvidenceList(
+  left: readonly DocumentAuthorityEvidence[],
+  right: readonly DocumentAuthorityEvidence[]
+): boolean {
+  return left.length === right.length &&
+    left.every((entry, index) => sameEvidence(entry, right[index]!));
+}
+
+function sameCatalogSnapshot(
+  left: DocumentationCatalogSnapshot,
+  right: DocumentationCatalogSnapshot
+): boolean {
+  const leftAuthority = [
+    left.authority.profile,
+    left.authority.metadataSchema,
+    left.authority.ownerCatalog
+  ];
+  const rightAuthority = [
+    right.authority.profile,
+    right.authority.metadataSchema,
+    right.authority.ownerCatalog
+  ];
+  return left.status === right.status &&
+    left.projectId === right.projectId &&
+    sameEvidenceList(leftAuthority, rightAuthority) &&
+    JSON.stringify(left.diagnostics) === JSON.stringify(right.diagnostics) &&
+    JSON.stringify(left.documents) === JSON.stringify(right.documents) &&
+    JSON.stringify(left.identityProjection) === JSON.stringify(right.identityProjection) &&
+    JSON.stringify(left.ownerIds) === JSON.stringify(right.ownerIds);
 }
 
 async function loadPlanningAuthority(
@@ -320,12 +344,24 @@ async function recaptureAuthority(input: {
     ...options
   });
   assertStableCatalog(authority.catalog, catalogAfter);
-  const stateAfterCatalog = await dependencies.state.observe({
-    consumerRoot: request.consumerRoot,
-    destination,
-    ...options
-  });
+  const [stateAfterCatalog, templateAfterCatalog] = await Promise.all([
+    dependencies.state.observe({
+      consumerRoot: request.consumerRoot,
+      destination,
+      ...options
+    }),
+    dependencies.templates.read({
+      consumerRoot: request.consumerRoot,
+      path: templatePath,
+      ...options
+    })
+  ]);
   assertStablePlanningState(state, stateAfterCatalog);
+  assertStableEvidence(
+    "Document template",
+    authority.template.evidence,
+    templateAfterCatalog.evidence
+  );
 }
 
 export class PlanDocumentationDocument {

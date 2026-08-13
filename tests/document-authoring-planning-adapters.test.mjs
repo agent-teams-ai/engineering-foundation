@@ -201,6 +201,12 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
     (error) => error instanceof DocumentPlanningError &&
       error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
   );
+  const shared = { value: "accepted-twice" };
+  const sharedIntent = {
+    ...intent,
+    additionalMetadata: { first: shared, second: shared }
+  };
+  assert.equal(await validator.validateIntent(sharedIntent), sharedIntent);
   await assert.rejects(
     validator.validatePlan({ schemaVersion: 1 }),
     (error) => error instanceof DocumentPlanningError &&

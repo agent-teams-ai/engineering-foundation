@@ -185,7 +185,7 @@ test("plans exact bytes through read-only ports and recaptures every authority",
   assert.equal(setup.profileReads(), 2);
   assert.equal(setup.calls.filter((call) => call === "metadata").length, 2);
   assert.equal(setup.calls.filter((call) => call === "owners").length, 2);
-  assert.equal(setup.calls.filter((call) => call === "template").length, 2);
+  assert.equal(setup.calls.filter((call) => call === "template").length, 3);
   assert.equal(setup.calls.some((call) => /write|reserve|publish/u.test(call)), false);
 });
 
@@ -251,6 +251,54 @@ test("fails closed when the final catalog or destination snapshot changes", asyn
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
       intent: stateSetup.intent
+    }),
+    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
+  );
+});
+
+test("admits decomposed catalog text but catches a third template read drift", async () => {
+  const catalogSetup = fixture();
+  const stableCatalog = await catalogSetup.dependencies.catalog.execute();
+  catalogSetup.dependencies.catalog.execute = async () => ({
+    ...stableCatalog,
+    documents: [{
+      id: "ADR-0001",
+      owner: "architecture/tooling",
+      repositoryPath: "docs/decisions/0001-neighbor.md",
+      source: "markdown-tree",
+      status: "accepted",
+      summary: "Cafe\u0301 is valid catalog text.",
+      title: "Cafe\u0301",
+      type: "adr"
+    }],
+    identityProjection: [{
+      id: "ADR-0001",
+      repositoryPath: "docs/decisions/0001-neighbor.md"
+    }]
+  });
+  await new PlanDocumentationDocument(catalogSetup.dependencies).execute({
+    consumerRoot: "/disposable-fixture",
+    profilePath: "architecture/foundation/document-authoring.yaml",
+    intent: catalogSetup.intent
+  });
+
+  const templateSetup = fixture();
+  let templateReads = 0;
+  templateSetup.dependencies.templates.read = async () => {
+    templateReads += 1;
+    return {
+      evidence: evidence(
+        "docs/templates/adr.md",
+        templateReads < 3 ? "template" : "changed-after-catalog"
+      ),
+      source: "template"
+    };
+  };
+  await assert.rejects(
+    new PlanDocumentationDocument(templateSetup.dependencies).execute({
+      consumerRoot: "/disposable-fixture",
+      profilePath: "architecture/foundation/document-authoring.yaml",
+      intent: templateSetup.intent
     }),
     (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
   );

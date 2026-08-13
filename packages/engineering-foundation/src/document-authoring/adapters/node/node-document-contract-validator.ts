@@ -20,26 +20,10 @@ function invalidContract(kind: "Intent" | "Plan", error: CapabilityInputError): 
 }
 
 const MAXIMUM_INTENT_DEPTH = 8;
-const MAXIMUM_INTENT_NODES = 16_384;
 const MAXIMUM_INTENT_CONTAINER_ITEMS = 128;
-const MAXIMUM_INTENT_STRING_CODE_UNITS = 1_048_576;
 
-interface IntentInspectionBudget {
-  nodes: number;
-  stringCodeUnits: number;
-}
-
-function isJsonScalar(
-  value: unknown,
-  budget: IntentInspectionBudget
-): boolean {
+function isJsonScalar(value: unknown): boolean {
   if (value === null || typeof value === "boolean" || typeof value === "string") {
-    if (typeof value === "string") {
-      budget.stringCodeUnits += value.length;
-      if (budget.stringCodeUnits > MAXIMUM_INTENT_STRING_CODE_UNITS) {
-        throw new TypeError("Document Intent text exceeds the inspection budget.");
-      }
-    }
     return true;
   }
   if (typeof value === "number") {
@@ -77,18 +61,20 @@ function assertIntrinsicJsonContainer(value: object): void {
 }
 
 function assertInertJson(input: unknown): void {
-  const pending: { readonly depth: number; readonly value: unknown }[] = [
-    { depth: 0, value: input }
+  const pending: (
+    | { readonly action: "enter"; readonly depth: number; readonly value: unknown }
+    | { readonly action: "leave"; readonly value: object }
+  )[] = [
+    { action: "enter", depth: 0, value: input }
   ];
-  const seen = new WeakSet<object>();
-  const budget: IntentInspectionBudget = { nodes: 0, stringCodeUnits: 0 };
+  const ancestors = new WeakSet<object>();
   while (pending.length > 0) {
     const current = pending.pop()!;
-    budget.nodes += 1;
-    if (budget.nodes > MAXIMUM_INTENT_NODES) {
-      throw new TypeError("Document Intent exceeds the node inspection budget.");
+    if (current.action === "leave") {
+      ancestors.delete(current.value);
+      continue;
     }
-    if (isJsonScalar(current.value, budget)) {
+    if (isJsonScalar(current.value)) {
       continue;
     }
     if (current.value === null || typeof current.value !== "object") {
@@ -97,11 +83,12 @@ function assertInertJson(input: unknown): void {
     if (isProxy(current.value)) {
       throw new TypeError("Document Intent must not contain Proxy objects.");
     }
-    if (current.depth > MAXIMUM_INTENT_DEPTH || seen.has(current.value)) {
+    if (current.depth > MAXIMUM_INTENT_DEPTH || ancestors.has(current.value)) {
       throw new TypeError("Document Intent must be a bounded acyclic JSON tree.");
     }
     assertIntrinsicJsonContainer(current.value);
-    seen.add(current.value);
+    ancestors.add(current.value);
+    pending.push({ action: "leave", value: current.value });
     for (const key of inertContainerKeys(current.value)) {
       if (key === "length" && Array.isArray(current.value)) {
         continue;
@@ -114,7 +101,11 @@ function assertInertJson(input: unknown): void {
       ) {
         throw new TypeError("Document Intent must contain only enumerable own data properties.");
       }
-      pending.push({ depth: current.depth + 1, value: descriptor.value });
+      pending.push({
+        action: "enter",
+        depth: current.depth + 1,
+        value: descriptor.value
+      });
     }
   }
 }

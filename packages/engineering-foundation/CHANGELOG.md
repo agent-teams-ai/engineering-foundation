@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 0.14.0
+
+### Minor Changes
+
+- [#94](https://github.com/agent-teams-ai/engineering-foundation/pull/94) [`3f0d16e`](https://github.com/agent-teams-ai/engineering-foundation/commit/3f0d16e1172a387e0ed00606988b4e3fd89a669c) Thanks [@777genius](https://github.com/777genius)! - Correct the pre-adoption document-authoring v1 contracts with explicit path inputs, closed identity and placement semantics, domain-separated digests, canonical Markdown rendering, and shared portable path conformance vectors.
+
 ## 0.13.1
 
 ### Patch Changes

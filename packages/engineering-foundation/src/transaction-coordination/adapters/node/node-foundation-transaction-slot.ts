@@ -11,8 +11,6 @@ import {
 } from "../../../foundation-state-contract.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { sha256Json as sha256DocumentJson } from "../../../canonical-json.js";
-import { assertDocumentPlanDigests } from "../../../document-authoring/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../../../document-authoring/application/policies/document-temporary-path.js";
 import type {
   AuthorityScaffoldJournal,
   JsonValue
@@ -33,9 +31,9 @@ import {
   isKnownLegacyDocumentEnvelope
 } from "./legacy-document-envelope-v2.js";
 import {
-  classifyNodeTemporaryIdentity,
-  unverifiableDocumentTemporaryStatus
-} from "./document-temporary-identity.js";
+  inspectCurrentDocumentEnvelope,
+  inspectDocumentTransactionBindings
+} from "./document-envelope-bindings.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
@@ -115,6 +113,41 @@ function pending(options: {
     foundationVersion: options.foundationVersion,
     recovery: recoveryRoute(options.foundationVersion),
     diagnostics
+  };
+}
+
+function pendingDocument(options: {
+  readonly foundationVersion: string;
+  readonly foundationBuildIdentity: string;
+  readonly installedVersion: string;
+  readonly installedBuildIdentity: string;
+}): FoundationTransactionStatus {
+  const exactBuild =
+    options.foundationVersion === options.installedVersion &&
+    options.foundationBuildIdentity === options.installedBuildIdentity;
+  return {
+    state: "pending",
+    operationKind: "document-authoring",
+    format: "document-authoring-envelope-v3",
+    foundationVersion: options.foundationVersion,
+    foundationBuildIdentity: options.foundationBuildIdentity,
+    recovery: {
+      commandId: "docs-recover",
+      exactFoundationVersion: options.foundationVersion,
+      exactFoundationBuildIdentity: options.foundationBuildIdentity
+    },
+    diagnostics: [
+      exactBuild
+        ? {
+            code: "FOUNDATION_TRANSACTION_ACTIVE",
+            message:
+              "A pending document-authoring transaction must be recovered before another Foundation mutation can start."
+          }
+        : {
+            code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+            message: `Foundation ${options.foundationVersion} (${options.foundationBuildIdentity}) must recover the pending document-authoring transaction before package ${options.installedVersion} (${options.installedBuildIdentity}) can mutate this repository.`
+          }
+    ]
   };
 }
 
@@ -245,96 +278,23 @@ function assertEnvelopeDigests(envelope: Record<string, unknown>): void {
   }
 }
 
-function assertDocumentTransactionBindings(
-  journal: Record<string, unknown>,
-  plan: Record<string, unknown>,
-  envelopeState: unknown,
-  legacyDigestSemantics: boolean
-): "legacy-or-absent" | "verifiable" | "unverifiable" {
-  const output = plan["output"];
-  const destination = journal["destination"];
-  if (
-    !isRecord(output) ||
-    typeof output["contentBase64"] !== "string" ||
-    !isRecord(destination) ||
-    destination["path"] !== plan["destination"]
-  ) {
-    throw new Error("Document transaction semantic binding is invalid.");
-  }
-  const ownedTemporary = journal["ownedTemporary"];
-  let temporaryIdentityAuthority: "legacy-or-absent" | "verifiable" | "unverifiable" =
-    "legacy-or-absent";
-  if (ownedTemporary !== undefined) {
-    const expectedTemporary = legacyDigestSemantics
-      ? `${String(plan["destination"])}.foundation-document.tmp`
-      : documentTemporaryPath(
-          String(plan["destination"]),
-          String(plan["planDigest"])
-        );
-    if (
-      !isRecord(ownedTemporary) ||
-      ownedTemporary["digest"] !== output["digest"] ||
-      typeof ownedTemporary["path"] !== "string" ||
-      ownedTemporary["path"] !== expectedTemporary ||
-      (!legacyDigestSemantics &&
-        classifyNodeTemporaryIdentity(ownedTemporary["identity"]) === "invalid")
-    ) {
-      throw new Error("Document transaction temporary binding is invalid.");
-    }
-    if (!legacyDigestSemantics) {
-      temporaryIdentityAuthority = classifyNodeTemporaryIdentity(
-        ownedTemporary["identity"]
-      ) as "verifiable" | "unverifiable";
-    }
-  }
-  const precondition = plan["destinationPrecondition"];
-  if (!isRecord(precondition)) {
-    throw new Error("Document transaction destination precondition is invalid.");
-  }
-  const lifecycle = `${String(precondition["state"])}:${String(destination["state"])}:${String(ownedTemporary !== undefined)}`;
-  const expectedLifecycle = new Map([
-    ["PREPARED", new Set(["absent:pending:false", "absent:preexisting:false"])],
-    ["PUBLISHING", new Set(["absent:publishing:true"])],
-    ["PUBLISHED", new Set(["absent:published:false"])],
-  ]).get(String(envelopeState));
-  if (expectedLifecycle === undefined || !expectedLifecycle.has(lifecycle)) {
-    throw new Error("Document transaction lifecycle binding is invalid.");
-  }
-  return temporaryIdentityAuthority;
-}
-
-function inspectDocumentTransactionBindings(options: {
-  readonly foundation: Record<string, unknown>;
-  readonly journal: Record<string, unknown>;
-  readonly legacy: boolean;
-  readonly plan: Record<string, unknown>;
-  readonly state: unknown;
-}): FoundationTransactionStatus | undefined {
-  if (!options.legacy) {
-    assertDocumentPlanDigests(options.plan);
-  }
-  return assertDocumentTransactionBindings(
-    options.journal,
-    options.plan,
-    options.state,
-    options.legacy
-  ) === "unverifiable"
-    ? unverifiableDocumentTemporaryStatus(options.foundation)
-    : undefined;
-}
-
 async function inspectParsedTransaction(
   value: unknown,
   installedVersion: string,
   installedBuildIdentity: string
 ): Promise<FoundationTransactionStatus> {
-  if (!isRecord(value) || typeof value["schemaVersion"] !== "number") {
+  if (!isRecord(value)) {
     return manual(
       "invalid-slot",
       "The Foundation transaction slot is invalid and was preserved."
     );
   }
-  if (value["schemaVersion"] === 1) {
+  const schemaVersion = value["schemaVersion"];
+  if (typeof schemaVersion !== "number") {
+    return manual("invalid-slot", "The Foundation transaction slot is invalid and was preserved.");
+  }
+  switch (schemaVersion) {
+  case 1: {
     await assertSchema(
       "scaffold-recovery-journal/v1",
       value,
@@ -355,7 +315,11 @@ async function inspectParsedTransaction(
       installedBuildIdentity
     });
   }
-  if (value["schemaVersion"] === 2) {
+  case 3:
+    return inspectCurrentDocumentEnvelope({
+      value, installedVersion, installedBuildIdentity, pending: pendingDocument
+    });
+  case 2: {
     const legacyDocumentEnvelope = isKnownLegacyDocumentEnvelope(value);
     if (legacyDocumentEnvelope) {
       assertLegacyDocumentEnvelope(value);
@@ -394,7 +358,11 @@ async function inspectParsedTransaction(
     }
     if (operationKind === "document-authoring") {
       const documentStatus = inspectDocumentTransactionBindings({
-        foundation, journal, legacy: legacyDocumentEnvelope, plan,
+        foundation,
+        journal,
+        journalVersion: 1,
+        legacyDigestSemantics: legacyDocumentEnvelope,
+        plan,
         state: value["state"]
       });
       if (documentStatus !== undefined) {
@@ -420,10 +388,12 @@ async function inspectParsedTransaction(
       ]
     };
   }
-  return manual(
-    "unsupported-schema",
-    `Foundation transaction schema version ${String(value["schemaVersion"])} is unsupported and was preserved.`
-  );
+  default:
+    return manual(
+      "unsupported-schema",
+      `Foundation transaction schema version ${String(schemaVersion)} is unsupported and was preserved.`
+    );
+  }
 }
 
 export class NodeFoundationTransactionSlot implements FoundationTransactionSlot {

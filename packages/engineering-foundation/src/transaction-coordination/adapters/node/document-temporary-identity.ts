@@ -22,16 +22,17 @@ export function classifyNodeTemporaryIdentity(
 }
 
 export function unverifiableDocumentTemporaryStatus(
-  foundation: Record<string, unknown>
+  foundation: Record<string, unknown>,
+  format: "envelope-v2" | "envelope-v3" = "envelope-v2"
 ): FoundationTransactionStatus {
   return {
-    state: "manual-recovery-required", reason: "recovery-handler-unavailable",
-    operationKind: "document-authoring", format: "envelope-v2",
+    state: "manual-recovery-required", reason: "physical-identity-unverifiable",
+    operationKind: "document-authoring", format,
     foundationVersion: String(foundation["version"]),
     foundationBuildIdentity: String(foundation["buildIdentity"]),
     diagnostics: [{
       code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
-      message: "The preserved Document transaction temporary has an adapter-reported zero physical identity and cannot authorize automatic recovery or publication."
+      message: "The preserved Document transaction has an adapter-reported zero physical identity and cannot authorize automatic recovery or publication."
     }]
   };
 }

@@ -42,6 +42,28 @@ function observedStatusFormat(status: FoundationTransactionStatus): unknown {
   return Reflect.get(status, "format") as unknown;
 }
 
+function isDocumentRecoveryAllowed(
+  status: FoundationTransactionStatus,
+  options: {
+    readonly requestedMutation: FoundationMutationKind;
+    readonly allowRecoveryOf?: "document-authoring" | "local-mode" | "scaffolding";
+  }
+): boolean {
+  return (
+    status.state === "pending" &&
+    status.operationKind === "document-authoring" &&
+    observedStatusFormat(status) === "document-authoring-envelope-v3" &&
+    status.recovery.exactFoundationVersion === status.foundationVersion &&
+    status.recovery.exactFoundationBuildIdentity ===
+      status.foundationBuildIdentity &&
+    options.allowRecoveryOf === "document-authoring" &&
+    options.requestedMutation === "document-authoring" &&
+    !status.diagnostics.some(
+      ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
+    )
+  );
+}
+
 export interface FoundationTransactionLease {
   readonly status: FoundationTransactionStatus;
   release(options?: { readonly retainTransactionBarrier?: boolean }): Promise<void>;
@@ -65,7 +87,7 @@ export class FoundationTransactionCoordinator {
 
   async acquire(options: {
     readonly requestedMutation: FoundationMutationKind;
-    readonly allowRecoveryOf?: "local-mode" | "scaffolding";
+    readonly allowRecoveryOf?: "document-authoring" | "local-mode" | "scaffolding";
   }): Promise<FoundationTransactionLease> {
     const release = await this.#lock.acquire();
     let held = true;
@@ -86,10 +108,12 @@ export class FoundationTransactionCoordinator {
         observedStatusFormat(status) === "local-mode-v1" &&
         options.allowRecoveryOf === "local-mode" &&
         options.requestedMutation === "detach";
+      const documentRecoveryAllowed = isDocumentRecoveryAllowed(status, options);
       if (
         status.state !== "idle" &&
         !scaffoldingRecoveryAllowed &&
-        !localModeRecoveryAllowed
+        !localModeRecoveryAllowed &&
+        !documentRecoveryAllowed
       ) {
         throw new FoundationTransactionError({
           requestedMutation: options.requestedMutation,

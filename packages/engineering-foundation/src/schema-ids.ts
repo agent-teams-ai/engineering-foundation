@@ -7,6 +7,7 @@ export const FOUNDATION_SCHEMA_IDS = [
   "contract-protobuf-evolution/v1",
   "document-authoring-profile/v1",
   "document-command-envelope/v1",
+  "document-command-envelope/v2",
   "document-intent/v1",
   "document-plan/v1",
   "document-receipt/v1",

@@ -108,7 +108,11 @@ requiresStrictDirectoryDurability("creates, reads, replaces, and removes canonic
 
     await store.remove(secondAuthority);
     assert.equal(await store.read(), undefined);
-    assert.deepEqual(await readdir(join(path, "..")), []);
+    assert.equal(
+      (await readdir(join(path, ".."))).every((entry) =>
+        entry.endsWith(".completed-document-evidence")),
+      true
+    );
   });
 });
 
@@ -254,7 +258,7 @@ requiresStrictDirectoryDurability("nested quarantine retirement syncs destinatio
     assert.equal(observed[nestedRetirement + 2].path, state);
     assert.equal(
       observed.filter((entry) => entry.role === "destination").length,
-      3
+      4
     );
   });
 });
@@ -479,6 +483,30 @@ requiresStrictDirectoryDurability("private cleanup never deletes a pathname-swap
         entry.endsWith(".document-transition.owned-preserved")
       )
     );
+  });
+});
+
+requiresStrictDirectoryDurability("logical retirement never deletes a replacement after final proof", async () => {
+  await withFixture(async ({ path }) => {
+    let retiredPath;
+    const store = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (
+          point.phase === "before-logical-retirement" &&
+          point.evidence === "candidate"
+        ) {
+          retiredPath = point.path;
+          await rename(point.path, `${point.path}.owned-preserved`);
+          await writeFile(point.path, "foreign final cleanup target\n", {
+            flag: "wx",
+            mode: 0o600
+          });
+        }
+      }
+    });
+    await assert.rejects(store.create(await envelope()), /changed concurrently/u);
+    assert.equal(await readFile(retiredPath, "utf8"), "foreign final cleanup target\n");
+    await lstat(`${retiredPath}.owned-preserved`);
   });
 });
 

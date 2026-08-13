@@ -41,6 +41,11 @@ export type NodeScaffoldJournalStoreFaultPoint =
       readonly phase: "before-private-retirement";
     }
   | {
+      readonly evidence: NodeScaffoldJournalEvidence;
+      readonly mutation: NodeScaffoldJournalMutation;
+      readonly phase: "before-logical-retirement";
+    }
+  | {
       readonly mutation: NodeScaffoldJournalMutation;
       readonly phase: "before-final-directory-sync";
     }

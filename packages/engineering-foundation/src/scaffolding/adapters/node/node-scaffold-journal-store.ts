@@ -1,5 +1,5 @@
-import { link, open, rename, rm, rmdir } from "node:fs/promises";
-import { join } from "node:path";
+import { link, mkdir, open, rename } from "node:fs/promises";
+import { basename, join } from "node:path";
 
 import {
   FOUNDATION_TRANSACTION_FILE,
@@ -14,6 +14,7 @@ import {
   observeScaffoldJournalAuthority,
   readStoredScaffoldJournal,
   scaffoldJournalAuthority,
+  scaffoldJournalErrorCode,
   scaffoldJournalRecoveryRequired,
   scaffoldJournalResidueNames,
   scaffoldQuarantinePrefix,
@@ -449,15 +450,31 @@ export class NodeScaffoldJournalStore {
       mutation
     );
     await this.#prove(retired.path, expected, "Retired scaffolding journal evidence");
-    await rm(retired.path);
-    await this.#syncDirectory(
-      retired.directory,
+    await this.#operations.faultInjector?.({
+      evidence,
       mutation,
-      "destination"
+      phase: "before-logical-retirement"
+    });
+    await this.#prove(retired.path, expected, "Retired scaffolding journal evidence");
+    const terminalRoot = join(
+      this.#parent,
+      `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
     );
-    await rmdir(retired.directory);
+    await mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
+      if (scaffoldJournalErrorCode(error) !== "EEXIST") {
+        throw error;
+      }
+    });
+    await this.#syncDirectory(this.#parent, mutation, "state-parent");
+    const terminalDirectory = join(terminalRoot, basename(retired.directory));
+    await rename(retired.directory, terminalDirectory);
+    await this.#syncDirectory(terminalRoot, mutation, "destination");
     if (sourceDirectory !== this.#parent) {
-      await rmdir(sourceDirectory);
+      await rename(
+        sourceDirectory,
+        join(terminalRoot, `${basename(sourceDirectory)}.empty`)
+      );
+      await this.#syncDirectory(terminalRoot, mutation, "destination");
     }
     await this.#syncDirectory(
       this.#parent,

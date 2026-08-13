@@ -67,7 +67,7 @@ function transition(events) {
   };
 }
 
-test("atomically quarantines and durably removes the expected temporary", async () => {
+test("atomically quarantines and durably retires the expected temporary", async () => {
   const paths = await fixture();
   try {
     const cleanup = options(paths);
@@ -79,17 +79,18 @@ test("atomically quarantines and durably removes the expected temporary", async 
     assert.deepEqual(cleanup.syncs, [
       quarantine,
       paths.parent,
-      quarantine,
+      paths.parent,
       paths.parent,
     ]);
     assert.deepEqual(cleanup.operations, [
       `sync:${quarantine}`,
       `sync:${paths.parent}`,
-      `rm:${join(quarantine, "owned-temporary")}`,
-      `sync:${quarantine}`,
+      `sync:${paths.parent}`,
       `sync:${paths.parent}`,
     ]);
-    assert.deepEqual(await readdir(paths.parent), []);
+    assert.deepEqual(await readdir(paths.parent), [
+      ".foundation-retired-evidence-",
+    ]);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }
@@ -213,8 +214,10 @@ test("durably begins the cleanup transition before quarantine rename", async () 
     const events = [];
     const cleanup = options(paths, {
       async rename(source, destination) {
-        assert.deepEqual(events, ["transition:begin"]);
-        events.push("quarantine:rename");
+        if (source === paths.temporaryPath) {
+          assert.deepEqual(events, ["transition:begin"]);
+          events.push("quarantine:rename");
+        }
         await rename(source, destination);
       },
     });
@@ -230,13 +233,13 @@ test("durably begins the cleanup transition before quarantine rename", async () 
   }
 });
 
-test("retains the cleanup transition when quarantine cleanup fails", async () => {
+test("retains the cleanup transition when logical retirement fails", async () => {
   const paths = await fixture();
   try {
     const events = [];
     const cleanup = options(paths);
     cleanup.value.transition = transition(events);
-    cleanup.value.rm = async () => {
+    cleanup.value.operations.beforeLogicalRetirement = async () => {
       throw new Error("cleanup failed");
     };
     await assert.rejects(
@@ -244,6 +247,28 @@ test("retains the cleanup transition when quarantine cleanup fails", async () =>
       /cleanup failed/u,
     );
     assert.deepEqual(events, ["transition:begin"]);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("never deletes a replacement swapped after the final temporary proof", async () => {
+  const paths = await fixture();
+  try {
+    let retiredPath;
+    const cleanup = options(paths, {
+      async beforeLogicalRetirement(path) {
+        retiredPath = path;
+        await rename(path, `${path}.owned`);
+        await writeFile(path, "foreign replacement\n");
+      },
+    });
+    assert.equal(
+      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      "different",
+    );
+    assert.equal(await readFile(retiredPath, "utf8"), "foreign replacement\n");
+    assert.equal(await readFile(`${retiredPath}.owned`, "utf8"), "owned\n");
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }
@@ -279,6 +304,9 @@ test("completes the transition when the owned source disappears before rename", 
     const events = [];
     const cleanup = options(paths, {
       async rename(source) {
+        if ((await lstat(source)).isDirectory()) {
+          return rename(source, join(paths.parent, ".foundation-retired-evidence-", "deterministic"));
+        }
         await rm(source);
         const error = new Error("source disappeared");
         error.code = "ENOENT";
@@ -291,7 +319,9 @@ test("completes the transition when the owned source disappears before rename", 
       "missing",
     );
     assert.deepEqual(events, ["transition:begin", "transition:complete"]);
-    assert.deepEqual(await readdir(paths.parent), []);
+    assert.deepEqual(await readdir(paths.parent), [
+      ".foundation-retired-evidence-",
+    ]);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }

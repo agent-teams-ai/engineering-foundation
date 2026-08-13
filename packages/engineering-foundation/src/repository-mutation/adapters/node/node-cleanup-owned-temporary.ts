@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rename, rmdir } from "node:fs/promises";
+import { mkdir, rename } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import type { PortablePathIdentity } from "../../application/model/path-identity.js";
@@ -10,11 +10,26 @@ import { syncPublicationDirectory } from "./node-absent-file-publication-private
 
 export const OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER =
   ".foundation-owned-cleanup-";
+export const OWNED_TEMPORARY_RETIRED_EVIDENCE_MARKER =
+  ".foundation-retired-evidence-";
 
 export function ownedTemporaryCleanupResiduePrefix(
   temporaryPath: string
 ): string {
   return `.${basename(temporaryPath)}${OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER}`;
+}
+
+function cleanupOperations(
+  operations: Parameters<typeof cleanupIdentityMatchingOwnedTemporary>[0]["operations"]
+) {
+  return {
+    beforeLogicalRetirement: operations?.beforeLogicalRetirement,
+    identityMatch:
+      operations?.pathMatchesRegularFileIdentity ?? pathMatchesRegularFileIdentity,
+    makeDirectory: operations?.mkdir ?? mkdir,
+    move: operations?.rename ?? rename,
+    token: operations?.quarantineToken?.() ?? randomUUID()
+  };
 }
 
 async function beginCleanupTransition(options: {
@@ -54,14 +69,47 @@ async function beginCleanupTransition(options: {
 
 async function removeEmptyQuarantineAfterMissing(options: {
   readonly cleanupOptions: Parameters<typeof syncPublicationDirectory>[0];
+  readonly makeDirectory: typeof mkdir;
   readonly quarantineDirectory: string;
-  readonly removeDirectory: typeof rmdir;
+  readonly move: typeof rename;
+  readonly retiredEvidenceRoot: string;
+  readonly retiredDirectory: string;
   readonly transition: Awaited<ReturnType<OwnedTemporaryCleanupTransitionPort["begin"]>> | undefined;
 }): Promise<"missing"> {
-  await options.removeDirectory(options.quarantineDirectory);
+  await options.makeDirectory(options.retiredEvidenceRoot, { mode: 0o700 })
+    .catch((error) => {
+      if (errorCode(error) !== "EEXIST") {
+        throw error;
+      }
+    });
+  await options.move(options.quarantineDirectory, options.retiredDirectory);
   await syncPublicationDirectory(options.cleanupOptions);
   await options.transition?.complete();
   return "missing";
+}
+
+async function logicallyRetireQuarantine(options: {
+  readonly cleanupOptions: Parameters<typeof syncPublicationDirectory>[0];
+  readonly expectedIdentity: PortablePathIdentity;
+  readonly identityMatch: typeof pathMatchesRegularFileIdentity;
+  readonly move: typeof rename;
+  readonly quarantinedPath: string;
+  readonly quarantineDirectory: string;
+  readonly retiredDirectory: string;
+  readonly beforeLogicalRetirement?: (path: string) => Promise<void> | void;
+}): Promise<"different" | "removed"> {
+  await options.beforeLogicalRetirement?.(options.quarantinedPath);
+  if (
+    (await options.identityMatch(
+      options.quarantinedPath,
+      options.expectedIdentity
+    )) !== "match"
+  ) {
+    return "different";
+  }
+  await options.move(options.quarantineDirectory, options.retiredDirectory);
+  await syncPublicationDirectory(options.cleanupOptions);
+  return "removed";
 }
 
 export async function cleanupIdentityMatchingOwnedTemporary(options: {
@@ -76,24 +124,30 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
   readonly temporaryPath: string;
   readonly transition?: OwnedTemporaryCleanupTransitionPort;
   readonly operations?: {
+    readonly beforeLogicalRetirement?: (path: string) => Promise<void> | void;
     readonly mkdir?: typeof mkdir;
     readonly pathMatchesRegularFileIdentity?: typeof pathMatchesRegularFileIdentity;
     readonly quarantineToken?: () => string;
     readonly rename?: typeof rename;
-    readonly rmdir?: typeof rmdir;
   };
 }): Promise<"different" | "missing" | "removed"> {
-  const makeDirectory = options.operations?.mkdir ?? mkdir;
-  const move = options.operations?.rename ?? rename;
-  const removeDirectory = options.operations?.rmdir ?? rmdir;
-  const identityMatch = options.operations?.pathMatchesRegularFileIdentity ??
-    pathMatchesRegularFileIdentity;
-  const token = options.operations?.quarantineToken?.() ?? randomUUID();
+  const {
+    beforeLogicalRetirement,
+    identityMatch,
+    makeDirectory,
+    move,
+    token
+  } = cleanupOperations(options.operations);
   const quarantineDirectory = join(
     options.parent,
     `${ownedTemporaryCleanupResiduePrefix(options.temporaryPath)}${token}`
   );
   const quarantinedPath = join(quarantineDirectory, "owned-temporary");
+  const retiredEvidenceRoot = join(
+    options.parent,
+    OWNED_TEMPORARY_RETIRED_EVIDENCE_MARKER
+  );
+  const retiredDirectory = join(retiredEvidenceRoot, token);
   const begun = await beginCleanupTransition({
     displayPath: options.displayPath,
     expectedIdentity: options.expectedIdentity,
@@ -121,14 +175,14 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     if (errorCode(error) === "ENOENT") {
       return removeEmptyQuarantineAfterMissing({
         cleanupOptions: options,
+        makeDirectory,
         quarantineDirectory,
-        removeDirectory,
+        move,
+        retiredEvidenceRoot,
+        retiredDirectory,
         transition
       });
     }
-    // The private directory is empty when rename fails. Its removal never
-    // touches the source evidence, which remains at the caller-visible path.
-    await removeDirectory(quarantineDirectory).catch(() => {});
     throw error;
   }
   // Persist the atomic capture before deciding whether it grants deletion
@@ -143,10 +197,30 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
   if (ownership !== "match") {
     return "different";
   }
-  await options.rm(quarantinedPath);
-  await syncCleanupDirectory(options, quarantineDirectory);
-  await removeDirectory(quarantineDirectory);
+  await makeDirectory(retiredEvidenceRoot, { mode: 0o700 }).catch((error) => {
+    if (errorCode(error) !== "EEXIST") {
+      throw error;
+    }
+  });
   await syncCleanupDirectory(options, options.parent);
+  // Node exposes no unlink-by-handle or identity-conditional unlink. Moving
+  // the whole private directory into a terminal namespace is atomic and can
+  // never delete a pathname replacement introduced after the final proof.
+  const retirement = await logicallyRetireQuarantine({
+    cleanupOptions: options,
+    expectedIdentity: options.expectedIdentity,
+    identityMatch,
+    move,
+    quarantinedPath,
+    quarantineDirectory,
+    retiredDirectory,
+    ...(beforeLogicalRetirement === undefined
+      ? {}
+      : { beforeLogicalRetirement })
+  });
+  if (retirement === "different") {
+    return retirement;
+  }
   await transition?.complete();
   return "removed";
 }

@@ -1,5 +1,5 @@
-import { lstat, link, mkdir, open, rename, rm, rmdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { lstat, link, mkdir, open, rename } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 
 import type { AuthorityScaffoldJournal } from "../../contract/types.js";
 import { assertAuthorityScaffoldJournal } from "../../kernel/authority-journal-validation.js";
@@ -28,6 +28,12 @@ function isMissing(error: unknown): boolean {
     "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT"
   );
+}
+
+function errorCode(error: unknown): string | undefined {
+  return error instanceof Error && "code" in error
+    ? (error as NodeJS.ErrnoException).code
+    : undefined;
 }
 
 async function writeAuthorityJournalFile(
@@ -105,7 +111,6 @@ async function writeAuthorityJournalFile(
     renamed = true;
     if (quarantine !== undefined) {
       await retirePrivateEvidence(quarantine.path, existing!, quarantine.directory);
-      await rmdir(quarantine.directory);
       await syncDirectory(parent);
     }
     return temporaryAuthority;
@@ -210,9 +215,19 @@ async function retirePrivateEvidence(
   if (!(await authorityMatches(quarantine.path, expected))) {
     throw recoveryRequired("Quarantined scaffolding journal evidence changed concurrently.");
   }
-  await rm(quarantine.path);
-  await syncDirectory(quarantine.directory);
-  await rmdir(quarantine.directory);
+  const terminalRoot = join(
+    dirname(quarantine.directory),
+    `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
+  );
+  await mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
+    if (errorCode(error) !== "EEXIST") {
+      throw error;
+    }
+  });
+  await syncDirectory(dirname(quarantine.directory));
+  const terminalDirectory = join(terminalRoot, basename(quarantine.directory));
+  await rename(quarantine.directory, terminalDirectory);
+  await syncDirectory(terminalRoot);
   await syncDirectory(dirname(quarantine.directory));
 }
 
@@ -360,9 +375,19 @@ export async function removeExpectedAuthorityScaffoldJournal(
   if (!(await authorityMatches(quarantine.path, expectedAuthority))) {
     throw recoveryRequired("Quarantined scaffolding journal changed concurrently.");
   }
-  await rm(quarantine.path);
-  await syncDirectory(quarantine.directory);
-  await rmdir(quarantine.directory);
+  const terminalRoot = join(
+    dirname(quarantine.directory),
+    `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
+  );
+  await mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
+    if (errorCode(error) !== "EEXIST") {
+      throw error;
+    }
+  });
+  await syncDirectory(dirname(quarantine.directory));
+  const terminalDirectory = join(terminalRoot, basename(quarantine.directory));
+  await rename(quarantine.directory, terminalDirectory);
+  await syncDirectory(terminalRoot);
   await syncDirectory(dirname(path));
   await faultInjector?.afterQuarantine?.();
 }

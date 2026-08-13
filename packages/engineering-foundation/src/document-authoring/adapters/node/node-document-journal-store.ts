@@ -1,4 +1,4 @@
-import { link, mkdir, open, readdir, rename, rm, rmdir, type FileHandle } from "node:fs/promises";
+import { link, mkdir, open, readdir, rename, type FileHandle } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { TextDecoder } from "node:util";
@@ -225,15 +225,24 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
       operation
     );
     await proveAuthority(retired.path, expected, `Retired ${description}`);
-    // `retired.path` lives in a fresh 0700 operation-private directory and is
-    // never exposed as mutation authority. Pure Node has no unlink-by-handle
-    // primitive; the
-    // operation lease and same-UID threat boundary bound the cleanup window.
-    await rm(retired.path);
-    await this.#syncDirectory(retired.directory, operation, "destination");
-    await rmdir(retired.directory);
+    await this.operations.faultInjector?.({ evidence, operation,
+      path: retired.path, phase: "before-logical-retirement" });
+    await proveAuthority(retired.path, expected, `Retired ${description}`);
+    const terminalRoot = join(this.#parent,
+      `${this.#canonicalName}.completed-document-evidence`);
+    await mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
+      if (errorCode(error) !== "EEXIST") {
+        throw error;
+      }
+    });
+    await this.#syncDirectory(this.#parent, operation, "state-parent");
+    const terminalDirectory = join(terminalRoot, basename(retired.directory));
+    await rename(retired.directory, terminalDirectory);
+    await this.#syncDirectory(terminalRoot, operation, "destination");
     if (sourceDirectory !== this.#parent) {
-      await rmdir(sourceDirectory);
+      await rename(sourceDirectory,
+        join(terminalRoot, `${basename(sourceDirectory)}.empty`));
+      await this.#syncDirectory(terminalRoot, operation, "destination");
     }
     await this.#syncDirectory(this.#parent, operation, "state-parent");
   }

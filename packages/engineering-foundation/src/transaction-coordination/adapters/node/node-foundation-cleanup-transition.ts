@@ -3,8 +3,6 @@ import {
   mkdir,
   open,
   rename,
-  rm,
-  rmdir,
   type FileHandle
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -25,26 +23,24 @@ import {
 } from "./node-foundation-state-directory.js";
 
 interface CleanupTransitionOperations {
+  readonly beforeLogicalRetirement: (path: string) => Promise<void> | void;
   readonly ensureStateDirectory: typeof ensureFoundationStateDirectory;
   readonly mkdir: typeof mkdir;
   readonly open: (path: string, flags: "wx", mode: number) => Promise<FileHandle>;
   readonly randomToken: () => string;
   readonly readBoundedRegularFile: typeof readBoundedRegularFile;
   readonly rename: typeof rename;
-  readonly rm: (path: string) => Promise<void>;
-  readonly rmdir: typeof rmdir;
   readonly syncStateDirectory: typeof syncFoundationStateDirectoryStrictly;
 }
 
 const nodeOperations: CleanupTransitionOperations = {
+  beforeLogicalRetirement: () => {},
   ensureStateDirectory: ensureFoundationStateDirectory,
   mkdir,
   open,
   randomToken: randomUUID,
   readBoundedRegularFile,
   rename,
-  rm: async (path) => rm(path),
-  rmdir,
   syncStateDirectory: syncFoundationStateDirectoryStrictly
 };
 
@@ -119,18 +115,29 @@ export function createNodeFoundationCleanupTransition(
           await operations.syncStateDirectory(retirementDirectory);
           await operations.syncStateDirectory(stateDirectory);
           await assertMarkerAuthority(retiredMarker, identity, operations);
-          await operations.rm(retiredMarker);
-          await operations.syncStateDirectory(retirementDirectory);
-          await operations.rmdir(retirementDirectory);
-          try {
-            await operations.syncStateDirectory(stateDirectory);
-          } catch (error) {
-            // The retirement-directory unlink is not trusted until its parent
-            // sync succeeds. Recreate canonical evidence before surfacing the
-            // failure so a live coordinator cannot observe a false idle state.
-            await createMarker(marker, stateDirectory, operations).catch(() => {});
-            throw error;
-          }
+          await operations.beforeLogicalRetirement(retiredMarker);
+          await assertMarkerAuthority(retiredMarker, identity, operations);
+          const terminalRoot = join(
+            stateDirectory,
+            "foundation-cleanup-retired-evidence"
+          );
+          await operations.mkdir(terminalRoot, { mode: 0o700 }).catch((error) => {
+            if (
+              !(error instanceof Error) ||
+              !("code" in error) ||
+              (error as NodeJS.ErrnoException).code !== "EEXIST"
+            ) {
+              throw error;
+            }
+          });
+          await operations.syncStateDirectory(stateDirectory);
+          const terminalDirectory = join(
+            terminalRoot,
+            `${token}.${operations.randomToken()}`
+          );
+          await operations.rename(retirementDirectory, terminalDirectory);
+          await operations.syncStateDirectory(terminalRoot);
+          await operations.syncStateDirectory(stateDirectory);
         }
       };
     }

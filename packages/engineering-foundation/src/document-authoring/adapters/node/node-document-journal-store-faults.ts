@@ -15,6 +15,12 @@ export type NodeDocumentJournalFaultPoint =
       readonly phase: "before-private-cleanup";
     }
   | {
+      readonly evidence: "candidate" | "quarantine";
+      readonly operation: "create" | "remove" | "replace";
+      readonly path: string;
+      readonly phase: "before-logical-retirement";
+    }
+  | {
       readonly operation: "remove" | "replace";
       readonly path: string;
       readonly phase: "before-shared-quarantine";

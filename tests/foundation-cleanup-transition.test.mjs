@@ -49,14 +49,18 @@ test("creates and syncs the global marker before begin returns", async () => {
     );
     assert.deepEqual(syncs, [state]);
     await active.complete();
-    assert.deepEqual(await readdir(state), []);
+    assert.equal(
+      (await readdir(state)).some((entry) =>
+        entry === "foundation-cleanup-retired-evidence"),
+      true,
+    );
   });
 });
 
 test("retains discoverable marker evidence when marker retirement fails", async () => {
   await withRoot(async (root) => {
     const port = createNodeFoundationCleanupTransition(root, token, {
-      async rm() {
+      async beforeLogicalRetirement() {
         throw new Error("marker removal failed");
       },
     });
@@ -66,6 +70,25 @@ test("retains discoverable marker evidence when marker retirement fails", async 
       .filter((entry) => entry.startsWith(prefix));
     assert.equal(evidence.length, 1);
     assert.match(evidence[0], new RegExp(`^${prefix}${token}\\.retired\\.`));
+  });
+});
+
+test("never deletes a marker replacement swapped after the final proof", async () => {
+  await withRoot(async (root) => {
+    let retiredMarker;
+    const active = await createNodeFoundationCleanupTransition(root, token, {
+      async beforeLogicalRetirement(path) {
+        retiredMarker = path;
+        await rename(path, `${path}.owned`);
+        await writeFile(path, "foreign marker replacement\n");
+      },
+    }).begin();
+    await assert.rejects(active.complete(), /marker authority changed/u);
+    assert.equal(await readFile(retiredMarker, "utf8"), "foreign marker replacement\n");
+    assert.equal(
+      await readFile(`${retiredMarker}.owned`, "utf8"),
+      "foundation cleanup transition\n",
+    );
   });
 });
 

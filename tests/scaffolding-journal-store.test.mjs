@@ -156,6 +156,31 @@ test("private retirement never deletes a pathname-swapped foreign file", async (
   });
 });
 
+test("logical retirement never deletes a replacement after the final proof", async () => {
+  await withStore(async ({ journal, root, state }) => {
+    let swappedPath;
+    const store = new NodeScaffoldJournalStore(root, {
+      faultInjector: async (point) => {
+        if (
+          point.phase === "before-logical-retirement" &&
+          point.evidence === "candidate"
+        ) {
+          const retired = (await readdir(state)).find((entry) =>
+            entry.startsWith("scaffolding-transaction.json.scaffold-retired.")
+          );
+          assert.ok(retired);
+          swappedPath = join(state, retired, "evidence");
+          await rename(swappedPath, `${swappedPath}.owned`);
+          await writeFile(swappedPath, "foreign final replacement\n", "utf8");
+        }
+      }
+    });
+    await assert.rejects(store.create(journal), /identity or bytes changed/u);
+    assert.equal(await readFile(swappedPath, "utf8"), "foreign final replacement\n");
+    await stat(`${swappedPath}.owned`);
+  });
+});
+
 test("create never reports success after canonical replacement during retirement", async () => {
   await withStore(async ({ journal, path, root }) => {
     const store = new NodeScaffoldJournalStore(root, {

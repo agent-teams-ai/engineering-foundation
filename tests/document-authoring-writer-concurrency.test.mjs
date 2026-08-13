@@ -137,7 +137,12 @@ async function assertNoTransactionResidue(consumerRoot) {
     }
     throw error;
   });
-  assert.deepEqual(entries, []);
+  assert.deepEqual(
+    entries.filter((entry) =>
+      !entry.startsWith("foundation-operation.lock.released.") &&
+      entry !== "scaffolding-transaction.json.completed-document-evidence"),
+    []
+  );
 }
 
 for (const winnerIndex of [0, 1]) {

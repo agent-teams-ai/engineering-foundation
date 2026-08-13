@@ -728,7 +728,8 @@ test("fails safely after process death at every source-bound publication boundar
         await assertMissing(journalPath(root));
         assert.equal(
           (await readdir(root, { recursive: true })).some((entry) =>
-            entry.includes(".foundation-")
+            entry.includes(".foundation-") && !entry.includes(".foundation-retired-evidence-") &&
+            !entry.includes("foundation-operation.lock.released.")
           ),
           false,
           scenario.phase

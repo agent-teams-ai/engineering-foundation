@@ -535,7 +535,7 @@ test("retains the primary publication failure when cleanup also fails", async ()
           }
         },
         operations: {
-          async rm() {
+          async syncDirectory() {
             throw cleanup;
           }
         },

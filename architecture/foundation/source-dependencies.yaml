@@ -928,6 +928,7 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/application/ports/document-template-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/document-transaction-coordinator.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/documentation-catalog-reader.ts
+      - packages/engineering-foundation/src/document-authoring/application/ports/similar-document-advisor.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/documentation-search-catalog-reader.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/metadata-instance-validator.ts
       - packages/engineering-foundation/src/document-authoring/application/ports/owner-membership-reader.ts

@@ -18,10 +18,14 @@ export function renderDocumentCommandJson(
 }
 
 function humanCommand(command: DocumentRecoveryCommand): string {
+  const exactVersion = command.args["exactFoundationVersion"];
+  const prefix = exactVersion === undefined
+    ? "agent-teams-foundation"
+    : `pnpm dlx @agent-teams/engineering-foundation@${exactVersion}`;
   switch (command.commandId) {
-    case "docs.recover": return "agent-teams-foundation docs recover";
-    case "scaffold-recover": return "agent-teams-foundation scaffold-recover";
-    case "detach": return "agent-teams-foundation detach";
+    case "docs.recover": return `${prefix} docs recover`;
+    case "scaffold-recover": return `${prefix} scaffold-recover`;
+    case "detach": return `${prefix} detach`;
   }
 }
 
@@ -43,6 +47,10 @@ function renderDoctor(result: DocumentDoctorResult, lines: string[]): void {
   lines.push(`Recovery: ${result.recoveryClass}`);
   if (result.recoveryCommand !== undefined) {
     lines.push(`Run: ${humanCommand(result.recoveryCommand)}`);
+    const exactBuild = result.recoveryCommand.args["exactFoundationBuildIdentity"];
+    if (exactBuild !== undefined) {
+      lines.push(`Required build: ${exactBuild}`);
+    }
   }
 }
 
@@ -51,6 +59,10 @@ function renderRecover(result: DocumentRecoverResult, lines: string[]): void {
   lines.push(`Write: ${result.writeState}`);
   if (result.recoveryCommand !== undefined) {
     lines.push(`Run: ${humanCommand(result.recoveryCommand)}`);
+    const exactBuild = result.recoveryCommand.args["exactFoundationBuildIdentity"];
+    if (exactBuild !== undefined) {
+      lines.push(`Required build: ${exactBuild}`);
+    }
   }
 }
 

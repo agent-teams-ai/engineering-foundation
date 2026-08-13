@@ -4,8 +4,6 @@ import type {
   AuthorityScaffoldPlan,
   AuthorityScaffoldReceipt
 } from "../../contract/types.js";
-import { readdir } from "node:fs/promises";
-import { basename, dirname } from "node:path";
 import { createAuthorityScaffoldReceipt } from "../../kernel/authority-receipt.js";
 import {
   recoveryRequiredForAuthority,
@@ -13,7 +11,6 @@ import {
   safeClassifyPlan
 } from "./filesystem-authority.js";
 import { assertNoOwnedCleanupResidue } from "./filesystem-operation-state.js";
-import { syncDirectory } from "./filesystem-path-guard.js";
 import {
   createAuthorityDiagnostic,
   freshAuthorityScaffoldJournal,
@@ -21,11 +18,14 @@ import {
   receiptFromJournalStates
 } from "./filesystem-journal-state.js";
 import {
-  removeExpectedAuthorityScaffoldJournal,
-  SCAFFOLD_JOURNAL_QUARANTINE_PREFIX,
-  type ScaffoldJournalAuthority,
-  writeAuthorityScaffoldJournal
-} from "./filesystem-journal.js";
+  createScaffoldJournalReconciled,
+  removeScaffoldJournalReconciled,
+  replaceScaffoldJournalReconciled
+} from "./node-scaffold-journal-gateway.js";
+import {
+  NodeScaffoldJournalStore,
+  type ScaffoldJournalAuthority
+} from "./node-scaffold-journal-store.js";
 import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
 
 interface FinalizationFaultPoint {
@@ -120,6 +120,7 @@ async function classifyBeforeJournal(options: {
 export async function verifyAlreadyAppliedScaffold(options: {
   readonly root: string;
   readonly journalPath: string;
+  readonly journalStore: NodeScaffoldJournalStore;
   readonly plan: AuthorityScaffoldPlan;
   readonly faultInjector?: FinalizationFaultInjector;
 }): Promise<AuthorityScaffoldReceipt> {
@@ -148,7 +149,7 @@ export async function verifyAlreadyAppliedScaffold(options: {
     for (const operation of options.plan.operations) {
       journal = replaceScaffoldJournalOperation(journal, operation.id, "preexisting");
     }
-    await writeAuthorityScaffoldJournal(options.journalPath, journal);
+    await createScaffoldJournalReconciled(options.journalStore, journal);
     throw error;
   }
   return createAuthorityScaffoldReceipt({
@@ -169,6 +170,8 @@ interface FinalizationOptions {
   readonly journalPath: string;
   readonly journal: AuthorityScaffoldJournal;
   readonly journalAuthority: ScaffoldJournalAuthority;
+  readonly journalStore: NodeScaffoldJournalStore;
+  readonly journalFaultContext: { finalizing?: boolean };
   readonly recovered: boolean;
   readonly receipts: ReadonlyMap<string, AuthorityScaffoldOperationReceipt>;
   readonly faultInjector?: FinalizationFaultInjector;
@@ -208,9 +211,11 @@ async function verifyOutputs(
   if (conflictIds.size === 0) {
     return states;
   }
-  await writeAuthorityScaffoldJournal(options.journalPath, options.journal, {
-    expectedAuthority: options.journalAuthority
-  });
+  await replaceScaffoldJournalReconciled(
+    options.journalStore,
+    { journal: options.journal, journalAuthority: options.journalAuthority },
+    options.journal
+  );
   return receiptFromJournalStates({
     plan: options.journal.plan,
     journal: options.journal,
@@ -259,31 +264,19 @@ export async function finalizeAuthorityScaffoldJournal(
   }
   await options.faultInjector?.({ phase: "after-final-verification" });
   await assertNoOwnedCleanupResidue(options.root, options.journal.plan);
+  options.journalFaultContext.finalizing = true;
+  await removeScaffoldJournalReconciled(options.journalStore, {
+    journal: options.journal,
+    journalAuthority: options.journalAuthority
+  });
+  options.journalFaultContext.finalizing = false;
   try {
-    await removeExpectedAuthorityScaffoldJournal(
-      options.journalPath,
-      options.journalAuthority,
-      options.faultInjector === undefined
-        ? undefined
-        : {
-            beforeQuarantine: () =>
-              options.faultInjector?.({ phase: "before-journal-quarantine" }),
-            afterQuarantine: () =>
-              options.faultInjector?.({ phase: "after-journal-unlinked" })
-          }
-    );
+    await options.faultInjector?.({ phase: "after-journal-unlinked" });
   } catch (error) {
-    let entries: string[];
-    try {
-      await syncDirectory(dirname(options.journalPath));
-      entries = await readdir(dirname(options.journalPath));
-    } catch {
-      throw error;
-    }
+    const observed = await options.journalStore.stabilizeForReconciliation();
     if (
-      entries.includes(basename(options.journalPath)) ||
-      entries.includes(`${basename(options.journalPath)}.tmp`) ||
-      entries.some((entry) => entry.startsWith(SCAFFOLD_JOURNAL_QUARANTINE_PREFIX))
+      observed.outcome !== "stable" ||
+      observed.stored !== undefined
     ) {
       throw error;
     }

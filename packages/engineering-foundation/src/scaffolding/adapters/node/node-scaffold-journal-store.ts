@@ -151,14 +151,15 @@ export class NodeScaffoldJournalStore {
       "Canonical scaffolding journal"
     );
     this.#pending = { kind: "remove", prior };
-      const quarantine = await createPrivateScaffoldJournalEvidencePath(
-        this.#parent,
-        scaffoldQuarantinePrefix
-      );
       await this.#operations.faultInjector?.({
         mutation: "remove",
         phase: "before-shared-quarantine"
       });
+      await this.#prove(this.#path, expected, "Canonical scaffolding journal");
+      const quarantine = await createPrivateScaffoldJournalEvidencePath(
+        this.#parent,
+        scaffoldQuarantinePrefix
+      );
       await this.#prove(this.#path, expected, "Canonical scaffolding journal");
       await rename(this.#path, quarantine.path);
       await this.#syncRenameBoundary(
@@ -242,14 +243,15 @@ export class NodeScaffoldJournalStore {
         }
       | undefined;
     if (expected !== undefined) {
-        const evidence = await createPrivateScaffoldJournalEvidencePath(
-          this.#parent,
-          scaffoldQuarantinePrefix
-        );
         await this.#operations.faultInjector?.({
           mutation: "replace",
           phase: "before-shared-quarantine"
         });
+        await this.#prove(this.#path, expected, "Canonical scaffolding journal");
+        const evidence = await createPrivateScaffoldJournalEvidencePath(
+          this.#parent,
+          scaffoldQuarantinePrefix
+        );
         await this.#prove(this.#path, expected, "Canonical scaffolding journal");
         await rename(this.#path, evidence.path);
         await this.#syncRenameBoundary(

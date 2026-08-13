@@ -235,17 +235,15 @@ test("preserves a pathname replacement between proof and journal quarantine", as
           await writeFile(journal, foreign, "utf8");
         }
       }),
-      /Quarantined scaffolding journal changed concurrently/u
+      /journal changed before it could be removed/u
     );
     const entries = await readdir(dirname(journalPath(root)));
-    const quarantine = entries.find((entry) =>
-      entry.startsWith("scaffolding-transaction.json.document-quarantine.")
-    );
-    assert.ok(quarantine);
-    assert.equal(
-      await readFile(join(dirname(journalPath(root)), quarantine, "evidence"), "utf8"),
-      foreign
-    );
+    // Fixed-slot CAS never relocates a pathname that changed before quarantine.
+    assert.ok(!entries.some((entry) =>
+      entry.startsWith("scaffolding-transaction.json.scaffold-quarantine.")
+    ));
+    assert.equal(await readFile(journalPath(root), "utf8"), foreign);
+    await stat(`${journalPath(root)}.foundation-original`);
     assert.equal(
       JSON.parse(await readFile(join(root, ".agent-teams-local", "foundation-operation.lock"), "utf8")).kind,
       "transaction-barrier"
@@ -279,14 +277,14 @@ test("rejects a same-bytes different-inode journal substitution before replace",
       /journal changed before it could be removed|Quarantined scaffolding journal changed concurrently/u
     );
     assert.ok(substituted);
-    const quarantine = (await readdir(dirname(journalPath(root)))).find((entry) =>
-      entry.startsWith("scaffolding-transaction.json.document-quarantine.")
-    );
-    assert.ok(quarantine);
-    assert.deepEqual(
-      await readFile(join(dirname(journalPath(root)), quarantine, "evidence")),
-      substituted
-    );
+    const entries = await readdir(dirname(journalPath(root)));
+    // A late CAS failure preserves both identities plus its already-durable candidate.
+    assert.ok(!entries.some((entry) =>
+      entry.startsWith("scaffolding-transaction.json.scaffold-quarantine.")
+    ));
+    assert.ok(entries.includes("scaffolding-transaction.json.tmp"));
+    assert.deepEqual(await readFile(journalPath(root)), substituted);
+    assert.deepEqual(await readFile(`${journalPath(root)}.owned-original`), substituted);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

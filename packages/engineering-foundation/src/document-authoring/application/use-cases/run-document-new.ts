@@ -82,6 +82,9 @@ export class RunDocumentNew {
     let publicationCommitted = false;
     let committedDocumentPath: string | undefined;
     let committedWriteState: "already-applied" | "applied" | undefined;
+    let projectedReachability: Awaited<ReturnType<
+      DocumentReachabilityProjector["project"]
+    >> | undefined;
     try {
       request.signal?.throwIfAborted();
       const inspection = await this.#dependencies.inspect(request.consumerRoot);
@@ -104,6 +107,7 @@ export class RunDocumentNew {
         consumerRoot: request.consumerRoot,
         plan
       });
+      projectedReachability = reachability;
       request.signal?.throwIfAborted();
       if (request.dryRun) {
         return commandExecution({
@@ -190,6 +194,8 @@ export class RunDocumentNew {
               ? {} : { documentPath: committedDocumentPath }),
             ...(committedWriteState === undefined
               ? {} : { writeState: committedWriteState }),
+            ...(projectedReachability === undefined
+              ? {} : { reachability: projectedReachability }),
             reservation: "none"
           }
         });

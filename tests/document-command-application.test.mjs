@@ -135,6 +135,11 @@ test("docs new post-publication cancellation is a committed violation, never 130
   assert.equal(result.envelope.outcome, "violation");
   assert.equal(result.envelope.result.documentPath, plan.destination);
   assert.equal(result.envelope.result.writeState, "applied");
+  assert.deepEqual(result.envelope.result.reachability, {
+    state: "manual-required",
+    indexPath: "docs/README.md",
+    markdownLink: "[ADR-0083](decisions/0083-test.md)"
+  });
 });
 
 test("docs doctor projects exact recovery and unknown versions", async () => {

@@ -116,7 +116,16 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - name: Qualify repository mutation and scaffolding integration
-        run: node --test --test-concurrency=1 tests/repository-mutation-*.test.mjs tests/scaffolding-authority.test.mjs
+      - name: Qualify repository mutation, scaffolding, and durable document writing
+        run: >-
+          node --test --test-concurrency=1
+          tests/repository-mutation-*.test.mjs
+          tests/scaffolding-authority.test.mjs
+          tests/document-authoring-application-use-cases.test.mjs
+          tests/document-authoring-journal-store.test.mjs
+          tests/document-authoring-node-writer-adapters.test.mjs
+          tests/document-authoring-public-writer.test.mjs
+          tests/document-authoring-writer-*.test.mjs
+          tests/document-authoring-scaffolding-race.test.mjs
       - name: Qualify packed package boundary
         run: pnpm package:check:built

@@ -127,7 +127,8 @@ async function assertConsumerAliases(consumerRoot) {
     "Hermetic", "--consumer", consumerRoot
   ]);
   assert(found.command === "docs.find" && found.outcome === "success" &&
-    found.result?.matches?.length === 1,
+    found.result?.matches === 1 && found.result?.documents?.length === 1 &&
+    found.result.documents[0]?.id === "guide.packaged",
   "pnpm docs:find did not execute the installed CLI alias.");
   const preview = await jsonAliasCommand(
     consumerRoot,

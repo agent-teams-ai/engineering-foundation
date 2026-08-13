@@ -19,7 +19,8 @@ package catalog, dependency permissions, security classifications, and ADRs.
 - explicit registry and local-link modes;
 - deterministic attach, status, detach, and registry assertions;
 - closed deterministic `Intent -> Plan -> Apply -> Receipt` scaffolding;
-- read-only document catalog and deterministic non-reserving document Plan compiler;
+- governed document catalog, deterministic non-reserving planning, create-only
+  publication, and exact-version recovery commands;
 - isolated package-content and consumer verification;
 - release automation for immutable public npm versions.
 
@@ -56,6 +57,25 @@ pnpm foundation:detach
 pnpm foundation:assert-dev-only
 pnpm foundation:assert-registry
 ```
+
+Governed documentation uses the same installed CLI. `owner` and `summary` are
+explicit Intent authority and never receive Foundation defaults:
+
+```bash
+agent-teams-foundation docs find "tenant isolation"
+agent-teams-foundation docs new --type adr --id ADR-0083 \
+  --title "Tenant isolation" --owner architecture/tooling \
+  --summary "Defines the tenant-isolation boundary and its verification evidence." \
+  --dry-run
+agent-teams-foundation docs doctor
+agent-teams-foundation docs recover
+```
+
+After reviewing a dry run, repeat `docs new` without `--dry-run`, follow its
+exact reachability instruction, and run the consumer's standard repository
+check. See the
+[document authoring protocol](docs/architecture/document-authoring-protocol.md#canonical-agent-and-operator-cli)
+for the complete CLI and JSON contract.
 
 `foundation:check` emits one deterministic aggregate report and enforces every
 declared capability. See [consumer adoption](docs/development/consumer-adoption.md).

@@ -27,14 +27,22 @@ interface Dependencies {
 function manualDiagnostics(
   inspection: Extract<DocumentTransactionInspectionV1, {
     readonly state: "manual-recovery-required";
-  }>
+  }>,
+  consumerRoot: string
 ): readonly DocumentCommandDiagnostic[] {
   return inspection.diagnostics.map((entry) => ({
     ruleId: entry.code.toLowerCase().replaceAll("_", "."),
     severity: "error" as const,
     phase: "recovery" as const,
     subject: "document.transaction",
-    message: entry.message
+    message: entry.message,
+    ...(inspection.recovery === undefined
+      ? {}
+      : { remediation: {
+          commandId: inspection.recovery.commandId === "docs-recover"
+            ? "docs.recover" as const : inspection.recovery.commandId,
+          args: { ...inspection.recovery.args, consumerRoot }
+        } })
   }));
 }
 
@@ -87,7 +95,8 @@ export class RunDocumentRecover {
       }
       if (inspection.state === "manual-recovery-required") {
         return commandExecution({
-          command: "docs.recover", diagnostics: manualDiagnostics(inspection),
+          command: "docs.recover",
+          diagnostics: manualDiagnostics(inspection, request.consumerRoot),
           outcome: "recovery-required",
           result: {
             kind: "recover", transactionState: "manual-required",
@@ -97,7 +106,10 @@ export class RunDocumentRecover {
               : { recoveryCommand: {
                   commandId: inspection.recovery.commandId === "docs-recover"
                     ? "docs.recover" as const : inspection.recovery.commandId,
-                  args: inspection.recovery.args
+                  args: {
+                    ...inspection.recovery.args,
+                    consumerRoot: request.consumerRoot
+                  }
                 } })
           }
         });
@@ -112,7 +124,10 @@ export class RunDocumentRecover {
         diagnostics: receipt.diagnostics.map((entry) => ({
           ...entry,
           ...(outcome === "recovery-required"
-            ? { remediation: { commandId: "docs.doctor" as const, args: {} } }
+            ? { remediation: {
+                commandId: "docs.doctor" as const,
+                args: { consumerRoot: request.consumerRoot }
+              } }
             : {})
         })),
         outcome,

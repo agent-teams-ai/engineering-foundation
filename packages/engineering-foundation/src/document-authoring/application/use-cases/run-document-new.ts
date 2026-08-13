@@ -39,16 +39,24 @@ function signalOption(signal: AbortSignal | undefined): { readonly signal?: Abor
 }
 
 function transactionDiagnostic(
-  inspection: Exclude<DocumentTransactionInspectionV1, { readonly state: "idle" }>
+  inspection: Exclude<DocumentTransactionInspectionV1, { readonly state: "idle" }>,
+  consumerRoot: string
 ): DocumentCommandDiagnostic {
   const recovery = inspection.state === "recoverable"
-    ? { commandId: "docs.recover" as const, args: {} }
+    ? {
+        commandId: "docs.recover" as const,
+        args: {
+          consumerRoot,
+          exactFoundationVersion: inspection.recovery.exactFoundationVersion,
+          exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
+        }
+      }
     : inspection.recovery === undefined
       ? undefined
       : {
           commandId: inspection.recovery.commandId === "docs-recover"
             ? "docs.recover" as const : inspection.recovery.commandId,
-          args: inspection.recovery.args,
+          args: { ...inspection.recovery.args, consumerRoot },
         };
   return {
     ruleId: "document.new.transaction-active",
@@ -62,12 +70,18 @@ function transactionDiagnostic(
   };
 }
 
-function receiptDiagnostics(receipt: DocumentReceipt): readonly DocumentCommandDiagnostic[] {
+function receiptDiagnostics(
+  receipt: DocumentReceipt,
+  consumerRoot: string
+): readonly DocumentCommandDiagnostic[] {
   return receipt.diagnostics.map((entry) => ({
     ...entry,
     ...(receipt.outcome === "recovery-required" ||
       receipt.outcome === "manual-recovery-required"
-      ? { remediation: { commandId: "docs.recover" as const, args: {} } }
+      ? { remediation: {
+          commandId: "docs.recover" as const,
+          args: { consumerRoot }
+        } }
       : {})
   }));
 }
@@ -116,7 +130,7 @@ export class RunDocumentNew {
       if (inspection.state !== "idle") {
         return commandExecution({
           command: "docs.new",
-          diagnostics: [transactionDiagnostic(inspection)],
+          diagnostics: [transactionDiagnostic(inspection, request.consumerRoot)],
           outcome: "recovery-required",
           result: { kind: "new", reservation: "none" }
         });
@@ -170,7 +184,10 @@ export class RunDocumentNew {
       if (outcome !== "success") {
         return commandExecution({
           command: "docs.new",
-          diagnostics: [...advisoryDiagnostics, ...receiptDiagnostics(receipt)],
+          diagnostics: [
+            ...advisoryDiagnostics,
+            ...receiptDiagnostics(receipt, request.consumerRoot)
+          ],
           outcome,
           result: {
             kind: "new",
@@ -188,7 +205,7 @@ export class RunDocumentNew {
       });
       const diagnostics: readonly DocumentCommandDiagnostic[] = [
         ...advisoryDiagnostics,
-        ...receiptDiagnostics(receipt),
+        ...receiptDiagnostics(receipt, request.consumerRoot),
         ...verification.diagnostics.map((entry) => ({
           ...entry,
           phase: "apply" as const,

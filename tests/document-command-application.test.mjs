@@ -120,6 +120,33 @@ test("docs new emits deterministic similar-document advice without blocking", as
   }]);
 });
 
+test("docs new bounds similar-document diagnostics independently of match IDs", async () => {
+  const harness = createHarness({
+    similar: {
+      async advise() {
+        return {
+          matches: Array.from({ length: 16 }, (_value, index) => ({
+            id: `document.${String(index).padStart(3, "0")}.${"x".repeat(90)}`,
+            repositoryPath: `docs/${index}.md`,
+          })),
+          query: "Bounded advisory",
+        };
+      },
+    },
+  });
+  const execution = await harness.command.execute({
+    consumerRoot: "/fixture", profilePath: "profile.yaml",
+    intent: { title: "Bounded advisory" }, dryRun: true,
+  });
+
+  assert.equal(execution.envelope.diagnostics[0]?.subject, "document.new");
+  await assertSchema(
+    "document-command-envelope/v2",
+    execution.envelope,
+    "bounded-similar-document-advice",
+  );
+});
+
 test("docs new fails closed on advisory failure and preserves cancellation", async () => {
   const failed = newHarness({
     similar: { async advise() { throw new Error("catalog unavailable"); } }
@@ -235,8 +262,15 @@ test("docs doctor projects exact recovery and unknown versions", async () => {
   assert.equal(recoverable.envelope.result.recoveryClass, "auto-recoverable");
   assert.equal(recoverable.envelope.result.foundationVersion, "0.16.0");
   assert.deepEqual(recoverable.envelope.result.recoveryCommand, {
-    commandId: "docs.recover", args: {}
+    commandId: "docs.recover",
+    args: {
+      consumerRoot: "/fixture",
+      exactFoundationVersion: "0.16.0",
+      exactFoundationBuildIdentity: digest
+    }
   });
+  assert.deepEqual(recoverable.envelope.diagnostics[0].remediation,
+    recoverable.envelope.result.recoveryCommand);
 
   const unknown = await new RunDocumentDoctor({
     environment,
@@ -304,7 +338,37 @@ test("docs doctor preserves exact version and build recovery authority", async (
   assert.deepEqual(result.envelope.result.recoveryCommand, {
     commandId: "docs.recover",
     args: {
+      consumerRoot: "/fixture",
       exactFoundationVersion: "0.14.7",
+      exactFoundationBuildIdentity: digest
+    }
+  });
+});
+
+test("docs new exact recovery remediation retains non-cwd consumer root", async () => {
+  const consumerRoot = "/disposable/non-cwd-consumer";
+  const harness = newHarness({
+    async inspect() {
+      return {
+        schemaVersion: 1, state: "recoverable", operationKind: "document-authoring",
+        format: "document-authoring-envelope-v3", foundationVersion: "0.16.0",
+        foundationBuildIdentity: digest,
+        recovery: {
+          commandId: "docs-recover", exactFoundationVersion: "0.16.0",
+          exactFoundationBuildIdentity: digest
+        },
+        diagnostics: []
+      };
+    }
+  });
+  const result = await harness.subject.execute({
+    consumerRoot, profilePath: "profile.yaml", intent: {}, dryRun: false
+  });
+  assert.deepEqual(result.envelope.diagnostics[0].remediation, {
+    commandId: "docs.recover",
+    args: {
+      consumerRoot,
+      exactFoundationVersion: "0.16.0",
       exactFoundationBuildIdentity: digest
     }
   });

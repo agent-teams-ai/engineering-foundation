@@ -4,6 +4,9 @@ Status: Corrected Intent, Plan, and Receipt v1 contracts are retained from
 ADR-0023. ADR-0024 supersedes its transaction and recovery semantics with
 envelope v3, document journal v2, and recovery-handler contract v2. The
 published envelope v2 and journal v1 remain immutable manual-recovery evidence.
+The catalog, compiler, create-only writer, `docs new`, `docs doctor`, and
+`docs recover` are implemented in this repository. Packed registry and
+cross-platform RC qualification remains required before release adoption.
 
 ## Boundary
 
@@ -35,6 +38,7 @@ consumer code or treats a profile as an extension language.
 | Qualified identity grammar and placement operators | Consumer authoring profile | Execute only closed v1 operators |
 | Blocker and code-anchor semantics | Consumer validator | No generic interpretation |
 | Generic links and anchors | Foundation documentation checks | Validate read-only integrity |
+| RC reachability instruction | Consumer authoring profile | Project the exact index path and relative Markdown link without editing the index |
 | Safe file publication | Foundation authoring protocol | Enforce Plan and adapter contract |
 | Transaction coordination | Private Foundation coordinator | Serialize Foundation mutations |
 | Agent routing | Existing `repository.agent-workflow` | Validate the declared route |
@@ -77,6 +81,58 @@ fails closed on portable-name, identity, path, special-file, or false-self
 collisions. The function does not acquire a mutation lock, reserve an ID, write
 a file, or promise that a later apply will succeed; apply must recompile and
 compare the exact Plan under the operation lock.
+
+## Canonical agent and operator CLI
+
+The normal agent path is intentionally smaller than the internal
+`Intent -> Plan -> Apply -> Receipt` protocol:
+
+```bash
+agent-teams-foundation docs find "tenant isolation"
+agent-teams-foundation docs new --type adr --id ADR-0083 \
+  --title "Tenant isolation" --owner architecture/tooling \
+  --summary "Defines the tenant-isolation boundary and its verification evidence." \
+  --dry-run
+agent-teams-foundation docs new --type adr --id ADR-0083 \
+  --title "Tenant isolation" --owner architecture/tooling \
+  --summary "Defines the tenant-isolation boundary and its verification evidence."
+agent-teams-foundation check
+```
+
+`--type`, `--id`, `--title`, `--owner`, and `--summary` are required by
+`docs new`. Foundation never invents an owner or summary. `--slug`,
+`--destination`, repeatable `--related`, `--profile`, and `--consumer` remain
+explicit inputs when the selected profile strategy permits them. Automatic ID
+allocation is not part of this version.
+
+`docs new` first inspects the shared transaction state, compiles from a fresh
+complete catalog, reports deterministic similar-document advice, projects the
+consumer-authorized reachability action, and then either previews or applies.
+`--dry-run` is non-reserving and performs no repository mutation. Review the
+preview, repeat the same command without `--dry-run`, then follow the emitted
+`Next:` instruction:
+
+- for manual reachability, add the emitted exact Markdown link to the emitted
+  index path;
+- when no manual reachability step is required, run the consumer's standard
+  complete repository check.
+
+The RC writer does not edit an index. Managed reachability is a later qualified
+transaction, so the profile is the only authority for a manual index action.
+
+Operator commands are separate from the happy path:
+
+```bash
+agent-teams-foundation docs doctor
+agent-teams-foundation docs recover
+```
+
+`docs doctor` is read-only. It reports installed package/build identity,
+filesystem durability support, transaction and protocol kind, automatic versus
+manual recovery, and an exact recovery command only when authority proves one.
+`docs recover` operates only on an exact compatible document transaction. It
+does not force, clean, roll back a published destination, delete conflicts, or
+reinterpret foreign, corrupt, unknown-version, or manual-recovery evidence.
 
 ## Published language
 
@@ -153,13 +209,22 @@ diagnostics, and Receipt digest. It does not prove semantic completeness,
 evidence quality, related-document updates, architectural acceptance, or
 consumer check success.
 
-### JSON command envelope v1
+### JSON command envelopes
 
-Machine mode emits exactly one bounded JSON object with a stable command,
-outcome, structured diagnostics, and command-specific result. Human text never
-shares stdout. Paths always use `/`, zero search matches are success, and
+Every docs command accepts `--json`. `docs find` emits the read-only document
+command envelope v1. `docs new`, `docs doctor`, and `docs recover` emit document
+mutation command envelope v2. Machine mode writes exactly one bounded JSON
+object with a stable command, outcome, structured diagnostics, and
+command-specific result. Human text never shares stdout; stderr is reserved for
+an emergency launcher failure before a command envelope can be produced. Paths
+always use `/`, zero search matches are success, sorting is stable, and
 timestamps or durations are excluded. Remediation is a command identifier plus
 bounded arguments, not a preformatted shell command.
+
+A `docs new --dry-run --json` result reports `writeState: "preview"` and
+`reservation: "none"`. A manual reachability result contains both the exact
+`indexPath` and `markdownLink`. Doctor and recovery never manufacture a recovery
+route when exact transaction authority is unavailable.
 
 | Exit code | Stable meaning |
 | ---: | --- |
@@ -177,6 +242,7 @@ Profile v1 is `create-only` and admits only these closed primitives:
 - placement: `collection`, `qualified-leaf-index`, `explicit`;
 - filename: `numeric-id-slug`, `id-slug`, `slug`, `README.md`;
 - heading: `title`, `id-colon-title`;
+- reachability: `manual-fixed-index`, `manual-colocated-index`, `not-required`;
 - template: one bounded local UTF-8 file containing exactly one fenced Markdown
   skeleton with placeholder frontmatter and one leading H1; the compiler strips
   and replaces those two placeholders.
@@ -186,6 +252,14 @@ globs, commands, callbacks, hooks, dynamic imports, environment interpolation,
 remote templates or schema references, inheritance, conditional rules,
 directory creation, updates, deletion, free-form index editing, and arbitrary
 filesystem paths.
+
+`manual-fixed-index` binds one exact portable `indexPath` in consumer authority.
+`manual-colocated-index` is valid only for explicit placement and projects the
+literal `README.md` before the required placement segments, such as a package
+README before `src/features`. Foundation derives the relative Markdown link
+from that index to the compiled destination. `not-required` emits no index
+action. None of these strategies mutates an index or claims managed
+reachability.
 
 ### Identity grammar
 

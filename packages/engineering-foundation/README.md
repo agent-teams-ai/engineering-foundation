@@ -15,12 +15,14 @@ verifies the allowed owner status before planning, applying, or recovering.
 Consumers cannot provide templates, hooks, callbacks, commands, or definition
 plugins.
 
-The read-only document catalog is available through
-`@agent-teams/engineering-foundation/document-authoring`. It rebuilds a stable
-snapshot from an explicit data-only profile, consumer metadata schema, owner map,
-and Markdown collections. Partial snapshots retain diagnostics without hiding
-valid neighboring documents. This API never writes files and is not a Foundation
-capability.
+Document authoring is available through
+`@agent-teams/engineering-foundation/document-authoring`. Its catalog and Plan
+compiler are read-only; publication and recovery are separate explicit
+operations behind the shared Foundation transaction barrier. The catalog
+rebuilds a stable snapshot from an explicit data-only profile, consumer metadata
+schema, owner map, and Markdown collections. Partial snapshots retain
+diagnostics without hiding valid neighboring documents. Document authoring is
+not a Foundation capability and never runs as part of `check`.
 
 ```ts
 import { buildDocumentationCatalog } from
@@ -46,6 +48,42 @@ The default profile is
 `architecture/foundation/document-authoring.yaml`; `--profile` selects another
 repository-relative profile. Zero matches is success. A partial catalog retains
 valid matches and structured diagnostics while returning exit code `1`.
+
+Create a governed document with an explicit ID, owner, and summary. Foundation
+does not infer `--owner` or `--summary` from the document type, schema, path, or
+current user:
+
+```bash
+agent-teams-foundation docs new --type adr --id ADR-0083 \
+  --title "Tenant isolation" --owner architecture/tooling \
+  --summary "Defines the tenant-isolation boundary and its verification evidence." \
+  --dry-run --consumer /repo
+agent-teams-foundation docs new --type adr --id ADR-0083 \
+  --title "Tenant isolation" --owner architecture/tooling \
+  --summary "Defines the tenant-isolation boundary and its verification evidence." \
+  --consumer /repo
+```
+
+`--dry-run` compiles a non-reserving preview and performs no repository
+mutation. A successful create reports the document path and either the exact
+consumer-authorized index path and Markdown link to add, or the standard
+repository check as the next step. Use the read-only doctor before operating on
+uncertain transaction state, and run recovery only when it reports an automatic
+document recovery route:
+
+```bash
+agent-teams-foundation docs doctor --consumer /repo
+agent-teams-foundation docs recover --consumer /repo
+agent-teams-foundation check --consumer /repo
+```
+
+Every docs command accepts `--json`. Search uses command-envelope v1; mutation
+commands use command-envelope v2. Machine mode writes exactly one bounded JSON
+object to stdout, keeps diagnostics and remediation structured, uses `/` in
+repository paths, and omits timestamps and durations. Stable exit codes are
+`0` success, `1` conflict or recovery required, `2` invalid input, `3`
+execution failure, and `130` cancellation. The canonical details are in the
+[document authoring protocol](../../docs/architecture/document-authoring-protocol.md#canonical-agent-and-operator-cli).
 
 Consumer CI should run both policy gates:
 

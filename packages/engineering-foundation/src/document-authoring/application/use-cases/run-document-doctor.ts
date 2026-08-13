@@ -48,7 +48,8 @@ function unsupportedDurabilityDiagnostic(): DocumentCommandDiagnostic {
 }
 
 function inspectionDiagnostics(
-  inspection: DocumentTransactionInspectionV1
+  inspection: DocumentTransactionInspectionV1,
+  consumerRoot: string
 ): readonly DocumentCommandDiagnostic[] {
   if (inspection.state === "idle") {
     return [];
@@ -60,8 +61,21 @@ function inspectionDiagnostics(
     subject: "document.transaction",
     message: entry.message,
     ...(inspection.state === "recoverable"
-      ? { remediation: { commandId: "docs.recover" as const, args: {} } }
-      : {})
+      ? { remediation: {
+          commandId: "docs.recover" as const,
+          args: {
+            consumerRoot,
+            exactFoundationVersion: inspection.recovery.exactFoundationVersion,
+            exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
+          }
+        } }
+      : inspection.recovery === undefined
+        ? {}
+        : { remediation: {
+            commandId: inspection.recovery.commandId === "docs-recover"
+              ? "docs.recover" as const : inspection.recovery.commandId,
+            args: { ...inspection.recovery.args, consumerRoot }
+          } })
   }));
 }
 
@@ -134,7 +148,7 @@ export class RunDocumentDoctor {
       if (inspection.state === "recoverable") {
         return commandExecution({
           command: "docs.doctor",
-          diagnostics: inspectionDiagnostics(inspection),
+          diagnostics: inspectionDiagnostics(inspection, request.consumerRoot),
           outcome: "recovery-required",
           result: {
             kind: "doctor", ...environmentResult(environment),
@@ -143,14 +157,21 @@ export class RunDocumentDoctor {
             foundationVersion: inspection.foundationVersion,
             foundationBuildIdentity: inspection.foundationBuildIdentity,
             recoveryClass: "auto-recoverable",
-            recoveryCommand: { commandId: "docs.recover", args: {} }
+            recoveryCommand: {
+              commandId: "docs.recover",
+              args: {
+                consumerRoot: request.consumerRoot,
+                exactFoundationVersion: inspection.recovery.exactFoundationVersion,
+                exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
+              }
+            }
           }
         });
       }
       const exactRecovery = inspection.recovery;
       return commandExecution({
         command: "docs.doctor",
-        diagnostics: inspectionDiagnostics(inspection),
+        diagnostics: inspectionDiagnostics(inspection, request.consumerRoot),
         outcome: "recovery-required",
         result: {
           kind: "doctor",
@@ -171,7 +192,7 @@ export class RunDocumentDoctor {
             : { recoveryCommand: {
                 commandId: exactRecovery.commandId === "docs-recover"
                   ? "docs.recover" as const : exactRecovery.commandId,
-                args: exactRecovery.args
+                args: { ...exactRecovery.args, consumerRoot: request.consumerRoot }
               } })
         }
       });

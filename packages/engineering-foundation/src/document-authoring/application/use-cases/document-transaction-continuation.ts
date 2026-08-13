@@ -381,7 +381,8 @@ export async function continuePendingPublication(
   runtime: DocumentTransactionRuntime,
   request: DocumentTransactionRequest,
   active: ActiveDocumentJournal,
-  existingTemporary?: DocumentOwnedTemporary
+  existingTemporary?: DocumentOwnedTemporary,
+  onPublishingDurable?: () => void
 ): Promise<DocumentReceipt> {
   const plan = active.envelope.journal.plan;
   let current = active;
@@ -396,6 +397,7 @@ export async function continuePendingPublication(
   if (current.envelope.state === "PREPARED") {
     current = await replaceWithPublishing(runtime, current, temporary);
   }
+  onPublishingDurable?.();
   const authority = await exactCurrentAuthority(runtime, request, plan);
   if (!authority.current) {
     return recoveryReceipt(plan, {

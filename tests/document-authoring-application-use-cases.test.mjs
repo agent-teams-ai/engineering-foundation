@@ -148,6 +148,22 @@ test("ambiguous publication preserves transaction evidence and masks cancellatio
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
 });
 
+test("failed PREPARED to PUBLISHING CAS cleans exact prepublication evidence", async () => {
+  const subject = harness();
+  subject.dependencies.journal.replace = async ({ envelope }) => {
+    assert.equal(envelope.state, "PUBLISHING");
+    throw new Error("journal CAS failed");
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "failed-before-publication");
+  assert.equal(subject.state().temporary, undefined);
+  assert.equal(subject.state().envelope, undefined);
+  assert.equal(subject.events.includes("publish"), false);
+  assert.deepEqual(subject.releases, [{ retainTransactionBarrier: false }]);
+});
+
 test("recovery resumes an exact bound PUBLISHING temporary", async () => {
   const subject = harness();
   subject.dependencies.publisher.publishPrepared = async () => {

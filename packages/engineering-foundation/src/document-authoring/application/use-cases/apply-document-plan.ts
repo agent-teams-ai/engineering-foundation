@@ -111,7 +111,7 @@ export async function applyDocumentPlan(
   let retainBarrier = true;
   let active: ActiveDocumentJournal | undefined;
   let temporary: DocumentOwnedTemporary | undefined;
-  let publicationPossible = false;
+  const publication = { possible: false };
   try {
     if (lease.status.state !== "idle") {
       throw new DocumentTransactionUseCaseError(
@@ -189,19 +189,21 @@ export async function applyDocumentPlan(
       plan,
       ...signalOption(request.signal)
     });
-    // The helper advances the journal before the publication call. From entry,
-    // an adapter failure may mean publication occurred, so cleanup is forbidden.
-    publicationPossible = true;
     const receipt = await continuePendingPublication(
       dependencies,
       request,
       active,
-      temporary
+      temporary,
+      () => {
+        // Only durable PUBLISHING may cross into an ambiguous publication
+        // outcome. A failed PREPARED->PUBLISHING CAS remains safely cleanable.
+        publication.possible = true;
+      }
     );
     retainBarrier = receipt.outcome !== "applied";
     return receipt;
   } catch (error) {
-    if (!publicationPossible) {
+    if (!publication.possible) {
       const receipt = await safelyCancelBeforePublication(dependencies, {
         ...(active === undefined ? {} : { active }),
         failure: error,

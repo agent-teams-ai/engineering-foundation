@@ -265,7 +265,7 @@ requiresStrictDirectoryDurability("already-satisfied publication reports the des
   }
 });
 
-requiresStrictDirectoryDurability("derived temporary inspection exposes cleanup quarantine as manual residue", async () => {
+requiresStrictDirectoryDurability("derived temporary inspection preserves a foreign replacement in place", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-writer-"));
   try {
     await mkdir(join(root, "docs"));
@@ -280,13 +280,12 @@ requiresStrictDirectoryDurability("derived temporary inspection exposes cleanup 
       /replaced and was preserved/u
     );
     const derived = await state.classifyDerivedTemporary({ consumerRoot: root, plan });
-    assert.equal(derived.state, "unverifiable");
-    assert.match(derived.reason, /cleanup residue/u);
+    assert.equal(derived.state, "present");
     const residue = (await readdir(join(root, "docs"))).find((entry) =>
       entry.includes("foundation-owned-cleanup-"));
-    assert.ok(residue);
+    assert.equal(residue, undefined);
     assert.equal(
-      await readFile(join(root, "docs", residue, "owned-temporary"), "utf8"),
+      await readFile(join(root, temporary.path), "utf8"),
       "foreign replacement\n"
     );
   } finally {

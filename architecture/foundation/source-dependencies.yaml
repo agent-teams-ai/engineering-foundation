@@ -975,6 +975,7 @@ boundaries:
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-transaction-coordinator.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-metadata-instance-validator.ts
       - packages/engineering-foundation/src/document-authoring/adapters/node/node-owner-membership-reader.ts
+      - packages/engineering-foundation/src/document-authoring/adapters/node/recapture-document-publication-paths.ts
   - id: foundation.document-authoring.composition
     roots:
       - packages/engineering-foundation/src/document-authoring/composition

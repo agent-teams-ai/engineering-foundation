@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, chmod, link as hardLink, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, link as hardLink, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -32,6 +32,12 @@ async function fixture() {
 
 async function missing(path) {
   await assert.rejects(access(path), (error) => error?.code === "ENOENT");
+}
+
+async function quarantinedEvidence(root) {
+  const entry = (await readdir(root)).find((name) => name.includes(".cleanup-"));
+  assert.ok(entry, "expected preserved cleanup quarantine");
+  return readFile(join(root, entry, "owned-temporary"));
 }
 
 test("classifies absent, exact and conflicting postimages", async () => {
@@ -539,7 +545,7 @@ test("retains the primary publication failure when cleanup also fails", async ()
         error.cause === primary &&
         error.cleanupError === cleanup
     );
-    assert.deepEqual(await readFile(paths.temporaryPath), bytes);
+    assert.deepEqual(await quarantinedEvidence(paths.root), bytes);
     await missing(paths.destinationPath);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
@@ -563,7 +569,7 @@ test("preserves a replacement of an owned temporary", async () => {
       }),
       (error) => error?.code === "TEMPORARY_REPLACED"
     );
-    assert.equal(await readFile(paths.temporaryPath, "utf8"), "replacement\n");
+    assert.equal((await quarantinedEvidence(paths.root)).toString("utf8"), "replacement\n");
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
@@ -588,7 +594,7 @@ test("rejects an exact pre-link temporary replacement by identity", async () => 
       (error) => error?.code === "TEMPORARY_REPLACED"
     );
     await missing(paths.destinationPath);
-    assert.deepEqual(await readFile(paths.temporaryPath), bytes);
+    assert.deepEqual(await quarantinedEvidence(paths.root), bytes);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }
@@ -636,7 +642,10 @@ test("does not claim success when the pathname is replaced inside link", async (
       (error) => error?.code === "TEMPORARY_REPLACED"
     );
     assert.equal(await readFile(paths.destinationPath, "utf8"), "foreign replacement\n");
-    assert.equal(await readFile(paths.temporaryPath, "utf8"), "foreign replacement\n");
+    assert.equal(
+      (await quarantinedEvidence(paths.root)).toString("utf8"),
+      "foreign replacement\n",
+    );
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }

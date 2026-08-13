@@ -22,14 +22,12 @@ export interface DocumentCommitObservation {
   readonly state:
     | "committed"
     | "not-published"
-    | "preserved"
     | "recovery-required"
     | "manual-recovery-required";
   readonly publication: "none" | "preexisting-exact" | "published" | "unknown";
   readonly atomicity: "not-applicable" | "single-file-atomic-create";
   readonly recoverability:
     | "not-required"
-    | "journaled-recoverable"
     | "preserved-for-recovery";
 }
 
@@ -81,13 +79,20 @@ export type DocumentReceipt =
       };
     })
   | (DocumentReceiptBase & {
-      readonly outcome: "recovery-required" | "manual-recovery-required";
-      readonly commit: DocumentCommitObservation & {
-        readonly state:
-          | "preserved"
-          | "recovery-required"
-          | "manual-recovery-required";
+      readonly outcome: "recovery-required";
+      readonly commit: {
+        readonly state: "recovery-required";
         readonly publication: "none" | "published" | "unknown";
+        readonly atomicity: "not-applicable" | "single-file-atomic-create";
+        readonly recoverability: "preserved-for-recovery";
+      };
+    })
+  | (DocumentReceiptBase & {
+      readonly outcome: "manual-recovery-required";
+      readonly commit: {
+        readonly state: "manual-recovery-required";
+        readonly publication: "none" | "published" | "unknown";
+        readonly atomicity: "not-applicable" | "single-file-atomic-create";
         readonly recoverability: "preserved-for-recovery";
       };
     });

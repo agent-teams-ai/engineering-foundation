@@ -25,8 +25,7 @@ function digest(bytes: Uint8Array): string {
 function identity(temporary: DocumentOwnedTemporary): PortablePathIdentity | undefined {
   const decimal = /^(?:0|[1-9][0-9]{0,31})$/u;
   const value = temporary.identity;
-  if (value.adapter !== "node-filesystem" || value.version !== 1 ||
-    ![value.dev, value.ino, value.birthtimeNs].every((part) => decimal.test(part))) {
+  if (![value.dev, value.ino, value.birthtimeNs].every((part) => decimal.test(part))) {
     return undefined;
   }
   const result = {

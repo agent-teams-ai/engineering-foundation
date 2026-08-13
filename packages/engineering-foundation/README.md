@@ -55,8 +55,8 @@ neutral:
 ```
 
 ```bash
-pnpm docs:find -- "tenant isolation" --consumer /repo
-pnpm docs:find -- --type adr --status proposed --owner architecture --consumer /repo --json
+pnpm docs:find "tenant isolation" --consumer /repo
+pnpm docs:find --type adr --status proposed --owner architecture --consumer /repo --json
 ```
 
 The default profile is

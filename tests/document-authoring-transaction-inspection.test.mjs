@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -175,5 +175,50 @@ test("public document inspection exposes docs-recover while legacy local-mode st
     assert.equal("recovery" in legacy.transaction, false);
   } finally {
     await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("public document inspection never follows a redirected state directory", async () => {
+  const root = await mkdtemp(join(tmpdir(), "document-public-inspection-"));
+  const outside = await mkdtemp(join(tmpdir(), "document-public-inspection-outside-"));
+  try {
+    const envelope = createDocumentEnvelopeV3(fixture);
+    const installed = {
+      version: await installedFoundationVersion(),
+      buildIdentity: await installedFoundationBuildIdentity(),
+    };
+    envelope.foundation = installed;
+    envelope.journal.plan.compiler = {
+      ...envelope.journal.plan.compiler,
+      ...installed,
+    };
+    const { documentPlanDigest } = await import(
+      "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js"
+    );
+    const { sha256Json } = await import(
+      "../packages/engineering-foundation/dist/canonical-json.js"
+    );
+    envelope.journal.plan.planDigest = documentPlanDigest(envelope.journal.plan);
+    envelope.payloadDigest = sha256Json(envelope.journal);
+    delete envelope.envelopeDigest;
+    envelope.envelopeDigest = sha256Json(envelope);
+    await writeFile(
+      join(outside, "scaffolding-transaction.json"),
+      `${JSON.stringify(envelope)}\n`,
+      "utf8",
+    );
+    await symlink(
+      outside,
+      join(root, ".agent-teams-local"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+
+    const status = await inspectDocumentTransactionV1(root);
+    assert.equal(status.state, "manual-recovery-required");
+    assert.match(status.reason, /redirected|safely/u);
+    assert.equal("recovery" in status, false);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+    await rm(outside, { force: true, recursive: true });
   }
 });

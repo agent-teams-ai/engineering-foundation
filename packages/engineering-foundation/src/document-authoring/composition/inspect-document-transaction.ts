@@ -1,10 +1,15 @@
-import { realpath } from "node:fs/promises";
-import { resolve } from "node:path";
+import { lstat, realpath } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
+import {
+  FOUNDATION_TRANSACTION_FILE,
+  LOCAL_STATE_DIRECTORY,
+} from "../../foundation-state-contract.js";
 import { installedFoundationVersion } from "../../package-version.js";
 import { installedFoundationBuildIdentity } from "../../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import { NodeFoundationTransactionSlot } from "../../transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 import type { DocumentTransactionInspectionV1 } from "../application/model/document-transaction-inspection.js";
+import { recaptureDocumentPublicationPaths } from "../adapters/node/recapture-document-publication-paths.js";
 
 type ObservedTransactionStatus = Awaited<
   ReturnType<NodeFoundationTransactionSlot["inspect"]>
@@ -79,10 +84,43 @@ export async function inspectDocumentTransactionV1(
   consumerRoot: string,
 ): Promise<DocumentTransactionInspectionV1> {
   const root = await realpath(resolve(consumerRoot));
+  const stateDirectory = join(root, LOCAL_STATE_DIRECTORY);
+  try {
+    await lstat(stateDirectory);
+  } catch (error) {
+    if (error instanceof Error && "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { schemaVersion: 1, state: "idle", diagnostics: [] };
+    }
+    return unsafeTransactionPathInspection();
+  }
+  try {
+    // Reuse the writer's strict real-directory ancestry recapture. This rejects
+    // redirected state directories, portable aliases, and roots that escape the
+    // canonical consumer root before the shared slot is allowed to read evidence.
+    await recaptureDocumentPublicationPaths({
+      consumerRoot: root,
+      destination: `${LOCAL_STATE_DIRECTORY}/${FOUNDATION_TRANSACTION_FILE}`,
+    });
+  } catch {
+    return unsafeTransactionPathInspection();
+  }
   const status = await new NodeFoundationTransactionSlot({
     consumerRoot: root,
     installedVersion: await installedFoundationVersion(),
     installedBuildIdentity: await installedFoundationBuildIdentity(),
   }).inspect();
   return projectDocumentTransactionInspectionV1(status);
+}
+
+function unsafeTransactionPathInspection(): DocumentTransactionInspectionV1 {
+  return {
+    schemaVersion: 1,
+    state: "manual-recovery-required",
+    reason: "Foundation transaction evidence path is redirected or cannot be inspected safely.",
+    diagnostics: [{
+      code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+      message: "Foundation transaction evidence path is redirected or cannot be inspected safely.",
+    }],
+  };
 }

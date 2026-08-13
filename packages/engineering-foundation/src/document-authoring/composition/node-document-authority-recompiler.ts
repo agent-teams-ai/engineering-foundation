@@ -33,6 +33,7 @@ implements DocumentAuthorityRecompiler {
       validatedPlan = await new NodeDocumentContractValidator().validatePlan(request.plan);
       assertDocumentPlanDigests(validatedPlan);
     } catch (error) {
+      assertNotCancelled(request.signal);
       return {
         state: "unverifiable",
         reason: `Document Plan evidence cannot be validated safely: ${reason(error)}`
@@ -54,6 +55,7 @@ implements DocumentAuthorityRecompiler {
             reason: "Current consumer authority reproduces a different exact Document Plan."
           };
     } catch (error) {
+      assertNotCancelled(request.signal);
       if (error instanceof DocumentPlanningError &&
         error.code !== "DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE") {
         return {

@@ -12,6 +12,9 @@ import {
   planNodeDocumentationDocument,
 } from "../packages/engineering-foundation/dist/document-authoring/composition/node-document-planning.js";
 import {
+  NodeDocumentAuthorityRecompiler,
+} from "../packages/engineering-foundation/dist/document-authoring/composition/node-document-authority-recompiler.js";
+import {
   DocumentPlanningError,
 } from "../packages/engineering-foundation/dist/document-authoring/document-planning-error.js";
 
@@ -61,4 +64,21 @@ test("the closed Node planning composition preserves public error mapping", asyn
       });
     }
   });
+});
+
+test("the Node document authority assessment propagates cancellation", async () => {
+  const controller = new AbortController();
+  controller.abort();
+
+  await assert.rejects(
+    new NodeDocumentAuthorityRecompiler().assess({
+      consumerRoot: fixtures,
+      plan: {},
+      signal: controller.signal,
+    }),
+    (error) => {
+      assert.equal(error.problem?.code, "EXECUTION_CANCELLED");
+      return true;
+    },
+  );
 });

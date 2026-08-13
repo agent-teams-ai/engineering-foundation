@@ -1,10 +1,13 @@
 import { readdir } from "node:fs/promises";
 
 import {
+  FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX,
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE
 } from "../../../foundation-state-contract.js";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
+
+export { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../../foundation-state-contract.js";
 
 const maximumStateDirectoryEntries = 1024;
 
@@ -20,9 +23,6 @@ const scaffoldRetired = `${FOUNDATION_TRANSACTION_FILE}.scaffold-retired.`;
  * opaque transaction-specific token; the common coordinator never interprets
  * it and only uses its presence as a fail-closed recovery barrier.
  */
-export const FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX =
-  "foundation-transaction.cleanup-residue.";
-
 function isMissing(error: unknown): boolean {
   return error instanceof Error && "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT";

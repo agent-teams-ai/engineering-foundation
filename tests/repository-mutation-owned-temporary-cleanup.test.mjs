@@ -54,6 +54,19 @@ function options(paths, overrides = {}) {
   };
 }
 
+function transition(events) {
+  return {
+    async begin() {
+      events.push("transition:begin");
+      return {
+        async complete() {
+          events.push("transition:complete");
+        },
+      };
+    },
+  };
+}
+
 test("atomically quarantines and durably removes the expected temporary", async () => {
   const paths = await fixture();
   try {
@@ -167,6 +180,118 @@ test("fails closed when the operation-private quarantine collides", async () => 
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "owned\n");
     assert.equal((await lstat(collision)).isDirectory(), true);
     assert.deepEqual(cleanup.syncs, []);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("retains the cleanup transition when quarantine allocation collides", async () => {
+  const paths = await fixture();
+  try {
+    const events = [];
+    const collision = join(
+      paths.parent,
+      ".result.tmp.foundation-owned-cleanup-deterministic",
+    );
+    await mkdir(collision);
+    const cleanup = options(paths);
+    cleanup.value.transition = transition(events);
+    assert.equal(
+      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      "different",
+    );
+    assert.deepEqual(events, ["transition:begin"]);
+    assert.equal(await readFile(paths.temporaryPath, "utf8"), "owned\n");
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("durably begins the cleanup transition before quarantine rename", async () => {
+  const paths = await fixture();
+  try {
+    const events = [];
+    const cleanup = options(paths, {
+      async rename(source, destination) {
+        assert.deepEqual(events, ["transition:begin"]);
+        events.push("quarantine:rename");
+        await rename(source, destination);
+      },
+    });
+    cleanup.value.transition = transition(events);
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "removed");
+    assert.deepEqual(events, [
+      "transition:begin",
+      "quarantine:rename",
+      "transition:complete",
+    ]);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("retains the cleanup transition when quarantine cleanup fails", async () => {
+  const paths = await fixture();
+  try {
+    const events = [];
+    const cleanup = options(paths);
+    cleanup.value.transition = transition(events);
+    cleanup.value.rm = async () => {
+      throw new Error("cleanup failed");
+    };
+    await assert.rejects(
+      cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      /cleanup failed/u,
+    );
+    assert.deepEqual(events, ["transition:begin"]);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("does not begin a cleanup transition for missing or foreign evidence", async () => {
+  const paths = await fixture();
+  try {
+    const events = [];
+    await rm(paths.temporaryPath);
+    const missing = options(paths);
+    missing.value.transition = transition(events);
+    assert.equal(
+      await cleanupIdentityMatchingOwnedTemporary(missing.value),
+      "missing",
+    );
+    await writeFile(paths.temporaryPath, "foreign\n");
+    const foreign = options(paths);
+    foreign.value.transition = transition(events);
+    assert.equal(
+      await cleanupIdentityMatchingOwnedTemporary(foreign.value),
+      "different",
+    );
+    assert.deepEqual(events, []);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("completes the transition when the owned source disappears before rename", async () => {
+  const paths = await fixture();
+  try {
+    const events = [];
+    const cleanup = options(paths, {
+      async rename(source) {
+        await rm(source);
+        const error = new Error("source disappeared");
+        error.code = "ENOENT";
+        throw error;
+      },
+    });
+    cleanup.value.transition = transition(events);
+    assert.equal(
+      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      "missing",
+    );
+    assert.deepEqual(events, ["transition:begin", "transition:complete"]);
+    assert.deepEqual(await readdir(paths.parent), []);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }

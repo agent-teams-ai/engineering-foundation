@@ -47,6 +47,8 @@ import {
   type ScaffoldJournalAuthority
 } from "./node-scaffold-journal-store.js";
 import { scaffoldTransactionEvidenceExists } from "./node-scaffold-journal-transaction-evidence.js";
+import { createNodeFoundationCleanupTransition } from "../../../transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
+import { sha256Text } from "../../kernel/canonical-json.js";
 
 interface ScaffoldAuthorityFaultPoint {
   readonly phase:
@@ -263,13 +265,21 @@ async function publishPendingOperations(options: {
       operationIndex,
       operationPath: operation.path
     });
-    const outcome = await publishFilesystemOperation(
-      continuation.root,
+    const outcome = await publishFilesystemOperation({
+      root: continuation.root,
       operation,
-      journal.plan.planDigest,
+      planDigest: journal.plan.planDigest,
       operationIndex,
-      continuation.faultInjector
-    );
+      ...(continuation.faultInjector === undefined
+        ? {}
+        : { faultInjector: continuation.faultInjector }),
+      cleanupTransition: createNodeFoundationCleanupTransition(
+        continuation.root,
+        sha256Text(
+          `${journal.plan.planDigest}:${operation.id}:cleanup`
+        ).slice("sha256:".length)
+      )
+    });
     const beforePublished = journal;
     journal = replaceScaffoldJournalOperation(
       journal,

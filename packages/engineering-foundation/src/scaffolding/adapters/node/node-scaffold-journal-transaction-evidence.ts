@@ -1,6 +1,8 @@
 import { lstat, readdir } from "node:fs/promises";
 import { dirname } from "node:path";
 
+import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../../foundation-state-contract.js";
+
 import { SCAFFOLD_JOURNAL_QUARANTINE_PREFIX } from "./filesystem-journal.js";
 import {
   scaffoldQuarantinePrefix,
@@ -33,5 +35,6 @@ export async function scaffoldTransactionEvidenceExists(
     (await pathEntryExists(`${journalPath}.tmp`)) ||
     entries.some((entry) => entry.startsWith(SCAFFOLD_JOURNAL_QUARANTINE_PREFIX) ||
       entry.startsWith(scaffoldQuarantinePrefix) ||
-      entry.startsWith(scaffoldRetiredPrefix));
+      entry.startsWith(scaffoldRetiredPrefix) ||
+      entry.startsWith(FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX));
 }

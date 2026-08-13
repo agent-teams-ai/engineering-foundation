@@ -8,6 +8,7 @@ import {
   type ExactFilePostimageState
 } from "../../application/model/exact-postimage.js";
 import type { PortablePathIdentity } from "../../application/model/path-identity.js";
+import type { OwnedTemporaryCleanupTransitionPort } from "../../application/ports/owned-temporary-cleanup-transition.js";
 import { portableRepositoryPathIdentity } from "../../application/model/repository-path.js";
 import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
 import { cleanupIdentityMatchingOwnedTemporary } from "./node-cleanup-owned-temporary.js";
@@ -55,6 +56,7 @@ interface PublicationContext {
   readonly parent: string;
   readonly postimage: ExactFilePostimage;
   readonly temporaryPath: string;
+  readonly transition: OwnedTemporaryCleanupTransitionPort | undefined;
 }
 
 interface PublicationState {
@@ -190,7 +192,10 @@ async function cleanupPublicationTemporary(
             parent: context.parent,
             rm: context.operations.rm,
             syncDirectory: context.operations.syncDirectory,
-            temporaryPath: context.temporaryPath
+            temporaryPath: context.temporaryPath,
+            ...(context.transition === undefined
+              ? {}
+              : { transition: context.transition })
           });
     if (ownership === "different") {
       throw new AbsentFilePublicationError(
@@ -269,6 +274,7 @@ export async function publishAbsentFile(options: {
   readonly operations?: Partial<AbsentFilePublicationOperations>;
   readonly postimage: ExactFilePostimage;
   readonly temporaryPath: string;
+  readonly transition?: OwnedTemporaryCleanupTransitionPort;
 }): Promise<AbsentFilePublicationOutcome> {
   const postimage = snapshotPostimage(options.postimage);
   const context: PublicationContext = {
@@ -280,7 +286,8 @@ export async function publishAbsentFile(options: {
     operations: { ...nodeOperations, ...options.operations },
     parent: dirname(resolve(options.destinationPath)),
     postimage,
-    temporaryPath: options.temporaryPath
+    temporaryPath: options.temporaryPath,
+    transition: options.transition
   };
   assertValidPublicationPaths(
     context.temporaryPath,

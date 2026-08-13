@@ -12,6 +12,7 @@ import { ownedTemporaryCleanupResiduePrefix } from "../../../repository-mutation
 import type { MaterializeFileOperation } from "../../contract/scaffold-contract.js";
 import { sha256Text } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
+import type { OwnedTemporaryCleanupTransitionPort } from "../../../repository-mutation/application/ports/owned-temporary-cleanup-transition.js";
 import {
   assertSafeExistingAncestors,
   ensureSafeParent,
@@ -192,12 +193,16 @@ function translatePublicationError(
 }
 
 export async function publishFilesystemOperation(
-  root: string,
-  operation: MaterializeFileOperation,
-  planDigest: string,
-  operationIndex: number,
-  faultInjector?: FilesystemPublicationFaultInjector
+  options: {
+    readonly cleanupTransition: OwnedTemporaryCleanupTransitionPort;
+    readonly faultInjector?: FilesystemPublicationFaultInjector;
+    readonly operation: MaterializeFileOperation;
+    readonly operationIndex: number;
+    readonly planDigest: string;
+    readonly root: string;
+  }
 ): Promise<"already-satisfied" | "applied"> {
+  const { operation, planDigest, root } = options;
   await assertSafeExistingAncestors(root, operation.path);
   await assertNoOwnedCleanupResidue(root, {
     planDigest,
@@ -224,18 +229,19 @@ export async function publishFilesystemOperation(
       allowUnsupportedDirectoryDurability: true,
       destinationPath: destination,
       displayPath: operation.path,
-      ...(faultInjector === undefined
+      ...(options.faultInjector === undefined
         ? {}
         : {
             faultInjector: async (point: AbsentFilePublicationFaultPoint) =>
-              faultInjector({
+              options.faultInjector?.({
                 ...point,
-                operationIndex,
+                operationIndex: options.operationIndex,
                 operationPath: operation.path
               })
           }),
       postimage: postimage(operation),
-      temporaryPath: temporary
+      temporaryPath: temporary,
+      transition: options.cleanupTransition
     });
     return outcome === "published" ? "applied" : "already-satisfied";
   } catch (error) {

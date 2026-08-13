@@ -20,6 +20,7 @@ import {
   runCommand,
   runNpmCommand,
 } from "./pack-test-support.mjs";
+import { registryPublishArguments } from "./registry-publication-policy.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
 
@@ -257,18 +258,9 @@ async function packPackage(entry, index) {
   return join(destination, archives[0]);
 }
 
-async function publishArchive(archivePath, registryUrl) {
+async function publishArchive(archivePath, registryUrl, version) {
   await runNpm(
-    [
-      "publish",
-      archivePath,
-      "--registry",
-      registryUrl,
-      "--access",
-      "public",
-      "--ignore-scripts",
-      "--provenance=false",
-    ],
+    registryPublishArguments({ archivePath, registryUrl, version }),
     repositoryRoot,
   );
 }
@@ -276,7 +268,11 @@ async function publishArchive(archivePath, registryUrl) {
 async function seedRegistry(dependencies, registryUrl) {
   for (let index = 0; index < dependencies.length; index += 1) {
     const archivePath = await packPackage(dependencies[index], index);
-    await publishArchive(archivePath, registryUrl);
+    await publishArchive(
+      archivePath,
+      registryUrl,
+      dependencies[index].manifest.version,
+    );
   }
 }
 
@@ -415,7 +411,11 @@ try {
   registry = await startRegistry();
   await configureRegistryAuthentication(registry.registryUrl);
   await seedRegistry(dependencies, registry.registryUrl);
-  await publishArchive(target.archivePath, registry.registryUrl);
+  await publishArchive(
+    target.archivePath,
+    registry.registryUrl,
+    target.manifest.version,
+  );
   const lockDigest = await verifyConsumer(target, registry.registryUrl);
   process.stdout.write(
     `Registry-install qualification PASS: ${target.manifest.name}@${target.manifest.version}; ${dependencies.length} runtime packages; lock sha256:${lockDigest}.\n`,

@@ -195,6 +195,66 @@ test("preserves a journal replaced after final verification", async () => {
   }
 });
 
+test("preserves a same-inode journal mutation after final verification", async () => {
+  const root = await createConsumer();
+  try {
+    const scaffoldPlan = await plan(root);
+    const foreign = "foreign same-inode journal bytes\n";
+    await assert.rejects(
+      applyAuthorityFilesystemScaffoldWithFaultInjection(
+        root,
+        scaffoldPlan,
+        async (point) => {
+          if (point.phase === "after-final-verification") {
+            await writeFile(journalPath(root), foreign, "utf8");
+          }
+        }
+      ),
+      /journal changed before it could be removed/u
+    );
+    assert.equal(await readFile(journalPath(root), "utf8"), foreign);
+    assert.equal(
+      JSON.parse(await readFile(join(root, ".agent-teams-local", "foundation-operation.lock"), "utf8")).kind,
+      "transaction-barrier"
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("preserves a pathname replacement between proof and journal quarantine", async () => {
+  const root = await createConsumer();
+  try {
+    const scaffoldPlan = await plan(root);
+    const foreign = "foreign pathname replacement\n";
+    await assert.rejects(
+      applyAuthorityFilesystemScaffoldWithFaultInjection(root, scaffoldPlan, async (point) => {
+        if (point.phase === "before-journal-quarantine") {
+          const journal = journalPath(root);
+          await rename(journal, `${journal}.foundation-original`);
+          await writeFile(journal, foreign, "utf8");
+        }
+      }),
+      /Quarantined scaffolding journal changed concurrently/u
+    );
+    const entries = await readdir(dirname(journalPath(root)));
+    const quarantine = entries.find((entry) =>
+      entry.startsWith("scaffolding-transaction.json.document-quarantine.")
+    );
+    assert.ok(quarantine);
+    assert.equal(
+      await readFile(join(dirname(journalPath(root)), quarantine, "evidence"), "utf8"),
+      foreign
+    );
+    assert.equal(
+      JSON.parse(await readFile(join(root, ".agent-teams-local", "foundation-operation.lock"), "utf8")).kind,
+      "transaction-barrier"
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("rechecks outputs before an already-applied Receipt", async () => {
   const root = await createConsumer();
   try {
@@ -301,18 +361,42 @@ test("preserves an exact replacement of the journal temporary", async () => {
       writeAuthorityScaffoldJournal(
         path,
         freshAuthorityScaffoldJournal(scaffoldPlan),
-        async () => {
+        { faultInjector: async () => {
           const bytes = await readFile(temporary);
           await rename(temporary, `${temporary}.original`);
           await writeFile(temporary, bytes);
           if (process.platform !== "win32") {
             await chmod(temporary, 0o600);
           }
-        }
+        } }
       ),
       /journal temporary path was replaced concurrently/u
     );
     assert.ok((await stat(temporary)).isFile());
+    await assertMissing(path);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("does not promote or delete a same-inode mutated journal temporary", async () => {
+  const root = await createConsumer();
+  try {
+    const scaffoldPlan = await plan(root);
+    const path = journalPath(root);
+    const temporary = `${path}.tmp`;
+    const foreign = "mutated journal temporary\n";
+    await assert.rejects(
+      writeAuthorityScaffoldJournal(
+        path,
+        freshAuthorityScaffoldJournal(scaffoldPlan),
+        { faultInjector: async () => {
+          await writeFile(temporary, foreign, "utf8");
+        } }
+      ),
+      /journal temporary path was replaced concurrently/u
+    );
+    assert.equal(await readFile(temporary, "utf8"), foreign);
     await assertMissing(path);
   } finally {
     await rm(root, { recursive: true, force: true });

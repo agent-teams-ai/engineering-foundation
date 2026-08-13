@@ -170,6 +170,35 @@ test("already-applied finalization cannot ignore owned-cleanup residue", async (
   });
 });
 
+test("residue appearing after already-applied final verification prevents success", async () => {
+  await withConsumer(async (root, plan) => {
+    for (const operation of plan.operations) {
+      await materialize(operation, root);
+    }
+    const first = plan.operations[0];
+    assert.ok(first);
+    let residue;
+    await assert.rejects(
+      applyAuthorityFilesystemScaffoldWithFaultInjection(root, plan, async (point) => {
+        if (point.phase === "after-final-verification") {
+          residue = await createResidue(root, plan, first);
+        }
+      }),
+      /cleanup residue/u
+    );
+    assert.ok(residue);
+    await stat(join(residue, "owned-temporary"));
+    await stat(journalPath(root));
+    assert.equal(
+      JSON.parse(await readFile(
+        join(root, ".agent-teams-local", "foundation-operation.lock"),
+        "utf8",
+      )).kind,
+      "transaction-barrier",
+    );
+  });
+});
+
 test("residue appearing after final verification prevents journal unlink", async () => {
   await withConsumer(async (root, plan) => {
     const first = plan.operations[0];

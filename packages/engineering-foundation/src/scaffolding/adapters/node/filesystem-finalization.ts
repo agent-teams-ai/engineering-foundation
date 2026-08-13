@@ -28,6 +28,7 @@ interface FinalizationFaultPoint {
   readonly phase:
     | "after-final-verification"
     | "after-journal-unlinked"
+    | "before-journal-quarantine"
     | "before-final-authority-recheck";
 }
 
@@ -114,6 +115,7 @@ async function classifyBeforeJournal(options: {
 
 export async function verifyAlreadyAppliedScaffold(options: {
   readonly root: string;
+  readonly journalPath: string;
   readonly plan: AuthorityScaffoldPlan;
   readonly faultInjector?: FinalizationFaultInjector;
 }): Promise<AuthorityScaffoldReceipt> {
@@ -135,6 +137,16 @@ export async function verifyAlreadyAppliedScaffold(options: {
     }
   }
   await options.faultInjector?.({ phase: "after-final-verification" });
+  try {
+    await assertNoOwnedCleanupResidue(options.root, options.plan);
+  } catch (error) {
+    let journal = freshAuthorityScaffoldJournal(options.plan);
+    for (const operation of options.plan.operations) {
+      journal = replaceScaffoldJournalOperation(journal, operation.id, "preexisting");
+    }
+    await writeAuthorityScaffoldJournal(options.journalPath, journal);
+    throw error;
+  }
   return createAuthorityScaffoldReceipt({
     plan: options.plan,
     outcome: "already-applied",
@@ -191,7 +203,9 @@ async function verifyOutputs(
   if (conflictIds.size === 0) {
     return states;
   }
-  await writeAuthorityScaffoldJournal(options.journalPath, options.journal);
+  await writeAuthorityScaffoldJournal(options.journalPath, options.journal, {
+    expectedPrevious: options.journal
+  });
   return receiptFromJournalStates({
     plan: options.journal.plan,
     journal: options.journal,
@@ -249,7 +263,12 @@ export async function finalizeAuthorityScaffoldJournal(
     journalIdentity,
     options.faultInjector === undefined
       ? undefined
-      : () => options.faultInjector?.({ phase: "after-journal-unlinked" })
+      : {
+          beforeQuarantine: () =>
+            options.faultInjector?.({ phase: "before-journal-quarantine" }),
+          afterQuarantine: () =>
+            options.faultInjector?.({ phase: "after-journal-unlinked" })
+        }
   );
   return createAuthorityScaffoldReceipt({
     plan: options.journal.plan,

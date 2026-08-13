@@ -1,5 +1,5 @@
-import { lstat, realpath } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { lstat, readdir, realpath } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 
 import type {
   AuthorityScaffoldJournal,
@@ -57,6 +57,7 @@ interface ScaffoldAuthorityFaultPoint {
     | "after-temporary-synced"
     | "after-temporary-written"
     | "after-final-verification"
+    | "before-journal-quarantine"
     | "before-final-authority-recheck"
     | "before-operation-authority-recheck";
   readonly operationIndex?: number;
@@ -150,9 +151,18 @@ async function pathEntryExists(path: string): Promise<boolean> {
 }
 
 async function transactionEvidenceExists(journalPath: string): Promise<boolean> {
+  let entries: string[] = [];
+  try {
+    entries = await readdir(dirname(journalPath));
+  } catch {
+    // Exact paths below still provide the authoritative fallback.
+  }
   return (
     (await pathEntryExists(journalPath)) ||
-    (await pathEntryExists(`${journalPath}.tmp`))
+    (await pathEntryExists(`${journalPath}.tmp`)) ||
+    entries.some((entry) =>
+      entry.startsWith(`${SCAFFOLD_JOURNAL_FILE}.document-quarantine.`)
+    )
   );
 }
 
@@ -191,12 +201,16 @@ async function prepareJournal(
   try {
     await assertTransactionTemporariesAbsent(options.root, journal.plan);
     const reconciled = await reconcileAuthorityScaffoldJournal(options.root, journal);
+    const previousJournal = journal;
     journal = reconciled.journal;
     if (reconciled.conflictIds.size !== 0) {
       await writeAuthorityScaffoldJournal(
         options.journalPath,
         journal,
-        journalFault(options.faultInjector)
+        {
+          expectedPrevious: previousJournal,
+          faultInjector: journalFault(options.faultInjector)
+        }
       );
       return receiptFromJournalStates({
         plan: journal.plan,
@@ -218,7 +232,10 @@ async function prepareJournal(
   await writeAuthorityScaffoldJournal(
     options.journalPath,
     journal,
-    journalFault(options.faultInjector)
+    {
+      expectedPrevious: options.journal,
+      faultInjector: journalFault(options.faultInjector)
+    }
   );
   return journal;
 }
@@ -275,11 +292,15 @@ async function publishPendingOperations(options: {
         "Resolve the filesystem state manually, then retry recovery."
       );
     }
+    const beforePublishing = journal;
     journal = replaceScaffoldJournalOperation(journal, operation.id, "publishing");
     await writeAuthorityScaffoldJournal(
       continuation.journalPath,
       journal,
-      journalFault(continuation.faultInjector, operationIndex, operation.path)
+      {
+        expectedPrevious: beforePublishing,
+        faultInjector: journalFault(continuation.faultInjector, operationIndex, operation.path)
+      }
     );
     await continuation.faultInjector?.({
       phase: "after-journal-operation-publishing",
@@ -293,6 +314,7 @@ async function publishPendingOperations(options: {
       operationIndex,
       continuation.faultInjector
     );
+    const beforePublished = journal;
     journal = replaceScaffoldJournalOperation(
       journal,
       operation.id,
@@ -301,7 +323,10 @@ async function publishPendingOperations(options: {
     await writeAuthorityScaffoldJournal(
       continuation.journalPath,
       journal,
-      journalFault(continuation.faultInjector, operationIndex, operation.path)
+      {
+        expectedPrevious: beforePublished,
+        faultInjector: journalFault(continuation.faultInjector, operationIndex, operation.path)
+      }
     );
     await continuation.faultInjector?.({
       phase: "after-journal-operation-published",
@@ -429,6 +454,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
     if (classifications.every(({ state }) => state === "after")) {
       return await verifyAlreadyAppliedScaffold({
         root: canonicalRoot,
+        journalPath,
         plan,
         ...(faultInjector === undefined ? {} : { faultInjector })
       });
@@ -442,7 +468,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
     await writeAuthorityScaffoldJournal(
       journalPath,
       journal,
-      journalFault(faultInjector)
+      { faultInjector: journalFault(faultInjector) }
     );
     await faultInjector?.({ phase: "after-journal-prepared" });
     return await continueJournal({

@@ -1,5 +1,5 @@
-import { lstat, mkdir, open, rename, rm } from "node:fs/promises";
-import { dirname } from "node:path";
+import { lstat, link, mkdir, open, rename, rm, rmdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import type { AuthorityScaffoldJournal } from "../../contract/types.js";
 import { assertAuthorityScaffoldJournal } from "../../kernel/authority-journal-validation.js";
@@ -15,8 +15,10 @@ import {
 } from "./filesystem-file-identity.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
 import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.js";
+import { sha256Bytes } from "../../kernel/canonical-json.js";
 
 export const SCAFFOLD_JOURNAL_FILE = FOUNDATION_TRANSACTION_FILE;
+let quarantineSequence = 0;
 
 function isMissing(error: unknown): boolean {
   return (
@@ -29,7 +31,10 @@ function isMissing(error: unknown): boolean {
 async function writeAuthorityJournalFile(
   path: string,
   journal: AuthorityScaffoldJournal,
-  faultInjector?: () => Promise<void> | void
+  options: {
+    readonly expectedPrevious?: AuthorityScaffoldJournal;
+    readonly faultInjector?: (() => Promise<void> | void) | undefined;
+  }
 ): Promise<PortableFileIdentity> {
   const parent = dirname(path);
   await mkdir(parent, { recursive: true });
@@ -59,28 +64,59 @@ async function writeAuthorityJournalFile(
     } finally {
       await handle.close();
     }
-    await faultInjector?.();
-    if (
-      (await pathMatchesFileIdentity(temporary, temporaryIdentity)) !== "match"
-    ) {
+    await options.faultInjector?.();
+    const temporaryAuthority = {
+      identity: temporaryIdentity,
+      authorityDigest: contentDigest(Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8"))
+    };
+    if (!(await authorityMatches(temporary, temporaryAuthority))) {
       throw new ScaffoldError(
         "SCAFFOLD_RECOVERY_REQUIRED",
         "Scaffolding journal temporary path was replaced concurrently."
       );
     }
-    await rename(temporary, path);
-    renamed = true;
+    const existing = options.expectedPrevious === undefined
+      ? undefined
+      : await captureExpectedAuthorityScaffoldJournal(path, options.expectedPrevious);
+    let quarantine: { readonly directory: string; readonly path: string } | undefined;
+    if (existing !== undefined) {
+      quarantine = await createPrivateQuarantine(path, existing.identity);
+      await rename(path, quarantine.path);
+      await syncRenameBoundary(quarantine.directory, parent);
+      if (!(await authorityMatches(quarantine.path, existing))) {
+        throw recoveryRequired("Quarantined scaffolding journal changed concurrently.");
+      }
+    }
+    try {
+      await link(temporary, path);
+    } catch (error) {
+      throw new ScaffoldError(
+        "SCAFFOLD_RECOVERY_REQUIRED",
+        "Scaffolding journal slot changed during publication; all evidence was preserved.",
+        [],
+        { cause: error }
+      );
+    }
+    if (!(await authorityMatches(path, temporaryAuthority))) {
+      throw recoveryRequired("Published scaffolding journal changed concurrently.");
+    }
     await syncDirectory(parent);
+    await retirePrivateEvidence(temporary, temporaryAuthority, parent);
+    renamed = true;
+    if (quarantine !== undefined) {
+      await retirePrivateEvidence(quarantine.path, existing!, quarantine.directory);
+      await rmdir(quarantine.directory);
+      await syncDirectory(parent);
+    }
     return temporaryIdentity;
   } finally {
     if (!renamed && temporaryIdentity !== undefined) {
-      const ownership = await pathMatchesFileIdentity(
-        temporary,
-        temporaryIdentity
-      );
-      if (ownership === "match") {
-        await rm(temporary);
-        await syncDirectory(parent);
+      const expected = {
+        identity: temporaryIdentity,
+        authorityDigest: contentDigest(Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8"))
+      };
+      if (await authorityMatches(temporary, expected)) {
+        await retirePrivateEvidence(temporary, expected, parent);
       }
     }
   }
@@ -89,14 +125,95 @@ async function writeAuthorityJournalFile(
 export async function writeAuthorityScaffoldJournal(
   path: string,
   journal: AuthorityScaffoldJournal,
-  faultInjector?: () => Promise<void> | void
+  options: {
+    readonly expectedPrevious?: AuthorityScaffoldJournal;
+    readonly faultInjector?: (() => Promise<void> | void) | undefined;
+  } = {}
 ): Promise<PortableFileIdentity> {
-  return writeAuthorityJournalFile(path, journal, faultInjector);
+  return writeAuthorityJournalFile(path, journal, options);
 }
 
 interface ScaffoldJournalRecord {
+  readonly authorityDigest: string;
   readonly identity: PortableFileIdentity;
   readonly journal: AuthorityScaffoldJournal;
+}
+
+interface ScaffoldJournalAuthority {
+  readonly identity: PortableFileIdentity;
+  readonly authorityDigest: string;
+}
+
+function contentDigest(bytes: Uint8Array): string {
+  return sha256Bytes(bytes);
+}
+
+function recoveryRequired(message: string): ScaffoldError {
+  return new ScaffoldError("SCAFFOLD_RECOVERY_REQUIRED", message);
+}
+
+async function authorityMatches(path: string, expected: ScaffoldJournalAuthority): Promise<boolean> {
+  try {
+    const observed = await readBoundedRegularFile(path, MAX_SCAFFOLD_PLAN_BYTES);
+    return observed.outcome === "read" &&
+      (await pathMatchesFileIdentity(path, expected.identity)) === "match" &&
+      contentDigest(observed.bytes) === expected.authorityDigest;
+  } catch (error) {
+    if (isMissing(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function createPrivateQuarantine(path: string, identity: PortableFileIdentity) {
+  const parent = dirname(path);
+  for (;;) {
+    quarantineSequence += 1;
+    const directory = join(
+      parent,
+      `${FOUNDATION_TRANSACTION_FILE}.document-quarantine.${identity.dev}.${identity.ino}.${identity.birthtimeNs}.${process.pid}.${Date.now()}.${quarantineSequence}`
+    );
+    try {
+      await mkdir(directory, { mode: 0o700 });
+      return { directory, path: join(directory, "evidence") };
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !("code" in error) ||
+        (error as NodeJS.ErrnoException).code !== "EEXIST"
+      ) {
+        throw error;
+      }
+    }
+  }
+}
+
+async function syncRenameBoundary(destination: string, source: string): Promise<void> {
+  await syncDirectory(destination);
+  if (destination !== source) {
+    await syncDirectory(source);
+  }
+}
+
+async function retirePrivateEvidence(
+  path: string,
+  expected: ScaffoldJournalAuthority,
+  sourceDirectory: string
+): Promise<void> {
+  if (!(await authorityMatches(path, expected))) {
+    throw recoveryRequired("Scaffolding journal evidence changed before retirement; it was preserved.");
+  }
+  const quarantine = await createPrivateQuarantine(path, expected.identity);
+  await rename(path, quarantine.path);
+  await syncRenameBoundary(quarantine.directory, sourceDirectory);
+  if (!(await authorityMatches(quarantine.path, expected))) {
+    throw recoveryRequired("Quarantined scaffolding journal evidence changed concurrently.");
+  }
+  await rm(quarantine.path);
+  await syncDirectory(quarantine.directory);
+  await rmdir(quarantine.directory);
+  await syncDirectory(dirname(quarantine.directory));
 }
 
 async function readJournalSource(path: string): Promise<{
@@ -169,7 +286,11 @@ async function readScaffoldJournalRecord(
     "scaffold-recovery-journal"
   );
   assertAuthorityScaffoldJournal(journal);
-  return { identity: record.identity, journal };
+  return {
+    authorityDigest: contentDigest(Buffer.from(record.source, "utf8")),
+    identity: record.identity,
+    journal
+  };
 }
 
 export async function readScaffoldJournalEnvelope(
@@ -181,7 +302,7 @@ export async function readScaffoldJournalEnvelope(
 export async function captureExpectedAuthorityScaffoldJournal(
   path: string,
   expected: AuthorityScaffoldJournal
-): Promise<PortableFileIdentity> {
+): Promise<ScaffoldJournalAuthority> {
   const record = await readScaffoldJournalRecord(path);
   if (
     record === undefined ||
@@ -192,7 +313,10 @@ export async function captureExpectedAuthorityScaffoldJournal(
       "Scaffolding recovery journal changed before finalization."
     );
   }
-  return record.identity;
+  return {
+    identity: record.identity,
+    authorityDigest: record.authorityDigest
+  };
 }
 
 export async function assertAuthorityScaffoldJournalTemporaryAbsent(
@@ -217,16 +341,28 @@ export async function assertAuthorityScaffoldJournalTemporaryAbsent(
 
 export async function removeExpectedAuthorityScaffoldJournal(
   path: string,
-  expectedIdentity: PortableFileIdentity,
-  faultInjector?: () => Promise<void> | void
+  expectedAuthority: ScaffoldJournalAuthority,
+  faultInjector?: {
+    readonly beforeQuarantine?: () => Promise<void> | void;
+    readonly afterQuarantine?: () => Promise<void> | void;
+  }
 ): Promise<void> {
-  if ((await pathMatchesFileIdentity(path, expectedIdentity)) !== "match") {
+  if (!(await authorityMatches(path, expectedAuthority))) {
     throw new ScaffoldError(
       "SCAFFOLD_RECOVERY_REQUIRED",
       "Scaffolding journal changed before it could be removed."
     );
   }
-  await rm(path);
-  await faultInjector?.();
+  const quarantine = await createPrivateQuarantine(path, expectedAuthority.identity);
+  await faultInjector?.beforeQuarantine?.();
+  await rename(path, quarantine.path);
+  await syncRenameBoundary(quarantine.directory, dirname(path));
+  if (!(await authorityMatches(quarantine.path, expectedAuthority))) {
+    throw recoveryRequired("Quarantined scaffolding journal changed concurrently.");
+  }
+  await rm(quarantine.path);
+  await syncDirectory(quarantine.directory);
+  await rmdir(quarantine.directory);
   await syncDirectory(dirname(path));
+  await faultInjector?.afterQuarantine?.();
 }

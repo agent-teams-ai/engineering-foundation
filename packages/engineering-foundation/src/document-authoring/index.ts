@@ -53,7 +53,11 @@ export type {
   DocumentFindResult
 } from "./application/model/document-find.js";
 export type {
+  DocumentCompilerIdentity,
   DocumentIntent,
+  DocumentJsonObject,
+  DocumentJsonPrimitive,
+  DocumentJsonValue,
   DocumentPlan,
   DocumentPlanDiagnostic
 } from "./application/model/document-planning.js";

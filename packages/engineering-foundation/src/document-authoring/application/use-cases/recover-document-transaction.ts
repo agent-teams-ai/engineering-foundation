@@ -271,6 +271,9 @@ async function runRecovery(
   const active = await readActiveJournal(dependencies);
   const plan = active.envelope.journal.plan;
   const observed = await observe(dependencies, request, active);
+  // Read-only adapters may observe cancellation and still return a value.
+  // Recheck before interpreting evidence or entering any recovery mutation.
+  request.signal?.throwIfAborted();
   const decision = classifyDocumentRecovery(observed.observation);
   if (decision.action === "manual") {
     return recoveryReceipt(plan, {
@@ -285,6 +288,10 @@ async function runRecovery(
     plan,
     ...signalOption(request.signal)
   });
+  // Authority replay may likewise translate adapter failures into an
+  // assessment. Cancellation remains the caller's exact error at this safe,
+  // pre-mutation boundary while all durable evidence stays preserved.
+  request.signal?.throwIfAborted();
   if (authority.state !== "current") {
     return recoveryReceipt(plan, {
       message: authority.reason,

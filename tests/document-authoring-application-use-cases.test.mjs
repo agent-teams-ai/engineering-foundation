@@ -169,7 +169,7 @@ for (const finalState of ["exact", "conflict"]) {
   });
 }
 
-test("cancellation throws typed evidence-unavailable when the final destination cannot be verified", async () => {
+test("cancellation reports manual recovery when the final destination cannot be verified", async () => {
   const subject = harness();
   const classify = subject.dependencies.fileState.classifyDestination;
   subject.dependencies.fileState.classifyDestination = async () =>
@@ -180,16 +180,49 @@ test("cancellation throws typed evidence-unavailable when the final destination 
     const error = new Error("cancelled"); error.name = "AbortError";
     throw error;
   };
-  await assert.rejects(
-    applyDocumentPlan(subject.dependencies, {
-      consumerRoot: "/fixture", plan: fixture.plan
-    }),
-    (error) => error?.name === "DocumentTransactionUseCaseError" &&
-      error.code === "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE"
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(receipt.outcome, "manual-recovery-required");
+  assert.equal(receipt.commit.state, "manual-recovery-required");
+  assert.equal(
+    receipt.diagnostics[0].ruleId,
+    "document.transaction.cleanup-unproven"
   );
   assert.equal(subject.state().envelope, undefined);
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
 });
+
+for (const temporaryState of ["conflict", "unverifiable"]) {
+  test(`prepublication ${temporaryState} temporary is preserved for manual recovery`, async () => {
+    const subject = harness();
+    subject.dependencies.publisher.prepare = async ({ plan }) => {
+      const prepared = {
+        path: documentTemporaryPath(plan.destination, plan.planDigest),
+        digest: plan.output.digest,
+        identity
+      };
+      subject.dependencies.fileState.classifyDerivedTemporary = async () => ({
+        state: "present", path: prepared.path, identity
+      });
+      subject.dependencies.fileState.classifyTemporary = async () => ({
+        state: temporaryState,
+        reason: `injected ${temporaryState} temporary`
+      });
+      throw new Error("prepare failed after leaving temporary evidence");
+    };
+    const receipt = await applyDocumentPlan(subject.dependencies, {
+      consumerRoot: "/fixture", plan: fixture.plan
+    });
+    assert.equal(receipt.outcome, "manual-recovery-required");
+    assert.equal(receipt.commit.recoverability, "preserved-for-recovery");
+    assert.equal(
+      receipt.diagnostics[0].ruleId,
+      "document.transaction.cleanup-unproven"
+    );
+    assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
+  });
+}
 
 test("pre-aborted apply validates Plan then returns cancelled without lock or filesystem I/O", async () => {
   const subject = harness();
@@ -469,6 +502,42 @@ test("apply preserves journal failure when lease release also fails", async () =
   );
 });
 
+test("apply preserves body, cleanup, and lease release failures", async () => {
+  const subject = harness();
+  subject.dependencies.publisher.prepare = async () => {
+    throw new Error("body failed");
+  };
+  subject.dependencies.journal.remove = async () => {
+    throw new Error("cleanup journal removal failed");
+  };
+  subject.dependencies.coordinator.acquire = async () => ({
+    status: { state: "idle" },
+    async release() { throw new Error("release failed"); }
+  });
+  await assert.rejects(
+    applyDocumentPlan(subject.dependencies, {
+      consumerRoot: "/fixture", plan: fixture.plan
+    }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      const applyAndCleanup = error.errors[0];
+      assert.ok(applyAndCleanup instanceof AggregateError);
+      assert.match(applyAndCleanup.errors[0].message, /body failed/u);
+      assert.match(
+        applyAndCleanup.errors[1].message,
+        /Journal removal reported failure/u
+      );
+      assert.match(
+        applyAndCleanup.errors[1].cause.message,
+        /cleanup journal removal failed/u
+      );
+      assert.match(error.errors[1].message, /release failed/u);
+      assert.equal(error.cause, applyAndCleanup);
+      return true;
+    }
+  );
+});
+
 test("recovery resumes an exact bound PUBLISHING temporary", async () => {
   const subject = harness();
   subject.dependencies.publisher.publishPrepared = async () => {
@@ -495,6 +564,67 @@ test("recovery resumes an exact bound PUBLISHING temporary", async () => {
   });
   assert.equal(recovered.outcome, "applied");
   assert.equal(subject.state().envelope, undefined);
+});
+
+async function interruptedPublishingHarness() {
+  const subject = harness();
+  subject.dependencies.publisher.publishPrepared = async () => {
+    throw new Error("crash before link");
+  };
+  const interrupted = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture", plan: fixture.plan
+  });
+  assert.equal(interrupted.outcome, "recovery-required");
+  assert.equal(subject.state().envelope.state, "PUBLISHING");
+  subject.setCoordinatorState("recoverable");
+  return subject;
+}
+
+test("recovery preserves abort swallowed during filesystem observation", async () => {
+  const subject = await interruptedPublishingHarness();
+  const authorityCount = subject.events.filter((event) => event === "authority").length;
+  const controller = new AbortController();
+  const abort = new Error("abort during recovery observation");
+  abort.name = "AbortError";
+  subject.dependencies.fileState.classifyDestination = async () => {
+    controller.abort(abort);
+    return { state: "absent" };
+  };
+  await assert.rejects(
+    recoverDocumentTransaction(subject.dependencies, {
+      consumerRoot: "/fixture", signal: controller.signal
+    }),
+    (error) => error === abort
+  );
+  assert.equal(subject.events.includes("recovery:publish"), false);
+  assert.equal(
+    subject.events.filter((event) => event === "authority").length,
+    authorityCount
+  );
+  assert.equal(subject.state().envelope.state, "PUBLISHING");
+  assert.notEqual(subject.state().temporary, undefined);
+  assert.deepEqual(subject.releases.at(-1), { retainTransactionBarrier: true });
+});
+
+test("recovery preserves abort swallowed during authority replay", async () => {
+  const subject = await interruptedPublishingHarness();
+  const controller = new AbortController();
+  const abort = new Error("abort during recovery authority");
+  abort.name = "AbortError";
+  subject.dependencies.authority.assess = async ({ plan }) => {
+    controller.abort(abort);
+    return { state: "current", plan };
+  };
+  await assert.rejects(
+    recoverDocumentTransaction(subject.dependencies, {
+      consumerRoot: "/fixture", signal: controller.signal
+    }),
+    (error) => error === abort
+  );
+  assert.equal(subject.events.includes("recovery:publish"), false);
+  assert.equal(subject.state().envelope.state, "PUBLISHING");
+  assert.notEqual(subject.state().temporary, undefined);
+  assert.deepEqual(subject.releases.at(-1), { retainTransactionBarrier: true });
 });
 
 async function publishedEnvelope(publicationIdentity = identity) {

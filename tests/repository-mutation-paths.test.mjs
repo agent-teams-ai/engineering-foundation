@@ -10,7 +10,11 @@ import {
   assertSafeExistingRepositoryAncestors,
   ExistingRepositoryAncestorError
 } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-existing-repository-ancestors.js";
-import { syncDirectoryDurably } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-directory-durability.js";
+import {
+  StrictDirectoryDurabilityError,
+  syncDirectoryDurably,
+  syncDirectoryStrictlyWith,
+} from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-directory-durability.js";
 import { isLexicallyContainedPath } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-repository-path.js";
 import {
   findPortableRepositoryPathCollision,
@@ -215,5 +219,14 @@ test("reports directory durability capability honestly", async () => {
       }
     }),
     unsupported
+  );
+});
+
+test("strict directory durability rejects an unsupported Windows result", async () => {
+  await assert.rejects(
+    syncDirectoryStrictlyWith("journal-directory", async () => "unsupported"),
+    (error) =>
+      error instanceof StrictDirectoryDurabilityError &&
+      error.message.includes("journal-directory"),
   );
 });

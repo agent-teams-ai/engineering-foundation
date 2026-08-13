@@ -173,6 +173,7 @@ test("destination quarantine sync failure preserves captured evidence and never 
 test("preserves a foreign replacement captured immediately before rename", async () => {
   const paths = await fixture();
   try {
+    const events = [];
     const cleanup = options(paths, {
       async rename(source, destination) {
         await rename(source, `${source}.owned`);
@@ -180,6 +181,7 @@ test("preserves a foreign replacement captured immediately before rename", async
         await rename(source, destination);
       },
     });
+    cleanup.value.transition = transition(events);
     assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");
     assert.equal(await readFile(`${paths.temporaryPath}.owned`, "utf8"), "owned\n");
     const entries = await readdir(paths.parent);
@@ -190,6 +192,122 @@ test("preserves a foreign replacement captured immediately before rename", async
       await readFile(join(paths.parent, quarantine, "owned-temporary"), "utf8"),
       "foreign\n",
     );
+    assert.equal(await readFile(paths.temporaryPath, "utf8"), "foreign\n");
+    const restoredIdentity = await lstat(paths.temporaryPath);
+    const quarantinedIdentity = await lstat(
+      join(paths.parent, quarantine, "owned-temporary"),
+    );
+    assert.equal(restoredIdentity.dev, quarantinedIdentity.dev);
+    assert.equal(restoredIdentity.ino, quarantinedIdentity.ino);
+    assert.deepEqual(cleanup.syncs, [
+      join(paths.parent, quarantine),
+      paths.parent,
+      paths.parent,
+    ]);
+    assert.deepEqual(events, ["transition:begin"]);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("keeps a colliding restored path and quarantined foreign evidence", async () => {
+  const paths = await fixture();
+  try {
+    const cleanup = options(paths, {
+      async rename(source, destination) {
+        await rename(source, `${source}.owned`);
+        await writeFile(source, "foreign\n");
+        await rename(source, destination);
+        await writeFile(source, "collision\n");
+      },
+    });
+    assert.equal(
+      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      "different",
+    );
+    const quarantine = join(
+      paths.parent,
+      ".result.tmp.foundation-owned-cleanup-deterministic",
+      "owned-temporary",
+    );
+    assert.equal(await readFile(paths.temporaryPath, "utf8"), "collision\n");
+    assert.equal(await readFile(quarantine, "utf8"), "foreign\n");
+    assert.deepEqual(cleanup.syncs, [
+      join(paths.parent, ".result.tmp.foundation-owned-cleanup-deterministic"),
+      paths.parent,
+    ]);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("preserves quarantined foreign evidence when restoration link fails", async () => {
+  const paths = await fixture();
+  try {
+    const cleanup = options(paths, {
+      async link() {
+        const error = new Error("restore link failed");
+        error.code = "EPERM";
+        throw error;
+      },
+      async rename(source, destination) {
+        await rename(source, `${source}.owned`);
+        await writeFile(source, "foreign\n");
+        await rename(source, destination);
+      },
+    });
+    await assert.rejects(
+      cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      /restore link failed/u,
+    );
+    const quarantine = join(
+      paths.parent,
+      ".result.tmp.foundation-owned-cleanup-deterministic",
+      "owned-temporary",
+    );
+    assert.equal(await readFile(quarantine, "utf8"), "foreign\n");
+    await assert.rejects(
+      readFile(paths.temporaryPath),
+      (error) => error?.code === "ENOENT",
+    );
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("preserves both foreign names when post-restoration sync fails", async () => {
+  const paths = await fixture();
+  try {
+    let parentSyncs = 0;
+    const cleanup = options(paths, {
+      async rename(source, destination) {
+        await rename(source, `${source}.owned`);
+        await writeFile(source, "foreign\n");
+        await rename(source, destination);
+      },
+    });
+    cleanup.value.syncDirectory = async (path) => {
+      cleanup.operations.push(`sync:${path}`);
+      if (path === paths.parent && ++parentSyncs === 2) {
+        throw new Error("restoration sync failed");
+      }
+      return "supported";
+    };
+    await assert.rejects(
+      cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      /restoration sync failed/u,
+    );
+    const quarantine = join(
+      paths.parent,
+      ".result.tmp.foundation-owned-cleanup-deterministic",
+      "owned-temporary",
+    );
+    assert.equal(await readFile(paths.temporaryPath, "utf8"), "foreign\n");
+    assert.equal(await readFile(quarantine, "utf8"), "foreign\n");
+    const restoredIdentity = await lstat(paths.temporaryPath);
+    const quarantinedIdentity = await lstat(quarantine);
+    assert.equal(restoredIdentity.dev, quarantinedIdentity.dev);
+    assert.equal(restoredIdentity.ino, quarantinedIdentity.ino);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }

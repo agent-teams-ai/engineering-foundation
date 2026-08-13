@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rename } from "node:fs/promises";
+import { link, mkdir, rename } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import type { PortablePathIdentity } from "../../application/model/path-identity.js";
@@ -32,6 +32,7 @@ function cleanupOperations(
     identityMatch:
       operations?.pathMatchesRegularFileIdentity ?? pathMatchesRegularFileIdentity,
     makeDirectory: operations?.mkdir ?? mkdir,
+    restore: operations?.link ?? link,
     move: operations?.rename ?? rename,
     token: operations?.quarantineToken?.() ?? randomUUID()
   };
@@ -132,6 +133,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
   readonly operations?: {
     readonly beforeLogicalRetirement?: (path: string) => Promise<void> | void;
     readonly mkdir?: typeof mkdir;
+    readonly link?: typeof link;
     readonly pathMatchesRegularFileIdentity?: typeof pathMatchesRegularFileIdentity;
     readonly quarantineToken?: () => string;
     readonly rename?: typeof rename;
@@ -142,6 +144,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     identityMatch,
     makeDirectory,
     move,
+    restore,
     token
   } = cleanupOperations(options.operations);
   const quarantineDirectory = join(
@@ -201,6 +204,15 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     options.expectedIdentity
   );
   if (ownership !== "match") {
+    try {
+      await restore(quarantinedPath, options.temporaryPath);
+    } catch (error) {
+      if (errorCode(error) === "EEXIST") {
+        return "different";
+      }
+      throw error;
+    }
+    await syncCleanupDirectory(options, options.parent);
     return "different";
   }
   const terminalRoot = await ensureTerminalEvidenceDirectory(

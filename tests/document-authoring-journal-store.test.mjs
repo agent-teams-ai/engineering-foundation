@@ -23,22 +23,22 @@ const fixturePath = fileURLToPath(
 );
 const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
 
-function envelope(destinationState = "pending") {
+async function envelope(destinationState = "pending") {
   const body = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     operationKind: "document-authoring",
     recoveryHandler: {
       id: "foundation.document-authoring",
-      contractVersion: 1
+      contractVersion: 2
     },
     foundation: {
       version: fixture.plan.compiler.version,
       buildIdentity: fixture.plan.compiler.buildIdentity
     },
     adapterContractVersion: 1,
-    payloadKind: "document-authoring-journal/v1",
+    payloadKind: "document-authoring-journal/v2",
     journal: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       plan: fixture.plan,
       destination: {
         path: fixture.plan.destination,
@@ -47,7 +47,7 @@ function envelope(destinationState = "pending") {
     },
     state: "PREPARED"
   };
-  return createDocumentTransactionEnvelope(body);
+  return await createDocumentTransactionEnvelope(body);
 }
 
 async function fixtureStore(options) {
@@ -74,7 +74,7 @@ async function withFixture(run, options) {
 
 test("creates, reads, replaces, and removes canonical document journal evidence", async () => {
   await withFixture(async ({ path, store }) => {
-    const first = envelope();
+    const first = await envelope();
     const firstIdentity = await store.create(first);
     assert.notEqual(firstIdentity.dev, "0");
     assert.notEqual(firstIdentity.ino, "0");
@@ -87,7 +87,7 @@ test("creates, reads, replaces, and removes canonical document journal evidence"
 
     const second = structuredClone(first);
     second.journal.destination.state = "preexisting";
-    const replacement = createDocumentTransactionEnvelope({
+    const replacement = await createDocumentTransactionEnvelope({
       ...second,
       state: "PREPARED"
     });
@@ -108,7 +108,7 @@ test("never overwrites a foreign canonical slot and preserves its candidate", as
   await withFixture(async ({ path, state, store }) => {
     await writeFile(path, "foreign evidence\n", { flag: "wx", mode: 0o600 });
     await assert.rejects(
-      store.create(envelope()),
+      store.create(await envelope()),
       /slot is occupied/u
     );
     assert.equal(await readFile(path, "utf8"), "foreign evidence\n");
@@ -124,7 +124,7 @@ test("replace detects a canonical substitution and preserves all evidence", asyn
   let attacked = false;
   await withFixture(
     async ({ path, state, store }) => {
-      const originalIdentity = await store.create(envelope());
+      const originalIdentity = await store.create(await envelope());
       const originalPath = `${path}.attacker-preserved-original`;
       const replacementStore = new NodeDocumentJournalStore(path, {
         async faultInjector(point) {
@@ -141,7 +141,7 @@ test("replace detects a canonical substitution and preserves all evidence", asyn
       await assert.rejects(
         replacementStore.replace({
           expectedIdentity: originalIdentity,
-          envelope: envelope()
+          envelope: await envelope()
         }),
         /changed concurrently/u
       );
@@ -159,7 +159,7 @@ test("replace detects a canonical substitution and preserves all evidence", asyn
 
 test("an interrupted removal leaves a quarantine barrier and fails closed", async () => {
   await withFixture(async ({ path, state, store }) => {
-    const identity = await store.create(envelope());
+    const identity = await store.create(await envelope());
     const interrupted = new NodeDocumentJournalStore(path, {
       faultInjector(point) {
         if (point.phase === "after-canonical-quarantined") {
@@ -189,7 +189,7 @@ test("rejects non-canonical slots, invalid identities, and non-regular journals"
       () => new NodeDocumentJournalStore(`${path}.other`),
       /historical Foundation transaction slot/u
     );
-    const identity = await store.create(envelope());
+    const identity = await store.create(await envelope());
     await assert.rejects(
       store.remove({ ...identity, ino: "0" }),
       /identity is invalid or zero/u
@@ -203,5 +203,32 @@ test("rejects non-canonical slots, invalid identities, and non-regular journals"
   await withFixture(async ({ path, store }) => {
     await mkdir(path);
     await assert.rejects(store.read(), /stable bounded regular file/u);
+  });
+});
+
+test("preserves a legacy v1 journal as manual recovery evidence", async () => {
+  await withFixture(async ({ path, state, store }) => {
+    const legacyBytes = `${canonicalJson(fixture.documentEnvelope)}\n`;
+    await writeFile(path, legacyBytes, { flag: "wx", mode: 0o600 });
+
+    await assert.rejects(
+      store.read(),
+      /invalid strict canonical JSON/u
+    );
+
+    assert.equal(await readFile(path, "utf8"), legacyBytes);
+    assert.deepEqual(await readdir(state), [
+      "scaffolding-transaction.json"
+    ]);
+  });
+});
+
+test("rejects a legacy v1 journal before creating transition evidence", async () => {
+  await withFixture(async ({ state, store }) => {
+    await assert.rejects(
+      store.create(fixture.documentEnvelope),
+      /document transaction envelope|schema|payload/iu
+    );
+    assert.deepEqual(await readdir(state), []);
   });
 });

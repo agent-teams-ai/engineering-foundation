@@ -104,10 +104,12 @@ function journalIdentity(identity: PortablePathIdentity): JournalIdentity {
   return result;
 }
 
-function canonicalEnvelopeBytes(envelope: DocumentTransactionEnvelope): Buffer {
-  assertDocumentTransactionEnvelope(envelope);
+async function canonicalEnvelopeBytes(
+  envelope: DocumentTransactionEnvelope
+): Promise<Buffer> {
+  const validated = await assertDocumentTransactionEnvelope(envelope);
   const bytes = Buffer.from(
-    `${canonicalJson(envelope as unknown as CanonicalJsonValue)}\n`,
+    `${canonicalJson(validated as unknown as CanonicalJsonValue)}\n`,
     "utf8"
   );
   if (bytes.byteLength > maximumJournalBytes) {
@@ -204,7 +206,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
   async #prepareCandidate(
     envelope: DocumentTransactionEnvelope
   ): Promise<JournalIdentity> {
-    const bytes = canonicalEnvelopeBytes(envelope);
+    const bytes = await canonicalEnvelopeBytes(envelope);
     let handle: FileHandle;
     try {
       handle = await open(this.#candidatePath, "wx", 0o600);
@@ -254,17 +256,18 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
         "Document journal is not a stable bounded regular file."
       );
     }
-    let envelope: unknown;
+    let envelope: DocumentTransactionEnvelope;
     try {
-      envelope = parseStrictJson(strictUtf8.decode(record.bytes));
-      assertDocumentTransactionEnvelope(envelope);
+      envelope = await assertDocumentTransactionEnvelope(
+        parseStrictJson(strictUtf8.decode(record.bytes))
+      );
     } catch (error) {
       throw new NodeDocumentJournalStoreError(
         "Document journal contains invalid strict canonical JSON.",
         { cause: error }
       );
     }
-    if (!record.bytes.equals(canonicalEnvelopeBytes(envelope))) {
+    if (!record.bytes.equals(await canonicalEnvelopeBytes(envelope))) {
       throw new NodeDocumentJournalStoreError(
         "Document journal JSON is not in canonical byte form."
       );

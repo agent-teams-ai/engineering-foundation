@@ -30,7 +30,11 @@
             "kind": "fenced-markdown-body",
             "path": "docs/templates/adr.md"
           },
-          "heading": { "kind": "id-colon-title" }
+          "heading": { "kind": "id-colon-title" },
+          "reachability": {
+            "kind": "manual-fixed-index",
+            "indexPath": "docs/decisions/README.md"
+          }
         }
       ]
     }

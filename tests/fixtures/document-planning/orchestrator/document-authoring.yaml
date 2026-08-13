@@ -21,12 +21,14 @@ authoring:
       placement: {kind: collection, directory: docs/decisions, filename: numeric-id-slug}
       template: {kind: fenced-markdown-body, path: docs/templates/adr.md}
       heading: {kind: id-colon-title}
+      reachability: {kind: manual-fixed-index, indexPath: docs/decisions/README.md}
     - type: open-decision
       initialStatus: open
       identity: {kind: explicit, format: open-decision-three-digits}
       placement: {kind: collection, directory: docs/open-decisions, filename: id-slug}
       template: {kind: fenced-markdown-body, path: docs/templates/open-decision.md}
       heading: {kind: id-colon-title}
+      reachability: {kind: manual-fixed-index, indexPath: docs/open-decisions/README.md}
     - type: bounded-context
       initialStatus: proposed
       identity:
@@ -36,6 +38,7 @@ authoring:
       placement: {kind: qualified-leaf-index, root: docs/domain/contexts, requiredBasename: README.md}
       template: {kind: fenced-markdown-body, path: docs/templates/bounded-context.md}
       heading: {kind: title}
+      reachability: {kind: not-required}
     - type: contract
       initialStatus: proposed
       identity:
@@ -45,6 +48,7 @@ authoring:
       placement: {kind: collection, directory: docs/contracts, filename: slug}
       template: {kind: fenced-markdown-body, path: docs/templates/contract.md}
       heading: {kind: title}
+      reachability: {kind: manual-fixed-index, indexPath: docs/contracts/README.md}
     - type: feature
       initialStatus: proposed
       identity:
@@ -60,6 +64,7 @@ authoring:
         minimumSegmentsAfterRequired: 1
       template: {kind: fenced-markdown-body, path: docs/templates/feature.md}
       heading: {kind: title}
+      reachability: {kind: manual-colocated-index, pathPrefix: before-required-segments, indexBasename: README.md}
     - type: runbook
       initialStatus: active
       identity:
@@ -69,3 +74,4 @@ authoring:
       placement: {kind: collection, directory: docs/operations, filename: slug}
       template: {kind: fenced-markdown-body, path: docs/templates/runbook.md}
       heading: {kind: title}
+      reachability: {kind: manual-fixed-index, indexPath: docs/operations/README.md}

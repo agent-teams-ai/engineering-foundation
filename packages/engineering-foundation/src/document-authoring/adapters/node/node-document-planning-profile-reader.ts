@@ -43,6 +43,7 @@ function freezeArtifactType(artifactType: DocumentArtifactType): DocumentArtifac
     heading: Object.freeze({ ...artifactType.heading }),
     identity: freezeIdentity(artifactType.identity),
     placement: freezePlacement(artifactType.placement),
+    reachability: Object.freeze({ ...artifactType.reachability }),
     template: Object.freeze({ ...artifactType.template })
   });
 }

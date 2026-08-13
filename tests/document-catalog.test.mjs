@@ -62,6 +62,8 @@ authoring:
         path: docs/template.md
       heading:
         kind: id-colon-title
+      reachability:
+        kind: not-required
 `;
 }
 

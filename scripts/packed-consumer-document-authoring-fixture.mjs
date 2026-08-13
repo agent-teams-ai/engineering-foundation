@@ -35,6 +35,9 @@ authoring:
         path: docs/template.md
       heading:
         kind: id-colon-title
+      reachability:
+        kind: manual-fixed-index
+        indexPath: docs/catalog/README.md
 `,
     "utf8"
   );

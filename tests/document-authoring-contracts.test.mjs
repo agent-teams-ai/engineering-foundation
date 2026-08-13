@@ -742,6 +742,49 @@ test("retains consumer-selected roots only for explicit placement", async () => 
   }
 });
 
+test("closes bounded reachability strategies and their placement compatibility", async () => {
+  for (const reachability of [
+    { kind: "manual-fixed-index", indexPath: "docs/README.md" },
+    { kind: "not-required" },
+  ]) {
+    const valid = clone(fixture.profile);
+    valid.authoring.artifactTypes[0].reachability = reachability;
+    await assertSchema("document-authoring-profile/v1", valid, "reachability-profile");
+  }
+
+  const colocated = clone(fixture.profile);
+  const artifact = colocated.authoring.artifactTypes[0];
+  artifact.identity = {
+    kind: "explicit",
+    format: "qualified",
+    grammar: { prefixSegments: ["feature"], minSuffixSegments: 2, maxSuffixSegments: 16 },
+  };
+  artifact.placement = {
+    kind: "explicit",
+    allowedRoots: ["apps", "packages"],
+    requiredSegmentsInOrder: ["src", "features"],
+    requiredBasename: "README.md",
+    minimumSegmentsBeforeRequired: 1,
+    minimumSegmentsAfterRequired: 1,
+  };
+  artifact.reachability = {
+    kind: "manual-colocated-index",
+    pathPrefix: "before-required-segments",
+    indexBasename: "README.md",
+  };
+  await assertSchema("document-authoring-profile/v1", colocated, "colocated-profile");
+
+  for (const mutate of [
+    (value) => { value.authoring.artifactTypes[0].reachability.extra = true; },
+    (value) => { value.authoring.artifactTypes[0].reachability.indexBasename = "INDEX.md"; },
+    (value) => { value.authoring.artifactTypes[0].reachability.pathPrefix = "nearest-parent"; },
+  ]) {
+    const invalid = clone(colocated);
+    mutate(invalid);
+    await rejectsSchema("document-authoring-profile/v1", invalid);
+  }
+});
+
 test("binds Receipt result evidence to a proven output outcome", async () => {
   const missingResult = clone(fixture.receipt);
   delete missingResult.resultDigest;

@@ -74,7 +74,20 @@ export interface DocumentArtifactType {
   readonly heading: {
     readonly kind: "id-colon-title" | "title";
   };
+  readonly reachability: DocumentReachabilityStrategy;
 }
+
+export type DocumentReachabilityStrategy =
+  | {
+      readonly kind: "manual-fixed-index";
+      readonly indexPath: string;
+    }
+  | {
+      readonly kind: "manual-colocated-index";
+      readonly pathPrefix: "before-required-segments";
+      readonly indexBasename: "README.md";
+    }
+  | { readonly kind: "not-required" };
 
 export type DocumentCatalogCollection =
   | {

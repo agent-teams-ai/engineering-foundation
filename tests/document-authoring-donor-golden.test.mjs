@@ -165,6 +165,7 @@ test("validates the six-type donor profile through the public wire schema", asyn
         ? "id-colon-title"
         : "title",
     },
+    reachability: { kind: "not-required" },
   }));
   const profile = {
     schemaVersion: 1,

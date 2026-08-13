@@ -52,6 +52,8 @@ authoring:
         path: docs/templates/context.md
       heading:
         kind: title
+      reachability:
+        kind: not-required
 `;
 }
 

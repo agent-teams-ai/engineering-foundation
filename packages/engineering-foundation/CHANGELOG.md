@@ -1,5 +1,15 @@
 # @agent-teams/engineering-foundation
 
+## 0.15.0
+
+### Minor Changes
+
+- [#97](https://github.com/agent-teams-ai/engineering-foundation/pull/97) [`11d1fcb`](https://github.com/agent-teams-ai/engineering-foundation/commit/11d1fcb536e818f0444b8b317f043aba7aa1b928) Thanks [@777genius](https://github.com/777genius)! - Add deterministic read-only document planning from a governed Intent and consumer authorities.
+
+### Patch Changes
+
+- [#96](https://github.com/agent-teams-ai/engineering-foundation/pull/96) [`7d82fd6`](https://github.com/agent-teams-ai/engineering-foundation/commit/7d82fd672a232e4897add738596c5bf40ff2d97f) Thanks [@777genius](https://github.com/777genius)! - Harden published compatibility qualification with one fail-closed npm install timeout retry shared across the complete E2E.
+
 ## 0.14.0
 
 ### Minor Changes

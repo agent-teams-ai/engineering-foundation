@@ -31,6 +31,11 @@ export type FilesystemPublicationFaultInjector = (
   point: FilesystemPublicationFaultPoint
 ) => Promise<void> | void;
 
+interface FilesystemPublicationOptions {
+  readonly cleanupTransition: OwnedTemporaryCleanupTransitionPort;
+  readonly faultInjector?: FilesystemPublicationFaultInjector;
+}
+
 function postimage(operation: MaterializeFileOperation) {
   return {
     bytes: Buffer.from(operation.after.contentBase64, "base64"),
@@ -193,16 +198,22 @@ function translatePublicationError(
 }
 
 export async function publishFilesystemOperation(
-  options: {
-    readonly cleanupTransition: OwnedTemporaryCleanupTransitionPort;
-    readonly faultInjector?: FilesystemPublicationFaultInjector;
-    readonly operation: MaterializeFileOperation;
-    readonly operationIndex: number;
-    readonly planDigest: string;
-    readonly root: string;
-  }
+  root: string,
+  operation: MaterializeFileOperation,
+  planDigest: string,
+  operationIndex: number,
+  faultInjectorOrOptions?:
+    | FilesystemPublicationFaultInjector
+    | FilesystemPublicationOptions
 ): Promise<"already-satisfied" | "applied"> {
-  const { operation, planDigest, root } = options;
+  const faultInjector =
+    typeof faultInjectorOrOptions === "function"
+      ? faultInjectorOrOptions
+      : faultInjectorOrOptions?.faultInjector;
+  const cleanupTransition =
+    typeof faultInjectorOrOptions === "function"
+      ? undefined
+      : faultInjectorOrOptions?.cleanupTransition;
   await assertSafeExistingAncestors(root, operation.path);
   await assertNoOwnedCleanupResidue(root, {
     planDigest,
@@ -229,19 +240,21 @@ export async function publishFilesystemOperation(
       allowUnsupportedDirectoryDurability: true,
       destinationPath: destination,
       displayPath: operation.path,
-      ...(options.faultInjector === undefined
+      ...(faultInjector === undefined
         ? {}
         : {
             faultInjector: async (point: AbsentFilePublicationFaultPoint) =>
-              options.faultInjector?.({
+              faultInjector({
                 ...point,
-                operationIndex: options.operationIndex,
+                operationIndex,
                 operationPath: operation.path
               })
           }),
       postimage: postimage(operation),
       temporaryPath: temporary,
-      transition: options.cleanupTransition
+      ...(cleanupTransition === undefined
+        ? {}
+        : { transition: cleanupTransition })
     });
     return outcome === "published" ? "applied" : "already-satisfied";
   } catch (error) {

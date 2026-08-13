@@ -10,6 +10,7 @@ import {
   assertDocumentTransactionEnvelope,
   createDocumentTransactionEnvelope,
 } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
+import { documentTransactionEnvelopeDigest } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-digests.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
@@ -57,6 +58,13 @@ test("creates and validates the closed PREPARED envelope", async () => {
   const envelope = await createDocumentTransactionEnvelope(preparedBody());
   assert.equal(envelope.state, "PREPARED");
   assert.match(envelope.payloadDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(
+    documentTransactionEnvelopeDigest({
+      ...envelope,
+      envelopeDigest: `sha256:${"0".repeat(64)}`,
+    }),
+    envelope.envelopeDigest,
+  );
   await assert.doesNotReject(assertDocumentTransactionEnvelope(envelope));
 });
 

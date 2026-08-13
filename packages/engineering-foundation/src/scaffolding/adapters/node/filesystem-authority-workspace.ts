@@ -266,22 +266,24 @@ async function publishPendingOperations(options: {
       operationIndex,
       operationPath: operation.path
     });
-    const outcome = await publishFilesystemOperation({
-      root: continuation.root,
+    const outcome = await publishFilesystemOperation(
+      continuation.root,
       operation,
-      planDigest: journal.plan.planDigest,
+      journal.plan.planDigest,
       operationIndex,
-      ...(continuation.faultInjector === undefined
-        ? {}
-        : { faultInjector: continuation.faultInjector }),
-      cleanupTransition: createNodeFoundationCleanupTransition(
-        continuation.root,
-        sha256Text(
-          `${journal.plan.planDigest}:${operation.id}:cleanup`
-        ).slice("sha256:".length),
-        { syncStateDirectory: syncFoundationStateDirectory }
-      )
-    });
+      {
+        ...(continuation.faultInjector === undefined
+          ? {}
+          : { faultInjector: continuation.faultInjector }),
+        cleanupTransition: createNodeFoundationCleanupTransition(
+          continuation.root,
+          sha256Text(
+            `${journal.plan.planDigest}:${operation.id}:cleanup`
+          ).slice("sha256:".length),
+          { syncStateDirectory: syncFoundationStateDirectory }
+        )
+      }
+    );
     const beforePublished = journal;
     journal = replaceScaffoldJournalOperation(
       journal,

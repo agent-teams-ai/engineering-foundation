@@ -20,11 +20,13 @@ export function documentTransactionPayloadDigest(
 }
 
 export function documentTransactionEnvelopeDigest(
-  envelope: Omit<DocumentTransactionEnvelope, "envelopeDigest">
+  envelope:
+    | DocumentTransactionEnvelope
+    | Omit<DocumentTransactionEnvelope, "envelopeDigest">
 ): DocumentAuthorityDigest {
-  const snapshot = canonicalSnapshot(
-    envelope as unknown as Record<string, CanonicalJsonValue>
+  const { envelopeDigest: _ignored, ...body } =
+    envelope as DocumentTransactionEnvelope;
+  return sha256Json(
+    canonicalSnapshot(body) as unknown as CanonicalJsonValue
   );
-  const { envelopeDigest: _ignored, ...body } = snapshot;
-  return sha256Json(body);
 }

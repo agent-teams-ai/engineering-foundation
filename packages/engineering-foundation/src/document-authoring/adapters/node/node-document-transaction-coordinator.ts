@@ -28,7 +28,9 @@ function isExactDocumentRecovery(
   return (
     status.state === "pending" &&
     status.operationKind === "document-authoring" &&
-    observedProperty(status, "format") === "document-authoring-envelope-v3" &&
+    ["document-authoring-envelope-v3", "document-authoring-envelope-v4"].includes(
+      String(observedProperty(status, "format"))
+    ) &&
     observedProperty(status.recovery, "commandId") === "docs-recover" &&
     status.recovery.exactFoundationVersion === status.foundationVersion &&
     status.recovery.exactFoundationBuildIdentity ===

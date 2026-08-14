@@ -3,7 +3,7 @@ import type {
   DocumentCommandExecution,
   DocumentDoctorResult
 } from "../model/document-command.js";
-import type { DocumentTransactionInspectionV1 } from "../model/document-transaction-inspection.js";
+import type { DocumentTransactionInspection } from "../model/document-transaction-inspection.js";
 import type {
   DocumentEnvironmentInspection,
   DocumentEnvironmentInspector
@@ -21,7 +21,7 @@ export interface RunDocumentDoctorRequest {
 
 interface Dependencies {
   readonly environment: DocumentEnvironmentInspector;
-  inspect(consumerRoot: string): Promise<DocumentTransactionInspectionV1>;
+  inspect(consumerRoot: string): Promise<DocumentTransactionInspection>;
 }
 
 function environmentResult(environment: Awaited<
@@ -49,7 +49,7 @@ function unsupportedDurabilityDiagnostic(): DocumentCommandDiagnostic {
 }
 
 function inspectionDiagnostics(
-  inspection: DocumentTransactionInspectionV1,
+  inspection: DocumentTransactionInspection,
   consumerRoot: string
 ): readonly DocumentCommandDiagnostic[] {
   if (inspection.state === "idle") {
@@ -84,7 +84,7 @@ function inspectionDiagnostics(
 }
 
 function manualTransactionState(
-  inspection: Extract<DocumentTransactionInspectionV1, {
+  inspection: Extract<DocumentTransactionInspection, {
     readonly state: "manual-recovery-required";
   }>
 ): DocumentDoctorResult["transactionState"] {

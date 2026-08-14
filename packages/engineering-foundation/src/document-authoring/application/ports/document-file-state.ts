@@ -1,6 +1,6 @@
 import type { DocumentOwnedTemporary } from "../model/document-transaction.js";
 import type { DocumentPhysicalIdentity } from "../model/document-physical-identity.js";
-import type { DocumentPlan } from "../model/document-planning.js";
+import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
 
 export type DocumentDestinationState =
   | { readonly state: "absent" }

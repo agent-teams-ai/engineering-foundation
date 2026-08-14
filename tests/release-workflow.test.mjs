@@ -661,6 +661,25 @@ test("release ReviewGate narrowly allows exit state deletion and rejects private
   assert.deepEqual(config.privatePackages, { version: true, tag: false });
 });
 
+test("release ReviewGate requires a complete pair for every released package", () => {
+  const validFiles = [
+    { filename: ".changeset/unified-docs-protocol.md", status: "removed" },
+    { filename: "packages/engineering-foundation/CHANGELOG.md", status: "modified" },
+    { filename: "packages/engineering-foundation/package.json", status: "modified" },
+    { filename: "packages/docs-protocol/CHANGELOG.md", status: "modified" },
+    { filename: "packages/docs-protocol/package.json", status: "modified" },
+  ];
+  assert.deepEqual(releasePullRequestFileViolations(validFiles), []);
+  assert.match(
+    releasePullRequestFileViolations(
+      validFiles.filter(
+        (file) => file.filename !== "packages/docs-protocol/CHANGELOG.md",
+      ),
+    ).join("\n"),
+    /must modify packages\/docs-protocol\/CHANGELOG\.md/u,
+  );
+});
+
 test("release ReviewGate reads piped GitHub evidence through portable stdin", async () => {
   assert.equal(
     await readStreamText(Readable.from([Buffer.from('[{"filename":'), '"safe"}]'])),

@@ -29,7 +29,10 @@ const schemaLoads = new Map<string, Promise<string>>();
 const SCHEMA_DEPENDENCIES: Partial<
   Readonly<Record<FoundationSchemaCatalogId, readonly FoundationSchemaCatalogId[]>>
 > = {
+  "document-authoring-profile/v2": ["document-authoring-profile/v1"],
   "document-plan/v1": ["document-intent/v1"],
+  "document-plan/v2": ["document-intent/v1", "document-plan/v1"],
+  "document-receipt/v2": ["document-receipt/v1"],
   "foundation-transaction-envelope/v2": [
     "document-intent/v1",
     "document-plan/v1",
@@ -39,6 +42,12 @@ const SCHEMA_DEPENDENCIES: Partial<
   "foundation-transaction-envelope/v3": [
     "document-intent/v1",
     "document-plan/v1"
+  ],
+  "foundation-transaction-envelope/v4": [
+    "document-intent/v1",
+    "document-plan/v1",
+    "document-plan/v2",
+    "foundation-transaction-envelope/v3"
   ],
   "scaffold-recovery-journal/v1": ["scaffold-plan/v1"]
 };

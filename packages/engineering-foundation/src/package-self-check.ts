@@ -29,8 +29,12 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "dist/public-api-surface.d.ts",
   "dist/document-authoring/index.d.ts",
   "dist/document-authoring/index.js",
+  "dist/document-authoring/qualification/index.d.ts",
+  "dist/document-authoring/qualification/index.js",
   "dist/local-mode/index.d.ts",
   "dist/local-mode/index.js",
+  "dist/mutation/index.d.ts",
+  "dist/mutation/index.js",
   "dist/scaffolding/index.d.ts",
   "dist/scaffolding/index.js",
   ...FOUNDATION_REQUIRED_PRESET_PATHS,
@@ -293,6 +297,14 @@ export async function inspectFoundationPackage(
   validateExport(manifest.exports, "./document-authoring", {
     types: "./dist/document-authoring/index.d.ts",
     import: "./dist/document-authoring/index.js"
+  });
+  validateExport(manifest.exports, "./document-authoring/qualification", {
+    types: "./dist/document-authoring/qualification/index.d.ts",
+    import: "./dist/document-authoring/qualification/index.js"
+  });
+  validateExport(manifest.exports, "./mutation", {
+    types: "./dist/mutation/index.d.ts",
+    import: "./dist/mutation/index.js"
   });
   validateExport(manifest.exports, "./scaffolding", {
     types: "./dist/scaffolding/index.d.ts",

@@ -52,7 +52,9 @@ function isDocumentRecoveryAllowed(
   return (
     status.state === "pending" &&
     status.operationKind === "document-authoring" &&
-    observedStatusFormat(status) === "document-authoring-envelope-v3" &&
+    ["document-authoring-envelope-v3", "document-authoring-envelope-v4"].includes(
+      String(observedStatusFormat(status))
+    ) &&
     status.recovery.exactFoundationVersion === status.foundationVersion &&
     status.recovery.exactFoundationBuildIdentity ===
       status.foundationBuildIdentity &&

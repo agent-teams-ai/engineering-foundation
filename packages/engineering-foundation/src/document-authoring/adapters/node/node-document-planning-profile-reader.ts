@@ -9,10 +9,12 @@ import type { DocumentPlanningProfileReader } from "../../application/ports/docu
 import { DocumentCatalogError } from "../../document-catalog-error.js";
 import { DocumentPlanningError } from "../../document-planning-error.js";
 import {
-  InvalidDocumentAuthoringProfileError,
-  loadValidatedDocumentAuthoringProfile,
-  type ValidatedDocumentAuthoringProfile
+  InvalidDocumentAuthoringProfileError
 } from "./load-validated-document-authoring-profile.js";
+import {
+  loadValidatedDocumentAuthoringProfileV2,
+  type ValidatedDocumentAuthoringProfileV2
+} from "./load-validated-document-authoring-profile-v2.js";
 
 function freezeIdentity(identity: DocumentIdentityStrategy): DocumentIdentityStrategy {
   return identity.format === "qualified"
@@ -39,10 +41,13 @@ function freezePlacement(placement: DocumentPlacementStrategy): DocumentPlacemen
 }
 
 function freezeArtifactType(
-  artifactType: ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number]
+  artifactType: ValidatedDocumentAuthoringProfileV2["authoring"]["artifactTypes"][number]
 ): DocumentArtifactType {
   return Object.freeze({
     ...artifactType,
+    ...(artifactType.allowedOwnerIds === undefined
+      ? {}
+      : { allowedOwnerIds: Object.freeze([...artifactType.allowedOwnerIds]) }),
     heading: Object.freeze({ ...artifactType.heading }),
     identity: freezeIdentity(artifactType.identity),
     placement: freezePlacement(artifactType.placement),
@@ -77,7 +82,9 @@ implements DocumentPlanningProfileReader {
     readonly signal?: AbortSignal;
   }): Promise<DocumentPlanningProfileSnapshot> {
     try {
-      const { evidence, profile } = await loadValidatedDocumentAuthoringProfile(request);
+      const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2(
+        request
+      );
       return Object.freeze({
         artifactTypes: Object.freeze(
           profile.authoring.artifactTypes.map(freezeArtifactType)
@@ -90,8 +97,12 @@ implements DocumentPlanningProfileReader {
           ...(profile.catalog.excludedPrefixes ?? [])
         ]),
         metadataSchemaPath: profile.catalog.metadataSchemaPath,
+        ...(profile.catalog.metadataSidecar === undefined
+          ? {}
+          : { metadataSidecar: Object.freeze({ ...profile.catalog.metadataSidecar }) }),
         ownerCatalog: Object.freeze({ ...profile.catalog.ownerCatalog }),
-        projectId: profile.projectId
+        projectId: profile.projectId,
+        schemaVersion: profile.schemaVersion
       });
     } catch (error) {
       if (error instanceof InvalidDocumentAuthoringProfileError) {

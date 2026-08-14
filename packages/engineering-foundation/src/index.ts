@@ -7,6 +7,7 @@ export type { FoundationPackageSelfCheck } from "./package-self-check.js";
 export { FoundationError } from "./errors.js";
 export type { FoundationErrorCode } from "./errors.js";
 export * as localMode from "./local-mode/index.js";
+export * as mutation from "./mutation/index.js";
 export { inspectFoundationTransactionAwareMode } from "./local-mode/inspection.js";
 export type {
   FoundationManualRecoveryReason,

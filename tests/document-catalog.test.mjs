@@ -10,7 +10,10 @@ import {
   DocumentCatalogError,
   projectReferencedDocuments,
 } from "../packages/engineering-foundation/dist/document-authoring/index.js";
-import { BuildDocumentationCatalog } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/build-documentation-catalog.js";
+import {
+  BuildDocumentationCatalog,
+  BuildDocumentationCatalogV2,
+} from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/build-documentation-catalog.js";
 
 const digest = `sha256:${"0".repeat(64)}`;
 
@@ -106,6 +109,11 @@ async function createConsumer() {
     writeFile(
       join(root, "docs", "owners.yaml"),
       "version: 1\nowners:\n  architecture:\n    kind: architecture\n",
+      "utf8",
+    ),
+    writeFile(
+      join(root, "docs", "template.md"),
+      "```markdown\n---\nid: placeholder\ntype: guide\nstatus: active\nowner: architecture\nsummary: Placeholder.\n---\n\n# Placeholder\n```\n",
       "utf8",
     ),
   ]);
@@ -399,11 +407,16 @@ function observedDocument(repositoryPath, id) {
   };
 }
 
-function fakeBuilder(documents, overrides = {}) {
+function fakeBuilder(
+  documents,
+  overrides = {},
+  Builder = BuildDocumentationCatalog,
+) {
   let ownerReads = 0;
   let repositoryReads = 0;
+  let sidecarReads = 0;
   const evidence = (path) => ({ digest, path, size: 1 });
-  return new BuildDocumentationCatalog({
+  return new Builder({
     metadata: {
       async load() {
         return {
@@ -431,8 +444,17 @@ function fakeBuilder(documents, overrides = {}) {
           evidence: evidence("document-authoring.yaml"),
           excludedPrefixes: [],
           metadataSchemaPath: "docs/metadata.schema.json",
+          ...(overrides.sidecarChanges === true
+            ? {
+                metadataSidecar: {
+                  kind: "path-metadata-map",
+                  path: "docs/metadata.sidecar.yaml",
+                },
+              }
+            : {}),
           ownerCatalog: { contract: "foundation.owner-map/v1", path: "docs/owners.yaml" },
           projectId: "fixture-project",
+          schemaVersion: Builder === BuildDocumentationCatalogV2 ? 2 : 1,
         };
       },
     },
@@ -451,8 +473,63 @@ function fakeBuilder(documents, overrides = {}) {
         throw new Error("not used");
       },
     },
+    ...(overrides.sidecarChanges === true
+      ? {
+          sidecar: {
+            async read() {
+              sidecarReads += 1;
+              return {
+                documents: Object.freeze({}),
+                evidence: {
+                  digest: `sha256:${String(sidecarReads).repeat(64)}`,
+                  path: "docs/metadata.sidecar.yaml",
+                  size: 1,
+                },
+              };
+            },
+          },
+        }
+      : {}),
   });
 }
+
+test("v2 rejects noncanonical and amplification-prone metadata without changing v1", async () => {
+  const shared = { value: "same" };
+  const hostileMetadata = [
+    { first: shared, second: shared },
+    { unsafeNumber: -0 },
+    { unsafeText: "\ud800" },
+    { decomposed: "Cafe\u0301" },
+    { nested: JSON.parse('{"__proto__":true}') },
+  ];
+
+  for (const [index, extra] of hostileMetadata.entries()) {
+    const document = observedDocument(`docs/unsafe-${index}.md`, `guide.unsafe-${index}`);
+    Object.assign(document.frontmatter.value, extra);
+    const request = {
+      consumerRoot: "/fixture",
+      profilePath: "document-authoring.yaml",
+    };
+
+    const v1 = await fakeBuilder([document]).execute(request);
+    const v2 = await fakeBuilder(
+      [document],
+      {},
+      BuildDocumentationCatalogV2,
+    ).execute(request);
+
+    assert.equal(v1.status, "complete");
+    assert.equal(v1.documents.length, 1);
+    assert.equal(v2.status, "partial");
+    assert.equal(v2.documents.length, 0);
+    assert.deepEqual(v2.diagnostics.map(({ ruleId }) => ruleId), [
+      "document.catalog.metadata-projection-invalid",
+    ]);
+    assert.deepEqual(v2.identityProjection, [
+      { id: `guide.unsafe-${index}`, repositoryPath: `docs/unsafe-${index}.md` },
+    ]);
+  }
+});
 
 test("detects case and NFC path collisions independently of the host filesystem", async () => {
   const documents = [observedDocument("docs/Caf\u00e9.md", "guide.composed")];
@@ -485,6 +562,19 @@ test("fails closed when owner authority disappears during observation", async ()
   );
 });
 
+test("v2 fails closed when sidecar evidence changes during observation", async () => {
+  await assert.rejects(
+    fakeBuilder(
+      [observedDocument("docs/valid.md", "guide.valid")],
+      { sidecarChanges: true },
+      BuildDocumentationCatalogV2,
+    ).execute({ consumerRoot: "/fixture", profilePath: "document-authoring.yaml" }),
+    (error) =>
+      error instanceof DocumentCatalogError &&
+      error.code === "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
+  );
+});
+
 test("marks a catalog partial when the corpus changes between passes", async () => {
   const snapshot = await fakeBuilder(
     [observedDocument("docs/valid.md", "guide.valid")],
@@ -509,6 +599,18 @@ test("catalog output is permutation invariant", async () => {
   const left = await fakeBuilder(ordered).execute(request);
   const right = await fakeBuilder(ordered.toReversed()).execute(request);
   assert.deepEqual(right, left);
+
+  const leftV2 = await fakeBuilder(
+    ordered,
+    {},
+    BuildDocumentationCatalogV2,
+  ).execute(request);
+  const rightV2 = await fakeBuilder(
+    ordered.toReversed(),
+    {},
+    BuildDocumentationCatalogV2,
+  ).execute(request);
+  assert.equal(rightV2.semanticDigest, leftV2.semanticDigest);
 });
 
 test("qualifies pure catalog projections without performance timing", async (context) => {

@@ -24,6 +24,10 @@
       ],
       "project": ["src/**/*.ts"]
     },
+    "packages/docs-protocol": {
+      "entry": ["src/index.ts", "src/cli.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "spikes/source-dependency-parser": {
       "project": ["*.mjs"]
     }

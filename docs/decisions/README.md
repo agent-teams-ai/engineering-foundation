@@ -26,6 +26,7 @@ No proposed decisions.
 - [ADR-0019: Single Current Foundation Contract Version](0019-single-current-foundation-contract-version.md)
 - [ADR-0021: Consumer-Owned State Model Axis Topology](0021-consumer-owned-state-model-axis-topology.md)
 - [ADR-0024: Versioned Document Transaction Recovery](0024-versioned-document-transaction-recovery.md)
+- [ADR-0026: Retain-Only Document Directory Materialization](0026-retain-only-document-directory-materialization.md)
 
 ## Superseded
 
@@ -37,3 +38,4 @@ No proposed decisions.
 - [ADR-0020: Static Executable Specification Connectivity](0020-static-executable-specification-connectivity.md)
 - [ADR-0022: Document Authoring Protocol](0022-document-authoring-protocol.md)
 - [ADR-0023: Correct Document Authoring v1 Semantics](0023-correct-document-authoring-v1-semantics.md)
+- [ADR-0025: Separate Unified Documentation Protocol Package](0025-unified-documentation-protocol-package.md)

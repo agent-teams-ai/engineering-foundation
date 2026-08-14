@@ -7,7 +7,7 @@ import {
   type DocumentPhysicalIdentity
 } from "../../application/model/document-physical-identity.js";
 import type { DocumentOwnedTemporary } from "../../application/model/document-transaction.js";
-import type { DocumentPlan } from "../../application/model/document-planning.js";
+import type { DocumentPlanContract as DocumentPlan } from "../../application/model/document-planning.js";
 import type {
   DocumentDerivedTemporaryState,
   DocumentDestinationState,
@@ -18,6 +18,7 @@ import { isDocumentRepositoryPath } from "../../application/policies/document-re
 import { documentTemporaryPath } from "../../application/policies/document-temporary-path.js";
 import {
   recaptureDocumentPublicationPaths,
+  sameDocumentAncestry,
   sameDocumentPhysicalIdentity
 } from "./recapture-document-publication-paths.js";
 
@@ -61,6 +62,21 @@ function planPostimage(plan: DocumentPlan) {
     mode: 0o644,
     size: plan.output.size
   };
+}
+
+async function assertPublicationAncestryStable(
+  consumerRoot: string,
+  repositoryPath: string,
+  before: Awaited<ReturnType<typeof recaptureDocumentPublicationPaths>>
+): Promise<void> {
+  const after = await recaptureDocumentPublicationPaths({
+    consumerRoot,
+    destination: repositoryPath
+  });
+  if (before.destinationPath !== after.destinationPath ||
+    !sameDocumentAncestry(before.ancestryIdentities, after.ancestryIdentities)) {
+    throw new Error("Document path ancestry changed while filesystem state was read.");
+  }
 }
 
 function conflict(error: unknown): { readonly state: "conflict"; readonly reason: string } {
@@ -114,11 +130,17 @@ export class NodeDocumentFileState implements DocumentFileState {
       } catch (error) {
         if (error instanceof Error && "code" in error &&
           (error as NodeJS.ErrnoException).code === "ENOENT") {
+          await assertPublicationAncestryStable(
+            request.consumerRoot,
+            path,
+            paths
+          );
           return { state: "absent" };
         }
         throw error;
       }
       request.signal?.throwIfAborted();
+      await assertPublicationAncestryStable(request.consumerRoot, path, paths);
       if (observed.outcome !== "read") {
         return unverifiable("Derived document temporary is not a stable regular file.");
       }
@@ -157,11 +179,21 @@ export class NodeDocumentFileState implements DocumentFileState {
       } catch (error) {
         if (error instanceof Error && "code" in error &&
           (error as NodeJS.ErrnoException).code === "ENOENT") {
+          await assertPublicationAncestryStable(
+            request.consumerRoot,
+            request.plan.destination,
+            paths
+          );
           return { state: "absent" };
         }
         throw error;
       }
       request.signal?.throwIfAborted();
+      await assertPublicationAncestryStable(
+        request.consumerRoot,
+        request.plan.destination,
+        paths
+      );
       const expected = planPostimage(request.plan);
       if (observed.outcome !== "read" ||
         observed.bytes.byteLength !== expected.size ||
@@ -203,11 +235,21 @@ export class NodeDocumentFileState implements DocumentFileState {
       } catch (error) {
         if (error instanceof Error && "code" in error &&
           (error as NodeJS.ErrnoException).code === "ENOENT") {
+          await assertPublicationAncestryStable(
+            request.consumerRoot,
+            request.temporary.path,
+            paths
+          );
           return { state: "absent" };
         }
         throw error;
       }
       request.signal?.throwIfAborted();
+      await assertPublicationAncestryStable(
+        request.consumerRoot,
+        request.temporary.path,
+        paths
+      );
       if (observed.outcome !== "read" ||
         !sameDocumentPhysicalIdentity(observed.identity, expected) ||
         digest(observed.bytes) !== request.temporary.digest ||

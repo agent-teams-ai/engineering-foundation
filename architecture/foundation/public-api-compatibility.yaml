@@ -11,8 +11,12 @@ packages:
         declarationEntryPoint: packages/engineering-foundation/dist/index.d.ts
       - exportPath: "./document-authoring"
         declarationEntryPoint: packages/engineering-foundation/dist/document-authoring/index.d.ts
+      - exportPath: "./document-authoring/qualification"
+        declarationEntryPoint: packages/engineering-foundation/dist/document-authoring/qualification/index.d.ts
       - exportPath: "./local-mode"
         declarationEntryPoint: packages/engineering-foundation/dist/local-mode/index.d.ts
+      - exportPath: "./mutation"
+        declarationEntryPoint: packages/engineering-foundation/dist/mutation/index.d.ts
       - exportPath: "./scaffolding"
         declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/index.d.ts
     nonTypeExports:
@@ -35,3 +39,19 @@ packages:
         decisionId: ADR-0013
       - fingerprint: sha256:cd3b61b7d835a912ddbd87d9c4a7b3e26efa39b9f0638cad7fba9317b1fe5d07
         decisionId: ADR-0014
+  - packageName: "@agent-teams/docs-protocol"
+    packageRoot: packages/docs-protocol
+    manifestPath: packages/docs-protocol/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/docs-protocol/dist/index.d.ts
+      - exportPath: "./qualification"
+        declarationEntryPoint: packages/docs-protocol/dist/qualification/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/docs-protocol/tsconfig.json
+    releasedBaselinePath: architecture/public-api/docs-protocol.json
+    approvedBreakingChanges: []

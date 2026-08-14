@@ -3,7 +3,7 @@ import type {
   DocumentDescriptor,
   DocumentationCatalogSnapshot,
 } from "../../application/model/document-catalog.js";
-import type { DocumentPlan } from "../../application/model/document-planning.js";
+import type { DocumentPlanContract as DocumentPlan } from "../../application/model/document-planning.js";
 import type {
   DocumentStructureDiagnostic,
   DocumentStructureVerifier,

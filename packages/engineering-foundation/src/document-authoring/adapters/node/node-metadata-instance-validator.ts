@@ -98,6 +98,14 @@ export class NodeMetadataInstanceValidator implements MetadataInstanceValidator 
     assertNotCancelled(request.signal);
     return Object.freeze({
       evidence: file.evidence,
+      ...(Array.isArray(schema["required"]) &&
+      schema["required"].every((item) => typeof item === "string")
+        ? {
+            requiredProperties: Object.freeze(
+              [...new Set(schema["required"] as string[])].toSorted()
+            )
+          }
+        : {}),
       validate(instance: unknown): MetadataValidationResult {
         const valid = validate(instance);
         return Object.freeze({ messages: messages(validate.errors), valid });

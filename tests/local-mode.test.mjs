@@ -125,6 +125,7 @@ async function createTargetPackage(path, version) {
     exportPaths: [
       ".",
       "./document-authoring",
+      "./document-authoring/qualification",
       "./local-mode",
       "./package.json",
       "./presets/*",
@@ -149,6 +150,10 @@ async function createTargetPackage(path, version) {
       "./document-authoring": {
         types: "./dist/document-authoring/index.d.ts",
         import: "./dist/document-authoring/index.js"
+      },
+      "./document-authoring/qualification": {
+        types: "./dist/document-authoring/qualification/index.d.ts",
+        import: "./dist/document-authoring/qualification/index.js"
       },
       "./local-mode": {
         types: "./dist/local-mode/index.d.ts",

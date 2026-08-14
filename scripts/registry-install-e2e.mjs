@@ -29,17 +29,21 @@ import {
 } from "./registry-seed-scheduler.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
+import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
+const DOCS_PROTOCOL_PACKAGE_NAME = "@agent-teams/docs-protocol";
+const TARGET_PACKAGE_NAMES = new Set(
+  PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
+);
 const COMMAND_TIMEOUT_MS = 120_000;
 const REGISTRY_SEED_CONCURRENCY = Math.min(4, availableParallelism());
 const REGISTRY_TOKEN_ENVIRONMENT_KEY = "FOUNDATION_REGISTRY_E2E_TOKEN";
 const USER_CONFIG_ENVIRONMENT_KEY = "NPM_CONFIG_USERCONFIG";
 const repositoryRoot = resolvePath(fileURLToPath(new URL("..", import.meta.url)));
-const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
-const temporaryRoot = await mkdtemp(
+const temporaryRoot = await realpath(await mkdtemp(
   join(tmpdir(), "agent-teams-foundation-registry-e2e-"),
-);
+));
 const keepTemporaryRoot =
   process.env.AGENT_TEAMS_KEEP_REGISTRY_E2E_ARTIFACTS === "1";
 const runPnpm = createPnpmRunner();
@@ -131,10 +135,18 @@ async function resolveDependencyRoot(fromRoot, dependencyName) {
 
 async function collectRuntimeDependencyClosure() {
   const collected = new Map();
-  const queued = [{ root: packageRoot, manifest: await readManifest(packageRoot) }];
+  const queued = await Promise.all(
+    PUBLISHABLE_PACKAGES.map(async (releasePackage) => {
+      const root = join(repositoryRoot, releasePackage.root);
+      return { root, manifest: await readManifest(root) };
+    }),
+  );
   for (let index = 0; index < queued.length; index += 1) {
     const current = queued[index];
     for (const dependency of dependencyNames(current.manifest)) {
+      if (TARGET_PACKAGE_NAMES.has(dependency.name)) {
+        continue;
+      }
       const root = await resolveDependencyRoot(current.root, dependency.name);
       if (root === undefined) {
         if (dependency.optional) {
@@ -162,8 +174,9 @@ async function collectRuntimeDependencyClosure() {
   );
 }
 
-async function createTargetArchive() {
-  const destination = join(temporaryRoot, "target");
+async function createTargetArchive(releasePackage, index) {
+  const packageRoot = join(repositoryRoot, releasePackage.root);
+  const destination = join(temporaryRoot, "target", String(index));
   await mkdir(destination, { recursive: true });
   await runPnpm(["pack", "--pack-destination", destination], packageRoot);
   const manifest = await readManifest(packageRoot);
@@ -314,7 +327,7 @@ async function verifyInstalledBufQualifier(installedRoot) {
   }
 }
 
-async function createConsumerAttempt(target, registryUrl, attempt) {
+async function createConsumerAttempt(targets, registryUrl, attempt) {
   const { cacheRoot, clientRoot, consumerRoot, userConfigPath } = registryInstallAttemptPaths(
     temporaryRoot,
     attempt,
@@ -331,9 +344,9 @@ async function createConsumerAttempt(target, registryUrl, attempt) {
         name: "foundation-registry-e2e-consumer",
         private: true,
         type: "module",
-        devDependencies: {
-          [FOUNDATION_PACKAGE_NAME]: target.manifest.version,
-        },
+        devDependencies: Object.fromEntries(
+          targets.map((target) => [target.manifest.name, target.manifest.version]),
+        ),
       },
       null,
       2,
@@ -343,14 +356,14 @@ async function createConsumerAttempt(target, registryUrl, attempt) {
   return Object.freeze({ cacheRoot, clientRoot, consumerRoot, userConfigPath });
 }
 
-async function installConsumer(target, registryUrl) {
+async function installConsumer(targets, registryUrl) {
   return installRegistryConsumerWithRetry({
     cleanupAttempt: (context) => Promise.all([
       rm(context.clientRoot, { force: true, recursive: true }),
       rm(context.consumerRoot, { force: true, recursive: true }),
     ]),
     createAttempt: (attempt) =>
-      createConsumerAttempt(target, registryUrl, attempt),
+      createConsumerAttempt(targets, registryUrl, attempt),
     onRetry: ({ attempt, delayMs, timeoutMs }) => {
       process.stdout.write(
         `Registry E2E install retry attempt=${attempt} delayMs=${delayMs} timeoutMs=${timeoutMs}.\n`,
@@ -378,38 +391,61 @@ async function installConsumer(target, registryUrl) {
   });
 }
 
-async function verifyConsumer(target, registryUrl) {
-  const { consumerRoot } = await installConsumer(target, registryUrl);
-
-  const installedRoot = join(
-    consumerRoot,
-    "node_modules",
-    "@agent-teams",
-    "engineering-foundation",
-  );
-  const installedEntry = await lstat(installedRoot);
-  if (!installedEntry.isDirectory() || installedEntry.isSymbolicLink()) {
-    throw new Error("Registry install did not produce a real package directory.");
-  }
-  const installedManifest = await readManifest(installedRoot);
-  if (installedManifest.version !== target.manifest.version) {
-    throw new Error("Registry install returned a different Foundation version.");
-  }
-  const lockfile = JSON.parse(
-    await readFile(join(consumerRoot, "package-lock.json"), "utf8"),
-  );
-  const locked =
-    lockfile.packages?.["node_modules/@agent-teams/engineering-foundation"];
+async function verifyRegistryPackage(target, consumerRoot, lockfile, registryUrl) {
+  const packageSegments = target.manifest.name.split("/");
+  const targetRoot = join(consumerRoot, "node_modules", ...packageSegments);
+  const targetEntry = await lstat(targetRoot);
+  const targetManifest = await readManifest(targetRoot);
+  const lockedTarget = lockfile.packages?.[`node_modules/${target.manifest.name}`];
   if (
-    locked?.version !== target.manifest.version ||
-    typeof locked.integrity !== "string" ||
-    !locked.integrity.startsWith("sha512-") ||
-    typeof locked.resolved !== "string" ||
-    !locked.resolved.startsWith(registryUrl)
+    !targetEntry.isDirectory() ||
+    targetEntry.isSymbolicLink() ||
+    targetManifest.version !== target.manifest.version ||
+    lockedTarget?.version !== target.manifest.version ||
+    typeof lockedTarget.integrity !== "string" ||
+    !lockedTarget.integrity.startsWith("sha512-") ||
+    typeof lockedTarget.resolved !== "string" ||
+    !lockedTarget.resolved.startsWith(registryUrl)
   ) {
-    throw new Error("Registry lock evidence is incomplete or points outside the hermetic registry.");
+    throw new Error(`Registry evidence is incomplete for ${target.manifest.name}.`);
   }
+  await runCommand(
+    process.execPath,
+    ["--input-type=module", "--eval", `await import(${JSON.stringify(target.manifest.name)});`],
+    consumerRoot,
+    { timeoutMs: COMMAND_TIMEOUT_MS },
+  );
+  const binary =
+    typeof target.manifest.bin === "string"
+      ? target.manifest.bin
+      : Object.values(target.manifest.bin ?? {})[0];
+  if (typeof binary === "string") {
+    await runCommand(
+      process.execPath,
+      [join(targetRoot, binary), "--help"],
+      consumerRoot,
+      { timeoutMs: COMMAND_TIMEOUT_MS },
+    );
+  }
+  const { stdout: viewedVersion } = await runNpm(
+    [
+      "view",
+      `${target.manifest.name}@${target.manifest.version}`,
+      "version",
+      "--registry",
+      registryUrl,
+    ],
+    consumerRoot,
+  );
+  if (viewedVersion.trim() !== target.manifest.version) {
+    throw new Error(
+      `Registry metadata did not return ${target.manifest.name}@${target.manifest.version}.`,
+    );
+  }
+  return targetRoot;
+}
 
+async function verifyFoundationFeatures(installedRoot, consumerRoot, version, docsVersion) {
   await runCommand(
     process.execPath,
     [join(installedRoot, "dist", "cli.js"), "--help"],
@@ -437,23 +473,48 @@ async function verifyConsumer(target, registryUrl) {
       "scaffolding-authority-consumer",
     ),
   });
-  await verifyRegistryDocumentAuthoring({
-    consumerRoot,
-    version: target.manifest.version
-  });
-  const { stdout: viewedVersion } = await runNpm(
-    [
-      "view",
-      `${FOUNDATION_PACKAGE_NAME}@${target.manifest.version}`,
-      "version",
-      "--registry",
-      registryUrl,
-    ],
-    consumerRoot,
+  await verifyRegistryDocumentAuthoring({ consumerRoot, docsVersion, version });
+}
+
+async function verifyConsumer(targets, registryUrl) {
+  const { consumerRoot } = await installConsumer(targets, registryUrl);
+
+  const foundationTarget = targets.find(
+    (target) => target.manifest.name === FOUNDATION_PACKAGE_NAME,
   );
-  if (viewedVersion.trim() !== target.manifest.version) {
-    throw new Error("Registry metadata did not return the published Foundation version.");
+  if (foundationTarget === undefined) {
+    throw new Error("Foundation target is missing from registry qualification.");
   }
+  const docsTarget = targets.find(
+    (target) => target.manifest.name === DOCS_PROTOCOL_PACKAGE_NAME,
+  );
+  if (docsTarget === undefined) {
+    throw new Error("Docs Protocol target is missing from registry qualification.");
+  }
+  const lockfile = JSON.parse(
+    await readFile(join(consumerRoot, "package-lock.json"), "utf8"),
+  );
+  let installedFoundationRoot;
+  for (const target of targets) {
+    const targetRoot = await verifyRegistryPackage(
+      target,
+      consumerRoot,
+      lockfile,
+      registryUrl,
+    );
+    if (target.manifest.name === FOUNDATION_PACKAGE_NAME) {
+      installedFoundationRoot = targetRoot;
+    }
+  }
+  if (installedFoundationRoot === undefined) {
+    throw new Error("Installed Foundation target is missing.");
+  }
+  await verifyFoundationFeatures(
+    installedFoundationRoot,
+    consumerRoot,
+    foundationTarget.manifest.version,
+    docsTarget.manifest.version,
+  );
   return createHash("sha256")
     .update(await readFile(join(consumerRoot, "package-lock.json")))
     .digest("hex");
@@ -461,7 +522,9 @@ async function verifyConsumer(target, registryUrl) {
 
 let registry;
 try {
-  const target = await runRegistryPhase("target-archive", createTargetArchive);
+  const targets = await runRegistryPhase("target-archive", () =>
+    Promise.all(PUBLISHABLE_PACKAGES.map(createTargetArchive)),
+  );
   const dependencies = await runRegistryPhase(
     "dependency-closure",
     collectRuntimeDependencyClosure,
@@ -473,18 +536,20 @@ try {
   await runRegistryPhase("registry-seed", () =>
     seedRegistry(dependencies, registry.registryUrl),
   );
-  await runRegistryPhase("target-publish", () =>
-    publishArchive(
-      target.archivePath,
-      registry.registryUrl,
-      target.manifest.version,
-    ),
-  );
+  await runRegistryPhase("target-publish", async () => {
+    for (const target of targets) {
+      await publishArchive(
+        target.archivePath,
+        registry.registryUrl,
+        target.manifest.version,
+      );
+    }
+  });
   const lockDigest = await runRegistryPhase("consumer-qualification", () =>
-    verifyConsumer(target, registry.registryUrl),
+    verifyConsumer(targets, registry.registryUrl),
   );
   process.stdout.write(
-    `Registry-install qualification PASS: ${target.manifest.name}@${target.manifest.version}; ${dependencies.length} runtime packages; lock sha256:${lockDigest}.\n`,
+    `Registry-install qualification PASS: ${targets.map((target) => `${target.manifest.name}@${target.manifest.version}`).join(", ")}; ${dependencies.length} runtime packages; lock sha256:${lockDigest}.\n`,
   );
 } finally {
   if (previousRegistryToken === undefined) {

@@ -52,6 +52,13 @@ templates, placement meaning, body rules, relationships, and prose or diagram
 tools. Profiles are data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
+ADR-0025 separates the documentation-specific application layer from this
+kernel. `@agent-teams/docs-protocol` may depend on Foundation and owns the common
+documentation commands, vocabulary, query behavior, and agent workflow.
+Foundation cannot depend on Docs Protocol. Consumers still own their data-only
+profiles, schemas, owners, templates, reachability, and semantic validators;
+neither shared package accepts executable consumer extensions.
+
 The corrected authoring v1 applies that split mechanically. Foundation owns
 Intent normalization, closed ID/placement operators, filename slug derivation,
 canonical frontmatter and domain-separated protocol digests. A complete rebuilt

@@ -75,20 +75,33 @@ async function beginCleanupTransition(options: {
 
 async function removeEmptyQuarantineAfterMissing(options: {
   readonly cleanupOptions: Parameters<typeof syncPublicationDirectory>[0];
+  readonly expectedIdentity: PortablePathIdentity;
+  readonly identityMatch: typeof pathMatchesRegularFileIdentity;
   readonly makeDirectory: typeof mkdir;
   readonly quarantineDirectory: string;
   readonly move: typeof rename;
   readonly retiredEvidenceRoot: string;
   readonly retiredDirectory: string;
+  readonly temporaryPath: string;
   readonly transition: Awaited<ReturnType<OwnedTemporaryCleanupTransitionPort["begin"]>> | undefined;
-}): Promise<"missing"> {
+}): Promise<"different" | "missing"> {
   const terminalRoot = await ensureTerminalEvidenceDirectory(
     options.retiredEvidenceRoot,
     { mkdir: options.makeDirectory }
   );
   await assertTerminalEvidenceDirectory(terminalRoot);
   await options.move(options.quarantineDirectory, options.retiredDirectory);
+  await syncPublicationDirectory({
+    ...options.cleanupOptions,
+    parent: options.retiredEvidenceRoot
+  });
   await syncPublicationDirectory(options.cleanupOptions);
+  if ((await options.identityMatch(
+    options.temporaryPath,
+    options.expectedIdentity
+  )) !== "missing") {
+    return "different";
+  }
   await options.transition?.complete();
   return "missing";
 }
@@ -115,6 +128,10 @@ async function logicallyRetireQuarantine(options: {
   }
   await assertTerminalEvidenceDirectory(options.terminalRoot);
   await options.move(options.quarantineDirectory, options.retiredDirectory);
+  await syncPublicationDirectory({
+    ...options.cleanupOptions,
+    parent: options.terminalRoot.path
+  });
   await syncPublicationDirectory(options.cleanupOptions);
   return "removed";
 }
@@ -184,11 +201,14 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     if (errorCode(error) === "ENOENT") {
       return removeEmptyQuarantineAfterMissing({
         cleanupOptions: options,
+        expectedIdentity: options.expectedIdentity,
+        identityMatch,
         makeDirectory,
         quarantineDirectory,
         move,
         retiredEvidenceRoot,
         retiredDirectory,
+        temporaryPath: options.temporaryPath,
         transition
       });
     }
@@ -241,6 +261,16 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
   });
   if (retirement === "different") {
     return retirement;
+  }
+  // Retirement proves the captured evidence is durable, but success also
+  // requires the original source name to remain absent. A repopulated source
+  // is foreign evidence: retain both names and the begun transition so the
+  // PUBLISHING transaction cannot be falsely completed.
+  if ((await identityMatch(
+    options.temporaryPath,
+    options.expectedIdentity
+  )) !== "missing") {
+    return "different";
   }
   await transition?.complete();
   return "removed";

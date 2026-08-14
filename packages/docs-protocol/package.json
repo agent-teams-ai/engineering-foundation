@@ -1,0 +1,60 @@
+{
+  "name": "@agent-teams/docs-protocol",
+  "version": "0.0.0",
+  "description": "Unified deterministic documentation authoring protocol for Agent Teams repositories.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "agent-teams-docs": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./qualification": {
+      "types": "./dist/qualification/index.d.ts",
+      "import": "./dist/qualification/index.js"
+    },
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "schemas/docs-protocol/v1.schema.json",
+    "schemas/docs-protocol-profile/v1.schema.json",
+    "schemas/docs-protocol-command-envelope/v1.schema.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false",
+    "test": "pnpm build && node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=11.17.0 <12"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/docs-protocol"
+  },
+  "dependencies": {
+    "@agent-teams/engineering-foundation": "workspace:*",
+    "ajv": "catalog:",
+    "ajv-formats": "catalog:",
+    "yaml": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

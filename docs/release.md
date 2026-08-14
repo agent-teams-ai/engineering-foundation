@@ -12,12 +12,28 @@ manually with npm 2FA after `pnpm check` passes. After that release:
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
+The release pipeline manages `@agent-teams/engineering-foundation` and
+`@agent-teams/docs-protocol` as independently versioned public packages. Release validation discovers the
+bounded publishable-package catalog, verifies every changed manifest/changelog
+pair, and attests every package section in the generated Changesets pull request.
+Hermetic registry qualification publishes Foundation before Docs Protocol,
+installs both by exact version, and proves the one-way runtime dependency from
+Docs Protocol to Foundation.
+
 Release-candidate waves use committed Changesets prerelease state with the exact
-`rc` tag. The publish policy then requires an `-rc.N` package version and invokes
-Changesets with `--tag rc`; contradictory or unknown prerelease state fails
+`rc` tag. The publish policy requires an `-rc.N` version for every package in
+the wave, then invokes plain `changeset publish`; Changesets applies the
+committed prerelease tag. Contradictory, mixed, or unknown prerelease state fails
 closed before npm publication. Therefore an RC cannot move npm's `latest`
 dist-tag. Returning to stable publication requires a separately reviewed
 Changesets prerelease-exit change.
+
+Do not introduce Docs Protocol into the active Foundation 0.16 RC wave. First
+qualify and release stable Foundation 0.16.0 through a reviewed prerelease exit.
+Then rebase the unified-protocol feature, enter a fresh `rc` wave through the
+Changesets CLI, and let its minor changesets generate Foundation 0.17.0-rc.0 and
+Docs Protocol 0.1.0-rc.0. Never edit package versions or `.changeset/pre.json`
+by hand.
 
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against
@@ -55,9 +71,12 @@ separate reviewed change after its consumer-owned gates pass.
 `public-api-promote-release`. Promotion requires a newer sufficient package
 version and accepted evidence for every breaking fingerprint. Existing API
 baselines are mutable only in `changeset-release/main`; first-time baseline
-creation is allowed during capability adoption. Multi-package promotion is
-validation-first and replay-safe after a partial process failure: an unchanged
-already-promoted package is skipped, while same-version API drift fails closed.
+creation is allowed during capability adoption only for a declared package at
+exact version `0.0.0` with a minor or major Changeset. That bootstrap extracts
+the real declarations and uses create-no-replace publication; missing baselines
+for any later version fail closed. Multi-package promotion is validation-first
+and replay-safe after a partial process failure: an unchanged already-promoted
+package is skipped, while same-version API drift fails closed.
 
 Automatic Changesets pull requests require the organization setting that permits
 GitHub Actions to create pull requests. The organization allows this capability,

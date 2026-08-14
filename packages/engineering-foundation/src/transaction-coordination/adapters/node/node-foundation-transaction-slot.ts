@@ -107,6 +107,7 @@ function pending(options: {
 }
 
 function pendingDocument(options: {
+  readonly format?: "document-authoring-envelope-v3" | "document-authoring-envelope-v4";
   readonly foundationVersion: string;
   readonly foundationBuildIdentity: string;
   readonly installedVersion: string;
@@ -118,7 +119,7 @@ function pendingDocument(options: {
   return {
     state: "pending",
     operationKind: "document-authoring",
-    format: "document-authoring-envelope-v3",
+    format: options.format ?? "document-authoring-envelope-v3",
     foundationVersion: options.foundationVersion,
     foundationBuildIdentity: options.foundationBuildIdentity,
     recovery: {
@@ -318,6 +319,16 @@ async function inspectParsedTransaction(
   case 3:
     return inspectCurrentDocumentEnvelope({
       value, installedVersion, installedBuildIdentity, pending: pendingDocument
+    });
+  case 4:
+    return inspectCurrentDocumentEnvelope({
+      value,
+      installedVersion,
+      installedBuildIdentity,
+      pending: (identity) => pendingDocument({
+        ...identity,
+        format: "document-authoring-envelope-v4"
+      })
     });
   case 2: {
     const legacyDocumentEnvelope = isKnownLegacyDocumentEnvelope(value);

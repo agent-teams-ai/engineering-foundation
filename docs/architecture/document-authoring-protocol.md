@@ -1,12 +1,23 @@
 # Document Authoring Protocol
 
 Status: Corrected Intent, Plan, and Receipt v1 contracts are retained from
-ADR-0023. ADR-0024 supersedes its transaction and recovery semantics with
-envelope v3, document journal v2, and recovery-handler contract v2. The
-published envelope v2 and journal v1 remain immutable manual-recovery evidence.
+ADR-0023. ADR-0024 introduced envelope v3, document journal v2, and
+recovery-handler contract v2. ADR-0026 supersedes ADR-0025 and adds
+Plan/Receipt v2, envelope v4, document journal v3, and recovery-handler contract
+v3. Published older evidence remains immutable and is never reinterpreted.
 The catalog, compiler, create-only writer, `docs new`, `docs doctor`, and
 `docs recover` are implemented in this repository. Packed registry and
 cross-platform RC qualification remains required before release adoption.
+
+ADR-0026 carries forward ADR-0025's placement of the unified documentation CLI
+and metadata/query workflow in the separate `@agent-teams/docs-protocol`
+package. This document remains the
+canonical Foundation mutation-kernel and persisted-evidence specification.
+Docs Protocol depends on these mechanisms; Foundation does not depend on Docs
+Protocol. The vNext directory-materialization extension binds every missing
+allowed parent segment and its observed physical identity into its Plan and
+journal. Portable Node recovery is retain-only and never deletes a created
+directory.
 
 ## Boundary
 
@@ -76,11 +87,13 @@ repository mutation and does not read a generated search index.
 `planDocumentationDocument` validates and normalizes one Intent, rebuilds a
 complete catalog, resolves a closed profile strategy, renders exact canonical
 UTF-8/LF bytes, recaptures authority, and returns a schema-valid Document Plan.
-It requires the destination parent to exist as real directory ancestry and
-fails closed on portable-name, identity, path, special-file, or false-self
-collisions. The function does not acquire a mutation lock, reserve an ID, write
-a file, or promise that a later apply will succeed; apply must recompile and
-compare the exact Plan under the operation lock.
+Plan v1 requires the destination parent to exist as real directory ancestry.
+Plan v2 instead observes the deepest existing real anchor and binds every
+missing segment without creating it during planning. Both fail closed on
+portable-name, identity, path, special-file, or false-self collisions. Planning
+does not acquire a mutation lock, reserve an ID, write a file, or promise that a
+later apply will succeed; apply must recompile and compare the exact Plan under
+the operation lock.
 
 ## Canonical agent and operator CLI
 
@@ -88,15 +101,16 @@ The normal agent path is intentionally smaller than the internal
 `Intent -> Plan -> Apply -> Receipt` protocol:
 
 ```bash
-agent-teams-foundation docs find "tenant isolation"
-agent-teams-foundation docs new --type adr --id ADR-0083 \
+agent-teams-docs find "tenant isolation"
+agent-teams-docs new --type adr --id ADR-0083 \
   --title "Tenant isolation" --owner architecture/tooling \
   --summary "Defines the tenant-isolation boundary and its verification evidence." \
   --dry-run
-agent-teams-foundation docs new --type adr --id ADR-0083 \
+agent-teams-docs new --type adr --id ADR-0083 \
   --title "Tenant isolation" --owner architecture/tooling \
-  --summary "Defines the tenant-isolation boundary and its verification evidence."
-agent-teams-foundation check
+  --summary "Defines the tenant-isolation boundary and its verification evidence." \
+  --apply
+pnpm check
 ```
 
 `--type`, `--id`, `--title`, `--owner`, and `--summary` are required by
@@ -109,7 +123,7 @@ allocation is not part of this version.
 complete catalog, reports deterministic similar-document advice, projects the
 consumer-authorized reachability action, and then either previews or applies.
 `--dry-run` is non-reserving and performs no repository mutation. Review the
-preview, repeat the same command without `--dry-run`, then follow the emitted
+preview, repeat the same command with `--apply`, then follow the emitted
 `Next:` instruction:
 
 - for manual reachability, add the emitted exact Markdown link to the emitted
@@ -123,8 +137,8 @@ transaction, so the profile is the only authority for a manual index action.
 Operator commands are separate from the happy path:
 
 ```bash
-agent-teams-foundation docs doctor
-agent-teams-foundation docs recover
+agent-teams-docs doctor
+agent-teams-docs recover
 ```
 
 `docs doctor` is read-only. It reports installed package/build identity,
@@ -181,7 +195,7 @@ top-level key that could replace `id`, `type`, `status`, `owner`, `summary`,
 `slug`, `destination`, or `related`, and recursively rejects `__proto__`,
 `prototype`, and `constructor`. Consumer-owned arrays preserve caller order.
 
-### Document plan v1
+### Document Plan v1 and v2
 
 A Plan binds the exact compiler version and build identity, canonical Intent and
 domain-separated digest, project identity, profile and metadata schema evidence,
@@ -197,9 +211,13 @@ Its parent expectation is repository-logical evidence:
 not contain inode, device, absolute path, or another platform-specific identity.
 `expectedParent.path` is the POSIX dirname of `destination`; exact `.` denotes
 the repository root and is valid only in this expected-parent coordinate.
-The parent must exist as a real directory before compilation succeeds. The
-filesystem adapter must recapture the physical parent and every ancestor under
-the operation lock immediately before publication.
+Plan v1 requires that parent to exist before compilation. Plan v2 instead binds
+the deepest existing real-directory anchor, the exact ordered missing segments,
+and the explicit `create-missing-real-directories` policy. It also binds the
+profile semantic digest plus catalog preimage and expected-postimage semantic
+digests, so the same Plan reproduces both before and after its own publication
+while unrelated catalog drift fails closed. The filesystem adapter recaptures
+the root, anchor, every bound segment, and final parent under the operation lock.
 
 ### Document receipt v1
 
@@ -444,10 +462,11 @@ rule.
 ## Transaction and compatibility
 
 One repository root has one canonical Foundation operation lock and one active
-transaction slot. A version 3 envelope records operation kind, registered
-recovery-handler contract v2, exact Foundation version and build identity,
-adapter contract, `document-authoring-journal/v2`, payload digest, lifecycle
-state, and envelope digest.
+transaction slot. Directory materialization uses envelope v4 with registered
+recovery-handler contract v3 and `document-authoring-journal/v3`. It records
+the exact Foundation version/build, adapter contract, Plan v2, materialization
+evidence, payload digest, lifecycle state, and envelope digest. Envelope v3
+remains the exact legacy file-only protocol.
 The canonical lock is a bounded owner-token regular file. New ownership is
 published with no replacement, and reclaim or release is fenced by token plus
 physical file identity. A same-host lock is reclaimed only when its PID is
@@ -465,23 +484,23 @@ rewrites also remain regular-file evidence and require recovery rather than
 opening an unlocked window.
 The coordinator enforces that barrier for scaffolding, document authoring, and
 local attach or detach before mutation begins. It recognizes the frozen legacy
-scaffolding journal v1, immutable envelope v2, and current envelope v3 at the
+scaffolding journal v1 and immutable document envelopes v2, v3, and v4 at the
 historical physical slot; an orphan temporary, invalid regular-file evidence,
 unknown schema, digest failure, or contradictory document lifecycle is
 preserved and fails closed.
 Incomplete local-mode phases and orphan registry backups share the same
 coordinator and admit only `detach`. Status reports a structured recovery route
 only for an implemented path: legacy `scaffold-recover`, local-mode `detach`, or
-`docs-recover` for an exact compatible envelope v3 handler. Envelope v2 and
+`docs-recover` for an exact compatible envelope v3 or v4 handler. Envelope v2 and
 document journal v1 are permanently manual-recovery-only in current packages.
 The legacy local-mode `FoundationTransactionStatus` projection remains
-type-compatible and intentionally lossy for document envelope v3: it reports
+type-compatible and intentionally lossy for document envelopes v3 and v4: it reports
 `recovery-handler-unavailable` and does not expose `docs-recover`. Automation
 that routes document recovery must use the versioned
-`inspectDocumentTransactionV1` API from `./document-authoring`; only its exact
-v3 envelope/v2 journal result exposes the recorded version and build identity.
+`inspectDocumentTransactionV2` API from `./document-authoring`; V1 retains its
+frozen projection while V2 exposes exact v3 and v4 evidence.
 
-For envelope v3, the recorded package-artifact identity contains SemVer plus a
+For envelopes v3 and v4, the recorded package-artifact identity contains SemVer plus a
 canonical SHA-256 digest of the installed package manifest, executable
 JavaScript, and shipped schema and preset contracts. The digest is independent
 of install path and directory enumeration order, is cached for the immutable
@@ -493,13 +512,14 @@ must equal the embedded document compiler version and build identity. A version
 range, same-version rebuild, or merely schema-compatible package is not recovery
 authority.
 
-The journal v2 lifecycle is closed:
+The journal v3 lifecycle is closed:
 
 | Envelope state | Destination state | Additional evidence | Authority |
 | --- | --- | --- | --- |
-| `PREPARED` | `pending` or `preexisting` | No temporary or publication identity | May restart only after exact Plan reproduction |
-| `PUBLISHING` | `publishing` | Exact Plan-derived temporary, output digest, and creator-handle identity | May publish only when identity is non-zero and every precondition is recaptured |
-| `PUBLISHED` | `published` | Non-zero destination `publicationIdentity`; no temporary | May finalize only when bytes and physical identity both match |
+| `PREPARED` | `pending` or `preexisting` | Anchor identity; zero created directories; no pending directory, temporary, or publication identity | May continue only after exact Plan and anchor recapture |
+| `MATERIALIZING` | `pending` | Exact ordered created-directory identity prefix; optional one pending unbound directory; no temporary or publication identity | May create/bind only the next planned segment; an unbound mkdir crash is manual |
+| `PUBLISHING` | `publishing` | Complete directory identity prefix and exact Plan-derived temporary with non-zero creator identity | May publish only after every directory, authority, and absence precondition is recaptured |
+| `PUBLISHED` | `published` | Complete directory identity prefix; non-zero destination `publicationIdentity`; no temporary | May finalize only when destination and every bound directory remain exact |
 
 A zero component in a PUBLISHING temporary identity is valid preserved wire
 evidence, but provides no publication or cleanup authority. A PUBLISHED journal
@@ -513,8 +533,18 @@ publication it verifies destination bytes, mode, non-zero identity, and
 same-file relationship, syncs the parent, removes only the identity-matched
 temporary, records PUBLISHED durably, then removes the identity-fenced journal
 and emits the Receipt. A crash at any boundary either leaves sufficient exact
-v3 evidence for the exact handler or produces manual-recovery evidence; it does
+v3/v4 evidence for the exact handler or produces manual-recovery evidence; it does
 not authorize rollback of a possibly published destination.
+
+Directory cleanup is deliberately unsupported by the portable Node adapter.
+Cancellation or a prepublication failure may remove an identity-bound owned
+temporary, but retains all transaction-created directories. Immediately before
+journal removal and Receipt creation, every bound directory identity is
+recaptured. Missing, replaced, non-directory, symlinked, aliased, non-prefix,
+or otherwise unproven evidence keeps the journal and emits manual recovery with
+`preserved-unknown`; it is never reported as `created-and-retained`. Receipt v2
+therefore has only `none-created`, `created-and-retained`, and
+`preserved-unknown` directory states.
 
 Cancellation returns `cancelled` only before publication when destination
 absence is proven and every owned temporary and journal has been durably
@@ -525,8 +555,8 @@ cancelled while a transaction or possible output remains.
 The envelope does not merge `ScaffoldPlan` with `DocumentPlan` or their
 Receipts. Recovery dispatch is closed in the Foundation composition root and
 cannot call consumer code. A current Foundation package reads the legacy
-scaffolding journal, envelope v2, and envelope v3. Only envelope v3 with the
-exact recorded Foundation version and build identity may select `docs-recover`.
+scaffolding journal, envelope v2, envelope v3, and envelope v4. Only envelope
+v3/v4 with the exact recorded Foundation version and build identity may select `docs-recover`.
 Envelope v2 is preserved as manual-recovery evidence. Packages older than v3
 preserve its unknown regular-file slot and block mutation. Unknown, newer,
 tampered, or multiple transaction evidence is likewise preserved. Journals are
@@ -537,7 +567,7 @@ inventory proves zero instances in every admitted repository, all producing
 writers are retired from supported package policy, a complete support window
 has elapsed after that retirement, and a new accepted ADR identifies the
 removal release and audit evidence. The same inventory, producer-retirement,
-support-window, recovery-fixture, and ADR gates apply before a v3 handler can be
+support-window, recovery-fixture, and ADR gates apply before a v3 or v4 handler can be
 retired. Exact recorded registry artifacts remain recovery authority while any
 active transaction produced by them can still be supported.
 
@@ -546,7 +576,8 @@ active transaction produced by them can still be supported.
 The compiler's expected parent is logical portable evidence, not a durable
 filesystem handle. Apply and recovery therefore recapture the repository root,
 destination parent, and every ancestor under the shared operation lock. The
-parent must still exist, be a directory, and consist only of real directories.
+deepest planned anchor and every bound created segment must still exist, be a
+directory, retain its physical identity, and consist only of real directories.
 A symlink, junction, reparse point, replacement, normalization/case alias,
 containment escape, unsupported observation, or any difference from the Plan's
 logical expectation yields stale authority, conflict, or manual recovery as
@@ -575,7 +606,7 @@ compiler version and build identity identify the released implementation;
 adapter contract version identifies observable filesystem postconditions. An
 unknown schema, protocol, handler, or newer journal fails closed.
 
-This version does not provide automatic sequence allocation, directory creation,
+This version does not provide automatic sequence allocation, directory rollback,
 managed reachability, generic Markdown updates, persistent indexing, fuzzy or
 semantic search, a documentation portal, a polyglot binary, organization-wide
 policy, or a generic consumer mutation API. The current transaction and

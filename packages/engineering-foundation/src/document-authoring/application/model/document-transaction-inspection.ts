@@ -54,3 +54,33 @@ export type DocumentTransactionInspectionV1 =
       };
       readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];
     };
+
+export type DocumentTransactionInspectionV2 =
+  | {
+      readonly schemaVersion: 2;
+      readonly state: "idle";
+      readonly diagnostics: readonly [];
+    }
+  | {
+      readonly schemaVersion: 2;
+      readonly state: "recoverable";
+      readonly operationKind: "document-authoring";
+      readonly format:
+        | "document-authoring-envelope-v3"
+        | "document-authoring-envelope-v4";
+      readonly foundationVersion: string;
+      readonly foundationBuildIdentity: string;
+      readonly recovery: {
+        readonly commandId: "docs-recover";
+        readonly exactFoundationVersion: string;
+        readonly exactFoundationBuildIdentity: string;
+      };
+      readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];
+    }
+  | (Omit<Extract<DocumentTransactionInspectionV1, {
+      readonly state: "manual-recovery-required";
+    }>, "schemaVersion"> & { readonly schemaVersion: 2 });
+
+export type DocumentTransactionInspection =
+  | DocumentTransactionInspectionV1
+  | DocumentTransactionInspectionV2;

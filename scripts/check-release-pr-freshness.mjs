@@ -6,12 +6,13 @@ import { promisify } from "node:util";
 import { parse as parseYaml } from "yaml";
 
 import { readStreamText } from "./check-release-pr-files.mjs";
+import {
+  PUBLISHABLE_PACKAGES,
+  publishablePackageByName,
+} from "./publishable-packages.mjs";
 
 const execFileAsync = promisify(execFile);
 const EXACT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
-const PACKAGE_NAME = "@agent-teams/engineering-foundation";
-const PACKAGE_MANIFEST = "packages/engineering-foundation/package.json";
-const PACKAGE_CHANGELOG = "packages/engineering-foundation/CHANGELOG.md";
 const RELEASE_TYPES = new Set(["patch", "minor", "major"]);
 
 function exactSha(value, label) {
@@ -76,15 +77,21 @@ function parseChangeset(path, source) {
   if (releases === null || typeof releases !== "object" || Array.isArray(releases)) {
     throw new Error(`${path} frontmatter must be a package-to-release-type mapping`);
   }
-  const releaseType = releases[PACKAGE_NAME];
-  if (!RELEASE_TYPES.has(releaseType)) {
+  const packageReleases = Object.entries(releases)
+    .filter(
+      ([packageName, releaseType]) =>
+        publishablePackageByName(packageName) !== undefined &&
+        RELEASE_TYPES.has(releaseType),
+    )
+    .map(([packageName, releaseType]) => ({ packageName, releaseType }));
+  if (packageReleases.length === 0) {
     return null;
   }
   const summary = match[2].trim();
   if (summary.length === 0) {
     throw new Error(`${path} must contain a non-empty summary`);
   }
-  return { path, releaseType, summary };
+  return { path, releases: packageReleases, summary };
 }
 
 function generatedReleaseBody(baseChangelog, headChangelog, packageName, version) {
@@ -296,6 +303,168 @@ function stableExitViolations(basePrerelease, baseVersion, headVersion) {
     : [];
 }
 
+async function changesetConsumptionViolations(cwd, headSha, changesets) {
+  const headPrereleaseChangesets = await prereleaseState(cwd, headSha);
+  const violations = [];
+  for (const changeset of changesets) {
+    if (
+      (await pathExistsAtRevision(cwd, headSha, changeset.path)) &&
+      !headPrereleaseChangesets?.changesets.has(changesetId(changeset.path))
+    ) {
+      violations.push(`release head did not consume ${changeset.path}`);
+    }
+  }
+  return violations;
+}
+
+function missingSummaryViolations(releasePackage, generatedRelease, changesets) {
+  let unmatchedRelease = searchableMarkdown(generatedRelease);
+  const violations = [];
+  for (const changeset of changesets.toSorted(
+    (left, right) => right.summary.length - left.summary.length,
+  )) {
+    const summary = searchableMarkdown(changeset.summary);
+    const index = unmatchedRelease.indexOf(summary);
+    if (index === -1) {
+      violations.push(
+        `${releasePackage.name} changelog is missing the summary from ${changeset.path}`,
+      );
+      continue;
+    }
+    unmatchedRelease =
+      unmatchedRelease.slice(0, index) +
+      " ".repeat(summary.length) +
+      unmatchedRelease.slice(index + summary.length);
+  }
+  return violations;
+}
+
+async function packageReleaseSection(
+  cwd,
+  baseSha,
+  headSha,
+  basePrerelease,
+  releasePackage,
+  changesets,
+) {
+  if (
+    !(await pathExistsAtRevision(cwd, baseSha, releasePackage.manifestPath)) ||
+    !(await pathExistsAtRevision(cwd, headSha, releasePackage.manifestPath))
+  ) {
+    return;
+  }
+  const [baseManifestText, manifestText, baseChangelog, headChangelog] =
+    await Promise.all([
+      fileAtRevision(cwd, baseSha, releasePackage.manifestPath),
+      fileAtRevision(cwd, headSha, releasePackage.manifestPath),
+      fileAtRevision(cwd, baseSha, releasePackage.changelogPath),
+      fileAtRevision(cwd, headSha, releasePackage.changelogPath),
+    ]);
+  const baseManifest = JSON.parse(baseManifestText);
+  const manifest = JSON.parse(manifestText);
+  if (baseManifest.version === manifest.version) {
+    return;
+  }
+  if (
+    manifest.name !== releasePackage.name ||
+    typeof baseManifest.version !== "string" ||
+    typeof manifest.version !== "string"
+  ) {
+    return {
+      name: releasePackage.name,
+      section: undefined,
+      violations: [
+        `release head package manifest has an unexpected name or version: ${releasePackage.name}`,
+      ],
+    };
+  }
+  const generatedRelease = generatedReleaseBody(
+    baseChangelog,
+    headChangelog,
+    manifest.name,
+    manifest.version,
+  );
+  const packageChangesets = changesets.filter((changeset) =>
+    changeset.releases.some(
+      (release) => release.packageName === releasePackage.name,
+    ),
+  );
+  return {
+    name: releasePackage.name,
+    section: releaseSections(generatedRelease).get(releasePackage.name),
+    violations: [
+      ...stableExitViolations(
+        basePrerelease,
+        baseManifest.version,
+        manifest.version,
+      ).map((violation) => `${releasePackage.name}: ${violation}`),
+      ...missingSummaryViolations(
+        releasePackage,
+        generatedRelease,
+        packageChangesets,
+      ),
+    ],
+  };
+}
+
+async function releaseSectionViolations(
+  cwd,
+  baseSha,
+  headSha,
+  basePrerelease,
+  body,
+  changesets,
+) {
+  let actualSections;
+  try {
+    actualSections = releaseSections(body);
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
+  }
+  const results = (
+    await Promise.all(
+      PUBLISHABLE_PACKAGES.map((releasePackage) =>
+        packageReleaseSection(
+          cwd,
+          baseSha,
+          headSha,
+          basePrerelease,
+          releasePackage,
+          changesets,
+        ),
+      ),
+    )
+  ).filter((result) => result !== undefined);
+  const expectedSections = new Map(
+    results
+      .filter((result) => result.section !== undefined)
+      .map((result) => [result.name, result.section]),
+  );
+  const violations = results.flatMap((result) => result.violations);
+  for (const changeset of changesets) {
+    for (const release of changeset.releases) {
+      if (!expectedSections.has(release.packageName)) {
+        violations.push(
+          `release head did not version ${release.packageName} for ${changeset.path}`,
+        );
+      }
+    }
+  }
+  if (
+    actualSections.size !== expectedSections.size ||
+    [...expectedSections].some(
+      ([packageName, section]) =>
+        canonicalMarkdown(actualSections.get(packageName) ?? "") !==
+        canonicalMarkdown(section),
+    )
+  ) {
+    violations.push(
+      "pull request release body does not exactly match all generated changelog entries",
+    );
+  }
+  return violations;
+}
+
 export async function releasePullRequestFreshnessViolations(
   evidence,
   { cwd = process.cwd() } = {},
@@ -332,59 +501,17 @@ export async function releasePullRequestFreshnessViolations(
   if (changesets.length === 0) {
     violations.push("processed main must contain at least one package release changeset");
   }
-  for (const changeset of changesets) {
-    if (await pathExistsAtRevision(cwd, headSha, changeset.path)) {
-      if (!headPrerelease?.changesets.has(changesetId(changeset.path))) {
-        violations.push(`release head did not consume ${changeset.path}`);
-      }
-    }
-  }
-
-  const [baseManifestText, manifestText, baseChangelog, headChangelog] = await Promise.all([
-    fileAtRevision(cwd, processedMainSha, PACKAGE_MANIFEST),
-    fileAtRevision(cwd, headSha, PACKAGE_MANIFEST),
-    fileAtRevision(cwd, processedMainSha, PACKAGE_CHANGELOG),
-    fileAtRevision(cwd, headSha, PACKAGE_CHANGELOG),
-  ]);
-  const manifest = JSON.parse(manifestText);
-  const baseManifest = JSON.parse(baseManifestText);
-  if (manifest.name !== PACKAGE_NAME || typeof manifest.version !== "string") {
-    violations.push("release head package manifest has an unexpected name or version");
-    return violations;
-  }
   violations.push(
-    ...stableExitViolations(
+    ...(await changesetConsumptionViolations(cwd, headSha, changesets)),
+    ...(await releaseSectionViolations(
+      cwd,
+      processedMainSha,
+      headSha,
       basePrerelease,
-      baseManifest.version,
-      manifest.version,
-    ),
+      pullRequest.body,
+      changesets,
+    )),
   );
-
-  const generatedRelease = generatedReleaseBody(
-    baseChangelog,
-    headChangelog,
-    manifest.name,
-    manifest.version,
-  );
-  let unmatchedRelease = searchableMarkdown(generatedRelease);
-  const longestSummaryFirst = changesets.toSorted(
-    (left, right) => right.summary.length - left.summary.length,
-  );
-  for (const changeset of longestSummaryFirst) {
-    const summary = searchableMarkdown(changeset.summary);
-    const index = unmatchedRelease.indexOf(summary);
-    if (index === -1) {
-      violations.push(`generated changelog is missing the summary from ${changeset.path}`);
-      continue;
-    }
-    unmatchedRelease =
-      unmatchedRelease.slice(0, index) +
-      " ".repeat(summary.length) +
-      unmatchedRelease.slice(index + summary.length);
-  }
-  if (canonicalMarkdown(releaseBody(pullRequest.body)) !== canonicalMarkdown(generatedRelease)) {
-    violations.push("pull request release body does not exactly match the generated changelog entry");
-  }
   return violations;
 }
 

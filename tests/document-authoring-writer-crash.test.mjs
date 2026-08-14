@@ -8,9 +8,11 @@ import test from "node:test";
 
 import {
   applyDocumentationPlan,
+  inspectDocumentTransactionV2,
   planDocumentationDocument,
   recoverDocumentationTransaction
 } from "../packages/engineering-foundation/dist/document-authoring/index.js";
+import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)
@@ -45,6 +47,31 @@ async function adrPlan(consumerRoot) {
     consumerRoot,
     profilePath,
     intent: vector.intent
+  });
+}
+
+async function featurePlanV2(consumerRoot) {
+  const { cases, profilePath } = JSON.parse(
+    await readFile(join(consumerRoot, "cases.json"), "utf8")
+  );
+  const vector = cases.find(({ name }) => name === "feature");
+  assert.ok(vector);
+  const source = await readFile(join(consumerRoot, profilePath), "utf8");
+  await writeFile(join(consumerRoot, profilePath), source
+    .replace("schemaVersion: 1", "schemaVersion: 2")
+    .replaceAll(/(    - type: [^\n]+\n)/gu,
+      "$1      allowedOwnerIds: [architecture/tooling, example/create-widget]\n")
+    .replace("reachability: {kind: not-required}",
+      "reachability: {kind: not-required, reason: indexed by bounded-context hierarchy}"));
+  await rm(join(consumerRoot, "packages/example/src/features/create-widget"), {
+    force: true,
+    recursive: true
+  });
+  return planDocumentationDocument({
+    consumerRoot,
+    profilePath,
+    intent: vector.intent,
+    parentPolicy: "create-missing-real-directories"
   });
 }
 
@@ -119,6 +146,145 @@ for (const checkpoint of automaticallyRecoverable) {
     });
   });
 }
+
+requiresStrictDirectoryDurability("envelope v4 is publicly inspectable and recovers before mkdir", async () => {
+  await withFixture(async (consumerRoot, scratch) => {
+    const plan = await featurePlanV2(consumerRoot);
+    await crashAt(
+      consumerRoot,
+      plan,
+      "after-materializing-journal-durable",
+      scratch
+    );
+    const inspection = await inspectDocumentTransactionV2(consumerRoot);
+    assert.equal(inspection.state, "recoverable");
+    assert.equal(inspection.format, "document-authoring-envelope-v4");
+    const receipt = await recoverDocumentationTransaction({ consumerRoot });
+    assert.equal(receipt.schemaVersion, 2);
+    assert.equal(receipt.outcome, "applied");
+    assert.equal(receipt.commit.fileAtomicity, "single-file-atomic-create");
+    assert.deepEqual(
+      receipt.directoryMaterialization.observedCreatedDirectories,
+      plan.parentMaterialization.missingDirectories
+    );
+  });
+});
+
+for (const checkpoint of ["after-publishing-journal-durable", "after-hard-link"]) {
+  requiresStrictDirectoryDurability(`envelope v4 recovers exactly at ${checkpoint}`, async () => {
+    await withFixture(async (consumerRoot, scratch) => {
+      const plan = await featurePlanV2(consumerRoot);
+      await crashAt(consumerRoot, plan, checkpoint, scratch);
+      const inspection = await inspectDocumentTransactionV2(consumerRoot);
+      assert.equal(inspection.state, "recoverable");
+      assert.equal(inspection.format, "document-authoring-envelope-v4");
+      const receipt = await recoverDocumentationTransaction({ consumerRoot });
+      assert.equal(receipt.schemaVersion, 2);
+      assert.equal(receipt.outcome, "applied");
+      assert.equal(receipt.directoryMaterialization.state, "created-and-retained");
+      assert.deepEqual(
+        receipt.directoryMaterialization.observedCreatedDirectories,
+        plan.parentMaterialization.missingDirectories
+      );
+    });
+  });
+}
+
+requiresStrictDirectoryDurability("v4 post-link recovery uses the persisted Plan after profile removal", async () => {
+  await withFixture(async (consumerRoot, scratch) => {
+    const plan = await featurePlanV2(consumerRoot);
+    await crashAt(consumerRoot, plan, "after-hard-link", scratch);
+    const { profilePath } = JSON.parse(
+      await readFile(join(consumerRoot, "cases.json"), "utf8")
+    );
+    await rm(join(consumerRoot, profilePath));
+    const receipt = await recoverDocumentationTransaction({ consumerRoot });
+    assert.equal(receipt.schemaVersion, 2);
+    assert.equal(receipt.outcome, "applied");
+    assert.equal(receipt.resultDigest, plan.output.digest);
+  });
+});
+
+requiresStrictDirectoryDurability("v4 PREPARED without its profile preserves recovery evidence", async () => {
+  await withFixture(async (consumerRoot, scratch) => {
+    const plan = await featurePlanV2(consumerRoot);
+    await crashAt(consumerRoot, plan, "after-prepared-journal-durable", scratch);
+    const { profilePath } = JSON.parse(
+      await readFile(join(consumerRoot, "cases.json"), "utf8")
+    );
+    await rm(join(consumerRoot, profilePath));
+    const receipt = await recoverDocumentationTransaction({ consumerRoot });
+    assert.equal(receipt.schemaVersion, 2);
+    assert.equal(receipt.outcome, "recovery-required");
+    assert.equal(receipt.commit.publication, "none");
+    assert.equal((await inspectDocumentTransactionV2(consumerRoot)).state, "recoverable");
+    await assert.rejects(readFile(join(consumerRoot, plan.destination)));
+  });
+});
+
+requiresStrictDirectoryDurability("v4 recovery routing requires exact version and same-version build", async () => {
+  await withFixture(async (consumerRoot, scratch) => {
+    const plan = await featurePlanV2(consumerRoot);
+    await crashAt(consumerRoot, plan, "after-prepared-journal-durable", scratch);
+    const envelope = JSON.parse(await readFile(join(
+      consumerRoot,
+      ".agent-teams-local",
+      "scaffolding-transaction.json"
+    ), "utf8"));
+    const exact = await new NodeFoundationTransactionSlot({
+      consumerRoot,
+      installedVersion: envelope.foundation.version,
+      installedBuildIdentity: envelope.foundation.buildIdentity
+    }).inspect();
+    assert.equal(exact.format, "document-authoring-envelope-v4");
+    assert.equal(exact.recovery?.commandId, "docs-recover");
+    for (const installed of [
+      {
+        version: "0.0.0-wrong",
+        buildIdentity: envelope.foundation.buildIdentity
+      },
+      {
+        version: envelope.foundation.version,
+        buildIdentity: `sha256:${"9".repeat(64)}`
+      }
+    ]) {
+      const mismatch = await new NodeFoundationTransactionSlot({
+        consumerRoot,
+        installedVersion: installed.version,
+        installedBuildIdentity: installed.buildIdentity
+      }).inspect();
+      assert.equal(mismatch.state, "pending");
+      assert.equal(
+        mismatch.diagnostics[0]?.code,
+        "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
+      );
+      assert.deepEqual(mismatch.recovery, {
+        commandId: "docs-recover",
+        exactFoundationVersion: envelope.foundation.version,
+        exactFoundationBuildIdentity: envelope.foundation.buildIdentity
+      });
+    }
+  });
+});
+
+requiresStrictDirectoryDurability("mkdir-before-journal crash is manual-only and never adopted", async () => {
+  await withFixture(async (consumerRoot, scratch) => {
+    const plan = await featurePlanV2(consumerRoot);
+    await crashAt(
+      consumerRoot,
+      plan,
+      "after-directory-created-before-journal",
+      scratch
+    );
+    const inspection = await inspectDocumentTransactionV2(consumerRoot);
+    assert.equal(inspection.state, "recoverable");
+    assert.equal(inspection.format, "document-authoring-envelope-v4");
+    const receipt = await recoverDocumentationTransaction({ consumerRoot });
+    assert.equal(receipt.schemaVersion, 2);
+    assert.equal(receipt.outcome, "manual-recovery-required");
+    assert.equal(receipt.directoryMaterialization.state, "preserved-unknown");
+  });
+});
 
 requiresStrictDirectoryDurability("SIGKILL after temporary sync preserves orphan evidence for manual recovery", async () => {
   await withFixture(async (consumerRoot, scratch) => {

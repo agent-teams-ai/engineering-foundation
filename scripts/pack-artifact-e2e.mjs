@@ -81,13 +81,28 @@ function shouldCopyPackagePath(path) {
 }
 
 async function createCleanBuildStage(input, label) {
-  const stageRoot = join(input.temporaryRoot, `clean-build-${label}`);
-  const packageRoot = join(stageRoot, "packages", "engineering-foundation");
+  const stageRoot = join(
+    input.temporaryRoot,
+    `clean-build-${input.artifactLabel ?? "package"}-${label}`,
+  );
+  const packageRoot = join(stageRoot, "packages", basename(input.packageRoot));
   await mkdir(dirname(packageRoot), { recursive: true });
   await cp(input.packageRoot, packageRoot, {
     filter: shouldCopyPackagePath,
     recursive: true
   });
+  for (const supportRoot of input.supportPackageRoots ?? []) {
+    const stagedSupportRoot = join(stageRoot, "packages", basename(supportRoot));
+    await cp(supportRoot, stagedSupportRoot, {
+      filter: shouldCopyPackagePath,
+      recursive: true,
+    });
+    await symlink(
+      join(supportRoot, "node_modules"),
+      join(stagedSupportRoot, "node_modules"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+  }
   await copyFile(
     join(input.repositoryRoot, "pnpm-workspace.yaml"),
     join(stageRoot, "pnpm-workspace.yaml")
@@ -136,7 +151,10 @@ export async function packAndInspectArtifact(input) {
   );
   assertNoSpecialTarEntries(verboseListing);
 
-  const extractedRoot = join(input.temporaryRoot, "extracted");
+  const extractedRoot = join(
+    input.temporaryRoot,
+    `extracted-${input.artifactLabel ?? "package"}`,
+  );
   await mkdir(extractedRoot, { recursive: true });
   await runCommand("tar", ["-xzf", first.archivePath, "-C", extractedRoot], input.temporaryRoot);
   await assertSecretCanaryAbsent(extractedRoot);

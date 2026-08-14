@@ -150,8 +150,15 @@ export function mapReleasedBaseline(
 }
 
 export function baselineMatchesPolicy(
-  _snapshot: PublicApiSnapshot,
-  _policy: PublicApiPackagePolicy
+  snapshot: PublicApiSnapshot,
+  policy: PublicApiPackagePolicy
 ): boolean {
-  return true;
+  return (
+    snapshot.packageName === policy.packageName &&
+    isExactVersion(snapshot.packageVersion) &&
+    snapshot.entrypoints.length === policy.entrypoints.length &&
+    snapshot.entrypoints.every(
+      (entrypoint, index) => entrypoint.exportPath === policy.entrypoints[index]?.exportPath
+    )
+  );
 }

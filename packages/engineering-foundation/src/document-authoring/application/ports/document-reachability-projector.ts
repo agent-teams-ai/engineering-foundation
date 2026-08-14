@@ -1,5 +1,5 @@
 import type { DocumentReachabilityProjection } from "../model/document-command.js";
-import type { DocumentPlan } from "../model/document-planning.js";
+import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
 
 /**
  * RC projection seam. GA may replace this read-only projection with a managed

@@ -83,12 +83,12 @@ function isNewerVersion(baseVersion, headVersion) {
   return comparePrereleaseIdentifiers(base.prerelease, head.prerelease) > 0;
 }
 
-function validPrereleaseState(state) {
+function validPrereleaseState(state, mode = "pre") {
   return (
     state !== null &&
     typeof state === "object" &&
     !Array.isArray(state) &&
-    state.mode === "pre" &&
+    state.mode === mode &&
     typeof state.tag === "string" &&
     /^[0-9A-Za-z-]+$/u.test(state.tag) &&
     state.initialVersions !== null &&
@@ -102,9 +102,24 @@ function validPrereleaseState(state) {
   );
 }
 
-function prereleaseStateViolations(baseState, headState, headVersion) {
+function stableExitVersion(baseVersion, state) {
+  const version = semanticVersion(baseVersion);
+  return validPrereleaseState(state, "exit") &&
+    version?.prerelease?.length === 2 &&
+    version.prerelease[0] === state.tag &&
+    /^\d+$/u.test(version.prerelease[1])
+    ? version.core.join(".")
+    : undefined;
+}
+
+function prereleaseStateViolations(baseState, headState, baseVersion, headVersion) {
   if (baseState === undefined && headState === undefined) {
     return [];
+  }
+  if (validPrereleaseState(baseState, "exit") && headState === undefined) {
+    return stableExitVersion(baseVersion, baseState) === headVersion
+      ? []
+      : ["prerelease exit must publish the exact stable version and remove its state"];
   }
   if (!validPrereleaseState(baseState) || !validPrereleaseState(headState)) {
     return ["release pull request must preserve a valid Changesets prerelease state"];
@@ -125,9 +140,9 @@ function prereleaseStateViolations(baseState, headState, headVersion) {
     : [];
 }
 
-function isAllowedReleaseFile(file) {
+function isAllowedReleaseFile(file, prereleaseExit) {
   if (file.filename === PRERELEASE_STATE) {
-    return file.status === "modified";
+    return file.status === "modified" || (prereleaseExit && file.status === "removed");
   }
   if (CHANGESET_PATTERN.test(file.filename)) {
     return file.status === "removed";
@@ -144,7 +159,7 @@ function isAllowedReleaseFile(file) {
   return false;
 }
 
-export function releasePullRequestFileViolations(files) {
+export function releasePullRequestFileViolations(files, { prereleaseExit = false } = {}) {
   if (!Array.isArray(files) || files.length === 0) {
     return ["release pull request file evidence is empty"];
   }
@@ -156,7 +171,7 @@ export function releasePullRequestFileViolations(files) {
         typeof file !== "object" ||
         typeof file.filename !== "string" ||
         typeof file.status !== "string" ||
-        !isAllowedReleaseFile(file),
+        !isAllowedReleaseFile(file, prereleaseExit),
     )
     .map((file) =>
       file !== null && typeof file === "object" && typeof file.filename === "string"
@@ -176,7 +191,8 @@ export function releasePullRequestFileViolations(files) {
     !files.some(
       (file) =>
         (CHANGESET_PATTERN.test(file?.filename ?? "") && file.status === "removed") ||
-        (file?.filename === PRERELEASE_STATE && file.status === "modified"),
+        (file?.filename === PRERELEASE_STATE &&
+          (file.status === "modified" || (prereleaseExit && file.status === "removed"))),
     )
   ) {
     violations.push("release pull request must consume at least one Changeset");
@@ -214,6 +230,7 @@ export function releasePullRequestContentViolations({
     ...prereleaseStateViolations(
       basePrereleaseState,
       headPrereleaseState,
+      baseVersion,
       headVersion,
     ),
   );
@@ -287,7 +304,9 @@ async function main() {
     optionalJsonAtRevision(headRevision, PRERELEASE_STATE),
   ]);
   const violations = [
-    ...releasePullRequestFileViolations(files),
+    ...releasePullRequestFileViolations(files, {
+      prereleaseExit: validPrereleaseState(basePrereleaseState, "exit"),
+    }),
     ...releasePullRequestContentViolations({
       baseManifest: JSON.parse(baseManifestText),
       headManifest: JSON.parse(headManifestText),

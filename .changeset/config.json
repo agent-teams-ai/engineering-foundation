@@ -13,7 +13,7 @@
   "updateInternalDependencies": "patch",
   "ignore": [],
   "privatePackages": {
-    "version": false,
+    "version": true,
     "tag": false
   }
 }

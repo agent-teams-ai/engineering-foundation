@@ -455,6 +455,46 @@ test("release ReviewGate validates Changesets prerelease consumption", () => {
   );
 });
 
+test("release ReviewGate accepts only an exact prerelease exit", () => {
+  const basePrereleaseState = {
+    mode: "exit",
+    tag: "rc",
+    initialVersions: { "@agent-teams/engineering-foundation": "0.15.0" },
+    changesets: ["durable-document-writer"],
+  };
+  const evidence = {
+    baseManifest: {
+      name: "@agent-teams/engineering-foundation",
+      version: "0.16.0-rc.0",
+    },
+    headManifest: {
+      name: "@agent-teams/engineering-foundation",
+      version: "0.16.0",
+    },
+    baseChangelog: "# Changelog\n\n## 0.16.0-rc.0\n",
+    headChangelog:
+      "# Changelog\n\n## 0.16.0\n\nStable release.\n\n## 0.16.0-rc.0\n",
+    basePrereleaseState,
+    headPrereleaseState: undefined,
+  };
+
+  assert.deepEqual(releasePullRequestContentViolations(evidence), []);
+  assert.match(
+    releasePullRequestContentViolations({
+      ...evidence,
+      headManifest: { ...evidence.headManifest, version: "0.16.1" },
+    }).join("\n"),
+    /exact stable version/u,
+  );
+  assert.match(
+    releasePullRequestContentViolations({
+      ...evidence,
+      basePrereleaseState: { ...basePrereleaseState, mode: "pre" },
+    }).join("\n"),
+    /preserve a valid Changesets prerelease state/u,
+  );
+});
+
 test("release ReviewGate accepts only normalized Changesets output", () => {
   const validFiles = [
     { filename: ".changeset/portable-agent-workflow.md", status: "removed" },
@@ -505,6 +545,40 @@ test("release ReviewGate accepts normalized prerelease Changesets output", () =>
     ).join("\n"),
     /forbidden change/u,
   );
+});
+
+test("release ReviewGate narrowly allows exit state deletion and rejects private noise", async () => {
+  const exitFiles = [
+    { filename: ".changeset/durable-document-writer.md", status: "removed" },
+    { filename: ".changeset/pre.json", status: "removed" },
+    { filename: "architecture/public-api/engineering-foundation.json", status: "modified" },
+    { filename: "packages/engineering-foundation/CHANGELOG.md", status: "modified" },
+    { filename: "packages/engineering-foundation/package.json", status: "modified" },
+  ];
+
+  assert.deepEqual(
+    releasePullRequestFileViolations(exitFiles, { prereleaseExit: true }),
+    [],
+  );
+  assert.match(
+    releasePullRequestFileViolations(exitFiles).join("\n"),
+    /forbidden change: \.changeset\/pre\.json/u,
+  );
+  assert.match(
+    releasePullRequestFileViolations(
+      [
+        ...exitFiles,
+        { filename: "spikes/source-dependency-parser/package.json", status: "modified" },
+      ],
+      { prereleaseExit: true },
+    ).join("\n"),
+    /forbidden change: spikes\/source-dependency-parser\/package\.json/u,
+  );
+
+  const config = JSON.parse(
+    await readFile(join(repositoryRoot, ".changeset", "config.json"), "utf8"),
+  );
+  assert.deepEqual(config.privatePackages, { version: true, tag: false });
 });
 
 test("release ReviewGate reads piped GitHub evidence through portable stdin", async () => {

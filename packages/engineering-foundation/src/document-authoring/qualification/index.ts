@@ -1,5 +1,4 @@
-import { constants } from "node:fs";
-import { lstat, open, realpath, type FileHandle } from "node:fs/promises";
+import { constants, lstat, open, realpath, type FileHandle } from "node:fs/promises";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 
 import type { DocumentPlanV2 } from "../application/model/document-planning.js";

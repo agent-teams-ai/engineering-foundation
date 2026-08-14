@@ -463,24 +463,44 @@ function searchSnapshot(count) {
   });
 }
 
-test("qualifies deterministic in-memory query behavior at 100, 1,000, and 5,000 documents", async (context) => {
-  for (const count of [100, 1_000, 5_000]) {
+const advisoryTest = process.env.FOUNDATION_PERFORMANCE === "1" ? test : test.skip;
+const performanceDocumentCounts = process.env.FOUNDATION_PERFORMANCE_COUNTS === undefined
+  ? [100, 1_000, 5_000]
+  : process.env.FOUNDATION_PERFORMANCE_COUNTS.split(",").map(Number);
+
+advisoryTest("collects advisory deterministic in-memory query benchmarks at 100, 1,000, and 5,000 documents", async (context) => {
+  for (const count of performanceDocumentCounts) {
     await context.test(`${count} documents`, async (subtest) => {
       const snapshot = searchSnapshot(count);
       const finder = new FindDocuments({ async read() { return snapshot; } });
-      const started = performance.now();
-      const result = await finder.execute({
+      const queryRequest = {
         consumerRoot: "/fixture",
         profilePath: "document-authoring.yaml",
         query: { text: "target" },
-      });
-      const elapsedMilliseconds = performance.now() - started;
+      };
+      for (let index = 0; index < 5; index += 1) {
+        await finder.execute(queryRequest);
+      }
+      const samples = [];
+      let result;
+      for (let index = 0; index < 25; index += 1) {
+        const started = performance.now();
+        result = await finder.execute(queryRequest);
+        samples.push(performance.now() - started);
+      }
       assert.deepEqual(result.documents.map(({ id }) => id), [
         `guide.${String(count - 1).padStart(5, "0")}`,
       ]);
-      subtest.diagnostic(
-        `document query benchmark ${count}: ${elapsedMilliseconds.toFixed(1)}ms`,
-      );
+      samples.sort((left, right) => left - right);
+      subtest.diagnostic(`FOUNDATION_BENCHMARK ${JSON.stringify({
+        benchmark: "document-find-memory",
+        count,
+        measurements: {
+          medianMilliseconds: samples[12],
+          p95Milliseconds: samples[23],
+          samples: samples.length,
+        },
+      })}`);
     });
   }
 });

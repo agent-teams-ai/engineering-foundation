@@ -82,7 +82,8 @@ for the complete CLI and JSON contract.
 declared capability. See [consumer adoption](docs/development/consumer-adoption.md).
 The optional `repository.agent-workflow` capability keeps `AGENTS.md` canonical
 across coding agents and routes `check:changed` through the shared Foundation
-implementation; required CI still runs the complete `verify` command.
+implementation; required CI still runs the complete `verify` evidence as
+independent fail-closed lanes.
 
 `foundation:assert-dev-only` rejects runtime dependency placement.
 `foundation:assert-registry` additionally proves that the exact declared version

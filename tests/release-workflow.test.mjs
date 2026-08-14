@@ -189,7 +189,7 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     attestationSteps[attestationNodeSetupIndex].with["node-version-file"],
     ".node-version",
   );
-  const changesetCoverage = ci.jobs.check.steps.find(
+  const changesetCoverage = ci.jobs["linux-static"].steps.find(
     ({ name }) => name === "Validate package Changeset coverage",
   );
   assert.equal(changesetCoverage.run, "pnpm changeset:coverage");
@@ -305,9 +305,13 @@ test("release publishing requires real Buf and hermetic registry qualification",
   const manifest = JSON.parse(
     await readFile(join(repositoryRoot, "package.json"), "utf8"),
   );
+  const coverageRunner = await readFile(
+    join(repositoryRoot, "scripts", "run-test-coverage.mjs"),
+    "utf8",
+  );
   for (const threshold of ["lines", "branches", "functions"]) {
     assert.match(
-      manifest.scripts["test:coverage:built"],
+      coverageRunner,
       new RegExp(`--test-coverage-${threshold}=[1-9]\\d*`, "u"),
     );
   }
@@ -337,32 +341,37 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["registry-install-e2e:built"],
     "node scripts/registry-install-e2e.mjs",
   );
-  assert.ok(
-    ci.jobs.check.steps.some(
-      (step) => step.run === "pnpm verify",
-    ),
-  );
+  assert.equal(ci.jobs["linux-registry"].steps.at(-1).run, "pnpm registry-install-e2e");
   assert.equal(
     manifest.scripts["published-compatibility:e2e"],
     "node scripts/published-compatibility-e2e.mjs",
   );
-  assert.ok(
-    ci.jobs.check.steps.some(
-      (step) => step.run === "pnpm verify",
-    ),
+  assert.equal(
+    ci.jobs["linux-published"].steps.at(-1).run,
+    "pnpm published-compatibility:e2e",
   );
-  assert.ok(
-    ci.jobs["windows-check"].steps.some(
-      (step) => step.run === "pnpm published-compatibility:e2e",
-    ),
+  assert.equal(
+    ci.jobs["windows-published"].steps.at(-1).run,
+    "pnpm published-compatibility:e2e",
   );
-  assert.ok(
-    ci.jobs["windows-check"].steps.some(
-      (step) =>
-        step.run ===
-        "node --test tests/document-authoring-windows-qualification.test.mjs",
-    ),
+  assert.match(
+    ci.jobs["windows-test-b"].steps.at(-1).run,
+    /--shards 3,4/u,
   );
+  assert.deepEqual(ci.jobs.check.needs, [
+    "dependency-review",
+    "linux-static",
+    "linux-test-1",
+    "linux-test-2",
+    "linux-test-3",
+    "linux-test-4",
+    "linux-coverage",
+    "linux-package",
+    "linux-registry",
+    "linux-published",
+  ]);
+  assert.equal(ci.jobs.check.if, "always()");
+  assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });
 
 test("release ReviewGate permits only version and generated changelog changes", () => {

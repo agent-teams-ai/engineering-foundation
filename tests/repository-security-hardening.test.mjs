@@ -425,31 +425,36 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   const securityScript = scripts["security:workflows"];
   const ci = parseYaml(workflow);
 
-  assert.ok(
-    workflow.indexOf("uses: actions/setup-node@") < workflow.indexOf("run: pnpm verify"),
-  );
+  assert.ok(workflow.indexOf("uses: actions/setup-node@") > 0);
   assert.match(
     ci.jobs["dependency-review"].steps[1].uses,
     /^actions\/dependency-review-action@[a-f0-9]{40}$/u,
   );
-  assert.equal(ci.jobs.check.needs, "dependency-review");
-  assert.equal(ci.jobs["windows-check"].needs, "dependency-review");
+  assert.equal(ci.jobs.check.needs.includes("dependency-review"), true);
+  assert.equal(ci.jobs["windows-check"].needs.includes("dependency-review"), true);
   assert.equal(ci.jobs["macos-qualification"].needs, "dependency-review");
+  for (const [jobId, job] of Object.entries(ci.jobs)) {
+    if (jobId === "dependency-review") {
+      continue;
+    }
+    assert.equal(
+      Array.isArray(job.needs) ? job.needs.includes("dependency-review") : job.needs === "dependency-review",
+      true,
+      `${jobId} must depend directly on dependency-review`,
+    );
+  }
   assert.ok(
     workflow.indexOf("uses: actions/dependency-review-action@") <
       workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts"),
   );
-  assert.ok(
-    workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts") <
-      workflow.indexOf("run: pnpm verify"),
-  );
-  assert.ok(
-    workflow.indexOf("run: pnpm rebuild") < workflow.indexOf("run: pnpm verify"),
-  );
+  assert.ok(workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts") > 0);
+  assert.ok(workflow.indexOf("run: pnpm rebuild") > 0);
   assert.match(workflow, /uses: actions\/dependency-review-action@[a-f0-9]{40}/u);
   assert.match(policy, /workflowPath: \.github\/workflows\/ci\.yml/u);
   assert.equal(securityScript, "node scripts/security-toolchain.mjs");
-  assert.equal(ci.jobs.check.steps.some(({ run }) => run === "pnpm verify"), true);
+  assert.equal(ci.jobs["linux-static"].steps.some(({ run }) => run === "pnpm security:workflows"), true);
+  assert.equal(ci.jobs.check.if, "always()");
+  assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
   assert.doesNotMatch(workflow, /aquaproj\/aqua-installer/u);
   assert.doesNotMatch(policy, /aquaproj\/aqua-installer/u);
 });

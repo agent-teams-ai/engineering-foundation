@@ -32,8 +32,9 @@ capability decision.
   reusable workflow has a same-workflow pinned Dependency Review job before
   that execution; the primary CI gate is an unconditional prerequisite for
   both Linux and Windows install jobs;
-- the required Linux `check` job runs Anchore SBOM without job/step conditions
-  or `continue-on-error`;
+- the required Linux `check` aggregate includes a direct Dependency Review
+  prerequisite and the `linux-static` prerequisite runs Anchore SBOM without
+  job/step conditions or `continue-on-error`;
 - Dependency Review is bound to one declared required job, exact non-equal
   base/head expressions, an explicit vulnerability check, and a severity floor.
   Advisory mode, scope reduction, advisory exceptions, and uninspected external

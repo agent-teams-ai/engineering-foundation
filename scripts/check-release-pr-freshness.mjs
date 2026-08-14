@@ -156,13 +156,19 @@ async function prereleaseState(cwd, revision) {
     state === null ||
     typeof state !== "object" ||
     Array.isArray(state) ||
-    state.mode !== "pre" ||
+    (state.mode !== "pre" && state.mode !== "exit") ||
+    typeof state.tag !== "string" ||
+    !/^[0-9A-Za-z-]+$/u.test(state.tag) ||
     !Array.isArray(state.changesets) ||
     state.changesets.some((id) => typeof id !== "string" || id.length === 0)
   ) {
     throw new Error(`${path} must contain a valid Changesets prerelease state`);
   }
-  return new Set(state.changesets);
+  return {
+    mode: state.mode,
+    tag: state.tag,
+    changesets: new Set(state.changesets),
+  };
 }
 
 function changesetId(path) {
@@ -184,14 +190,28 @@ async function expectedChangesets(cwd, revision) {
       (path) =>
         /^\.changeset\/[^/]+\.md$/u.test(path) && path !== ".changeset/README.md",
     );
-  const consumed = await prereleaseState(cwd, revision);
+  const prerelease = await prereleaseState(cwd, revision);
   const changesets = await Promise.all(
     paths.map(async (path) => parseChangeset(path, await fileAtRevision(cwd, revision, path))),
   );
   return changesets.filter(
     (changeset) =>
-      changeset !== null && !consumed?.has(changesetId(changeset.path)),
+      changeset !== null &&
+      (prerelease?.mode === "exit" ||
+        !prerelease?.changesets.has(changesetId(changeset.path))),
   );
+}
+
+function stableExitVersion(baseVersion, state) {
+  if (state?.mode !== "exit" || typeof baseVersion !== "string") {
+    return;
+  }
+  const escapedTag = state.tag.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = new RegExp(
+    `^((?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*))-${escapedTag}\\.(?:0|[1-9]\\d*)$`,
+    "u",
+  ).exec(baseVersion);
+  return match?.[1];
 }
 
 function optionalExactSha(value, label) {
@@ -230,18 +250,11 @@ function releaseRevisionBindingViolations(pullRequest, evidence) {
   return violations;
 }
 
-export async function releasePullRequestFreshnessViolations(
-  evidence,
-  { cwd = process.cwd() } = {},
+function pullRequestShapeViolations(
+  pullRequest,
+  { currentMainSha, processedMainSha, baseSha },
 ) {
   const violations = [];
-  const processedMainSha = exactSha(evidence.processedMainSha, "processed main");
-  const currentMainSha = exactSha(evidence.currentMainSha, "current main");
-  const pullRequest = normalizePullRequest(evidence.pullRequest);
-  const headSha = exactSha(pullRequest.headSha, "pull request head");
-  const baseSha = exactSha(pullRequest.baseSha, "pull request base");
-  violations.push(...releaseRevisionBindingViolations(pullRequest, evidence));
-
   if (pullRequest.state !== "open") {
     violations.push("release pull request must be open");
   }
@@ -257,35 +270,95 @@ export async function releasePullRequestFreshnessViolations(
   if (baseSha !== processedMainSha) {
     violations.push("release pull request base is not the processed main revision");
   }
+  return violations;
+}
+
+function prereleaseTransitionViolations(basePrerelease, headPrerelease) {
+  if (basePrerelease?.mode === "pre" && headPrerelease?.mode !== "pre") {
+    return ["release head must preserve active Changesets prerelease state"];
+  }
+  if (basePrerelease?.mode === "exit" && headPrerelease !== undefined) {
+    return ["release head must remove Changesets state when completing prerelease exit"];
+  }
+  if (basePrerelease === undefined && headPrerelease !== undefined) {
+    return ["release head cannot introduce Changesets prerelease state"];
+  }
+  return [];
+}
+
+function stableExitViolations(basePrerelease, baseVersion, headVersion) {
+  if (basePrerelease?.mode !== "exit") {
+    return [];
+  }
+  const expectedVersion = stableExitVersion(baseVersion, basePrerelease);
+  return expectedVersion === undefined || headVersion !== expectedVersion
+    ? ["prerelease exit must publish the exact stable version of the processed prerelease"]
+    : [];
+}
+
+export async function releasePullRequestFreshnessViolations(
+  evidence,
+  { cwd = process.cwd() } = {},
+) {
+  const violations = [];
+  const processedMainSha = exactSha(evidence.processedMainSha, "processed main");
+  const currentMainSha = exactSha(evidence.currentMainSha, "current main");
+  const pullRequest = normalizePullRequest(evidence.pullRequest);
+  const headSha = exactSha(pullRequest.headSha, "pull request head");
+  const baseSha = exactSha(pullRequest.baseSha, "pull request base");
+  violations.push(...releaseRevisionBindingViolations(pullRequest, evidence));
+  violations.push(
+    ...pullRequestShapeViolations(pullRequest, {
+      currentMainSha,
+      processedMainSha,
+      baseSha,
+    }),
+  );
   const { stdout: parentLine } = await git(cwd, ["rev-list", "--parents", "-n", "1", headSha]);
   const [, ...parents] = parentLine.trim().split(/\s+/u);
   if (parents.length !== 1 || parents[0] !== processedMainSha) {
     violations.push("release head must have exactly the processed main revision as its parent");
   }
 
+  const [basePrerelease, headPrerelease] = await Promise.all([
+    prereleaseState(cwd, processedMainSha),
+    prereleaseState(cwd, headSha),
+  ]);
+  violations.push(
+    ...prereleaseTransitionViolations(basePrerelease, headPrerelease),
+  );
+
   const changesets = await expectedChangesets(cwd, processedMainSha);
-  const headPrereleaseChangesets = await prereleaseState(cwd, headSha);
   if (changesets.length === 0) {
     violations.push("processed main must contain at least one package release changeset");
   }
   for (const changeset of changesets) {
     if (await pathExistsAtRevision(cwd, headSha, changeset.path)) {
-      if (!headPrereleaseChangesets?.has(changesetId(changeset.path))) {
+      if (!headPrerelease?.changesets.has(changesetId(changeset.path))) {
         violations.push(`release head did not consume ${changeset.path}`);
       }
     }
   }
 
-  const [manifestText, baseChangelog, headChangelog] = await Promise.all([
+  const [baseManifestText, manifestText, baseChangelog, headChangelog] = await Promise.all([
+    fileAtRevision(cwd, processedMainSha, PACKAGE_MANIFEST),
     fileAtRevision(cwd, headSha, PACKAGE_MANIFEST),
     fileAtRevision(cwd, processedMainSha, PACKAGE_CHANGELOG),
     fileAtRevision(cwd, headSha, PACKAGE_CHANGELOG),
   ]);
   const manifest = JSON.parse(manifestText);
+  const baseManifest = JSON.parse(baseManifestText);
   if (manifest.name !== PACKAGE_NAME || typeof manifest.version !== "string") {
     violations.push("release head package manifest has an unexpected name or version");
     return violations;
   }
+  violations.push(
+    ...stableExitViolations(
+      basePrerelease,
+      baseManifest.version,
+      manifest.version,
+    ),
+  );
 
   const generatedRelease = generatedReleaseBody(
     baseChangelog,

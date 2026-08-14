@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { createRequire } from "node:module";
 import test from "node:test";
 import { promisify } from "node:util";
 
@@ -10,6 +11,11 @@ import { releasePullRequestFreshnessViolations } from "../scripts/check-release-
 
 const execFileAsync = promisify(execFile);
 const packageName = "@agent-teams/engineering-foundation";
+const require = createRequire(import.meta.url);
+const changesetBin = join(
+  dirname(require.resolve("@changesets/cli/package.json")),
+  "bin.js",
+);
 
 async function git(cwd, ...args) {
   const { stdout } = await execFileAsync("git", args, { cwd, encoding: "utf8" });
@@ -101,6 +107,33 @@ async function createRelease(
   return { head: await git(root, "rev-parse", "HEAD"), body: generated.body };
 }
 
+async function createPrereleaseExit(root, baseRevision, version, summary) {
+  await git(root, "checkout", "--detach", baseRevision);
+  await rm(join(root, ".changeset", "pre.json"));
+  await rm(join(root, ".changeset", "alpha.md"));
+  const baseChangelog = await git(
+    root,
+    "show",
+    baseRevision + ":packages/engineering-foundation/CHANGELOG.md",
+  );
+  const title = "# " + packageName + "\n\n";
+  const section = "## " + version + "\n\n### Minor Changes\n\n- " + summary;
+  await writeFile(
+    join(root, "packages", "engineering-foundation", "package.json"),
+    JSON.stringify({ name: packageName, version }),
+  );
+  await writeFile(
+    join(root, "packages", "engineering-foundation", "CHANGELOG.md"),
+    title + section + "\n\n" + baseChangelog.slice(title.length) + "\n",
+  );
+  await git(root, "add", ".");
+  await git(root, "commit", "-m", "exit prerelease");
+  return {
+    head: await git(root, "rev-parse", "HEAD"),
+    body: "# Releases\n" + section.replace("## " + version, "## " + packageName + "@" + version),
+  };
+}
+
 test("accepts Changesets prerelease consumption recorded in pre.json", async () => {
   const fixture = await createFixture();
   try {
@@ -132,6 +165,160 @@ test("accepts Changesets prerelease consumption recorded in pre.json", async () 
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("accepts only an exact stable release when processed main exits prerelease", async () => {
+  const fixture = await createFixture();
+  try {
+    await git(fixture.root, "checkout", "--detach", fixture.mainA);
+    await writeFile(
+      join(fixture.root, ".changeset", "pre.json"),
+      JSON.stringify({
+        mode: "exit",
+        tag: "rc",
+        initialVersions: { [packageName]: "1.0.0" },
+        changesets: ["alpha"],
+      }),
+    );
+    await writeFile(
+      join(fixture.root, "packages", "engineering-foundation", "package.json"),
+      JSON.stringify({ name: packageName, version: "1.1.0-rc.0" }),
+    );
+    await writeFile(
+      join(fixture.root, "packages", "engineering-foundation", "CHANGELOG.md"),
+      "# " + packageName + "\n\n## 1.1.0-rc.0\n\nAlpha package change.\n\n## 1.0.0\n",
+    );
+    await git(fixture.root, "add", ".");
+    await git(fixture.root, "commit", "-m", "prepare prerelease exit");
+    const exitMain = await git(fixture.root, "rev-parse", "HEAD");
+    const release = await createPrereleaseExit(
+      fixture.root,
+      exitMain,
+      "1.1.0",
+      "Alpha package change.",
+    );
+
+    assert.deepEqual(
+      await violations(fixture.root, exitMain, exitMain, release, release.head),
+      [],
+    );
+
+    const wrongVersion = await createPrereleaseExit(
+      fixture.root,
+      exitMain,
+      "1.1.1",
+      "Alpha package change.",
+    );
+    assert.match(
+      (
+        await violations(
+          fixture.root,
+          exitMain,
+          exitMain,
+          wrongVersion,
+          wrongVersion.head,
+        )
+      ).join("\n"),
+      /exact stable version/u,
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("rejects deleting active prerelease state before exit", async () => {
+  const fixture = await createFixture();
+  try {
+    await git(fixture.root, "checkout", "--detach", fixture.mainA);
+    await writeFile(
+      join(fixture.root, ".changeset", "pre.json"),
+      JSON.stringify({
+        mode: "pre",
+        tag: "rc",
+        initialVersions: { [packageName]: "1.0.0" },
+        changesets: [],
+      }),
+    );
+    await git(fixture.root, "add", ".");
+    await git(fixture.root, "commit", "-m", "active prerelease");
+    const prereleaseMain = await git(fixture.root, "rev-parse", "HEAD");
+    const release = await createPrereleaseExit(
+      fixture.root,
+      prereleaseMain,
+      "1.1.0",
+      "Alpha package change.",
+    );
+
+    assert.match(
+      (
+        await violations(
+          fixture.root,
+          prereleaseMain,
+          prereleaseMain,
+          release,
+          release.head,
+        )
+      ).join("\n"),
+      /must preserve active Changesets prerelease state/u,
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("prerelease exit leaves the private parser spike untouched", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-private-exit-"));
+  try {
+    await mkdir(join(root, ".changeset"), { recursive: true });
+    await mkdir(join(root, "packages", "public"), { recursive: true });
+    await mkdir(join(root, "packages", "private"), { recursive: true });
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({ private: true, workspaces: ["packages/*"] }),
+    );
+    await writeFile(
+      join(root, ".changeset", "config.json"),
+      JSON.stringify({
+        changelog: false,
+        commit: false,
+        fixed: [],
+        linked: [],
+        access: "restricted",
+        baseBranch: "main",
+        updateInternalDependencies: "patch",
+        ignore: [],
+        privatePackages: { version: true, tag: false },
+      }),
+    );
+    await writeFile(
+      join(root, ".changeset", "pre.json"),
+      JSON.stringify({
+        mode: "exit",
+        tag: "rc",
+        initialVersions: { "public-package": "1.0.0", "private-spike": "0.0.0" },
+        changesets: ["alpha"],
+      }),
+    );
+    await writeFile(
+      join(root, ".changeset", "alpha.md"),
+      '---\n"public-package": minor\n---\n\nPublic change.\n',
+    );
+    await writeFile(
+      join(root, "packages", "public", "package.json"),
+      JSON.stringify({ name: "public-package", version: "1.1.0-rc.0" }),
+    );
+    const privateManifestPath = join(root, "packages", "private", "package.json");
+    await writeFile(
+      privateManifestPath,
+      JSON.stringify({ name: "private-spike", version: "0.0.0", private: true }),
+    );
+
+    await execFileAsync(process.execPath, [changesetBin, "version"], { cwd: root });
+
+    assert.equal(JSON.parse(await readFile(privateManifestPath, "utf8")).version, "0.0.0");
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

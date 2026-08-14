@@ -78,12 +78,24 @@ export function inspectCatalogDocumentWithSidecar(
   ownerIds: ReadonlySet<string>,
   source: DocumentDescriptor["source"]
 ): InspectedCatalogDocumentV2 {
-  if (sidecar === undefined || document.frontmatter.kind !== "valid") {
+  if (sidecar === undefined) {
     return inspectCatalogDocumentV2(document, metadata, ownerIds, source);
   }
   const sidecarMetadata = sidecar.documents[document.repositoryPath];
-  if (sidecarMetadata === undefined) {
+  if (
+    sidecarMetadata === undefined ||
+    document.frontmatter.kind === "invalid"
+  ) {
     return inspectCatalogDocumentV2(document, metadata, ownerIds, source);
+  }
+  if (document.frontmatter.kind === "absent") {
+    return inspectCatalogDocumentV2(
+      document,
+      metadata,
+      ownerIds,
+      source,
+      sidecarMetadata
+    );
   }
   try {
     return inspectCatalogDocumentV2(

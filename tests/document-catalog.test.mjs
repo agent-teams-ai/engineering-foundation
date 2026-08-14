@@ -407,6 +407,45 @@ function observedDocument(repositoryPath, id) {
   };
 }
 
+function observedDocumentWithoutFrontmatter(repositoryPath, title = repositoryPath) {
+  const source = `# ${title}\n\nBody.\n`;
+  return {
+    anchorObservations: [],
+    frontmatter: { endOffset: 0, kind: "absent" },
+    headings: [{ depth: 1, location: { column: 1, line: 1, offset: 0 }, text: title }],
+    references: [],
+    repositoryPath,
+    source,
+  };
+}
+
+function observedDocumentWithInvalidFrontmatter(repositoryPath) {
+  const source = "---\nid: broken\n# Missing delimiter\n";
+  return {
+    anchorObservations: [],
+    frontmatter: {
+      endOffset: source.length,
+      kind: "invalid",
+      message: "YAML frontmatter is missing its closing delimiter.",
+    },
+    headings: [],
+    references: [],
+    repositoryPath,
+    source,
+  };
+}
+
+function sidecarMetadata(id, overrides = {}) {
+  return Object.freeze({
+    id,
+    type: "guide",
+    status: "active",
+    owner: "architecture",
+    summary: `Summary for ${id}.`,
+    ...overrides,
+  });
+}
+
 function fakeBuilder(
   documents,
   overrides = {},
@@ -415,6 +454,8 @@ function fakeBuilder(
   let ownerReads = 0;
   let repositoryReads = 0;
   let sidecarReads = 0;
+  const hasSidecar =
+    overrides.sidecarChanges === true || overrides.sidecarDocuments !== undefined;
   const evidence = (path) => ({ digest, path, size: 1 });
   return new Builder({
     metadata: {
@@ -444,7 +485,7 @@ function fakeBuilder(
           evidence: evidence("document-authoring.yaml"),
           excludedPrefixes: [],
           metadataSchemaPath: "docs/metadata.schema.json",
-          ...(overrides.sidecarChanges === true
+          ...(hasSidecar
             ? {
                 metadataSidecar: {
                   kind: "path-metadata-map",
@@ -473,15 +514,18 @@ function fakeBuilder(
         throw new Error("not used");
       },
     },
-    ...(overrides.sidecarChanges === true
+    ...(hasSidecar
       ? {
           sidecar: {
             async read() {
               sidecarReads += 1;
               return {
-                documents: Object.freeze({}),
+                documents: Object.freeze(overrides.sidecarDocuments ?? {}),
                 evidence: {
-                  digest: `sha256:${String(sidecarReads).repeat(64)}`,
+                  digest:
+                    overrides.sidecarChanges === true
+                      ? `sha256:${String(sidecarReads).repeat(64)}`
+                      : digest,
                   path: "docs/metadata.sidecar.yaml",
                   size: 1,
                 },
@@ -573,6 +617,95 @@ test("v2 fails closed when sidecar evidence changes during observation", async (
       error instanceof DocumentCatalogError &&
       error.code === "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
   );
+});
+
+test("v2 accepts complete path-keyed sidecar metadata for absent frontmatter", async () => {
+  const repositoryPath = "docs/frozen-report.md";
+  const document = observedDocumentWithoutFrontmatter(repositoryPath, "Frozen report");
+  const builder = fakeBuilder(
+    [document],
+    {
+      sidecarDocuments: {
+        [repositoryPath]: sidecarMetadata("report.frozen", { related: ["adr.0001"] }),
+      },
+    },
+    BuildDocumentationCatalogV2,
+  );
+  const request = { consumerRoot: "/fixture", profilePath: "document-authoring.yaml" };
+
+  const first = await builder.execute(request);
+  const second = await builder.execute(request);
+
+  assert.equal(first.status, "complete");
+  assert.deepEqual(first.diagnostics, []);
+  assert.deepEqual(first.identityProjection, [
+    { id: "report.frozen", repositoryPath },
+  ]);
+  assert.deepEqual(first.documents, [
+    {
+      id: "report.frozen",
+      metadata: sidecarMetadata("report.frozen", { related: ["adr.0001"] }),
+      owner: "architecture",
+      repositoryPath,
+      source: "markdown-tree",
+      status: "active",
+      summary: "Summary for report.frozen.",
+      title: "Frozen report",
+      type: "guide",
+    },
+  ]);
+  assert.equal(second.semanticDigest, first.semanticDigest);
+});
+
+test("v2 does not let sidecar metadata mask malformed or missing frontmatter authority", async () => {
+  const malformedPath = "docs/malformed.md";
+  const missingPath = "docs/unregistered.md";
+  const snapshot = await fakeBuilder(
+    [
+      observedDocumentWithInvalidFrontmatter(malformedPath),
+      observedDocumentWithoutFrontmatter(missingPath, "Unregistered"),
+    ],
+    {
+      sidecarDocuments: {
+        [malformedPath]: sidecarMetadata("guide.malformed"),
+      },
+    },
+    BuildDocumentationCatalogV2,
+  ).execute({ consumerRoot: "/fixture", profilePath: "document-authoring.yaml" });
+
+  assert.equal(snapshot.status, "partial");
+  assert.deepEqual(snapshot.documents, []);
+  assert.deepEqual(
+    snapshot.diagnostics.map(({ ruleId, subject }) => ({ ruleId, subject })),
+    [
+      { ruleId: "document.catalog.frontmatter-invalid", subject: malformedPath },
+      { ruleId: "document.catalog.frontmatter-required", subject: missingPath },
+    ],
+  );
+});
+
+test("v2 keeps inline and sidecar metadata conflicts fail-closed", async () => {
+  const repositoryPath = "docs/conflict.md";
+  const snapshot = await fakeBuilder(
+    [observedDocument(repositoryPath, "guide.conflict")],
+    {
+      sidecarDocuments: {
+        [repositoryPath]: sidecarMetadata("guide.conflict", {
+          summary: "Conflicting summary.",
+        }),
+      },
+    },
+    BuildDocumentationCatalogV2,
+  ).execute({ consumerRoot: "/fixture", profilePath: "document-authoring.yaml" });
+
+  assert.equal(snapshot.status, "partial");
+  assert.deepEqual(snapshot.documents, []);
+  assert.deepEqual(snapshot.identityProjection, [
+    { id: "guide.conflict", repositoryPath },
+  ]);
+  assert.deepEqual(snapshot.diagnostics.map(({ ruleId, subject }) => ({ ruleId, subject })), [
+    { ruleId: "document.catalog.metadata-sidecar-conflict", subject: repositoryPath },
+  ]);
 });
 
 test("marks a catalog partial when the corpus changes between passes", async () => {

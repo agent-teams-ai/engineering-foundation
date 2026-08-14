@@ -136,6 +136,11 @@
       "id": "ADR-0027",
       "path": "docs/decisions/0027-staged-docs-protocol-publication.md",
       "immutableDigest": "sha256:ba3e44fd327af90140d56c9ae6ffaa13cab8826e6048d881fd8ab0d87f8b17c0"
+    },
+    {
+      "id": "ADR-0028",
+      "path": "docs/decisions/0028-fail-closed-docs-protocol-bootstrap.md",
+      "immutableDigest": "sha256:322b656ed77f8a7050cc50cdfb27c39dbebf40a85ba28fddee9349ea4914d7f8"
     }
   ]
 }

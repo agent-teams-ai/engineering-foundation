@@ -569,6 +569,42 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });
 
+test("Docs Protocol bootstrap is manual, token-bounded, idempotent, and provenance-verified", async () => {
+  const bootstrap = await workflow("docs-protocol-bootstrap.yml");
+  const source = await readFile(
+    join(repositoryRoot, ".github", "workflows", "docs-protocol-bootstrap.yml"),
+    "utf8",
+  );
+  const release = await workflow("release.yml");
+  const job = bootstrap.jobs.bootstrap;
+  const publish = job.steps.find(({ name }) => name === "Publish or resume the exact bootstrap artifact");
+  const postconditions = job.steps.find(
+    ({ name }) => name === "Prove registry postconditions and provenance",
+  );
+
+  assert.deepEqual(Object.keys(bootstrap.on), ["workflow_dispatch"]);
+  assert.equal(bootstrap.on.workflow_dispatch.inputs.expected_commit.required, true);
+  assert.equal(bootstrap.on.workflow_dispatch.inputs.token_created_at.required, true);
+  assert.equal(bootstrap.on.workflow_dispatch.inputs.token_expires_at.required, true);
+  assert.deepEqual(bootstrap.permissions, { contents: "read" });
+  assert.deepEqual(job.permissions, { contents: "read", "id-token": "write" });
+  assert.equal(job.environment, "npm-docs-protocol-bootstrap");
+  assert.match(job.if, /DOCS_PROTOCOL_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
+  assert.equal(job.env.NPM_TOKEN, "${{ secrets.NPM_DOCS_PROTOCOL_BOOTSTRAP_TOKEN }}");
+  assert.match(publish.run, /npm publish "\$\{archive_path\}" --tag bootstrap --provenance --ignore-scripts/u);
+  assert.match(publish.run, /npm dist-tag add '@agent-teams\/docs-protocol@0\.0\.0' bootstrap/u);
+  assert.match(publish.run, /npm dist-tag add '@agent-teams\/docs-protocol@0\.0\.0' latest/u);
+  assert.match(publish.run, /npm deprecate '@agent-teams\/docs-protocol@0\.0\.0'/u);
+  assert.match(postconditions.run, /npm audit signatures --json --include-attestations/u);
+  assert.match(source, /engineering-foundation@0\.17\.0-rc\.0/u);
+  assert.doesNotMatch(source, /on:\s*\n\s+push:/u);
+  assert.equal(
+    release.jobs.release.steps.find(({ name }) => name === "Guard Docs Protocol bootstrap boundary")
+      .run,
+    "node scripts/docs-protocol-bootstrap.mjs ordinary-release-state",
+  );
+});
+
 test("release ReviewGate permits only version and generated changelog changes", () => {
   const evidence = {
     baseManifest: { name: "@agent-teams/engineering-foundation", version: "0.4.1" },
@@ -634,6 +670,38 @@ test("release ReviewGate validates Changesets prerelease consumption", () => {
       headManifest: { ...evidence.headManifest, version: "0.16.0-beta.0" },
     }).join("\n"),
     /matching prerelease state/u,
+  );
+  const withDocsInitialVersion = {
+    ...evidence,
+    docsBootstrapInitialVersionAddition: true,
+    headPrereleaseState: {
+      ...evidence.headPrereleaseState,
+      initialVersions: {
+        ...evidence.headPrereleaseState.initialVersions,
+        "@agent-teams/docs-protocol": "0.0.0",
+      },
+    },
+  };
+  assert.deepEqual(releasePullRequestContentViolations(withDocsInitialVersion), []);
+  assert.match(
+    releasePullRequestContentViolations({
+      ...withDocsInitialVersion,
+      docsBootstrapInitialVersionAddition: false,
+    }).join("\n"),
+    /only append consumed Changesets/u,
+  );
+  assert.match(
+    releasePullRequestContentViolations({
+      ...withDocsInitialVersion,
+      headPrereleaseState: {
+        ...withDocsInitialVersion.headPrereleaseState,
+        initialVersions: {
+          ...withDocsInitialVersion.headPrereleaseState.initialVersions,
+          unexpected: "1.0.0",
+        },
+      },
+    }).join("\n"),
+    /only append consumed Changesets/u,
   );
   const nextPrerelease = {
     ...evidence,

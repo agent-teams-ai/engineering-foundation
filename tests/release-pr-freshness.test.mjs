@@ -503,6 +503,32 @@ test("release evidence follows the latest processed main across a two-push race"
   }
 });
 
+test("official empty Changeset frontmatter is release-neutral", async () => {
+  const fixture = await createFixture();
+  try {
+    await git(fixture.root, "checkout", "--detach", fixture.mainA);
+    await writeFile(
+      join(fixture.root, ".changeset", "bootstrap.md"),
+      "---\n---\n\nRecord the bootstrap promotion without a version bump.\n",
+    );
+    await git(fixture.root, "add", ".changeset/bootstrap.md");
+    await git(fixture.root, "commit", "-m", "record empty bootstrap changeset");
+    const main = await git(fixture.root, "rev-parse", "HEAD");
+    const release = await createRelease(
+      fixture.root,
+      main,
+      "1.1.0",
+      ["Alpha package change."],
+    );
+    assert.deepEqual(
+      await violations(fixture.root, main, main, release, release.head),
+      [],
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("existing release PR binding waits for the post-update revision tuple", async () => {
   const fixture = await createFixture();
   try {

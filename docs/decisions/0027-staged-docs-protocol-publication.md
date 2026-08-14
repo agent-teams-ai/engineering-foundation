@@ -1,8 +1,9 @@
 ---
 id: ADR-0027
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by:
+  - ADR-0028
 ---
 
 # ADR-0027: Stage Docs Protocol Publication After Foundation

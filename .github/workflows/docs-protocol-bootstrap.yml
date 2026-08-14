@@ -1,0 +1,155 @@
+name: Bootstrap Docs Protocol
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Exact reviewed protected-main commit to publish
+        required: true
+        type: string
+      token_created_at:
+        description: Granular npm token creation time in UTC
+        required: true
+        type: string
+      token_expires_at:
+        description: Granular npm token expiry time in UTC, no more than one day after creation
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-protocol-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    name: bootstrap-docs-protocol
+    if: ${{ vars.DOCS_PROTOCOL_BOOTSTRAP_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit }}
+    permissions:
+      contents: read
+      id-token: write
+    environment: npm-docs-protocol-bootstrap
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NPM_CONFIG_AUDIT: "false"
+      NPM_CONFIG_FUND: "false"
+      NPM_TOKEN: ${{ secrets.NPM_DOCS_PROTOCOL_BOOTSTRAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.expected_commit }}
+      - uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Validate reviewed bootstrap authority
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          TOKEN_CREATED_AT: ${{ inputs.token_created_at }}
+          TOKEN_EXPIRES_AT: ${{ inputs.token_expires_at }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_COMMIT}"
+          test "${NPM_TOKEN}" != ""
+          test "${NPM_TOKEN#npm_}" != "${NPM_TOKEN}"
+          node scripts/docs-protocol-bootstrap.mjs token-window \
+            "${TOKEN_CREATED_AT}" "${TOKEN_EXPIRES_AT}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          node scripts/docs-protocol-bootstrap.mjs promotion-manifest \
+            .changeset/config.json packages/docs-protocol/package.json \
+            packages/engineering-foundation/package.json
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm check
+      - name: Build and bind the exact tarball
+        id: pack
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/docs-protocol-bootstrap"
+          mkdir -p "${evidence_root}/pack"
+          install -m 0644 LICENSE packages/docs-protocol/LICENSE
+          pnpm --filter @agent-teams/docs-protocol pack \
+            --pack-destination "${evidence_root}/pack" --json \
+            --config.ignore-scripts=true > "${evidence_root}/pack.json"
+          archive_path="$(jq -er '.filename' "${evidence_root}/pack.json")"
+          tar -tzf "${archive_path}" > "${evidence_root}/tar-entries.txt"
+          tar -xOf "${archive_path}" package/package.json > \
+            "${evidence_root}/packed-package.json"
+          node scripts/docs-protocol-bootstrap.mjs pack-evidence \
+            "${evidence_root}/pack.json" "${evidence_root}/packed-package.json" \
+            "${evidence_root}/tar-entries.txt" "${archive_path}" "${GITHUB_OUTPUT}"
+      - name: Verify registry preconditions
+        id: registry
+        env:
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/docs-protocol-bootstrap"
+          package_name='@agent-teams/docs-protocol'
+          npm view '@agent-teams/engineering-foundation@0.17.0-rc.0' version --json > \
+            "${evidence_root}/foundation-version.json"
+          if npm view "${package_name}" versions dist-tags --json > \
+            "${evidence_root}/before.json" 2> "${evidence_root}/before-error.txt"; then
+            npm view "${package_name}@0.0.0" dist.integrity --json > \
+              "${evidence_root}/before-integrity.json"
+          else
+            grep -q 'E404' "${evidence_root}/before-error.txt"
+            printf 'null\n' > "${evidence_root}/before.json"
+            printf 'null\n' > "${evidence_root}/before-integrity.json"
+          fi
+          node scripts/docs-protocol-bootstrap.mjs registry-preflight \
+            "${evidence_root}/foundation-version.json" "${evidence_root}/before.json" \
+            "${evidence_root}/before-integrity.json" "${ARCHIVE_INTEGRITY}" "${GITHUB_OUTPUT}"
+      - name: Publish or resume the exact bootstrap artifact
+        env:
+          ARCHIVE_PATH: ${{ steps.pack.outputs.archivePath }}
+          REGISTRY_ACTION: ${{ steps.registry.outputs.action }}
+        run: |
+          set -Eeuo pipefail
+          archive_path="${ARCHIVE_PATH}"
+          if [[ "${REGISTRY_ACTION}" == "publish" ]]; then
+            npm publish "${archive_path}" --tag bootstrap --provenance --ignore-scripts
+          elif [[ "${REGISTRY_ACTION}" != "reuse" ]]; then
+            echo "Unexpected registry action." >&2
+            exit 1
+          fi
+          npm dist-tag add '@agent-teams/docs-protocol@0.0.0' bootstrap
+          npm dist-tag add '@agent-teams/docs-protocol@0.0.0' latest
+          npm deprecate '@agent-teams/docs-protocol@0.0.0' \
+            'Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol release candidate instead.'
+      - name: Prove registry postconditions and provenance
+        env:
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/docs-protocol-bootstrap"
+          audit_root="${RUNNER_TEMP}/docs-protocol-provenance-audit"
+          package_name='@agent-teams/docs-protocol'
+          npm view "${package_name}" versions dist-tags --json > "${evidence_root}/after.json"
+          npm view "${package_name}@0.0.0" dist.integrity --json > \
+            "${evidence_root}/after-integrity.json"
+          npm view "${package_name}@0.0.0" deprecated --json > \
+            "${evidence_root}/deprecated.json"
+          mkdir -p "${audit_root}"
+          cd "${audit_root}"
+          npm init --yes >/dev/null
+          npm install --ignore-scripts --save-exact "${package_name}@0.0.0"
+          npm audit signatures --json --include-attestations > "${evidence_root}/audit.json"
+          cd "${GITHUB_WORKSPACE}"
+          node scripts/docs-protocol-bootstrap.mjs postconditions \
+            "${evidence_root}/after.json" "${evidence_root}/after-integrity.json" \
+            "${evidence_root}/deprecated.json" "${evidence_root}/audit.json" \
+            "${ARCHIVE_INTEGRITY}"
+      - name: Retain bootstrap evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-protocol-bootstrap-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/docs-protocol-bootstrap
+          if-no-files-found: error
+          retention-days: 30

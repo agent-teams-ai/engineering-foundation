@@ -4,6 +4,10 @@ import { readFile, readdir, readlink } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 
+import {
+  DOCS_PROTOCOL_BOOTSTRAP,
+  ordinaryReleaseDocsPolicy,
+} from "./docs-protocol-bootstrap.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 import {
   assertExactChangesetInventory,
@@ -408,6 +412,32 @@ function comparePublishedVersions(left, right) {
   return left.iteration > right.iteration ? 1 : -1;
 }
 
+function workspaceManifest(state, name) {
+  const packageInfo = [...state.packages.private, ...state.packages.public].find(
+    (candidate) => candidate.name === name,
+  );
+  return packageInfo === undefined ? undefined : JSON.parse(packageInfo.manifestBytes);
+}
+
+function changesetsConfig(state) {
+  const config = state.inventory.files.find(({ name }) => name === "config.json");
+  return config === undefined ? undefined : JSON.parse(config.bytes);
+}
+
+function assertOrdinaryDocsReleasePolicy(state, registryState) {
+  const docsRegistry = registryState.find(({ name }) => name === DOCS_PROTOCOL_BOOTSTRAP.name);
+  ordinaryReleaseDocsPolicy({
+    changesetsConfig: changesetsConfig(state),
+    docsManifest: workspaceManifest(state, DOCS_PROTOCOL_BOOTSTRAP.name),
+    foundationManifest: workspaceManifest(state, DOCS_PROTOCOL_BOOTSTRAP.foundationName),
+    preState: state.preState,
+    publishablePackageNames: PUBLISHABLE_PACKAGES.map(({ name }) => name),
+    registryVersion: docsRegistry?.versions.includes(DOCS_PROTOCOL_BOOTSTRAP.version)
+      ? DOCS_PROTOCOL_BOOTSTRAP.version
+      : undefined,
+  });
+}
+
 async function verifyPublishRegistryState(state) {
   const registryState = [];
   for (const packageInfo of state.packages.public) {
@@ -450,6 +480,7 @@ async function verifyPublishRegistryState(state) {
       throw new Error(`Release ${packageInfo.name}@${packageInfo.version} is not registry-monotonic.`);
     }
   }
+  assertOrdinaryDocsReleasePolicy(state, registryState);
   return registryState;
 }
 
@@ -477,6 +508,7 @@ export async function main({
   const initialState = await inspectReleaseState(cwd);
   const decision = releasePublishDecision(initialState);
   if (decision.action === "noop") {
+    await verifyRegistry(initialState);
     for (const packageInfo of initialState.packages.public) {
       if (!(await registryVersionExists(packageInfo))) {
         throw new Error(

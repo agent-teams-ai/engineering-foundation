@@ -12,6 +12,9 @@ const CONTRACT_BASELINE_PATTERN =
   /^architecture\/contracts\/(?:(?!\.{1,2}\/)[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:json|ya?ml)$/u;
 const PUBLIC_API_PATTERN = /^architecture\/public-api\/[^/]+\.json$/u;
 const PRERELEASE_STATE = ".changeset/pre.json";
+const CHANGESETS_CONFIG = ".changeset/config.json";
+const DOCS_PROTOCOL_NAME = "@agent-teams/docs-protocol";
+const DOCS_PROTOCOL_MANIFEST = "packages/docs-protocol/package.json";
 const PACKAGE_MANIFESTS = new Set(
   PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.manifestPath),
 );
@@ -118,7 +121,13 @@ function stableExitVersion(baseVersion, state) {
     : undefined;
 }
 
-function prereleaseStateViolations(baseState, headState, baseVersion, headVersion) {
+function prereleaseStateViolations(
+  baseState,
+  headState,
+  baseVersion,
+  headVersion,
+  docsBootstrapInitialVersionAddition,
+) {
   if (baseState === undefined && headState === undefined) {
     return [];
   }
@@ -136,6 +145,15 @@ function prereleaseStateViolations(baseState, headState, baseVersion, headVersio
   const headChangesets = new Set(normalizedHead.changesets);
   delete normalizedBase.changesets;
   delete normalizedHead.changesets;
+  if (
+    docsBootstrapInitialVersionAddition === true &&
+    !Object.hasOwn(normalizedBase.initialVersions, DOCS_PROTOCOL_NAME) &&
+    normalizedHead.initialVersions?.[DOCS_PROTOCOL_NAME] === "0.0.0" &&
+    Object.keys(normalizedHead.initialVersions).length ===
+      Object.keys(normalizedBase.initialVersions).length + 1
+  ) {
+    normalizedBase.initialVersions[DOCS_PROTOCOL_NAME] = "0.0.0";
+  }
   const stateChanged = !isDeepStrictEqual(normalizedBase, normalizedHead);
   const removed = [...baseChangesets].some((id) => !headChangesets.has(id));
   const added = [...headChangesets].some((id) => !baseChangesets.has(id));
@@ -227,6 +245,7 @@ export function releasePullRequestContentViolations({
   headChangelog,
   basePrereleaseState,
   headPrereleaseState,
+  docsBootstrapInitialVersionAddition = false,
 }) {
   const violations = [];
   const normalizedBaseManifest = structuredClone(baseManifest);
@@ -252,6 +271,7 @@ export function releasePullRequestContentViolations({
       headPrereleaseState,
       baseVersion,
       headVersion,
+      docsBootstrapInitialVersionAddition,
     ),
   );
   const changelogTitleEnd =
@@ -303,14 +323,34 @@ async function optionalJsonAtRevision(revision, path) {
   }
 }
 
+async function exactPrivateDocsBootstrapInitialVersionAddition(baseRevision, headRevision) {
+  const [baseManifest, headManifest, baseConfig, headConfig] = await Promise.all([
+    optionalJsonAtRevision(baseRevision, DOCS_PROTOCOL_MANIFEST),
+    optionalJsonAtRevision(headRevision, DOCS_PROTOCOL_MANIFEST),
+    optionalJsonAtRevision(baseRevision, CHANGESETS_CONFIG),
+    optionalJsonAtRevision(headRevision, CHANGESETS_CONFIG),
+  ]);
+  return (
+    isDeepStrictEqual(baseManifest, headManifest) &&
+    baseManifest?.name === DOCS_PROTOCOL_NAME &&
+    baseManifest.version === "0.0.0" &&
+    baseManifest.private === true &&
+    !Object.hasOwn(baseManifest, "publishConfig") &&
+    isDeepStrictEqual(baseConfig, headConfig) &&
+    Array.isArray(baseConfig?.ignore) &&
+    baseConfig.ignore.includes(DOCS_PROTOCOL_NAME)
+  );
+}
+
 async function main() {
   const pages = JSON.parse(await readStreamText(process.stdin));
   const files = Array.isArray(pages) ? pages.flat() : pages;
   const baseRevision = revisionArgument("--base");
   const headRevision = revisionArgument("--head");
-  const [basePrereleaseState, headPrereleaseState] = await Promise.all([
+  const [basePrereleaseState, headPrereleaseState, docsBootstrapInitialVersionAddition] = await Promise.all([
     optionalJsonAtRevision(baseRevision, PRERELEASE_STATE),
     optionalJsonAtRevision(headRevision, PRERELEASE_STATE),
+    exactPrivateDocsBootstrapInitialVersionAddition(baseRevision, headRevision),
   ]);
   const hasModifiedFile = (filename) =>
     files.some((file) => file?.filename === filename && file.status === "modified");
@@ -335,6 +375,7 @@ async function main() {
         headChangelog,
         basePrereleaseState,
         headPrereleaseState,
+        docsBootstrapInitialVersionAddition,
       }).map((violation) => `${releasePackage.name}: ${violation}`);
     }),
   );

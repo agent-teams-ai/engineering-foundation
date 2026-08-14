@@ -14,12 +14,40 @@ import {
   assertArchiveListing,
   createCleanBuildStage,
 } from "../scripts/pack-artifact-e2e.mjs";
-import { stageQualificationPackage } from "../scripts/registry-qualification-packages.mjs";
+import {
+  registryQualificationPackages,
+  stageQualificationPackage,
+} from "../scripts/registry-qualification-packages.mjs";
 
 const repositoryPackageRoot = new URL(
   "../packages/engineering-foundation/",
   import.meta.url,
 );
+
+test("registry qualification includes Docs Protocol exactly once across bootstrap promotion", () => {
+  const foundation = {
+    name: "@agent-teams/engineering-foundation",
+    root: "packages/engineering-foundation",
+  };
+  const qualificationOnly = registryQualificationPackages([foundation]);
+  assert.equal(
+    qualificationOnly.filter(({ name }) => name === "@agent-teams/docs-protocol").length,
+    1,
+  );
+  assert.equal(qualificationOnly.at(-1).qualificationOnly, true);
+
+  const docs = {
+    name: "@agent-teams/docs-protocol",
+    root: "packages/docs-protocol",
+  };
+  const publicCatalog = registryQualificationPackages([foundation, docs]);
+  assert.deepEqual(publicCatalog, [foundation, docs]);
+  assert.equal(publicCatalog[1].qualificationOnly, undefined);
+  assert.throws(
+    () => registryQualificationPackages([foundation, docs, docs]),
+    /unique publishable package names/u,
+  );
+});
 
 test("release manifest exactly follows the package self-check allowlist", async () => {
   const manifest = JSON.parse(await readFile(

@@ -69,9 +69,20 @@ function normalizePullRequest(pullRequest) {
 
 function parseChangeset(path, source) {
   const normalized = source.replaceAll("\r\n", "\n");
+  const emptyMatch = /^---\n---\n([\s\S]+)$/u.exec(normalized);
+  if (emptyMatch !== null) {
+    if (emptyMatch[1].trim().length === 0) {
+      throw new Error(`${path} must contain a non-empty summary`);
+    }
+    return null;
+  }
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]+)$/u.exec(normalized);
   if (match === null) {
     throw new Error(`${path} must contain YAML frontmatter and a non-empty summary`);
+  }
+  const summary = match[2].trim();
+  if (summary.length === 0) {
+    throw new Error(`${path} must contain a non-empty summary`);
   }
   const releases = parseYaml(match[1]);
   if (releases === null || typeof releases !== "object" || Array.isArray(releases)) {
@@ -86,10 +97,6 @@ function parseChangeset(path, source) {
     .map(([packageName, releaseType]) => ({ packageName, releaseType }));
   if (packageReleases.length === 0) {
     return null;
-  }
-  const summary = match[2].trim();
-  if (summary.length === 0) {
-    throw new Error(`${path} must contain a non-empty summary`);
   }
   return { path, releases: packageReleases, summary };
 }

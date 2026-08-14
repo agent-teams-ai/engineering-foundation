@@ -5,6 +5,22 @@ import { join } from "node:path";
 export const DOCS_PROTOCOL_PACKAGE_NAME = "@agent-teams/docs-protocol";
 
 export function registryQualificationPackages(publishablePackages) {
+  const names = publishablePackages.map((releasePackage) => releasePackage.name);
+  if (new Set(names).size !== names.length) {
+    throw new Error("Registry qualification requires unique publishable package names.");
+  }
+  const docsPackages = publishablePackages.filter(
+    (releasePackage) => releasePackage.name === DOCS_PROTOCOL_PACKAGE_NAME,
+  );
+  if (docsPackages.length === 1) {
+    if (
+      docsPackages[0].root !== "packages/docs-protocol" ||
+      docsPackages[0].qualificationOnly === true
+    ) {
+      throw new Error("Public Docs Protocol registry qualification entry is malformed.");
+    }
+    return Object.freeze([...publishablePackages]);
+  }
   return Object.freeze([
     ...publishablePackages,
     Object.freeze({

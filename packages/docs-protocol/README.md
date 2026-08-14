@@ -7,7 +7,8 @@ by `@agent-teams/engineering-foundation`.
 > **Stage status:** source, API, and disposable-registry qualification are
 > complete, but the production package is intentionally private and is not yet
 > installable from npm. Publication starts only after Foundation 0.17.0-rc.0 and
-> the separate bootstrap in [ADR-0027](../../docs/decisions/0027-staged-docs-protocol-publication.md).
+> the fail-closed bootstrap in
+> [ADR-0028](../../docs/decisions/0028-fail-closed-docs-protocol-bootstrap.md).
 > The commands below define the future consumer contract.
 
 ## Boundary

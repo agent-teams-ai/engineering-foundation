@@ -35,15 +35,17 @@ Changesets CLI, and let its Foundation-only minor Changeset generate
 Foundation 0.17.0-rc.0. Docs Protocol must remain private and exactly 0.0.0 in
 this release PR. Never edit Foundation versions or `.changeset/pre.json` by hand.
 
-After Foundation 0.17.0-rc.0 is available, use a separate reviewed bootstrap PR
-for Docs Protocol. That PR removes `private` and the Changesets ignore, restores
-public provenance configuration, makes the packed dependency resolve to the
-available exact Foundation 0.17.0-rc.0, adds the real 0.0.0 changelog entry, and
-proves public-API bootstrap promotion is an exact no-op. Do not add its bootstrap
-workflow in stage one. Publish 0.0.0 from hosted CI with a bounded one-time npm
-credential and provenance, create the exact tag and GitHub release, apply any
-required deprecation, configure and verify npm trusted publishing, then revoke
-the temporary credential. Only then add the Docs Protocol minor Changeset that
+After Foundation 0.17.0-rc.0 is available, follow ADR-0028 with a separate
+reviewed bootstrap promotion for Docs Protocol. That change removes `private`
+and the Changesets ignore, restores exact public provenance configuration, makes
+the packed dependency resolve to Foundation 0.17.0-rc.0, adds the real 0.0.0
+changelog entry, and proves public-API bootstrap promotion is an exact no-op.
+The dormant manual workflow then publishes or resumes only the exact reviewed
+tarball with a package-scoped granular token valid for no more than one day. It
+requires exact versions, integrity, `latest` and `bootstrap` tags, the ADR-0028
+deprecation, and verified npm provenance before success. Configure and verify
+npm trusted publishing, revoke the token, remove bootstrap authority, and clean
+up the one-time workflow. Only then add the Docs Protocol minor Changeset that
 generates 0.1.0-rc.0 through the normal protected-main release path.
 
 Every pull request that changes a published package must include a normal

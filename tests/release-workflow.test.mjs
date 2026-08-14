@@ -150,9 +150,10 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
       releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
   assert.deepEqual(reviewGate.on.workflow_run.workflows, [reviewRouterWorkflowName]);
+  assert.deepEqual(reviewGate.on.repository_dispatch.types, ["review-gate-recover"]);
   assert.equal(
     reviewGate.jobs["review-gate"].if,
-    "${{ github.event.workflow_run.event == 'pull_request_target' }}",
+    "${{ (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request_target') || github.event.action == 'review-gate-recover' }}",
   );
   assert.match(
     reviewGateSource,
@@ -179,6 +180,11 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     reviewGateSteps[0].env.REVIEWROUTER_APP_BOT_ID,
     "281702430",
   );
+  assert.equal(
+    reviewGateSteps[0].env.REVIEW_RUN_ID,
+    "${{ github.event.workflow_run.id || github.event.client_payload.review_run_id }}",
+  );
+  assert.match(reviewGateSteps[0].run, /REVIEW_RUN_ID.*\^\[1-9\]\[0-9\]\*\$/u);
   assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
   assert.match(reviewGateSteps[0].run, /run_event\}" != "pull_request_target"/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);

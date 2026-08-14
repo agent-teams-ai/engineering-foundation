@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-import { validateTestManifests } from "./check-test-manifests.mjs";
+import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
 
 const manifest = await validateTestManifests();
 const child = spawn(process.execPath, [
@@ -14,7 +14,7 @@ const child = spawn(process.execPath, [
   "--test-coverage-functions=42",
   ...manifest.coverageTests,
 ], {
-  cwd: process.cwd(),
+  cwd: repositoryRoot,
   stdio: "inherit",
 });
 child.once("error", (error) => {

@@ -43,9 +43,15 @@ function topologyFingerprint(jobs) {
   return `sha256:${createHash("sha256").update(JSON.stringify(topology)).digest("hex")}`;
 }
 
-function markdownCell(value) {
+function markdownCodeCell(value) {
   return String(value)
-    .replaceAll("|", "\\|")
+    .replaceAll("&", "&amp;")
+    .replaceAll("!", "&#33;")
+    .replaceAll("[", "&#91;")
+    .replaceAll("]", "&#93;")
+    .replaceAll("(", "&#40;")
+    .replaceAll(")", "&#41;")
+    .replaceAll("|", "&#124;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll("\r", " ")
@@ -108,7 +114,7 @@ export function renderCiSignalSummary(artifact) {
     .toSorted((left, right) => right.durationMilliseconds - left.durationMilliseconds)
     .slice(0, 12);
   const rows = slowest.map((job) =>
-    `| ${markdownCell(job.name)} | ${markdownCell(job.conclusion ?? job.status)} | ${(job.durationMilliseconds / 60_000).toFixed(2)} min |`,
+    `| <code>${markdownCodeCell(job.name)}</code> | <code>${markdownCodeCell(job.conclusion ?? job.status)}</code> | ${(job.durationMilliseconds / 60_000).toFixed(2)} min |`,
   );
   return [
     "## CI feedback",
@@ -134,7 +140,7 @@ function outputArgument(arguments_) {
   return resolve(arguments_[index + 1]);
 }
 
-async function githubJson(path, token, apiUrl) {
+async function githubResponse(path, token, apiUrl) {
   const response = await fetch(`${apiUrl}${path}`, {
     headers: {
       accept: "application/vnd.github+json",
@@ -145,26 +151,68 @@ async function githubJson(path, token, apiUrl) {
   if (!response.ok) {
     throw new Error(`GitHub API ${path} returned ${response.status}`);
   }
-  return response.json();
+  return response;
 }
 
-export async function sourceRelevance(sourceRun, token, apiUrl, request = githubJson) {
+async function githubJson(path, token, apiUrl) {
+  return (await githubResponse(path, token, apiUrl)).json();
+}
+
+async function githubJsonPage(path, token, apiUrl) {
+  const response = await githubResponse(path, token, apiUrl);
+  const link = response.headers.get("link") ?? "";
+  return {
+    data: await response.json(),
+    hasNextPage: link.split(",").some((part) => /;\s*rel="next"/u.test(part)),
+  };
+}
+
+const pullRequestResolutionEvents = new Set(["pull_request", "workflow_dispatch"]);
+
+function fallbackPageRequest(request) {
+  if (request === githubJson) {
+    return githubJsonPage;
+  }
+  return async (...arguments_) => ({ data: await request(...arguments_), hasNextPage: false });
+}
+
+async function associatedPullRequests(sourceRun, token, apiUrl, request, pageRequest) {
+  let pullRequests = Array.isArray(sourceRun.pull_requests) ? sourceRun.pull_requests : [];
+  if (pullRequests.length !== 0 || !pullRequestResolutionEvents.has(sourceRun.event)) {
+    return pullRequests;
+  }
+  const page = await pageRequest(
+    `/repos/${sourceRun.repository.full_name}/commits/${sourceRun.head_sha}/pulls?per_page=100`,
+    token,
+    apiUrl,
+  );
+  if (page.hasNextPage) {
+    return null;
+  }
+  const headRepository = sourceRun.head_repository.full_name;
+  pullRequests = Array.isArray(page.data)
+    ? page.data.filter((pullRequest) =>
+      pullRequest.head?.sha === sourceRun.head_sha &&
+      pullRequest.head?.repo?.full_name === headRepository)
+    : [];
+  return pullRequests;
+}
+
+export async function sourceRelevance(sourceRun, token, apiUrl, request = githubJson, pageRequest) {
+  const resolvesPullRequest = pullRequestResolutionEvents.has(sourceRun.event);
   const headRepository = sourceRun.head_repository?.full_name;
-  if (sourceRun.event === "pull_request" && (typeof headRepository !== "string" || headRepository === "")) {
+  if (resolvesPullRequest && (typeof headRepository !== "string" || headRepository === "")) {
     return { status: "unresolved", pullRequest: null };
   }
-  let pullRequests = Array.isArray(sourceRun.pull_requests) ? sourceRun.pull_requests : [];
-  if (pullRequests.length === 0 && sourceRun.event === "pull_request") {
-    const response = await request(
-      `/repos/${sourceRun.repository.full_name}/commits/${sourceRun.head_sha}/pulls?per_page=10`,
-      token,
-      apiUrl,
-    );
-    pullRequests = Array.isArray(response)
-      ? response.filter((pullRequest) =>
-        pullRequest.head?.sha === sourceRun.head_sha &&
-        pullRequest.head?.repo?.full_name === headRepository)
-      : [];
+  const pullRequests = await associatedPullRequests(
+    sourceRun,
+    token,
+    apiUrl,
+    request,
+    pageRequest ?? fallbackPageRequest(request),
+  );
+  if (pullRequests === null) {
+    return { status: "unresolved", pullRequest: null };
   }
   if (pullRequests.length !== 1) {
     return { status: sourceRun.event === "push" ? "main-or-branch" : "unresolved", pullRequest: null };
@@ -178,6 +226,10 @@ export async function sourceRelevance(sourceRun, token, apiUrl, request = github
   return { status: current ? "current" : "superseded", pullRequest: number };
 }
 
+export function workflowRunAttemptPath(repository, runId, runAttempt) {
+  return `/repos/${requireString(repository, "repository")}/actions/runs/${requirePositiveInteger(runId, "run id")}/attempts/${requirePositiveInteger(runAttempt, "run attempt")}`;
+}
+
 async function run() {
   const event = JSON.parse(await readFile(requireString(process.env.GITHUB_EVENT_PATH, "GITHUB_EVENT_PATH"), "utf8"));
   const eventRun = event.workflow_run;
@@ -188,13 +240,14 @@ async function run() {
   const token = requireString(process.env.GH_TOKEN, "GH_TOKEN");
   const apiUrl = requireString(process.env.GITHUB_API_URL, "GITHUB_API_URL");
   const runId = requirePositiveInteger(eventRun.id, "event run id");
-  const sourceRun = await githubJson(`/repos/${repository}/actions/runs/${runId}`, token, apiUrl);
+  const runAttempt = requirePositiveInteger(eventRun.run_attempt, "event run attempt");
+  const sourceRun = await githubJson(workflowRunAttemptPath(repository, runId, runAttempt), token, apiUrl);
   if (
     sourceRun.id !== runId ||
     sourceRun.repository?.full_name !== repository ||
     sourceRun.path !== ".github/workflows/ci.yml" ||
     sourceRun.head_sha !== eventRun.head_sha ||
-    sourceRun.run_attempt !== eventRun.run_attempt ||
+    sourceRun.run_attempt !== runAttempt ||
     !Number.isFinite(Date.parse(sourceRun.run_started_at)) ||
     sourceRun.status !== "completed"
   ) {

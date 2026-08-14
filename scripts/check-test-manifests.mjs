@@ -7,6 +7,7 @@ export const repositoryRoot = dirname(scriptRoot);
 const shardManifestPath = join(repositoryRoot, "tests", "manifests", "test-shards.v1.json");
 const coverageManifestPath = join(repositoryRoot, "tests", "manifests", "coverage.v1.json");
 const portableTestPath = /^tests\/[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
+const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
 function fail(message) {
   throw new Error(`Test manifest is invalid: ${message}`);
@@ -26,6 +27,10 @@ function assertExactKeys(value, keys, label) {
 function validatePath(path, label) {
   if (typeof path !== "string" || !portableTestPath.test(path)) {
     fail(`${label} must be a portable top-level tests/*.test.mjs path: ${String(path)}`);
+  }
+  const filename = path.slice("tests/".length);
+  if (windowsReservedTestName.test(filename)) {
+    fail(`${label} uses a Windows-reserved filename: ${path}`);
   }
   const absolute = resolve(repositoryRoot, ...path.split("/"));
   const testRoot = `${resolve(repositoryRoot, "tests")}${sep}`;

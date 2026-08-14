@@ -65,6 +65,14 @@ test("test manifests reject non-portable and traversal paths", () => {
   }
 });
 
+test("test manifests reject Windows-reserved filenames", () => {
+  for (const reservedName of ["aux", "con", "nul", "prn", "com1", "com9", "lpt1", "lpt9"]) {
+    const data = fixture();
+    data.shardManifest.shards[0].tests = [`tests/${reservedName}.test.mjs`];
+    assert.throws(() => validateTestManifestData(data), /Windows-reserved/u);
+  }
+});
+
 test("test manifests reject numeric shard ids", () => {
   const data = fixture();
   data.shardManifest.shards = data.shardManifest.shards.map((shard) => ({

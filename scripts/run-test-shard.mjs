@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-import { validateTestManifests } from "./check-test-manifests.mjs";
+import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
 
 function requestedShardIds(arguments_) {
   const index = arguments_.findIndex((value) => value === "--shards");
@@ -18,7 +18,7 @@ const manifest = await validateTestManifests();
 const ids = requestedShardIds(process.argv.slice(2));
 const tests = ids.flatMap((id) => manifest.shards.get(id) ?? []);
 const child = spawn(process.execPath, ["--test", "--test-concurrency=1", ...tests], {
-  cwd: process.cwd(),
+  cwd: repositoryRoot,
   stdio: "inherit",
 });
 child.once("error", (error) => {

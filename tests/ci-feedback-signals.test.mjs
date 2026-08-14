@@ -10,6 +10,7 @@ import {
   buildCiSignalArtifact,
   renderCiSignalSummary,
   sourceRelevance,
+  workflowRunAttemptPath,
 } from "../scripts/ci-feedback.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -64,7 +65,13 @@ test("CI signal artifact is source-bound, deterministic, and advisory", () => {
     jobs: [job(1, "table|row\nspoof", 1)],
     relevance: { status: "current", pullRequest: 7 },
   }));
-  assert.match(escaped, /table\\\|row spoof/u);
+  assert.match(escaped, /<code>table&#124;row spoof<\/code>/u);
+  const activeMarkdown = renderCiSignalSummary(buildCiSignalArtifact({
+    sourceRun: sourceRun(),
+    jobs: [job(1, "![track](https://attacker.test/pixel)", 1)],
+    relevance: { status: "current", pullRequest: 7 },
+  }));
+  assert.doesNotMatch(activeMarkdown, /!\[track\]\(/u);
 });
 
 test("CI relevance fallback binds a pull request to the exact head repository and SHA", async () => {
@@ -88,9 +95,36 @@ test("CI relevance fallback binds a pull request to the exact head repository an
     pullRequest: 8,
   });
   assert.deepEqual(requests, [
-    `/repos/example/foundation/commits/${"a".repeat(40)}/pulls?per_page=10`,
+    `/repos/example/foundation/commits/${"a".repeat(40)}/pulls?per_page=100`,
     "/repos/example/foundation/pulls/8",
   ]);
+});
+
+test("CI relevance resolves workflow dispatches and fails closed on pagination", async () => {
+  const dispatchRun = { ...sourceRun(), event: "workflow_dispatch", pull_requests: [] };
+  const fullPullRequest = {
+    number: 8,
+    state: "open",
+    head: { sha: "a".repeat(40), repo: { full_name: "example/fork" } },
+  };
+  const request = async () => fullPullRequest;
+  const onePage = async () => ({ data: [fullPullRequest], hasNextPage: false });
+  assert.deepEqual(await sourceRelevance(dispatchRun, "token", "https://api.github.test", request, onePage), {
+    status: "current",
+    pullRequest: 8,
+  });
+  const paginated = async () => ({ data: [fullPullRequest], hasNextPage: true });
+  assert.deepEqual(await sourceRelevance(dispatchRun, "token", "https://api.github.test", request, paginated), {
+    status: "unresolved",
+    pullRequest: null,
+  });
+});
+
+test("CI observer refetches immutable attempt-specific run evidence", () => {
+  assert.equal(
+    workflowRunAttemptPath("example/foundation", 123, 2),
+    "/repos/example/foundation/actions/runs/123/attempts/2",
+  );
 });
 
 test("CI signal artifact rejects ambiguous job identity and invalid chronology", () => {

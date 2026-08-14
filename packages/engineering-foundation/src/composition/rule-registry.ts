@@ -9,6 +9,7 @@ import { REPOSITORY_SECURITY_RULES_BY_ID } from "../capabilities/repository-secu
 import { SOURCE_DEPENDENCY_RULES_BY_ID } from "../capabilities/source-dependencies/module.js";
 import { SUPPRESSION_GOVERNANCE_RULES_BY_ID } from "../capabilities/suppression-governance/module.js";
 import { RULES_BY_ID as WORKSPACE_RULES_BY_ID } from "../capabilities/workspace-dependency-declarations/module.js";
+import { createUniqueRegistry } from "../unique-registry.js";
 
 export interface RuleExplanation {
   readonly id: string;
@@ -17,16 +18,22 @@ export interface RuleExplanation {
   readonly documentation: string;
 }
 
-export const RULE_REGISTRY: ReadonlyMap<string, RuleExplanation> = new Map([
-  ...JSON_SCHEMA_RELEASE_RULES_BY_ID,
-  ...PROTOBUF_EVOLUTION_RULES_BY_ID,
-  ...DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID,
-  ...EXECUTABLE_SPECIFICATION_RULES_BY_ID,
-  ...ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID,
-  ...PUBLIC_API_COMPATIBILITY_RULES_BY_ID,
-  ...REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID,
-  ...REPOSITORY_SECURITY_RULES_BY_ID,
-  ...SOURCE_DEPENDENCY_RULES_BY_ID,
-  ...SUPPRESSION_GOVERNANCE_RULES_BY_ID,
-  ...WORKSPACE_RULES_BY_ID
+export const RULE_REGISTRIES = Object.freeze([
+  JSON_SCHEMA_RELEASE_RULES_BY_ID,
+  PROTOBUF_EVOLUTION_RULES_BY_ID,
+  DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID,
+  EXECUTABLE_SPECIFICATION_RULES_BY_ID,
+  ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID,
+  PUBLIC_API_COMPATIBILITY_RULES_BY_ID,
+  REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID,
+  REPOSITORY_SECURITY_RULES_BY_ID,
+  SOURCE_DEPENDENCY_RULES_BY_ID,
+  SUPPRESSION_GOVERNANCE_RULES_BY_ID,
+  WORKSPACE_RULES_BY_ID
 ]);
+
+export const RULE_REGISTRY: ReadonlyMap<string, RuleExplanation> =
+  createUniqueRegistry(
+    "rule",
+    RULE_REGISTRIES.flatMap((registry) => [...registry])
+  );

@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity } from "../../../check-contract.js";
+import { createUniqueRegistry } from "../../../unique-registry.js";
 
 export interface ExecutableSpecificationRuleMetadata {
   readonly id: string;
@@ -77,6 +78,7 @@ export const EXECUTABLE_SPECIFICATION_RULES = Object.freeze({
 export const EXECUTABLE_SPECIFICATION_RULES_BY_ID: ReadonlyMap<
   string,
   ExecutableSpecificationRuleMetadata
-> = new Map(
+> = createUniqueRegistry(
+  "rule",
   Object.values(EXECUTABLE_SPECIFICATION_RULES).map((metadata) => [metadata.id, metadata])
 );

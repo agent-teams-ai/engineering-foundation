@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity } from "../../../check-contract.js";
+import { createUniqueRegistry } from "../../../unique-registry.js";
 
 export interface ArchitectureDecisionGovernanceRuleMetadata {
   readonly documentation: string;
@@ -120,7 +121,8 @@ export const ARCHITECTURE_DECISION_GOVERNANCE_RULES = Object.freeze({
 export const ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID: ReadonlyMap<
   string,
   ArchitectureDecisionGovernanceRuleMetadata
-> = new Map(
+> = createUniqueRegistry(
+  "rule",
   Object.values(ARCHITECTURE_DECISION_GOVERNANCE_RULES).map((metadata) => [
     metadata.id,
     metadata

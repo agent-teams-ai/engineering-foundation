@@ -1,49 +1,12 @@
 import { compareBinaryStrings } from "./binary-string-comparator.js";
 import { CapabilityInputError } from "./capability-runtime.js";
+import { CAPABILITY_REGISTRY } from "./composition/capability-registry.js";
 import { assertSchema } from "./schema-catalog.js";
 import { loadStrictYamlFile } from "./strict-yaml.js";
 
 const FOUNDATION_CONFIG_PATH = "foundation.config.yaml";
-const PUBLIC_API_COMPATIBILITY_CAPABILITY =
-  "package.public-api-compatibility" as const;
-const JSON_SCHEMA_RELEASES_CAPABILITY =
-  "contract.json-schema-releases" as const;
-const PROTOBUF_EVOLUTION_CAPABILITY =
-  "contract.protobuf-evolution" as const;
-const DOCUMENTATION_LOCAL_REFERENCES_CAPABILITY =
-  "documentation.local-references" as const;
-const ARCHITECTURE_DECISIONS_CAPABILITY =
-  "governance.architecture-decisions" as const;
-const REPOSITORY_AGENT_WORKFLOW_CAPABILITY =
-  "repository.agent-workflow" as const;
-const SUPPRESSION_GOVERNANCE_CAPABILITY =
-  "quality.suppression-governance" as const;
-const EXECUTABLE_SPECIFICATIONS_CAPABILITY =
-  "quality.executable-specifications" as const;
-const REPOSITORY_SECURITY_BASELINE_CAPABILITY =
-  "repository.security-baseline" as const;
-const SOURCE_DEPENDENCIES_CAPABILITY =
-  "architecture.source-dependencies" as const;
-const WORKSPACE_DEPENDENCY_DECLARATIONS_CAPABILITY =
-  "workspace.dependency-declarations" as const;
-const SUPPORTED_CAPABILITY_IDS = [
-  JSON_SCHEMA_RELEASES_CAPABILITY,
-  PROTOBUF_EVOLUTION_CAPABILITY,
-  DOCUMENTATION_LOCAL_REFERENCES_CAPABILITY,
-  ARCHITECTURE_DECISIONS_CAPABILITY,
-  PUBLIC_API_COMPATIBILITY_CAPABILITY,
-  REPOSITORY_AGENT_WORKFLOW_CAPABILITY,
-  REPOSITORY_SECURITY_BASELINE_CAPABILITY,
-  EXECUTABLE_SPECIFICATIONS_CAPABILITY,
-  SUPPRESSION_GOVERNANCE_CAPABILITY,
-  SOURCE_DEPENDENCIES_CAPABILITY,
-  WORKSPACE_DEPENDENCY_DECLARATIONS_CAPABILITY
-] as const;
-
-type SupportedCapabilityId = (typeof SUPPORTED_CAPABILITY_IDS)[number];
-
 interface DeclaredCapability {
-  readonly id: SupportedCapabilityId;
+  readonly id: string;
   readonly configPath: string;
 }
 
@@ -79,10 +42,6 @@ function string(value: unknown, field: string): string {
   return value;
 }
 
-function isSupportedCapabilityId(value: string): value is SupportedCapabilityId {
-  return SUPPORTED_CAPABILITY_IDS.some((candidate) => candidate === value);
-}
-
 export async function loadFoundationConfig(
   consumerRoot: string,
   signal?: AbortSignal
@@ -100,7 +59,7 @@ export async function loadFoundationConfig(
   const capabilities = record(root["capabilities"], "capabilities");
   const declaredCapabilities: DeclaredCapability[] = [];
   for (const [id, declarationInput] of Object.entries(capabilities)) {
-    if (!isSupportedCapabilityId(id)) {
+    if (!CAPABILITY_REGISTRY.has(id)) {
       inputError(`Unsupported capability declaration: ${id}.`);
     }
     const declaration = record(declarationInput, `capabilities.${id}`);

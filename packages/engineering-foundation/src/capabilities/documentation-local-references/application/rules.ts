@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity } from "../../../check-contract.js";
+import { createUniqueRegistry } from "../../../unique-registry.js";
 
 export interface DocumentationLocalReferencesRuleMetadata {
   readonly documentation: string;
@@ -68,7 +69,8 @@ export const DOCUMENTATION_LOCAL_REFERENCE_RULES = Object.freeze({
 export const DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID: ReadonlyMap<
   string,
   DocumentationLocalReferencesRuleMetadata
-> = new Map(
+> = createUniqueRegistry(
+  "rule",
   Object.values(DOCUMENTATION_LOCAL_REFERENCE_RULES).map((metadata) => [
     metadata.id,
     metadata

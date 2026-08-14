@@ -444,9 +444,12 @@ test("pinned Changesets CLI derives rc and rejects a custom tag in pre mode", as
   assert.doesNotMatch(shimCalls, /^pnpm /mu);
   assert.equal(derived.status, 0, `${derived.stdout}\n${derived.stderr}`);
   const publishArguments = (await readFile(marker, "utf8")).trim().split(/\r?\n/u);
-  assert.deepEqual(publishArguments, [
-    "publish",
+  assert.equal(publishArguments[0], "publish");
+  assert.equal(
+    await realpath(publishArguments[1]),
     await realpath(join(root, "packages/engineering-foundation")),
+  );
+  assert.deepEqual(publishArguments.slice(2), [
     "--access",
     "public",
     "--tag",

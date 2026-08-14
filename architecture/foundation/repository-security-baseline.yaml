@@ -11,17 +11,19 @@ allowedContainerImages: []
 allowedPullRequestTargetWorkflows:
   - .github/workflows/reviewrouter-codex.yml
 allowedUses:
-  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@bbf1f41ef0fd24a7b714b36c860f437c7eed2cdf
+  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@b498ac97f38469d213d913f7df28badd163cb439
     transitiveUses: []
-  - uses: 777genius/review-router/.github/workflows/reviewrouter-interaction-reusable.yml@6b35091c824b1d4d5ee6bf8316121ed08d3e4861
-    transitiveUses: []
-  - uses: 777genius/review-router@bbf1f41ef0fd24a7b714b36c860f437c7eed2cdf
+  - uses: 777genius/review-router@b498ac97f38469d213d913f7df28badd163cb439
     transitiveUses: []
   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    transitiveUses: []
+  - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
     transitiveUses: []
   - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
     transitiveUses: []
   - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+    transitiveUses: []
+  - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
     transitiveUses: []
   - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
     transitiveUses: []
@@ -56,7 +58,6 @@ privilegedJobs:
   - workflowPath: .github/workflows/reviewrouter-interaction.yml
     jobId: interaction
     permissions:
-      actions: write
       contents: read
       issues: read
       pull-requests: read

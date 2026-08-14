@@ -10,7 +10,7 @@ export const MAX_MANIFEST_BYTES = 1024 * 1024;
 export const MAX_ROUTING_BYTES = 64 * 1024;
 export const MAX_SKILL_BYTES = 16 * 1024;
 
-export class AdoptionInputError extends Error {
+class AdoptionInputError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AdoptionInputError";

@@ -5,7 +5,7 @@ import type { PortablePathIdentity } from "../../../repository-mutation/applicat
 import { portableRepositoryPathIdentity } from "../../../repository-mutation/application/model/repository-path.js";
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 
-export interface NodePathAuthorityStat {
+interface NodePathAuthorityStat {
   readonly birthtimeNs: bigint;
   readonly dev: bigint;
   readonly ino: bigint;

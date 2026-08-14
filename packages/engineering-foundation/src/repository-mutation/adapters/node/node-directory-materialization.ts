@@ -25,7 +25,7 @@ export interface DirectoryIdentityBindingPort {
   }): Promise<void>;
 }
 
-export interface DirectoryCreationFaultPoint {
+interface DirectoryCreationFaultPoint {
   readonly phase: "after-mkdir-before-capture" | "after-parent-sync-before-bind";
   readonly repositoryPath: string;
 }

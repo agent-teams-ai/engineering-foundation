@@ -61,7 +61,7 @@ interface DocumentTransactionEnvelopeBase {
   readonly envelopeDigest: DocumentAuthorityDigest;
 }
 
-export type DocumentTransactionEnvelopeV3 =
+type DocumentTransactionEnvelopeV3 =
   | (DocumentTransactionEnvelopeBase & {
       readonly state: "PREPARED";
       readonly journal: Extract<
@@ -133,7 +133,7 @@ interface DocumentTransactionEnvelopeV4Base {
   readonly envelopeDigest: DocumentAuthorityDigest;
 }
 
-export type DocumentTransactionEnvelopeV4 =
+type DocumentTransactionEnvelopeV4 =
   | (DocumentTransactionEnvelopeV4Base & {
       readonly state: "PREPARED";
       readonly journal:

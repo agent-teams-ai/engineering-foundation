@@ -362,7 +362,7 @@ async function fixture(root, registry) {
     posix:
       "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'pnpm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nprintf '%s' \"$*\" > \"$PUBLISH_MARKER\"\n",
     windows:
-      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo pnpm %*\r\n<nul set /p =%* > \"%PUBLISH_MARKER%\"\r\n",
+      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo pnpm %*\r\n<nul set /p =%* > \"%PUBLISH_MARKER%\"\r\nexit /b 0\r\n",
   });
 }
 
@@ -409,8 +409,8 @@ test("pinned Changesets CLI derives rc and rejects a custom tag in pre mode", as
   await changesetsFixture(root);
   const derived = await runChangesets(root, marker, ["publish", "--no-git-tag"]);
   const shimCalls = await readFile(join(root, "command-shim.marker"), "utf8");
-  assert.match(shimCalls, /^npm info @agent-teams\/engineering-foundation /mu);
-  assert.match(shimCalls, /^npm publish /mu);
+  assert.match(shimCalls, /^npm "?info"? "?@agent-teams\/engineering-foundation"?\s/mu);
+  assert.match(shimCalls, /^npm "?publish"?\s/mu);
   assert.doesNotMatch(shimCalls, /^pnpm /mu);
   assert.equal(derived.status, 0, `${derived.stdout}\n${derived.stderr}`);
   assert.match(await readFile(marker, "utf8"), /publish .*--tag rc/u);
@@ -683,7 +683,7 @@ test("real release entrypoint proves multi-package registry state and fails clos
     },
     /^\n$/u,
   );
-  assert.equal(publish.result.status, 0);
+  assert.equal(publish.result.status, 0, `${publish.result.stdout}\n${publish.result.stderr}`);
   assert.equal(await readFile(publish.marker, "utf8"), "changeset publish");
   assert.match(
     await readFile(join(publish.root, "command-shim.marker"), "utf8"),

@@ -5,6 +5,9 @@ import { join, relative, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+import { changesetsPublishArguments, releasePublishInvocation } from "./release-publish-command.mjs";
+
+export { changesetsPublishArguments, releasePublishInvocation };
 
 const allowedPrereleaseTag = "rc";
 const changesetMetadataFiles = new Set(["config.json", "pre.json"]);
@@ -169,10 +172,6 @@ export function releasePublishDecision({ inventory, packages, preState }) {
     throw new Error("Stable publication requires strict SemVer release versions and no prereleases.");
   }
   return { action: "publish", tag: undefined };
-}
-
-export function changesetsPublishArguments() {
-  return ["changeset", "publish"];
 }
 
 async function readJson(path) {
@@ -486,6 +485,7 @@ export async function releaseState(cwd) {
 export async function main({
   cwd = process.cwd(),
   inspectReleaseState = releaseState,
+  resolvePublishInvocation = releasePublishInvocation,
   spawn = spawnSync,
   verifyRegistry = verifyPublishRegistryState,
 } = {}) {
@@ -519,8 +519,8 @@ export async function main({
   if (JSON.stringify(finalState) !== JSON.stringify(initialState)) {
     throw new Error("Release filesystem state changed during final registry verification.");
   }
-  const publishArguments = changesetsPublishArguments();
-  const result = spawn("pnpm", publishArguments, { cwd, stdio: "inherit" });
+  const invocation = resolvePublishInvocation();
+  const result = spawn(invocation.command, invocation.args, { cwd, stdio: "inherit" });
   if (result.error !== undefined) {
     throw result.error;
   }

@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   changesetsPublishArguments,
   main,
+  releasePublishInvocation,
   releasePublishDecision,
   releasePublishPolicy,
   releaseState,
@@ -152,6 +153,20 @@ test("routes an exact Changesets rc version to the rc npm dist-tag", () => {
   assert.deepEqual(changesetsPublishArguments(), ["changeset", "publish"]);
 });
 
+test("resolves release publishing without shell mode on Windows", () => {
+  assert.deepEqual(
+    releasePublishInvocation({ commandInterpreter: "C:\\Windows\\System32\\cmd.exe", platform: "win32" }),
+    {
+      args: ["/d", "/s", "/c", "pnpm.cmd changeset publish"],
+      command: "C:\\Windows\\System32\\cmd.exe",
+    },
+  );
+  assert.deepEqual(releasePublishInvocation({ platform: "linux" }), {
+    args: ["changeset", "publish"],
+    command: "pnpm",
+  });
+});
+
 test("keeps ordinary stable releases on the default dist-tag", () => {
   assert.deepEqual(
     releasePublishPolicy({ packageVersion: "0.16.0", preState: undefined }),
@@ -183,6 +198,31 @@ async function json(path, value) {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
+
+async function commandShim(root, name, { posix, windows }, platform = process.platform) {
+  const isWindows = platform === "win32";
+  const path = join(root, "bin", `${name}${isWindows ? ".cmd" : ""}`);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, isWindows ? windows : posix);
+  if (!isWindows) {
+    await chmod(path, 0o755);
+  }
+  return path;
+}
+
+test("creates one platform-native command shim without a shadowing extensionless file", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-command-shim-"));
+  t.after(() => rm(root, { force: true, recursive: true }));
+  const windowsPath = await commandShim(
+    root,
+    "npm",
+    { posix: "posix\n", windows: "@echo windows\r\n" },
+    "win32",
+  );
+  assert.equal(windowsPath, join(root, "bin", "npm.cmd"));
+  assert.equal(await readFile(windowsPath, "utf8"), "@echo windows\r\n");
+  await assert.rejects(readFile(join(root, "bin", "npm")), { code: "ENOENT" });
+});
 
 async function runRelease(root, marker) {
   return await new Promise((resolve) => {
@@ -256,14 +296,10 @@ async function fixture(root, registry) {
   await json(join(root, ".changeset/config.json"), {});
   await writeFile(join(root, ".changeset/README.md"), "metadata\n");
   await json(join(root, ".changeset/pre.json"), freshPreState);
-  const stub = join(root, "bin/pnpm");
-  await mkdir(dirname(stub), { recursive: true });
-  await writeFile(stub, "#!/bin/sh\nprintf '%s' \"$*\" > \"$PUBLISH_MARKER\"\n");
-  await writeFile(
-    `${stub}.cmd`,
-    "@echo off\r\n<nul set /p =%* > \"%PUBLISH_MARKER%\"\r\n",
-  );
-  await chmod(stub, 0o755);
+  await commandShim(root, "pnpm", {
+    posix: "#!/bin/sh\nprintf '%s' \"$*\" > \"$PUBLISH_MARKER\"\n",
+    windows: "@echo off\r\n<nul set /p =%* > \"%PUBLISH_MARKER%\"\r\n",
+  });
 }
 
 async function changesetsFixture(root) {
@@ -293,17 +329,12 @@ async function changesetsFixture(root) {
     mode: "pre",
     tag: "rc",
   });
-  const npmStub = join(root, "bin/npm");
-  await mkdir(dirname(npmStub), { recursive: true });
-  await writeFile(
-    npmStub,
-    "#!/bin/sh\nif [ \"$1\" = profile ]; then printf '{}\\n'; exit 0; fi\nif [ \"$1\" = info ]; then exit 0; fi\nif [ \"$1\" = publish ]; then printf '%s' \"$*\" > \"$PUBLISH_MARKER\"; printf '{\"id\":\"foundation\"}\\n'; exit 0; fi\nexit 1\n",
-  );
-  await writeFile(
-    `${npmStub}.cmd`,
-    "@echo off\r\nif \"%1\"==\"profile\" (echo {}& exit /b 0)\r\nif \"%1\"==\"info\" exit /b 0\r\nif \"%1\"==\"publish\" (<nul set /p =%* > \"%PUBLISH_MARKER%\"& echo {\"id\":\"foundation\"}& exit /b 0)\r\nexit /b 1\r\n",
-  );
-  await chmod(npmStub, 0o755);
+  await commandShim(root, "npm", {
+    posix:
+      "#!/bin/sh\nif [ \"$1\" = profile ]; then printf '{}\\n'; exit 0; fi\nif [ \"$1\" = info ]; then exit 0; fi\nif [ \"$1\" = publish ]; then printf '%s' \"$*\" > \"$PUBLISH_MARKER\"; printf '{\"id\":\"foundation\"}\\n'; exit 0; fi\nexit 1\n",
+    windows:
+      "@echo off\r\nif \"%1\"==\"profile\" (echo {}& exit /b 0)\r\nif \"%1\"==\"info\" exit /b 0\r\nif \"%1\"==\"publish\" (<nul set /p =%* > \"%PUBLISH_MARKER%\"& echo {\"id\":\"foundation\"}& exit /b 0)\r\nexit /b 1\r\n",
+  });
 }
 
 test("pinned Changesets CLI derives rc and rejects a custom tag in pre mode", async (t) => {

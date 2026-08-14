@@ -314,7 +314,7 @@ test("prerelease exit leaves the private parser spike untouched", async () => {
       JSON.stringify({ name: "private-spike", version: "0.0.0", private: true }),
     );
 
-    await execFileAsync(changesetBin, ["version"], { cwd: root });
+    await execFileAsync(process.execPath, [changesetBin, "version"], { cwd: root });
 
     assert.equal(JSON.parse(await readFile(privateManifestPath, "utf8")).version, "0.0.0");
   } finally {

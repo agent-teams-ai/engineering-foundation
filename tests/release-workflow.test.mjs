@@ -16,6 +16,10 @@ import {
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const reviewRouterInteractionRevision =
   "6b35091c824b1d4d5ee6bf8316121ed08d3e4861";
+const reviewRouterWorkflowName =
+  "ReviewRouter Codex OAuth [namespace=sns_989e079289b48e859229e5eac4bc322c;epoch=1;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c]";
+const reviewRouterSecretName =
+  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c";
 
 async function workflow(name) {
   return parseYaml(
@@ -145,7 +149,11 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     releaseBinding.run.indexOf("check-release-pr-files.mjs") <
       releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
-  assert.deepEqual(reviewGate.on.workflow_run.workflows, ["ReviewRouter Codex OAuth"]);
+  assert.deepEqual(reviewGate.on.workflow_run.workflows, [reviewRouterWorkflowName]);
+  assert.equal(
+    reviewGate.jobs["review-gate"].if,
+    "${{ github.event.workflow_run.event == 'pull_request_target' }}",
+  );
   assert.match(
     reviewGateSource,
     /workflow_run: # zizmor: ignore\[dangerous-triggers\].*executes no PR content/u,
@@ -172,6 +180,7 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     "281702430",
   );
   assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
+  assert.match(reviewGateSteps[0].run, /run_event\}" != "pull_request_target"/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
   assert.ok(attestationPnpmSetupIndex > 0);
   assert.ok(attestationNodeSetupIndex > attestationPnpmSetupIndex);
@@ -249,8 +258,20 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     "write",
   );
   assert.equal(review.on.workflow_dispatch, undefined);
-  assert.equal(review.jobs["codex-review"].with.workflow_schema_version, 2);
+  assert.deepEqual(review.on.pull_request_target.types, [
+    "opened",
+    "synchronize",
+    "reopened",
+    "ready_for_review",
+    "converted_to_draft",
+  ]);
+  assert.equal(review.jobs["codex-review"].with.workflow_schema_version, 4);
+  assert.match(review.jobs["codex-review"].if, /pull_request_target/u);
   assert.match(review.jobs["codex-review"].if, /user\.type != 'Bot'/u);
+  assert.equal(
+    review.jobs["codex-review"].secrets.CODEX_AUTH_JSON,
+    "${{ secrets." + reviewRouterSecretName + " }}",
+  );
   assert.deepEqual(reviewInteraction.jobs.interaction.permissions, {
     actions: "write",
     contents: "read",

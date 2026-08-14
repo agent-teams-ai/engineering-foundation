@@ -228,6 +228,27 @@ export async function loadCapabilityConfig(
   await assertSchema("repository-security-baseline/v1", input, "repository-security-config");
   const root = record(input, "repository security config");
   const workflowDirectory = path(root["workflowDirectory"], "workflowDirectory");
+  const allowedPullRequestTargetInput =
+    root["allowedPullRequestTargetWorkflows"] ?? [];
+  if (!Array.isArray(allowedPullRequestTargetInput)) {
+    inputError("allowedPullRequestTargetWorkflows must be an array.");
+  }
+  const allowedPullRequestTargetWorkflows = allowedPullRequestTargetInput.map(
+    (value, index) => path(value, `allowedPullRequestTargetWorkflows[${index}]`)
+  );
+  if (
+    new Set(allowedPullRequestTargetWorkflows).size !==
+    allowedPullRequestTargetWorkflows.length
+  ) {
+    inputError("allowedPullRequestTargetWorkflows entries must be unique.");
+  }
+  for (const workflowPath of allowedPullRequestTargetWorkflows) {
+    if (!workflowPath.startsWith(`${workflowDirectory}/`)) {
+      inputError(
+        `Allowed pull_request_target workflow must be inside ${workflowDirectory}: ${workflowPath}.`
+      );
+    }
+  }
   const dependencyReview = mapDependencyReview(root["dependencyReview"]);
   const sbomWorkflow = path(root["sbomWorkflow"], "sbomWorkflow");
   for (const governedWorkflow of [dependencyReview.workflowPath, sbomWorkflow]) {
@@ -263,6 +284,9 @@ export async function loadCapabilityConfig(
   }
   return Object.freeze({
     allowedContainerImages,
+    allowedPullRequestTargetWorkflows: Object.freeze(
+      allowedPullRequestTargetWorkflows
+    ),
     allowedUses,
     workflowDirectory,
     dependencyReview,

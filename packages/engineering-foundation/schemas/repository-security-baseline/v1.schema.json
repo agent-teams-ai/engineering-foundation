@@ -25,6 +25,12 @@
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/pinnedContainerImage" }
     },
+    "allowedPullRequestTargetWorkflows": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/repositoryPath" }
+    },
     "allowedUses": {
       "type": "array",
       "maxItems": 500,

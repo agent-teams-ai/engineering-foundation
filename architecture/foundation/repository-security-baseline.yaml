@@ -8,12 +8,14 @@ dependencyReview:
   failOnSeverity: moderate
 sbomWorkflow: .github/workflows/ci.yml
 allowedContainerImages: []
+allowedPullRequestTargetWorkflows:
+  - .github/workflows/reviewrouter-codex.yml
 allowedUses:
-  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@08f6bc1481fd284fa82adfa47cda05c76b161b00
+  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@bbf1f41ef0fd24a7b714b36c860f437c7eed2cdf
     transitiveUses: []
   - uses: 777genius/review-router/.github/workflows/reviewrouter-interaction-reusable.yml@6b35091c824b1d4d5ee6bf8316121ed08d3e4861
     transitiveUses: []
-  - uses: 777genius/review-router@08f6bc1481fd284fa82adfa47cda05c76b161b00
+  - uses: 777genius/review-router@bbf1f41ef0fd24a7b714b36c860f437c7eed2cdf
     transitiveUses: []
   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
     transitiveUses: []

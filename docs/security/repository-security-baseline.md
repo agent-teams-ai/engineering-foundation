@@ -25,9 +25,10 @@ capability decision.
 - root `permissions` is an explicit object containing only `read` or `none`;
 - a job can request `write` only when consumer policy declares its exact workflow,
   job ID, and complete permission map;
-- stale privilege declarations, `write-all`, `pull_request_target`, and direct
-  dot or bracket access to `github.event` and `github.head_ref` inside shell
-  interpolation fail;
+- stale privilege declarations, `write-all`, undeclared `pull_request_target`,
+  and direct dot or bracket access to `github.event` and `github.head_ref`
+  inside shell interpolation fail; a reviewed `pull_request_target` exception
+  is bound to one exact workflow path and fails when that trigger disappears;
 - every pull-request workflow that contains a `run` step, local action, or
   reusable workflow has a same-workflow pinned Dependency Review job before
   that execution; the primary CI gate is an unconditional prerequisite for

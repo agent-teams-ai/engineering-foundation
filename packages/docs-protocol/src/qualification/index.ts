@@ -363,6 +363,20 @@ async function applyReachability(root: string, reachability: unknown): Promise<v
   }
 }
 
+function qualificationMetadata(
+  base: Omit<DocsNewRequest, "apply">,
+  blockedBy: readonly string[],
+  codeAnchors: readonly { readonly enforcement: "advisory" | "required"; readonly pattern: string }[]
+) {
+  return {
+    ...base.additionalMetadata,
+    ...(blockedBy.length === 0 ? {} : { blocked_by: blockedBy }),
+    ...(codeAnchors.length === 0
+      ? {}
+      : { code_anchors: codeAnchors.map(({ enforcement, pattern }) => ({ enforcement, pattern })) })
+  };
+}
+
 async function interruptAndRecover(input: {
   readonly base: Omit<DocsNewRequest, "apply">;
   readonly consumerRoot: string;
@@ -388,6 +402,7 @@ async function interruptAndRecover(input: {
   const blockedBy = normalizeDocumentIds(input.base.blockedBy ?? [], "blocked_by");
   const related = normalizeDocumentIds([...(input.base.related ?? []), ...blockedBy], "related");
   const codeAnchors = normalizeCodeAnchors(input.base.codeAnchors ?? []);
+  const additionalMetadata = qualificationMetadata(input.base, blockedBy, codeAnchors);
   const crashPlan = await planDocumentationDocumentV2({
     consumerRoot: input.consumerRoot,
     profilePath: profile.foundationProfile.path,
@@ -396,11 +411,7 @@ async function interruptAndRecover(input: {
       schemaVersion: 1,
       ...input.base.intent,
       ...(related.length === 0 ? {} : { related }),
-      additionalMetadata: {
-        ...input.base.additionalMetadata,
-        blocked_by: blockedBy,
-        code_anchors: codeAnchors.map(({ enforcement, pattern }) => ({ enforcement, pattern }))
-      }
+      ...(Object.keys(additionalMetadata).length === 0 ? {} : { additionalMetadata })
     },
     ...(input.base.signal === undefined ? {} : { signal: input.base.signal })
   });

@@ -9,8 +9,8 @@
     "status": {"enum": ["active", "proposed"]},
     "owner": {"type": "string"},
     "summary": {"type": "string"},
-    "related": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-    "blocked_by": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-    "code_anchors": {"type": "array", "uniqueItems": true, "items": {"type": "object"}}
+    "related": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "blocked_by": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "code_anchors": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "object"}}
   }
 }

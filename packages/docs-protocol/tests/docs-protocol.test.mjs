@@ -155,6 +155,40 @@ test("new preview is non-mutating and preserves unified metadata vocabulary", as
   });
 });
 
+test("new omits semantically empty optional metadata identically for preview and apply", async () => {
+  const base = { consumerRoot: ".", profilePath: "docs/docs-protocol.json", intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." } };
+  const previewHarness = harness();
+  const applyHarness = harness();
+  const preview = await previewHarness.protocol.newDocument({
+    ...base,
+    apply: false,
+    related: [],
+    blockedBy: [],
+    codeAnchors: []
+  });
+  const applied = await applyHarness.protocol.newDocument({ ...base, apply: true });
+
+  assert.deepEqual([preview.exitCode, applied.exitCode], [0, 0]);
+  assert.equal(JSON.stringify(previewHarness.calls.plan[0].intent), JSON.stringify(applyHarness.calls.plan[0].intent));
+  assert.equal(preview.envelope.result.planDigest, applied.envelope.result.planDigest);
+  assert.equal("related" in previewHarness.calls.plan[0].intent, false);
+  assert.equal("additionalMetadata" in previewHarness.calls.plan[0].intent, false);
+});
+
+test("new rejects optional metadata aliases even when callers try to inject empty arrays", async () => {
+  for (const key of ["related", "blocked_by", "code_anchors"]) {
+    const { protocol, calls } = harness();
+    await assert.rejects(protocol.newDocument({
+      apply: false,
+      consumerRoot: ".",
+      profilePath: "docs/docs-protocol.json",
+      intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." },
+      additionalMetadata: { [key]: [] }
+    }), new RegExp(`cannot replace governed key ${key}`, "u"));
+    assert.equal(calls.plan.length, 0);
+  }
+});
+
 test("new rejects missing, self, and non-open-decision blockers before planning", async () => {
   for (const blockedBy of [["ADR-9999"], ["ADR-0083"], ["ADR-0001"]]) {
     const { protocol, calls } = harness();

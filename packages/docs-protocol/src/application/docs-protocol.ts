@@ -133,8 +133,8 @@ function relationMetadata(
       throw new DocsProfileError(`Additional metadata cannot replace governed key ${key}.`);
     }
   }
-  if (request.blockedBy !== undefined) {metadata[blockedByKey] = request.blockedBy;}
-  if (request.codeAnchors !== undefined) {
+  if (request.blockedBy !== undefined && request.blockedBy.length > 0) {metadata[blockedByKey] = request.blockedBy;}
+  if (request.codeAnchors !== undefined && request.codeAnchors.length > 0) {
     metadata[codeAnchorsKey] = request.codeAnchors.map(({ enforcement, pattern }) => ({ enforcement, pattern }));
   }
   return Object.keys(metadata).length === 0 ? undefined : Object.freeze(metadata);

@@ -93,6 +93,19 @@ test("skips only an exact fresh prerelease state for the complete public package
     }),
     { action: "publish", tag: "rc" },
   );
+  assert.throws(
+    () =>
+      releasePublishDecision({
+        ...input,
+        inventory: { ...input.inventory, pending: ["a.md,b.md"] },
+        packages: {
+          ...input.packages,
+          public: [{ ...foundation, version: "0.17.0-rc.0" }],
+        },
+        preState: { ...freshPreState, changesets: ["a", "b"] },
+      }),
+    /exact Changesets metadata/u,
+  );
   assert.deepEqual(
     releasePublishDecision({
       ...input,

@@ -2,16 +2,20 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { createRequire } from "node:module";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { releasePullRequestFreshnessViolations } from "../scripts/check-release-pr-freshness.mjs";
 
 const execFileAsync = promisify(execFile);
 const packageName = "@agent-teams/engineering-foundation";
-const changesetBin = fileURLToPath(new URL("../node_modules/.bin/changeset", import.meta.url));
+const require = createRequire(import.meta.url);
+const changesetBin = join(
+  dirname(require.resolve("@changesets/cli/package.json")),
+  "bin.js",
+);
 
 async function git(cwd, ...args) {
   const { stdout } = await execFileAsync("git", args, { cwd, encoding: "utf8" });

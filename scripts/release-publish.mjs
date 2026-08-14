@@ -5,6 +5,10 @@ import { join, relative, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+import {
+  assertExactChangesetInventory,
+  exactChangesetPreState,
+} from "./release-changeset-state.mjs";
 import { changesetsPublishArguments, releasePublishInvocation } from "./release-publish-command.mjs";
 
 export { changesetsPublishArguments, releasePublishInvocation };
@@ -17,7 +21,6 @@ const releaseControlPaths = Object.freeze([
 ]);
 const workspaceRoots = Object.freeze(workspacePackageGlobs.map((pattern) => pattern.slice(0, -2)));
 const registryTimeoutMilliseconds = 10_000;
-const changesetIdPattern = /^[A-Za-z0-9_-]+$/u;
 const stableVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 const rcVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-rc\.(0|[1-9]\d*)$/u;
 
@@ -54,17 +57,6 @@ function exactRecord(left, right) {
   return (
     leftEntries.length === Object.keys(right).length &&
     leftEntries.every(([key, value]) => right[key] === value)
-  );
-}
-
-function exactPreStateShape(preState) {
-  return (
-    isRecord(preState) &&
-    Object.keys(preState).toSorted().join(",") === "changesets,initialVersions,mode,tag" &&
-    Array.isArray(preState.changesets) &&
-    preState.changesets.every((id) => typeof id === "string" && changesetIdPattern.test(id)) &&
-    new Set(preState.changesets).size === preState.changesets.length &&
-    isRecord(preState.initialVersions)
   );
 }
 
@@ -124,7 +116,7 @@ function freshPrereleaseState({ inventory, packages, preState }) {
   return (
     packages.public.length > 0 &&
     packages.public.every(({ version }) => parseStableVersion(version) !== undefined) &&
-    exactPreStateShape(preState) &&
+    exactChangesetPreState(preState) &&
     preState.mode === "pre" &&
     preState.tag === allowedPrereleaseTag &&
     exactInitialVersions(packages, preState) &&
@@ -136,23 +128,7 @@ function freshPrereleaseState({ inventory, packages, preState }) {
 }
 
 export function releasePublishDecision({ inventory, packages, preState }) {
-  const expectedMetadata = preState === undefined
-    ? ["README.md", "config.json"]
-    : ["README.md", "config.json", "pre.json"];
-  const expectedPending = exactPreStateShape(preState)
-    ? preState.changesets.map((id) => `${id}.md`).toSorted()
-    : [];
-  if (
-    inventory.unexpected.length > 0 ||
-    !Array.isArray(inventory.metadata) ||
-    inventory.metadata.join(",") !== expectedMetadata.join(",") ||
-    !Array.isArray(inventory.pending) ||
-    inventory.pending.join(",") !== expectedPending.join(",")
-  ) {
-    throw new Error(
-      "Release publication requires exact Changesets metadata and consumed prerelease files.",
-    );
-  }
+  assertExactChangesetInventory(inventory, preState);
   const freshPrerelease = freshPrereleaseState({ inventory, packages, preState });
   if (freshPrerelease) {
     return { action: "noop" };
@@ -163,7 +139,7 @@ export function releasePublishDecision({ inventory, packages, preState }) {
   if (preState !== undefined) {
     const hasRcRelease = packages.public.some(({ version }) => parseRcVersion(version) !== undefined);
     if (
-      !exactPreStateShape(preState) ||
+      !exactChangesetPreState(preState) ||
       preState.mode !== "pre" ||
       preState.tag !== allowedPrereleaseTag ||
       !hasRcRelease ||

@@ -222,6 +222,7 @@ function allowedUseYaml(entries, indent) {
 
 function capabilityConfig({
   allowedContainerImages,
+  allowedPullRequestTargetWorkflows = [],
   allowedUses,
   actionlintInvocationUse,
   actionlintRollout,
@@ -240,6 +241,12 @@ function capabilityConfig({
     ...(allowedContainerImages.length === 0
       ? ["allowedContainerImages: []"]
       : ["allowedContainerImages:", ...allowedContainerImages.map((image) => `  - ${image}`)]),
+    ...(allowedPullRequestTargetWorkflows.length === 0
+      ? ["allowedPullRequestTargetWorkflows: []"]
+      : [
+          "allowedPullRequestTargetWorkflows:",
+          ...allowedPullRequestTargetWorkflows.map((path) => `  - ${path}`),
+        ]),
     "privilegedJobs: []",
     "publishablePackageManifests:",
     "  - packages/library/package.json",
@@ -302,6 +309,7 @@ async function withConsumer(options, callback) {
       options.compositeUse ?? `example/inside-composite@${COMPOSITE_ACTION_SHA}`,
       options.compositeRun,
     ),
+    ...options.additionalWorkflows,
   };
   try {
     await writeRepositoryFile(
@@ -339,6 +347,8 @@ async function withConsumer(options, callback) {
       "architecture/foundation/repository-security-baseline.yaml",
       `${capabilityConfig({
         allowedContainerImages: options.allowedContainerImages ?? [],
+        allowedPullRequestTargetWorkflows:
+          options.allowedPullRequestTargetWorkflows,
         allowedUses: options.allowedUses ?? ALLOWED_USES,
         actionlintInvocationUse: options.actionlintInvocationUse,
         actionlintRollout: options.actionlintRollout,
@@ -407,6 +417,53 @@ test("rejects pull-request package installs that can run before Dependency Revie
       assert.deepEqual(
         securityDiagnostics(report).map(({ ruleId }) => ruleId),
         ["repository.security-baseline.dependency-review-ordering"],
+      );
+    },
+  );
+});
+
+test("allows only an explicitly reviewed pull_request_target workflow path", async () => {
+  const workflowPath = ".github/workflows/reviewrouter.yml";
+  const workflow = [
+    "name: ReviewRouter",
+    "on:",
+    "  pull_request_target:",
+    "permissions:",
+    "  contents: read",
+    "jobs:",
+    "  review:",
+    "    runs-on: ubuntu-24.04",
+    "    steps: []",
+    "",
+  ].join("\n");
+  await withConsumer(
+    {
+      additionalWorkflows: { [workflowPath]: workflow },
+      allowedPullRequestTargetWorkflows: [workflowPath],
+      includeTools: false,
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 0);
+      assert.deepEqual(securityDiagnostics(report), []);
+    },
+  );
+});
+
+test("rejects a stale pull_request_target workflow declaration", async () => {
+  await withConsumer(
+    {
+      allowedPullRequestTargetWorkflows: [
+        ".github/workflows/missing-reviewrouter.yml",
+      ],
+      includeTools: false,
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        securityDiagnostics(report).map(({ ruleId }) => ruleId),
+        ["repository.security-baseline.stale-pull-request-target-workflow"],
       );
     },
   );

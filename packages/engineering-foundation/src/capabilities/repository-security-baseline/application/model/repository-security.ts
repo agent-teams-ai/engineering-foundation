@@ -185,6 +185,7 @@ export interface DependencyReviewPolicy {
 
 export interface RepositorySecurityPolicy {
   readonly allowedContainerImages: readonly string[];
+  readonly allowedPullRequestTargetWorkflows: readonly string[];
   readonly allowedUses: readonly AllowedWorkflowUse[];
   readonly workflowDirectory: string;
   readonly dependencyReview: DependencyReviewPolicy;

@@ -109,6 +109,7 @@ type PackageEvidence = RepositorySecurityEvidence["packages"][number];
 interface EvaluationState {
   readonly diagnostics: FoundationDiagnostic[];
   readonly seenContainerImages: Set<string>;
+  readonly seenPullRequestTargetWorkflows: Set<string>;
   readonly seenPrivilegedJobs: Set<string>;
   dependencyReviewFound: boolean;
   sbomFound: boolean;
@@ -169,6 +170,7 @@ function isSbomEvidence(
 }
 
 function inspectWorkflowRoot(
+  policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
   state: EvaluationState
 ): void {
@@ -187,14 +189,18 @@ function inspectWorkflowRoot(
     );
   }
   if (workflow.triggers.includes("pull_request_target")) {
-    state.diagnostics.push(
-      diagnostic({
-        rule: REPOSITORY_SECURITY_RULES.dangerousTrigger,
-        subject: workflow.path,
-        path: workflow.path,
-        message: "Workflow uses prohibited pull_request_target."
-      })
-    );
+    if (policy.allowedPullRequestTargetWorkflows.includes(workflow.path)) {
+      state.seenPullRequestTargetWorkflows.add(workflow.path);
+    } else {
+      state.diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.dangerousTrigger,
+          subject: workflow.path,
+          path: workflow.path,
+          message: "Workflow uses undeclared pull_request_target."
+        })
+      );
+    }
   }
 }
 
@@ -367,13 +373,14 @@ export function evaluateRepositorySecurity(
   const state: EvaluationState = {
     diagnostics: [],
     seenContainerImages: new Set<string>(),
+    seenPullRequestTargetWorkflows: new Set<string>(),
     seenPrivilegedJobs: new Set<string>(),
     dependencyReviewFound: false,
     sbomFound: false
   };
 
   for (const workflow of evidence.workflows) {
-    inspectWorkflowRoot(workflow, state);
+    inspectWorkflowRoot(policy, workflow, state);
     for (const job of workflow.jobs) {
       inspectWorkflowJob(policy, workflow, job, state);
       inspectDependencyReviewOrdering(policy, workflow, job, state.diagnostics);
@@ -392,6 +399,19 @@ export function evaluateRepositorySecurity(
           subject: key,
           path: privileged.workflowPath,
           message: "Privileged-job declaration has no matching workflow job."
+        })
+      );
+    }
+  }
+  for (const workflowPath of policy.allowedPullRequestTargetWorkflows) {
+    if (!state.seenPullRequestTargetWorkflows.has(workflowPath)) {
+      state.diagnostics.push(
+        diagnostic({
+          rule: REPOSITORY_SECURITY_RULES.stalePullRequestTargetWorkflow,
+          subject: workflowPath,
+          path: workflowPath,
+          message:
+            "Allowed pull_request_target declaration has no matching workflow trigger."
         })
       );
     }

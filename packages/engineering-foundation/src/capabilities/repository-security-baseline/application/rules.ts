@@ -100,6 +100,11 @@ export const REPOSITORY_SECURITY_RULES = Object.freeze({
     "A stale privilege declaration can hide workflow ownership drift.",
     "Remove the declaration or restore the exact governed workflow job."
   ),
+  stalePullRequestTargetWorkflow: rule(
+    "stale-pull-request-target-workflow",
+    "A stale privileged-trigger declaration can conceal workflow trust-boundary drift.",
+    "Remove the declaration or restore pull_request_target on the exact reviewed workflow path."
+  ),
   staleAllowedUse: rule(
     "stale-allowed-use",
     "An unused trust declaration can conceal action ownership drift.",

@@ -4,13 +4,15 @@ on:
   workflow_run: # zizmor: ignore[dangerous-triggers] Default-branch code executes no PR content and verifies App-owned exact-head evidence.
     workflows: ["ReviewRouter Codex OAuth [namespace=sns_989e079289b48e859229e5eac4bc322c;epoch=1;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c]"]
     types: [completed]
+  repository_dispatch:
+    types: [review-gate-recover]
 
 permissions: {}
 
 jobs:
   review-gate:
     name: publish-review-gate
-    if: ${{ github.event.workflow_run.event == 'pull_request_target' }}
+    if: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request_target') || github.event.action == 'review-gate-recover' }}
     permissions:
       actions: read
       contents: read
@@ -22,11 +24,15 @@ jobs:
       - name: Publish exact-head ReviewGate from App evidence
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REVIEW_RUN_ID: ${{ github.event.workflow_run.id }}
+          REVIEW_RUN_ID: ${{ github.event.workflow_run.id || github.event.client_payload.review_run_id }}
           REVIEWROUTER_APP_BOT_ID: "281702430"
         run: |
           set -euo pipefail
 
+          if [[ ! "${REVIEW_RUN_ID}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "ReviewRouter run ID must be a positive integer." >&2
+            exit 1
+          fi
           run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${REVIEW_RUN_ID}")"
           read -r run_conclusion run_event run_head_sha run_path run_head_repository run_url pr_count pr_number < <(jq -r \
             '[.conclusion, .event, .head_sha, .path, .head_repository.full_name, .html_url, (.pull_requests | length), (.pull_requests[0].number // "")] | @tsv' \

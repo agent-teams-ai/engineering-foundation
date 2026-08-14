@@ -91,6 +91,15 @@ review remains a failing `ReviewGate` status on the pull request head, while a
 successful publication job stays green. Invalid or unbound workflow evidence
 still fails the publisher before it can write a status.
 
+If GitHub does not emit a new `workflow_run` event after a successful job rerun,
+send the `review-gate-recover` repository dispatch with that completed
+ReviewRouter Actions run ID in `client_payload.review_run_id`. Repository
+dispatches execute the workflow from the default branch, so a pull request
+cannot replace the privileged verifier. The recovery path still requires one
+open same-repository pull request at the exact run head and a matching App-owned
+`ReviewRouter` status before it can publish `ReviewGate`. It is not a manual
+approval or a branch-protection bypass.
+
 Before every publication:
 
 - verify that the repository still satisfies the independent merge-authority

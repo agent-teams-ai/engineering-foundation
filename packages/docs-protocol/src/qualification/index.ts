@@ -1,8 +1,9 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { cp, lstat, mkdir, mkdtemp, opendir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { cp, lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rename, rm, symlink, writeFile, type FileHandle } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve as resolvePath, sep } from "node:path";
+import { basename, dirname, join, relative, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { planDocumentationDocumentV2 } from "@agent-teams/engineering-foundation/document-authoring";
@@ -226,6 +227,67 @@ async function parentState(root: string, documentPath: string): Promise<"directo
   }
 }
 
+const MAX_REACHABILITY_INDEX_BYTES = 8 * 1024 * 1024;
+
+function sameFileObservation(
+  left: { readonly dev: bigint; readonly ino: bigint; readonly mtimeNs: bigint; readonly size: bigint },
+  right: { readonly dev: bigint; readonly ino: bigint; readonly mtimeNs: bigint; readonly size: bigint }
+): boolean {
+  return left.dev === right.dev && left.ino === right.ino && left.mtimeNs === right.mtimeNs && left.size === right.size;
+}
+
+async function readAtMost(handle: FileHandle, maximumBytes: number): Promise<Buffer | undefined> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  while (total <= maximumBytes) {
+    const remaining = maximumBytes + 1 - total;
+    const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+    const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, null);
+    if (bytesRead === 0) {return Buffer.concat(chunks, total);}
+    chunks.push(chunk.subarray(0, bytesRead));
+    total += bytesRead;
+  }
+  return undefined;
+}
+
+async function verifyCurrentRegularFile(path: string, expected: { readonly dev: bigint; readonly ino: bigint }): Promise<void> {
+  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const handle = await open(path, constants.O_RDONLY | noFollow);
+  try {
+    const metadata = await handle.stat({ bigint: true });
+    if (!metadata.isFile() || metadata.dev !== expected.dev || metadata.ino !== expected.ino) {
+      throw new Error("Qualification reachability index identity changed before atomic publication.");
+    }
+  } finally {
+    await handle.close();
+  }
+}
+
+async function verifyPublishedFile(path: string, expected: Buffer): Promise<void> {
+  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const handle = await open(path, constants.O_RDONLY | noFollow);
+  try {
+    const before = await handle.stat({ bigint: true });
+    const bytes = await readAtMost(handle, MAX_REACHABILITY_INDEX_BYTES);
+    const after = await handle.stat({ bigint: true });
+    if (!before.isFile() || bytes === undefined || !sameFileObservation(before, after) || !bytes.equals(expected)) {
+      throw new Error("Qualification reachability index atomic publication could not be verified.");
+    }
+  } finally {
+    await handle.close();
+  }
+}
+
+async function syncDirectory(path: string): Promise<void> {
+  try {
+    const handle = await open(path, "r");
+    try {await handle.sync();} finally {await handle.close();}
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (process.platform !== "win32" || !["EACCES", "EINVAL", "EISDIR", "EPERM"].includes(code ?? "")) {throw error;}
+  }
+}
+
 function createProtocol(): DocsProtocol {
   return new DocsProtocol({
     adoption: new NodeDocsAdoptionInspector(),
@@ -245,13 +307,60 @@ async function applyReachability(root: string, reachability: unknown): Promise<v
   }
   const indexPath = resolvePath(root, action["indexPath"]);
   const physicalRoot = await realpath(root);
-  const physicalIndex = await realpath(indexPath);
-  const pathFromRoot = relative(physicalRoot, physicalIndex);
-  if (pathFromRoot === ".." || pathFromRoot.startsWith(`..${sep}`) || !(await lstat(physicalIndex)).isFile()) {
-    throw new Error("Qualification reachability index is not a contained regular file.");
+  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const nonBlocking = process.platform === "win32" ? 0 : constants.O_NONBLOCK;
+  const sourceHandle = await open(indexPath, constants.O_RDONLY | noFollow | nonBlocking);
+  let source: string;
+  let identity: { readonly dev: bigint; readonly ino: bigint };
+  let mode: number;
+  try {
+    const before = await sourceHandle.stat({ bigint: true });
+    if (!before.isFile() || before.size > BigInt(MAX_REACHABILITY_INDEX_BYTES)) {
+      throw new Error("Qualification reachability index is not a bounded regular file.");
+    }
+    const physicalIndex = await realpath(indexPath);
+    const pathFromRoot = relative(physicalRoot, physicalIndex);
+    if (pathFromRoot === ".." || pathFromRoot.startsWith(`..${sep}`) || physicalIndex !== indexPath) {
+      throw new Error("Qualification reachability index is not a contained regular file without symlinks.");
+    }
+    await verifyCurrentRegularFile(physicalIndex, before);
+    const bytes = await readAtMost(sourceHandle, MAX_REACHABILITY_INDEX_BYTES);
+    const after = await sourceHandle.stat({ bigint: true });
+    if (bytes === undefined || !sameFileObservation(before, after) || after.size !== BigInt(bytes.byteLength)) {
+      throw new Error("Qualification reachability index changed during its bounded read.");
+    }
+    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    identity = { dev: after.dev, ino: after.ino };
+    mode = Number(after.mode & 0o777n);
+  } finally {
+    await sourceHandle.close();
   }
-  const source = await readFile(physicalIndex, "utf8");
-  await writeFile(physicalIndex, `${source.replace(/\n?$/u, "\n")}- ${action["markdownLink"]}\n`);
+
+  const next = Buffer.from(`${source.replace(/\n?$/u, "\n")}- ${action["markdownLink"]}\n`);
+  if (next.byteLength > MAX_REACHABILITY_INDEX_BYTES) {
+    throw new Error("Qualification reachability index update exceeds its bounded size.");
+  }
+  const parent = dirname(indexPath);
+  const temporary = join(parent, `.${basename(indexPath)}.docs-protocol-${randomUUID()}.tmp`);
+  let temporaryExists = false;
+  try {
+    const temporaryHandle = await open(temporary, "wx", mode);
+    temporaryExists = true;
+    try {
+      await temporaryHandle.writeFile(next);
+      await temporaryHandle.chmod(mode);
+      await temporaryHandle.sync();
+    } finally {
+      await temporaryHandle.close();
+    }
+    await verifyCurrentRegularFile(indexPath, identity);
+    await rename(temporary, indexPath);
+    temporaryExists = false;
+    await verifyPublishedFile(indexPath, next);
+    await syncDirectory(parent);
+  } finally {
+    if (temporaryExists) {await rm(temporary, { force: true });}
+  }
 }
 
 async function interruptAndRecover(input: {

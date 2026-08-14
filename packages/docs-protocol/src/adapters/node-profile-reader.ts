@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { lstat, open, realpath } from "node:fs/promises";
+import { lstat, open, realpath, type FileHandle } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
@@ -14,7 +14,7 @@ function contained(root: string, candidate: string): boolean {
   return path === "" || (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path));
 }
 
-function assertInitialFile(state: Awaited<ReturnType<typeof lstat>>): void {
+function assertInitialFile(state: Awaited<ReturnType<FileHandle["stat"]>>): void {
   if (!state.isFile() || state.isSymbolicLink()) {throw new DocsProfileError("Profile must be a regular file.");}
   if (state.size > BigInt(MAX_PROFILE_BYTES)) {throw new DocsProfileError("Profile exceeds 1 MiB.");}
 }
@@ -23,25 +23,46 @@ function sameIdentity(left: { readonly dev: bigint; readonly ino: bigint }, righ
   return left.dev === right.dev && left.ino === right.ino;
 }
 
+async function readBounded(handle: FileHandle, signal: AbortSignal | undefined): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  while (total <= MAX_PROFILE_BYTES) {
+    signal?.throwIfAborted();
+    const remaining = MAX_PROFILE_BYTES + 1 - total;
+    const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+    const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, null);
+    if (bytesRead === 0) {return Buffer.concat(chunks, total);}
+    chunks.push(chunk.subarray(0, bytesRead));
+    total += bytesRead;
+  }
+  throw new DocsProfileError("Profile exceeds 1 MiB.");
+}
+
 async function readProfileBytes(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }): Promise<Buffer> {
   if (isAbsolute(input.profilePath)) {throw new DocsProfileError("Profile path must be repository-relative.");}
   const root = await realpath(resolve(input.consumerRoot));
   input.signal?.throwIfAborted();
   const requested = resolve(root, input.profilePath);
   if (!contained(root, requested)) {throw new DocsProfileError("Profile path escapes the consumer root.");}
-  const physical = await realpath(requested);
-  input.signal?.throwIfAborted();
-  if (!contained(root, physical) || physical !== requested) {throw new DocsProfileError("Profile path must be a real contained file without symlinks.");}
-  const before = await lstat(physical, { bigint: true });
-  assertInitialFile(before);
-  input.signal?.throwIfAborted();
-  const handle = await open(physical, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const nonBlocking = process.platform === "win32" ? 0 : constants.O_NONBLOCK;
+  const handle = await open(requested, constants.O_RDONLY | noFollow | nonBlocking).catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === "ELOOP") {
+      throw new DocsProfileError("Profile path must be a real contained file without symlinks.");
+    }
+    throw error;
+  });
   try {
     const opened = await handle.stat({ bigint: true });
-    if (!opened.isFile() || !sameIdentity(opened, before) || opened.size !== before.size) {throw new DocsProfileError("Profile identity changed before its bounded read.");}
-    const bytes = await handle.readFile(input.signal === undefined ? undefined : { signal: input.signal });
+    assertInitialFile(opened);
+    const physical = await realpath(requested);
+    input.signal?.throwIfAborted();
+    if (!contained(root, physical) || physical !== requested) {throw new DocsProfileError("Profile path must be a real contained file without symlinks.");}
+    const pathState = await lstat(physical, { bigint: true });
+    if (!pathState.isFile() || pathState.isSymbolicLink() || !sameIdentity(pathState, opened)) {throw new DocsProfileError("Profile identity changed before its bounded read.");}
+    const bytes = await readBounded(handle, input.signal);
     const after = await handle.stat({ bigint: true });
-    if (bytes.byteLength > MAX_PROFILE_BYTES || !sameIdentity(after, opened) || after.size !== opened.size || after.mtimeNs !== opened.mtimeNs) {throw new DocsProfileError("Profile changed during its bounded read or exceeds 1 MiB.");}
+    if (!sameIdentity(after, opened) || after.size !== opened.size || after.mtimeNs !== opened.mtimeNs || after.size !== BigInt(bytes.byteLength)) {throw new DocsProfileError("Profile changed during its bounded read or exceeds 1 MiB.");}
     return bytes;
   } finally {
     await handle.close();

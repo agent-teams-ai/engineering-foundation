@@ -1,4 +1,5 @@
-import { lstat, open, realpath } from "node:fs/promises";
+import { constants } from "node:fs";
+import { lstat, open, realpath, type FileHandle } from "node:fs/promises";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 
 import type { DocumentPlanV2 } from "../application/model/document-planning.js";
@@ -61,33 +62,70 @@ function isClosedFixtureMarker(
     candidate["consumerRoot"] === canonicalRoot;
 }
 
+function sameIdentity(
+  left: { readonly dev: bigint; readonly ino: bigint },
+  right: { readonly dev: bigint; readonly ino: bigint }
+): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+async function readAtMost(handle: FileHandle, maximumBytes: number): Promise<Buffer | undefined> {
+  const bytes = Buffer.allocUnsafe(maximumBytes + 1);
+  let total = 0;
+  while (total <= maximumBytes) {
+    const { bytesRead } = await handle.read(bytes, total, bytes.byteLength - total, null);
+    if (bytesRead === 0) {return bytes.subarray(0, total);}
+    total += bytesRead;
+  }
+  return undefined;
+}
+
 async function readFixtureMarker(path: string): Promise<unknown> {
-  const metadata = await lstat(path);
-  if (metadata.isSymbolicLink() || !metadata.isFile()) {
-    throw new TypeError(
-      "Document authoring crash qualification requires a real regular fixture marker."
-    );
-  }
-  if (metadata.size > MAX_FIXTURE_MARKER_BYTES) {
-    throw new TypeError(
-      `Document authoring crash qualification fixture marker exceeds ${MAX_FIXTURE_MARKER_BYTES} bytes.`
-    );
-  }
-  const handle = await open(path, "r");
+  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const nonBlocking = process.platform === "win32" ? 0 : constants.O_NONBLOCK;
+  const handle = await open(path, constants.O_RDONLY | noFollow | nonBlocking);
   try {
-    const bytes = Buffer.alloc(MAX_FIXTURE_MARKER_BYTES + 1);
-    const { bytesRead } = await handle.read(
-      bytes,
-      0,
-      bytes.byteLength,
-      0
-    );
-    if (bytesRead > MAX_FIXTURE_MARKER_BYTES) {
+    const metadata = await handle.stat({ bigint: true });
+    if (metadata.isSymbolicLink() || !metadata.isFile()) {
+      throw new TypeError(
+        "Document authoring crash qualification requires a real regular fixture marker."
+      );
+    }
+    if (metadata.size > BigInt(MAX_FIXTURE_MARKER_BYTES)) {
       throw new TypeError(
         `Document authoring crash qualification fixture marker exceeds ${MAX_FIXTURE_MARKER_BYTES} bytes.`
       );
     }
-    return JSON.parse(bytes.subarray(0, bytesRead).toString("utf8"));
+    const physical = await realpath(path);
+    if (physical !== path) {
+      throw new TypeError(
+        "Document authoring crash qualification fixture marker must not traverse symlinks."
+      );
+    }
+    const pathHandle = await open(physical, constants.O_RDONLY | noFollow | nonBlocking);
+    try {
+      const pathMetadata = await pathHandle.stat({ bigint: true });
+      if (!pathMetadata.isFile() || !sameIdentity(metadata, pathMetadata)) {
+        throw new TypeError(
+          "Document authoring crash qualification fixture marker identity changed before its bounded read."
+        );
+      }
+    } finally {
+      await pathHandle.close();
+    }
+    const bytes = await readAtMost(handle, MAX_FIXTURE_MARKER_BYTES);
+    if (bytes === undefined) {
+      throw new TypeError(
+        `Document authoring crash qualification fixture marker exceeds ${MAX_FIXTURE_MARKER_BYTES} bytes.`
+      );
+    }
+    const after = await handle.stat({ bigint: true });
+    if (!sameIdentity(metadata, after) || after.size !== metadata.size || after.mtimeNs !== metadata.mtimeNs || after.size !== BigInt(bytes.byteLength)) {
+      throw new TypeError(
+        "Document authoring crash qualification fixture marker changed during its bounded read."
+      );
+    }
+    return JSON.parse(bytes.toString("utf8"));
   } finally {
     await handle.close();
   }
@@ -116,11 +154,6 @@ async function assertOwnedDisposableFixture(consumerRoot: string): Promise<strin
   if (!isClosedFixtureMarker(marker, canonicalRoot)) {
     throw new TypeError(
       "Document authoring crash qualification requires its exact closed fixture ownership marker."
-    );
-  }
-  if ((await realpath(markerPath)) !== markerPath) {
-    throw new TypeError(
-      "Document authoring crash qualification fixture marker must be physically contained by consumerRoot."
     );
   }
   return canonicalRoot;

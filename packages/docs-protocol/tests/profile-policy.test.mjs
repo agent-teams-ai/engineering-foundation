@@ -84,6 +84,11 @@ test("node reader uses only a real contained disposable profile", async () => {
         new NodeDocsProfileReader().read({ consumerRoot: root, profilePath: "redirected/profile.yaml" }),
         /without symlinks/u
       );
+      await symlink(join(outside, "profile.yaml"), join(root, "docs", "redirected-profile.yaml"));
+      await assert.rejects(
+        new NodeDocsProfileReader().read({ consumerRoot: root, profilePath: "docs/redirected-profile.yaml" }),
+        /without symlinks/u
+      );
     } finally {
       await rm(outside, { recursive: true, force: true });
     }

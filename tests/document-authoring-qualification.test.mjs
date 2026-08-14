@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { cp, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -97,6 +97,53 @@ test("qualification rejects a marker with any unowned field before applying", as
       crashPoint: "after-publishing-journal-durable"
     }),
     /exact closed fixture ownership marker/u
+  );
+});
+
+test("qualification rejects an oversized ownership marker before applying", async (t) => {
+  const consumerRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "foundation-qualification-oversized-"))
+  );
+  t.after(() => rm(consumerRoot, { force: true, recursive: true }));
+  await writeFile(
+    join(consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json"),
+    Buffer.alloc(4 * 1024 + 1, 0x20)
+  );
+  await assert.rejects(
+    runDocumentAuthoringCrashQualification({
+      consumerRoot,
+      plan: {},
+      crashPoint: "after-publishing-journal-durable"
+    }),
+    /exceeds 4096 bytes/u
+  );
+});
+
+qualified("qualification rejects a symlinked ownership marker before applying", async (t) => {
+  const consumerRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "foundation-qualification-symlink-"))
+  );
+  const markerSource = join(await realpath(tmpdir()), `foundation-qualification-marker-${process.pid}-${Date.now()}.json`);
+  t.after(async () => {
+    await rm(consumerRoot, { force: true, recursive: true });
+    await rm(markerSource, { force: true });
+  });
+  await writeFile(markerSource, `${JSON.stringify({
+    schemaVersion: 1,
+    kind: "agent-teams-document-authoring-qualification-fixture",
+    consumerRoot
+  })}\n`);
+  await symlink(
+    markerSource,
+    join(consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json")
+  );
+  await assert.rejects(
+    runDocumentAuthoringCrashQualification({
+      consumerRoot,
+      plan: {},
+      crashPoint: "after-publishing-journal-durable"
+    }),
+    /(?:symlink|symbolic link)/iu
   );
 });
 

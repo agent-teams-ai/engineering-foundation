@@ -328,6 +328,11 @@ test("clean removes incremental state and permits a full rebuild", async () => {
   const packageRoot = join(fixtureRoot, "packages", "engineering-foundation");
   const sourceRoot = join(packageRoot, "src");
   const cleanScript = join(fixtureRoot, "scripts", "clean.mjs");
+  const publishablePackagesScript = join(
+    fixtureRoot,
+    "scripts",
+    "publishable-packages.mjs",
+  );
   const tsconfigPath = join(packageRoot, "tsconfig.json");
   const outputPath = join(packageRoot, "dist", "index.js");
   const buildInfoPath = join(packageRoot, "tsconfig.tsbuildinfo");
@@ -350,6 +355,14 @@ test("clean removes incremental state and permits a full rebuild", async () => {
       writeFile(
         cleanScript,
         await readFile(join(repositoryRoot, "scripts", "clean.mjs"), "utf8"),
+        "utf8",
+      ),
+      writeFile(
+        publishablePackagesScript,
+        await readFile(
+          join(repositoryRoot, "scripts", "publishable-packages.mjs"),
+          "utf8",
+        ),
         "utf8",
       ),
     ]);

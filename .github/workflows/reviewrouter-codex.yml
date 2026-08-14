@@ -1,4 +1,4 @@
-name: ReviewRouter Codex OAuth [namespace=sns_989e079289b48e859229e5eac4bc322c;epoch=1;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c]
+name: ReviewRouter Codex OAuth [namespace=sns_2dda7c2cf70bbc98987ac8efe27336ba;epoch=3;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E3_2dda7c2cf70bbc98987ac8efe27336ba]
 
 run-name: ${{ format('ReviewRouter review PR {0} at {1}', github.event.pull_request.number, github.event.pull_request.head.sha) }}
 
@@ -21,9 +21,9 @@ jobs:
       contents: read
       pull-requests: read
       id-token: write
-    uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@bbf1f41ef0fd24a7b714b36c860f437c7eed2cdf
+    uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@b498ac97f38469d213d913f7df28badd163cb439
     with:
-      runtime_ref: "bbf1f41ef0fd24a7b714b36c860f437c7eed2cdf"
+      runtime_ref: "b498ac97f38469d213d913f7df28badd163cb439"
       api_url: "https://api.reviewrouter.site"
       runtime_config_mode: oidc
       pr_number: ${{ format('{0}', github.event.pull_request.number) }}
@@ -33,7 +33,7 @@ jobs:
       max_changed_lines: ${{ vars.REVIEW_ROUTER_MAX_CHANGED_LINES }}
       review_timeout_minutes: ${{ fromJSON(vars.REVIEW_ROUTER_TIMEOUT_MINUTES || '60') }}
     secrets:
-      CODEX_AUTH_JSON: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c }}
+      CODEX_AUTH_JSON: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E3_2dda7c2cf70bbc98987ac8efe27336ba }}
 
   codex-refresh:
     name: codex-refresh
@@ -48,10 +48,10 @@ jobs:
     steps:
       - name: ReviewRouter Codex OAuth refresh
         id: refresh_codex
-        uses: 777genius/review-router@bbf1f41ef0fd24a7b714b36c860f437c7eed2cdf
+        uses: 777genius/review-router@b498ac97f38469d213d913f7df28badd163cb439
         with:
           mode: codex-oauth-refresh
           api-url: "https://api.reviewrouter.site"
           provider-instance-id: "codex-rotating:1316243988"
           workflow-schema-version: "4"
-          auth-json: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c }}
+          auth-json: ${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E3_2dda7c2cf70bbc98987ac8efe27336ba }}

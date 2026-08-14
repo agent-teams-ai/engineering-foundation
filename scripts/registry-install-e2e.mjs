@@ -30,11 +30,18 @@ import {
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+import {
+  DOCS_PROTOCOL_PACKAGE_NAME,
+  registryQualificationPackages,
+  stageQualificationPackage,
+} from "./registry-qualification-packages.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
-const DOCS_PROTOCOL_PACKAGE_NAME = "@agent-teams/docs-protocol";
+const REGISTRY_QUALIFICATION_PACKAGES = registryQualificationPackages(
+  PUBLISHABLE_PACKAGES,
+);
 const TARGET_PACKAGE_NAMES = new Set(
-  PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
+  REGISTRY_QUALIFICATION_PACKAGES.map((releasePackage) => releasePackage.name),
 );
 const COMMAND_TIMEOUT_MS = 120_000;
 const REGISTRY_SEED_CONCURRENCY = Math.min(4, availableParallelism());
@@ -136,7 +143,7 @@ async function resolveDependencyRoot(fromRoot, dependencyName) {
 async function collectRuntimeDependencyClosure() {
   const collected = new Map();
   const queued = await Promise.all(
-    PUBLISHABLE_PACKAGES.map(async (releasePackage) => {
+    REGISTRY_QUALIFICATION_PACKAGES.map(async (releasePackage) => {
       const root = join(repositoryRoot, releasePackage.root);
       return { root, manifest: await readManifest(root) };
     }),
@@ -175,9 +182,14 @@ async function collectRuntimeDependencyClosure() {
 }
 
 async function createTargetArchive(releasePackage, index) {
-  const packageRoot = join(repositoryRoot, releasePackage.root);
   const destination = join(temporaryRoot, "target", String(index));
   await mkdir(destination, { recursive: true });
+  const packageRoot = await stageQualificationPackage({
+    destination,
+    foundationPackageName: FOUNDATION_PACKAGE_NAME,
+    releasePackage,
+    repositoryRoot,
+  });
   await runPnpm(["pack", "--pack-destination", destination], packageRoot);
   const manifest = await readManifest(packageRoot);
   const archiveName = `${manifest.name.replace("@", "").replace("/", "-")}-${manifest.version}.tgz`;
@@ -523,7 +535,7 @@ async function verifyConsumer(targets, registryUrl) {
 let registry;
 try {
   const targets = await runRegistryPhase("target-archive", () =>
-    Promise.all(PUBLISHABLE_PACKAGES.map(createTargetArchive)),
+    Promise.all(REGISTRY_QUALIFICATION_PACKAGES.map(createTargetArchive)),
   );
   const dependencies = await runRegistryPhase(
     "dependency-closure",

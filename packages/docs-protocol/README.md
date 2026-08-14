@@ -4,6 +4,12 @@ One deterministic documentation UX for Agent Teams repositories. This package
 is a thin application and CLI layer over the versioned mutation kernel exported
 by `@agent-teams/engineering-foundation`.
 
+> **Stage status:** source, API, and disposable-registry qualification are
+> complete, but the production package is intentionally private and is not yet
+> installable from npm. Publication starts only after Foundation 0.17.0-rc.0 and
+> the separate bootstrap in [ADR-0027](../../docs/decisions/0027-staged-docs-protocol-publication.md).
+> The commands below define the future consumer contract.
+
 ## Boundary
 
 - Engineering Foundation owns catalogs, Plan/Apply/Receipt, the single writer,

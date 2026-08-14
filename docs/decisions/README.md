@@ -27,6 +27,7 @@ No proposed decisions.
 - [ADR-0021: Consumer-Owned State Model Axis Topology](0021-consumer-owned-state-model-axis-topology.md)
 - [ADR-0024: Versioned Document Transaction Recovery](0024-versioned-document-transaction-recovery.md)
 - [ADR-0026: Retain-Only Document Directory Materialization](0026-retain-only-document-directory-materialization.md)
+- [ADR-0027: Stage Docs Protocol Publication After Foundation](0027-staged-docs-protocol-publication.md)
 
 ## Superseded
 

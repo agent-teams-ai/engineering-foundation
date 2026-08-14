@@ -284,35 +284,21 @@ test("accepts only an exact stable release when processed main exits prerelease"
   }
 });
 
-test("attests every package section in a multi-package release", async () => {
+test("rejects a Docs Protocol section before the package becomes release-owned", async () => {
   const fixture = await createMultiPackageFixture();
   try {
     const release = await createMultiPackageRelease(fixture.root, fixture.mainA);
-    assert.deepEqual(
-      await violations(
+    assert.match(
+      (
+        await violations(
         fixture.root,
         fixture.mainA,
         fixture.mainA,
         release,
         release.head,
-      ),
-      [],
-    );
-    const missingDocsSection = {
-      ...release,
-      body: release.body.slice(0, release.body.indexOf(`\n\n## ${docsPackageName}@`)),
-    };
-    assert.match(
-      (
-        await violations(
-          fixture.root,
-          fixture.mainA,
-          fixture.mainA,
-          missingDocsSection,
-          release.head,
         )
       ).join("\n"),
-      /all generated changelog entries/u,
+      /does not exactly match all generated changelog entries/u,
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });

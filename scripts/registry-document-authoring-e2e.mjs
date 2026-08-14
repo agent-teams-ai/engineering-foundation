@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   captureFailure,
@@ -106,10 +106,14 @@ async function assertInstalledBoundary(input) {
   const foundationManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert(typeof foundationManifest.exports?.["./document-authoring/qualification"] === "object",
     "Packed Foundation does not declare its closed document-authoring qualification export.");
-  const docsRequire = createRequire(join(docsRoot, "package.json"));
-  assert(await realpath(docsRequire.resolve(`${packageName}/package.json`)) === await realpath(join(packageRoot, "package.json")),
+  const { stdout: resolutionOutput } = await runCommand(process.execPath, [
+    "--input-type=module", "--eval",
+    `const qualification=${JSON.stringify(`${packageName}/document-authoring/qualification`)};const manifest=${JSON.stringify(`${packageName}/package.json`)};const api=await import(qualification);if(typeof api.runDocumentAuthoringCrashQualification!=="function")process.exit(42);process.stdout.write(JSON.stringify({manifest:import.meta.resolve(manifest),qualification:import.meta.resolve(qualification)}));`,
+  ], docsRoot, { timeoutMs });
+  const resolved = JSON.parse(resolutionOutput);
+  assert(await realpath(fileURLToPath(resolved.manifest)) === await realpath(join(packageRoot, "package.json")),
     "Docs Protocol resolves a different physical Foundation package.");
-  assert((await realpath(docsRequire.resolve(`${packageName}/document-authoring/qualification`))).startsWith(`${await realpath(packageRoot)}/`),
+  assert((await realpath(fileURLToPath(resolved.qualification))).startsWith(`${await realpath(packageRoot)}/`),
     "Docs Protocol qualification resolved outside the declared physical Foundation package.");
   await runCommand(process.execPath, [
     "--input-type=module", "--eval",

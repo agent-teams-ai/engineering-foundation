@@ -1,6 +1,7 @@
 {
   "name": "@agent-teams/docs-protocol",
   "version": "0.0.0",
+  "private": true,
   "description": "Unified deterministic documentation authoring protocol for Agent Teams repositories.",
   "license": "Apache-2.0",
   "type": "module",
@@ -36,11 +37,6 @@
   "engines": {
     "node": ">=24.18.0 <25",
     "pnpm": ">=11.17.0 <12"
-  },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true,
-    "registry": "https://registry.npmjs.org/"
   },
   "repository": {
     "type": "git",

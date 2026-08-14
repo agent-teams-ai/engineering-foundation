@@ -131,6 +131,11 @@
       "id": "ADR-0026",
       "path": "docs/decisions/0026-retain-only-document-directory-materialization.md",
       "immutableDigest": "sha256:c77d3f078de99658c402ca48aa58c55f0f41fcf7d97836a88a91afb5dda680f4"
+    },
+    {
+      "id": "ADR-0027",
+      "path": "docs/decisions/0027-staged-docs-protocol-publication.md",
+      "immutableDigest": "sha256:69828e7d88acf267f1476ea17d92d04e714801295bbf35b1fdb3a6a13b40f45e"
     }
   ]
 }

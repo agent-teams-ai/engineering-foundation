@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -426,9 +426,9 @@ async function changesetsFixture(root) {
   });
   await commandShim(root, "npm", {
     posix:
-      "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'npm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nif [ \"$1\" = profile ]; then printf '{}\\n'; exit 0; fi\nif [ \"$1\" = info ]; then exit 0; fi\nif [ \"$1\" = publish ]; then printf '%s' \"$*\" > \"$PUBLISH_MARKER\"; printf '{\"id\":\"foundation\"}\\n'; exit 0; fi\nexit 1\n",
+      "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'npm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nif [ \"$1\" = profile ]; then printf '{}\\n'; exit 0; fi\nif [ \"$1\" = info ]; then exit 0; fi\nif [ \"$1\" = publish ]; then printf '%s\\n' \"$@\" > \"$PUBLISH_MARKER\"; printf '{\"id\":\"foundation\"}\\n'; exit 0; fi\nexit 1\n",
     windows:
-      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo npm %*\r\nif /I \"%~1\"==\"profile\" (echo {}& exit /b 0)\r\nif /I \"%~1\"==\"info\" exit /b 0\r\nif /I \"%~1\"==\"publish\" (<nul set /p \"=%*\" >\"%PUBLISH_MARKER%\"& echo {\"id\":\"foundation\"}& exit /b 0)\r\nexit /b 1\r\n",
+      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo npm %*\r\nif /I \"%~1\"==\"profile\" goto profile\r\nif /I \"%~1\"==\"info\" goto info\r\nif /I \"%~1\"==\"publish\" goto publish\r\nexit /b 1\r\n:profile\r\necho {}\r\nexit /b 0\r\n:info\r\nexit /b 0\r\n:publish\r\ntype nul >\"%PUBLISH_MARKER%\"\r\ncall :recordArgs %*\r\necho {\"id\":\"foundation\"}\r\nexit /b 0\r\n:recordArgs\r\nif \"%~1\"==\"\" exit /b 0\r\n>>\"%PUBLISH_MARKER%\" echo(%~1\r\nshift\r\ngoto recordArgs\r\n",
   });
 }
 
@@ -443,10 +443,16 @@ test("pinned Changesets CLI derives rc and rejects a custom tag in pre mode", as
   assert.match(shimCalls, /^npm "?publish"?\s/mu);
   assert.doesNotMatch(shimCalls, /^pnpm /mu);
   assert.equal(derived.status, 0, `${derived.stdout}\n${derived.stderr}`);
-  assert.match(
-    await readFile(marker, "utf8"),
-    /^"?publish"?\s+.*"?--tag"?\s+"?rc"?(?:\s|$)/u,
-  );
+  const publishArguments = (await readFile(marker, "utf8")).trim().split(/\r?\n/u);
+  assert.deepEqual(publishArguments, [
+    "publish",
+    await realpath(join(root, "packages/engineering-foundation")),
+    "--access",
+    "public",
+    "--tag",
+    "rc",
+    "--json",
+  ]);
   const custom = await runChangesets(root, marker, [
     "publish",
     "--no-git-tag",

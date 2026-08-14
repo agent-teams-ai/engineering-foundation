@@ -14,17 +14,94 @@ import {
 } from "../scripts/check-release-pr-files.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const reviewRouterInteractionRevision =
-  "6b35091c824b1d4d5ee6bf8316121ed08d3e4861";
+const reviewRouterRevision = "b498ac97f38469d213d913f7df28badd163cb439";
 const reviewRouterWorkflowName =
-  "ReviewRouter Codex OAuth [namespace=sns_989e079289b48e859229e5eac4bc322c;epoch=1;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c]";
+  "ReviewRouter Codex OAuth [namespace=sns_2dda7c2cf70bbc98987ac8efe27336ba;epoch=3;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E3_2dda7c2cf70bbc98987ac8efe27336ba]";
 const reviewRouterSecretName =
-  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c";
+  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E3_2dda7c2cf70bbc98987ac8efe27336ba";
 
 async function workflow(name) {
   return parseYaml(
     await readFile(join(repositoryRoot, ".github", "workflows", name), "utf8"),
   );
+}
+
+function assertReviewRouterInteractionRuntime(
+  reviewInteraction,
+  reviewInteractionSource,
+) {
+  const interactionJob = reviewInteraction.jobs.interaction;
+  assert.deepEqual(interactionJob.permissions, {
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+    "id-token": "write",
+  });
+  assert.deepEqual(reviewInteraction.on, {
+    pull_request_review_comment: { types: ["created", "edited"] },
+    issue_comment: { types: ["created", "edited"] },
+    workflow_dispatch: null,
+  });
+  assert.deepEqual(reviewInteraction.permissions, {});
+  assert.equal(
+    interactionJob.if,
+    "${{ github.event_name == 'workflow_dispatch' || ((github.event_name != 'issue_comment' || github.event.issue.pull_request) && github.event.comment.user.type != 'Bot') }}",
+  );
+  assert.equal(interactionJob["runs-on"], "ubuntu-24.04");
+  assert.equal(interactionJob.env.RR_RUNTIME_REF, reviewRouterRevision);
+  assert.equal(interactionJob.env.REVIEWROUTER_RUNTIME_CONFIG_MODE, "oidc");
+  assert.equal(interactionJob.env.REVIEWROUTER_COMMENT_TOKEN_MODE, "app-oidc");
+  assert.equal(interactionJob.env.REVIEW_ROUTER_MEMORY_ENABLED, "true");
+  const interactionCheckout = interactionJob.steps.find(
+    ({ name }) => name === "Checkout ReviewRouter interaction runtime",
+  );
+  const interactionNodeSetup = interactionJob.steps.find(
+    ({ name }) => name === "Setup Node.js",
+  );
+  const interactionPreflight = interactionJob.steps.find(
+    ({ name }) => name === "Preflight ReviewRouter interaction",
+  );
+  const interactionAuthRestore = interactionJob.steps.find(
+    ({ name }) => name === "Restore Codex subscription auth for discussion replies",
+  );
+  const interactionRun = interactionJob.steps.find(
+    ({ name }) => name === "Run ReviewRouter interaction",
+  );
+  assert.equal(
+    interactionCheckout.uses,
+    "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+  );
+  assert.equal(interactionCheckout.with.repository, "777genius/review-router");
+  assert.equal(interactionCheckout.with.ref, "${{ env.RR_RUNTIME_REF }}");
+  assert.equal(interactionCheckout.with["persist-credentials"], false);
+  assert.equal(
+    interactionNodeSetup.uses,
+    "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+  );
+  assert.equal(interactionPreflight.env.REVIEW_ROUTER_MODE, "interaction-preflight");
+  assert.equal(interactionPreflight.run, "node .reviewrouter-runtime/dist/index.js");
+  assert.equal(
+    interactionAuthRestore.env.CODEX_AUTH_JSON,
+    "${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON }}",
+  );
+  assert.match(interactionAuthRestore.run, /chmod 600 "\$CODEX_HOME\/auth\.json"/u);
+  assert.equal(interactionRun.env.REVIEW_ROUTER_MODE, "interaction");
+  assert.equal(interactionRun.run, "node .reviewrouter-runtime/dist/index.js");
+  assert.deepEqual(Object.keys(interactionJob).toSorted(), [
+    "env",
+    "if",
+    "name",
+    "permissions",
+    "runs-on",
+    "steps",
+  ]);
+  assert.match(
+    reviewInteractionSource,
+    /actions\/checkout@d23441a48e516b6c34aea4fa41551a30e30af803/u,
+  );
+  assert.match(reviewInteractionSource, /\.reviewrouter-runtime\/dist\/index\.js/u);
+  assert.match(reviewInteractionSource, /CODEX_HOME\/auth\.json/u);
+  assert.doesNotMatch(reviewInteractionSource, /pnpm (?:install|action-setup)/u);
 }
 
 function assertExactReleaseRunBinding(attestation, release, ci) {
@@ -278,53 +355,9 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     review.jobs["codex-review"].secrets.CODEX_AUTH_JSON,
     "${{ secrets." + reviewRouterSecretName + " }}",
   );
-  assert.deepEqual(reviewInteraction.jobs.interaction.permissions, {
-    actions: "write",
-    contents: "read",
-    issues: "read",
-    "pull-requests": "read",
-    "id-token": "write",
-  });
-  assert.deepEqual(reviewInteraction.on, {
-    pull_request_review_comment: { types: ["created", "edited"] },
-    issue_comment: { types: ["created", "edited"] },
-    workflow_dispatch: null,
-  });
-  assert.deepEqual(reviewInteraction.permissions, {});
-  assert.equal(
-    reviewInteraction.jobs.interaction.if,
-    "${{ github.event_name == 'workflow_dispatch' || ((github.event_name != 'issue_comment' || github.event.issue.pull_request) && github.event.comment.user.type != 'Bot') }}",
-  );
-  assert.equal(
-    reviewInteraction.jobs.interaction.uses,
-    `777genius/review-router/.github/workflows/reviewrouter-interaction-reusable.yml@${reviewRouterInteractionRevision}`,
-  );
-  assert.deepEqual(reviewInteraction.jobs.interaction.with, {
-    runtime_ref: reviewRouterInteractionRevision,
-    runtime_config_mode: "oidc",
-    review_workflow_file: "reviewrouter-codex.yml",
-    discussion_mode: "${{ vars.REVIEW_ROUTER_DISCUSSION_MODE || 'off' }}",
-    discussion_model: "${{ vars.REVIEW_CODEX_MODEL || 'gpt-5.5' }}",
-    discussion_reasoning_effort: "${{ vars.REVIEW_CODEX_EFFORT || 'xhigh' }}",
-    discussion_max_per_pr: "${{ vars.REVIEW_ROUTER_DISCUSSION_MAX_PER_PR || '20' }}",
-    discussion_max_per_thread: "${{ vars.REVIEW_ROUTER_DISCUSSION_MAX_PER_THREAD || '5' }}",
-    discussion_timeout_seconds: "${{ vars.REVIEW_ROUTER_DISCUSSION_TIMEOUT_SECONDS || '60' }}",
-  });
-  assert.deepEqual(reviewInteraction.jobs.interaction.secrets, {
-    REVIEW_ROUTER_LEDGER_KEY: "${{ secrets.REVIEW_ROUTER_LEDGER_KEY }}",
-    CODEX_AUTH_JSON: "${{ secrets.REVIEWROUTER_CODEX_AUTH_JSON }}",
-  });
-  assert.deepEqual(Object.keys(reviewInteraction.jobs.interaction).toSorted(), [
-    "if",
-    "name",
-    "permissions",
-    "secrets",
-    "uses",
-    "with",
-  ]);
-  assert.doesNotMatch(
+  assertReviewRouterInteractionRuntime(
+    reviewInteraction,
     reviewInteractionSource,
-    /actions\/(?:checkout|setup-node)@|\.reviewrouter-runtime|auth\.json|pnpm (?:install|action-setup)/u,
   );
 });
 

@@ -2,7 +2,7 @@ name: Review Gate
 
 on:
   workflow_run: # zizmor: ignore[dangerous-triggers] Default-branch code executes no PR content and verifies App-owned exact-head evidence.
-    workflows: ["ReviewRouter Codex OAuth [namespace=sns_989e079289b48e859229e5eac4bc322c;epoch=1;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c]"]
+    workflows: ["ReviewRouter Codex OAuth [namespace=sns_2dda7c2cf70bbc98987ac8efe27336ba;epoch=3;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E3_2dda7c2cf70bbc98987ac8efe27336ba]"]
     types: [completed]
   repository_dispatch:
     types: [review-gate-recover]

@@ -443,7 +443,10 @@ test("pinned Changesets CLI derives rc and rejects a custom tag in pre mode", as
   assert.match(shimCalls, /^npm "?publish"?\s/mu);
   assert.doesNotMatch(shimCalls, /^pnpm /mu);
   assert.equal(derived.status, 0, `${derived.stdout}\n${derived.stderr}`);
-  assert.match(await readFile(marker, "utf8"), /publish .*--tag rc/u);
+  assert.match(
+    await readFile(marker, "utf8"),
+    /^"?publish"?\s+.*"?--tag"?\s+"?rc"?(?:\s|$)/u,
+  );
   const custom = await runChangesets(root, marker, [
     "publish",
     "--no-git-tag",

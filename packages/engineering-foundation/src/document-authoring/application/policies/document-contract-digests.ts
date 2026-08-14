@@ -156,13 +156,15 @@ function assertV2ParentMaterialization(
     );
   }
   const anchor = materialization["deepestExistingDirectory"];
+  const finalParent = materialization["finalParent"];
   if (typeof anchor !== "string" ||
+    typeof finalParent !== "string" ||
     !missing.every((entry) => typeof entry === "string")) {
     throw new DocumentContractDigestError(
       "Document Plan parent materialization paths are invalid."
     );
   }
-  const finalSegments = String(materialization["finalParent"])
+  const finalSegments = finalParent
     .split("/").filter((segment) => segment !== ".");
   const anchorSegments = anchor.split("/").filter((segment) => segment !== ".");
   const expectedMissing = finalSegments.slice(anchorSegments.length).map(

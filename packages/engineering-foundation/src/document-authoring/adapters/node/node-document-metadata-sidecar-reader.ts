@@ -47,7 +47,11 @@ function projectDocuments(value: unknown): Readonly<Record<string, DocumentMetad
       invalidSidecar(`document path is not portable Markdown: ${path}.`);
     }
     const descriptor = Object.getOwnPropertyDescriptor(value, path);
-    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) {
+    if (
+      descriptor === undefined ||
+      !("value" in descriptor) ||
+      descriptor.enumerable !== true
+    ) {
       invalidSidecar("documents must contain enumerable own data properties.");
     }
     try {

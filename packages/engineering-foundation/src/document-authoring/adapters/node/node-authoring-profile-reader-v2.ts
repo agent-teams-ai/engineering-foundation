@@ -24,10 +24,8 @@ export class NodeAuthoringProfileReaderV2 implements AuthoringProfileReader {
       return Object.freeze({
         artifactOwnerIds: Object.freeze(
           profile.authoring.artifactTypes.map((artifactType) => {
-            const value = artifactType as unknown as Record<string, unknown>;
-            const ids = value["allowedOwnerIds"];
             return Object.freeze({
-              ids: Object.freeze(Array.isArray(ids) ? [...ids] as string[] : []),
+              ids: Object.freeze([...(artifactType.allowedOwnerIds ?? [])]),
               type: artifactType.type
             });
           })

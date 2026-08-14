@@ -1,5 +1,5 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import { canonicalJson, type CanonicalJsonValue } from "../../../canonical-json.js";
+import { canonicalJson } from "../../../canonical-json.js";
 import type {
   DocumentMetadataObject,
   DocumentMetadataValue
@@ -177,7 +177,7 @@ export function projectCatalogMetadata(value: unknown): DocumentMetadataObject {
   if (projected === null || typeof projected !== "object" || Array.isArray(projected)) {
     invalidMetadata("Document metadata root must be an object.");
   }
-  const encoded = canonicalJson(projected as CanonicalJsonValue);
+  const encoded = canonicalJson(projected);
   if (Buffer.byteLength(encoded, "utf8") > MAXIMUM_METADATA_JSON_BYTES) {
     invalidMetadata("Document metadata exceeds the canonical JSON byte budget.");
   }
@@ -197,8 +197,7 @@ export function mergeCatalogMetadata(
     const sidecarValue = merged[key];
     if (
       sidecarValue !== undefined &&
-      canonicalJson(sidecarValue as CanonicalJsonValue) !==
-        canonicalJson(value as CanonicalJsonValue)
+      canonicalJson(sidecarValue) !== canonicalJson(value)
     ) {
       invalidMetadata(`Inline and sidecar metadata conflict at root key ${key}.`);
     }

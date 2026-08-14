@@ -102,7 +102,7 @@ export class NodeMetadataInstanceValidator implements MetadataInstanceValidator 
       schema["required"].every((item) => typeof item === "string")
         ? {
             requiredProperties: Object.freeze(
-              [...new Set(schema["required"] as string[])].toSorted()
+              [...new Set(schema["required"])].toSorted()
             )
           }
         : {}),

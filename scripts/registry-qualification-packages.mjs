@@ -1,4 +1,4 @@
-import { cp, readFile, writeFile } from "node:fs/promises";
+import { copyFile, cp, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
@@ -41,6 +41,10 @@ export async function stageQualificationPackage(input) {
   }
   const stagedRoot = join(input.destination, "disposable-package");
   await cp(sourceRoot, stagedRoot, { recursive: true });
+  await copyFile(
+    join(input.repositoryRoot, "LICENSE"),
+    join(stagedRoot, "LICENSE"),
+  );
   const stagedManifest = await readManifest(stagedRoot);
   if (
     stagedManifest.name !== DOCS_PROTOCOL_PACKAGE_NAME ||

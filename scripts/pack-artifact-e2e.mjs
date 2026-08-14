@@ -80,7 +80,7 @@ function shouldCopyPackagePath(path) {
   return !generatedPackageEntries.has(basename(path));
 }
 
-async function createCleanBuildStage(input, label) {
+export async function createCleanBuildStage(input, label) {
   const stageRoot = join(
     input.temporaryRoot,
     `clean-build-${input.artifactLabel ?? "package"}-${label}`,
@@ -91,12 +91,17 @@ async function createCleanBuildStage(input, label) {
     filter: shouldCopyPackagePath,
     recursive: true
   });
+  await copyFile(join(input.repositoryRoot, "LICENSE"), join(packageRoot, "LICENSE"));
   for (const supportRoot of input.supportPackageRoots ?? []) {
     const stagedSupportRoot = join(stageRoot, "packages", basename(supportRoot));
     await cp(supportRoot, stagedSupportRoot, {
       filter: shouldCopyPackagePath,
       recursive: true,
     });
+    await copyFile(
+      join(input.repositoryRoot, "LICENSE"),
+      join(stagedSupportRoot, "LICENSE"),
+    );
     await symlink(
       join(supportRoot, "node_modules"),
       join(stagedSupportRoot, "node_modules"),

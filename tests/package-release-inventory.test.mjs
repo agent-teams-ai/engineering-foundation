@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -10,7 +10,11 @@ import {
   inspectFoundationPackage,
 } from "../packages/engineering-foundation/dist/package-self-check.js";
 import { FOUNDATION_SCHEMA_IDS } from "../packages/engineering-foundation/dist/schema-ids.js";
-import { assertArchiveListing } from "../scripts/pack-artifact-e2e.mjs";
+import {
+  assertArchiveListing,
+  createCleanBuildStage,
+} from "../scripts/pack-artifact-e2e.mjs";
+import { stageQualificationPackage } from "../scripts/registry-qualification-packages.mjs";
 
 const repositoryPackageRoot = new URL(
   "../packages/engineering-foundation/",
@@ -49,6 +53,82 @@ test("tarball inventory rejects any source or unallowlisted release file", () =>
     () => assertArchiveListing(`${base}\npackage/src/private.ts\n`, FOUNDATION_REQUIRED_ARTIFACT_PATHS),
     /Forbidden package entry/u,
   );
+});
+
+test("clean checkout package stages materialize the repository license", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-clean-package-stage-"));
+  try {
+    const packageRoot = join(root, "packages", "qualified-package");
+    const supportRoot = join(root, "packages", "support-package");
+    const temporaryRoot = join(root, "temporary");
+    await Promise.all([
+      mkdir(join(packageRoot, "node_modules"), { recursive: true }),
+      mkdir(join(supportRoot, "node_modules"), { recursive: true }),
+      mkdir(temporaryRoot, { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(join(root, "LICENSE"), "canonical repository license\n"),
+      writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n"),
+      writeFile(join(packageRoot, "package.json"), '{"name":"qualified-package"}\n'),
+      writeFile(join(supportRoot, "package.json"), '{"name":"support-package"}\n'),
+    ]);
+
+    const stage = await createCleanBuildStage({
+      artifactLabel: "clean-checkout",
+      packageRoot,
+      repositoryRoot: root,
+      runBuild: async () => {},
+      supportPackageRoots: [supportRoot],
+      temporaryRoot,
+    }, "a");
+
+    assert.equal(
+      await readFile(join(stage.packageRoot, "LICENSE"), "utf8"),
+      "canonical repository license\n",
+    );
+    assert.equal(
+      await readFile(join(stage.stageRoot, "packages", "support-package", "LICENSE"), "utf8"),
+      "canonical repository license\n",
+    );
+
+    const docsRoot = join(root, "packages", "docs-protocol");
+    const foundationRoot = join(root, "packages", "engineering-foundation");
+    await Promise.all([
+      mkdir(docsRoot, { recursive: true }),
+      mkdir(foundationRoot, { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(
+        join(docsRoot, "package.json"),
+        `${JSON.stringify({
+          name: "@agent-teams/docs-protocol",
+          version: "0.0.0",
+          private: true,
+          dependencies: { "@agent-teams/engineering-foundation": "workspace:*" },
+        })}\n`,
+      ),
+      writeFile(
+        join(foundationRoot, "package.json"),
+        '{"name":"@agent-teams/engineering-foundation","version":"0.17.0-rc.0"}\n',
+      ),
+    ]);
+    const disposableRoot = await stageQualificationPackage({
+      destination: join(temporaryRoot, "registry"),
+      foundationPackageName: "@agent-teams/engineering-foundation",
+      releasePackage: {
+        name: "@agent-teams/docs-protocol",
+        qualificationOnly: true,
+        root: "packages/docs-protocol",
+      },
+      repositoryRoot: root,
+    });
+    assert.equal(
+      await readFile(join(disposableRoot, "LICENSE"), "utf8"),
+      "canonical repository license\n",
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test("package self-check rejects a symlinked required artifact", async () => {

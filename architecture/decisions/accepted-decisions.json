@@ -135,7 +135,7 @@
     {
       "id": "ADR-0027",
       "path": "docs/decisions/0027-staged-docs-protocol-publication.md",
-      "immutableDigest": "sha256:69828e7d88acf267f1476ea17d92d04e714801295bbf35b1fdb3a6a13b40f45e"
+      "immutableDigest": "sha256:ba3e44fd327af90140d56c9ae6ffaa13cab8826e6048d881fd8ab0d87f8b17c0"
     }
   ]
 }

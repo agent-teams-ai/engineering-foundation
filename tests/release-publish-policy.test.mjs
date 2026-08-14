@@ -392,7 +392,7 @@ async function fixture(root, registry) {
     posix:
       "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'pnpm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nprintf '%s' \"$*\" > \"$PUBLISH_MARKER\"\n",
     windows:
-      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo pnpm %*\r\n<nul set /p =%* > \"%PUBLISH_MARKER%\"\r\nexit /b 0\r\n",
+      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo pnpm %*\r\n<nul set /p \"=%*\" >\"%PUBLISH_MARKER%\"\r\nexit /b 0\r\n",
   });
 }
 
@@ -428,7 +428,7 @@ async function changesetsFixture(root) {
     posix:
       "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'npm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nif [ \"$1\" = profile ]; then printf '{}\\n'; exit 0; fi\nif [ \"$1\" = info ]; then exit 0; fi\nif [ \"$1\" = publish ]; then printf '%s' \"$*\" > \"$PUBLISH_MARKER\"; printf '{\"id\":\"foundation\"}\\n'; exit 0; fi\nexit 1\n",
     windows:
-      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo npm %*\r\nif \"%1\"==\"profile\" (echo {}& exit /b 0)\r\nif \"%1\"==\"info\" exit /b 0\r\nif \"%1\"==\"publish\" (<nul set /p =%* > \"%PUBLISH_MARKER%\"& echo {\"id\":\"foundation\"}& exit /b 0)\r\nexit /b 1\r\n",
+      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo npm %*\r\nif /I \"%~1\"==\"profile\" (echo {}& exit /b 0)\r\nif /I \"%~1\"==\"info\" exit /b 0\r\nif /I \"%~1\"==\"publish\" (<nul set /p \"=%*\" >\"%PUBLISH_MARKER%\"& echo {\"id\":\"foundation\"}& exit /b 0)\r\nexit /b 1\r\n",
   });
 }
 

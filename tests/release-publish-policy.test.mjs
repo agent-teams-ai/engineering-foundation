@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -203,6 +203,11 @@ async function commandShim(root, name, { posix, windows }, platform = process.pl
   const isWindows = platform === "win32";
   const path = join(root, "bin", `${name}${isWindows ? ".cmd" : ""}`);
   await mkdir(dirname(path), { recursive: true });
+  await mkdir(join(root, "home"), { recursive: true });
+  await Promise.all([
+    writeFile(join(root, "home", "global.npmrc"), ""),
+    writeFile(join(root, "home", "user.npmrc"), ""),
+  ]);
   await writeFile(path, isWindows ? windows : posix);
   if (!isWindows) {
     await chmod(path, 0o755);
@@ -216,20 +221,25 @@ function commandEnvironment(
   platform = process.platform,
   baseEnvironment = process.env,
 ) {
-  const inheritedPath = Object.entries(baseEnvironment)
-    .find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
   const environment = Object.fromEntries(
     Object.entries(baseEnvironment).filter(([key]) => {
       const normalized = key.toLowerCase();
-      return normalized !== "path" && !normalized.startsWith("npm_") &&
+      return !["home", "homedrive", "homepath", "path", "pathext", "userprofile"].includes(normalized) &&
+        !normalized.startsWith("npm_") &&
         !normalized.startsWith("pnpm_") && !normalized.startsWith("corepack_");
     }),
   );
-  const pathDelimiter = platform === "win32" ? ";" : delimiter;
-  environment[platform === "win32" ? "Path" : "PATH"] =
-    `${join(root, "bin")}${pathDelimiter}${inheritedPath}`;
+  const isolatedHome = join(root, "home");
+  environment[platform === "win32" ? "Path" : "PATH"] = join(root, "bin");
   environment.COMMAND_SHIM_MARKER = join(root, "command-shim.marker");
+  environment.HOME = isolatedHome;
+  environment.NPM_CONFIG_GLOBALCONFIG = join(isolatedHome, "global.npmrc");
+  environment.NPM_CONFIG_USERCONFIG = join(isolatedHome, "user.npmrc");
+  if (platform === "win32") {
+    environment.PATHEXT = ".COM;.EXE;.BAT;.CMD";
+  }
   environment.PUBLISH_MARKER = publishMarker;
+  environment.USERPROFILE = isolatedHome;
   return environment;
 }
 
@@ -240,17 +250,34 @@ test("canonicalizes Windows PATH and removes inherited package-manager routing",
     "win32",
     {
       COREPACK_HOME: "C:\\corepack",
+      HOME: "C:\\real-home",
+      HOMEDRIVE: "C:",
+      HOMEPATH: "\\real-home",
       npm_config_user_agent: "pnpm/10",
       npm_execpath: "C:\\real\\npm-cli.js",
       PATH: "C:\\wrong",
       Path: "C:\\inherited",
+      pathext: ".EXE",
       SAFE_VALUE: "kept",
+      USERPROFILE: "C:\\real-profile",
     },
   );
   assert.deepEqual(Object.keys(environment).filter((key) => key.toLowerCase() === "path"), ["Path"]);
-  assert.equal(environment.Path, `${join("C:\\fixture", "bin")};C:\\wrong`);
+  assert.equal(environment.Path, join("C:\\fixture", "bin"));
+  assert.deepEqual(Object.keys(environment).filter((key) => key.toLowerCase() === "pathext"), ["PATHEXT"]);
+  assert.equal(environment.PATHEXT, ".COM;.EXE;.BAT;.CMD");
+  assert.equal(environment.HOME, join("C:\\fixture", "home"));
+  assert.equal(environment.USERPROFILE, environment.HOME);
+  assert.equal(environment.HOMEDRIVE, undefined);
+  assert.equal(environment.HOMEPATH, undefined);
+  assert.equal(environment.NPM_CONFIG_USERCONFIG, join(environment.HOME, "user.npmrc"));
+  assert.equal(environment.NPM_CONFIG_GLOBALCONFIG, join(environment.HOME, "global.npmrc"));
   assert.equal(environment.SAFE_VALUE, "kept");
-  assert.equal(Object.keys(environment).some((key) => /^(?:npm|pnpm|corepack)_/iu.test(key)), false);
+  assert.equal(
+    Object.keys(environment).some((key) =>
+      /^(?:pnpm|corepack)_/iu.test(key) || (/^npm_/iu.test(key) && !/npm_config_(?:user|global)config/iu.test(key))),
+    false,
+  );
 });
 
 test("creates one platform-native command shim without a shadowing extensionless file", async (t) => {

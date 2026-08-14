@@ -210,6 +210,49 @@ async function commandShim(root, name, { posix, windows }, platform = process.pl
   return path;
 }
 
+function commandEnvironment(
+  root,
+  publishMarker,
+  platform = process.platform,
+  baseEnvironment = process.env,
+) {
+  const inheritedPath = Object.entries(baseEnvironment)
+    .find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
+  const environment = Object.fromEntries(
+    Object.entries(baseEnvironment).filter(([key]) => {
+      const normalized = key.toLowerCase();
+      return normalized !== "path" && !normalized.startsWith("npm_") &&
+        !normalized.startsWith("pnpm_") && !normalized.startsWith("corepack_");
+    }),
+  );
+  const pathDelimiter = platform === "win32" ? ";" : delimiter;
+  environment[platform === "win32" ? "Path" : "PATH"] =
+    `${join(root, "bin")}${pathDelimiter}${inheritedPath}`;
+  environment.COMMAND_SHIM_MARKER = join(root, "command-shim.marker");
+  environment.PUBLISH_MARKER = publishMarker;
+  return environment;
+}
+
+test("canonicalizes Windows PATH and removes inherited package-manager routing", () => {
+  const environment = commandEnvironment(
+    "C:\\fixture",
+    "C:\\publish.marker",
+    "win32",
+    {
+      COREPACK_HOME: "C:\\corepack",
+      npm_config_user_agent: "pnpm/10",
+      npm_execpath: "C:\\real\\npm-cli.js",
+      PATH: "C:\\wrong",
+      Path: "C:\\inherited",
+      SAFE_VALUE: "kept",
+    },
+  );
+  assert.deepEqual(Object.keys(environment).filter((key) => key.toLowerCase() === "path"), ["Path"]);
+  assert.equal(environment.Path, `${join("C:\\fixture", "bin")};C:\\wrong`);
+  assert.equal(environment.SAFE_VALUE, "kept");
+  assert.equal(Object.keys(environment).some((key) => /^(?:npm|pnpm|corepack)_/iu.test(key)), false);
+});
+
 test("creates one platform-native command shim without a shadowing extensionless file", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "foundation-command-shim-"));
   t.after(() => rm(root, { force: true, recursive: true }));
@@ -228,11 +271,7 @@ async function runRelease(root, marker) {
   return await new Promise((resolve) => {
     const child = spawn(process.execPath, [releaseScript], {
       cwd: root,
-      env: {
-        ...process.env,
-        PATH: `${join(root, "bin")}${delimiter}${process.env.PATH}`,
-        PUBLISH_MARKER: marker,
-      },
+      env: commandEnvironment(root, marker),
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -253,11 +292,7 @@ async function runChangesets(root, marker, arguments_) {
   return await new Promise((resolve) => {
     const child = spawn(process.execPath, [changesetsCli, ...arguments_], {
       cwd: root,
-      env: {
-        ...process.env,
-        PATH: `${join(root, "bin")}${delimiter}${process.env.PATH}`,
-        PUBLISH_MARKER: marker,
-      },
+      env: commandEnvironment(root, marker),
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -297,20 +332,23 @@ async function fixture(root, registry) {
   await writeFile(join(root, ".changeset/README.md"), "metadata\n");
   await json(join(root, ".changeset/pre.json"), freshPreState);
   await commandShim(root, "pnpm", {
-    posix: "#!/bin/sh\nprintf '%s' \"$*\" > \"$PUBLISH_MARKER\"\n",
-    windows: "@echo off\r\n<nul set /p =%* > \"%PUBLISH_MARKER%\"\r\n",
+    posix:
+      "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'pnpm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nprintf '%s' \"$*\" > \"$PUBLISH_MARKER\"\n",
+    windows:
+      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo pnpm %*\r\n<nul set /p =%* > \"%PUBLISH_MARKER%\"\r\n",
   });
 }
 
 async function changesetsFixture(root) {
   await json(join(root, "package.json"), {
     name: "release-fixture",
+    packageManager: "npm@11.16.0",
     private: true,
     workspaces: ["packages/*"],
   });
   await json(join(root, "packages/engineering-foundation/package.json"), {
     name: foundation.name,
-    publishConfig: { access: "public" },
+    publishConfig: { access: "public", registry: "http://127.0.0.1:9/" },
     version: "0.17.0-rc.0",
   });
   await json(join(root, ".changeset/config.json"), {
@@ -331,9 +369,9 @@ async function changesetsFixture(root) {
   });
   await commandShim(root, "npm", {
     posix:
-      "#!/bin/sh\nif [ \"$1\" = profile ]; then printf '{}\\n'; exit 0; fi\nif [ \"$1\" = info ]; then exit 0; fi\nif [ \"$1\" = publish ]; then printf '%s' \"$*\" > \"$PUBLISH_MARKER\"; printf '{\"id\":\"foundation\"}\\n'; exit 0; fi\nexit 1\n",
+      "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'npm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nif [ \"$1\" = profile ]; then printf '{}\\n'; exit 0; fi\nif [ \"$1\" = info ]; then exit 0; fi\nif [ \"$1\" = publish ]; then printf '%s' \"$*\" > \"$PUBLISH_MARKER\"; printf '{\"id\":\"foundation\"}\\n'; exit 0; fi\nexit 1\n",
     windows:
-      "@echo off\r\nif \"%1\"==\"profile\" (echo {}& exit /b 0)\r\nif \"%1\"==\"info\" exit /b 0\r\nif \"%1\"==\"publish\" (<nul set /p =%* > \"%PUBLISH_MARKER%\"& echo {\"id\":\"foundation\"}& exit /b 0)\r\nexit /b 1\r\n",
+      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo npm %*\r\nif \"%1\"==\"profile\" (echo {}& exit /b 0)\r\nif \"%1\"==\"info\" exit /b 0\r\nif \"%1\"==\"publish\" (<nul set /p =%* > \"%PUBLISH_MARKER%\"& echo {\"id\":\"foundation\"}& exit /b 0)\r\nexit /b 1\r\n",
   });
 }
 
@@ -343,6 +381,10 @@ test("pinned Changesets CLI derives rc and rejects a custom tag in pre mode", as
   t.after(() => rm(root, { force: true, recursive: true }));
   await changesetsFixture(root);
   const derived = await runChangesets(root, marker, ["publish", "--no-git-tag"]);
+  const shimCalls = await readFile(join(root, "command-shim.marker"), "utf8");
+  assert.match(shimCalls, /^npm info @agent-teams\/engineering-foundation /mu);
+  assert.match(shimCalls, /^npm publish /mu);
+  assert.doesNotMatch(shimCalls, /^pnpm /mu);
   assert.equal(derived.status, 0, `${derived.stdout}\n${derived.stderr}`);
   assert.match(await readFile(marker, "utf8"), /publish .*--tag rc/u);
   const custom = await runChangesets(root, marker, [
@@ -616,4 +658,8 @@ test("real release entrypoint proves multi-package registry state and fails clos
   );
   assert.equal(publish.result.status, 0);
   assert.equal(await readFile(publish.marker, "utf8"), "changeset publish");
+  assert.match(
+    await readFile(join(publish.root, "command-shim.marker"), "utf8"),
+    /^pnpm changeset publish$/mu,
+  );
 });

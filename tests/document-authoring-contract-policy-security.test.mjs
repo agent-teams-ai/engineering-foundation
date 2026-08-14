@@ -71,11 +71,11 @@ test("enforces the closed v3 lifecycle matrix and physical publication identity"
   await assert.rejects(createDocumentTransactionEnvelope(body("PREPARED", {
     destination: { path: fixture.plan.destination, state: "pending" },
     publicationIdentity: identity,
-  })), /closed v3 schema/u);
+  })), /closed versioned schema/u);
   await assert.rejects(createDocumentTransactionEnvelope(body("PUBLISHED", {
     destination: { path: fixture.plan.destination, state: "published" },
     publicationIdentity: { ...identity, ino: "0" },
-  })), /closed v3 schema/u);
+  })), /closed versioned schema/u);
   await assert.rejects(createDocumentTransactionEnvelope(body("PUBLISHING", {
     destination: { path: fixture.plan.destination, state: "publishing" },
     ownedTemporary: {

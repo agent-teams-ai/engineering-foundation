@@ -79,6 +79,6 @@ test("rejects envelope tampering and cross-state lifecycle aliases", async () =>
         ...preparedBody(),
         state: "PUBLISHING",
       }),
-    /closed v3 schema|lifecycle|temporary/u,
+    /closed versioned schema|lifecycle|temporary/u,
   );
 });

@@ -16,8 +16,6 @@ import {
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const reviewRouterInteractionRevision =
   "6b35091c824b1d4d5ee6bf8316121ed08d3e4861";
-const reviewRouterWorkflowName =
-  "ReviewRouter Codex OAuth [namespace=sns_989e079289b48e859229e5eac4bc322c;epoch=1;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c]";
 const reviewRouterSecretName =
   "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E1_989e079289b48e859229e5eac4bc322c";
 
@@ -149,16 +147,14 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     releaseBinding.run.indexOf("check-release-pr-files.mjs") <
       releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
-  assert.deepEqual(reviewGate.on.workflow_run.workflows, [reviewRouterWorkflowName]);
+  assert.equal(reviewGate.on.status, null);
+  assert.equal(reviewGate.on.workflow_run, undefined);
   assert.deepEqual(reviewGate.on.repository_dispatch.types, ["review-gate-recover"]);
   assert.equal(
     reviewGate.jobs["review-gate"].if,
-    "${{ (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request_target') || github.event.action == 'review-gate-recover' }}",
+    "${{ (github.event_name == 'status' && github.event.context == 'ReviewRouter' && github.event.state == 'success' && github.event.creator.id == 281702430) || github.event.action == 'review-gate-recover' }}",
   );
-  assert.match(
-    reviewGateSource,
-    /workflow_run: # zizmor: ignore\[dangerous-triggers\].*executes no PR content/u,
-  );
+  assert.doesNotMatch(reviewGateSource, /workflow_run:/u);
   assert.equal(reviewGateSteps.length, 1);
   assert.equal(reviewGateSteps[0].uses, undefined);
   assert.equal(reviewGate.jobs["review-gate"].permissions.actions, "read");
@@ -182,9 +178,15 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   );
   assert.equal(
     reviewGateSteps[0].env.REVIEW_RUN_ID,
-    "${{ github.event.workflow_run.id || github.event.client_payload.review_run_id }}",
+    "${{ github.event.client_payload.review_run_id }}",
   );
-  assert.match(reviewGateSteps[0].run, /REVIEW_RUN_ID.*\^\[1-9\]\[0-9\]\*\$/u);
+  assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_TARGET_URL, "${{ github.event.target_url }}");
+  assert.match(reviewGateSteps[0].run, /review_run_id.*\^\[1-9\]\[0-9\]\*\$/u);
+  assert.match(reviewGateSteps[0].run, /REVIEW_STATUS_CREATOR_ID.*REVIEWROUTER_APP_BOT_ID/u);
+  assert.match(reviewGateSteps[0].run, /expected_run_url_prefix/u);
+  assert.match(reviewGateSteps[0].run, /for attempt in \{1\.\.12\}/u);
+  assert.match(reviewGateSteps[0].run, /run_status.*completed/su);
+  assert.match(reviewGateSteps[0].run, /run_head_sha.*REVIEW_STATUS_SHA/u);
   assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
   assert.match(reviewGateSteps[0].run, /run_event\}" != "pull_request_target"/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);

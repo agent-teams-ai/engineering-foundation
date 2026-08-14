@@ -9,7 +9,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { availableParallelism, tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,11 +21,13 @@ import {
   runNpmCommand,
 } from "./pack-test-support.mjs";
 import { registryPublishArguments } from "./registry-publication-policy.mjs";
+import { seedRegistryInParallel } from "./registry-seed-scheduler.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const COMMAND_TIMEOUT_MS = 120_000;
+const REGISTRY_SEED_CONCURRENCY = Math.min(4, availableParallelism());
 const REGISTRY_TOKEN_ENVIRONMENT_KEY = "FOUNDATION_REGISTRY_E2E_TOKEN";
 const USER_CONFIG_ENVIRONMENT_KEY = "NPM_CONFIG_USERCONFIG";
 const repositoryRoot = resolvePath(fileURLToPath(new URL("..", import.meta.url)));
@@ -269,14 +271,13 @@ async function publishArchive(archivePath, registryUrl, version) {
 }
 
 async function seedRegistry(dependencies, registryUrl) {
-  for (let index = 0; index < dependencies.length; index += 1) {
-    const archivePath = await packPackage(dependencies[index], index);
-    await publishArchive(
-      archivePath,
-      registryUrl,
-      dependencies[index].manifest.version,
-    );
-  }
+  await seedRegistryInParallel({
+    concurrency: REGISTRY_SEED_CONCURRENCY,
+    dependencies,
+    packPackage,
+    publishArchive,
+    registryUrl,
+  });
 }
 
 async function verifyInstalledBufQualifier(installedRoot) {

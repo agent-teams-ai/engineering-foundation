@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "tests": [
+    "tests/capability.test.mjs",
+    "tests/check-report-contract-conformance.test.mjs",
+    "tests/cli.test.mjs",
+    "tests/package-release-inventory.test.mjs",
+    "tests/release-workflow.test.mjs",
+    "tests/repository-security-hardening.test.mjs",
+    "tests/scaffolding-frozen-baseline.test.mjs",
+    "tests/source-dependency-graph.test.mjs"
+  ]
+}

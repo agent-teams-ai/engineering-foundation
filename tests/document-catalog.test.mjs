@@ -511,22 +511,19 @@ test("catalog output is permutation invariant", async () => {
   assert.deepEqual(right, left);
 });
 
-test("qualifies pure catalog projections at 100, 1,000, and 5,000 documents", async (context) => {
-  for (const count of [100, 1_000, 5_000]) {
+test("qualifies pure catalog projections without performance timing", async (context) => {
+  for (const count of [3, 100]) {
     await context.test(`${count} documents`, async () => {
       const documents = Array.from({ length: count }, (_, index) => {
         const sequence = String(index).padStart(5, "0");
         return observedDocument(`docs/${sequence}.md`, `guide.${sequence}`);
       });
-      const started = performance.now();
       const snapshot = await fakeBuilder(documents).execute({
         consumerRoot: "/fixture",
         profilePath: "document-authoring.yaml",
       });
-      const elapsedMilliseconds = performance.now() - started;
       assert.equal(snapshot.status, "complete");
       assert.equal(snapshot.documents.length, count);
-      assert.equal(Number.isFinite(elapsedMilliseconds), true);
     });
   }
 });
@@ -547,8 +544,13 @@ async function writeDocumentCorpus(root, count) {
   }
 }
 
-test("collects cold and warm filesystem benchmarks at 100, 1,000, and 5,000 documents", async (context) => {
-  for (const count of [100, 1_000, 5_000]) {
+const advisoryTest = process.env.FOUNDATION_PERFORMANCE === "1" ? test : test.skip;
+const performanceDocumentCounts = process.env.FOUNDATION_PERFORMANCE_COUNTS === undefined
+  ? [100, 1_000, 5_000]
+  : process.env.FOUNDATION_PERFORMANCE_COUNTS.split(",").map(Number);
+
+advisoryTest("collects advisory cold and warm filesystem benchmarks at 100, 1,000, and 5,000 documents", async (context) => {
+  for (const count of performanceDocumentCounts) {
     await context.test(`${count} documents`, async (subtest) => {
       const root = await createConsumer();
       try {
@@ -566,9 +568,14 @@ test("collects cold and warm filesystem benchmarks at 100, 1,000, and 5,000 docu
         assert.equal(cold.status, "complete");
         assert.equal(cold.documents.length, count);
         assert.deepEqual(warm, cold);
-        subtest.diagnostic(
-          `catalog benchmark ${count}: cold=${coldMilliseconds.toFixed(1)}ms warm=${warmMilliseconds.toFixed(1)}ms`,
-        );
+        subtest.diagnostic(`FOUNDATION_BENCHMARK ${JSON.stringify({
+          benchmark: "document-catalog-filesystem",
+          count,
+          measurements: {
+            coldMilliseconds,
+            warmMilliseconds,
+          },
+        })}`);
       } finally {
         await rm(root, { recursive: true, force: true });
       }

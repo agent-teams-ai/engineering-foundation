@@ -18,7 +18,7 @@
     "check": "pnpm lint && pnpm typecheck && pnpm foundation:check:built && pnpm release-owned-files:check && pnpm architecture:patterns && pnpm architecture:patterns:test && pnpm nx:graph:check && pnpm test:built && pnpm test:coverage:built && pnpm package:check:built",
     "verify": "pnpm security:workflows && pnpm check && pnpm buf-qualification:e2e:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e && pnpm dead-code:check && pnpm parser-spike:check",
     "check:changed": "pnpm build && agent-teams-foundation agent-workflow changed --consumer .",
-    "check:fast": "pnpm lint:fast && pnpm typecheck",
+    "check:fast": "pnpm test:manifests:check && pnpm lint:fast && pnpm typecheck",
     "changeset": "changeset",
     "changeset:coverage": "node scripts/check-changeset-coverage.mjs",
     "clean": "node scripts/clean.mjs",
@@ -46,9 +46,12 @@
     "release:version": "changeset version && pnpm build && node packages/engineering-foundation/dist/cli.js public-api-promote-release --consumer .",
     "spike:source-parser": "pnpm --filter @agent-teams/source-dependency-parser-spike run spike",
     "test": "pnpm build && pnpm test:built",
-    "test:built": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "test:built": "pnpm test:manifests:check && node --test --test-concurrency=1 tests/*.test.mjs",
     "test:coverage": "pnpm build && pnpm test:coverage:built",
-    "test:coverage:built": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include='packages/engineering-foundation/dist/**/*.js' --test-coverage-exclude='packages/engineering-foundation/dist/**/*.d.ts' --test-coverage-lines=36 --test-coverage-branches=67 --test-coverage-functions=42 tests/capability.test.mjs tests/check-report-contract-conformance.test.mjs tests/cli.test.mjs tests/package-release-inventory.test.mjs tests/release-workflow.test.mjs tests/repository-security-hardening.test.mjs tests/scaffolding-frozen-baseline.test.mjs tests/source-dependency-graph.test.mjs tests/source-dependency-symlink-safety.test.mjs tests/workspace-inventory-reader.test.mjs",
+    "test:coverage:built": "node scripts/run-test-coverage.mjs",
+    "test:manifests:check": "node scripts/check-test-manifests.mjs",
+    "test:performance:built": "node scripts/run-performance-benchmarks.mjs",
+    "test:shard:built": "node scripts/run-test-shard.mjs",
     "typecheck": "tsc --build tsconfig.json --pretty false"
   },
   "devDependencies": {

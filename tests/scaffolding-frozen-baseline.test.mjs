@@ -309,8 +309,18 @@ test("keeps packed and registry-install qualification wired", async () => {
     ),
     /sha512-LWey96bQBwA\/91eD1T9pZRKrNUPlAt\/8NEOQ5gnWfW6Mzs\+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==/u,
   );
-  assert.match(
-    await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
-    /pnpm verify/u,
+  const ciSource = await readFile(
+    join(repositoryRoot, ".github", "workflows", "ci.yml"),
+    "utf8",
   );
+  for (const requiredLane of [
+    "linux-static",
+    "linux-coverage",
+    "linux-package",
+    "linux-registry",
+    "linux-published",
+  ]) {
+    assert.match(ciSource, new RegExp(`  ${requiredLane}:`, "u"));
+  }
+  assert.match(ciSource, /uses: re-actors\/alls-green@[a-f0-9]{40}/u);
 });

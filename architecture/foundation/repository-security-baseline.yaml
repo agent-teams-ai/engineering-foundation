@@ -21,6 +21,8 @@ allowedUses:
     transitiveUses: []
   - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
     transitiveUses: []
+  - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+    transitiveUses: []
   - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
     transitiveUses: []
   - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d
@@ -30,6 +32,8 @@ allowedUses:
   - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3
     transitiveUses: []
   - uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9
+    transitiveUses: []
+  - uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030
     transitiveUses: []
 privilegedJobs:
   - workflowPath: .github/workflows/codeql.yml

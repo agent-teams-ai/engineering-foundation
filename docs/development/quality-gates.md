@@ -11,20 +11,21 @@ weakening the merge gate.
 | Layer | Command | Purpose |
 | --- | --- | --- |
 | Changed | `pnpm check:changed` | Foundation-routed checks for the current Git delta |
-| Fast | `pnpm check:fast` | Oxlint syntax/correctness plus pinned TypeScript 7 |
+| Fast | `pnpm check:fast` | Fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
 | Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor qualification for all workflows and local actions |
 | Buf qualification E2E | `pnpm buf-qualification:e2e` | Real pinned Buf `FILE` compatible, breaking and fabricated-evidence scenarios |
 | Patterns | `pnpm architecture:patterns` | Consumer-owned deterministic AST prohibitions |
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
-| Merge-ready | `pnpm verify` | The complete Linux merge lane, including external tool and registry qualification |
+| Merge-ready | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
 | Coverage | `pnpm test:coverage` | Stable native Node coverage qualification with line, branch, and function thresholds |
+| Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
 
 `pnpm check` is the deterministic repository and package conformance layer. It
 does not claim networked, hosted, or external-tool qualification. `pnpm verify`
-is the single local command matching the Linux merge lane: workflow security,
-the deterministic check, Buf, hermetic registry installation, published-version
+is the single local command matching the union of Linux merge lanes: workflow
+security, the deterministic check, Buf, hermetic registry installation, published-version
 compatibility, dead-code analysis, and parser parity.
 
 Coverage instrumentation runs a stable cross-layer qualification set separately
@@ -32,6 +33,29 @@ from process timing, crash, and exhaustive compatibility tests. The normal full
 suite remains mandatory; this separation prevents instrumentation overhead from
 changing process-timeout semantics while still enforcing production-code
 coverage floors.
+
+Required CI executes the same evidence as independent jobs. Linux uses four
+checked-in weighted test shards; Windows combines the same manifest into two
+sequential shards. Package, registry, published-version, coverage, and static
+qualification run in parallel checkouts. The stable required contexts `check`
+and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, or
+missing prerequisite fails the required context. Every executable pull request
+job depends directly on Dependency Review.
+
+`tests/manifests/test-shards.v1.json` is the closed inventory of top-level test
+files. `pnpm test:manifests:check` rejects missing, extra, duplicate, nested,
+non-portable, or symlinked entries and rejects missing coverage tests. Add or
+rename a test and update the manifest in the same change. Keep
+`--test-concurrency=1` inside a shard because recovery tests intentionally share
+process and filesystem assumptions.
+
+The scheduled `Performance signals` workflow records benchmark JSON and a Job
+Summary, but has no absolute blocking threshold. The separate read-only `CI
+feedback` observer reads completed-run metadata from the GitHub API, reports the
+slowest lanes, and retains a source-bound JSON artifact for 30 days. It checks
+out only the protected default-branch observer code, never pull request code.
+Cancelled obsolete runs remain normal: agents should use `check:changed`, then
+`check:fast`, and run `verify` once before handoff rather than after every edit.
 
 Knip is blocking in the Linux CI job but is not repeated by Windows or the fast
 local loop. Nx supplies project discovery, affected builds, and caching; it does
@@ -48,9 +72,9 @@ precondition, and the Windows CI job does not invoke this gate. Aqua then
 enforces the committed registry and tool checksums in `aqua.yaml` and
 `aqua-checksums.json`. Actionlint discovers all workflow YAML files without a
 shell glob; Zizmor scans the repository root with strict collection, including
-local composite actions outside `.github`. Dependency Review runs inside the
-existing required Linux `check` job, so it cannot become an optional parallel
-status. CodeQL runs as a separate hosted analysis; none of these tools execute
+local composite actions outside `.github`. Dependency Review is a direct
+prerequisite of every executable pull request job and is included by both
+required aggregators. CodeQL runs as a separate hosted analysis; none of these tools execute
 inside a normal capability check.
 
 ## Dependency updates
@@ -121,8 +145,7 @@ normal capability and package checks are intentionally process-free. The E2E
 proves compatible and breaking `FILE` behavior plus rejection of modified
 committed evidence after a fresh Buf rerun.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI
-also emits an SPDX JSON SBOM and runs Dependency Review inside its required
-`check` job.
+also emits an SPDX JSON SBOM after Dependency Review succeeds.
 
 That tarball check qualifies package contents and packed-consumer behavior, but
 does not prove publication through an npm-compatible registry. Release runs a

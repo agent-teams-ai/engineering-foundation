@@ -18,7 +18,13 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { runFoundationCheck } from "../packages/engineering-foundation/dist/check-runner.js";
+import { CAPABILITY_REGISTRY } from "../packages/engineering-foundation/dist/composition/capability-registry.js";
+import {
+  RULE_REGISTRIES,
+  RULE_REGISTRY,
+} from "../packages/engineering-foundation/dist/composition/rule-registry.js";
 import { isExactVersion } from "../packages/engineering-foundation/dist/semantic-version.js";
+import { createUniqueRegistry } from "../packages/engineering-foundation/dist/unique-registry.js";
 import {
   acceptedAdrHistoryViolations,
   acceptedAdrHistoryViolationsAtMergeBase,
@@ -37,6 +43,48 @@ test("accepts only exact SemVer versions", () => {
   assert.equal(isExactVersion("1.0.0-rc.4+build.7"), true);
   assert.equal(isExactVersion("1.0.0-01"), false);
   assert.equal(isExactVersion("1.0.0-."), false);
+});
+
+test("keeps schema, capability, rule, and explain registries drift-free", async () => {
+  const foundationConfigSchema = JSON.parse(
+    await readFile(
+      new URL(
+        "../packages/engineering-foundation/schemas/foundation-config/v1.schema.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  const schemaCapabilityIds = Object.keys(
+    foundationConfigSchema.properties.capabilities.properties,
+  ).toSorted();
+  const runtimeCapabilityIds = [...CAPABILITY_REGISTRY.keys()].toSorted();
+
+  assert.deepEqual(schemaCapabilityIds, runtimeCapabilityIds);
+
+  const registeredRuleCount = RULE_REGISTRIES.reduce(
+    (count, registry) => count + registry.size,
+    0,
+  );
+  assert.equal(RULE_REGISTRY.size, registeredRuleCount);
+  for (const registry of RULE_REGISTRIES) {
+    for (const [ruleId, metadata] of registry) {
+      assert.equal(metadata.id, ruleId);
+      assert.equal(RULE_REGISTRY.get(ruleId), metadata);
+    }
+  }
+});
+
+test("rejects duplicate capability and rule IDs before registry use", () => {
+  for (const registryKind of ["capability", "rule"]) {
+    assert.throws(
+      () => createUniqueRegistry(registryKind, [
+        ["duplicate", {}],
+        ["duplicate", {}],
+      ]),
+      new Error(`Duplicate ${registryKind} ID: duplicate.`),
+    );
+  }
 });
 
 test("restricts released contract and API baseline mutation to the Changesets release branch", () => {

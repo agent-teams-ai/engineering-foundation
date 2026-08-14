@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity } from "../../../check-contract.js";
+import { createUniqueRegistry } from "../../../unique-registry.js";
 
 export interface SourceDependencyRuleMetadata {
   readonly id: string;
@@ -158,6 +159,7 @@ export const SOURCE_DEPENDENCY_RULES = Object.freeze({
 export const SOURCE_DEPENDENCY_RULES_BY_ID: ReadonlyMap<
   string,
   SourceDependencyRuleMetadata
-> = new Map(
+> = createUniqueRegistry(
+  "rule",
   Object.values(SOURCE_DEPENDENCY_RULES).map((metadata) => [metadata.id, metadata])
 );

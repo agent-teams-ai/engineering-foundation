@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity } from "../../../check-contract.js";
+import { createUniqueRegistry } from "../../../unique-registry.js";
 
 export interface PublicApiCompatibilityRuleMetadata {
   readonly id: string;
@@ -64,6 +65,7 @@ export const PUBLIC_API_COMPATIBILITY_RULES = Object.freeze({
 export const PUBLIC_API_COMPATIBILITY_RULES_BY_ID: ReadonlyMap<
   string,
   PublicApiCompatibilityRuleMetadata
-> = new Map(
+> = createUniqueRegistry(
+  "rule",
   Object.values(PUBLIC_API_COMPATIBILITY_RULES).map((metadata) => [metadata.id, metadata])
 );

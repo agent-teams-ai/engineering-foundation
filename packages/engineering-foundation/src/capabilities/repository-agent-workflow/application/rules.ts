@@ -1,3 +1,5 @@
+import { createUniqueRegistry } from "../../../unique-registry.js";
+
 export interface RepositoryAgentWorkflowRuleMetadata {
   readonly id: string;
   readonly rationale: string;
@@ -44,4 +46,4 @@ const rules: readonly RepositoryAgentWorkflowRuleMetadata[] = [
 export const REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID: ReadonlyMap<
   string,
   RepositoryAgentWorkflowRuleMetadata
-> = new Map(rules.map((rule) => [rule.id, rule]));
+> = createUniqueRegistry("rule", rules.map((rule) => [rule.id, rule]));

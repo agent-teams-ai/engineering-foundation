@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity } from "../../../check-contract.js";
+import { createUniqueRegistry } from "../../../unique-registry.js";
 
 export interface RuleMetadata {
   readonly id: string;
@@ -98,6 +99,8 @@ export const RULES = Object.freeze({
   )
 });
 
-export const RULES_BY_ID: ReadonlyMap<string, RuleMetadata> = new Map(
-  Object.values(RULES).map((metadata) => [metadata.id, metadata])
-);
+export const RULES_BY_ID: ReadonlyMap<string, RuleMetadata> =
+  createUniqueRegistry(
+    "rule",
+    Object.values(RULES).map((metadata) => [metadata.id, metadata])
+  );

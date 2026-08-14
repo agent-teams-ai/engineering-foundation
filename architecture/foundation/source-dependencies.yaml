@@ -155,6 +155,7 @@ boundaries:
       - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
+      - packages/engineering-foundation/src/unique-registry.ts
     allow:
       boundaries: []
       packages: []
@@ -168,6 +169,7 @@ boundaries:
       - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
+      - packages/engineering-foundation/src/unique-registry.ts
   - id: foundation.cancellation
     roots:
       - packages/engineering-foundation/src/cancellation.ts

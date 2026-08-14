@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity } from "../../../check-contract.js";
+import { createUniqueRegistry } from "../../../unique-registry.js";
 
 export interface JsonSchemaReleaseRuleMetadata {
   readonly id: string;
@@ -52,6 +53,7 @@ export const JSON_SCHEMA_RELEASE_RULES = Object.freeze({
 export const JSON_SCHEMA_RELEASE_RULES_BY_ID: ReadonlyMap<
   string,
   JsonSchemaReleaseRuleMetadata
-> = new Map(
+> = createUniqueRegistry(
+  "rule",
   Object.values(JSON_SCHEMA_RELEASE_RULES).map((metadata) => [metadata.id, metadata])
 );

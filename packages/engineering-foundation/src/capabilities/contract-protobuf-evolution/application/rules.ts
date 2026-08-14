@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity } from "../../../check-contract.js";
+import { createUniqueRegistry } from "../../../unique-registry.js";
 
 export interface ProtobufEvolutionRuleMetadata {
   readonly id: string;
@@ -69,6 +70,7 @@ export const PROTOBUF_EVOLUTION_RULES = Object.freeze({
 export const PROTOBUF_EVOLUTION_RULES_BY_ID: ReadonlyMap<
   string,
   ProtobufEvolutionRuleMetadata
-> = new Map(
+> = createUniqueRegistry(
+  "rule",
   Object.values(PROTOBUF_EVOLUTION_RULES).map((metadata) => [metadata.id, metadata])
 );

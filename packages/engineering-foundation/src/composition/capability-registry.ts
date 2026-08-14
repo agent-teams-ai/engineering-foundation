@@ -10,6 +10,7 @@ import { createRepositorySecurityBaselineCapability } from "../capabilities/repo
 import { createSourceDependenciesCapability } from "../capabilities/source-dependencies/module.js";
 import { createSuppressionGovernanceCapability } from "../capabilities/suppression-governance/module.js";
 import { createWorkspaceDependencyDeclarationsCapability } from "../capabilities/workspace-dependency-declarations/module.js";
+import { createUniqueRegistry } from "../unique-registry.js";
 
 const capabilities: readonly CapabilityDefinition[] = Object.freeze([
   createJsonSchemaReleaseCapability(),
@@ -26,4 +27,7 @@ const capabilities: readonly CapabilityDefinition[] = Object.freeze([
 ]);
 
 export const CAPABILITY_REGISTRY: ReadonlyMap<string, CapabilityDefinition> =
-  new Map(capabilities.map((capability) => [capability.id, capability]));
+  createUniqueRegistry(
+    "capability",
+    capabilities.map((capability) => [capability.id, capability])
+  );

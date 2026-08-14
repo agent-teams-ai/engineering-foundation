@@ -369,6 +369,20 @@ test("release publishing requires real Buf and hermetic registry qualification",
     "node scripts/registry-install-e2e.mjs",
   );
   assert.equal(ci.jobs["linux-registry"].steps.at(-1).run, "pnpm registry-install-e2e");
+  const windowsRegistryCommands = ci.jobs["windows-registry"].steps
+    .map((step) => step.run)
+    .filter((command) => command !== undefined);
+  assert.deepEqual(windowsRegistryCommands.slice(-3), [
+    "pnpm build",
+    "node scripts/prepare-package.mjs",
+    "pnpm registry-install-e2e:built",
+  ]);
+  assert.equal(
+    ci.jobs["windows-package"].steps.at(-1).run,
+    "pnpm package:check",
+  );
+  assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
+  assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
   assert.equal(
     manifest.scripts["published-compatibility:e2e"],
     "node scripts/published-compatibility-e2e.mjs",

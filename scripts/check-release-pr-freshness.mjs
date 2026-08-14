@@ -10,6 +10,10 @@ import {
   PUBLISHABLE_PACKAGES,
   publishablePackageByName,
 } from "./publishable-packages.mjs";
+import {
+  missingSummaryViolations,
+  releaseSections,
+} from "./release-pr-sections.mjs";
 
 const execFileAsync = promisify(execFile);
 const EXACT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
@@ -37,10 +41,6 @@ function canonicalMarkdown(value) {
     .map((line) => line.trimEnd())
     .join("\n")
     .trim();
-}
-
-function searchableMarkdown(value) {
-  return canonicalMarkdown(value).replaceAll(/\s+/gu, " ");
 }
 
 function pullRequestField(pullRequest, directName, ownerName, nestedName) {
@@ -113,19 +113,6 @@ function generatedReleaseBody(baseChangelog, headChangelog, packageName, version
     throw new Error(`generated changelog insertion must start with ${heading}`);
   }
   return `# Releases\n${inserted.replace(heading, `## ${packageName}@${version}`)}`;
-}
-
-function releaseBody(body) {
-  const normalized = body.replaceAll("\r\n", "\n");
-  const match = /^# Releases\s*$/gmu;
-  let start;
-  for (const result of normalized.matchAll(match)) {
-    start = result.index;
-  }
-  if (start === undefined) {
-    throw new Error("pull request body does not contain a # Releases section");
-  }
-  return normalized.slice(start);
 }
 
 async function git(cwd, args, options = {}) {
@@ -317,36 +304,8 @@ async function changesetConsumptionViolations(cwd, headSha, changesets) {
   return violations;
 }
 
-function missingSummaryViolations(releasePackage, generatedRelease, changesets) {
-  let unmatchedRelease = searchableMarkdown(generatedRelease);
-  const violations = [];
-  for (const changeset of changesets.toSorted(
-    (left, right) => right.summary.length - left.summary.length,
-  )) {
-    const summary = searchableMarkdown(changeset.summary);
-    const index = unmatchedRelease.indexOf(summary);
-    if (index === -1) {
-      violations.push(
-        `${releasePackage.name} changelog is missing the summary from ${changeset.path}`,
-      );
-      continue;
-    }
-    unmatchedRelease =
-      unmatchedRelease.slice(0, index) +
-      " ".repeat(summary.length) +
-      unmatchedRelease.slice(index + summary.length);
-  }
-  return violations;
-}
-
-async function packageReleaseSection(
-  cwd,
-  baseSha,
-  headSha,
-  basePrerelease,
-  releasePackage,
-  changesets,
-) {
+async function packageReleaseSection(context, releasePackage) {
+  const { basePrerelease, baseSha, changesets, cwd, headSha } = context;
   if (
     !(await pathExistsAtRevision(cwd, baseSha, releasePackage.manifestPath)) ||
     !(await pathExistsAtRevision(cwd, headSha, releasePackage.manifestPath))
@@ -399,7 +358,7 @@ async function packageReleaseSection(
         manifest.version,
       ).map((violation) => `${releasePackage.name}: ${violation}`),
       ...missingSummaryViolations(
-        releasePackage,
+        releasePackage.name,
         generatedRelease,
         packageChangesets,
       ),
@@ -407,14 +366,8 @@ async function packageReleaseSection(
   };
 }
 
-async function releaseSectionViolations(
-  cwd,
-  baseSha,
-  headSha,
-  basePrerelease,
-  body,
-  changesets,
-) {
+async function releaseSectionViolations(context) {
+  const { body, changesets } = context;
   let actualSections;
   try {
     actualSections = releaseSections(body);
@@ -424,14 +377,7 @@ async function releaseSectionViolations(
   const results = (
     await Promise.all(
       PUBLISHABLE_PACKAGES.map((releasePackage) =>
-        packageReleaseSection(
-          cwd,
-          baseSha,
-          headSha,
-          basePrerelease,
-          releasePackage,
-          changesets,
-        ),
+        packageReleaseSection(context, releasePackage),
       ),
     )
   ).filter((result) => result !== undefined);
@@ -503,14 +449,14 @@ export async function releasePullRequestFreshnessViolations(
   }
   violations.push(
     ...(await changesetConsumptionViolations(cwd, headSha, changesets)),
-    ...(await releaseSectionViolations(
-      cwd,
-      processedMainSha,
-      headSha,
+    ...(await releaseSectionViolations({
       basePrerelease,
-      pullRequest.body,
+      baseSha: processedMainSha,
+      body: pullRequest.body,
       changesets,
-    )),
+      cwd,
+      headSha,
+    })),
   );
   return violations;
 }

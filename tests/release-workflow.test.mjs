@@ -581,6 +581,10 @@ test("Docs Protocol bootstrap is manual, token-bounded, idempotent, and provenan
   const postconditions = job.steps.find(
     ({ name }) => name === "Prove registry postconditions and provenance",
   );
+  const reconcile = bootstrap.jobs["reconcile-github"];
+  const reconcileStep = reconcile.steps.find(
+    ({ name }) => name === "Create or reuse the exact tag and prerelease",
+  );
 
   assert.deepEqual(Object.keys(bootstrap.on), ["workflow_dispatch"]);
   assert.equal(bootstrap.on.workflow_dispatch.inputs.expected_commit.required, true);
@@ -590,12 +594,31 @@ test("Docs Protocol bootstrap is manual, token-bounded, idempotent, and provenan
   assert.deepEqual(job.permissions, { contents: "read", "id-token": "write" });
   assert.equal(job.environment, "npm-docs-protocol-bootstrap");
   assert.match(job.if, /DOCS_PROTOCOL_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
-  assert.equal(job.env.NPM_TOKEN, "${{ secrets.NPM_DOCS_PROTOCOL_BOOTSTRAP_TOKEN }}");
+  assert.equal(job.env.NPM_TOKEN, undefined);
+  assert.equal(job.env.NODE_AUTH_TOKEN, undefined);
+  assert.equal(
+    publish.env.NODE_AUTH_TOKEN,
+    "${{ secrets.NPM_DOCS_PROTOCOL_BOOTSTRAP_TOKEN }}",
+  );
+  assert.equal(
+    job.steps.filter(({ env }) => env?.NODE_AUTH_TOKEN !== undefined).length,
+    1,
+  );
+  assert.match(publish.run, /test "\$\{NODE_AUTH_TOKEN\}" != ""/u);
   assert.match(publish.run, /npm publish "\$\{archive_path\}" --tag bootstrap --provenance --ignore-scripts/u);
   assert.match(publish.run, /npm dist-tag add '@agent-teams\/docs-protocol@0\.0\.0' bootstrap/u);
-  assert.match(publish.run, /npm dist-tag add '@agent-teams\/docs-protocol@0\.0\.0' latest/u);
+  assert.doesNotMatch(publish.run, /dist-tag add .* latest/u);
   assert.match(publish.run, /npm deprecate '@agent-teams\/docs-protocol@0\.0\.0'/u);
   assert.match(postconditions.run, /npm audit signatures --json --include-attestations/u);
+  assert.equal(reconcile.needs, "bootstrap");
+  assert.deepEqual(reconcile.permissions, { contents: "write" });
+  assert.equal(reconcileStep.env.GH_TOKEN, "${{ github.token }}");
+  assert.equal(reconcileStep.env.NODE_AUTH_TOKEN, undefined);
+  assert.match(reconcileStep.run, /git\/ref\/tags/u);
+  assert.match(reconcileStep.run, /\.object\.sha.*EXPECTED_COMMIT/u);
+  assert.match(reconcileStep.run, /releases\/tags/u);
+  assert.match(reconcileStep.run, /prerelease=true/u);
+  assert.match(reconcileStep.run, /target_commitish="\$\{EXPECTED_COMMIT\}"/u);
   assert.match(source, /engineering-foundation@0\.17\.0-rc\.0/u);
   assert.doesNotMatch(source, /on:\s*\n\s+push:/u);
   assert.equal(
@@ -842,10 +865,10 @@ test("release ReviewGate narrowly allows exit state deletion and rejects private
     await readFile(join(repositoryRoot, ".changeset", "config.json"), "utf8"),
   );
   assert.deepEqual(config.privatePackages, { version: true, tag: false });
-  assert.deepEqual(config.ignore, ["@agent-teams/docs-protocol"]);
+  assert.deepEqual(config.ignore, []);
 });
 
-test("release ReviewGate owns only the Foundation release pair during stage one", () => {
+test("release ReviewGate requires complete pairs from the promoted public catalog", () => {
   const validFiles = [
     { filename: ".changeset/unified-docs-protocol.md", status: "removed" },
     { filename: "packages/engineering-foundation/CHANGELOG.md", status: "modified" },
@@ -856,7 +879,7 @@ test("release ReviewGate owns only the Foundation release pair during stage one"
     releasePullRequestFileViolations(
       [...validFiles, { filename: "packages/docs-protocol/package.json", status: "modified" }],
     ).join("\n"),
-    /forbidden change: packages\/docs-protocol\/package\.json/u,
+    /must modify packages\/docs-protocol\/CHANGELOG\.md/u,
   );
 });
 

@@ -4,12 +4,11 @@ One deterministic documentation UX for Agent Teams repositories. This package
 is a thin application and CLI layer over the versioned mutation kernel exported
 by `@agent-teams/engineering-foundation`.
 
-> **Stage status:** source, API, and disposable-registry qualification are
-> complete, but the production package is intentionally private and is not yet
-> installable from npm. Publication starts only after Foundation 0.17.0-rc.0 and
-> the fail-closed bootstrap in
-> [ADR-0028](../../docs/decisions/0028-fail-closed-docs-protocol-bootstrap.md).
-> The commands below define the future consumer contract.
+> **Stage status:** source, API, and registry qualification are complete. The
+> public `0.0.0` manifest is bootstrap-only and is not installable from npm until
+> Foundation 0.17.0-rc.0 exists and the fail-closed bootstrap in
+> [ADR-0029](../../docs/decisions/0029-immutable-docs-bootstrap-reconciliation.md).
+> The commands below define the later supported consumer contract.
 
 ## Boundary
 

@@ -36,7 +36,6 @@ jobs:
     env:
       NPM_CONFIG_AUDIT: "false"
       NPM_CONFIG_FUND: "false"
-      NPM_TOKEN: ${{ secrets.NPM_DOCS_PROTOCOL_BOOTSTRAP_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -57,8 +56,6 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_COMMIT}"
-          test "${NPM_TOKEN}" != ""
-          test "${NPM_TOKEN#npm_}" != "${NPM_TOKEN}"
           node scripts/docs-protocol-bootstrap.mjs token-window \
             "${TOKEN_CREATED_AT}" "${TOKEN_EXPIRES_AT}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           node scripts/docs-protocol-bootstrap.mjs promotion-manifest \
@@ -108,9 +105,12 @@ jobs:
       - name: Publish or resume the exact bootstrap artifact
         env:
           ARCHIVE_PATH: ${{ steps.pack.outputs.archivePath }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_DOCS_PROTOCOL_BOOTSTRAP_TOKEN }}
           REGISTRY_ACTION: ${{ steps.registry.outputs.action }}
         run: |
           set -Eeuo pipefail
+          test "${NODE_AUTH_TOKEN}" != ""
+          test "${NODE_AUTH_TOKEN#npm_}" != "${NODE_AUTH_TOKEN}"
           archive_path="${ARCHIVE_PATH}"
           if [[ "${REGISTRY_ACTION}" == "publish" ]]; then
             npm publish "${archive_path}" --tag bootstrap --provenance --ignore-scripts
@@ -119,12 +119,12 @@ jobs:
             exit 1
           fi
           npm dist-tag add '@agent-teams/docs-protocol@0.0.0' bootstrap
-          npm dist-tag add '@agent-teams/docs-protocol@0.0.0' latest
           npm deprecate '@agent-teams/docs-protocol@0.0.0' \
             'Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol release candidate instead.'
       - name: Prove registry postconditions and provenance
         env:
           ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
         run: |
           set -Eeuo pipefail
           evidence_root="${RUNNER_TEMP}/docs-protocol-bootstrap"
@@ -144,12 +144,69 @@ jobs:
           node scripts/docs-protocol-bootstrap.mjs postconditions \
             "${evidence_root}/after.json" "${evidence_root}/after-integrity.json" \
             "${evidence_root}/deprecated.json" "${evidence_root}/audit.json" \
-            "${ARCHIVE_INTEGRITY}"
+            "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}"
       - name: Retain bootstrap evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: docs-protocol-bootstrap-evidence-${{ github.sha }}
           path: ${{ runner.temp }}/docs-protocol-bootstrap
+          if-no-files-found: error
+          retention-days: 30
+
+  reconcile-github:
+    name: reconcile-docs-protocol-github-release
+    needs: bootstrap
+    if: ${{ vars.DOCS_PROTOCOL_BOOTSTRAP_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Create or reuse the exact tag and prerelease
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          tag='@agent-teams/docs-protocol@0.0.0'
+          title='@agent-teams/docs-protocol 0.0.0 bootstrap'
+          encoded_tag="$(jq -rn --arg value "${tag}" '$value|@uri')"
+          evidence_root="${RUNNER_TEMP}/docs-protocol-github-reconciliation"
+          mkdir -p "${evidence_root}"
+          tag_error="$(mktemp)"
+          if ! gh api "repos/${REPOSITORY}/git/ref/tags/${encoded_tag}" \
+            > "${evidence_root}/tag.json" 2> "${tag_error}"; then
+            grep -q 'HTTP 404' "${tag_error}"
+            gh api --method POST "repos/${REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${tag}" -f sha="${EXPECTED_COMMIT}" >/dev/null
+          fi
+          gh api "repos/${REPOSITORY}/git/ref/tags/${encoded_tag}" > "${evidence_root}/tag.json"
+          test "$(jq -r '.object.type' "${evidence_root}/tag.json")" = 'commit'
+          test "$(jq -r '.object.sha' "${evidence_root}/tag.json")" = "${EXPECTED_COMMIT}"
+          release_error="$(mktemp)"
+          if ! gh api "repos/${REPOSITORY}/releases/tags/${encoded_tag}" \
+            > "${evidence_root}/release.json" 2> "${release_error}"; then
+            grep -q 'HTTP 404' "${release_error}"
+            gh api --method POST "repos/${REPOSITORY}/releases" \
+              -f tag_name="${tag}" -f target_commitish="${EXPECTED_COMMIT}" \
+              -f name="${title}" -f body='Bootstrap-only artifact. Do not adopt.' \
+              -F draft=false -F prerelease=true >/dev/null
+          fi
+          gh api "repos/${REPOSITORY}/releases/tags/${encoded_tag}" > \
+            "${evidence_root}/release.json"
+          test "$(jq -r '.tag_name' "${evidence_root}/release.json")" = "${tag}"
+          test "$(jq -r '.target_commitish' "${evidence_root}/release.json")" = \
+            "${EXPECTED_COMMIT}"
+          test "$(jq -r '.name' "${evidence_root}/release.json")" = "${title}"
+          test "$(jq -r '.draft' "${evidence_root}/release.json")" = 'false'
+          test "$(jq -r '.prerelease' "${evidence_root}/release.json")" = 'true'
+      - name: Retain GitHub reconciliation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-protocol-github-reconciliation-${{ github.sha }}
+          path: ${{ runner.temp }}/docs-protocol-github-reconciliation
           if-no-files-found: error
           retention-days: 30

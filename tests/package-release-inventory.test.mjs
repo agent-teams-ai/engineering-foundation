@@ -18,6 +18,7 @@ import {
   registryQualificationPackages,
   stageQualificationPackage,
 } from "../scripts/registry-qualification-packages.mjs";
+import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 
 const repositoryPackageRoot = new URL(
   "../packages/engineering-foundation/",
@@ -47,6 +48,29 @@ test("registry qualification includes Docs Protocol exactly once across bootstra
     () => registryQualificationPackages([foundation, docs, docs]),
     /unique publishable package names/u,
   );
+});
+
+test("reviewed catalog owns the exact public Docs Protocol bootstrap manifest", async () => {
+  const docsEntries = PUBLISHABLE_PACKAGES.filter(
+    ({ name }) => name === "@agent-teams/docs-protocol",
+  );
+  assert.deepEqual(docsEntries, [
+    {
+      changelogPath: "packages/docs-protocol/CHANGELOG.md",
+      manifestPath: "packages/docs-protocol/package.json",
+      name: "@agent-teams/docs-protocol",
+      root: "packages/docs-protocol",
+    },
+  ]);
+  const manifest = JSON.parse(
+    await readFile(new URL("../packages/docs-protocol/package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(manifest.private, undefined);
+  assert.deepEqual(manifest.publishConfig, {
+    access: "public",
+    provenance: true,
+    registry: "https://registry.npmjs.org/",
+  });
 });
 
 test("release manifest exactly follows the package self-check allowlist", async () => {

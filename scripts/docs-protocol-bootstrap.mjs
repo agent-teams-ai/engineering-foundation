@@ -9,7 +9,7 @@ export const DOCS_PROTOCOL_BOOTSTRAP = Object.freeze({
   foundationVersion: "0.17.0-rc.0",
   name: "@agent-teams/docs-protocol",
   registry: "https://registry.npmjs.org/",
-  tags: Object.freeze(["bootstrap", "latest"]),
+  tags: Object.freeze(["bootstrap"]),
   version: "0.0.0",
 });
 
@@ -241,15 +241,15 @@ function normalizedVersions(metadata) {
   return versions;
 }
 
-function assertNoUnexpectedTags(tags, requireBoth) {
+function assertNoUnexpectedTags(tags, requireExact) {
   if (!isRecord(tags)) {
     fail("registry dist-tags must be an object.");
   }
-  const expectedKeys = requireBoth ? DOCS_PROTOCOL_BOOTSTRAP.tags : Object.keys(tags);
+  const expectedKeys = requireExact ? DOCS_PROTOCOL_BOOTSTRAP.tags : Object.keys(tags);
   if (Object.keys(tags).some((tag) => !DOCS_PROTOCOL_BOOTSTRAP.tags.includes(tag))) {
     fail("registry contains an unexpected Docs Protocol dist-tag.");
   }
-  if (requireBoth) {
+  if (requireExact) {
     exactKeys(tags, expectedKeys, "registry dist-tags");
   }
   for (const value of Object.values(tags)) {
@@ -282,21 +282,7 @@ export function classifyRegistryPreflight({
   return "reuse";
 }
 
-export function assertBootstrapPostconditions({
-  auditEvidence,
-  deprecatedMessage,
-  docsMetadata,
-  localIntegrity,
-  publishedIntegrity,
-}) {
-  normalizedVersions(docsMetadata);
-  assertNoUnexpectedTags(docsMetadata["dist-tags"], true);
-  if (publishedIntegrity !== localIntegrity) {
-    fail("published Docs Protocol integrity differs from the reviewed tarball.");
-  }
-  if (deprecatedMessage !== DOCS_PROTOCOL_BOOTSTRAP.deprecationMessage) {
-    fail("Docs Protocol 0.0.0 does not carry the exact bootstrap deprecation.");
-  }
+function auditedProvenanceBundle(auditEvidence) {
   if (
     !Array.isArray(auditEvidence?.invalid) ||
     auditEvidence.invalid.length !== 0 ||
@@ -311,15 +297,115 @@ export function assertBootstrapPostconditions({
       entry?.name === DOCS_PROTOCOL_BOOTSTRAP.name &&
       entry.version === DOCS_PROTOCOL_BOOTSTRAP.version,
   );
+  const bundles = verified[0]?.attestationBundles?.filter(
+    (entry) => entry?.predicateType === "https://slsa.dev/provenance/v1",
+  );
   if (
     verified.length !== 1 ||
     verified[0].attestations?.provenance?.predicateType !==
       "https://slsa.dev/provenance/v1" ||
-    !Array.isArray(verified[0].attestationBundles) ||
-    verified[0].attestationBundles.length === 0
+    !Array.isArray(bundles) ||
+    bundles.length !== 1
   ) {
     fail("npm audit did not prove one SLSA provenance attestation and Sigstore bundle.");
   }
+  return bundles[0];
+}
+
+function provenanceStatement(bundle) {
+  const envelope = bundle.bundle?.dsseEnvelope;
+  if (
+    envelope?.payloadType !== "application/vnd.in-toto+json" ||
+    typeof envelope.payload !== "string"
+  ) {
+    fail("SLSA provenance bundle does not contain an in-toto DSSE payload.");
+  }
+  try {
+    return JSON.parse(Buffer.from(envelope.payload, "base64").toString("utf8"));
+  } catch {
+    fail("SLSA provenance payload is not valid base64-encoded JSON.");
+  }
+}
+
+function integrityHex(integrity) {
+  const match = /^sha512-([A-Za-z0-9+/]+={0,2})$/u.exec(integrity);
+  if (match === null) {
+    fail("local archive integrity is not canonical SHA-512 SRI.");
+  }
+  const bytes = Buffer.from(match[1], "base64");
+  if (bytes.length !== 64 || bytes.toString("base64") !== match[1]) {
+    fail("local archive integrity is not canonical SHA-512 SRI.");
+  }
+  return bytes.toString("hex");
+}
+
+function provenanceSubjectMatches(statement, digest) {
+  const subject = Array.isArray(statement?.subject) ? statement.subject : [];
+  return (
+    subject.length === 1 &&
+    subject[0]?.name === "pkg:npm/%40agent-teams/docs-protocol@0.0.0" &&
+    subject[0]?.digest?.sha512 === digest &&
+    Object.keys(subject[0]?.digest ?? {}).length === 1
+  );
+}
+
+function provenanceWorkflowMatches(workflow) {
+  return (
+    workflow?.repository === "https://github.com/agent-teams-ai/engineering-foundation" &&
+    workflow.path === ".github/workflows/docs-protocol-bootstrap.yml" &&
+    workflow.ref === "refs/heads/main"
+  );
+}
+
+function provenanceDependencyMatches(dependencies, reviewedCommit) {
+  return (
+    Array.isArray(dependencies) &&
+    dependencies.length === 1 &&
+    dependencies[0]?.uri ===
+      "git+https://github.com/agent-teams-ai/engineering-foundation@refs/heads/main" &&
+    dependencies[0]?.digest?.gitCommit === reviewedCommit
+  );
+}
+
+function assertProvenanceBinding({ bundle, localIntegrity, reviewedCommit }) {
+  if (typeof reviewedCommit !== "string" || !/^[0-9a-f]{40}$/u.test(reviewedCommit)) {
+    fail("reviewed promotion commit must be an exact lowercase commit SHA.");
+  }
+  const statement = provenanceStatement(bundle);
+  const workflow = statement?.predicate?.buildDefinition?.externalParameters?.workflow;
+  const dependencies = statement?.predicate?.buildDefinition?.resolvedDependencies;
+  if (
+    statement?.["_type"] !== "https://in-toto.io/Statement/v1" ||
+    statement.predicateType !== "https://slsa.dev/provenance/v1" ||
+    !provenanceSubjectMatches(statement, integrityHex(localIntegrity)) ||
+    !provenanceWorkflowMatches(workflow) ||
+    !provenanceDependencyMatches(dependencies, reviewedCommit)
+  ) {
+    fail("SLSA provenance is not bound to the reviewed repository, workflow, commit, and tarball.");
+  }
+}
+
+export function assertBootstrapPostconditions({
+  auditEvidence,
+  deprecatedMessage,
+  docsMetadata,
+  localIntegrity,
+  publishedIntegrity,
+  reviewedCommit,
+}) {
+  normalizedVersions(docsMetadata);
+  assertNoUnexpectedTags(docsMetadata["dist-tags"], true);
+  if (publishedIntegrity !== localIntegrity) {
+    fail("published Docs Protocol integrity differs from the reviewed tarball.");
+  }
+  if (deprecatedMessage !== DOCS_PROTOCOL_BOOTSTRAP.deprecationMessage) {
+    fail("Docs Protocol 0.0.0 does not carry the exact bootstrap deprecation.");
+  }
+  assertProvenanceBinding({
+    bundle: auditedProvenanceBundle(auditEvidence),
+    localIntegrity,
+    reviewedCommit,
+  });
 }
 
 async function json(path) {
@@ -400,6 +486,7 @@ async function cli() {
       docsMetadata: await json(args[0]),
       localIntegrity: args[4],
       publishedIntegrity: await json(args[1]),
+      reviewedCommit: args[5],
     });
     return;
   }

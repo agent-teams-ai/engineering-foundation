@@ -1,9 +1,10 @@
 ---
 id: ADR-0028
-status: accepted
+status: superseded
 supersedes:
   - ADR-0027
-superseded_by: []
+superseded_by:
+  - ADR-0029
 ---
 
 # ADR-0028: Fail-Closed Docs Protocol Bootstrap

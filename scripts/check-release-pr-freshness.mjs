@@ -74,7 +74,7 @@ function parseChangeset(path, source) {
     if (emptyMatch[1].trim().length === 0) {
       throw new Error(`${path} must contain a non-empty summary`);
     }
-    return null;
+    return { path, releases: [], summary: "" };
   }
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]+)$/u.exec(normalized);
   if (match === null) {
@@ -451,7 +451,7 @@ export async function releasePullRequestFreshnessViolations(
   );
 
   const changesets = await expectedChangesets(cwd, processedMainSha);
-  if (changesets.length === 0) {
+  if (!changesets.some((changeset) => changeset.releases.length > 0)) {
     violations.push("processed main must contain at least one package release changeset");
   }
   violations.push(

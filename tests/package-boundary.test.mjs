@@ -72,13 +72,17 @@ function reverseDependencyReferences(foundation, workspace = {}) {
 test("publishable package catalog and manifests preserve one-way layering", async () => {
   assert.deepEqual(
     PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
-    [foundationName],
+    [foundationName, docsProtocolName],
   );
   const foundation = await json("packages/engineering-foundation/package.json");
   const docsProtocol = await json("packages/docs-protocol/package.json");
   const workspace = await json("package.json");
-  assert.equal(docsProtocol.private, true);
-  assert.equal(docsProtocol.publishConfig, undefined);
+  assert.equal(docsProtocol.private, undefined);
+  assert.deepEqual(docsProtocol.publishConfig, {
+    access: "public",
+    provenance: true,
+    registry: "https://registry.npmjs.org/",
+  });
   assert.equal(docsProtocol.version, "0.0.0");
   assert.deepEqual(reverseDependencyReferences(foundation, workspace), []);
   assert.equal(docsProtocol.dependencies?.[foundationName], "workspace:*");

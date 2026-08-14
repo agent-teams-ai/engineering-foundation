@@ -284,21 +284,19 @@ test("accepts only an exact stable release when processed main exits prerelease"
   }
 });
 
-test("rejects a Docs Protocol section before the package becomes release-owned", async () => {
+test("accepts exact generated sections for the promoted public package catalog", async () => {
   const fixture = await createMultiPackageFixture();
   try {
     const release = await createMultiPackageRelease(fixture.root, fixture.mainA);
-    assert.match(
-      (
-        await violations(
+    assert.deepEqual(
+      await violations(
         fixture.root,
         fixture.mainA,
         fixture.mainA,
         release,
         release.head,
-        )
-      ).join("\n"),
-      /does not exactly match all generated changelog entries/u,
+      ),
+      [],
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
@@ -503,7 +501,7 @@ test("release evidence follows the latest processed main across a two-push race"
   }
 });
 
-test("official empty Changeset frontmatter is release-neutral", async () => {
+test("official empty Changeset is release-neutral but must be consumed", async () => {
   const fixture = await createFixture();
   try {
     await git(fixture.root, "checkout", "--detach", fixture.mainA);
@@ -520,9 +518,45 @@ test("official empty Changeset frontmatter is release-neutral", async () => {
       "1.1.0",
       ["Alpha package change."],
     );
+    assert.match(
+      (await violations(fixture.root, main, main, release, release.head)).join("\n"),
+      /did not consume \.changeset\/bootstrap\.md/u,
+    );
+    await git(fixture.root, "checkout", "--detach", release.head);
+    await rm(join(fixture.root, ".changeset", "bootstrap.md"));
+    await git(fixture.root, "add", ".changeset/bootstrap.md");
+    await git(fixture.root, "commit", "--amend", "--no-edit");
+    const consumedHead = await git(fixture.root, "rev-parse", "HEAD");
     assert.deepEqual(
-      await violations(fixture.root, main, main, release, release.head),
+      await violations(fixture.root, main, main, { ...release, head: consumedHead }, consumedHead),
       [],
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("an empty Changeset cannot be the generated release PR's only release evidence", async () => {
+  const fixture = await createFixture();
+  try {
+    await git(fixture.root, "checkout", "--detach", fixture.mainA);
+    await rm(join(fixture.root, ".changeset", "alpha.md"));
+    await writeFile(
+      join(fixture.root, ".changeset", "bootstrap.md"),
+      "---\n---\n\nRecord the bootstrap promotion without a version bump.\n",
+    );
+    await git(fixture.root, "add", ".changeset");
+    await git(fixture.root, "commit", "-m", "only empty bootstrap changeset");
+    const main = await git(fixture.root, "rev-parse", "HEAD");
+    const release = await createRelease(fixture.root, main, "1.1.0", []);
+    await git(fixture.root, "checkout", "--detach", release.head);
+    await rm(join(fixture.root, ".changeset", "bootstrap.md"));
+    await git(fixture.root, "add", ".changeset/bootstrap.md");
+    await git(fixture.root, "commit", "--amend", "--no-edit");
+    const head = await git(fixture.root, "rev-parse", "HEAD");
+    assert.match(
+      (await violations(fixture.root, main, main, { ...release, head }, head)).join("\n"),
+      /at least one package release changeset/u,
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });

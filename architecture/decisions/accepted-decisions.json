@@ -141,6 +141,11 @@
       "id": "ADR-0028",
       "path": "docs/decisions/0028-fail-closed-docs-protocol-bootstrap.md",
       "immutableDigest": "sha256:322b656ed77f8a7050cc50cdfb27c39dbebf40a85ba28fddee9349ea4914d7f8"
+    },
+    {
+      "id": "ADR-0029",
+      "path": "docs/decisions/0029-immutable-docs-bootstrap-reconciliation.md",
+      "immutableDigest": "sha256:db8fe9f52e1ab6d09bdb0b2688f3ccb2097108cdf38ea85fc48715199bdc7a25"
     }
   ]
 }

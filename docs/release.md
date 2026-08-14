@@ -12,13 +12,14 @@ manually with npm 2FA after `pnpm check` passes. After that release:
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
-During the D' stage-one rollout, the release pipeline owns only
-`@agent-teams/engineering-foundation`. `@agent-teams/docs-protocol` remains a
-private 0.0.0 workspace package and is ignored by Changesets until Foundation
-0.17.0-rc.0 is published. Release validation discovers only the bounded public
-package catalog. Hermetic registry qualification still proves Docs Protocol by
-publicizing only a disposable copied fixture in its no-uplink registry and
-binding that fixture to the exact packed Foundation version.
+During the D' stage-one rollout, Foundation `0.17.0-rc.0` publishes first. The
+same Docs Protocol promotion PR carries the official empty Changeset, exposes
+the exact public `0.0.0` manifest, removes the Changesets ignore, and adds the
+package to the bounded public catalog. Ordinary release automation still cannot
+create the missing stable baseline: it fails closed until the bootstrap proves
+that exact `0.0.0` already exists on npm. Hermetic registry qualification uses
+the public catalog entry directly and binds it to the exact packed Foundation
+version.
 
 Release-candidate waves use committed Changesets prerelease state with the exact
 `rc` tag. The publish policy requires an `-rc.N` version for every package in
@@ -35,18 +36,25 @@ Changesets CLI, and let its Foundation-only minor Changeset generate
 Foundation 0.17.0-rc.0. Docs Protocol must remain private and exactly 0.0.0 in
 this release PR. Never edit Foundation versions or `.changeset/pre.json` by hand.
 
-After Foundation 0.17.0-rc.0 is available, follow ADR-0028 with a separate
-reviewed bootstrap promotion for Docs Protocol. That change removes `private`
-and the Changesets ignore, restores exact public provenance configuration, makes
-the packed dependency resolve to Foundation 0.17.0-rc.0, adds the real 0.0.0
-changelog entry, and proves public-API bootstrap promotion is an exact no-op.
-The dormant manual workflow then publishes or resumes only the exact reviewed
-tarball with a package-scoped granular token valid for no more than one day. It
-requires exact versions, integrity, `latest` and `bootstrap` tags, the ADR-0028
-deprecation, and verified npm provenance before success. Configure and verify
-npm trusted publishing, revoke the token, remove bootstrap authority, and clean
-up the one-time workflow. Only then add the Docs Protocol minor Changeset that
+After Foundation 0.17.0-rc.0 is available, dispatch the dormant ADR-0029
+workflow at the exact reviewed promotion commit. Use a granular read/write token
+restricted to the existing `@agent-teams` scope, expiring within one day; enable
+2FA bypass only if npm requires it for publication. The workflow publishes or
+resumes only the exact reviewed tarball and requires exact integrity, the sole
+`bootstrap: 0.0.0` tag, deprecation, and npm provenance. Only after those checks
+does a separate GitHub write job create or reuse the exact-SHA package tag and
+non-draft prerelease. Configure and verify npm trusted publishing, immediately
+revoke the token, remove the secret and bootstrap authority, and clean up the
+one-time workflow. Only then add the Docs Protocol minor Changeset that
 generates 0.1.0-rc.0 through the normal protected-main release path.
+
+If npm accepts `0.0.0` but its SRI or provenance cannot be verified, stop
+reconciliation. Never unpublish, overwrite, or silently reuse that immutable
+version. Retain the registry, signature, tag, and workflow evidence; deprecate
+the bad bootstrap and remove any adoptable dist-tags. The owner must approve a
+new bootstrap version or release candidate in a separate review. Restore only
+the explicitly approved tags after the replacement artifact's exact SRI and
+provenance pass, then record the incident before enabling trusted publishing.
 
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against

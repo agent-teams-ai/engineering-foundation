@@ -11,9 +11,7 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@agent-teams/docs-protocol"
-  ],
+  "ignore": [],
   "privatePackages": {
     "version": true,
     "tag": false

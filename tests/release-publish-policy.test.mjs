@@ -182,6 +182,33 @@ test("skips only an exact fresh prerelease state for the complete public package
   }
 });
 
+function provenanceAuditEvidence(statement) {
+  return {
+    invalid: [],
+    missing: [],
+    verified: [
+      {
+        attestationBundles: [
+          {
+            predicateType: "https://slsa.dev/provenance/v1",
+            bundle: {
+              dsseEnvelope: {
+                payload: Buffer.from(JSON.stringify(statement), "utf8").toString("base64"),
+                payloadType: "application/vnd.in-toto+json",
+              },
+            },
+          },
+        ],
+        attestations: {
+          provenance: { predicateType: "https://slsa.dev/provenance/v1" },
+        },
+        name: DOCS_PROTOCOL_BOOTSTRAP.name,
+        version: DOCS_PROTOCOL_BOOTSTRAP.version,
+      },
+    ],
+  };
+}
+
 test("routes an exact Changesets rc version to the rc npm dist-tag", () => {
   assert.deepEqual(
     releasePublishPolicy({
@@ -755,6 +782,9 @@ test("real release entrypoint proves multi-package registry state and fails clos
   assert.match(
     await readFile(join(publish.root, "command-shim.marker"), "utf8"),
     /^pnpm changeset publish$/mu,
+  );
+});
+
 function stagingManifests() {
   return {
     changesetsConfig: { ignore: [DOCS_PROTOCOL_BOOTSTRAP.name] },
@@ -911,6 +941,7 @@ test("bootstrap binds closed tarball contents and the packed Foundation dependen
 
 test("registry bootstrap is absent-or-exact and proves final tags, deprecation, and provenance", () => {
   const integrity = "sha512-fixture";
+  const reviewedCommit = "a".repeat(40);
   assert.equal(
     classifyRegistryPreflight({
       docsMetadata: null,
@@ -924,6 +955,37 @@ test("registry bootstrap is absent-or-exact and proves final tags, deprecation, 
     "dist-tags": { bootstrap: DOCS_PROTOCOL_BOOTSTRAP.version },
     versions: [DOCS_PROTOCOL_BOOTSTRAP.version],
   };
+  const fixtureDigest = Buffer.alloc(64, 1);
+  const canonicalIntegrity = `sha512-${fixtureDigest.toString("base64")}`;
+  const provenanceStatement = {
+    _type: "https://in-toto.io/Statement/v1",
+    subject: [
+      {
+        name: "pkg:npm/%40agent-teams/docs-protocol@0.0.0",
+        digest: {
+          sha512: fixtureDigest.toString("hex"),
+        },
+      },
+    ],
+    predicateType: "https://slsa.dev/provenance/v1",
+    predicate: {
+      buildDefinition: {
+        externalParameters: {
+          workflow: {
+            ref: "refs/heads/main",
+            repository: "https://github.com/agent-teams-ai/engineering-foundation",
+            path: ".github/workflows/docs-protocol-bootstrap.yml",
+          },
+        },
+        resolvedDependencies: [
+          {
+            uri: "git+https://github.com/agent-teams-ai/engineering-foundation@refs/heads/main",
+            digest: { gitCommit: reviewedCommit },
+          },
+        ],
+      },
+    },
+  };
   assert.equal(
     classifyRegistryPreflight({
       docsMetadata,
@@ -933,29 +995,76 @@ test("registry bootstrap is absent-or-exact and proves final tags, deprecation, 
     }),
     "reuse",
   );
-  docsMetadata["dist-tags"].latest = DOCS_PROTOCOL_BOOTSTRAP.version;
   assert.doesNotThrow(() =>
     assertBootstrapPostconditions({
-      auditEvidence: {
-        invalid: [],
-        missing: [],
-        verified: [
-          {
-            attestationBundles: [{ mediaType: "application/vnd.dev.sigstore.bundle+json" }],
-            attestations: {
-              provenance: { predicateType: "https://slsa.dev/provenance/v1" },
-            },
-            name: DOCS_PROTOCOL_BOOTSTRAP.name,
-            version: DOCS_PROTOCOL_BOOTSTRAP.version,
-          },
-        ],
-      },
+      auditEvidence: provenanceAuditEvidence(provenanceStatement),
       deprecatedMessage: DOCS_PROTOCOL_BOOTSTRAP.deprecationMessage,
       docsMetadata,
-      localIntegrity: integrity,
-      publishedIntegrity: integrity,
+      localIntegrity: canonicalIntegrity,
+      publishedIntegrity: canonicalIntegrity,
+      reviewedCommit,
     }),
   );
+  for (const mutate of [
+    (statement) => {
+      statement.predicate.buildDefinition.resolvedDependencies[0].digest.gitCommit =
+        "b".repeat(40);
+    },
+    (statement) => {
+      statement.predicate.buildDefinition.externalParameters.workflow.repository =
+        "https://github.com/example/wrong";
+    },
+    (statement) => {
+      statement.predicate.buildDefinition.externalParameters.workflow.path =
+        ".github/workflows/wrong.yml";
+    },
+    (statement) => {
+      statement.subject[0].name = "pkg:npm/%40agent-teams/docs-protocol@0.0.1";
+    },
+    (statement) => {
+      statement.subject[0].digest.sha512 = "00".repeat(64);
+    },
+  ]) {
+    const mismatchedStatement = structuredClone(provenanceStatement);
+    mutate(mismatchedStatement);
+    assert.throws(
+      () =>
+        assertBootstrapPostconditions({
+          auditEvidence: provenanceAuditEvidence(mismatchedStatement),
+          deprecatedMessage: DOCS_PROTOCOL_BOOTSTRAP.deprecationMessage,
+          docsMetadata,
+          localIntegrity: canonicalIntegrity,
+          publishedIntegrity: canonicalIntegrity,
+          reviewedCommit,
+        }),
+      /reviewed repository, workflow, commit, and tarball/u,
+    );
+  }
+  docsMetadata["dist-tags"].latest = DOCS_PROTOCOL_BOOTSTRAP.version;
+  assert.throws(
+    () =>
+      assertBootstrapPostconditions({
+        auditEvidence: { invalid: [], missing: [], verified: [] },
+        deprecatedMessage: DOCS_PROTOCOL_BOOTSTRAP.deprecationMessage,
+        docsMetadata,
+        localIntegrity: integrity,
+        publishedIntegrity: integrity,
+      }),
+    /dist-tag/u,
+  );
+  delete docsMetadata["dist-tags"].latest;
+  docsMetadata["dist-tags"].rc = DOCS_PROTOCOL_BOOTSTRAP.version;
+  assert.throws(
+    () =>
+      classifyRegistryPreflight({
+        docsMetadata,
+        foundationVersion: DOCS_PROTOCOL_BOOTSTRAP.foundationVersion,
+        localIntegrity: integrity,
+        publishedIntegrity: integrity,
+      }),
+    /unexpected Docs Protocol dist-tag/u,
+  );
+  delete docsMetadata["dist-tags"].rc;
   assert.throws(
     () =>
       classifyRegistryPreflight({

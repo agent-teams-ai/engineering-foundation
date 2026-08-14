@@ -51,6 +51,11 @@ test("skips only an exact fresh prerelease state for the complete public package
   assert.deepEqual(releasePublishDecision(input), { action: "noop" });
   for (const unsafe of [
     { ...input, inventory: { ...input.inventory, pending: ["release.md"] } },
+    {
+      ...input,
+      inventory: { ...input.inventory, pending: ["consumed.md"] },
+      preState: { ...freshPreState, changesets: ["different"] },
+    },
     { ...input, inventory: { ...input.inventory, unexpected: ["foreign.txt"] } },
     { ...input, preState: { ...freshPreState, changesets: ["release"] } },
     {
@@ -85,6 +90,18 @@ test("skips only an exact fresh prerelease state for the complete public package
         ...input.packages,
         public: [{ ...foundation, version: "0.17.0-rc.0" }],
       },
+    }),
+    { action: "publish", tag: "rc" },
+  );
+  assert.deepEqual(
+    releasePublishDecision({
+      ...input,
+      inventory: { ...input.inventory, pending: ["durable-document-writer.md"] },
+      packages: {
+        ...input.packages,
+        public: [{ ...foundation, version: "0.17.0-rc.0" }],
+      },
+      preState: { ...freshPreState, changesets: ["durable-document-writer"] },
     }),
     { action: "publish", tag: "rc" },
   );
@@ -650,6 +667,16 @@ test("real release entrypoint proves multi-package registry state and fails clos
       (root) => rm(join(root, "packages/engineering-foundation"), { force: true, recursive: true }),
     ],
     ["unexpected-entry", (root) => writeFile(join(root, ".changeset/foreign.txt"), "drift\n")],
+    ["unconsumed-changeset", (root) => writeFile(join(root, ".changeset/unconsumed.md"), "drift\n")],
+    [
+      "missing-consumed-changeset",
+      async (root) => {
+        const path = join(root, ".changeset/pre.json");
+        const state = JSON.parse(await readFile(path, "utf8"));
+        state.changesets = ["missing"];
+        await json(path, state);
+      },
+    ],
     [
       "legacy-v1",
       async (root) => {
@@ -679,6 +706,11 @@ test("real release entrypoint proves multi-package registry state and fails clos
         ...foundation,
         version: "0.17.0-rc.0",
         publishConfig: { registry: registryUrl },
+      });
+      await writeFile(join(root, ".changeset/consumed.md"), "consumed\n");
+      await json(join(root, ".changeset/pre.json"), {
+        ...freshPreState,
+        changesets: ["consumed"],
       });
     },
     /^\n$/u,

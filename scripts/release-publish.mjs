@@ -17,6 +17,7 @@ const releaseControlPaths = Object.freeze([
 ]);
 const workspaceRoots = Object.freeze(workspacePackageGlobs.map((pattern) => pattern.slice(0, -2)));
 const registryTimeoutMilliseconds = 10_000;
+const changesetIdPattern = /^[A-Za-z0-9_-]+$/u;
 const stableVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 const rcVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-rc\.(0|[1-9]\d*)$/u;
 
@@ -61,7 +62,7 @@ function exactPreStateShape(preState) {
     isRecord(preState) &&
     Object.keys(preState).toSorted().join(",") === "changesets,initialVersions,mode,tag" &&
     Array.isArray(preState.changesets) &&
-    preState.changesets.every((id) => typeof id === "string" && id.length > 0) &&
+    preState.changesets.every((id) => typeof id === "string" && changesetIdPattern.test(id)) &&
     new Set(preState.changesets).size === preState.changesets.length &&
     isRecord(preState.initialVersions)
   );
@@ -138,13 +139,19 @@ export function releasePublishDecision({ inventory, packages, preState }) {
   const expectedMetadata = preState === undefined
     ? ["README.md", "config.json"]
     : ["README.md", "config.json", "pre.json"];
+  const expectedPending = exactPreStateShape(preState)
+    ? preState.changesets.map((id) => `${id}.md`).toSorted()
+    : [];
   if (
-    inventory.pending.length > 0 ||
     inventory.unexpected.length > 0 ||
     !Array.isArray(inventory.metadata) ||
-    inventory.metadata.join(",") !== expectedMetadata.join(",")
+    inventory.metadata.join(",") !== expectedMetadata.join(",") ||
+    !Array.isArray(inventory.pending) ||
+    inventory.pending.join(",") !== expectedPending.join(",")
   ) {
-    throw new Error("Release publication requires an exact Changesets metadata-only directory.");
+    throw new Error(
+      "Release publication requires exact Changesets metadata and consumed prerelease files.",
+    );
   }
   const freshPrerelease = freshPrereleaseState({ inventory, packages, preState });
   if (freshPrerelease) {

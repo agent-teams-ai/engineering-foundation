@@ -102,15 +102,20 @@ export function documentReferencedDocumentDigest(document: {
 }
 
 export function documentPlanDigest(plan: JsonObject): Digest {
+  const version = plan["schemaVersion"] === 2 && plan["protocolVersion"] === 2
+    ? 2
+    : 1;
   return domainDigest(
-    `${DOMAIN_PREFIX}/plan/v1`,
+    `${DOMAIN_PREFIX}/plan/v${version}`,
     withoutOwnDigest(plan, "planDigest")
   );
 }
 
 export function documentReceiptDigest(receipt: JsonObject): Digest {
+  const version = receipt["schemaVersion"] === 2 &&
+      receipt["protocolVersion"] === 2 ? 2 : 1;
   return domainDigest(
-    `${DOMAIN_PREFIX}/receipt/v1`,
+    `${DOMAIN_PREFIX}/receipt/v${version}`,
     withoutOwnDigest(receipt, "receiptDigest")
   );
 }
@@ -134,17 +139,52 @@ function validatedRecord(value: unknown, subject: string): JsonObject {
   }
 }
 
+function assertV2ParentMaterialization(
+  plan: JsonObject,
+  expectedParentPath: unknown
+): void {
+  const materialization = record(
+    plan["parentMaterialization"],
+    "Document Plan parent materialization"
+  );
+  const missing = materialization["missingDirectories"];
+  if (materialization["policy"] !== "create-missing-real-directories" ||
+    materialization["finalParent"] !== expectedParentPath ||
+    !Array.isArray(missing)) {
+    throw new DocumentContractDigestError(
+      "Document Plan parent materialization binding is invalid."
+    );
+  }
+  const anchor = materialization["deepestExistingDirectory"];
+  const finalParent = materialization["finalParent"];
+  if (typeof anchor !== "string" ||
+    typeof finalParent !== "string" ||
+    !missing.every((entry) => typeof entry === "string")) {
+    throw new DocumentContractDigestError(
+      "Document Plan parent materialization paths are invalid."
+    );
+  }
+  const finalSegments = finalParent
+    .split("/").filter((segment) => segment !== ".");
+  const anchorSegments = anchor.split("/").filter((segment) => segment !== ".");
+  const expectedMissing = finalSegments.slice(anchorSegments.length).map(
+    (_segment, index) => finalSegments.slice(0, anchorSegments.length + index + 1).join("/")
+  );
+  if (anchorSegments.some((segment, index) => segment !== finalSegments[index]) ||
+    expectedMissing.length !== missing.length ||
+    expectedMissing.some((entry, index) => entry !== missing[index])) {
+    throw new DocumentContractDigestError(
+      "Document Plan missing directory chain is invalid."
+    );
+  }
+}
+
 function assertPublicationBindings(plan: JsonObject): void {
   const destination = plan["destination"];
-  const expectedParent = record(
-    plan["expectedParent"],
-    "Document Plan expected parent"
-  );
-  const precondition = record(
-    plan["destinationPrecondition"],
-    "Document Plan destination precondition"
-  );
+  const expectedParent = record(plan["expectedParent"], "Document Plan expected parent");
+  const precondition = record(plan["destinationPrecondition"], "Document Plan destination precondition");
   const capabilities = plan["requiredAdapterCapabilities"];
+  const v2 = plan["schemaVersion"] === 2 && plan["protocolVersion"] === 2;
   let hasTemporaryCapacity = false;
   if (typeof destination === "string" && typeof plan["planDigest"] === "string") {
     try {
@@ -162,10 +202,20 @@ function assertPublicationBindings(plan: JsonObject): void {
     expectedParent["ancestry"] !== "real-directories" ||
     precondition["state"] !== "absent" ||
     !Array.isArray(capabilities) ||
-    !capabilities.some((capability) => capability === "create-file-no-replace/v1")
+    !capabilities.some((capability) => capability === "create-file-no-replace/v1") ||
+    (v2 && !capabilities.some((capability) =>
+      capability === "create-directories-no-replace/v1")) ||
+    (!v2 && (plan["schemaVersion"] !== 1 || plan["protocolVersion"] !== 1))
   ) {
     throw new DocumentContractDigestError(
       "Document Plan publication bindings are invalid."
+    );
+  }
+  if (v2) {
+    assertV2ParentMaterialization(plan, expectedParent["path"]);
+  } else if (plan["parentMaterialization"] !== undefined) {
+    throw new DocumentContractDigestError(
+      "Document Plan v1 must not contain parent materialization."
     );
   }
 }
@@ -210,7 +260,7 @@ function hasExactCommit(
 
 function isRecoveryCommit(outcome: string, commit: JsonObject): boolean {
   const publication = commit["publication"];
-  const atomicity = commit["atomicity"];
+  const atomicity = commit["atomicity"] ?? commit["fileAtomicity"];
   return (
     commit["state"] === outcome &&
     ["none", "published", "unknown"].includes(publication as string) &&
@@ -226,6 +276,9 @@ function isRecoveryCommit(outcome: string, commit: JsonObject): boolean {
 function assertReceiptOutcomeCommit(receipt: JsonObject): void {
   const outcome = receipt["outcome"];
   const commit = record(receipt["commit"], "Document Receipt commit observation");
+  const atomicityField = receipt["schemaVersion"] === 2
+    ? "fileAtomicity"
+    : "atomicity";
   const noResultOutcomes = [
     "authority-stale",
     "rejected",
@@ -239,7 +292,7 @@ function assertReceiptOutcomeCommit(receipt: JsonObject): void {
     hasExactCommit(commit, {
       state: "committed",
       publication: "published",
-      atomicity: "single-file-atomic-create",
+      [atomicityField]: "single-file-atomic-create",
       recoverability: "not-required"
     });
   const alreadyApplied =
@@ -248,7 +301,7 @@ function assertReceiptOutcomeCommit(receipt: JsonObject): void {
     hasExactCommit(commit, {
       state: "committed",
       publication: "preexisting-exact",
-      atomicity: "not-applicable",
+      [atomicityField]: "not-applicable",
       recoverability: "not-required"
     });
   const noResult =
@@ -258,7 +311,7 @@ function assertReceiptOutcomeCommit(receipt: JsonObject): void {
     hasExactCommit(commit, {
       state: "not-published",
       publication: "none",
-      atomicity: "not-applicable",
+      [atomicityField]: "not-applicable",
       recoverability: "not-required"
     });
   const recovery =
@@ -368,6 +421,28 @@ export function assertDocumentReceiptDigest(
   }
   assertDocumentPlanDigests(planValue);
   const plan = validatedRecord(planValue, "Document Plan");
+  if ((plan["schemaVersion"] === 2) !== (receipt["schemaVersion"] === 2)) {
+    throw new DocumentContractDigestError(
+      "Document Receipt version does not match the referenced Plan."
+    );
+  }
+  if (plan["schemaVersion"] === 2) {
+    const planMaterialization = record(
+      plan["parentMaterialization"],
+      "Document Plan parent materialization"
+    );
+    const receiptMaterialization = record(
+      receipt["directoryMaterialization"],
+      "Document Receipt directory materialization"
+    );
+    if (canonicalJson(receiptMaterialization["plannedDirectories"] as CanonicalJsonValue) !==
+      canonicalJson(planMaterialization["missingDirectories"] as CanonicalJsonValue) ||
+      !Array.isArray(receiptMaterialization["observedCreatedDirectories"])) {
+      throw new DocumentContractDigestError(
+        "Document Receipt directory evidence does not bind the referenced Plan."
+      );
+    }
+  }
   const output = record(plan["output"], "Document Plan output");
   const outcome = receipt["outcome"];
   const hasProvenOutput = outcome === "applied" || outcome === "already-applied";

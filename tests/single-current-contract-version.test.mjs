@@ -9,16 +9,30 @@ const transactionEnvelopeV2Path =
   "schemas/foundation-transaction-envelope/v2.schema.json";
 const transactionEnvelopeV3Path =
   "schemas/foundation-transaction-envelope/v3.schema.json";
+const transactionEnvelopeV4Path =
+  "schemas/foundation-transaction-envelope/v4.schema.json";
+const documentAuthoringProfileV2Path =
+  "schemas/document-authoring-profile/v2.schema.json";
 const documentCommandEnvelopeV2Path =
   "schemas/document-command-envelope/v2.schema.json";
+const documentParentMaterializationV2Path =
+  "schemas/document-parent-materialization/v2.schema.json";
+const documentPlanV2Path = "schemas/document-plan/v2.schema.json";
+const documentReceiptV2Path = "schemas/document-receipt/v2.schema.json";
 const acceptedNonV1SchemaPaths = [
+  documentAuthoringProfileV2Path,
   documentCommandEnvelopeV2Path,
+  documentParentMaterializationV2Path,
+  documentPlanV2Path,
+  documentReceiptV2Path,
   transactionEnvelopeV2Path,
   transactionEnvelopeV3Path,
+  transactionEnvelopeV4Path,
 ];
 const acceptedTransactionEnvelopePaths = [
   transactionEnvelopeV2Path,
   transactionEnvelopeV3Path,
+  transactionEnvelopeV4Path,
 ];
 
 async function filesBelow(root) {
@@ -62,7 +76,7 @@ function assertOwnedNumericDiscriminatorsAreV1(value, source) {
   }
 }
 
-test("ships v1 contracts plus the accepted transaction envelope v2 and v3 boundaries", async () => {
+test("ships v1 contracts plus accepted additive v2 and transaction boundaries", async () => {
   const schemaRoot = join(packageRoot, "schemas");
   const schemaFiles = (await filesBelow(schemaRoot)).filter((path) =>
     path.endsWith(".schema.json"),
@@ -84,13 +98,14 @@ test("ships v1 contracts plus the accepted transaction envelope v2 and v3 bounda
   for (const path of schemaFiles) {
     const schema = JSON.parse(await readFile(path, "utf8"));
     const relativePath = relative(packageRoot, path).replaceAll("\\", "/");
-    if (relativePath === documentCommandEnvelopeV2Path) {
+    if (acceptedNonV1SchemaPaths.includes(relativePath) &&
+      !acceptedTransactionEnvelopePaths.includes(relativePath)) {
       assert.equal(schema.$id.endsWith("/v2"), true);
       assert.equal(schema.properties.schemaVersion.const, 2);
       continue;
     }
     if (acceptedTransactionEnvelopePaths.includes(relativePath)) {
-      const envelopeVersion = relativePath === transactionEnvelopeV2Path ? 2 : 3;
+      const envelopeVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
       assert.equal(schema.$id.endsWith(`/v${envelopeVersion}`), true);
       assert.equal(schema.properties.schemaVersion.const, envelopeVersion);
       assert.equal(
@@ -119,12 +134,30 @@ test("ships v1 contracts plus the accepted transaction envelope v2 and v3 bounda
   const versionedContractLiterals =
     /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
   const acceptedVersionedSourceLiterals = {
+    "src/document-authoring/adapters/node/node-document-parent-materializer.ts": [2],
+    "src/document-authoring/application/model/document-authoring-profile-description.ts": [2],
     "src/document-authoring/application/model/document-command.ts": [2],
+    "src/document-authoring/application/model/document-parent-materialization.ts": [2],
+    "src/document-authoring/application/model/document-planning.ts": [2, 2],
+    "src/document-authoring/application/model/document-receipt.ts": [2, 2],
+    "src/document-authoring/application/model/document-transaction-inspection.ts": [2, 2, 2],
+    "src/document-authoring/application/model/document-transaction.ts": [2, 3, 3, 4],
+    "src/document-authoring/application/policies/document-authoring-semantic-digests.ts": [2],
     "src/document-authoring/application/policies/document-command-projection.ts": [2],
-    "src/document-authoring/application/model/document-transaction.ts": [2, 3],
-    "src/document-authoring/application/use-cases/document-transaction-continuation.ts": [
-      3, 2, 2, 2, 2,
+    "src/document-authoring/application/policies/document-receipt-policy.ts": [2, 2, 2, 2],
+    "src/document-authoring/application/policies/document-transaction-envelope-body.ts": [
+      3, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3,
     ],
+    "src/document-authoring/application/policies/document-transaction-envelope-policy.ts": [4],
+    "src/document-authoring/application/use-cases/apply-document-plan.ts": [2, 2],
+    "src/document-authoring/application/use-cases/compile-document-plan.ts": [2, 2],
+    "src/document-authoring/application/use-cases/document-parent-materialization-continuation.ts": [2],
+    "src/document-authoring/application/use-cases/document-transaction-continuation.ts": [2],
+    "src/document-authoring/application/use-cases/document-transaction-receipts.ts": [2, 2],
+    "src/document-authoring/application/use-cases/recapture-directory-receipt-evidence.ts": [2],
+    "src/document-authoring/application/use-cases/recover-document-transaction.ts": [2, 2],
+    "src/document-authoring/composition/describe-document-authoring-profile-v2.ts": [2],
+    "src/document-authoring/composition/inspect-document-transaction.ts": [2, 2, 2, 2],
   };
   const observedVersionedSourceLiterals = {};
   for (const path of sourceFiles) {
@@ -140,7 +173,7 @@ test("ships v1 contracts plus the accepted transaction envelope v2 and v3 bounda
   assert.deepEqual(
     observedVersionedSourceLiterals,
     acceptedVersionedSourceLiterals,
-    "only the accepted document journal v2 and envelope v3 may use newer numeric discriminators",
+    "only the accepted additive document contracts may use newer numeric discriminators",
   );
 
   const packageManifest = JSON.parse(
@@ -161,13 +194,13 @@ test("documents the transaction envelope v2 migration and retirement gate", asyn
   assert.match(decision, /Retirement requires organization inventory/u);
 });
 
-test("documents v3 as the current recoverable writer boundary while preserving v2", async () => {
+test("documents v4 as current while preserving exact v3 and manual v2", async () => {
   const protocol = await readFile(
     join(repositoryRoot, "docs", "architecture", "document-authoring-protocol.md"),
     "utf8",
   );
-  assert.match(protocol, /reads the legacy\s+scaffolding journal, envelope v2, and envelope v3/u);
-  assert.match(protocol, /Only envelope v3[^.]+may select `docs-recover`/su);
+  assert.match(protocol, /scaffolding journal, envelope v2, envelope v3, and envelope v4/u);
+  assert.match(protocol, /Only envelope\s+v3\/v4[^.]+may select `docs-recover`/su);
   assert.match(protocol, /Envelope v2 is preserved as manual-recovery evidence/u);
 });
 

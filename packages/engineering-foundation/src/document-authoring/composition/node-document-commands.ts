@@ -13,7 +13,7 @@ import { RunDocumentDoctor } from "../application/use-cases/run-document-doctor.
 import { FindDocuments } from "../application/use-cases/find-documents.js";
 import { RunDocumentNew } from "../application/use-cases/run-document-new.js";
 import { RunDocumentRecover } from "../application/use-cases/run-document-recover.js";
-import { inspectDocumentTransactionV1 } from "./inspect-document-transaction.js";
+import { inspectDocumentTransactionV2 } from "./inspect-document-transaction.js";
 import { planNodeDocumentationDocument } from "./node-document-planning.js";
 import {
   applyNodeDocumentationPlan,
@@ -26,7 +26,7 @@ export function createNodeDocumentCommands(): Readonly<{
   readonly newDocument: RunDocumentNew;
   readonly recover: RunDocumentRecover;
 }> {
-  const inspect = inspectDocumentTransactionV1;
+  const inspect = inspectDocumentTransactionV2;
   const planningProfiles = new NodeDocumentPlanningProfileReader();
   const catalog = new BuildDocumentationCatalog({
     metadata: new NodeMetadataInstanceValidator(),

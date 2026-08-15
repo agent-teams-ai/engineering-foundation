@@ -1,4 +1,4 @@
-import type { DocumentReceipt } from "../application/model/document-receipt.js";
+import type { DocumentReceiptContract as DocumentReceipt } from "../application/model/document-receipt.js";
 import type { ApplyDocumentPlanRequest } from "../application/use-cases/apply-document-plan.js";
 import type { RecoverDocumentTransactionRequest } from "../application/use-cases/recover-document-transaction.js";
 import {

@@ -6,7 +6,7 @@ import type {
   DocumentCommandId,
   DocumentCommandOutcome
 } from "../model/document-command.js";
-import type { DocumentReceipt } from "../model/document-receipt.js";
+import type { DocumentReceiptContract as DocumentReceipt } from "../model/document-receipt.js";
 import { DocumentPlanningError } from "../../document-planning-error.js";
 
 const MAXIMUM_DIAGNOSTICS = 256;

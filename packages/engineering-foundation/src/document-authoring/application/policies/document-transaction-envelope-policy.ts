@@ -6,7 +6,8 @@ import { assertSchema } from "../../../schema-catalog.js";
 import type {
   DocumentTransactionEnvelope,
   DocumentTransactionEnvelopeBody,
-  DocumentTransactionJournal
+  DocumentTransactionJournal,
+  DocumentTransactionJournalV3
 } from "../model/document-transaction.js";
 import { assertNonzeroDocumentPhysicalIdentity } from "../model/document-physical-identity.js";
 import { assertDocumentPlanDigests } from "./document-contract-digests.js";
@@ -65,12 +66,57 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function hasOwnedTemporary(
-  journal: DocumentTransactionJournal
+  journal: DocumentTransactionJournal | DocumentTransactionJournalV3
 ): journal is Extract<
   DocumentTransactionJournal,
   { readonly ownedTemporary: unknown }
 > {
   return "ownedTemporary" in journal;
+}
+
+function assertV4MaterializationBindings(
+  envelope: Extract<DocumentTransactionEnvelope, { readonly schemaVersion: 4 }>
+): void {
+  const materialization = envelope.journal.parentMaterialization;
+  assertNonzeroDocumentPhysicalIdentity(materialization.anchorIdentity);
+  const planned = envelope.journal.plan.parentMaterialization.missingDirectories;
+  if (materialization.createdDirectories.length > planned.length ||
+    materialization.createdDirectories.some((entry, index) => {
+      assertNonzeroDocumentPhysicalIdentity(entry.identity);
+      return entry.path !== planned[index];
+    })) {
+    throw new DocumentTransactionEnvelopeError(
+      "Document transaction directory evidence is not an exact Plan prefix."
+    );
+  }
+  const pending = materialization.pendingDirectory;
+  if (envelope.state === "PREPARED" && materialization.createdDirectories.length !== 0) {
+    throw new DocumentTransactionEnvelopeError(
+      "PREPARED must not contain created directory evidence."
+    );
+  }
+  if (envelope.state === "MATERIALIZING" && planned.length === 0) {
+    throw new DocumentTransactionEnvelopeError(
+      "MATERIALIZING requires at least one planned directory."
+    );
+  }
+  if (pending !== undefined &&
+    pending !== planned[materialization.createdDirectories.length]) {
+    throw new DocumentTransactionEnvelopeError(
+      "Document transaction pending directory does not bind the next Plan path."
+    );
+  }
+  if (envelope.state !== "MATERIALIZING" && pending !== undefined) {
+    throw new DocumentTransactionEnvelopeError(
+      "Only MATERIALIZING may retain a pending directory."
+    );
+  }
+  if ((envelope.state === "PUBLISHING" || envelope.state === "PUBLISHED") &&
+    materialization.createdDirectories.length !== planned.length) {
+    throw new DocumentTransactionEnvelopeError(
+      "Document publication requires complete directory materialization evidence."
+    );
+  }
 }
 
 function assertLifecycleBindings(
@@ -111,6 +157,9 @@ function assertLifecycleBindings(
       envelope.journal.publicationIdentity
     );
   }
+  if (envelope.schemaVersion === 4) {
+    assertV4MaterializationBindings(envelope);
+  }
 }
 
 export async function assertDocumentTransactionEnvelope(
@@ -124,14 +173,20 @@ export async function assertDocumentTransactionEnvelope(
   }
   const handler = candidate["recoveryHandler"];
   if (
-    candidate["schemaVersion"] !== 3 ||
+    ![3, 4].includes(Number(candidate["schemaVersion"])) ||
     candidate["operationKind"] !== "document-authoring" ||
     !isRecord(handler) ||
     handler["id"] !== "foundation.document-authoring" ||
-    handler["contractVersion"] !== 2 ||
+    handler["contractVersion"] !==
+      (candidate["schemaVersion"] === 4 ? 3 : 2) ||
     candidate["adapterContractVersion"] !== 1 ||
-    candidate["payloadKind"] !== "document-authoring-journal/v2" ||
-    !["PREPARED", "PUBLISHING", "PUBLISHED"].includes(
+    candidate["payloadKind"] !==
+      (candidate["schemaVersion"] === 4
+        ? "document-authoring-journal/v3"
+        : "document-authoring-journal/v2") ||
+    !(candidate["schemaVersion"] === 4
+      ? ["PREPARED", "MATERIALIZING", "PUBLISHING", "PUBLISHED"]
+      : ["PREPARED", "PUBLISHING", "PUBLISHED"]).includes(
       String(candidate["state"])
     )
   ) {
@@ -141,13 +196,15 @@ export async function assertDocumentTransactionEnvelope(
   }
   try {
     await assertSchema(
-      "foundation-transaction-envelope/v3",
+      candidate["schemaVersion"] === 4
+        ? "foundation-transaction-envelope/v4"
+        : "foundation-transaction-envelope/v3",
       candidate,
       "document-transaction-envelope"
     );
   } catch (error) {
     throw new DocumentTransactionEnvelopeError(
-      "Document transaction envelope does not match the closed v3 schema.",
+      "Document transaction envelope does not match its closed versioned schema.",
       { cause: error }
     );
   }

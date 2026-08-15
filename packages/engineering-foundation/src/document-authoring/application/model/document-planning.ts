@@ -2,8 +2,9 @@ import type {
   DocumentAuthorityDigest,
   DocumentAuthorityEvidence,
   DocumentIdentityProjectionEntry,
-  DocumentationCatalogSnapshot
+  DocumentationCatalogSnapshotContract
 } from "./document-catalog.js";
+import type { DocumentParentMaterializationPlanV2 } from "./document-parent-materialization.js";
 
 export type DocumentJsonPrimitive = boolean | null | number | string;
 export interface DocumentJsonObject {
@@ -63,6 +64,7 @@ export type DocumentPlacementStrategy =
     };
 
 export interface DocumentArtifactType {
+  readonly allowedOwnerIds?: readonly string[];
   readonly type: string;
   readonly initialStatus: string;
   readonly identity: DocumentIdentityStrategy;
@@ -105,11 +107,16 @@ export interface DocumentPlanningProfileSnapshot {
   readonly evidence: DocumentAuthorityEvidence;
   readonly excludedPrefixes: readonly string[];
   readonly metadataSchemaPath: string;
+  readonly metadataSidecar?: {
+    readonly kind: "path-metadata-map";
+    readonly path: string;
+  };
   readonly ownerCatalog: {
     readonly contract: "foundation.owner-map/v1";
     readonly path: string;
   };
   readonly projectId: string;
+  readonly schemaVersion?: 1 | 2;
 }
 
 export interface DocumentTemplateSnapshot {
@@ -138,6 +145,7 @@ export interface DocumentPlanningStateSnapshot {
     readonly state: "directory";
     readonly ancestry: "real-directories";
   };
+  readonly parentMaterialization?: DocumentParentMaterializationPlanV2;
 }
 
 export interface DocumentPlanDiagnostic {
@@ -193,8 +201,33 @@ export interface DocumentPlan {
   readonly planDigest: DocumentAuthorityDigest;
 }
 
+export type DocumentPlanV1 = DocumentPlan;
+
+export type DocumentPlanCommon = Omit<
+  DocumentPlan,
+  "protocolVersion" | "requiredAdapterCapabilities" | "schemaVersion"
+>;
+
+export interface DocumentPlanV2 extends Omit<DocumentPlanCommon, "authority"> {
+  readonly authority: DocumentPlan["authority"] & {
+    readonly metadataSidecar?: DocumentAuthorityEvidence;
+    readonly profileSemanticDigest: DocumentAuthorityDigest;
+    readonly catalogPreimageSemanticDigest: DocumentAuthorityDigest;
+    readonly expectedCatalogPostimageSemanticDigest: DocumentAuthorityDigest;
+  };
+  readonly schemaVersion: 2;
+  readonly protocolVersion: 2;
+  readonly parentMaterialization: DocumentParentMaterializationPlanV2;
+  readonly requiredAdapterCapabilities: readonly [
+    "create-directories-no-replace/v1",
+    "create-file-no-replace/v1"
+  ];
+}
+
+export type DocumentPlanContract = DocumentPlan | DocumentPlanV2;
+
 export interface DocumentPlanningCompilationInput {
-  readonly catalog: DocumentationCatalogSnapshot;
+  readonly catalog: DocumentationCatalogSnapshotContract;
   readonly compiler: DocumentCompilerIdentity;
   readonly identityProjection: readonly DocumentIdentityProjectionEntry[];
   readonly intent: DocumentIntent;
@@ -204,4 +237,5 @@ export interface DocumentPlanningCompilationInput {
   readonly state: DocumentPlanningStateSnapshot;
   readonly template: DocumentTemplateSnapshot;
   readonly output: string;
+  readonly profileSemanticDigest?: DocumentAuthorityDigest;
 }

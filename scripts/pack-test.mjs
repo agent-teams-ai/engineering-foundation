@@ -19,6 +19,19 @@ import {
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
+const docsProtocolRoot = join(repositoryRoot, "packages", "docs-protocol");
+const docsProtocolRequiredArtifacts = [
+  "CHANGELOG.md",
+  "dist/cli.d.ts",
+  "dist/cli.js",
+  "dist/index.d.ts",
+  "dist/index.js",
+  "dist/qualification/index.d.ts",
+  "dist/qualification/index.js",
+  "schemas/docs-protocol-command-envelope/v1.schema.json",
+  "schemas/docs-protocol-profile/v1.schema.json",
+  "schemas/docs-protocol/v1.schema.json",
+];
 const temporaryRoot = await mkdtemp(join(tmpdir(), "agent-teams-foundation-pack-"));
 const keepTemporaryRoot = process.env.AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS === "1";
 const requireFromRepository = createRequire(import.meta.url);
@@ -63,6 +76,7 @@ function packageManagerVersion() {
 
 try {
   const artifact = await packAndInspectArtifact({
+    artifactLabel: "foundation",
     packageRoot,
     requiredArtifactPaths: FOUNDATION_REQUIRED_ARTIFACT_PATHS,
     repositoryRoot,
@@ -91,8 +105,18 @@ try {
     consumerRoot: fixture.consumerRoot,
     runPnpm
   });
+  const docsProtocolArtifact = await packAndInspectArtifact({
+    artifactLabel: "docs-protocol",
+    packageRoot: docsProtocolRoot,
+    requiredArtifactPaths: docsProtocolRequiredArtifacts,
+    repositoryRoot,
+    runBuild: runCleanPackageBuild,
+    runPnpm,
+    supportPackageRoots: [packageRoot],
+    temporaryRoot,
+  });
   process.stdout.write(
-    `Package and local-mode lifecycle verified: ${artifact.archiveName} (${fixture.packedManifest.version})\n`
+    `Package and local-mode lifecycle verified: ${artifact.archiveName} (${fixture.packedManifest.version}); ${docsProtocolArtifact.archiveName}.\n`
   );
   process.stdout.write(
     `Registry-install qualification: ${localRegistryInstallQualification.status}. ${localRegistryInstallQualification.summary}\n`

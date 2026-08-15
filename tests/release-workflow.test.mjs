@@ -659,6 +659,22 @@ test("release ReviewGate narrowly allows exit state deletion and rejects private
     await readFile(join(repositoryRoot, ".changeset", "config.json"), "utf8"),
   );
   assert.deepEqual(config.privatePackages, { version: true, tag: false });
+  assert.deepEqual(config.ignore, ["@agent-teams/docs-protocol"]);
+});
+
+test("release ReviewGate owns only the Foundation release pair during stage one", () => {
+  const validFiles = [
+    { filename: ".changeset/unified-docs-protocol.md", status: "removed" },
+    { filename: "packages/engineering-foundation/CHANGELOG.md", status: "modified" },
+    { filename: "packages/engineering-foundation/package.json", status: "modified" },
+  ];
+  assert.deepEqual(releasePullRequestFileViolations(validFiles), []);
+  assert.match(
+    releasePullRequestFileViolations(
+      [...validFiles, { filename: "packages/docs-protocol/package.json", status: "modified" }],
+    ).join("\n"),
+    /forbidden change: packages\/docs-protocol\/package\.json/u,
+  );
 });
 
 test("release ReviewGate reads piped GitHub evidence through portable stdin", async () => {

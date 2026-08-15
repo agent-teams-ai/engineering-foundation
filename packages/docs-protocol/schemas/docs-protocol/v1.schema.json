@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol/v1",
+  "title": "Agent Teams Docs Protocol Identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version"],
+  "properties": {
+    "id": { "const": "agent-teams.docs-protocol" },
+    "version": { "const": 1 }
+  }
+}

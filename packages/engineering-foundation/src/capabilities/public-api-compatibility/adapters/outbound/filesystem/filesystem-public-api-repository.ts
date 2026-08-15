@@ -1,4 +1,5 @@
 import {
+  link,
   mkdtemp,
   opendir,
   realpath,
@@ -137,11 +138,26 @@ function publicApiEvidenceReadError(
 }
 
 async function readPublicApiEvidenceFile(input: {
+  readonly allowMissing: true;
   readonly maxBytes: number;
   readonly repositoryPath: string;
   readonly root: string;
   readonly phase: string;
-}): Promise<Buffer> {
+}): Promise<Buffer | undefined>;
+async function readPublicApiEvidenceFile(input: {
+  readonly allowMissing?: false;
+  readonly maxBytes: number;
+  readonly repositoryPath: string;
+  readonly root: string;
+  readonly phase: string;
+}): Promise<Buffer>;
+async function readPublicApiEvidenceFile(input: {
+  readonly allowMissing?: boolean;
+  readonly maxBytes: number;
+  readonly repositoryPath: string;
+  readonly root: string;
+  readonly phase: string;
+}): Promise<Buffer | undefined> {
   try {
     return await readContainedRegularFile({
       candidate: resolve(input.root, input.repositoryPath),
@@ -149,6 +165,13 @@ async function readPublicApiEvidenceFile(input: {
       root: input.root
     });
   } catch (error) {
+    if (
+      input.allowMissing === true &&
+      error instanceof ContainedFileReadError &&
+      error.failure === "missing"
+    ) {
+      return undefined;
+    }
     return publicApiEvidenceReadError(error, input.repositoryPath, input.phase);
   }
 }
@@ -252,18 +275,37 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
   async readReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
+    signal: AbortSignal | undefined,
+    purpose: "release-promotion"
+  ): Promise<PublicApiSnapshot | undefined>;
+  async readReleasedBaseline(
+    consumerRoot: string,
+    policy: PublicApiPackagePolicy,
+    signal?: AbortSignal,
+    purpose?: "compatibility-check"
+  ): Promise<PublicApiSnapshot>;
+  async readReleasedBaseline(
+    consumerRoot: string,
+    policy: PublicApiPackagePolicy,
     signal?: AbortSignal,
     purpose: "compatibility-check" | "release-promotion" = "compatibility-check"
-  ): Promise<PublicApiSnapshot> {
+  ): Promise<PublicApiSnapshot | undefined> {
     assertNotCancelled(signal);
     assertBaselineAnchor(policy);
     const root = await canonicalRoot(consumerRoot);
-    const baselineSource = await readPublicApiEvidenceFile({
+    const baselineRead = {
       maxBytes: MAX_INPUT_BYTES,
       repositoryPath: policy.releasedBaselinePath,
       root,
       phase: "public-api-evidence"
-    });
+    };
+    const baselineSource =
+      purpose === "release-promotion"
+        ? await readPublicApiEvidenceFile({ ...baselineRead, allowMissing: true })
+        : await readPublicApiEvidenceFile(baselineRead);
+    if (baselineSource === undefined) {
+      return undefined;
+    }
     let input: unknown;
     try {
       input = JSON.parse(baselineSource.toString("utf8")) as unknown;
@@ -345,12 +387,27 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
     snapshot: PublicApiSnapshot,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    mode: "create" | "replace" = "replace"
   ): Promise<void> {
     assertNotCancelled(signal);
     assertBaselineAnchor(policy);
     const root = await canonicalRoot(consumerRoot);
-    const baselinePath = await safePath(root, policy.releasedBaselinePath, "file");
+    const requestedBaselinePath = resolve(root, policy.releasedBaselinePath);
+    const baselinePath =
+      mode === "replace"
+        ? await safePath(root, policy.releasedBaselinePath, "file")
+        : join(
+            await safePath(root, dirname(policy.releasedBaselinePath), "directory"),
+            policy.releasedBaselinePath.slice(policy.releasedBaselinePath.lastIndexOf("/") + 1)
+          );
+    if (baselinePath !== requestedBaselinePath) {
+      inputError(
+        "PUBLIC_API_EVIDENCE_ESCAPE",
+        `Public API evidence escapes the consumer repository: ${policy.releasedBaselinePath}.`,
+        "public-api-baseline-promotion"
+      );
+    }
     if (!baselineMatchesPolicy(snapshot, policy)) {
       inputError(
         "PUBLIC_API_BASELINE_INVALID",
@@ -373,7 +430,27 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         mode: 0o644
       });
       assertNotCancelled(signal);
-      await rename(temporaryPath, baselinePath);
+      if (mode === "create") {
+        try {
+          await link(temporaryPath, baselinePath);
+        } catch (error) {
+          if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            String(error.code) === "EEXIST"
+          ) {
+            inputError(
+              "PUBLIC_API_BASELINE_BOOTSTRAP_CONFLICT",
+              `Initial public API baseline appeared concurrently: ${policy.releasedBaselinePath}.`,
+              "public-api-baseline-promotion"
+            );
+          }
+          throw error;
+        }
+      } else {
+        await rename(temporaryPath, baselinePath);
+      }
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
     }

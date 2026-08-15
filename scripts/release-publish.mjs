@@ -73,7 +73,9 @@ export function releasePublishPolicy({ packageVersion, preState }) {
     preState.tag !== allowedPrereleaseTag ||
     parseRcVersion(packageVersion) === undefined
   ) {
-    throw new Error("Prerelease publication requires exact Changesets rc mode and an -rc.N package version.");
+    throw new Error(
+      "Prerelease publication requires exact Changesets rc mode and -rc.N versions for every prerelease package.",
+    );
   }
   return { tag: allowedPrereleaseTag };
 }

@@ -1,4 +1,4 @@
-import type { DocumentationCatalogSnapshot } from "../model/document-catalog.js";
+import type { DocumentationCatalogSnapshotContract } from "../model/document-catalog.js";
 
 interface DocumentationCatalogReadRequest {
   readonly consumerRoot: string;
@@ -9,5 +9,5 @@ interface DocumentationCatalogReadRequest {
 export interface DocumentationCatalogReader {
   execute(
     request: DocumentationCatalogReadRequest
-  ): Promise<DocumentationCatalogSnapshot>;
+  ): Promise<DocumentationCatalogSnapshotContract>;
 }

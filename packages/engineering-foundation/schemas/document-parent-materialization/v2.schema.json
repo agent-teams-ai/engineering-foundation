@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-parent-materialization/v2",
+  "title": "Document Parent Materialization Journal v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "plan", "anchorIdentity", "createdDirectories"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "plan": { "$ref": "#/$defs/plan" },
+    "anchorIdentity": { "$ref": "#/$defs/physicalIdentity" },
+    "createdDirectories": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "#/$defs/createdDirectory" }
+    }
+  },
+  "$defs": {
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[A-Za-z0-9._@-]*)?(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$"
+    },
+    "repositoryDirectory": {
+      "oneOf": [{ "const": "." }, { "$ref": "#/$defs/repositoryPath" }]
+    },
+    "physicalIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "version", "dev", "ino", "birthtimeNs"],
+      "properties": {
+        "adapter": { "const": "node-filesystem" },
+        "version": { "const": 1 },
+        "dev": { "type": "string", "maxLength": 32, "pattern": "^[1-9][0-9]*$" },
+        "ino": { "type": "string", "maxLength": 32, "pattern": "^[1-9][0-9]*$" },
+        "birthtimeNs": { "type": "string", "maxLength": 32, "pattern": "^[1-9][0-9]*$" }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "deepestExistingDirectory", "missingDirectories", "finalParent"],
+      "properties": {
+        "policy": { "const": "create-missing-real-directories" },
+        "deepestExistingDirectory": { "$ref": "#/$defs/repositoryDirectory" },
+        "missingDirectories": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/repositoryPath" }
+        },
+        "finalParent": { "$ref": "#/$defs/repositoryDirectory" }
+      }
+    },
+    "createdDirectory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "identity"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "identity": { "$ref": "#/$defs/physicalIdentity" }
+      }
+    }
+  }
+}

@@ -8,8 +8,15 @@ export interface PublicApiRepository {
   readReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
+    signal: AbortSignal | undefined,
+    purpose: "release-promotion"
+  ): Promise<PublicApiSnapshot | undefined>;
+
+  readReleasedBaseline(
+    consumerRoot: string,
+    policy: PublicApiPackagePolicy,
     signal?: AbortSignal,
-    purpose?: "compatibility-check" | "release-promotion"
+    purpose?: "compatibility-check"
   ): Promise<PublicApiSnapshot>;
 
   readReleaseEvidence(
@@ -23,6 +30,7 @@ export interface PublicApiRepository {
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
     snapshot: PublicApiSnapshot,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    mode?: "create" | "replace"
   ): Promise<void>;
 }

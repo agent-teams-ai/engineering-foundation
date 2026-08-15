@@ -23,7 +23,7 @@ export function classifyNodeTemporaryIdentity(
 
 export function unverifiableDocumentTemporaryStatus(
   foundation: Record<string, unknown>,
-  format: "envelope-v2" | "envelope-v3" = "envelope-v2"
+  format: "envelope-v2" | "envelope-v3" | "envelope-v4" = "envelope-v2"
 ): InternalFoundationTransactionStatus {
   return {
     state: "manual-recovery-required", reason: "physical-identity-unverifiable",

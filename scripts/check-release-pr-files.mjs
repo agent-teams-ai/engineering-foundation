@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, promisify } from "node:util";
 
+import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+
 const execFileAsync = promisify(execFile);
 
 const CHANGESET_PATTERN = /^\.changeset\/[^/]+\.md$/u;
@@ -10,8 +12,12 @@ const CONTRACT_BASELINE_PATTERN =
   /^architecture\/contracts\/(?:(?!\.{1,2}\/)[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:json|ya?ml)$/u;
 const PUBLIC_API_PATTERN = /^architecture\/public-api\/[^/]+\.json$/u;
 const PRERELEASE_STATE = ".changeset/pre.json";
-const PACKAGE_MANIFEST = "packages/engineering-foundation/package.json";
-const PACKAGE_CHANGELOG = "packages/engineering-foundation/CHANGELOG.md";
+const PACKAGE_MANIFESTS = new Set(
+  PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.manifestPath),
+);
+const PACKAGE_CHANGELOGS = new Set(
+  PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.changelogPath),
+);
 
 export async function readStreamText(stream) {
   let text = "";
@@ -153,7 +159,7 @@ function isAllowedReleaseFile(file, prereleaseExit) {
   ) {
     return file.status === "added" || file.status === "modified";
   }
-  if (file.filename === PACKAGE_MANIFEST || file.filename === PACKAGE_CHANGELOG) {
+  if (PACKAGE_MANIFESTS.has(file.filename) || PACKAGE_CHANGELOGS.has(file.filename)) {
     return file.status === "modified";
   }
   return false;
@@ -181,11 +187,25 @@ export function releasePullRequestFileViolations(files, { prereleaseExit = false
 
   const hasModifiedFile = (filename) =>
     files.some((file) => file?.filename === filename && file.status === "modified");
-  if (!hasModifiedFile(PACKAGE_MANIFEST)) {
-    violations.push(`release pull request must modify ${PACKAGE_MANIFEST}`);
+  const releasedPackages = PUBLISHABLE_PACKAGES.filter(
+    (releasePackage) =>
+      hasModifiedFile(releasePackage.manifestPath) ||
+      hasModifiedFile(releasePackage.changelogPath),
+  );
+  if (releasedPackages.length === 0) {
+    violations.push("release pull request must modify at least one publishable package");
   }
-  if (!hasModifiedFile(PACKAGE_CHANGELOG)) {
-    violations.push(`release pull request must modify ${PACKAGE_CHANGELOG}`);
+  for (const releasePackage of releasedPackages) {
+    if (!hasModifiedFile(releasePackage.manifestPath)) {
+      violations.push(
+        `release pull request must modify ${releasePackage.manifestPath}`,
+      );
+    }
+    if (!hasModifiedFile(releasePackage.changelogPath)) {
+      violations.push(
+        `release pull request must modify ${releasePackage.changelogPath}`,
+      );
+    }
   }
   if (
     !files.some(
@@ -288,33 +308,41 @@ async function main() {
   const files = Array.isArray(pages) ? pages.flat() : pages;
   const baseRevision = revisionArgument("--base");
   const headRevision = revisionArgument("--head");
-  const [
-    baseManifestText,
-    headManifestText,
-    baseChangelog,
-    headChangelog,
-    basePrereleaseState,
-    headPrereleaseState,
-  ] = await Promise.all([
-    fileAtRevision(baseRevision, PACKAGE_MANIFEST),
-    fileAtRevision(headRevision, PACKAGE_MANIFEST),
-    fileAtRevision(baseRevision, PACKAGE_CHANGELOG),
-    fileAtRevision(headRevision, PACKAGE_CHANGELOG),
+  const [basePrereleaseState, headPrereleaseState] = await Promise.all([
     optionalJsonAtRevision(baseRevision, PRERELEASE_STATE),
     optionalJsonAtRevision(headRevision, PRERELEASE_STATE),
   ]);
+  const hasModifiedFile = (filename) =>
+    files.some((file) => file?.filename === filename && file.status === "modified");
+  const releasedPackages = PUBLISHABLE_PACKAGES.filter(
+    (releasePackage) =>
+      hasModifiedFile(releasePackage.manifestPath) ||
+      hasModifiedFile(releasePackage.changelogPath),
+  );
+  const packageContentViolations = await Promise.all(
+    releasedPackages.map(async (releasePackage) => {
+      const [baseManifestText, headManifestText, baseChangelog, headChangelog] =
+        await Promise.all([
+          fileAtRevision(baseRevision, releasePackage.manifestPath),
+          fileAtRevision(headRevision, releasePackage.manifestPath),
+          fileAtRevision(baseRevision, releasePackage.changelogPath),
+          fileAtRevision(headRevision, releasePackage.changelogPath),
+        ]);
+      return releasePullRequestContentViolations({
+        baseManifest: JSON.parse(baseManifestText),
+        headManifest: JSON.parse(headManifestText),
+        baseChangelog,
+        headChangelog,
+        basePrereleaseState,
+        headPrereleaseState,
+      }).map((violation) => `${releasePackage.name}: ${violation}`);
+    }),
+  );
   const violations = [
     ...releasePullRequestFileViolations(files, {
       prereleaseExit: validPrereleaseState(basePrereleaseState, "exit"),
     }),
-    ...releasePullRequestContentViolations({
-      baseManifest: JSON.parse(baseManifestText),
-      headManifest: JSON.parse(headManifestText),
-      baseChangelog,
-      headChangelog,
-      basePrereleaseState,
-      headPrereleaseState,
-    }),
+    ...packageContentViolations.flat(),
   ];
   if (violations.length > 0) {
     throw new Error(violations.join("\n"));

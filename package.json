@@ -46,7 +46,7 @@
     "release:version": "changeset version && pnpm build && node packages/engineering-foundation/dist/cli.js public-api-promote-release --consumer .",
     "spike:source-parser": "pnpm --filter @agent-teams/source-dependency-parser-spike run spike",
     "test": "pnpm build && pnpm test:built",
-    "test:built": "pnpm test:manifests:check && node --test --test-concurrency=1 tests/*.test.mjs",
+    "test:built": "pnpm test:manifests:check && node --test --test-concurrency=1 tests/*.test.mjs packages/docs-protocol/tests/*.test.mjs",
     "test:coverage": "pnpm build && pnpm test:coverage:built",
     "test:coverage:built": "node scripts/run-test-coverage.mjs",
     "test:manifests:check": "node scripts/check-test-manifests.mjs",

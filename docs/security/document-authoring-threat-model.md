@@ -1,8 +1,10 @@
 # Document Authoring Cooperative Writer Threat Model
 
-Status: Intent, Plan, and Receipt v1 remain governed by ADR-0023. Envelope v3,
-document journal v2, and recovery-handler contract v2 are accepted by ADR-0024.
-Published envelope v2 and journal v1 are immutable manual-recovery evidence.
+Status: ADR-0026 governs Plan/Receipt v2 directory materialization through
+envelope v4, document journal v3, and recovery-handler contract v3. ADR-0024's
+envelope v3/journal v2 remains exact legacy recovery evidence. Published
+envelope v2/journal v1 remains immutable manual-recovery evidence. V1 public
+contract meanings are unchanged.
 
 ## Protected assets
 
@@ -33,6 +35,13 @@ process. It does not claim identical power-loss durability on ext4, APFS, NTFS,
 network filesystems, or virtualized mounts. It also does not prove document
 meaning, completeness, or review quality.
 
+Portable Node APIs cannot combine `mkdir -> lstat`, `realpath -> lstat`, `open`,
+or `link` into one identity-fenced syscall. Foundation rechecks identity and
+ancestry around each boundary and rejects observable drift, but a hostile
+same-OS-user process may win an undetectable race and cause a bounded filesystem
+side effect before rejection. This is the explicit reason directory recovery is
+retain-only and the protocol does not claim a hostile-writer sandbox.
+
 ## Threats and required controls
 
 | Threat | Required control | Fail-closed result |
@@ -52,16 +61,17 @@ meaning, completeness, or review quality.
 | Unknown or newer journal | Preserve exact evidence and block every Foundation mutation | Manual recovery required |
 | Published envelope v2 or document journal v1 | Frozen read-only recognition without handler or recovery authority | Preserve as manual-recovery evidence; never resume mutation |
 | Temporary path substitution or inode reuse | Exact Plan-derived sibling plus creator-handle dev/ino/birthtime identity | Reject or preserve for manual recovery; never act on a merely matching pathname |
-| Package downgrade or same-version rebuild during a transaction | Exact SemVer plus package build identity in envelope v3, bound to the embedded compiler and closed handler v2 | Preserve evidence; only the exact qualified package may recover |
-| Contradictory envelope/document lifecycle | Closed PREPARED/PUBLISHING/PUBLISHED matrix binding destination state, temporary, and publication identity | Manual recovery required |
+| Package downgrade or same-version rebuild during a transaction | Exact SemVer plus package build identity in envelope v4, bound to the embedded compiler and closed handler v3 | Preserve evidence; only the exact qualified package may recover |
+| Contradictory envelope/document lifecycle | Closed PREPARED/MATERIALIZING/PUBLISHING/PUBLISHED matrix binding destination, directory prefix, pending segment, temporary, and publication identity | Manual recovery required |
 | Interrupted local attach or detach | Shared coordinator recognizes durable phase or orphan registry backup and admits only detach | All foreign mutations blocked |
 | Concurrent Foundation mutation | One operation lock and one physical transaction slot | Recovery required |
-| Crash before publication | Durable prepared evidence and exclusive owned temporary | Recover or preserve |
+| Crash during directory materialization | Durable anchor plus exact created-directory identity prefix; at most one pending unbound segment | Resume only at a safe boundary; unbound mkdir evidence is manual |
+| Crash before publication | Durable prepared/materializing evidence and exclusive owned temporary when present | Recover or preserve; created directories are retained |
 | Crash after publication | Persist PUBLISHED with non-zero `publicationIdentity`; verify exact destination bytes and identity | Complete or recover; never delete output |
 | Destination replaced after observation | Repeat bytes, mode, ancestry, and physical identity checks | Preserve output and evidence |
-| Parent or ancestor replaced after planning | Recapture the complete physical chain under lock; Plan stores no portable inode promise | Authority-stale, conflict, or manual recovery |
+| Parent or bound directory replaced after planning | Recapture root, anchor, exact created prefix, and final parent under lock | Authority-stale, conflict, or manual recovery with `preserved-unknown` |
 | Temporary identity unavailable on the filesystem | Preserve canonical zero identity evidence; never publish, delete, or auto-recover from it | Manual recovery |
-| Same-byte replacement after publication | Require destination identity to equal journal v2 `publicationIdentity` | Manual recovery; never adopt or delete replacement |
+| Same-byte replacement after publication | Require destination identity to equal journal v3 `publicationIdentity` | Manual recovery; never adopt or delete replacement |
 | Cancellation races with publication | Report cancellation only after proving no publication and durable cleanup; mask cancellation after possible publication | Complete or preserve transaction evidence |
 | Orphan unknown temporary | Delete only a temporary whose ownership and identity are proven | Manual cleanup instruction |
 | Remote schema or template | Local-only profile paths and closed Foundation schema references | Invalid authority |
@@ -70,8 +80,11 @@ meaning, completeness, or review quality.
 ## Publication boundary
 
 Before publication, a failed operation may remove only its own exactly
-identified temporary evidence. Once a destination has been published or may
-have been published, automatic rollback by deletion is forbidden. Matching
+identified temporary evidence. Created directories are retain-only before and
+after publication: portable Node exposes no identity-fenced `rmdir`, so neither
+empty nor non-empty created directories are automatically deleted. Once a
+destination has been published or may have been published, automatic rollback
+by deletion is likewise forbidden. Matching
 bytes, journal state, or process-local memory cannot prove that a noncooperating
 writer did not replace the path.
 
@@ -82,17 +95,25 @@ The only permitted responses after that boundary are:
 - resume only with a compatible implemented and qualified recovery handler;
 - report manual recovery with stable diagnostics.
 
-Envelope v3 recovery is version-exact, not range-compatible. It requires the
-recorded Foundation SemVer and build identity, the closed handler contract v2,
-the embedded compiler identity, qualified dependencies, and the exact journal
-v2 state matrix. Older packages preserve unknown v3 evidence and block
-mutation. New packages preserve v2/journal v1 evidence and require manual
-resolution. No package migrates an active journal.
+Envelope v4 recovery is version-exact, not range-compatible. It requires the
+recorded Foundation SemVer/build, closed handler contract v3, embedded compiler
+identity, qualified dependencies, and exact journal v3 state matrix. Exact
+envelope v3/journal v2 recovery remains bound to its handler v2 generation.
+Older packages preserve unknown v4 evidence and block mutation. Current
+packages preserve envelope v2/journal v1 as manual-only evidence. No package
+migrates or reinterprets an active journal.
 
 Cancellation is a claim about durable state, not merely an observed signal. It
 is truthful only when destination absence is proven and all identity-owned
 temporary and journal evidence is durably gone. After publication or ambiguity,
 the signal cannot turn the outcome into cancellation.
+
+For Plan v2, cancellation is observed only between directory steps and after a
+durable identity bind. It is never observed inside the critical
+`mkdir -> recapture -> bind journal` sequence. A cancellation after one bound
+segment retains that segment, does not create the next, recaptures the retained
+identity, removes safe temporary/journal evidence, and reports a truthful
+`cancelled` Receipt with `created-and-retained`.
 
 Legacy recognition and current recovery handlers cannot be retired by age
 alone. Retirement requires organization-wide zero-instance inventory, removal
@@ -103,6 +124,6 @@ recovery-fixture evidence, and a new accepted removal ADR.
 
 On a qualified adapter, the protocol may claim cooperative serialization,
 single-file atomic create-no-replace, exact-byte verification, journaled
-recoverability, known ancestry hazard rejection, and no automatic deletion
-after publication. It may not claim a hostile-writer sandbox, a true multi-file
+recoverability, known ancestry hazard rejection, and retain-only created
+directories. It may not claim a hostile-writer sandbox, a true multi-file
 transaction, universal crash durability, or semantic correctness.

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-receipt/v2",
+  "title": "Document Receipt v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocolVersion", "planDigest", "adapter", "destination", "outcome", "commit", "directoryMaterialization", "diagnostics", "receiptDigest"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "protocolVersion": { "const": 2 },
+    "planDigest": { "$ref": "https://agent-teams.ai/schemas/document-receipt/v1#/$defs/digest" },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "const": "foundation.filesystem/v1" },
+        "contractVersion": { "const": 1 }
+      }
+    },
+    "destination": { "$ref": "https://agent-teams.ai/schemas/document-receipt/v1#/$defs/repositoryPath" },
+    "outcome": { "enum": ["applied", "already-applied", "authority-stale", "rejected", "recovery-required", "manual-recovery-required", "failed-before-publication", "cancelled"] },
+    "resultDigest": { "$ref": "https://agent-teams.ai/schemas/document-receipt/v1#/$defs/digest" },
+    "commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "publication", "fileAtomicity", "recoverability"],
+      "properties": {
+        "state": { "enum": ["committed", "not-published", "recovery-required", "manual-recovery-required"] },
+        "publication": { "enum": ["none", "preexisting-exact", "published", "unknown"] },
+        "fileAtomicity": { "enum": ["not-applicable", "single-file-atomic-create"] },
+        "recoverability": { "enum": ["not-required", "preserved-for-recovery"] }
+      }
+    },
+    "directoryMaterialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "plannedDirectories", "observedCreatedDirectories"],
+      "properties": {
+        "state": { "enum": ["none-created", "created-and-retained", "preserved-unknown"] },
+        "plannedDirectories": { "type": "array", "maxItems": 128, "items": { "$ref": "https://agent-teams.ai/schemas/document-receipt/v1#/$defs/repositoryPath" } },
+        "observedCreatedDirectories": { "type": "array", "maxItems": 128, "items": { "$ref": "https://agent-teams.ai/schemas/document-receipt/v1#/$defs/repositoryPath" } }
+      }
+    },
+    "diagnostics": { "type": "array", "maxItems": 256, "items": { "$ref": "https://agent-teams.ai/schemas/document-receipt/v1#/$defs/diagnostic" } },
+    "receiptDigest": { "$ref": "https://agent-teams.ai/schemas/document-receipt/v1#/$defs/digest" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "enum": ["applied", "already-applied"] } }, "required": ["outcome"] },
+      "then": {
+        "properties": {
+          "resultDigest": { "$ref": "https://agent-teams.ai/schemas/document-receipt/v1#/$defs/digest" }
+        },
+        "required": ["resultDigest"]
+      },
+      "else": { "properties": { "resultDigest": false } }
+    },
+    {
+      "if": {
+        "properties": {
+          "directoryMaterialization": {
+            "type": "object",
+            "properties": { "state": { "const": "none-created" } },
+            "required": ["state"]
+          }
+        },
+        "required": ["directoryMaterialization"]
+      },
+      "then": {
+        "properties": {
+          "directoryMaterialization": {
+            "type": "object",
+            "properties": {
+              "observedCreatedDirectories": { "type": "array", "maxItems": 0 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "directoryMaterialization": {
+            "type": "object",
+            "properties": { "state": { "const": "preserved-unknown" } },
+            "required": ["state"]
+          }
+        },
+        "required": ["directoryMaterialization"]
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "enum": ["recovery-required", "manual-recovery-required"]
+          },
+          "commit": {
+            "type": "object",
+            "properties": {
+              "recoverability": { "const": "preserved-for-recovery" }
+            },
+            "required": ["recoverability"]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -24,6 +24,9 @@
       ],
       "project": ["src/**/*.ts"]
     },
+    "packages/docs-protocol": {
+      "project": ["src/**/*.ts"]
+    },
     "spikes/source-dependency-parser": {
       "project": ["*.mjs"]
     }

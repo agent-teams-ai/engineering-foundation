@@ -1,16 +1,20 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import type {
+  DocumentDescriptor,
   DocumentSearchCorpusEntry,
-  DocumentationSearchCatalogSnapshot
+  DocumentationSearchCatalogSnapshot,
+  DocumentationSearchCatalogSnapshotV2
 } from "../model/document-catalog.js";
 import type {
   DocumentFindFilters,
   DocumentFindQuery,
-  DocumentFindResult
+  DocumentFindResult,
+  DocumentFindResultV2
 } from "../model/document-find.js";
 import type {
   DocumentationSearchCatalogReader
 } from "../ports/documentation-search-catalog-reader.js";
+import type { DocumentationSearchCatalogReaderV2 } from "../ports/documentation-search-catalog-reader-v2.js";
 import { DocumentCatalogError } from "../../document-catalog-error.js";
 
 const OPAQUE_ID = /^[A-Za-z0-9@][A-Za-z0-9@._/-]*$/u;
@@ -115,10 +119,22 @@ function normalizedSearchFields(entry: DocumentSearchCorpusEntry): readonly stri
   ].map((value) => value.normalize("NFC").toLowerCase());
 }
 
-function findInSnapshot(
-  snapshot: DocumentationSearchCatalogSnapshot,
+interface SearchSnapshot<Descriptor extends DocumentDescriptor> {
+  readonly catalog: Pick<
+    DocumentationSearchCatalogSnapshot["catalog"],
+    "diagnostics" | "status"
+  >;
+  readonly documents: readonly (Omit<DocumentSearchCorpusEntry, "descriptor"> & {
+    readonly descriptor: Descriptor;
+  })[];
+}
+
+function findInSnapshot<Descriptor extends DocumentDescriptor>(
+  snapshot: SearchSnapshot<Descriptor>,
   query: CompiledDocumentFindQuery
-): DocumentFindResult {
+): Omit<DocumentFindResult, "documents"> & {
+  readonly documents: readonly Descriptor[];
+} {
   const documents = snapshot.documents
     .filter(
       (entry) =>
@@ -157,5 +173,27 @@ export class FindDocuments {
       ...(request.signal === undefined ? {} : { signal: request.signal })
     });
     return findInSnapshot(snapshot, query);
+  }
+}
+
+export class FindDocumentsV2 {
+  readonly #catalog: DocumentationSearchCatalogReaderV2;
+
+  constructor(catalog: DocumentationSearchCatalogReaderV2) {
+    this.#catalog = catalog;
+  }
+
+  async execute(request: FindDocumentsRequest): Promise<DocumentFindResultV2> {
+    const query = compileDocumentFindQuery(request.query);
+    const snapshot: DocumentationSearchCatalogSnapshotV2 = await this.#catalog.read({
+      consumerRoot: request.consumerRoot,
+      profilePath: request.profilePath,
+      ...(request.signal === undefined ? {} : { signal: request.signal })
+    });
+    const result = findInSnapshot(snapshot, query);
+    return Object.freeze({
+      ...result,
+      catalogSemanticDigest: snapshot.catalog.semanticDigest
+    });
   }
 }

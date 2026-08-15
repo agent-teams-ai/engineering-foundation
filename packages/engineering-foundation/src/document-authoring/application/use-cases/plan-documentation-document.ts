@@ -2,12 +2,12 @@ import { assertNotCancelled } from "../../../cancellation.js";
 import type {
   DocumentAuthorityEvidence,
   DocumentIdentityProjectionEntry,
-  DocumentationCatalogSnapshot
+  DocumentationCatalogSnapshotContract
 } from "../model/document-catalog.js";
 import type {
   DocumentArtifactType,
   DocumentIntent,
-  DocumentPlan,
+  DocumentPlanContract as DocumentPlan,
   DocumentPlanningProfileSnapshot,
   DocumentPlanningStateSnapshot
 } from "../model/document-planning.js";
@@ -19,9 +19,13 @@ import type { DocumentTemplateReader } from "../ports/document-template-reader.j
 import type { DocumentationCatalogReader } from "../ports/documentation-catalog-reader.js";
 import type { MetadataInstanceValidator } from "../ports/metadata-instance-validator.js";
 import type { OwnerMembershipReader } from "../ports/owner-membership-reader.js";
+import { assertArtifactOwnerAllowed } from "../policies/assert-artifact-owner-allowed.js";
+import { assertV2PlanningProfile } from "../policies/assert-v2-planning-profile.js";
 import { assertDocumentPlanDigests } from "../policies/document-contract-digests.js";
+import { sameDocumentCatalogSnapshot } from "../policies/same-document-catalog-snapshot.js";
 import { DocumentPlanningError } from "../../document-planning-error.js";
 import { compileDocumentPlan } from "./compile-document-plan.js";
+import { loadV2ProfileDescription, type DocumentProfileDescriptionReader } from "./load-v2-profile-description.js";
 
 interface ResolvedDocumentAuthoring {
   readonly artifact: DocumentArtifactType;
@@ -56,7 +60,7 @@ interface DocumentPlanningPolicies {
     excludedPrefixes: readonly string[]
   ): boolean;
   classifyDocumentLogicalPreimage(input: {
-    readonly catalog: DocumentationCatalogSnapshot;
+    readonly catalog: DocumentationCatalogSnapshotContract;
     readonly id: string;
     readonly destination: string;
     readonly observedBytes?: Uint8Array;
@@ -71,6 +75,16 @@ export interface PlanDocumentationDocumentRequest {
   readonly signal?: AbortSignal;
 }
 
+export interface PlanDocumentationDocumentRequestV2
+  extends PlanDocumentationDocumentRequest {
+  readonly parentPolicy: "create-missing-real-directories";
+}
+
+export type PlanDocumentationDocumentRequestContract =
+  PlanDocumentationDocumentRequest & {
+    readonly parentPolicy?: "create-missing-real-directories";
+  };
+
 interface Dependencies {
   readonly catalog: DocumentationCatalogReader;
   readonly compiler: DocumentPlan["compiler"];
@@ -79,6 +93,7 @@ interface Dependencies {
   readonly owners: OwnerMembershipReader;
   readonly policies: DocumentPlanningPolicies;
   readonly profile: DocumentPlanningProfileReader;
+  readonly profileDescription?: DocumentProfileDescriptionReader;
   readonly renderer: CanonicalDocumentRenderer;
   readonly state: DocumentPlanningStateReader;
   readonly templates: DocumentTemplateReader;
@@ -91,9 +106,7 @@ interface LoadedPlanningAuthority {
   readonly template: Awaited<ReturnType<DocumentTemplateReader["read"]>>;
 }
 
-function signalOption(signal: AbortSignal | undefined): {
-  readonly signal?: AbortSignal;
-} {
+function signalOption(signal: AbortSignal | undefined): { readonly signal?: AbortSignal } {
   return signal === undefined ? {} : { signal };
 }
 
@@ -101,11 +114,8 @@ function sameEvidence(
   left: DocumentAuthorityEvidence,
   right: DocumentAuthorityEvidence
 ): boolean {
-  return (
-    left.path === right.path &&
-    left.digest === right.digest &&
-    left.size === right.size
-  );
+  return left.path === right.path && left.digest === right.digest &&
+    left.size === right.size;
 }
 
 function assertStableEvidence(
@@ -136,7 +146,9 @@ function samePlanningState(
 ): boolean {
   if (
     left.expectedParent.path !== right.expectedParent.path ||
-    left.destination.state !== right.destination.state
+    left.destination.state !== right.destination.state ||
+    JSON.stringify(left.parentMaterialization) !==
+      JSON.stringify(right.parentMaterialization)
   ) {
     return false;
   }
@@ -164,10 +176,10 @@ function assertStablePlanningState(
 }
 
 function assertStableCatalog(
-  before: DocumentationCatalogSnapshot,
-  after: DocumentationCatalogSnapshot
+  before: DocumentationCatalogSnapshotContract,
+  after: DocumentationCatalogSnapshotContract
 ): void {
-  if (!sameCatalogSnapshot(before, after)) {
+  if (!sameDocumentCatalogSnapshot(before, after)) {
     throw new DocumentPlanningError(
       "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
       "Document catalog changed while the Plan was compiled."
@@ -175,40 +187,9 @@ function assertStableCatalog(
   }
 }
 
-function sameEvidenceList(
-  left: readonly DocumentAuthorityEvidence[],
-  right: readonly DocumentAuthorityEvidence[]
-): boolean {
-  return left.length === right.length &&
-    left.every((entry, index) => sameEvidence(entry, right[index]!));
-}
-
-function sameCatalogSnapshot(
-  left: DocumentationCatalogSnapshot,
-  right: DocumentationCatalogSnapshot
-): boolean {
-  const leftAuthority = [
-    left.authority.profile,
-    left.authority.metadataSchema,
-    left.authority.ownerCatalog
-  ];
-  const rightAuthority = [
-    right.authority.profile,
-    right.authority.metadataSchema,
-    right.authority.ownerCatalog
-  ];
-  return left.status === right.status &&
-    left.projectId === right.projectId &&
-    sameEvidenceList(leftAuthority, rightAuthority) &&
-    JSON.stringify(left.diagnostics) === JSON.stringify(right.diagnostics) &&
-    JSON.stringify(left.documents) === JSON.stringify(right.documents) &&
-    JSON.stringify(left.identityProjection) === JSON.stringify(right.identityProjection) &&
-    JSON.stringify(left.ownerIds) === JSON.stringify(right.ownerIds);
-}
-
 async function loadPlanningAuthority(
   dependencies: Dependencies,
-  request: PlanDocumentationDocumentRequest,
+  request: PlanDocumentationDocumentRequestContract,
   profile: DocumentPlanningProfileSnapshot,
   templatePath: string
 ): Promise<LoadedPlanningAuthority> {
@@ -278,7 +259,7 @@ async function recaptureAuthority(input: {
   readonly dependencies: Dependencies;
   readonly destination: string;
   readonly profile: DocumentPlanningProfileSnapshot;
-  readonly request: PlanDocumentationDocumentRequest;
+  readonly request: PlanDocumentationDocumentRequestContract;
   readonly state: DocumentPlanningStateSnapshot;
   readonly templatePath: string;
 }): Promise<void> {
@@ -335,6 +316,9 @@ async function recaptureAuthority(input: {
   const stateBeforeCatalog = await dependencies.state.observe({
     consumerRoot: request.consumerRoot,
     destination,
+    ...(request.parentPolicy === undefined
+      ? {}
+      : { parentPolicy: request.parentPolicy }),
     ...options
   });
   assertStablePlanningState(state, stateBeforeCatalog);
@@ -348,6 +332,9 @@ async function recaptureAuthority(input: {
     dependencies.state.observe({
       consumerRoot: request.consumerRoot,
       destination,
+      ...(request.parentPolicy === undefined
+        ? {}
+        : { parentPolicy: request.parentPolicy }),
       ...options
     }),
     dependencies.templates.read({
@@ -372,7 +359,7 @@ export class PlanDocumentationDocument {
   }
 
   async execute(
-    request: PlanDocumentationDocumentRequest
+    request: PlanDocumentationDocumentRequestContract
   ): Promise<DocumentPlan> {
     assertNotCancelled(request.signal);
     const options = signalOption(request.signal);
@@ -388,10 +375,15 @@ export class PlanDocumentationDocument {
       path: request.profilePath,
       ...options
     });
+    assertV2PlanningProfile(profile, request.parentPolicy);
     const artifact = this.#dependencies.policies.selectDocumentArtifact(
       profile,
       intent.type
     );
+    assertArtifactOwnerAllowed(artifact, intent);
+    const profileDescription = await loadV2ProfileDescription(
+      this.#dependencies.profileDescription, profile,
+      { consumerRoot: request.consumerRoot, profilePath: request.profilePath, ...options });
     const resolved = this.#dependencies.policies.resolveDocumentAuthoring({
       artifact,
       intent
@@ -463,6 +455,9 @@ export class PlanDocumentationDocument {
     const state = await this.#dependencies.state.observe({
       consumerRoot: request.consumerRoot,
       destination: resolved.destination,
+      ...(request.parentPolicy === undefined
+        ? {}
+        : { parentPolicy: request.parentPolicy }),
       ...options
     });
     const logicalPreimage =
@@ -506,6 +501,9 @@ export class PlanDocumentationDocument {
       ownerCatalog: authority.owners.evidence,
       output,
       profile,
+      ...(profileDescription === undefined ? {} : {
+        profileSemanticDigest: profileDescription.semanticDigest
+      }),
       state,
       template: authority.template
     });

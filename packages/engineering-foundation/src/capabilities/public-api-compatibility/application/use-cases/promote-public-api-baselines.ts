@@ -23,6 +23,31 @@ function promotionError(code: string, message: string): never {
 }
 
 const BUMP_RANK = Object.freeze({ patch: 0, minor: 1, major: 2 });
+const INITIAL_UNRELEASED_VERSION = "0.0.0";
+
+function assertReviewedBootstrap(
+  packagePolicy: PublicApiCompatibilityPolicy["packages"][number],
+  releaseEvidence: Awaited<ReturnType<PublicApiRepository["readReleaseEvidence"]>>
+): void {
+  if (releaseEvidence.packageVersion !== INITIAL_UNRELEASED_VERSION) {
+    promotionError(
+      "PUBLIC_API_BASELINE_BOOTSTRAP_NOT_INITIAL",
+      `Missing baseline for ${packagePolicy.packageName} can be bootstrapped only at the initial unreleased version ${INITIAL_UNRELEASED_VERSION}.`
+    );
+  }
+  if (releaseEvidence.declaredBump === undefined) {
+    promotionError(
+      "PUBLIC_API_BASELINE_BOOTSTRAP_CHANGESET_MISSING",
+      `Initial public API baseline for ${packagePolicy.packageName} requires a Changeset.`
+    );
+  }
+  if (BUMP_RANK[releaseEvidence.declaredBump] < BUMP_RANK.minor) {
+    promotionError(
+      "PUBLIC_API_BASELINE_BOOTSTRAP_CHANGESET_INSUFFICIENT",
+      `Initial public API baseline for ${packagePolicy.packageName} requires at least a minor Changeset.`
+    );
+  }
+}
 
 function assertExtractorVersionMatch(
   released: PublicApiSnapshot,
@@ -50,6 +75,7 @@ export async function promotePublicApiBaselines(
   }
 ): Promise<readonly PublicApiSnapshot[]> {
   const promotions: Array<{
+    readonly mode: "create" | "replace";
     readonly packagePolicy: PublicApiCompatibilityPolicy["packages"][number];
     readonly snapshot: PublicApiSnapshot;
   }> = [];
@@ -78,6 +104,11 @@ export async function promotePublicApiBaselines(
       releaseEvidence.packageVersion,
       input.signal
     );
+    if (released === undefined) {
+      assertReviewedBootstrap(packagePolicy, releaseEvidence);
+      promotions.push({ packagePolicy, snapshot: current, mode: "create" });
+      continue;
+    }
     assertExtractorVersionMatch(released, current);
     const change = classifyPublicApiChange(released, current, dependencies.fingerprint);
     if (released.packageVersion === releaseEvidence.packageVersion) {
@@ -143,7 +174,7 @@ export async function promotePublicApiBaselines(
         );
       }
     }
-    promotions.push({ packagePolicy, snapshot: current });
+    promotions.push({ packagePolicy, snapshot: current, mode: "replace" });
   }
 
   for (const promotion of promotions) {
@@ -152,7 +183,8 @@ export async function promotePublicApiBaselines(
       input.consumerRoot,
       promotion.packagePolicy,
       promotion.snapshot,
-      input.signal
+      input.signal,
+      promotion.mode
     );
   }
 

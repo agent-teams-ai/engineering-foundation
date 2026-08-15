@@ -2,7 +2,7 @@ import type { DocumentReachabilityProjection } from "../../application/model/doc
 import type {
   DocumentAuthorityEvidence,
 } from "../../application/model/document-catalog.js";
-import type { DocumentPlan } from "../../application/model/document-planning.js";
+import type { DocumentPlanContract as DocumentPlan } from "../../application/model/document-planning.js";
 import type { DocumentPlanningProfileReader } from "../../application/ports/document-planning-profile-reader.js";
 import type { DocumentReachabilityProjector } from "../../application/ports/document-reachability-projector.js";
 import { projectDocumentReachability } from "../../application/policies/project-document-reachability.js";

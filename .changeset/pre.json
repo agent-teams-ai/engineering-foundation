@@ -6,5 +6,7 @@
     "@agent-teams/engineering-foundation": "0.16.1",
     "@agent-teams/source-dependency-parser-spike": "0.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "unified-docs-protocol"
+  ]
 }

@@ -60,7 +60,7 @@ test("Docs Protocol bootstrap is manual, token-bounded, idempotent, and provenan
   assert.match(publish.run, /npm deprecate '@agent-teams\/docs-protocol@0\.0\.0'/u);
   assert.match(publish.run, /current_deprecation.*expected_deprecation/su);
   assert.match(postconditions.run, /npm audit signatures --json --include-attestations/u);
-  assert.match(postconditions.run, /for attempt in \{1\.\.12\}/u);
+  assert.match(postconditions.run, /for _ in \{1\.\.12\}/u);
   assert.match(postconditions.run, /test -s "\$\{deprecated_path\}"/u);
   assert.equal(reconcile.needs, "bootstrap");
   assert.deepEqual(reconcile.permissions, { contents: "write" });

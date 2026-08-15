@@ -104,27 +104,37 @@ export function assertBootstrapPromotionManifest({
 }) {
   if (
     docsManifest?.name !== DOCS_PROTOCOL_BOOTSTRAP.name ||
-    docsManifest.version !== DOCS_PROTOCOL_BOOTSTRAP.version ||
-    docsManifest.private === true
+    docsManifest.version !== DOCS_PROTOCOL_BOOTSTRAP.version
   ) {
     fail("bootstrap publication requires the reviewed public Docs Protocol 0.0.0 manifest.");
   }
+  assertOrdinaryPublicDocsManifest({ changesetsConfig, docsManifest, foundationManifest });
+}
+
+export function assertOrdinaryPublicDocsManifest({
+  changesetsConfig,
+  docsManifest,
+  foundationManifest,
+}) {
+  if (docsManifest?.name !== DOCS_PROTOCOL_BOOTSTRAP.name || docsManifest.private === true) {
+    fail("ordinary public release requires the reviewed public Docs Protocol manifest.");
+  }
   if (changesetsConfig?.ignore?.includes(DOCS_PROTOCOL_BOOTSTRAP.name)) {
-    fail("bootstrap publication requires the reviewed removal of the Changesets ignore.");
+    fail("ordinary public release requires the reviewed removal of the Changesets ignore.");
   }
   if (
     docsManifest.dependencies?.[DOCS_PROTOCOL_BOOTSTRAP.foundationName] !== "workspace:*" ||
     foundationManifest?.name !== DOCS_PROTOCOL_BOOTSTRAP.foundationName ||
     foundationManifest.version !== DOCS_PROTOCOL_BOOTSTRAP.foundationVersion
   ) {
-    fail("bootstrap publication requires workspace Foundation 0.17.0-rc.0.");
+    fail("ordinary public release requires workspace Foundation 0.17.0-rc.0.");
   }
   if (
     docsManifest.publishConfig?.access !== "public" ||
     docsManifest.publishConfig.provenance !== true ||
     docsManifest.publishConfig.registry !== DOCS_PROTOCOL_BOOTSTRAP.registry
   ) {
-    fail("bootstrap publication requires exact public npm provenance configuration.");
+    fail("ordinary public release requires exact public npm provenance configuration.");
   }
 }
 
@@ -144,7 +154,7 @@ export function ordinaryReleaseDocsPolicy({
     });
     return "private-stage";
   }
-  assertBootstrapPromotionManifest({ changesetsConfig, docsManifest, foundationManifest });
+  assertOrdinaryPublicDocsManifest({ changesetsConfig, docsManifest, foundationManifest });
   if (!publishablePackageNames.includes(DOCS_PROTOCOL_BOOTSTRAP.name)) {
     fail("public Docs Protocol must have exactly one ordinary publishable-package entry.");
   }
@@ -156,7 +166,9 @@ export function ordinaryReleaseDocsPolicy({
   if (registryVersion !== DOCS_PROTOCOL_BOOTSTRAP.version) {
     fail("ordinary publication cannot create the Docs Protocol 0.0.0 bootstrap artifact.");
   }
-  return "published-bootstrap";
+  return docsManifest.version === DOCS_PROTOCOL_BOOTSTRAP.version
+    ? "published-bootstrap"
+    : "public-release";
 }
 
 function allowedPackedPath(path) {
@@ -440,7 +452,7 @@ async function cli() {
         publishablePackageNames,
       });
     } else {
-      assertBootstrapPromotionManifest({
+      assertOrdinaryPublicDocsManifest({
         changesetsConfig,
         docsManifest,
         foundationManifest: await json("packages/engineering-foundation/package.json"),

@@ -5,7 +5,20 @@ import {
   registryPublicationTag,
   registryPublishArguments,
 } from "../scripts/registry-publication-policy.mjs";
-import { seedRegistryInParallel } from "../scripts/registry-seed-scheduler.mjs";
+import {
+  installRegistryConsumerWithRetry,
+  registryInstallAttemptPaths,
+  registryInstallAttemptPolicy,
+  runRegistryPhase,
+  seedRegistryInParallel,
+} from "../scripts/registry-seed-scheduler.mjs";
+
+const confirmedTimeout = () =>
+  Object.assign(new Error("timeout"), {
+    killed: true,
+    terminationConfirmed: true,
+    timedOut: true,
+  });
 
 test("keeps stable hermetic registry publications on the default tag", () => {
   assert.equal(registryPublicationTag("0.16.0"), undefined);
@@ -118,4 +131,123 @@ test("waits for active registry seed workers before reporting a failure", async 
     /seed failed/u,
   );
   assert.equal(secondWorkerFinished, true);
+});
+
+test("retries one confirmed timeout with fresh bounded install state", async () => {
+  const attempts = [];
+  const cleaned = [];
+  const delayed = [];
+  const result = await installRegistryConsumerWithRetry({
+    cleanupAttempt: async (context) => cleaned.push(context),
+    createAttempt: async (attempt) =>
+      registryInstallAttemptPaths("/registry-e2e", attempt),
+    delay: async (delayMs) => delayed.push(delayMs),
+    runInstall: async (context, options) => {
+      attempts.push({ context, options });
+      if (options.attempt === 1) {
+        throw confirmedTimeout();
+      }
+      return "installed";
+    },
+  });
+
+  assert.equal(result, "installed");
+  assert.deepEqual(
+    attempts.map(({ options }) => options.timeoutMs),
+    [120_000, 240_000],
+  );
+  for (const key of ["consumerRoot", "clientRoot", "cacheRoot", "userConfigPath"]) {
+    assert.notEqual(attempts[0].context[key], attempts[1].context[key]);
+  }
+  assert.equal(
+    attempts[0].context.userConfigPath.startsWith(attempts[0].context.consumerRoot),
+    false,
+  );
+  assert.deepEqual(cleaned, [attempts[0].context]);
+  assert.deepEqual(delayed, [1_000]);
+  assert.deepEqual(registryInstallAttemptPolicy, {
+    firstAttemptTimeoutMs: 120_000,
+    retryAttemptTimeoutMs: 240_000,
+    retryDelayMs: 1_000,
+  });
+});
+
+test("registry install retry remains fail-closed and bounded", async () => {
+  for (const failure of [
+    { killed: false, terminationConfirmed: true, timedOut: true },
+    { killed: true, terminationConfirmed: false, timedOut: true },
+    { killed: true, terminationConfirmed: true, timedOut: false },
+    { code: 1, killed: false, timedOut: false },
+  ]) {
+    let attempts = 0;
+    await assert.rejects(
+      installRegistryConsumerWithRetry({
+        createAttempt: async () => ({}),
+        runInstall: async () => {
+          attempts += 1;
+          throw Object.assign(new Error("failure"), failure);
+        },
+      }),
+    );
+    assert.equal(attempts, 1);
+  }
+
+  let timeoutAttempts = 0;
+  await assert.rejects(
+    installRegistryConsumerWithRetry({
+      createAttempt: async () => ({}),
+      delay: async () => {},
+      runInstall: async () => {
+        timeoutAttempts += 1;
+        throw confirmedTimeout();
+      },
+    }),
+  );
+  assert.equal(timeoutAttempts, 2);
+
+  const cleanupFailure = new Error("cleanup failed");
+  await assert.rejects(
+    installRegistryConsumerWithRetry({
+      cleanupAttempt: async () => {
+        throw cleanupFailure;
+      },
+      createAttempt: async () => ({}),
+      runInstall: async () => {
+        throw confirmedTimeout();
+      },
+    }),
+    cleanupFailure,
+  );
+});
+
+test("registry phase timing reports pass and timeout failure", async () => {
+  const lines = [];
+  const passTimes = [10, 35];
+  assert.equal(
+    await runRegistryPhase("registry-seed", async () => "seeded", {
+      now: () => passTimes.shift(),
+      write: (line) => lines.push(line),
+    }),
+    "seeded",
+  );
+  const failureTimes = [40, 160];
+  await assert.rejects(
+    runRegistryPhase(
+      "consumer-install-attempt-1",
+      async () => {
+        throw confirmedTimeout();
+      },
+      {
+        now: () => failureTimes.shift(),
+        write: (line) => lines.push(line),
+      },
+    ),
+    (error) => error?.timedOut === true,
+  );
+  assert.deepEqual(lines, [
+    "Registry E2E phase=registry-seed status=START.\n",
+    "Registry E2E phase=registry-seed status=PASS durationMs=25.\n",
+    "Registry E2E phase=consumer-install-attempt-1 status=START.\n",
+    "Registry E2E phase=consumer-install-attempt-1 status=FAIL durationMs=120 timedOut=true.\n",
+  ]);
 });

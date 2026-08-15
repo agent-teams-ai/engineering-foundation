@@ -15,11 +15,15 @@ export function planAuthorityStable(
   before: { readonly catalog: Catalog; readonly description: Description },
   after: { readonly catalog: Catalog; readonly description: Description }
 ): boolean {
-  return isPlanV2(plan) &&
-    before.description.semanticDigest === plan.authority.profileSemanticDigest &&
+  if (!isPlanV2(plan)) {return false;}
+  const catalogDigest = before.catalog.semanticDigest;
+  const catalogIsStable = catalogDigest === after.catalog.semanticDigest;
+  const catalogMatchesPlan =
+    catalogDigest === plan.authority.catalogPreimageSemanticDigest ||
+    catalogDigest === plan.authority.expectedCatalogPostimageSemanticDigest;
+  return before.description.semanticDigest === plan.authority.profileSemanticDigest &&
     plan.authority.profileSemanticDigest === after.description.semanticDigest &&
-    before.catalog.semanticDigest === plan.authority.catalogPreimageSemanticDigest &&
-    plan.authority.catalogPreimageSemanticDigest === after.catalog.semanticDigest;
+    catalogIsStable && catalogMatchesPlan;
 }
 
 export function catalogMatchesExpectedPostimage(plan: Plan, catalog: Catalog): boolean {

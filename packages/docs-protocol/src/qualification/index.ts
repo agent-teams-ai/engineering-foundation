@@ -448,7 +448,7 @@ async function interruptAndRecover(input: {
 export async function runDocsProtocolQualification(request: DocsProtocolQualificationRequest): Promise<DocsProtocolQualificationReceipt> {
   const sourceRoot = await realpath(resolvePath(request.fixtureRoot));
   const before = await snapshot(sourceRoot);
-  const temporary = await realpath(await mkdtemp(join(tmpdir(), "agent-teams-docs-qualification-")));
+  const temporary = await realpath(await mkdtemp(join(tmpdir(), "atd-q-")));
   const consumerRoot = join(temporary, "consumer");
   const profilePath = request.profilePath ?? "architecture/foundation/docs-protocol.yaml";
   try {

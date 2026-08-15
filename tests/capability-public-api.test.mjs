@@ -172,6 +172,18 @@ test("requires a minor Changeset for a current schema v1 additive subpath export
     );
 
     await writeFile(
+      join(consumerRoot, ".changeset", "empty-bootstrap.md"),
+      "---\n---\n\nRecord a release-neutral bootstrap transition.\n",
+      "utf8",
+    );
+    const empty = check(consumerRoot);
+    assert.equal(empty.result.status, 1);
+    assert.deepEqual(
+      empty.report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+      ["package.public-api-compatibility.missing-changeset"],
+    );
+
+    await writeFile(
       join(consumerRoot, ".changeset", "add-local-mode-api.md"),
       '---\n"@fixture/public-api": minor\n---\n\nAdd a local-mode API.\n',
       "utf8",

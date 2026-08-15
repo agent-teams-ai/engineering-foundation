@@ -5,8 +5,9 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { DOCS_PROTOCOL_BOOTSTRAP } from "../scripts/docs-protocol-bootstrap.mjs";
 import {
   changesetsPublishArguments,
   main,
@@ -23,6 +24,10 @@ const foundation = {
 const privateSpike = {
   name: "@agent-teams/source-dependency-parser-spike",
   version: "0.0.0",
+};
+const docsProtocol = {
+  name: DOCS_PROTOCOL_BOOTSTRAP.name,
+  version: DOCS_PROTOCOL_BOOTSTRAP.version,
 };
 const freshPreState = {
   mode: "pre",
@@ -171,6 +176,7 @@ test("skips only an exact fresh prerelease state for the complete public package
     );
   }
 });
+
 
 test("routes an exact Changesets rc version to the rc npm dist-tag", () => {
   assert.deepEqual(
@@ -326,9 +332,11 @@ test("creates one platform-native command shim without a shadowing extensionless
 
 async function runRelease(root, marker) {
   return await new Promise((resolve) => {
+    const environment = commandEnvironment(root, marker);
+    environment.NODE_OPTIONS = `--import=${pathToFileURL(join(root, "registry-fetch-shim.mjs"))}`;
     const child = spawn(process.execPath, [releaseScript], {
       cwd: root,
-      env: commandEnvironment(root, marker),
+      env: environment,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -379,15 +387,46 @@ async function fixture(root, registry) {
   await json(join(root, "packages/engineering-foundation/package.json"), {
     ...foundation,
     publishConfig: { registry },
+    version: DOCS_PROTOCOL_BOOTSTRAP.foundationVersion,
   });
   await writeFile(join(root, "packages/engineering-foundation/dist.js"), "export const build = 1;\n");
+  await json(join(root, "packages/docs-protocol/package.json"), {
+    ...docsProtocol,
+    dependencies: { [foundation.name]: "workspace:*" },
+    publishConfig: {
+      access: "public",
+      provenance: true,
+      registry: DOCS_PROTOCOL_BOOTSTRAP.registry,
+    },
+  });
+  await writeFile(join(root, "packages/docs-protocol/dist.js"), "export const docs = 1;\n");
   await json(join(root, "spikes/source-dependency-parser/package.json"), {
     ...privateSpike,
     private: true,
   });
-  await json(join(root, ".changeset/config.json"), {});
+  await json(join(root, ".changeset/config.json"), { ignore: [] });
   await writeFile(join(root, ".changeset/README.md"), "metadata\n");
-  await json(join(root, ".changeset/pre.json"), freshPreState);
+  await writeFile(join(root, ".changeset/consumed.md"), "consumed\n");
+  await json(join(root, ".changeset/pre.json"), {
+    ...freshPreState,
+    changesets: ["consumed"],
+    initialVersions: {
+      ...freshPreState.initialVersions,
+      [docsProtocol.name]: docsProtocol.version,
+    },
+  });
+  await writeFile(
+    join(root, "registry-fetch-shim.mjs"),
+    `const originalFetch = globalThis.fetch;\n` +
+      `globalThis.fetch = (input, init) => {\n` +
+      `  const url = new URL(input);\n` +
+      `  if (url.origin === "https://registry.npmjs.org" &&\n` +
+      `      decodeURIComponent(url.pathname.slice(1)) === ${JSON.stringify(docsProtocol.name)}) {\n` +
+      `    return originalFetch(new URL(url.pathname.slice(1), ${JSON.stringify(registry)}), init);\n` +
+      `  }\n` +
+      `  return originalFetch(input, init);\n` +
+      `};\n`,
+  );
   await commandShim(root, "pnpm", {
     posix:
       "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'pnpm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nprintf '%s' \"$*\" > \"$PUBLISH_MARKER\"\n",
@@ -512,7 +551,10 @@ test("publish entrypoint independently rejects every publish-control drift bound
 });
 
 test("real release entrypoint proves multi-package registry state and fails closed on drift", async (t) => {
-  const versions = new Map([[foundation.name, new Set([foundation.version])]]);
+  const versions = new Map([
+    [docsProtocol.name, new Set([docsProtocol.version])],
+    [foundation.name, new Set([foundation.version])],
+  ]);
   let registryRequestHook = noop;
   const registry = createServer(async (request, response) => {
     const name = decodeURIComponent(request.url.slice(1));
@@ -547,15 +589,15 @@ test("real release entrypoint proves multi-package registry state and fails clos
     return { marker, result, root };
   }
 
-  const noOp = await scenario("noop", async () => {}, /publish skipped/u);
-  assert.equal(noOp.result.status, 0);
-  await assert.rejects(readFile(noOp.marker), { code: "ENOENT" });
+  const currentPromotion = await scenario("current-promotion", async () => {}, /^\n$/u);
+  assert.equal(currentPromotion.result.status, 0);
+  assert.equal(await readFile(currentPromotion.marker, "utf8"), "changeset publish");
 
   versions.get(foundation.name).delete(foundation.version);
   const absent = await scenario(
     "registry-miss",
     async () => {},
-    /requires .*engineering-foundation@0\.16\.0/u,
+    /requires stable registry history/u,
   );
   assert.notEqual(absent.result.status, 0);
   await assert.rejects(readFile(absent.marker), { code: "ENOENT" });
@@ -655,7 +697,7 @@ test("real release entrypoint proves multi-package registry state and fails clos
       });
       registryRequestHook = async () => {
         finalFilesystemChecks += 1;
-        if (finalFilesystemChecks === 2) {
+        if (finalFilesystemChecks === 4) {
           await writeFile(
             join(root, "packages/engineering-foundation/dist.js"),
             "export const build = 3;\n",
@@ -673,7 +715,10 @@ test("real release entrypoint proves multi-package registry state and fails clos
   const stableRollback = await scenario(
     "stable-rollback",
     async (root) => {
-      await rm(join(root, ".changeset/pre.json"));
+      await Promise.all([
+        rm(join(root, ".changeset/consumed.md")),
+        rm(join(root, ".changeset/pre.json")),
+      ]);
       await json(join(root, "packages/engineering-foundation/package.json"), {
         ...foundation,
         publishConfig: { registry: registryUrl },
@@ -731,11 +776,6 @@ test("real release entrypoint proves multi-package registry state and fails clos
         ...foundation,
         version: "0.17.0-rc.0",
         publishConfig: { registry: registryUrl },
-      });
-      await writeFile(join(root, ".changeset/consumed.md"), "consumed\n");
-      await json(join(root, ".changeset/pre.json"), {
-        ...freshPreState,
-        changesets: ["consumed"],
       });
     },
     /^\n$/u,

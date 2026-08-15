@@ -34,7 +34,7 @@ function fixture() {
 
 test("repository test manifests cover every top-level test exactly once", async () => {
   const result = await validateTestManifests();
-  assert.equal(result.testCount, 112);
+  assert.equal(result.testCount, 114);
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
 });
 

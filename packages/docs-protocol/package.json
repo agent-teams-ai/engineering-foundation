@@ -1,7 +1,6 @@
 {
   "name": "@agent-teams/docs-protocol",
   "version": "0.0.0",
-  "private": true,
   "description": "Unified deterministic documentation authoring protocol for Agent Teams repositories.",
   "license": "Apache-2.0",
   "type": "module",
@@ -38,10 +37,19 @@
     "node": ">=24.18.0 <25",
     "pnpm": ">=11.17.0 <12"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
     "directory": "packages/docs-protocol"
+  },
+  "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
+  "bugs": {
+    "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
   },
   "dependencies": {
     "@agent-teams/engineering-foundation": "workspace:*",

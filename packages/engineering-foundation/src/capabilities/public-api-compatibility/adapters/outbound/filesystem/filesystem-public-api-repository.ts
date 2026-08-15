@@ -204,6 +204,9 @@ function changesetFrontmatter(source: string): string | undefined {
   if (!normalized.startsWith("---\n")) {
     return undefined;
   }
+  if (normalized.startsWith("---\n---\n")) {
+    return "";
+  }
   const end = normalized.indexOf("\n---\n", 4);
   return end === -1 ? undefined : normalized.slice(4, end);
 }
@@ -261,6 +264,9 @@ async function declaredBump(input: {
         `Changeset has invalid frontmatter: ${name}.`,
         "public-api-evidence"
       );
+    }
+    if (frontmatter === "") {
+      continue;
     }
     const parsed = record(
       parseStrictYamlSource(frontmatter, "public-api-changeset"),

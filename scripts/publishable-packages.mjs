@@ -6,6 +6,12 @@ export const PUBLISHABLE_PACKAGES = Object.freeze([
     required: true,
     root: "packages/engineering-foundation",
   }),
+  Object.freeze({
+    changelogPath: "packages/docs-protocol/CHANGELOG.md",
+    manifestPath: "packages/docs-protocol/package.json",
+    name: "@agent-teams/docs-protocol",
+    root: "packages/docs-protocol",
+  }),
 ]);
 
 export function publishablePackageByName(name) {

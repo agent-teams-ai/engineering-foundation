@@ -569,6 +569,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });
 
+
 test("release ReviewGate permits only version and generated changelog changes", () => {
   const evidence = {
     baseManifest: { name: "@agent-teams/engineering-foundation", version: "0.4.1" },
@@ -634,6 +635,35 @@ test("release ReviewGate validates Changesets prerelease consumption", () => {
       headManifest: { ...evidence.headManifest, version: "0.16.0-beta.0" },
     }).join("\n"),
     /matching prerelease state/u,
+  );
+  const withDocsInitialVersion = {
+    ...evidence,
+    docsBootstrapInitialVersionAddition: true,
+    headPrereleaseState: { ...evidence.headPrereleaseState, initialVersions: {
+      ...evidence.headPrereleaseState.initialVersions,
+      "@agent-teams/docs-protocol": "0.0.0",
+    } },
+  };
+  assert.deepEqual(releasePullRequestContentViolations(withDocsInitialVersion), []);
+  assert.match(
+    releasePullRequestContentViolations({
+      ...withDocsInitialVersion,
+      docsBootstrapInitialVersionAddition: false,
+    }).join("\n"),
+    /only append consumed Changesets/u,
+  );
+  assert.match(
+    releasePullRequestContentViolations({
+      ...withDocsInitialVersion,
+      headPrereleaseState: {
+        ...withDocsInitialVersion.headPrereleaseState,
+        initialVersions: {
+          ...withDocsInitialVersion.headPrereleaseState.initialVersions,
+          unexpected: "1.0.0",
+        },
+      },
+    }).join("\n"),
+    /only append consumed Changesets/u,
   );
   const nextPrerelease = {
     ...evidence,
@@ -774,10 +804,10 @@ test("release ReviewGate narrowly allows exit state deletion and rejects private
     await readFile(join(repositoryRoot, ".changeset", "config.json"), "utf8"),
   );
   assert.deepEqual(config.privatePackages, { version: true, tag: false });
-  assert.deepEqual(config.ignore, ["@agent-teams/docs-protocol"]);
+  assert.deepEqual(config.ignore, []);
 });
 
-test("release ReviewGate owns only the Foundation release pair during stage one", () => {
+test("release ReviewGate requires complete pairs from the promoted public catalog", () => {
   const validFiles = [
     { filename: ".changeset/unified-docs-protocol.md", status: "removed" },
     { filename: "packages/engineering-foundation/CHANGELOG.md", status: "modified" },
@@ -788,7 +818,7 @@ test("release ReviewGate owns only the Foundation release pair during stage one"
     releasePullRequestFileViolations(
       [...validFiles, { filename: "packages/docs-protocol/package.json", status: "modified" }],
     ).join("\n"),
-    /forbidden change: packages\/docs-protocol\/package\.json/u,
+    /must modify packages\/docs-protocol\/CHANGELOG\.md/u,
   );
 });
 

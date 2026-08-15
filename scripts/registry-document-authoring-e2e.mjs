@@ -9,6 +9,7 @@ import {
   runCommand
 } from "./pack-test-support.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
+import { verifyWindowsDocsRecoveryQualification } from "./registry-document-authoring-policy.mjs";
 
 const packageName = "@agent-teams/engineering-foundation", docsPackageName = "@agent-teams/docs-protocol";
 const timeoutMs = 120_000, runPnpm = createPnpmRunner();
@@ -334,14 +335,21 @@ async function verifyInstalledDocsProtocol(input) {
   assertDocsInfoAndFind(info, found);
   const preview = await docsJsonCommand(input.consumerRoot, docsNewArguments({ id: "ADR-0050", title: "Unified Registry Boundary", slug: "unified-registry-boundary" }, "--dry-run"));
   await assertAbsent(join(input.consumerRoot, preview.result.documentPath), "Installed Docs Protocol preview mutated the consumer.");
-  const applied = await docsJsonCommand(input.consumerRoot, docsNewArguments({ id: "ADR-0050", title: "Unified Registry Boundary", slug: "unified-registry-boundary" }, "--apply"));
+  const applyArguments = docsNewArguments({ id: "ADR-0050", title: "Unified Registry Boundary", slug: "unified-registry-boundary" }, "--apply");
+  if (process.platform === "win32") {
+    await verifyWindowsDocsRecoveryQualification({ applyArguments,
+      consumerRoot: input.consumerRoot, expectedDocumentPath: preview.result.documentPath,
+      runDocs: (args, exitCode) => docsJsonCommand(input.consumerRoot, args, exitCode) });
+    return;
+  }
+  const applied = await docsJsonCommand(input.consumerRoot, applyArguments);
   assertDocsPreviewAndApply(preview, applied);
   await applyReportedReachability(input.consumerRoot, applied.result);
   const check = await docsJsonCommand(input.consumerRoot, ["check", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
-  const idleDoctor = await docsJsonCommand(input.consumerRoot, ["doctor", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"], process.platform === "win32" ? 1 : 0);
+  const idleDoctor = await docsJsonCommand(input.consumerRoot, ["doctor", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
   const idleRecover = await docsJsonCommand(input.consumerRoot, ["recover", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
   assertDocsHealth(check, idleDoctor, idleRecover);
-  if (process.platform !== "win32") {await verifyDocsCrashAndSkew(input);}
+  await verifyDocsCrashAndSkew(input);
 }
 
 async function assertConsumerAliases(consumerRoot) {

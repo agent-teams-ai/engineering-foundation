@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -126,7 +126,7 @@ test("Windows registry qualification requires matching doctor and recover inspec
   }), /manual recovery classification/u);
 });
 
-test("Windows registry qualification inspects preserved evidence without mutation", async (context) => {
+async function runWindowsEvidenceScenario(context, mutateAfterInspection) {
   const consumerRoot = await mkdtemp(join(tmpdir(), "registry-windows-recovery-"));
   context.after(() => rm(consumerRoot, { force: true, recursive: true }));
   const catalogRoot = join(consumerRoot, "docs", "catalog");
@@ -144,15 +144,52 @@ test("Windows registry qualification inspects preserved evidence without mutatio
       if (args[0] === "new") {
         const stateRoot = join(consumerRoot, ".agent-teams-local");
         await mkdir(stateRoot);
-        await writeFile(join(stateRoot,
-          "scaffolding-transaction.json.document-transition"), "evidence", "utf8");
+        await Promise.all([
+          writeFile(join(stateRoot, "foundation-operation.lock"), "", "utf8"),
+          writeFile(join(stateRoot,
+            "scaffolding-transaction.json.document-transition"), "evidence", "utf8")
+        ]);
         return windowsRecoveryApply();
       }
-      return args[0] === "doctor" ? doctor : recover;
+      if (args[0] === "doctor") {
+        return doctor;
+      }
+      await mutateAfterInspection?.({
+        stateRoot: join(consumerRoot, ".agent-teams-local"),
+        transitionPath: join(consumerRoot, ".agent-teams-local",
+          "scaffolding-transaction.json.document-transition")
+      });
+      return recover;
     }
   });
+  return { catalogRoot, commands };
+}
+
+test("Windows registry qualification inspects preserved evidence without mutation", async (context) => {
+  const { catalogRoot, commands } = await runWindowsEvidenceScenario(context);
   assert.deepEqual(commands.map(({ args, exitCode }) => [args[0], exitCode]), [
     ["new", 1], ["doctor", 1], ["recover", 1]
   ]);
   assert.equal(await readFile(join(catalogRoot, "README.md"), "utf8"), "# Catalog\n");
+});
+
+test("Windows registry qualification rejects corrupted transition evidence", async (context) => {
+  await assert.rejects(runWindowsEvidenceScenario(context, async ({ transitionPath }) => {
+    await writeFile(transitionPath, "corrupted", "utf8");
+  }), /transition evidence bytes changed/u);
+});
+
+test("Windows registry qualification rejects byte-identical transition replacement", async (context) => {
+  await assert.rejects(runWindowsEvidenceScenario(context, async ({ stateRoot, transitionPath }) => {
+    const replacement = join(stateRoot, "replacement-transition");
+    await writeFile(replacement, "evidence", "utf8");
+    await rm(transitionPath);
+    await rename(replacement, transitionPath);
+  }), /file identity changed/u);
+});
+
+test("Windows registry qualification rejects extra recovery state entries", async (context) => {
+  await assert.rejects(runWindowsEvidenceScenario(context, async ({ stateRoot }) => {
+    await writeFile(join(stateRoot, "unexpected-residue"), "unexpected", "utf8");
+  }), /unexpected entry census/u);
 });

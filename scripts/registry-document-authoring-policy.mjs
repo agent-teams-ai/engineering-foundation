@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { lstat, readFile, readdir } from "node:fs/promises";
+import { lstat, open, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 const profileArguments = [
   "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"
 ];
+const transitionName = "scaffolding-transaction.json.document-transition";
+const permittedStateEntries = ["foundation-operation.lock", transitionName].toSorted();
 
 function transactionProjection(envelope) {
   return {
@@ -74,15 +76,47 @@ export function assertWindowsDocsRecoveryInspection(doctor, recover) {
   }, "Windows Docs Protocol recover did not preserve the manual recovery classification.");
 }
 
-async function assertMutationEvidence(input) {
+function portableFileIdentity(stats) {
+  return stats.ino === 0n ? undefined : { device: stats.dev, inode: stats.ino };
+}
+
+async function readTransitionEvidence(path) {
+  const lexical = await lstat(path);
+  assert.ok(lexical.isFile() && !lexical.isSymbolicLink(),
+    "Windows Docs Protocol transition evidence is not a regular physical file.");
+  const handle = await open(path, "r");
+  try {
+    const stats = await handle.stat({ bigint: true });
+    return { bytes: await handle.readFile(), identity: portableFileIdentity(stats) };
+  } finally {
+    await handle.close();
+  }
+}
+
+async function captureMutationEvidence(input) {
   await assert.rejects(lstat(input.documentPath), { code: "ENOENT" });
   assert.deepEqual(await readFile(input.indexPath), input.indexBefore,
     "Windows Docs Protocol strict durability refusal changed catalog reachability.");
   const stateDirectory = join(input.consumerRoot, ".agent-teams-local");
-  const transitionName = "scaffolding-transaction.json.document-transition";
-  assert.ok((await readdir(stateDirectory)).includes(transitionName));
-  assert.ok((await lstat(join(stateDirectory, transitionName))).isFile(),
-    "Windows Docs Protocol strict durability refusal did not preserve transition evidence.");
+  const stateEntries = (await readdir(stateDirectory)).toSorted();
+  assert.deepEqual(stateEntries, permittedStateEntries,
+    "Windows Docs Protocol recovery state contains an unexpected entry census.");
+  return {
+    stateEntries,
+    transition: await readTransitionEvidence(join(stateDirectory, transitionName))
+  };
+}
+
+async function assertMutationEvidenceUnchanged(input, expected) {
+  const observed = await captureMutationEvidence(input);
+  assert.deepEqual(observed.stateEntries, expected.stateEntries,
+    "Windows Docs Protocol recovery state census changed during inspection.");
+  assert.deepEqual(observed.transition.bytes, expected.transition.bytes,
+    "Windows Docs Protocol transition evidence bytes changed during inspection.");
+  if (expected.transition.identity !== undefined) {
+    assert.deepEqual(observed.transition.identity, expected.transition.identity,
+      "Windows Docs Protocol transition evidence file identity changed during inspection.");
+  }
 }
 
 export async function verifyWindowsDocsRecoveryQualification(input) {
@@ -94,9 +128,9 @@ export async function verifyWindowsDocsRecoveryQualification(input) {
   evidence.indexBefore = await readFile(evidence.indexPath);
   const applied = await input.runDocs(input.applyArguments, 1);
   assertWindowsDocsApplyRecovery(applied, input.expectedDocumentPath);
-  await assertMutationEvidence(evidence);
+  const evidenceSnapshot = await captureMutationEvidence(evidence);
   const doctor = await input.runDocs(["doctor", ...profileArguments], 1);
   const recover = await input.runDocs(["recover", ...profileArguments], 1);
   assertWindowsDocsRecoveryInspection(doctor, recover);
-  await assertMutationEvidence(evidence);
+  await assertMutationEvidenceUnchanged(evidence, evidenceSnapshot);
 }

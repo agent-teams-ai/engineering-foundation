@@ -9,6 +9,7 @@
   "changesets": [
     "docs-protocol-bootstrap",
     "docs-protocol-first-rc",
+    "docs-protocol-idempotent-postimage",
     "unified-docs-protocol"
   ]
 }

@@ -1,5 +1,11 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.1
+
+### Patch Changes
+
+- [#138](https://github.com/agent-teams-ai/engineering-foundation/pull/138) [`3ac7f66`](https://github.com/agent-teams-ai/engineering-foundation/commit/3ac7f66d07275829f803e7e7d51c52b435bdf121) Thanks [@777genius](https://github.com/777genius)! - Accept a stable expected catalog postimage when an exact document is applied again, preserving deterministic idempotency without weakening authority race detection. Keep disposable qualification roots within the portable Windows path budget.
+
 ## 0.1.0-rc.0
 
 ### Minor Changes

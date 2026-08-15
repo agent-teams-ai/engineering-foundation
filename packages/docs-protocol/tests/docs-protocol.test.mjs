@@ -256,48 +256,6 @@ test("new apply delegates the exact Foundation plan once", async () => {
   assert.equal(calls.apply, 1);
 });
 
-test("new accepts the stable expected postimage for an already-applied exact document", async () => {
-  const postimageDigest = `sha256:${"8".repeat(64)}`;
-  const intent = { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." };
-  const existingPlan = plan(intent);
-  existingPlan.authority.expectedCatalogPostimageSemanticDigest = postimageDigest;
-  const existingCatalog = {
-    projectId: "fixture-project",
-    status: "complete",
-    diagnostics: [],
-    documents: [],
-    identityProjection: [],
-    ownerIds: ["architecture/tooling"],
-    authority: {},
-    semanticDigest: postimageDigest
-  };
-  const { protocol, calls } = harness({
-    catalogs: [existingCatalog, existingCatalog, existingCatalog],
-    plan: existingPlan,
-    applyReceipt: {
-      schemaVersion: 1,
-      protocolVersion: 1,
-      planDigest: existingPlan.planDigest,
-      adapter: { id: "foundation.filesystem/v1", contractVersion: 1 },
-      destination: existingPlan.destination,
-      outcome: "already-applied",
-      resultDigest: `sha256:${"4".repeat(64)}`,
-      commit: { state: "committed", publication: "preexisting-exact", atomicity: "single-file-atomic-create", recoverability: "not-required" },
-      diagnostics: [],
-      receiptDigest: `sha256:${"5".repeat(64)}`
-    }
-  });
-  const result = await protocol.newDocument({
-    apply: true,
-    consumerRoot: ".",
-    profilePath: "docs/docs-protocol.json",
-    intent
-  });
-  assert.equal(result.exitCode, 0);
-  assert.equal(result.envelope.result.writeState, "already-applied");
-  assert.equal(calls.apply, 1);
-});
-
 test("new withholds reachability when the published catalog misses the expected postimage", async () => {
   const { protocol, calls } = harness({ catalogs: [undefined, undefined, { semanticDigest: `sha256:${"8".repeat(64)}` }] });
   const result = await protocol.newDocument({

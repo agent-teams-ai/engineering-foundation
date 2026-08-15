@@ -349,17 +349,16 @@ jobs:
               "${run_head_repository}" != "${GITHUB_REPOSITORY}" ]]; then
               fail_attestation "Release PR CI dispatch resolved to unexpected evidence"
             fi
-            if [[ "${run_event}" == "pull_request" ]]; then
+            if [[ "${run_event}" == "pull_request" || \
+              "${run_pull_request_count}" != "0" ]]; then
               if [[ "${run_pull_request_count}" != "1" || \
                 "${run_pull_request_number}" != "${RELEASE_PULL_REQUEST}" || \
                 "${run_pull_request_head_ref}" != "changeset-release/main" || \
                 "${run_pull_request_head_sha}" != "${head_sha}" || \
                 "${run_pull_request_base_ref}" != "main" || \
                 "${run_pull_request_base_sha}" != "${base_sha}" ]]; then
-                fail_attestation "Release PR CI run lost its pull request provenance"
+                fail_attestation "Release PR CI run has unexpected pull request provenance"
               fi
-            elif [[ "${run_pull_request_count}" != "0" ]]; then
-              fail_attestation "Dispatched release PR CI has unexpected pull request provenance"
             fi
 
             if ! jobs="$(gh api -H 'Accept: application/vnd.github+json' \
@@ -491,17 +490,16 @@ jobs:
               "${final_run_head_repository}" != "${GITHUB_REPOSITORY}" ]]; then
               fail_attestation "Final release PR CI evidence changed identity"
             fi
-            if [[ "${final_run_event}" == "pull_request" ]]; then
+            if [[ "${final_run_event}" == "pull_request" || \
+              "${final_run_pull_request_count}" != "0" ]]; then
               if [[ "${final_run_pull_request_count}" != "1" || \
                 "${final_run_pull_request_number}" != "${RELEASE_PULL_REQUEST}" || \
                 "${final_run_pull_request_head_ref}" != "changeset-release/main" || \
                 "${final_run_pull_request_head_sha}" != "${head_sha}" || \
                 "${final_run_pull_request_base_ref}" != "main" || \
                 "${final_run_pull_request_base_sha}" != "${base_sha}" ]]; then
-                fail_attestation "Final release PR CI pull request provenance changed"
+                fail_attestation "Final release PR CI has unexpected pull request provenance"
               fi
-            elif [[ "${final_run_pull_request_count}" != "0" ]]; then
-              fail_attestation "Final dispatched CI pull request provenance changed"
             fi
             if [[ "${final_run_status}" != "completed" ]]; then
               sleep 5

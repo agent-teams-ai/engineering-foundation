@@ -61,6 +61,8 @@ jobs:
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
       - run: pnpm release-owned-files:check
+        env:
+          FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
       - run: pnpm architecture:patterns
       - run: pnpm architecture:patterns:test
       - run: pnpm nx:graph:check

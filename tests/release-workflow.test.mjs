@@ -394,10 +394,8 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     changesetCoverage.if,
     /head\.repo\.full_name != github\.repository/u,
   );
-  assert.equal(
-    changesetCoverage.env.FOUNDATION_CHANGESET_BASE_SHA,
-    "${{ github.event.pull_request.base.sha }}",
-  );
+  assert.equal(changesetCoverage.env.FOUNDATION_CHANGESET_BASE_SHA, "${{ github.event.pull_request.base.sha }}");
+  assert.equal(ci.jobs["linux-static"].steps.find(({ run }) => run === "pnpm release-owned-files:check").env.FOUNDATION_PR_HEAD_REPOSITORY, "${{ github.event.pull_request.head.repo.full_name }}");
   assert.equal(
     attestation.env.EXPECTED_RELEASE_BASE_SHA,
     "${{ needs.release.outputs.pullRequestBaseSha }}",

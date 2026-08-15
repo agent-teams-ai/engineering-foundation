@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import test from "node:test";
 
@@ -101,6 +102,15 @@ test("bootstrap promotion requires the exact public manifest and Foundation RC",
   assert.throws(() => assertBootstrapPromotionManifest(input), /Foundation 0\.17\.0-rc\.0/u);
 });
 
+test("ordinary release command accepts the promoted Docs Protocol prerelease", () => {
+  const result = spawnSync(
+    process.execPath,
+    [resolve("scripts/docs-protocol-bootstrap.mjs"), "ordinary-release-state"],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("ordinary prerelease cannot create the public Docs Protocol stable baseline", () => {
   const input = stagingManifests();
   input.changesetsConfig.ignore = [];
@@ -128,6 +138,14 @@ test("ordinary prerelease cannot create the public Docs Protocol stable baseline
       registryVersion: DOCS_PROTOCOL_BOOTSTRAP.version,
     }),
     "published-bootstrap",
+  );
+  assert.equal(
+    ordinaryReleaseDocsPolicy({
+      ...policy,
+      docsManifest: { ...policy.docsManifest, version: "0.1.0-rc.0" },
+      registryVersion: DOCS_PROTOCOL_BOOTSTRAP.version,
+    }),
+    "public-release",
   );
 });
 

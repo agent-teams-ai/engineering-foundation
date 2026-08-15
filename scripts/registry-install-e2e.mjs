@@ -21,7 +21,12 @@ import {
   runNpmCommand,
 } from "./pack-test-support.mjs";
 import { registryPublishArguments } from "./registry-publication-policy.mjs";
-import { seedRegistryInParallel } from "./registry-seed-scheduler.mjs";
+import {
+  installRegistryConsumerWithRetry,
+  registryInstallAttemptPaths,
+  runRegistryPhase,
+  seedRegistryInParallel,
+} from "./registry-seed-scheduler.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
 
@@ -46,12 +51,37 @@ function compareStrings(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-async function runNpm(args, cwd) {
+async function runNpm(
+  args,
+  cwd,
+  {
+    timeoutMs = COMMAND_TIMEOUT_MS,
+    userConfigPath = npmUserConfigPath,
+  } = {},
+) {
   const userConfigArgs =
-    npmUserConfigPath === undefined ? [] : ["--userconfig", npmUserConfigPath];
+    userConfigPath === undefined ? [] : ["--userconfig", userConfigPath];
   return runNpmCommand([...args, ...userConfigArgs, "--loglevel=error"], cwd, {
-    timeoutMs: COMMAND_TIMEOUT_MS,
+    timeoutMs,
   });
+}
+
+async function writeRegistryUserConfig(path, registryUrl) {
+  const host = new URL(registryUrl).host;
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  await writeFile(
+    path,
+    [
+      `registry=${registryUrl}`,
+      `@agent-teams:registry=${registryUrl}`,
+      `//${host}/:_authToken=\${${REGISTRY_TOKEN_ENVIRONMENT_KEY}}`,
+      "audit=false",
+      "fund=false",
+      "provenance=false",
+      "",
+    ].join("\n"),
+    { encoding: "utf8", mode: 0o600 },
+  );
 }
 
 async function readManifest(root) {
@@ -215,22 +245,8 @@ async function configureRegistryAuthentication(registryUrl) {
   if (typeof body.token !== "string" || body.token.length === 0) {
     throw new Error("Hermetic registry did not issue a publication token.");
   }
-  const host = new URL(registryUrl).host;
   npmUserConfigPath = join(temporaryRoot, "auth", "npmrc");
-  await mkdir(dirname(npmUserConfigPath), { recursive: true, mode: 0o700 });
-  await writeFile(
-    npmUserConfigPath,
-    [
-      `registry=${registryUrl}`,
-      `@agent-teams:registry=${registryUrl}`,
-      `//${host}/:_authToken=\${${REGISTRY_TOKEN_ENVIRONMENT_KEY}}`,
-      "audit=false",
-      "fund=false",
-      "provenance=false",
-      "",
-    ].join("\n"),
-    { encoding: "utf8", mode: 0o600 },
-  );
+  await writeRegistryUserConfig(npmUserConfigPath, registryUrl);
   process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = body.token;
   process.env[USER_CONFIG_ENVIRONMENT_KEY] = npmUserConfigPath;
 }
@@ -298,9 +314,16 @@ async function verifyInstalledBufQualifier(installedRoot) {
   }
 }
 
-async function verifyConsumer(target, registryUrl) {
-  const consumerRoot = join(temporaryRoot, "consumer");
-  await mkdir(consumerRoot, { recursive: true });
+async function createConsumerAttempt(target, registryUrl, attempt) {
+  const { cacheRoot, clientRoot, consumerRoot, userConfigPath } = registryInstallAttemptPaths(
+    temporaryRoot,
+    attempt,
+  );
+  await Promise.all([
+    mkdir(cacheRoot, { recursive: true }),
+    mkdir(consumerRoot, { recursive: true }),
+  ]);
+  await writeRegistryUserConfig(userConfigPath, registryUrl);
   await writeFile(
     join(consumerRoot, "package.json"),
     `${JSON.stringify(
@@ -317,18 +340,46 @@ async function verifyConsumer(target, registryUrl) {
     )}\n`,
     "utf8",
   );
-  await runNpm(
-    [
-      "install",
-      "--registry",
-      registryUrl,
-      "--ignore-scripts",
-      "--no-audit",
-      "--no-fund",
-      "--package-lock=true",
-    ],
-    consumerRoot,
-  );
+  return Object.freeze({ cacheRoot, clientRoot, consumerRoot, userConfigPath });
+}
+
+async function installConsumer(target, registryUrl) {
+  return installRegistryConsumerWithRetry({
+    cleanupAttempt: (context) => Promise.all([
+      rm(context.clientRoot, { force: true, recursive: true }),
+      rm(context.consumerRoot, { force: true, recursive: true }),
+    ]),
+    createAttempt: (attempt) =>
+      createConsumerAttempt(target, registryUrl, attempt),
+    onRetry: ({ attempt, delayMs, timeoutMs }) => {
+      process.stdout.write(
+        `Registry E2E install retry attempt=${attempt} delayMs=${delayMs} timeoutMs=${timeoutMs}.\n`,
+      );
+    },
+    runInstall: (context, { attempt, timeoutMs }) =>
+      runRegistryPhase(`consumer-install-attempt-${attempt}`, async () => {
+        await runNpm(
+          [
+            "install",
+            "--registry",
+            registryUrl,
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund",
+            "--package-lock=true",
+            "--cache",
+            context.cacheRoot,
+          ],
+          context.consumerRoot,
+          { timeoutMs, userConfigPath: context.userConfigPath },
+        );
+        return context;
+      }),
+  });
+}
+
+async function verifyConsumer(target, registryUrl) {
+  const { consumerRoot } = await installConsumer(target, registryUrl);
 
   const installedRoot = join(
     consumerRoot,
@@ -410,17 +461,28 @@ async function verifyConsumer(target, registryUrl) {
 
 let registry;
 try {
-  const target = await createTargetArchive();
-  const dependencies = await collectRuntimeDependencyClosure();
-  registry = await startRegistry();
-  await configureRegistryAuthentication(registry.registryUrl);
-  await seedRegistry(dependencies, registry.registryUrl);
-  await publishArchive(
-    target.archivePath,
-    registry.registryUrl,
-    target.manifest.version,
+  const target = await runRegistryPhase("target-archive", createTargetArchive);
+  const dependencies = await runRegistryPhase(
+    "dependency-closure",
+    collectRuntimeDependencyClosure,
   );
-  const lockDigest = await verifyConsumer(target, registry.registryUrl);
+  registry = await runRegistryPhase("registry-start", startRegistry);
+  await runRegistryPhase("registry-auth", () =>
+    configureRegistryAuthentication(registry.registryUrl),
+  );
+  await runRegistryPhase("registry-seed", () =>
+    seedRegistry(dependencies, registry.registryUrl),
+  );
+  await runRegistryPhase("target-publish", () =>
+    publishArchive(
+      target.archivePath,
+      registry.registryUrl,
+      target.manifest.version,
+    ),
+  );
+  const lockDigest = await runRegistryPhase("consumer-qualification", () =>
+    verifyConsumer(target, registry.registryUrl),
+  );
   process.stdout.write(
     `Registry-install qualification PASS: ${target.manifest.name}@${target.manifest.version}; ${dependencies.length} runtime packages; lock sha256:${lockDigest}.\n`,
   );

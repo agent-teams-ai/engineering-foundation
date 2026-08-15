@@ -1,9 +1,7 @@
 name: Review Gate
 
 on:
-  workflow_run: # zizmor: ignore[dangerous-triggers] Default-branch code executes no PR content and verifies App-owned exact-head evidence.
-    workflows: ["ReviewRouter Codex OAuth [namespace=sns_2dda7c2cf70bbc98987ac8efe27336ba;epoch=3;secret=REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E3_2dda7c2cf70bbc98987ac8efe27336ba]"]
-    types: [completed]
+  status:
   repository_dispatch:
     types: [review-gate-recover]
 
@@ -12,7 +10,7 @@ permissions: {}
 jobs:
   review-gate:
     name: publish-review-gate
-    if: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request_target') || github.event.action == 'review-gate-recover' }}
+    if: ${{ (github.event_name == 'status' && github.event.context == 'ReviewRouter' && github.event.state == 'success' && github.event.creator.id == 281702430) || github.event.action == 'review-gate-recover' }}
     permissions:
       actions: read
       contents: read
@@ -24,24 +22,65 @@ jobs:
       - name: Publish exact-head ReviewGate from App evidence
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REVIEW_RUN_ID: ${{ github.event.workflow_run.id || github.event.client_payload.review_run_id }}
+          REVIEW_RUN_ID: ${{ github.event.client_payload.review_run_id }}
+          REVIEW_STATUS_CONTEXT: ${{ github.event.context }}
+          REVIEW_STATUS_CREATOR_ID: ${{ github.event.creator.id }}
+          REVIEW_STATUS_CREATOR_TYPE: ${{ github.event.creator.type }}
+          REVIEW_STATUS_SHA: ${{ github.event.sha }}
+          REVIEW_STATUS_STATE: ${{ github.event.state }}
+          REVIEW_STATUS_TARGET_URL: ${{ github.event.target_url }}
           REVIEWROUTER_APP_BOT_ID: "281702430"
         run: |
           set -euo pipefail
 
-          if [[ ! "${REVIEW_RUN_ID}" =~ ^[1-9][0-9]*$ ]]; then
+          review_run_id="${REVIEW_RUN_ID}"
+          if [[ "${GITHUB_EVENT_NAME}" == "status" ]]; then
+            if [[ "${REVIEW_STATUS_CONTEXT}" != "ReviewRouter" || \
+              "${REVIEW_STATUS_STATE}" != "success" || \
+              "${REVIEW_STATUS_CREATOR_ID}" != "${REVIEWROUTER_APP_BOT_ID}" || \
+              "${REVIEW_STATUS_CREATOR_TYPE}" != "Bot" ]]; then
+              echo "Status event is not an App-owned successful ReviewRouter status." >&2
+              exit 1
+            fi
+            expected_run_url_prefix="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/"
+            if [[ "${REVIEW_STATUS_TARGET_URL}" != "${expected_run_url_prefix}"* ]]; then
+              echo "ReviewRouter status target is not a repository Actions run." >&2
+              exit 1
+            fi
+            review_run_id="${REVIEW_STATUS_TARGET_URL#"${expected_run_url_prefix}"}"
+          fi
+
+          if [[ ! "${review_run_id}" =~ ^[1-9][0-9]*$ ]]; then
             echo "ReviewRouter run ID must be a positive integer." >&2
             exit 1
           fi
-          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${REVIEW_RUN_ID}")"
-          read -r run_conclusion run_event run_head_sha run_path run_head_repository run_url pr_count pr_number < <(jq -r \
-            '[.conclusion, .event, .head_sha, .path, .head_repository.full_name, .html_url, (.pull_requests | length), (.pull_requests[0].number // "")] | @tsv' \
+
+          run_json=""
+          for attempt in {1..12}; do
+            run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${review_run_id}")"
+            if [[ "$(jq -r '.status // "missing"' <<<"${run_json}")" == "completed" ]]; then
+              break
+            fi
+            if [[ "${attempt}" == "12" ]]; then
+              echo "ReviewRouter run did not complete within the bounded wait." >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          read -r run_status run_conclusion run_event run_head_sha run_path run_head_repository run_url pr_count pr_number < <(jq -r \
+            '[.status, .conclusion, .event, .head_sha, .path, .head_repository.full_name, .html_url, (.pull_requests | length), (.pull_requests[0].number // "")] | @tsv' \
             <<<"${run_json}")
-          if [[ "${run_event}" != "pull_request_target" || \
+          if [[ "${run_status}" != "completed" || \
+            "${run_event}" != "pull_request_target" || \
             "${run_path}" != ".github/workflows/reviewrouter-codex.yml" || \
             "${run_head_repository}" != "${GITHUB_REPOSITORY}" || \
             "${pr_count}" != "1" || ! "${pr_number}" =~ ^[1-9][0-9]*$ ]]; then
             echo "ReviewRouter run is not bound to one same-repository pull request." >&2
+            exit 1
+          fi
+          if [[ "${GITHUB_EVENT_NAME}" == "status" && "${run_head_sha}" != "${REVIEW_STATUS_SHA}" ]]; then
+            echo "ReviewRouter status SHA does not match its Actions run." >&2
             exit 1
           fi
 

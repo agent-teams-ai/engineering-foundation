@@ -5,5 +5,8 @@
     "@agent-teams/engineering-foundation": "0.16.0",
     "@agent-teams/source-dependency-parser-spike": "0.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "calm-routers-trust",
+    "guard-registry-drift"
+  ]
 }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -162,7 +163,7 @@ test("bootstrap binds closed tarball contents and the packed Foundation dependen
   ];
   const packReport = {
     files: paths.map((path) => ({ path })),
-    filename: "/tmp/agent-teams-docs-protocol-0.0.0.tgz",
+    filename: resolve("agent-teams-docs-protocol-0.0.0.tgz"),
     name: DOCS_PROTOCOL_BOOTSTRAP.name,
     version: DOCS_PROTOCOL_BOOTSTRAP.version,
   };

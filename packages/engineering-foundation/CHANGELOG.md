@@ -1,5 +1,14 @@
 # @agent-teams/engineering-foundation
 
+## 0.16.1
+
+### Patch Changes
+
+- [#115](https://github.com/agent-teams-ai/engineering-foundation/pull/115) [`dbbcf71`](https://github.com/agent-teams-ai/engineering-foundation/commit/dbbcf7126d3438eb11991264b97265f0ccde0110) Thanks [@777genius](https://github.com/777genius)! - Allow repository security policy to declare exact reviewed workflow paths that use `pull_request_target`, while rejecting undeclared and stale privileged-trigger routes.
+
+- [#111](https://github.com/agent-teams-ai/engineering-foundation/pull/111) [`6138b28`](https://github.com/agent-teams-ai/engineering-foundation/commit/6138b286738a0c60d21d49656e5a91a271fce07c) Thanks [@777genius](https://github.com/777genius)! - Fail fast when capability or diagnostic rule registries contain duplicate IDs,
+  and keep configured capabilities aligned with the runtime registry.
+
 ## 0.16.1-rc.0
 
 ### Patch Changes

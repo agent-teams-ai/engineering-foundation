@@ -13,6 +13,9 @@ export async function prepareExactSiblingTemporary(options: {
       }) => Promise<void> | void)
     | undefined;
   readonly onIdentityCaptured: (identity: PortablePathIdentity) => void;
+  readonly validateOpenedPath?: (
+    identity: PortablePathIdentity
+  ) => Promise<void>;
   readonly open: (
     path: string,
     flags: "wx",
@@ -36,6 +39,7 @@ export async function prepareExactSiblingTemporary(options: {
   try {
     const identity = await captureFileHandleIdentity(handle);
     options.onIdentityCaptured(identity);
+    await options.validateOpenedPath?.(identity);
     await handle.writeFile(options.postimage.bytes);
     await options.faultInjector?.({ phase: "after-temporary-written" });
     await handle.chmod(options.postimage.mode);

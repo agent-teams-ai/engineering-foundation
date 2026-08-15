@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-authoring-profile/v2",
+  "title": "Document Authoring Profile v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "projectId", "catalog", "authoring"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "projectId": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/lowerId" },
+    "catalog": { "$ref": "#/$defs/catalog" },
+    "authoring": { "$ref": "#/$defs/authoring" }
+  },
+  "$defs": {
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadataSchemaPath", "ownerCatalog", "collections"],
+      "properties": {
+        "metadataSchemaPath": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/repositoryPath" },
+        "ownerCatalog": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "contract"],
+          "properties": {
+            "path": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/repositoryPath" },
+            "contract": { "const": "foundation.owner-map/v1" }
+          }
+        },
+        "collections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "oneOf": [
+              { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/markdownTreeCollection" },
+              { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/frontmatterReadmeCollection" }
+            ]
+          }
+        },
+        "excludedPrefixes": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/repositoryPath" }
+        },
+        "metadataSidecar": { "$ref": "#/$defs/metadataSidecar" }
+      }
+    },
+    "metadataSidecar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path"],
+      "properties": {
+        "kind": { "const": "path-metadata-map" },
+        "path": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/repositoryPath" }
+      }
+    },
+    "authoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "artifactTypes"],
+      "properties": {
+        "mode": { "const": "create-only" },
+        "artifactTypes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": { "$ref": "#/$defs/artifactType" }
+        }
+      }
+    },
+    "artifactType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "initialStatus",
+        "identity",
+        "placement",
+        "template",
+        "heading",
+        "reachability",
+        "allowedOwnerIds"
+      ],
+      "properties": {
+        "type": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/lowerId" },
+        "initialStatus": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/lowerId" },
+        "identity": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/identity" },
+        "placement": {
+          "oneOf": [
+            { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/collectionPlacement" },
+            { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/qualifiedLeafIndexPlacement" },
+            { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/explicitPlacement" }
+          ]
+        },
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path"],
+          "properties": {
+            "kind": { "const": "fenced-markdown-body" },
+            "path": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/repositoryPath" }
+          }
+        },
+        "heading": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["id-colon-title", "title"] }
+          }
+        },
+        "reachability": { "$ref": "#/$defs/reachability" },
+        "allowedOwnerIds": { "$ref": "#/$defs/allowedOwnerIds" }
+      }
+    },
+    "allowedOwnerIds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 214,
+        "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$"
+      }
+    },
+    "reachability": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "indexPath"],
+          "properties": {
+            "kind": { "const": "manual-fixed-index" },
+            "indexPath": { "$ref": "https://agent-teams.ai/schemas/document-authoring-profile/v1#/$defs/repositoryPath" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "pathPrefix", "indexBasename"],
+          "properties": {
+            "kind": { "const": "manual-colocated-index" },
+            "pathPrefix": { "const": "before-required-segments" },
+            "indexBasename": { "const": "README.md" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "reason"],
+          "properties": {
+            "kind": { "const": "not-required" },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^[^\\u0000-\\u001F\\u007F]+$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

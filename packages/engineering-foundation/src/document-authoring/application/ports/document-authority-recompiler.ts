@@ -1,4 +1,4 @@
-import type { DocumentPlan } from "../model/document-planning.js";
+import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
 
 export type DocumentAuthorityAssessment =
   | { readonly state: "current"; readonly plan: DocumentPlan }

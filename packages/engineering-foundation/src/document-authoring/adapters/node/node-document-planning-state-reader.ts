@@ -13,6 +13,7 @@ import {
   isDocumentRepositoryPath
 } from "../../application/policies/document-repository-path.js";
 import { DocumentPlanningError } from "../../document-planning-error.js";
+import { planDocumentParentMaterializationV2 } from "./node-document-parent-materializer.js";
 
 const MAX_EXISTING_DESTINATION_BYTES = 1024 * 1024;
 
@@ -154,6 +155,7 @@ implements DocumentPlanningStateReader {
   async observe(request: {
     readonly consumerRoot: string;
     readonly destination: string;
+    readonly parentPolicy?: "create-missing-real-directories";
     readonly signal?: AbortSignal;
   }): Promise<DocumentPlanningStateSnapshot> {
     assertNotCancelled(request.signal);
@@ -162,6 +164,21 @@ implements DocumentPlanningStateReader {
         "DOCUMENT_PLANNING_INPUT_INVALID",
         "Document destination must use the portable repository-relative path grammar."
       );
+    }
+    const parentMaterialization = request.parentPolicy === undefined
+      ? undefined
+      : await planDocumentParentMaterializationV2(request);
+    if (parentMaterialization !== undefined &&
+      parentMaterialization.missingDirectories.length > 0) {
+      return Object.freeze({
+        destination: Object.freeze({ state: "absent" as const }),
+        expectedParent: Object.freeze({
+          ancestry: "real-directories" as const,
+          path: documentRepositoryParentPath(request.destination),
+          state: "directory" as const
+        }),
+        parentMaterialization
+      });
     }
     const { parent, root } = await observeRealParent(request);
     assertNotCancelled(request.signal);
@@ -212,7 +229,8 @@ implements DocumentPlanningStateReader {
         ancestry: "real-directories",
         path: documentRepositoryParentPath(request.destination),
         state: "directory"
-      })
+      }),
+      ...(parentMaterialization === undefined ? {} : { parentMaterialization })
     });
   }
 }

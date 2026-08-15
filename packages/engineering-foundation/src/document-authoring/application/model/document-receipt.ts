@@ -97,8 +97,44 @@ export type DocumentReceipt =
       };
     });
 
+export interface DocumentReceiptV2 {
+  readonly schemaVersion: 2;
+  readonly protocolVersion: 2;
+  readonly planDigest: DocumentAuthorityDigest;
+  readonly adapter: {
+    readonly id: "foundation.filesystem/v1";
+    readonly contractVersion: 1;
+  };
+  readonly destination: string;
+  readonly outcome: DocumentReceiptOutcome;
+  readonly resultDigest?: DocumentAuthorityDigest;
+  readonly commit: {
+    readonly state:
+      | "committed"
+      | "not-published"
+      | "recovery-required"
+      | "manual-recovery-required";
+    readonly publication: "none" | "preexisting-exact" | "published" | "unknown";
+    readonly fileAtomicity: "not-applicable" | "single-file-atomic-create";
+    readonly recoverability: "not-required" | "preserved-for-recovery";
+  };
+  readonly directoryMaterialization: {
+    readonly state:
+      | "none-created"
+      | "created-and-retained"
+      | "preserved-unknown";
+    readonly plannedDirectories: readonly string[];
+    readonly observedCreatedDirectories: readonly string[];
+  };
+  readonly diagnostics: readonly DocumentReceiptDiagnostic[];
+  readonly receiptDigest: DocumentAuthorityDigest;
+}
+
+export type DocumentReceiptV1 = DocumentReceipt;
+export type DocumentReceiptContract = DocumentReceipt | DocumentReceiptV2;
+
 type WithoutReceiptDigest<T> = T extends unknown
   ? Omit<T, "receiptDigest">
   : never;
 
-export type DocumentReceiptBody = WithoutReceiptDigest<DocumentReceipt>;
+export type DocumentReceiptBody = WithoutReceiptDigest<DocumentReceiptContract>;

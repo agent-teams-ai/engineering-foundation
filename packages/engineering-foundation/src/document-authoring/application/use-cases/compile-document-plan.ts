@@ -1,10 +1,11 @@
 import { sha256Bytes } from "../../../canonical-json.js";
 import type {
   DocumentAuthorityEvidence,
-  DocumentIdentityProjectionEntry
+  DocumentIdentityProjectionEntry,
+  DocumentationCatalogSnapshotV2
 } from "../model/document-catalog.js";
 import type {
-  DocumentPlan,
+  DocumentPlanContract as DocumentPlan,
   DocumentPlanningCompilationInput
 } from "../model/document-planning.js";
 import {
@@ -18,6 +19,9 @@ import {
 import { documentRepositoryParentPath } from "../policies/document-repository-path.js";
 import { projectReferencedDocuments } from "../projections/document-catalog-projections.js";
 import { DocumentPlanningError } from "../../document-planning-error.js";
+import {
+  projectDocumentationCatalogSemanticTransitionV2
+} from "../policies/document-authoring-semantic-digests.js";
 
 const MAXIMUM_OUTPUT_BYTES = 1_048_576;
 const BASE64_ALPHABET =
@@ -64,6 +68,15 @@ function assertCompilationAuthority(
     fail(
       "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
       "Document planning authority does not match the rebuilt catalog evidence."
+    );
+  }
+  const sidecar = input.catalog.authority.metadataSidecar;
+  if ((input.profile.metadataSidecar === undefined) !== (sidecar === undefined) ||
+    (input.profile.metadataSidecar !== undefined && sidecar !== undefined &&
+      input.profile.metadataSidecar.path !== sidecar.path)) {
+    fail(
+      "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
+      "Document metadata sidecar does not match the rebuilt catalog evidence."
     );
   }
   if (!input.catalog.ownerIds.includes(input.intent.owner)) {
@@ -216,9 +229,7 @@ export function compileDocumentPlan(
     mediaType: "text/markdown; charset=utf-8" as const,
     contentBase64: encodeBase64(outputBytes)
   });
-  const planWithoutDigest = {
-    schemaVersion: 1 as const,
-    protocolVersion: 1 as const,
+  const common = {
     compiler: input.compiler,
     projectId: input.profile.projectId,
     intent: input.intent,
@@ -233,6 +244,10 @@ export function compileDocumentPlan(
     authority: Object.freeze({
       profile: input.profile.evidence,
       metadataSchema: input.metadataSchema,
+      ...(input.state.parentMaterialization === undefined ||
+        input.catalog.authority.metadataSidecar === undefined
+        ? {}
+        : { metadataSidecar: input.catalog.authority.metadataSidecar }),
       ownerCatalog: input.ownerCatalog,
       template: input.template.evidence
     }),
@@ -252,11 +267,51 @@ export function compileDocumentPlan(
     expectedParent: input.state.expectedParent,
     destinationPrecondition: Object.freeze({ state: "absent" as const }),
     output,
-    requiredAdapterCapabilities: Object.freeze([
-      "create-file-no-replace/v1"
-    ] as const),
     diagnostics: Object.freeze([])
   };
+  const profileSemanticDigest = input.profileSemanticDigest;
+  if (input.state.parentMaterialization !== undefined &&
+    (profileSemanticDigest === undefined || input.catalog.semanticDigest === undefined)) {
+    fail(
+      "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
+      "Document Plan v2 requires profile and catalog semantic digests."
+    );
+  }
+  const catalogTransition = input.state.parentMaterialization === undefined
+    ? undefined
+    : projectDocumentationCatalogSemanticTransitionV2({
+        catalog: input.catalog as DocumentationCatalogSnapshotV2,
+        destination: input.destination,
+        intent: input.intent,
+        profile: input.profile
+      });
+  const planWithoutDigest = input.state.parentMaterialization === undefined
+    ? {
+        ...common,
+        protocolVersion: 1 as const,
+        requiredAdapterCapabilities: Object.freeze([
+          "create-file-no-replace/v1"
+        ] as const),
+        schemaVersion: 1 as const
+      }
+    : {
+        ...common,
+        authority: Object.freeze({
+          ...common.authority,
+          profileSemanticDigest: profileSemanticDigest!,
+          catalogPreimageSemanticDigest:
+            catalogTransition!.catalogPreimageSemanticDigest,
+          expectedCatalogPostimageSemanticDigest:
+            catalogTransition!.expectedCatalogPostimageSemanticDigest
+        }),
+        parentMaterialization: input.state.parentMaterialization,
+        protocolVersion: 2 as const,
+        requiredAdapterCapabilities: Object.freeze([
+          "create-directories-no-replace/v1",
+          "create-file-no-replace/v1"
+        ] as const),
+        schemaVersion: 2 as const
+      };
   const digestInput = planWithoutDigest;
   const plan: DocumentPlan = Object.freeze({
     ...digestInput,

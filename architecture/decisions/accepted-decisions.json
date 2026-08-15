@@ -121,6 +121,21 @@
       "id": "ADR-0024",
       "path": "docs/decisions/0024-versioned-document-transaction-recovery.md",
       "immutableDigest": "sha256:fd9c8900768834d90d89f3f506ecbdca777b2acb83cc0d35781be25dd518ad95"
+    },
+    {
+      "id": "ADR-0025",
+      "path": "docs/decisions/0025-unified-documentation-protocol-package.md",
+      "immutableDigest": "sha256:6fa7f5a5715dcf657032f4d63f51c8e729527b0aaa01aaadc3e6c81e9f90478f"
+    },
+    {
+      "id": "ADR-0026",
+      "path": "docs/decisions/0026-retain-only-document-directory-materialization.md",
+      "immutableDigest": "sha256:c77d3f078de99658c402ca48aa58c55f0f41fcf7d97836a88a91afb5dda680f4"
+    },
+    {
+      "id": "ADR-0027",
+      "path": "docs/decisions/0027-staged-docs-protocol-publication.md",
+      "immutableDigest": "sha256:ba3e44fd327af90140d56c9ae6ffaa13cab8826e6048d881fd8ab0d87f8b17c0"
     }
   ]
 }

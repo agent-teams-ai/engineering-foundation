@@ -4,6 +4,7 @@
     "./packages/engineering-foundation/presets/oxlint/type-aware.json"
   ],
   "ignorePatterns": [
-    "packages/engineering-foundation/dist/**"
+    "packages/engineering-foundation/dist/**",
+    "packages/docs-protocol/dist/**"
   ]
 }

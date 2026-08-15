@@ -3,9 +3,9 @@ import type {
   DocumentCommandExecution,
   DocumentNewResult
 } from "../model/document-command.js";
-import type { DocumentPlan } from "../model/document-planning.js";
-import type { DocumentReceipt } from "../model/document-receipt.js";
-import type { DocumentTransactionInspectionV1 } from "../model/document-transaction-inspection.js";
+import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
+import type { DocumentReceiptContract as DocumentReceipt } from "../model/document-receipt.js";
+import type { DocumentTransactionInspection } from "../model/document-transaction-inspection.js";
 import type { DocumentReachabilityProjector } from "../ports/document-reachability-projector.js";
 import type { DocumentStructureVerifier } from "../ports/document-structure-verifier.js";
 import type { SimilarDocumentAdvisor } from "../ports/similar-document-advisor.js";
@@ -28,7 +28,7 @@ interface Dependencies {
     readonly plan: DocumentPlan;
     readonly signal?: AbortSignal;
   }): Promise<DocumentReceipt>;
-  inspect(consumerRoot: string): Promise<DocumentTransactionInspectionV1>;
+  inspect(consumerRoot: string): Promise<DocumentTransactionInspection>;
   plan(request: PlanDocumentationDocumentRequest): Promise<DocumentPlan>;
   readonly similar: SimilarDocumentAdvisor;
   readonly reachability: DocumentReachabilityProjector;
@@ -40,7 +40,7 @@ function signalOption(signal: AbortSignal | undefined): { readonly signal?: Abor
 }
 
 function transactionDiagnostic(
-  inspection: Exclude<DocumentTransactionInspectionV1, { readonly state: "idle" }>,
+  inspection: Exclude<DocumentTransactionInspection, { readonly state: "idle" }>,
   consumerRoot: string
 ): DocumentCommandDiagnostic {
   const recovery = inspection.state === "recoverable"

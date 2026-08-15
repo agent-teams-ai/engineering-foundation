@@ -1,4 +1,4 @@
-import type { DocumentReceipt } from "../model/document-receipt.js";
+import type { DocumentReceiptContract as DocumentReceipt } from "../model/document-receipt.js";
 import type { DocumentOwnedTemporary } from "../model/document-transaction.js";
 import type { DocumentTransactionCoordinator } from "../ports/document-transaction-coordinator.js";
 import {
@@ -12,12 +12,16 @@ import {
   continuePendingPublication,
   errorMessage,
   finalizeDocumentTransaction,
-  recoveryReceipt,
   isCancellation,
+  materializeDocumentParentDirectories,
   type ActiveDocumentJournal,
   type DocumentTransactionRequest,
   type DocumentTransactionRuntime
 } from "./document-transaction-continuation.js";
+import {
+  directoryReceiptEvidence,
+  recoveryReceipt
+} from "./document-transaction-receipts.js";
 import { DocumentTransactionUseCaseError } from "./document-transaction-error.js";
 import { assertNonzeroDocumentPhysicalIdentity } from "../model/document-physical-identity.js";
 import {
@@ -132,6 +136,12 @@ async function observe(
   readonly temporary?: DocumentOwnedTemporary;
 }> {
   const plan = active.envelope.journal.plan;
+  if (active.envelope.state === "MATERIALIZING") {
+    throw new DocumentTransactionUseCaseError(
+      "DOCUMENT_TRANSACTION_INCONSISTENT",
+      "Materializing recovery must be resumed before file publication observation."
+    );
+  }
   const [destination, derived] = await Promise.all([
     dependencies.fileState.classifyDestination({
       consumerRoot: request.consumerRoot,
@@ -209,6 +219,43 @@ async function readActiveJournal(
   return { authority: stored.authority, envelope: stored.envelope };
 }
 
+async function activeRecoveryReceipt(
+  dependencies: RecoverDocumentTransactionDependencies,
+  request: RecoverDocumentTransactionRequest,
+  active: ActiveDocumentJournal,
+  options: Parameters<typeof recoveryReceipt>[1]
+): Promise<DocumentReceipt> {
+  let evidence = directoryReceiptEvidence(active.envelope);
+  if (active.envelope.schemaVersion === 4) {
+    try {
+      const inspection = await dependencies.parentMaterializer.inspect({
+        consumerRoot: request.consumerRoot,
+        journal: {
+          anchorIdentity: active.envelope.journal.parentMaterialization.anchorIdentity,
+          createdDirectories: active.envelope.journal.parentMaterialization.createdDirectories,
+          plan: active.envelope.journal.plan.parentMaterialization,
+          schemaVersion: 2
+        }
+      });
+      if (inspection.state !== "current") {
+        evidence = evidence === undefined ? undefined : {
+          observedCreatedDirectories: evidence.observedCreatedDirectories,
+          state: "preserved-unknown"
+        };
+      }
+    } catch {
+      evidence = evidence === undefined ? undefined : {
+        observedCreatedDirectories: evidence.observedCreatedDirectories,
+        state: "preserved-unknown"
+      };
+    }
+  }
+  return recoveryReceipt(active.envelope.journal.plan, {
+    ...options,
+    ...(evidence === undefined ? {} : { directoryEvidence: evidence })
+  });
+}
+
 async function executeRecoveryDecision(
   dependencies: RecoverDocumentTransactionDependencies,
   request: RecoverDocumentTransactionRequest,
@@ -237,15 +284,23 @@ async function executeRecoveryDecision(
         );
       }
       return completePublishedTransaction(
-        dependencies, request, active, observed.temporary
+        dependencies,
+        request,
+        active,
+        observed.temporary,
+        { authority: "persisted-plan" }
       );
     case "finalize-checks": {
       assertNonzeroDocumentPhysicalIdentity(active.envelope.state === "PUBLISHED"
         ? active.envelope.journal.publicationIdentity : undefined);
       const finalized = await finalizeDocumentTransaction(
-        dependencies, { consumerRoot: request.consumerRoot }, active, "applied"
+        dependencies,
+        { consumerRoot: request.consumerRoot },
+        active,
+        "applied",
+        { authority: "persisted-plan" }
       );
-      return finalized ?? recoveryReceipt(active.envelope.journal.plan, {
+      return finalized ?? activeRecoveryReceipt(dependencies, request, active, {
         message: "Recovered publication failed stable final verification.",
         publication: "published",
         ruleId: "document.transaction.final-verification"
@@ -253,9 +308,12 @@ async function executeRecoveryDecision(
     }
     case "already-applied": {
       const finalized = await finalizeDocumentTransaction(
-        dependencies, request, active, "already-applied"
+        dependencies,
+        request,
+        active,
+        "already-applied"
       );
-      return finalized ?? recoveryReceipt(active.envelope.journal.plan, {
+      return finalized ?? activeRecoveryReceipt(dependencies, request, active, {
         message: "Preexisting exact output failed stable final verification.",
         publication: "none",
         ruleId: "document.transaction.final-verification"
@@ -264,40 +322,147 @@ async function executeRecoveryDecision(
   }
 }
 
+async function resumeV4ParentMaterialization(
+  dependencies: RecoverDocumentTransactionDependencies,
+  request: RecoverDocumentTransactionRequest,
+  active: ActiveDocumentJournal
+): Promise<DocumentReceipt | undefined> {
+  if (active.envelope.schemaVersion !== 4 ||
+    (active.envelope.state !== "PREPARED" &&
+      active.envelope.state !== "MATERIALIZING")) {
+    return undefined;
+  }
+  const plan = active.envelope.journal.plan;
+  const authority = await dependencies.authority.assess({
+    consumerRoot: request.consumerRoot,
+    plan,
+    ...signalOption(request.signal)
+  });
+  request.signal?.throwIfAborted();
+  if (authority.state !== "current") {
+    return activeRecoveryReceipt(dependencies, request, active, {
+      message: authority.reason,
+      publication: "none",
+      ruleId: "document.transaction.recovery-authority"
+    });
+  }
+  if (active.envelope.state === "PREPARED" &&
+    active.envelope.journal.destination.state === "preexisting") {
+    const finalized = await finalizeDocumentTransaction(
+      dependencies, request, active, "already-applied"
+    );
+    return finalized ?? activeRecoveryReceipt(dependencies, request, active, {
+      message: "Preexisting exact output failed stable final verification.",
+      publication: "none",
+      ruleId: "document.transaction.final-verification"
+    });
+  }
+  let current = active;
+  try {
+    current = await materializeDocumentParentDirectories(
+      dependencies,
+      request,
+      active,
+      (durable) => { current = durable; }
+    );
+  } catch (error) {
+    return activeRecoveryReceipt(dependencies, request, current, {
+      manual: true,
+      message: `Directory materialization cannot resume safely: ${errorMessage(error)}`,
+      publication: "none",
+      ruleId: "document.transaction.directory-materialization"
+    });
+  }
+  const [destination, temporary] = await Promise.all([
+    dependencies.fileState.classifyDestination({
+      consumerRoot: request.consumerRoot,
+      plan,
+      ...signalOption(request.signal)
+    }),
+    dependencies.fileState.classifyDerivedTemporary({
+      consumerRoot: request.consumerRoot,
+      plan,
+      ...signalOption(request.signal)
+    })
+  ]);
+  request.signal?.throwIfAborted();
+  if (destination.state !== "absent" || temporary.state !== "absent") {
+    return activeRecoveryReceipt(dependencies, request, current, {
+      manual: true,
+      message: `Prepublication v4 evidence is not empty: destination=${destination.state}, temporary=${temporary.state}.`,
+      publication: destination.state === "exact" ? "unknown" : "none",
+      ruleId: "document.transaction.orphan-temporary"
+    });
+  }
+  return continuePendingPublication(dependencies, request, current);
+}
+
 async function runRecovery(
   dependencies: RecoverDocumentTransactionDependencies,
   request: RecoverDocumentTransactionRequest
 ): Promise<DocumentReceipt> {
   const active = await readActiveJournal(dependencies);
   const plan = active.envelope.journal.plan;
+  const resumedMaterialization = await resumeV4ParentMaterialization(
+    dependencies, request, active
+  );
+  if (resumedMaterialization !== undefined) {
+    return resumedMaterialization;
+  }
+  if (active.envelope.schemaVersion === 4) {
+    const inspection = await dependencies.parentMaterializer.inspect({
+      consumerRoot: request.consumerRoot,
+      journal: {
+        anchorIdentity:
+          active.envelope.journal.parentMaterialization.anchorIdentity,
+        createdDirectories:
+          active.envelope.journal.parentMaterialization.createdDirectories,
+        plan: active.envelope.journal.plan.parentMaterialization,
+        schemaVersion: 2
+      }
+    });
+    if (inspection.state !== "current" || inspection.nextDirectory !== undefined) {
+      return activeRecoveryReceipt(dependencies, request, active, {
+        manual: true,
+        message: inspection.state === "current"
+          ? "Directory materialization evidence is incomplete."
+          : `Directory materialization evidence is unsafe: ${inspection.reason}.`,
+        publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
+        ruleId: "document.transaction.directory-evidence"
+      });
+    }
+  }
   const observed = await observe(dependencies, request, active);
   // Read-only adapters may observe cancellation and still return a value.
   // Recheck before interpreting evidence or entering any recovery mutation.
   request.signal?.throwIfAborted();
   const decision = classifyDocumentRecovery(observed.observation);
   if (decision.action === "manual") {
-    return recoveryReceipt(plan, {
+    return activeRecoveryReceipt(dependencies, request, active, {
       manual: true,
       message: `Automatic recovery is unsafe: ${decision.reason}.`,
       publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
       ruleId: `document.transaction.${decision.reason}`
     });
   }
-  const authority = await dependencies.authority.assess({
-    consumerRoot: request.consumerRoot,
-    plan,
-    ...signalOption(request.signal)
-  });
-  // Authority replay may likewise translate adapter failures into an
-  // assessment. Cancellation remains the caller's exact error at this safe,
-  // pre-mutation boundary while all durable evidence stays preserved.
-  request.signal?.throwIfAborted();
-  if (authority.state !== "current") {
-    return recoveryReceipt(plan, {
-      message: authority.reason,
-      publication: active.envelope.state === "PUBLISHED" ? "published" : "unknown",
-      ruleId: "document.transaction.recovery-authority"
+  if (decision.action === "resume-prepare" || decision.action === "resume-publish" ||
+    decision.action === "already-applied") {
+    const authority = await dependencies.authority.assess({
+      consumerRoot: request.consumerRoot,
+      plan,
+      ...signalOption(request.signal)
     });
+    // Mutable profile authority is relevant only before publication. Once the
+    // identity-bound publication boundary is crossed, the exact-build journal
+    // and persisted Plan are the recovery authority.
+    request.signal?.throwIfAborted();
+    if (authority.state !== "current") {
+      return activeRecoveryReceipt(dependencies, request, active, {
+        message: authority.reason,
+        publication: "none",
+        ruleId: "document.transaction.recovery-authority"
+      });
+    }
   }
   return executeRecoveryDecision(
     dependencies, request, active, observed, decision.action

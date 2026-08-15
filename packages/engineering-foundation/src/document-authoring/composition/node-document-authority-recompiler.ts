@@ -1,11 +1,14 @@
 import { canonicalJson, type CanonicalJsonValue } from "../../canonical-json.js";
 import { assertNotCancelled } from "../../cancellation.js";
-import type { DocumentPlan } from "../application/model/document-planning.js";
+import type { DocumentPlanContract as DocumentPlan } from "../application/model/document-planning.js";
 import type {
   DocumentAuthorityAssessment,
   DocumentAuthorityRecompiler
 } from "../application/ports/document-authority-recompiler.js";
-import { assertDocumentPlanDigests } from "../application/policies/document-contract-digests.js";
+import {
+  assertDocumentPlanDigests,
+  documentPlanDigest
+} from "../application/policies/document-contract-digests.js";
 import { DocumentPlanningError } from "../document-planning-error.js";
 import { NodeDocumentContractValidator } from "../adapters/node/node-document-contract-validator.js";
 import { planNodeDocumentationDocument } from "./node-document-planning.js";
@@ -44,12 +47,31 @@ implements DocumentAuthorityRecompiler {
         consumerRoot: request.consumerRoot,
         profilePath: validatedPlan.authority.profile.path,
         intent: validatedPlan.intent,
+        ...(validatedPlan.schemaVersion === 2
+          ? { parentPolicy: "create-missing-real-directories" as const }
+          : {}),
         ...(request.signal === undefined ? {} : { signal: request.signal })
       });
       assertDocumentPlanDigests(replayed);
       assertNotCancelled(request.signal);
-      return exactPlan(replayed, validatedPlan)
-        ? { state: "current", plan: replayed }
+      const comparable = replayed.schemaVersion === 2 && validatedPlan.schemaVersion === 2
+        ? (() => {
+            const withoutDigest = {
+              ...replayed,
+              parentMaterialization: validatedPlan.parentMaterialization
+            };
+            return {
+              ...withoutDigest,
+              planDigest: documentPlanDigest({
+                ...(withoutDigest as unknown as Record<string, CanonicalJsonValue>),
+                planDigest: replayed.planDigest
+              })
+            } as DocumentPlan;
+          })()
+        : replayed;
+      assertDocumentPlanDigests(comparable);
+      return exactPlan(comparable, validatedPlan)
+        ? { state: "current", plan: comparable }
         : {
             state: "stale",
             reason: "Current consumer authority reproduces a different exact Document Plan."

@@ -4,9 +4,12 @@ import {
 } from "../../../documentation-observation/application/model/markdown-document.js";
 import type {
   DocumentDescriptor,
+  DocumentDescriptorV2,
   DocumentIdentityProjectionEntry,
+  DocumentMetadataObject,
   DocumentationCatalogDiagnostic,
-  DocumentSearchCorpusEntry
+  DocumentSearchCorpusEntry,
+  DocumentSearchCorpusEntryV2
 } from "../model/document-catalog.js";
 import type { MetadataSchemaSnapshot } from "../ports/metadata-instance-validator.js";
 import { catalogDiagnostic } from "./document-catalog-diagnostics.js";
@@ -15,12 +18,23 @@ import {
   inspectDocumentFields,
   invalidDocumentPathInspection
 } from "./document-catalog-fields.js";
+import {
+  CatalogMetadataProjectionError,
+  projectCatalogMetadata
+} from "./project-catalog-metadata.js";
 
 export interface InspectedCatalogDocument {
   readonly descriptor?: DocumentDescriptor;
   readonly diagnostic?: DocumentationCatalogDiagnostic;
   readonly identity?: DocumentIdentityProjectionEntry;
   readonly searchEntry?: DocumentSearchCorpusEntry;
+}
+
+export interface InspectedCatalogDocumentV2 {
+  readonly descriptor?: DocumentDescriptorV2;
+  readonly diagnostic?: DocumentationCatalogDiagnostic;
+  readonly identity?: DocumentIdentityProjectionEntry;
+  readonly searchEntry?: DocumentSearchCorpusEntryV2;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -137,4 +151,68 @@ export function inspectCatalogDocument(
       headings: Object.freeze(document.headings.map((heading) => heading.text))
     })
   };
+}
+
+export function inspectCatalogDocumentV2(
+  document: MarkdownDocumentObservation,
+  metadata: MetadataSchemaSnapshot,
+  ownerIds: ReadonlySet<string>,
+  source: DocumentDescriptor["source"],
+  metadataOverride?: DocumentMetadataObject
+): InspectedCatalogDocumentV2 {
+  const inspectedDocument = metadataOverride === undefined
+    ? document
+    : Object.freeze({
+        ...document,
+        frontmatter: Object.freeze({
+          endOffset: document.frontmatter.endOffset,
+          kind: "valid" as const,
+          value: metadataOverride
+        })
+      });
+  const inspected = inspectCatalogDocument(
+    inspectedDocument,
+    metadata,
+    ownerIds,
+    source
+  );
+  if (inspected.descriptor === undefined || inspected.searchEntry === undefined) {
+    return Object.freeze({
+      ...(inspected.diagnostic === undefined
+        ? {}
+        : { diagnostic: inspected.diagnostic }),
+      ...(inspected.identity === undefined ? {} : { identity: inspected.identity })
+    });
+  }
+  try {
+    const projectedMetadata = projectCatalogMetadata(
+      inspectedDocument.frontmatter.kind === "valid"
+        ? inspectedDocument.frontmatter.value
+        : undefined
+    );
+    const descriptor: DocumentDescriptorV2 = Object.freeze({
+      ...inspected.descriptor,
+      metadata: projectedMetadata
+    });
+    return Object.freeze({
+      descriptor,
+      ...(inspected.identity === undefined ? {} : { identity: inspected.identity }),
+      searchEntry: Object.freeze({
+        ...inspected.searchEntry,
+        descriptor
+      })
+    });
+  } catch (error) {
+    if (!(error instanceof CatalogMetadataProjectionError)) {
+      throw error;
+    }
+    return Object.freeze({
+      diagnostic: catalogDiagnostic(
+        "document.catalog.metadata-projection-invalid",
+        document.repositoryPath,
+        error.message
+      ),
+      ...(inspected.identity === undefined ? {} : { identity: inspected.identity })
+    });
+  }
 }

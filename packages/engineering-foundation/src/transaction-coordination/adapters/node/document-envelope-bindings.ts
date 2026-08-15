@@ -1,9 +1,7 @@
-import { sha256Json as sha256DocumentJson } from "../../../canonical-json.js";
 import { assertDocumentPlanDigests } from "../../../document-authoring/application/policies/document-contract-digests.js";
+import { assertDocumentTransactionEnvelope } from "../../../document-authoring/application/policies/document-transaction-envelope-policy.js";
 import { documentTemporaryPath } from "../../../document-authoring/application/policies/document-temporary-path.js";
-import type { JsonValue } from "../../../scaffolding/contract/types.js";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
-import { assertSchema } from "../../../schema-catalog.js";
 import {
   classifyNodeTemporaryIdentity,
   unverifiableDocumentTemporaryStatus
@@ -11,19 +9,6 @@ import {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertDocumentEnvelopeDigests(
-  envelope: Record<string, unknown>
-): void {
-  const journal = envelope["journal"];
-  if (envelope["payloadDigest"] !== sha256DocumentJson(journal as JsonValue)) {
-    throw new Error("Foundation transaction payload digest is invalid.");
-  }
-  const { envelopeDigest, ...body } = envelope;
-  if (envelopeDigest !== sha256DocumentJson(body as JsonValue)) {
-    throw new Error("Foundation transaction envelope digest is invalid.");
-  }
 }
 
 function assertTemporaryBinding(options: {
@@ -62,7 +47,7 @@ function assertTemporaryBinding(options: {
 
 function assertLifecycleBinding(options: {
   readonly journal: Record<string, unknown>;
-  readonly journalVersion: 1 | 2;
+  readonly journalVersion: 1 | 2 | 3;
   readonly plan: Record<string, unknown>;
   readonly state: unknown;
 }): void {
@@ -84,8 +69,13 @@ function assertLifecycleBinding(options: {
         ["PUBLISHING", new Set(["absent:publishing:true:false"])],
         ["PUBLISHED", new Set(["absent:published:false:false"])]
       ])
-    : new Map([
+    : options.journalVersion === 2 ? new Map([
         ["PREPARED", new Set(["absent:pending:false:false", "absent:preexisting:false:false"])],
+        ["PUBLISHING", new Set(["absent:publishing:true:false"])],
+        ["PUBLISHED", new Set(["absent:published:false:true"])]
+      ]) : new Map([
+        ["PREPARED", new Set(["absent:pending:false:false", "absent:preexisting:false:false"])],
+        ["MATERIALIZING", new Set(["absent:materializing:false:false"])],
         ["PUBLISHING", new Set(["absent:publishing:true:false"])],
         ["PUBLISHED", new Set(["absent:published:false:true"])]
       ]);
@@ -104,9 +94,9 @@ function assertLifecycleBinding(options: {
 
 export function inspectDocumentTransactionBindings(options: {
   readonly foundation: Record<string, unknown>;
-  readonly format?: "envelope-v2" | "envelope-v3";
+  readonly format?: "envelope-v2" | "envelope-v3" | "envelope-v4";
   readonly journal: Record<string, unknown>;
-  readonly journalVersion: 1 | 2;
+  readonly journalVersion: 1 | 2 | 3;
   readonly legacyDigestSemantics?: boolean;
   readonly plan: Record<string, unknown>;
   readonly state: unknown;
@@ -129,6 +119,33 @@ export function inspectDocumentTransactionBindings(options: {
     : undefined;
 }
 
+interface CurrentEnvelopeVersionBinding {
+  readonly format: "envelope-v3" | "envelope-v4";
+  readonly handlerContractVersion: 2 | 3;
+  readonly journalVersion: 2 | 3;
+  readonly payloadKind:
+    | "document-authoring-journal/v2"
+    | "document-authoring-journal/v3";
+}
+
+function currentEnvelopeVersionBinding(
+  schemaVersion: unknown
+): CurrentEnvelopeVersionBinding {
+  return schemaVersion === 4
+    ? {
+        format: "envelope-v4",
+        handlerContractVersion: 3,
+        journalVersion: 3,
+        payloadKind: "document-authoring-journal/v3"
+      }
+    : {
+        format: "envelope-v3",
+        handlerContractVersion: 2,
+        journalVersion: 2,
+        payloadKind: "document-authoring-journal/v2"
+      };
+}
+
 export async function inspectCurrentDocumentEnvelope(options: {
   readonly value: Record<string, unknown>;
   readonly installedVersion: string;
@@ -140,23 +157,20 @@ export async function inspectCurrentDocumentEnvelope(options: {
     readonly installedBuildIdentity: string;
   }) => InternalFoundationTransactionStatus;
 }): Promise<InternalFoundationTransactionStatus> {
-  await assertSchema(
-    "foundation-transaction-envelope/v3",
-    options.value,
-    "foundation-transaction-slot"
-  );
-  assertDocumentEnvelopeDigests(options.value);
+  const version = currentEnvelopeVersionBinding(options.value["schemaVersion"]);
+  await assertDocumentTransactionEnvelope(options.value);
   const foundation = options.value["foundation"];
   const handler = options.value["recoveryHandler"];
   const journal = options.value["journal"];
   if (
     options.value["operationKind"] !== "document-authoring" ||
-    options.value["payloadKind"] !== "document-authoring-journal/v2" ||
+    options.value["payloadKind"] !== version.payloadKind ||
     !isRecord(handler) || handler["id"] !== "foundation.document-authoring" ||
-    handler["contractVersion"] !== 2 || !isRecord(foundation) ||
+    handler["contractVersion"] !== version.handlerContractVersion ||
+    !isRecord(foundation) ||
     typeof foundation["version"] !== "string" ||
     typeof foundation["buildIdentity"] !== "string" || !isRecord(journal) ||
-    journal["schemaVersion"] !== 2
+    journal["schemaVersion"] !== version.journalVersion
   ) {
     throw new Error("Current Document transaction envelope binding is invalid.");
   }
@@ -168,7 +182,11 @@ export async function inspectCurrentDocumentEnvelope(options: {
     throw new Error("Current Document transaction compiler binding is invalid.");
   }
   const status = inspectDocumentTransactionBindings({
-    foundation, format: "envelope-v3", journal, journalVersion: 2, plan,
+    foundation,
+    format: version.format,
+    journal,
+    journalVersion: version.journalVersion,
+    plan,
     state: options.value["state"]
   });
   return status ?? options.pending({

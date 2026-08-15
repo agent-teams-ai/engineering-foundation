@@ -8,7 +8,10 @@ import {
 import { installedFoundationVersion } from "../../package-version.js";
 import { installedFoundationBuildIdentity } from "../../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import { NodeFoundationTransactionSlot } from "../../transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
-import type { DocumentTransactionInspectionV1 } from "../application/model/document-transaction-inspection.js";
+import type {
+  DocumentTransactionInspectionV1,
+  DocumentTransactionInspectionV2
+} from "../application/model/document-transaction-inspection.js";
 import { recaptureDocumentPublicationPaths } from "../adapters/node/recapture-document-publication-paths.js";
 
 type ObservedTransactionStatus = Awaited<
@@ -136,7 +139,7 @@ export function projectDocumentTransactionInspectionV1(
       schemaVersion: 1,
       state: "recoverable",
       operationKind: "document-authoring",
-      format: status.format,
+      format: "document-authoring-envelope-v3",
       foundationVersion: status.foundationVersion,
       foundationBuildIdentity: status.foundationBuildIdentity,
       recovery: status.recovery,
@@ -209,6 +212,48 @@ export async function inspectDocumentTransactionV1(
     installedBuildIdentity: await installedFoundationBuildIdentity(),
   }).inspect();
   return projectDocumentTransactionInspectionV1(status);
+}
+
+/** V2 adds exact envelope-v4 recovery while preserving the frozen V1 projection. */
+export async function inspectDocumentTransactionV2(
+  consumerRoot: string,
+): Promise<DocumentTransactionInspectionV2> {
+  const v1 = await inspectDocumentTransactionV1(consumerRoot);
+  if (v1.state === "idle") {
+    return { schemaVersion: 2, state: "idle", diagnostics: [] };
+  }
+  if (v1.state === "recoverable") {
+    return { ...v1, schemaVersion: 2 };
+  }
+  const exactVersion = v1.recovery?.args["exactFoundationVersion"];
+  const exactBuild = v1.recovery?.args["exactFoundationBuildIdentity"];
+  if (v1.operationKind === "document-authoring" &&
+    v1.format === "document-authoring-envelope-v4" &&
+    v1.recovery?.commandId === "docs-recover" &&
+    typeof v1.foundationVersion === "string" &&
+    typeof v1.foundationBuildIdentity === "string" &&
+    typeof exactVersion === "string" &&
+    typeof exactBuild === "string" &&
+    exactVersion === v1.foundationVersion &&
+    exactBuild === v1.foundationBuildIdentity &&
+    !v1.diagnostics.some(({ code }) =>
+      code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH")) {
+    return {
+      schemaVersion: 2,
+      state: "recoverable",
+      operationKind: "document-authoring",
+      format: v1.format,
+      foundationVersion: v1.foundationVersion,
+      foundationBuildIdentity: v1.foundationBuildIdentity,
+      recovery: {
+        commandId: "docs-recover",
+        exactFoundationVersion: exactVersion,
+        exactFoundationBuildIdentity: exactBuild
+      },
+      diagnostics: v1.diagnostics
+    };
+  }
+  return { ...v1, schemaVersion: 2 };
 }
 
 function unsafeTransactionPathInspection(): DocumentTransactionInspectionV1 {

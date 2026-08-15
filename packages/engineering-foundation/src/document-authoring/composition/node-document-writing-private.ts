@@ -1,5 +1,4 @@
-import { realpath } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 import {
   FOUNDATION_TRANSACTION_FILE,
@@ -12,9 +11,11 @@ import {
   NodeDocumentPublisher,
   type NodeDocumentPublisherOperations
 } from "../adapters/node/node-document-publisher.js";
+import { NodeDocumentParentMaterializerV2 } from "../adapters/node/node-document-parent-materializer.js";
+import { captureNodeRepositoryRootAuthority } from "../adapters/node/node-path-authority.js";
 import { createNodeDocumentTransactionCoordinator } from "../adapters/node/node-document-transaction-coordinator.js";
-import type { DocumentPlan } from "../application/model/document-planning.js";
-import type { DocumentReceipt } from "../application/model/document-receipt.js";
+import type { DocumentPlanContract as DocumentPlan } from "../application/model/document-planning.js";
+import type { DocumentReceiptContract as DocumentReceipt } from "../application/model/document-receipt.js";
 import {
   applyDocumentPlan,
   type ApplyDocumentPlanRequest
@@ -47,7 +48,7 @@ function journalPath(consumerRoot: string): string {
 }
 
 async function canonicalConsumerRoot(consumerRoot: string): Promise<string> {
-  return realpath(resolve(consumerRoot));
+  return (await captureNodeRepositoryRootAuthority(consumerRoot)).canonicalRoot;
 }
 
 function runtime(
@@ -61,6 +62,7 @@ function runtime(
     fileState: new NodeDocumentFileState(),
     ...(faultInjector === undefined ? {} : { faultInjector }),
     journal: new NodeDocumentJournalStore(journalPath(consumerRoot)),
+    parentMaterializer: new NodeDocumentParentMaterializerV2(),
     publisher: new NodeDocumentPublisher({
       ...operations.publisher,
       ...(operations.faultInjector === undefined

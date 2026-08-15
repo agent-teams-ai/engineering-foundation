@@ -17,6 +17,19 @@ export interface DocumentDescriptor {
   readonly type: string;
 }
 
+export type DocumentMetadataPrimitive = boolean | null | number | string;
+export interface DocumentMetadataObject {
+  readonly [key: string]: DocumentMetadataValue;
+}
+export type DocumentMetadataValue =
+  | DocumentMetadataPrimitive
+  | readonly DocumentMetadataValue[]
+  | DocumentMetadataObject;
+
+export interface DocumentDescriptorV2 extends DocumentDescriptor {
+  readonly metadata: DocumentMetadataObject;
+}
+
 export interface DocumentIdentityProjectionEntry {
   readonly id: string;
   readonly repositoryPath: string;
@@ -40,6 +53,11 @@ export interface DocumentationCatalogAuthority {
   readonly profile: DocumentAuthorityEvidence;
 }
 
+export interface DocumentationCatalogAuthorityV2
+  extends DocumentationCatalogAuthority {
+  readonly metadataSidecar?: DocumentAuthorityEvidence;
+}
+
 export interface DocumentationCatalogSnapshot {
   readonly authority: DocumentationCatalogAuthority;
   readonly diagnostics: readonly DocumentationCatalogDiagnostic[];
@@ -50,6 +68,23 @@ export interface DocumentationCatalogSnapshot {
   readonly status: "complete" | "partial";
 }
 
+export interface DocumentationCatalogSnapshotV2
+  extends Omit<DocumentationCatalogSnapshot, "authority" | "documents"> {
+  readonly authority: DocumentationCatalogAuthorityV2;
+  readonly documents: readonly DocumentDescriptorV2[];
+  readonly semanticDigest: DocumentAuthorityDigest;
+}
+
+export type DocumentationCatalogSnapshotContract = Omit<
+  DocumentationCatalogSnapshot,
+  "authority"
+> & {
+  readonly authority: DocumentationCatalogAuthority & {
+    readonly metadataSidecar?: DocumentAuthorityEvidence;
+  };
+  readonly semanticDigest?: DocumentAuthorityDigest;
+};
+
 export interface DocumentSearchCorpusEntry {
   readonly body: string;
   readonly descriptor: DocumentDescriptor;
@@ -59,6 +94,16 @@ export interface DocumentSearchCorpusEntry {
 export interface DocumentationSearchCatalogSnapshot {
   readonly catalog: DocumentationCatalogSnapshot;
   readonly documents: readonly DocumentSearchCorpusEntry[];
+}
+
+export interface DocumentSearchCorpusEntryV2
+  extends Omit<DocumentSearchCorpusEntry, "descriptor"> {
+  readonly descriptor: DocumentDescriptorV2;
+}
+
+export interface DocumentationSearchCatalogSnapshotV2 {
+  readonly catalog: DocumentationCatalogSnapshotV2;
+  readonly documents: readonly DocumentSearchCorpusEntryV2[];
 }
 
 export interface ReferencedDocumentProjectionResult {

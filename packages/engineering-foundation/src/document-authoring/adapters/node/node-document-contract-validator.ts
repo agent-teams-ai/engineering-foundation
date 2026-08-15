@@ -4,7 +4,7 @@ import { CapabilityInputError } from "../../../capability-runtime.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import type {
   DocumentIntent,
-  DocumentPlan
+  DocumentPlanContract as DocumentPlan
 } from "../../application/model/document-planning.js";
 import type { DocumentContractValidator } from "../../application/ports/document-contract-validator.js";
 import { DocumentPlanningError } from "../../document-planning-error.js";
@@ -379,7 +379,11 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
   async validatePlan(input: unknown): Promise<DocumentPlan> {
     try {
       const snapshot = snapshotInertPlan(input);
-      await assertSchema("document-plan/v1", snapshot, "document-plan");
+      await assertSchema(
+        snapshot.schemaVersion === 2 ? "document-plan/v2" : "document-plan/v1",
+        snapshot,
+        "document-plan"
+      );
       assertDocumentPlanDigests(snapshot);
       return snapshot;
     } catch (error) {

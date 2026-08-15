@@ -6,7 +6,8 @@ import {
 import type { DocumentAuthorityDigest } from "../model/document-catalog.js";
 import type {
   DocumentTransactionEnvelope,
-  DocumentTransactionJournal
+  DocumentTransactionJournal,
+  DocumentTransactionJournalV3
 } from "../model/document-transaction.js";
 
 function canonicalSnapshot<T>(value: T): T {
@@ -14,7 +15,7 @@ function canonicalSnapshot<T>(value: T): T {
 }
 
 export function documentTransactionPayloadDigest(
-  journal: DocumentTransactionJournal
+  journal: DocumentTransactionJournal | DocumentTransactionJournalV3
 ): DocumentAuthorityDigest {
   return sha256Json(canonicalSnapshot(journal) as unknown as CanonicalJsonValue);
 }

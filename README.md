@@ -7,6 +7,13 @@ This repository contains reusable development tooling only. Product runtime code
 must not import it. Each consumer remains authoritative for its own domain model,
 package catalog, dependency permissions, security classifications, and ADRs.
 
+The monorepo is structured for two one-way layered packages. The Engineering Foundation
+owns reusable validation and mutation mechanisms. `@agent-teams/docs-protocol`
+depends on Foundation and owns the unified documentation CLI and agent workflow;
+Foundation never depends on Docs Protocol. Consumer-specific document types,
+schemas, owners, templates, reachability, and semantic validators remain strict
+data-only authority in each consumer repository.
+
 ## Scope
 
 - strict data-only consumer configuration and versioned schemas;
@@ -59,20 +66,20 @@ pnpm foundation:assert-dev-only
 pnpm foundation:assert-registry
 ```
 
-Governed documentation uses the same installed CLI. `owner` and `summary` are
+Governed documentation uses the installed Docs Protocol CLI. `owner` and `summary` are
 explicit Intent authority and never receive Foundation defaults:
 
 ```bash
-agent-teams-foundation docs find "tenant isolation"
-agent-teams-foundation docs new --type adr --id ADR-0083 \
+agent-teams-docs find "tenant isolation"
+agent-teams-docs new --type adr --id ADR-0083 \
   --title "Tenant isolation" --owner architecture/tooling \
   --summary "Defines the tenant-isolation boundary and its verification evidence." \
   --dry-run
-agent-teams-foundation docs doctor
-agent-teams-foundation docs recover
+agent-teams-docs doctor
+agent-teams-docs recover
 ```
 
-After reviewing a dry run, repeat `docs new` without `--dry-run`, follow its
+After reviewing a dry run, repeat `agent-teams-docs new` with `--apply`, follow its
 exact reachability instruction, and run the consumer's standard repository
 check. See the
 [document authoring protocol](docs/architecture/document-authoring-protocol.md#canonical-agent-and-operator-cli)

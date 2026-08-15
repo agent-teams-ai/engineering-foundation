@@ -81,17 +81,49 @@ test("atomically quarantines and durably retires the expected temporary", async 
       quarantine,
       paths.parent,
       paths.parent,
+      join(paths.parent, ".foundation-retired-evidence-"),
       paths.parent,
     ]);
     assert.deepEqual(cleanup.operations, [
       `sync:${quarantine}`,
       `sync:${paths.parent}`,
       `sync:${paths.parent}`,
+      `sync:${join(paths.parent, ".foundation-retired-evidence-")}`,
       `sync:${paths.parent}`,
     ]);
     assert.deepEqual(await readdir(paths.parent), [
       ".foundation-retired-evidence-",
     ]);
+  } finally {
+    await rm(paths.parent, { recursive: true, force: true });
+  }
+});
+
+test("syncs retired destination before source parent and never completes on destination sync failure", async () => {
+  const paths = await fixture();
+  try {
+    const events = [];
+    const cleanup = options(paths);
+    const retiredRoot = join(paths.parent, ".foundation-retired-evidence-");
+    cleanup.value.transition = transition(events);
+    cleanup.value.syncDirectory = async (path) => {
+      cleanup.operations.push(`sync:${path}`);
+      cleanup.syncs.push(path);
+      if (path === retiredRoot) {
+        throw new Error("retired destination sync failed");
+      }
+      return "supported";
+    };
+    await assert.rejects(
+      cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      /retired destination sync failed/u,
+    );
+    assert.deepEqual(cleanup.syncs.slice(-2), [paths.parent, retiredRoot]);
+    assert.deepEqual(events, ["transition:begin"]);
+    assert.equal(
+      await readFile(join(retiredRoot, "deterministic", "owned-temporary"), "utf8"),
+      "owned\n",
+    );
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }
@@ -339,17 +371,38 @@ test("preserves both foreign names when post-restoration sync fails", async () =
   }
 });
 
-test("never deletes a new source replacement created after quarantine rename", async () => {
+test("retains PUBLISHING when the source is repopulated after quarantine retirement", async () => {
   const paths = await fixture();
   try {
+    const events = [];
+    const quarantineDirectory = join(
+      paths.parent,
+      ".result.tmp.foundation-owned-cleanup-deterministic",
+    );
     const cleanup = options(paths, {
       async rename(source, destination) {
         await rename(source, destination);
-        await writeFile(source, "new source\n");
+        if (source === quarantineDirectory) {
+          await writeFile(paths.temporaryPath, "new source\n");
+        }
       },
     });
-    assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "removed");
+    cleanup.value.transition = transition(events);
+    assert.equal(
+      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
+      "different",
+    );
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "new source\n");
+    assert.deepEqual(events, ["transition:begin"]);
+    assert.equal(
+      await readFile(join(
+        paths.parent,
+        ".foundation-retired-evidence-",
+        "deterministic",
+        "owned-temporary",
+      ), "utf8"),
+      "owned\n",
+    );
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }

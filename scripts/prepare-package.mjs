@@ -2,12 +2,11 @@ import { access, copyFile, readdir, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
-const sourceRoot = join(packageRoot, "src");
-const distributionRoot = join(packageRoot, "dist");
+import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 
-function sourcePathForArtifact(path) {
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+function sourcePathForArtifact(path, sourceRoot, distributionRoot) {
   const relativePath = relative(distributionRoot, path);
   for (const suffix of [".d.ts.map", ".js.map", ".d.ts", ".js"]) {
     if (relativePath.endsWith(suffix)) {
@@ -26,27 +25,32 @@ async function exists(path) {
   }
 }
 
-async function pruneStaleDistribution(root) {
+async function pruneStaleDistribution(root, sourceRoot, distributionRoot) {
   const entries = await readdir(root, { withFileTypes: true });
   for (const entry of entries) {
     const path = join(root, entry.name);
     if (entry.isDirectory()) {
-      await pruneStaleDistribution(path);
+      await pruneStaleDistribution(path, sourceRoot, distributionRoot);
       if ((await readdir(path)).length === 0) {
         await rm(path, { recursive: true });
       }
       continue;
     }
-    const sourcePath = sourcePathForArtifact(path);
+    const sourcePath = sourcePathForArtifact(path, sourceRoot, distributionRoot);
     if (sourcePath !== null && !(await exists(sourcePath))) {
       await rm(path);
     }
   }
 }
 
-await pruneStaleDistribution(distributionRoot);
-
-await copyFile(
-  join(repositoryRoot, "LICENSE"),
-  join(packageRoot, "LICENSE")
-);
+for (const releasePackage of PUBLISHABLE_PACKAGES) {
+  const packageRoot = join(repositoryRoot, releasePackage.root);
+  const sourceRoot = join(packageRoot, "src");
+  const distributionRoot = join(packageRoot, "dist");
+  if (await exists(distributionRoot)) {
+    await pruneStaleDistribution(distributionRoot, sourceRoot, distributionRoot);
+  }
+  if (await exists(packageRoot)) {
+    await copyFile(join(repositoryRoot, "LICENSE"), join(packageRoot, "LICENSE"));
+  }
+}

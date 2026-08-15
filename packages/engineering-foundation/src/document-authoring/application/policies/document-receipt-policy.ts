@@ -5,9 +5,10 @@ import {
 import { assertSchema } from "../../../schema-catalog.js";
 import type {
   DocumentReceipt,
+  DocumentReceiptContract,
   DocumentReceiptBody
 } from "../model/document-receipt.js";
-import type { DocumentPlan } from "../model/document-planning.js";
+import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
 import {
   assertDocumentReceiptDigest,
   documentReceiptDigest
@@ -51,19 +52,72 @@ function requireDocumentPlan(
   }
 }
 
+function assertDirectoryPrefix(
+  receipt: Extract<DocumentReceiptContract, { readonly schemaVersion: 2 }>,
+  plan: Extract<DocumentPlan, { readonly schemaVersion: 2 }>
+): void {
+  const evidence = receipt.directoryMaterialization;
+  const planned = plan.parentMaterialization.missingDirectories;
+  if (evidence.plannedDirectories.length !== planned.length ||
+    evidence.plannedDirectories.some((path, index) => path !== planned[index]) ||
+    evidence.observedCreatedDirectories.length > planned.length ||
+    evidence.observedCreatedDirectories.some((path, index) => path !== planned[index])) {
+    throw new TypeError(
+      "Document Receipt directory evidence must bind the exact ordered Plan prefix."
+    );
+  }
+}
+
+function inconsistentDirectoryOutcome(
+  receipt: Extract<DocumentReceiptContract, { readonly schemaVersion: 2 }>,
+  plan: Extract<DocumentPlan, { readonly schemaVersion: 2 }>
+): boolean {
+  const evidence = receipt.directoryMaterialization;
+  const planned = plan.parentMaterialization.missingDirectories;
+  return (evidence.state === "none-created" &&
+      evidence.observedCreatedDirectories.length !== 0) ||
+    (evidence.state === "preserved-unknown" &&
+      receipt.outcome !== "recovery-required" &&
+      receipt.outcome !== "manual-recovery-required") ||
+    (receipt.outcome === "already-applied" && evidence.state !== "none-created") ||
+    (receipt.outcome === "applied" && planned.length === 0 &&
+      evidence.state !== "none-created") ||
+    (receipt.outcome === "applied" && planned.length > 0 &&
+      (evidence.state !== "created-and-retained" ||
+        evidence.observedCreatedDirectories.length !== planned.length));
+}
+
+function assertV2DirectoryReceipt(
+  receipt: DocumentReceiptContract,
+  plan: DocumentPlan
+): void {
+  if (receipt.schemaVersion !== 2 || plan.schemaVersion !== 2) {
+    return;
+  }
+  assertDirectoryPrefix(receipt, plan);
+  if (inconsistentDirectoryOutcome(receipt, plan)) {
+    throw new TypeError("Document Receipt directory materialization outcome is inconsistent.");
+  }
+}
+
 export async function createDocumentReceipt(
   body: DocumentReceiptBody,
   plan: DocumentPlan | undefined
-): Promise<DocumentReceipt> {
+): Promise<DocumentReceiptContract> {
   const snapshot = deepFreezeCanonical(snapshotBody(body));
   const receipt = deepFreezeCanonical({
     ...snapshot,
     receiptDigest: documentReceiptDigest(
       snapshot as unknown as Readonly<Record<string, CanonicalJsonValue>>
     )
-  }) as DocumentReceipt;
-  await assertSchema("document-receipt/v1", receipt, "document-receipt");
+  }) as DocumentReceiptContract;
+  await assertSchema(
+    receipt.schemaVersion === 2 ? "document-receipt/v2" : "document-receipt/v1",
+    receipt,
+    "document-receipt"
+  );
   requireDocumentPlan(plan);
+  assertV2DirectoryReceipt(receipt, plan);
   assertDocumentReceiptDigest(receipt, plan);
   return receipt;
 }
@@ -75,8 +129,16 @@ export async function assertDocumentReceipt(
   const snapshot = deepFreezeCanonical(
     JSON.parse(canonicalJson(receipt as CanonicalJsonValue)) as unknown
   );
-  await assertSchema("document-receipt/v1", snapshot, "document-receipt");
+  await assertSchema(
+    (snapshot as { readonly schemaVersion?: unknown }).schemaVersion === 2
+      ? "document-receipt/v2"
+      : "document-receipt/v1",
+    snapshot,
+    "document-receipt"
+  );
   requireDocumentPlan(plan);
-  assertDocumentReceiptDigest(snapshot, plan);
-  return snapshot as DocumentReceipt;
+  const documentReceipt = snapshot as DocumentReceipt;
+  assertV2DirectoryReceipt(documentReceipt, plan);
+  assertDocumentReceiptDigest(documentReceipt, plan);
+  return documentReceipt;
 }

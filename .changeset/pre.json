@@ -1,0 +1,12 @@
+{
+  "mode": "pre",
+  "tag": "rc",
+  "initialVersions": {
+    "@agent-teams/docs-protocol": "0.0.0",
+    "@agent-teams/engineering-foundation": "0.16.1",
+    "@agent-teams/source-dependency-parser-spike": "0.0.0"
+  },
+  "changesets": [
+    "unified-docs-protocol"
+  ]
+}

@@ -138,7 +138,7 @@ test("fails closed for a different installed build and never admits zero physica
       installedBuildIdentity: buildIdentity,
     }).inspect();
     assert.equal(status.state, "manual-recovery-required");
-    assert.equal(status.reason, "physical-identity-unverifiable");
+    assert.equal(status.reason, "corrupt-or-incompatible");
   } finally {
     await rm(mismatchedRoot, { recursive: true, force: true });
     await rm(zeroRoot, { recursive: true, force: true });

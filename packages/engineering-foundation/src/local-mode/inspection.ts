@@ -273,7 +273,8 @@ function projectPublicTransactionStatus(
     if (
       status.reason === "journal-transition-residue" ||
       status.reason === "physical-identity-unverifiable" ||
-      status.format === "envelope-v3"
+      status.format === "envelope-v3" ||
+      status.format === "envelope-v4"
     ) {
       return {
         state: "manual-recovery-required",

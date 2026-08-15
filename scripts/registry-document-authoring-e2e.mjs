@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import { lstat, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { isAbsolute, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   captureFailure,
@@ -9,15 +9,25 @@ import {
   runCommand
 } from "./pack-test-support.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
+import { verifyWindowsDocsRecoveryQualification } from "./registry-document-authoring-policy.mjs";
 
-const packageName = "@agent-teams/engineering-foundation";
-const timeoutMs = 120_000;
-const runPnpm = createPnpmRunner();
+const packageName = "@agent-teams/engineering-foundation", docsPackageName = "@agent-teams/docs-protocol";
+const timeoutMs = 120_000, runPnpm = createPnpmRunner();
 
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+export function isSameCanonicalPath(left, right) {
+  return relative(left, right) === "";
+}
+
+export function isCanonicalPathInside(root, candidate) {
+  const relation = relative(root, candidate);
+  return relation !== "" && relation !== ".." &&
+    !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
 }
 
 async function runBin(consumerRoot, args) {
@@ -31,6 +41,33 @@ async function runBin(consumerRoot, args) {
   const bin = join(binRoot, "agent-teams-foundation");
   await lstat(bin);
   return runCommand(bin, args, consumerRoot, { timeoutMs });
+}
+
+async function runDocsBin(consumerRoot, args) {
+  const binRoot = join(consumerRoot, "node_modules", ".bin");
+  if (process.platform === "win32") {
+    const bin = join(binRoot, "agent-teams-docs.cmd");
+    await lstat(bin);
+    return runCommand(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", bin, ...args],
+      consumerRoot, { timeoutMs });
+  }
+  const bin = join(binRoot, "agent-teams-docs");
+  await lstat(bin);
+  return runCommand(bin, args, consumerRoot, { timeoutMs });
+}
+
+async function docsJsonCommand(consumerRoot, args, expectedExitCode = 0) {
+  const execution = expectedExitCode === 0
+    ? await runDocsBin(consumerRoot, [...args, "--json"])
+    : await captureFailure(() => runDocsBin(consumerRoot, [...args, "--json"]));
+  if (expectedExitCode !== 0) {
+    assert(execution?.code === expectedExitCode,
+      `Docs Protocol command exited with ${execution?.code ?? "no failure"}; expected ${expectedExitCode}.`);
+  }
+  assert(execution.stderr === "", "Docs Protocol JSON command wrote unexpected stderr output.");
+  const lines = execution.stdout.trim().split(/\r?\n/u);
+  assert(lines.length === 1, "Docs Protocol command did not write exactly one JSON envelope.");
+  return JSON.parse(lines[0]);
 }
 
 async function jsonCommand(consumerRoot, args, expectedExitCode = 0) {
@@ -66,18 +103,41 @@ async function assertInstalledBoundary(input) {
   const entry = await lstat(packageRoot);
   assert(entry.isDirectory() && !entry.isSymbolicLink(),
     "Document E2E resolved a workspace/link fallback instead of a registry package.");
-  const source = await realpathSafe(packageRoot);
-  assert(source.startsWith(await realpathSafe(join(input.consumerRoot, "node_modules"))),
+  const source = await realpath(packageRoot);
+  assert(isCanonicalPathInside(
+    await realpath(join(input.consumerRoot, "node_modules")), source
+  ),
     "Installed Foundation escaped the clean consumer node_modules tree.");
+  assert(manifest.devDependencies?.[docsPackageName] === input.docsVersion,
+    "Clean consumer must pin the exact packed Docs Protocol version.");
+  const docsRoot = join(input.consumerRoot, "node_modules", "@agent-teams", "docs-protocol");
+  const docsEntry = await lstat(docsRoot);
+  assert(docsEntry.isDirectory() && !docsEntry.isSymbolicLink(),
+    "Document E2E resolved a Docs Protocol workspace/link fallback instead of a registry package.");
+  assert(isCanonicalPathInside(
+    await realpath(join(input.consumerRoot, "node_modules")), await realpath(docsRoot)
+  ),
+    "Installed Docs Protocol escaped the clean consumer node_modules tree.");
+  const foundationManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  assert(typeof foundationManifest.exports?.["./document-authoring/qualification"] === "object",
+    "Packed Foundation does not declare its closed document-authoring qualification export.");
+  const { stdout: resolutionOutput } = await runCommand(process.execPath, [
+    "--input-type=module", "--eval",
+    `const qualification=${JSON.stringify(`${packageName}/document-authoring/qualification`)};const manifest=${JSON.stringify(`${packageName}/package.json`)};const api=await import(qualification);if(typeof api.runDocumentAuthoringCrashQualification!=="function")process.exit(42);process.stdout.write(JSON.stringify({manifest:import.meta.resolve(manifest),qualification:import.meta.resolve(qualification)}));`,
+  ], docsRoot, { timeoutMs });
+  const resolved = JSON.parse(resolutionOutput);
+  assert(isSameCanonicalPath(
+    await realpath(fileURLToPath(resolved.manifest)), await realpath(join(packageRoot, "package.json"))
+  ),
+    "Docs Protocol resolves a different physical Foundation package.");
+  assert(isCanonicalPathInside(
+    await realpath(packageRoot), await realpath(fileURLToPath(resolved.qualification))
+  ),
+    "Docs Protocol qualification resolved outside the declared physical Foundation package.");
   await runCommand(process.execPath, [
     "--input-type=module", "--eval",
     `const api=await import(${JSON.stringify(`${packageName}/document-authoring`)});if(typeof api.planDocumentationDocument!=="function"||typeof api.applyDocumentationPlan!=="function")process.exit(41);`
   ], input.consumerRoot, { timeoutMs });
-}
-
-async function realpathSafe(path) {
-  const { realpath } = await import("node:fs/promises");
-  return realpath(path);
 }
 
 function newArgs(consumerRoot, dryRun = false) {
@@ -109,8 +169,187 @@ export async function verifyRegistryDocumentAuthoring(input) {
   await assertIdleCommands(input.consumerRoot);
   if (process.platform !== "win32") {
     await assertApplyAndReplay(input.consumerRoot);
-    await assertCrashRecovery(input.consumerRoot);
   }
+  await verifyInstalledDocsProtocol(input);
+}
+
+async function prepareDocsProtocolFixture(input) {
+  const profilePath = "architecture/foundation/docs-protocol.yaml";
+  const foundationProfilePath = "architecture/foundation/document-authoring.yaml";
+  const manifestPath = join(input.consumerRoot, "package.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.devDependencies = {
+    ...manifest.devDependencies,
+    [packageName]: input.version,
+    [docsPackageName]: input.docsVersion
+  };
+  manifest.scripts = Object.fromEntries(
+    ["info", "find", "new", "doctor", "recover", "check"].map((command) => [
+      `docs:${command}`,
+      `agent-teams-docs ${command} --consumer . --profile ${profilePath}`
+    ])
+  );
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await writeFile(join(input.consumerRoot, foundationProfilePath), [
+    "schemaVersion: 2", "projectId: pack-consumer", "catalog:", "  metadataSchemaPath: docs/metadata.schema.json", "  ownerCatalog: {path: docs/owners.yaml, contract: foundation.owner-map/v1}", "  collections:", "    - {kind: markdown-tree, root: docs/catalog}", "  excludedPrefixes: [docs/template.md]", "authoring:", "  mode: create-only", "  artifactTypes:", "    - type: adr", "      initialStatus: proposed", "      identity: {kind: explicit, format: adr-four-digits}", "      placement: {kind: collection, directory: docs/catalog, filename: numeric-id-slug}", "      template: {kind: fenced-markdown-body, path: docs/template.md}", "      heading: {kind: id-colon-title}", "      reachability: {kind: manual-fixed-index, indexPath: docs/catalog/README.md}", "      allowedOwnerIds: [architecture]", ""
+  ].join("\n"), "utf8");
+  await writeFile(join(input.consumerRoot, profilePath), [
+    "schemaVersion: 1", "protocol: {id: agent-teams.docs-protocol, version: 1}", "foundationProfile:", `  path: ${foundationProfilePath}`, "  schemaVersion: 2", "  metadataSidecarPolicy: foundation-profile-v2-strict-merge", "agentWorkflow: {skillPath: .agents/skills/docs-authoring/SKILL.md}", "semanticValidatorIds: []", ""
+  ].join("\n"), "utf8");
+  const metadataSchemaPath = join(input.consumerRoot, "docs", "metadata.schema.json");
+  const metadataSchema = JSON.parse(await readFile(metadataSchemaPath, "utf8"));
+  metadataSchema.properties = {
+    ...metadataSchema.properties,
+    related: { type: "array", uniqueItems: true, items: { type: "string" } },
+    blocked_by: { type: "array", uniqueItems: true, items: { type: "string" } },
+    code_anchors: { type: "array", uniqueItems: true, items: { type: "object" } }
+  };
+  await writeFile(metadataSchemaPath, `${JSON.stringify(metadataSchema, null, 2)}\n`, "utf8");
+  await mkdir(join(input.consumerRoot, ".agents", "skills", "docs-authoring"), { recursive: true });
+  await writeFile(join(input.consumerRoot, ".agents", "skills", "docs-authoring", "SKILL.md"), [
+    "# Docs authoring", "", "Use agent-teams.docs-protocol/v1 through repository scripts.", "", "1. Read the documentation profile before writing.", "2. Search the existing catalog first.", "3. Run pnpm docs:find with a focused query.", "4. Reuse or relate existing documentation when possible.", "5. Select a declared type and owner.", "6. Supply required metadata and relations.", "7. Preview the exact planned change.", "8. Run pnpm docs:new -- --dry-run with all arguments.", "9. Review destination, metadata, and diagnostics.", "10. Resolve required blockers and anchor errors.", "11. Apply the reviewed plan.", "12. Run pnpm docs:new -- --apply with the same arguments.", "13. Do not hand-edit transaction evidence.", "14. If a manual index link is reported, add that link to the reported index.", "15. Preserve the exact reported link text.", "16. Validate the resulting corpus.", "17. Run pnpm docs:check.", "18. Use pnpm docs:doctor when recovery is unclear.", "19. Use pnpm docs:recover for the reported transaction only.", "20. Keep generated metadata deterministic.", ""
+  ].join("\n"), "utf8");
+  await writeFile(join(input.consumerRoot, "AGENTS.md"),
+    "Use [.agents/skills/docs-authoring/SKILL.md](.agents/skills/docs-authoring/SKILL.md) for documentation.\n", "utf8");
+  await writeFile(join(input.consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    kind: "agent-teams-document-authoring-qualification-fixture",
+    consumerRoot: await realpath(input.consumerRoot)
+  })}\n`, "utf8");
+  await writeFile(join(input.consumerRoot, "docs", "catalog", "README.md"),
+    "---\nid: docs.catalog.index\ntype: index\nstatus: active\nowner: architecture\nsummary: Packed registry catalog index.\n---\n\n# Catalog\n", "utf8");
+}
+
+function docsNewArguments(input, mode) {
+  return ["new", "--type", "adr", "--id", input.id, "--title", input.title,
+    "--owner", "architecture", "--summary", "Registry-installed unified Docs Protocol qualification.",
+    "--slug", input.slug, mode, "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"];
+}
+
+async function applyReportedReachability(consumerRoot, result) {
+  assert(result.reachability?.state === "manual-required" &&
+    typeof result.reachability.indexPath === "string" && typeof result.reachability.markdownLink === "string",
+  "Docs Protocol apply did not report its explicit manual reachability action.");
+  const indexPath = join(consumerRoot, result.reachability.indexPath);
+  const source = await readFile(indexPath, "utf8");
+  await writeFile(indexPath, `${source.replace(/\n?$/u, "\n")}- ${result.reachability.markdownLink}\n`, "utf8");
+}
+
+async function compileDocsRecoveryPlan(consumerRoot) {
+  const planPath = join(consumerRoot, "docs-protocol-recovery-plan.json");
+  const scriptPath = join(consumerRoot, "compile-docs-protocol-recovery-plan.mjs");
+  await writeFile(scriptPath, [
+    `import { planDocumentationDocumentV2 } from ${JSON.stringify(`${packageName}/document-authoring`)};`,
+    'import { writeFile } from "node:fs/promises";',
+    "const [consumerRoot, planPath] = process.argv.slice(2);",
+    "const plan = await planDocumentationDocumentV2({ consumerRoot,",
+    '  profilePath: "architecture/foundation/document-authoring.yaml",',
+    '  parentPolicy: "create-missing-real-directories",',
+    '  intent: { schemaVersion: 1, type: "adr", id: "ADR-0051", title: "Docs Protocol Recovery",',
+    '    owner: "architecture", summary: "Registry-installed unified Docs Protocol qualification.",',
+    '    slug: "docs-protocol-recovery", additionalMetadata: { blocked_by: [], code_anchors: [] } }',
+    "});",
+    'await writeFile(planPath, `${JSON.stringify(plan)}\\n`);',
+    ""
+  ].join("\n"), "utf8");
+  await runCommand(process.execPath, [scriptPath, consumerRoot, planPath], consumerRoot, { timeoutMs });
+  return { plan: JSON.parse(await readFile(planPath, "utf8")), planPath };
+}
+
+async function assertSkewRefused(consumerRoot, expectedVersion, expectedBuildIdentity) {
+  const doctor = await docsJsonCommand(consumerRoot, ["doctor", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"], 1);
+  assert(doctor.outcome === "recovery-required" && doctor.result?.transaction?.state === "manual-recovery-required",
+    "Docs Protocol doctor did not refuse a wrong Foundation version/build recovery route.");
+  const recover = await docsJsonCommand(consumerRoot, ["recover", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"], 1);
+  assert(recover.outcome === "recovery-required" && recover.result?.transactionState === "manual-required" &&
+    recover.result?.transaction?.recovery?.args?.exactFoundationVersion === expectedVersion &&
+    recover.result?.transaction?.recovery?.args?.exactFoundationBuildIdentity === expectedBuildIdentity,
+  "Docs Protocol recover did not preserve the exact required Foundation identity under skew.");
+}
+
+function assertDocsCrashJournal(journal, plan) {
+  assert(journal.schemaVersion === 4 && journal.state === "PUBLISHING" &&
+    journal.payloadKind === "document-authoring-journal/v3" && journal.journal?.plan?.planDigest === plan.planDigest,
+  "Docs Protocol crash did not leave the genuine v4/v3 PUBLISHING transaction.");
+}
+
+async function exerciseInstalledIdentitySkew(input, plan) {
+  const foundationRoot = await installedPackageRoot(input.consumerRoot);
+  const manifestPath = join(foundationRoot, "package.json");
+  const manifestBytes = await readFile(manifestPath);
+  const identityPath = join(foundationRoot, "dist", "index.js");
+  const identityBytes = await readFile(identityPath);
+  try {
+    const manifest = JSON.parse(manifestBytes.toString("utf8"));
+    manifest.version = "9.9.9-skew";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    await assertSkewRefused(input.consumerRoot, plan.compiler.version, plan.compiler.buildIdentity);
+    await writeFile(manifestPath, manifestBytes);
+    await writeFile(identityPath, Buffer.concat([identityBytes, Buffer.from("\n// registry qualification build skew\n")]));
+    await assertSkewRefused(input.consumerRoot, plan.compiler.version, plan.compiler.buildIdentity);
+  } finally {
+    await writeFile(manifestPath, manifestBytes);
+    await writeFile(identityPath, identityBytes);
+  }
+}
+
+async function verifyDocsCrashAndSkew(input) {
+  const { plan, planPath } = await compileDocsRecoveryPlan(input.consumerRoot);
+  await crashAtPublishing(input.consumerRoot, planPath);
+  const journalPath = join(input.consumerRoot, ".agent-teams-local", "scaffolding-transaction.json");
+  const journal = JSON.parse(await readFile(journalPath, "utf8"));
+  assertDocsCrashJournal(journal, plan);
+  await exerciseInstalledIdentitySkew(input, plan);
+  const doctor = await docsJsonCommand(input.consumerRoot, ["doctor", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"], 1);
+  assert(doctor.outcome === "recovery-required" && doctor.result?.transaction?.state === "recoverable",
+    "Docs Protocol doctor did not restore exact recovery after skew fixtures were removed.");
+  const recovered = await docsJsonCommand(input.consumerRoot, ["recover", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
+  assert(recovered.outcome === "success" && recovered.result?.transactionState === "recovered" &&
+    recovered.result?.writeState === "committed" && typeof recovered.result?.receiptDigest === "string" &&
+    recovered.result?.receipt?.outcome === "applied" && recovered.result?.receipt?.commit?.publication === "published",
+  "Installed Docs Protocol did not return truthful committed recovery receipt evidence.");
+}
+
+function assertDocsInfoAndFind(info, found) {
+  assert(info.outcome === "success" && info.result?.projectId === "pack-consumer", "Installed Docs Protocol info failed.");
+  assert(found.outcome === "success" && found.result?.documents?.some(({ id }) => id === "guide.packaged"), "Installed Docs Protocol find failed.");
+}
+
+function assertDocsPreviewAndApply(preview, applied) {
+  assert(preview.outcome === "success" && preview.result?.writeState === "preview", "Installed Docs Protocol preview failed.");
+  assert(applied.outcome === "success" && applied.result?.writeState === "applied" &&
+    typeof applied.result?.receiptDigest === "string" && applied.result?.receipt?.commit?.publication === "published",
+  "Installed Docs Protocol apply did not return truthful receipt evidence.");
+}
+
+function assertDocsHealth(check, idleDoctor, idleRecover) {
+  assert(check.outcome === "success" && check.result?.valid === true, "Installed Docs Protocol check failed.");
+  assert(idleDoctor.command === "docs.doctor", "Installed Docs Protocol doctor did not execute.");
+  assert(idleRecover.outcome === "success" && idleRecover.result?.transactionState === "no-pending-transaction", "Installed Docs Protocol idle recover failed.");
+}
+
+async function verifyInstalledDocsProtocol(input) {
+  await prepareDocsProtocolFixture(input);
+  const info = await docsJsonCommand(input.consumerRoot, ["info", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
+  const found = await docsJsonCommand(input.consumerRoot, ["find", "Hermetic", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
+  assertDocsInfoAndFind(info, found);
+  const preview = await docsJsonCommand(input.consumerRoot, docsNewArguments({ id: "ADR-0050", title: "Unified Registry Boundary", slug: "unified-registry-boundary" }, "--dry-run"));
+  await assertAbsent(join(input.consumerRoot, preview.result.documentPath), "Installed Docs Protocol preview mutated the consumer.");
+  const applyArguments = docsNewArguments({ id: "ADR-0050", title: "Unified Registry Boundary", slug: "unified-registry-boundary" }, "--apply");
+  if (process.platform === "win32") {
+    await verifyWindowsDocsRecoveryQualification({ applyArguments,
+      consumerRoot: input.consumerRoot, expectedDocumentPath: preview.result.documentPath,
+      runDocs: (args, exitCode) => docsJsonCommand(input.consumerRoot, args, exitCode) });
+    return;
+  }
+  const applied = await docsJsonCommand(input.consumerRoot, applyArguments);
+  assertDocsPreviewAndApply(preview, applied);
+  await applyReportedReachability(input.consumerRoot, applied.result);
+  const check = await docsJsonCommand(input.consumerRoot, ["check", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
+  const idleDoctor = await docsJsonCommand(input.consumerRoot, ["doctor", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
+  const idleRecover = await docsJsonCommand(input.consumerRoot, ["recover", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
+  assertDocsHealth(check, idleDoctor, idleRecover);
+  await verifyDocsCrashAndSkew(input);
 }
 
 async function assertConsumerAliases(consumerRoot) {
@@ -152,30 +391,19 @@ async function assertConsumerAliases(consumerRoot) {
 }
 
 async function installedPackageRoot(consumerRoot) {
-  return realpathSafe(join(
+  return realpath(join(
     consumerRoot, "node_modules", "@agent-teams", "engineering-foundation"
   ));
 }
 
 async function writeCrashWorker(consumerRoot) {
-  const privateWriter = pathToFileURL(join(
-    await installedPackageRoot(consumerRoot), "dist", "document-authoring",
-    "composition", "node-document-writing-private.js"
-  )).href;
   const workerPath = join(consumerRoot, "packed-document-crash-worker.mjs");
   await writeFile(workerPath, [
     'import { readFile } from "node:fs/promises";',
-    `import { applyNodeDocumentationPlanPrivately } from ${JSON.stringify(privateWriter)};`,
+    `import { runDocumentAuthoringCrashQualification } from ${JSON.stringify(`${packageName}/document-authoring/qualification`)};`,
     "const [consumerRoot, planPath] = process.argv.slice(2);",
     'const plan = JSON.parse(await readFile(planPath, "utf8"));',
-    "await applyNodeDocumentationPlanPrivately({ consumerRoot, plan }, {",
-    "  faultInjector: async ({ phase }) => {",
-    '    if (phase !== "after-publishing-journal-durable") return;',
-    '    await new Promise((resolve, reject) => process.stdout.write("CHECKPOINT\\n",',
-    "      (error) => error == null ? resolve() : reject(error)));",
-    "    await new Promise(() => {});",
-    "  }",
-    "});",
+    'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-publishing-journal-durable" });',
     ""
   ].join("\n"), "utf8");
   return workerPath;
@@ -202,7 +430,7 @@ async function crashAtPublishing(consumerRoot, planPath) {
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (stdout.includes("CHECKPOINT\n")) {
+      if (stdout.includes('{"schemaVersion":1,"event":"document-authoring-qualification-crash-point","crashPoint":"after-publishing-journal-durable"}\n')) {
         clearTimeout(deadline);
         resolve();
       }
@@ -217,57 +445,6 @@ async function crashAtPublishing(consumerRoot, planPath) {
   const termination = await exited;
   assert(termination.signal === "SIGKILL",
     `Packed writer did not terminate through SIGKILL: ${termination.code}/${termination.signal}.`);
-}
-
-async function compilePackedRecoveryPlan(consumerRoot) {
-  const planPath = join(consumerRoot, "packed-recovery-plan.json");
-  const scriptPath = join(consumerRoot, "compile-packed-recovery-plan.mjs");
-  await writeFile(scriptPath, [
-    `import { planDocumentationDocument } from ${JSON.stringify(`${packageName}/document-authoring`)};`,
-    'import { writeFile } from "node:fs/promises";',
-    "const [consumerRoot, planPath] = process.argv.slice(2);",
-    "const plan = await planDocumentationDocument({",
-    "  consumerRoot, profilePath: \"architecture/foundation/document-authoring.yaml\",",
-    "  intent: { schemaVersion: 1, type: \"adr\", id: \"ADR-0043\",",
-    "    title: \"Packed Crash Recovery\", owner: \"architecture\",",
-    "    summary: \"Proves deterministic authoring from a clean registry install.\",",
-    "    slug: \"packed-crash-recovery\" }",
-    "});",
-    'await writeFile(planPath, `${JSON.stringify(plan)}\\n`);',
-    ""
-  ].join("\n"), "utf8");
-  await runCommand(process.execPath, [scriptPath, consumerRoot, planPath], consumerRoot, { timeoutMs });
-  return { plan: JSON.parse(await readFile(planPath, "utf8")), planPath };
-}
-
-async function assertCrashRecovery(consumerRoot) {
-  const { plan, planPath } = await compilePackedRecoveryPlan(consumerRoot);
-  await crashAtPublishing(consumerRoot, planPath);
-  const journalPath = join(consumerRoot, ".agent-teams-local", "scaffolding-transaction.json");
-  const journal = JSON.parse(await readFile(journalPath, "utf8"));
-  assert(journal.schemaVersion === 3 && journal.state === "PUBLISHING" &&
-    journal.payloadKind === "document-authoring-journal/v2" &&
-    journal.journal?.plan?.planDigest === plan.planDigest,
-  "Packed crash did not leave the genuine v3/v2 PUBLISHING transaction for its Plan.");
-  const doctor = await jsonCommand(consumerRoot, ["docs", "doctor", "--consumer", consumerRoot], 1);
-  assert(doctor.outcome === "recovery-required" &&
-    doctor.result?.recoveryClass === "auto-recoverable" &&
-    doctor.result?.foundationVersion === plan.compiler.version &&
-    doctor.result?.foundationBuildIdentity === plan.compiler.buildIdentity,
-  "Packed doctor did not bind recovery to the exact installed version and build.");
-  const recovered = await jsonCommand(consumerRoot, ["docs", "recover", "--consumer", consumerRoot]);
-  assert(recovered.outcome === "success" && recovered.result?.transactionState === "recovered" &&
-    recovered.result?.writeState === "committed",
-  "Registry-installed CLI did not recover the genuine durable transaction.");
-  const destination = join(consumerRoot, plan.destination);
-  const expected = Buffer.from(plan.output.contentBase64, "base64");
-  assert((await readFile(destination)).equals(expected), "Recovered document bytes differ from Plan.");
-  await assertAbsent(journalPath, "Recovered transaction journal was not removed.");
-  const replay = await jsonCommand(consumerRoot, documentArgs(consumerRoot, {
-    id: "ADR-0043", slug: "packed-crash-recovery", title: "Packed Crash Recovery"
-  }));
-  assert(replay.outcome === "success" && replay.result?.writeState === "already-applied",
-    "Recovered packed document did not replay as already-applied.");
 }
 
 async function assertAbsent(path, message) {

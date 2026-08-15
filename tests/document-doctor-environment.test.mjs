@@ -7,6 +7,7 @@ import test from "node:test";
 import { NodeDocumentEnvironmentInspector } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-environment-inspector.js";
 import { RunDocumentDoctor } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-doctor.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { inspectDocumentAuthoringEnvironmentV1 } from "../packages/engineering-foundation/dist/document-authoring/index.js";
 
 const digest = `sha256:${"b".repeat(64)}`;
 
@@ -40,6 +41,29 @@ test("Node environment inspection is non-mutating and reports POSIX platform sup
         strictDirectoryDurability: "platform-supported",
       },
     });
+    assert.deepEqual(await readdir(root), before);
+  });
+});
+
+test("public environment inspection v1 exposes the installed immutable snapshot", async () => {
+  await withFixture(async (root) => {
+    const before = await readdir(root);
+    const result = await inspectDocumentAuthoringEnvironmentV1({
+      consumerRoot: root,
+    });
+    assert.equal(typeof result.installedFoundationVersion, "string");
+    assert.match(
+      result.installedFoundationBuildIdentity,
+      /^sha256:[0-9a-f]{64}$/u,
+    );
+    assert.deepEqual(result.filesystem, {
+      basis: "platform-contract",
+      strictDirectoryDurability:
+        process.platform === "win32"
+          ? "platform-unsupported"
+          : "platform-supported",
+    });
+    assert.equal(Object.isFrozen(result), true);
     assert.deepEqual(await readdir(root), before);
   });
 });

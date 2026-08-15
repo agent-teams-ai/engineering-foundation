@@ -7,6 +7,7 @@ export interface MetadataValidationResult {
 
 export interface MetadataSchemaSnapshot {
   readonly evidence: DocumentAuthorityEvidence;
+  readonly requiredProperties?: readonly string[];
   validate(instance: unknown): MetadataValidationResult;
 }
 

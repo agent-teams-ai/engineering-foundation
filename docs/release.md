@@ -12,12 +12,39 @@ manually with npm 2FA after `pnpm check` passes. After that release:
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
+During the D' stage-one rollout, the release pipeline owns only
+`@agent-teams/engineering-foundation`. `@agent-teams/docs-protocol` remains a
+private 0.0.0 workspace package and is ignored by Changesets until Foundation
+0.17.0-rc.0 is published. Release validation discovers only the bounded public
+package catalog. Hermetic registry qualification still proves Docs Protocol by
+publicizing only a disposable copied fixture in its no-uplink registry and
+binding that fixture to the exact packed Foundation version.
+
 Release-candidate waves use committed Changesets prerelease state with the exact
-`rc` tag. The publish policy then requires an `-rc.N` package version and invokes
-Changesets with `--tag rc`; contradictory or unknown prerelease state fails
+`rc` tag. The publish policy requires an `-rc.N` version for every package in
+the wave, then invokes plain `changeset publish`; Changesets applies the
+committed prerelease tag. Contradictory, mixed, or unknown prerelease state fails
 closed before npm publication. Therefore an RC cannot move npm's `latest`
 dist-tag. Returning to stable publication requires a separately reviewed
 Changesets prerelease-exit change.
+
+Do not introduce Docs Protocol into the active Foundation 0.16 RC wave. First
+qualify and release stable Foundation 0.16.0 through a reviewed prerelease exit.
+Then rebase the unified-protocol feature, enter a fresh `rc` wave through the
+Changesets CLI, and let its Foundation-only minor Changeset generate
+Foundation 0.17.0-rc.0. Docs Protocol must remain private and exactly 0.0.0 in
+this release PR. Never edit Foundation versions or `.changeset/pre.json` by hand.
+
+After Foundation 0.17.0-rc.0 is available, use a separate reviewed bootstrap PR
+for Docs Protocol. That PR removes `private` and the Changesets ignore, restores
+public provenance configuration, makes the packed dependency resolve to the
+available exact Foundation 0.17.0-rc.0, adds the real 0.0.0 changelog entry, and
+proves public-API bootstrap promotion is an exact no-op. Do not add its bootstrap
+workflow in stage one. Publish 0.0.0 from hosted CI with a bounded one-time npm
+credential and provenance, create the exact tag and GitHub release, apply any
+required deprecation, configure and verify npm trusted publishing, then revoke
+the temporary credential. Only then add the Docs Protocol minor Changeset that
+generates 0.1.0-rc.0 through the normal protected-main release path.
 
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against
@@ -55,9 +82,12 @@ separate reviewed change after its consumer-owned gates pass.
 `public-api-promote-release`. Promotion requires a newer sufficient package
 version and accepted evidence for every breaking fingerprint. Existing API
 baselines are mutable only in `changeset-release/main`; first-time baseline
-creation is allowed during capability adoption. Multi-package promotion is
-validation-first and replay-safe after a partial process failure: an unchanged
-already-promoted package is skipped, while same-version API drift fails closed.
+creation is allowed during capability adoption only for a declared package at
+exact version `0.0.0` with a minor or major Changeset. That bootstrap extracts
+the real declarations and uses create-no-replace publication; missing baselines
+for any later version fail closed. Multi-package promotion is validation-first
+and replay-safe after a partial process failure: an unchanged already-promoted
+package is skipped, while same-version API drift fails closed.
 
 Automatic Changesets pull requests require the organization setting that permits
 GitHub Actions to create pull requests. The organization allows this capability,

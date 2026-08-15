@@ -3,8 +3,8 @@ import type {
   DocumentCommandExecution,
   DocumentRecoverResult
 } from "../model/document-command.js";
-import type { DocumentReceipt } from "../model/document-receipt.js";
-import type { DocumentTransactionInspectionV1 } from "../model/document-transaction-inspection.js";
+import type { DocumentReceiptContract as DocumentReceipt } from "../model/document-receipt.js";
+import type { DocumentTransactionInspection } from "../model/document-transaction-inspection.js";
 import {
   commandExecution,
   projectDocumentCommandFailure,
@@ -18,7 +18,7 @@ export interface RunDocumentRecoverRequest {
 }
 
 interface Dependencies {
-  inspect(consumerRoot: string): Promise<DocumentTransactionInspectionV1>;
+  inspect(consumerRoot: string): Promise<DocumentTransactionInspection>;
   recover(request: {
     readonly consumerRoot: string;
     readonly signal?: AbortSignal;
@@ -26,7 +26,7 @@ interface Dependencies {
 }
 
 function manualDiagnostics(
-  inspection: Extract<DocumentTransactionInspectionV1, {
+  inspection: Extract<DocumentTransactionInspection, {
     readonly state: "manual-recovery-required";
   }>,
   consumerRoot: string

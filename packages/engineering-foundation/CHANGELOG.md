@@ -1,5 +1,14 @@
 # @agent-teams/engineering-foundation
 
+## 0.17.0-rc.0
+
+### Minor Changes
+
+- [#113](https://github.com/agent-teams-ai/engineering-foundation/pull/113) [`9b1544b`](https://github.com/agent-teams-ai/engineering-foundation/commit/9b1544bcefed647fbe7d4bee5a05d12cd526d6d6) Thanks [@777genius](https://github.com/777genius)! - Add the versioned Foundation directory-materialization kernel used by the
+  staged unified documentation protocol. Provide deterministic planning,
+  publication, evidence, and recovery backed by consumer-owned data-only profiles
+  and portable transactional filesystem guarantees.
+
 ## 0.16.1
 
 ### Patch Changes

@@ -88,8 +88,10 @@ The default-branch `status` publisher runs only for a successful `ReviewRouter`
 status created by the expected GitHub App. It resolves the review run from the
 same-repository Actions target URL, binds that completed `pull_request_target`
 run to one open same-repository pull request at the exact head, and re-reads the
-App-owned status before publishing `ReviewGate`. A missing, failed, stale, or
-unbound review cannot produce a successful gate.
+App-owned status before publishing `ReviewGate`. The webhook `sender` is only an
+early event filter; the freshly read commit-status `creator` remains the
+authorization proof. A missing, failed, stale, or unbound review cannot produce
+a successful gate.
 
 If GitHub does not emit a new `workflow_run` event after a successful job rerun,
 send the `review-gate-recover` repository dispatch with that completed

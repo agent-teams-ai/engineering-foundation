@@ -11,9 +11,9 @@ allowedContainerImages: []
 allowedPullRequestTargetWorkflows:
   - .github/workflows/reviewrouter-codex.yml
 allowedUses:
-  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@999da4783098b82faed1890ec80165c4a501d872
+  - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@8a0a31ae1d92c89466c8a939272a1e333e88c5a0
     transitiveUses: []
-  - uses: 777genius/review-router@999da4783098b82faed1890ec80165c4a501d872
+  - uses: 777genius/review-router@8a0a31ae1d92c89466c8a939272a1e333e88c5a0
     transitiveUses: []
   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
     transitiveUses: []

@@ -439,7 +439,7 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   );
   assert.match(attestation.run, /if \[\[ -z "\$\{bound_run_id\}" \]\]; then/u);
   assert.match(attestation.run, /run_head_repository.*GITHUB_REPOSITORY/su);
-  assert.match(attestation.run, /run_pull_request_count.*"1"/su);
+  assert.equal((attestation.run.match(/pull_request_count\}" != "0"[\s\S]*?pull_request_count\}" != "1"/gu) ?? []).length, 2);
   assert.match(attestation.run, /run_pull_request_base_sha.*base_sha/su);
   assert.match(attestation.run, /final_run_pull_request_base_sha.*base_sha/su);
   assert.ok(

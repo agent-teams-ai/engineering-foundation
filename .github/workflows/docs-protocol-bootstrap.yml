@@ -122,8 +122,13 @@ jobs:
             exit 1
           fi
           npm dist-tag add '@agent-teams/docs-protocol@0.0.0' bootstrap
-          npm deprecate '@agent-teams/docs-protocol@0.0.0' \
-            'Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol release candidate instead.'
+          deprecation_message='Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol release candidate instead.'
+          expected_deprecation="$(node -e 'process.stdout.write(JSON.stringify(process.argv[1]))' \
+            "${deprecation_message}")"
+          current_deprecation="$(npm view '@agent-teams/docs-protocol@0.0.0' deprecated --json || true)"
+          if [[ "${current_deprecation}" != "${expected_deprecation}" ]]; then
+            npm deprecate '@agent-teams/docs-protocol@0.0.0' "${deprecation_message}"
+          fi
       - name: Prove registry postconditions and provenance
         env:
           ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
@@ -135,8 +140,19 @@ jobs:
           npm view "${package_name}" versions dist-tags --json > "${evidence_root}/after.json"
           npm view "${package_name}@0.0.0" dist.integrity --json > \
             "${evidence_root}/after-integrity.json"
-          npm view "${package_name}@0.0.0" deprecated --json > \
-            "${evidence_root}/deprecated.json"
+          deprecated_path="${evidence_root}/deprecated.json"
+          deprecated_candidate="${evidence_root}/deprecated-candidate.json"
+          for _ in {1..12}; do
+            if npm view "${package_name}@0.0.0" deprecated --json > \
+              "${deprecated_candidate}" && node -e \
+              'const value=JSON.parse(require("node:fs").readFileSync(process.argv[1],"utf8"));if(typeof value!=="string"||value.length===0)process.exit(1)' \
+              "${deprecated_candidate}"; then
+              mv "${deprecated_candidate}" "${deprecated_path}"
+              break
+            fi
+            sleep 5
+          done
+          test -s "${deprecated_path}"
           mkdir -p "${audit_root}"
           cd "${audit_root}"
           npm init --yes >/dev/null

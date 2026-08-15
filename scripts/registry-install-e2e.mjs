@@ -17,9 +17,13 @@ import { runServer } from "verdaccio";
 
 import {
   createPnpmRunner,
-  runCommand,
   runNpmCommand,
 } from "./pack-test-support.mjs";
+import {
+  verifyFoundationFeatures,
+  verifyInstalledBufQualifierForPackage,
+  verifyRegistryPackage,
+} from "./registry-installed-package-qualification.mjs";
 import { registryPublishArguments } from "./registry-publication-policy.mjs";
 import {
   installRegistryConsumerWithRetry,
@@ -27,8 +31,6 @@ import {
   runRegistryPhase,
   seedRegistryInParallel,
 } from "./registry-seed-scheduler.mjs";
-import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
-import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 import {
   DOCS_PROTOCOL_PACKAGE_NAME,
@@ -37,6 +39,10 @@ import {
 } from "./registry-qualification-packages.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
+const FOUNDATION_FEATURE_IMPORTS = [
+  FOUNDATION_PACKAGE_NAME, `${FOUNDATION_PACKAGE_NAME}/document-authoring`,
+  `${FOUNDATION_PACKAGE_NAME}/local-mode`, `${FOUNDATION_PACKAGE_NAME}/scaffolding`,
+];
 const REGISTRY_QUALIFICATION_PACKAGES = registryQualificationPackages(
   PUBLISHABLE_PACKAGES,
 );
@@ -325,18 +331,7 @@ async function verifyInstalledBufQualifier(installedRoot) {
   if (process.platform === "win32") {
     return;
   }
-  const environmentKey = "AGENT_TEAMS_FOUNDATION_CLI_PATH";
-  const previousCliPath = process.env[environmentKey];
-  process.env[environmentKey] = join(installedRoot, "dist", "cli.js");
-  try {
-    await import("./buf-qualification-e2e.mjs?installed-registry");
-  } finally {
-    if (previousCliPath === undefined) {
-      delete process.env[environmentKey];
-    } else {
-      process.env[environmentKey] = previousCliPath;
-    }
-  }
+  await verifyInstalledBufQualifierForPackage(installedRoot);
 }
 
 async function createConsumerAttempt(targets, registryUrl, attempt) {
@@ -403,91 +398,6 @@ async function installConsumer(targets, registryUrl) {
   });
 }
 
-async function verifyRegistryPackage(target, consumerRoot, lockfile, registryUrl) {
-  const packageSegments = target.manifest.name.split("/");
-  const targetRoot = join(consumerRoot, "node_modules", ...packageSegments);
-  const targetEntry = await lstat(targetRoot);
-  const targetManifest = await readManifest(targetRoot);
-  const lockedTarget = lockfile.packages?.[`node_modules/${target.manifest.name}`];
-  if (
-    !targetEntry.isDirectory() ||
-    targetEntry.isSymbolicLink() ||
-    targetManifest.version !== target.manifest.version ||
-    lockedTarget?.version !== target.manifest.version ||
-    typeof lockedTarget.integrity !== "string" ||
-    !lockedTarget.integrity.startsWith("sha512-") ||
-    typeof lockedTarget.resolved !== "string" ||
-    !lockedTarget.resolved.startsWith(registryUrl)
-  ) {
-    throw new Error(`Registry evidence is incomplete for ${target.manifest.name}.`);
-  }
-  await runCommand(
-    process.execPath,
-    ["--input-type=module", "--eval", `await import(${JSON.stringify(target.manifest.name)});`],
-    consumerRoot,
-    { timeoutMs: COMMAND_TIMEOUT_MS },
-  );
-  const binary =
-    typeof target.manifest.bin === "string"
-      ? target.manifest.bin
-      : Object.values(target.manifest.bin ?? {})[0];
-  if (typeof binary === "string") {
-    await runCommand(
-      process.execPath,
-      [join(targetRoot, binary), "--help"],
-      consumerRoot,
-      { timeoutMs: COMMAND_TIMEOUT_MS },
-    );
-  }
-  const { stdout: viewedVersion } = await runNpm(
-    [
-      "view",
-      `${target.manifest.name}@${target.manifest.version}`,
-      "version",
-      "--registry",
-      registryUrl,
-    ],
-    consumerRoot,
-  );
-  if (viewedVersion.trim() !== target.manifest.version) {
-    throw new Error(
-      `Registry metadata did not return ${target.manifest.name}@${target.manifest.version}.`,
-    );
-  }
-  return targetRoot;
-}
-
-async function verifyFoundationFeatures(installedRoot, consumerRoot, version, docsVersion) {
-  await runCommand(
-    process.execPath,
-    [join(installedRoot, "dist", "cli.js"), "--help"],
-    consumerRoot,
-    { timeoutMs: COMMAND_TIMEOUT_MS },
-  );
-  await runCommand(
-    process.execPath,
-    [
-      "--input-type=module",
-      "--eval",
-      `await Promise.all([import(${JSON.stringify(FOUNDATION_PACKAGE_NAME)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/document-authoring`)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/local-mode`)}), import(${JSON.stringify(`${FOUNDATION_PACKAGE_NAME}/scaffolding`)})]);`,
-    ],
-    consumerRoot,
-    { timeoutMs: COMMAND_TIMEOUT_MS },
-  );
-  await verifyInstalledBufQualifier(installedRoot);
-  await verifyInstalledTransactionBarrier({
-    cliPath: join(installedRoot, "dist", "cli.js"),
-    consumerRoot: join(consumerRoot, "transaction-barrier-consumer"),
-    fixtureRoot: join(
-      repositoryRoot,
-      "tests",
-      "fixtures",
-      "scaffolding-authority-consumer",
-    ),
-  });
-  await verifyRegistryDocumentAuthoring({ consumerRoot, docsVersion, version });
-}
-
 async function verifyConsumer(targets, registryUrl) {
   const { consumerRoot } = await installConsumer(targets, registryUrl);
 
@@ -508,12 +418,13 @@ async function verifyConsumer(targets, registryUrl) {
   );
   let installedFoundationRoot;
   for (const target of targets) {
-    const targetRoot = await verifyRegistryPackage(
-      target,
+    const targetRoot = await verifyRegistryPackage({
       consumerRoot,
       lockfile,
       registryUrl,
-    );
+      runNpm,
+      target,
+    });
     if (target.manifest.name === FOUNDATION_PACKAGE_NAME) {
       installedFoundationRoot = targetRoot;
     }
@@ -521,12 +432,15 @@ async function verifyConsumer(targets, registryUrl) {
   if (installedFoundationRoot === undefined) {
     throw new Error("Installed Foundation target is missing.");
   }
-  await verifyFoundationFeatures(
-    installedFoundationRoot,
+  await verifyFoundationFeatures({
     consumerRoot,
-    foundationTarget.manifest.version,
-    docsTarget.manifest.version,
-  );
+    docsVersion: docsTarget.manifest.version,
+    featureImports: FOUNDATION_FEATURE_IMPORTS,
+    installedRoot: installedFoundationRoot,
+    repositoryRoot,
+    verifyInstalledBufQualifier,
+    version: foundationTarget.manifest.version,
+  });
   return createHash("sha256")
     .update(await readFile(join(consumerRoot, "package-lock.json")))
     .digest("hex");

@@ -18,6 +18,9 @@ import {
   recaptureExactDirectoryIdentity,
 } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-directory-materialization.js";
 
+const strictDirectoryDurabilityTest = process.platform === "win32" ? test.skip : test;
+const windowsTest = process.platform === "win32" ? test : test.skip;
+
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "repository-directory-mutation-"));
   return {
@@ -103,7 +106,7 @@ test("rejects symlinked ancestors and never traverses outside the repository", a
   }
 });
 
-test("creates exclusively, syncs, and requires identity binding before success", async () => {
+test("rejects directory creation when policy forbids it", async () => {
   const subject = await fixture();
   try {
     const forbidden = await projectDirectoryMaterialization({
@@ -122,7 +125,14 @@ test("creates exclusively, syncs, and requires identity binding before success",
       (error) => error?.code === "CREATE_FORBIDDEN",
     );
     await assert.rejects(lstat(join(subject.root, "forbidden")), { code: "ENOENT" });
+  } finally {
+    await subject.dispose();
+  }
+});
 
+strictDirectoryDurabilityTest("creates exclusively, syncs, and requires identity binding before success", async () => {
+  const subject = await fixture();
+  try {
     const projection = await projectDirectoryMaterialization({
       createPolicy: "allow",
       repositoryPath: "docs/api",
@@ -154,6 +164,39 @@ test("creates exclusively, syncs, and requires identity binding before success",
       }),
       (error) => error?.code === "EEXIST",
     );
+  } finally {
+    await subject.dispose();
+  }
+});
+
+windowsTest("fails closed without binding when strict parent durability is unsupported", async () => {
+  const subject = await fixture();
+  try {
+    const projection = await projectDirectoryMaterialization({
+      createPolicy: "allow",
+      repositoryPath: "docs",
+      repositoryRoot: subject.root,
+    });
+    let bindings = 0;
+    await assert.rejects(
+      createAndBindOneDirectory({
+        binding: {
+          async bindCreatedDirectory() {
+            bindings += 1;
+          },
+        },
+        createPolicy: "allow",
+        expectedParentIdentity: projection.anchor.identity,
+        repositoryPath: "docs",
+        repositoryRoot: subject.root,
+      }),
+      (error) =>
+        error?.code === "AMBIGUOUS_CREATION" &&
+        error.manualRecoveryRequired === true &&
+        error.cause?.name === "StrictDirectoryDurabilityError",
+    );
+    assert.equal(bindings, 0);
+    assert.equal((await lstat(join(subject.root, "docs"))).isDirectory(), true);
   } finally {
     await subject.dispose();
   }
@@ -249,21 +292,15 @@ test("never binds a replacement injected after the first mkdir observation", asy
 test("exact recapture rejects a replaced created-directory identity", async () => {
   const subject = await fixture();
   try {
+    await mkdir(join(subject.root, "docs"));
     const projection = await projectDirectoryMaterialization({
       createPolicy: "allow",
       repositoryPath: "docs",
       repositoryRoot: subject.root,
     });
-    const created = await createAndBindOneDirectory({
-      binding: { async bindCreatedDirectory() {} },
-      createPolicy: "allow",
-      expectedParentIdentity: projection.anchor.identity,
-      repositoryPath: "docs",
-      repositoryRoot: subject.root,
-    });
     assert.equal(
       (await recaptureExactDirectoryIdentity({
-        expectedIdentity: created.identity,
+        expectedIdentity: projection.anchor.identity,
         repositoryPath: "docs",
         repositoryRoot: subject.root,
       })).repositoryPath,
@@ -273,7 +310,7 @@ test("exact recapture rejects a replaced created-directory identity", async () =
     await mkdir(join(subject.root, "docs"));
     await assert.rejects(
       recaptureExactDirectoryIdentity({
-        expectedIdentity: created.identity,
+        expectedIdentity: projection.anchor.identity,
         repositoryPath: "docs",
         repositoryRoot: subject.root,
       }),

@@ -94,6 +94,7 @@
         "tests/local-mode-process-runner.test.mjs",
         "tests/locale-determinism.test.mjs",
         "tests/public-api-evidence-safety.test.mjs",
+        "tests/registry-package-boundary.test.mjs",
         "tests/registry-publication-policy.test.mjs",
         "tests/scaffolding-authority.test.mjs",
         "tests/scaffolding-canonical-contract.test.mjs",

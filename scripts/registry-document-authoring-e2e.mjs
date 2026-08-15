@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -17,6 +17,16 @@ function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+export function isSameCanonicalPath(left, right) {
+  return relative(left, right) === "";
+}
+
+export function isCanonicalPathInside(root, candidate) {
+  const relation = relative(root, candidate);
+  return relation !== "" && relation !== ".." &&
+    !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
 }
 
 async function runBin(consumerRoot, args) {
@@ -93,7 +103,9 @@ async function assertInstalledBoundary(input) {
   assert(entry.isDirectory() && !entry.isSymbolicLink(),
     "Document E2E resolved a workspace/link fallback instead of a registry package.");
   const source = await realpath(packageRoot);
-  assert(source.startsWith(await realpath(join(input.consumerRoot, "node_modules"))),
+  assert(isCanonicalPathInside(
+    await realpath(join(input.consumerRoot, "node_modules")), source
+  ),
     "Installed Foundation escaped the clean consumer node_modules tree.");
   assert(manifest.devDependencies?.[docsPackageName] === input.docsVersion,
     "Clean consumer must pin the exact packed Docs Protocol version.");
@@ -101,7 +113,9 @@ async function assertInstalledBoundary(input) {
   const docsEntry = await lstat(docsRoot);
   assert(docsEntry.isDirectory() && !docsEntry.isSymbolicLink(),
     "Document E2E resolved a Docs Protocol workspace/link fallback instead of a registry package.");
-  assert((await realpath(docsRoot)).startsWith(await realpath(join(input.consumerRoot, "node_modules"))),
+  assert(isCanonicalPathInside(
+    await realpath(join(input.consumerRoot, "node_modules")), await realpath(docsRoot)
+  ),
     "Installed Docs Protocol escaped the clean consumer node_modules tree.");
   const foundationManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert(typeof foundationManifest.exports?.["./document-authoring/qualification"] === "object",
@@ -111,9 +125,13 @@ async function assertInstalledBoundary(input) {
     `const qualification=${JSON.stringify(`${packageName}/document-authoring/qualification`)};const manifest=${JSON.stringify(`${packageName}/package.json`)};const api=await import(qualification);if(typeof api.runDocumentAuthoringCrashQualification!=="function")process.exit(42);process.stdout.write(JSON.stringify({manifest:import.meta.resolve(manifest),qualification:import.meta.resolve(qualification)}));`,
   ], docsRoot, { timeoutMs });
   const resolved = JSON.parse(resolutionOutput);
-  assert(await realpath(fileURLToPath(resolved.manifest)) === await realpath(join(packageRoot, "package.json")),
+  assert(isSameCanonicalPath(
+    await realpath(fileURLToPath(resolved.manifest)), await realpath(join(packageRoot, "package.json"))
+  ),
     "Docs Protocol resolves a different physical Foundation package.");
-  assert((await realpath(fileURLToPath(resolved.qualification))).startsWith(`${await realpath(packageRoot)}/`),
+  assert(isCanonicalPathInside(
+    await realpath(packageRoot), await realpath(fileURLToPath(resolved.qualification))
+  ),
     "Docs Protocol qualification resolved outside the declared physical Foundation package.");
   await runCommand(process.execPath, [
     "--input-type=module", "--eval",

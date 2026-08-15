@@ -196,7 +196,7 @@ test("bootstrap binds closed tarball contents and the packed Foundation dependen
 
 test("registry bootstrap is absent-or-exact and proves final tags, deprecation, and provenance", () => {
   const integrity = "sha512-fixture";
-  const reviewedCommit = "a".repeat(40);
+  const reviewedCommit = DOCS_PROTOCOL_BOOTSTRAP.artifactCommit;
   assert.equal(
     classifyRegistryPreflight({
       docsMetadata: null,
@@ -207,7 +207,10 @@ test("registry bootstrap is absent-or-exact and proves final tags, deprecation, 
     "publish",
   );
   const docsMetadata = {
-    "dist-tags": { bootstrap: DOCS_PROTOCOL_BOOTSTRAP.version },
+    "dist-tags": {
+      bootstrap: DOCS_PROTOCOL_BOOTSTRAP.version,
+      latest: DOCS_PROTOCOL_BOOTSTRAP.version,
+    },
     versions: [DOCS_PROTOCOL_BOOTSTRAP.version],
   };
   const fixtureDigest = Buffer.alloc(64, 1);
@@ -295,7 +298,7 @@ test("registry bootstrap is absent-or-exact and proves final tags, deprecation, 
       /reviewed repository, workflow, commit, and tarball/u,
     );
   }
-  docsMetadata["dist-tags"].latest = DOCS_PROTOCOL_BOOTSTRAP.version;
+  delete docsMetadata["dist-tags"].latest;
   assert.throws(
     () =>
       assertBootstrapPostconditions({
@@ -307,7 +310,7 @@ test("registry bootstrap is absent-or-exact and proves final tags, deprecation, 
       }),
     /dist-tag/u,
   );
-  delete docsMetadata["dist-tags"].latest;
+  docsMetadata["dist-tags"].latest = DOCS_PROTOCOL_BOOTSTRAP.version;
   docsMetadata["dist-tags"].rc = DOCS_PROTOCOL_BOOTSTRAP.version;
   assert.throws(
     () =>

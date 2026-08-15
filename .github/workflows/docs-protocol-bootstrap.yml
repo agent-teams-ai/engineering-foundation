@@ -19,6 +19,9 @@ on:
 permissions:
   contents: read
 
+env:
+  DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT: cbdf9e0d08bdd9d045170657f386eec0efc97c5e
+
 concurrency:
   group: docs-protocol-bootstrap
   cancel-in-progress: false
@@ -124,7 +127,6 @@ jobs:
       - name: Prove registry postconditions and provenance
         env:
           ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
-          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
         run: |
           set -Eeuo pipefail
           evidence_root="${RUNNER_TEMP}/docs-protocol-bootstrap"
@@ -144,7 +146,7 @@ jobs:
           node scripts/docs-protocol-bootstrap.mjs postconditions \
             "${evidence_root}/after.json" "${evidence_root}/after-integrity.json" \
             "${evidence_root}/deprecated.json" "${evidence_root}/audit.json" \
-            "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}"
+            "${ARCHIVE_INTEGRITY}" "${DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT}"
       - name: Retain bootstrap evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -165,7 +167,6 @@ jobs:
     steps:
       - name: Create or reuse the exact tag and prerelease
         env:
-          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -180,17 +181,20 @@ jobs:
             > "${evidence_root}/tag.json" 2> "${tag_error}"; then
             grep -q 'HTTP 404' "${tag_error}"
             gh api --method POST "repos/${REPOSITORY}/git/refs" \
-              -f ref="refs/tags/${tag}" -f sha="${EXPECTED_COMMIT}" >/dev/null
+              -f ref="refs/tags/${tag}" \
+              -f sha="${DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT}" >/dev/null
           fi
           gh api "repos/${REPOSITORY}/git/ref/tags/${encoded_tag}" > "${evidence_root}/tag.json"
           test "$(jq -r '.object.type' "${evidence_root}/tag.json")" = 'commit'
-          test "$(jq -r '.object.sha' "${evidence_root}/tag.json")" = "${EXPECTED_COMMIT}"
+          test "$(jq -r '.object.sha' "${evidence_root}/tag.json")" = \
+            "${DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT}"
           release_error="$(mktemp)"
           if ! gh api "repos/${REPOSITORY}/releases/tags/${encoded_tag}" \
             > "${evidence_root}/release.json" 2> "${release_error}"; then
             grep -q 'HTTP 404' "${release_error}"
             gh api --method POST "repos/${REPOSITORY}/releases" \
-              -f tag_name="${tag}" -f target_commitish="${EXPECTED_COMMIT}" \
+              -f tag_name="${tag}" \
+              -f target_commitish="${DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT}" \
               -f name="${title}" -f body='Bootstrap-only artifact. Do not adopt.' \
               -F draft=false -F prerelease=true >/dev/null
           fi
@@ -198,7 +202,7 @@ jobs:
             "${evidence_root}/release.json"
           test "$(jq -r '.tag_name' "${evidence_root}/release.json")" = "${tag}"
           test "$(jq -r '.target_commitish' "${evidence_root}/release.json")" = \
-            "${EXPECTED_COMMIT}"
+            "${DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT}"
           test "$(jq -r '.name' "${evidence_root}/release.json")" = "${title}"
           test "$(jq -r '.draft' "${evidence_root}/release.json")" = 'false'
           test "$(jq -r '.prerelease' "${evidence_root}/release.json")" = 'true'

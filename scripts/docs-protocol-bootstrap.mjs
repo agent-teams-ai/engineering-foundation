@@ -3,13 +3,17 @@ import { appendFile, readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
 export const DOCS_PROTOCOL_BOOTSTRAP = Object.freeze({
+  artifactCommit: "cbdf9e0d08bdd9d045170657f386eec0efc97c5e",
   deprecationMessage:
     "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol release candidate instead.",
   foundationName: "@agent-teams/engineering-foundation",
   foundationVersion: "0.17.0-rc.0",
   name: "@agent-teams/docs-protocol",
   registry: "https://registry.npmjs.org/",
-  tags: Object.freeze(["bootstrap"]),
+  // npm assigns `latest` to the first version of a new package even when the
+  // initial publish uses a non-latest tag, and refuses to remove that only
+  // default tag while no later version exists.
+  tags: Object.freeze(["bootstrap", "latest"]),
   version: "0.0.0",
 });
 
@@ -368,8 +372,8 @@ function provenanceDependencyMatches(dependencies, reviewedCommit) {
 }
 
 function assertProvenanceBinding({ bundle, localIntegrity, reviewedCommit }) {
-  if (typeof reviewedCommit !== "string" || !/^[0-9a-f]{40}$/u.test(reviewedCommit)) {
-    fail("reviewed promotion commit must be an exact lowercase commit SHA.");
+  if (reviewedCommit !== DOCS_PROTOCOL_BOOTSTRAP.artifactCommit) {
+    fail("reviewed promotion commit must be the exact bootstrap artifact commit.");
   }
   const statement = provenanceStatement(bundle);
   const workflow = statement?.predicate?.buildDefinition?.externalParameters?.workflow;

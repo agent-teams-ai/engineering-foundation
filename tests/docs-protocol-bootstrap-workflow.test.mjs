@@ -36,6 +36,10 @@ test("Docs Protocol bootstrap is manual, token-bounded, idempotent, and provenan
   assert.equal(bootstrap.on.workflow_dispatch.inputs.token_created_at.required, true);
   assert.equal(bootstrap.on.workflow_dispatch.inputs.token_expires_at.required, true);
   assert.deepEqual(bootstrap.permissions, { contents: "read" });
+  assert.equal(
+    bootstrap.env.DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT,
+    "cbdf9e0d08bdd9d045170657f386eec0efc97c5e",
+  );
   assert.deepEqual(job.permissions, { contents: "read", "id-token": "write" });
   assert.equal(job.environment, "npm-docs-protocol-bootstrap");
   assert.match(job.if, /DOCS_PROTOCOL_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
@@ -60,10 +64,13 @@ test("Docs Protocol bootstrap is manual, token-bounded, idempotent, and provenan
   assert.equal(reconcileStep.env.GH_TOKEN, "${{ github.token }}");
   assert.equal(reconcileStep.env.NODE_AUTH_TOKEN, undefined);
   assert.match(reconcileStep.run, /git\/ref\/tags/u);
-  assert.match(reconcileStep.run, /\.object\.sha.*EXPECTED_COMMIT/u);
+  assert.match(reconcileStep.run, /\.object\.sha[\s\S]*DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT/u);
   assert.match(reconcileStep.run, /releases\/tags/u);
   assert.match(reconcileStep.run, /prerelease=true/u);
-  assert.match(reconcileStep.run, /target_commitish="\$\{EXPECTED_COMMIT\}"/u);
+  assert.match(
+    reconcileStep.run,
+    /target_commitish="\$\{DOCS_PROTOCOL_BOOTSTRAP_ARTIFACT_COMMIT\}"/u,
+  );
   assert.match(source, /engineering-foundation@0\.17\.0-rc\.0/u);
   assert.doesNotMatch(source, /on:\s*\n\s+push:/u);
   assert.equal(

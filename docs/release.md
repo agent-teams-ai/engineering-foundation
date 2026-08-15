@@ -84,12 +84,12 @@ and let the unchanged release workflow publish its merge through npm Trusted
 Publishing. Never weaken branch protection or publish from a workstation to work
 around the policy.
 
-The default-branch `workflow_run` publisher reports whether it safely inspected
-and published the exact-head `ReviewGate`; it does not copy the pull request's
-pass/fail result onto the default-branch check run. A missing or failed App
-review remains a failing `ReviewGate` status on the pull request head, while a
-successful publication job stays green. Invalid or unbound workflow evidence
-still fails the publisher before it can write a status.
+The default-branch `status` publisher runs only for a successful `ReviewRouter`
+status created by the expected GitHub App. It resolves the review run from the
+same-repository Actions target URL, binds that completed `pull_request_target`
+run to one open same-repository pull request at the exact head, and re-reads the
+App-owned status before publishing `ReviewGate`. A missing, failed, stale, or
+unbound review cannot produce a successful gate.
 
 If GitHub does not emit a new `workflow_run` event after a successful job rerun,
 send the `review-gate-recover` repository dispatch with that completed

@@ -229,7 +229,7 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   assert.deepEqual(reviewGate.on.repository_dispatch.types, ["review-gate-recover"]);
   assert.equal(
     reviewGate.jobs["review-gate"].if,
-    "${{ (github.event_name == 'status' && github.event.context == 'ReviewRouter' && github.event.state == 'success' && github.event.creator.id == 281702430) || github.event.action == 'review-gate-recover' }}",
+    "${{ (github.event_name == 'status' && github.event.context == 'ReviewRouter' && github.event.state == 'success' && github.event.sender.id == 281702430 && github.event.sender.type == 'Bot') || github.event.action == 'review-gate-recover' }}",
   );
   assert.doesNotMatch(reviewGateSource, /workflow_run:/u);
   assert.equal(reviewGateSteps.length, 1);
@@ -258,8 +258,12 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     "${{ github.event.client_payload.review_run_id }}",
   );
   assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_TARGET_URL, "${{ github.event.target_url }}");
+  assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_SENDER_ID, "${{ github.event.sender.id }}");
+  assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_SENDER_TYPE, "${{ github.event.sender.type }}");
+  assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_CREATOR_ID, undefined);
+  assert.doesNotMatch(reviewGateSource, /github\.event\.creator/u);
   assert.match(reviewGateSteps[0].run, /review_run_id.*\^\[1-9\]\[0-9\]\*\$/u);
-  assert.match(reviewGateSteps[0].run, /REVIEW_STATUS_CREATOR_ID.*REVIEWROUTER_APP_BOT_ID/u);
+  assert.match(reviewGateSteps[0].run, /REVIEW_STATUS_SENDER_ID.*REVIEWROUTER_APP_BOT_ID/u);
   assert.match(reviewGateSteps[0].run, /expected_run_url_prefix/u);
   assert.match(reviewGateSteps[0].run, /for attempt in \{1\.\.12\}/u);
   assert.match(reviewGateSteps[0].run, /run_status.*completed/su);

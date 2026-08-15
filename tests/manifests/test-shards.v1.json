@@ -29,6 +29,7 @@
         "tests/public-api-bootstrap.test.mjs",
         "tests/pull-request-template.test.mjs",
         "tests/release-pr-freshness.test.mjs",
+        "tests/docs-protocol-bootstrap-workflow.test.mjs",
         "tests/release-workflow.test.mjs",
         "tests/repository-mutation-boundary.test.mjs",
         "tests/repository-mutation-paths.test.mjs",

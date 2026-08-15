@@ -260,17 +260,61 @@ jobs:
             fail_attestation "Release PR contains unreviewed changes"
           fi
 
-          dispatch_response="$(gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/dispatches" \
-            -f ref=changeset-release/main \
-            -F return_run_details=true)"
-          bound_run_id="$(jq -r '.workflow_run_id // ""' <<<"${dispatch_response}")"
-          bound_run_url="$(jq -r '.html_url // ""' <<<"${dispatch_response}")"
+          bound_run_id=""
+          bound_run_url=""
+          bound_run_event=""
+          selection_deadline=$((SECONDS + 30))
+          while :; do
+            if ! candidate_runs="$(gh api --method GET \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs" \
+              -f event=pull_request \
+              -f branch=changeset-release/main \
+              -f head_sha="${head_sha}" \
+              -f per_page=100)"; then
+              if (( SECONDS >= selection_deadline )); then
+                break
+              fi
+              sleep 5
+              continue
+            fi
+            if ! selected_run="$(node scripts/select-release-ci-run.mjs \
+              --repository "${GITHUB_REPOSITORY}" \
+              --server "${GITHUB_SERVER_URL}" \
+              --pr "${RELEASE_PULL_REQUEST}" \
+              --branch changeset-release/main \
+              --base "${base_sha}" \
+              --head "${head_sha}" <<<"${candidate_runs}")"; then
+              fail_attestation "Release PR CI run selection was ambiguous or malformed"
+            fi
+            bound_run_id="$(jq -r '.id // ""' <<<"${selected_run}")"
+            bound_run_url="$(jq -r '.url // ""' <<<"${selected_run}")"
+            bound_run_event="$(jq -r '.event // ""' <<<"${selected_run}")"
+            if [[ -n "${bound_run_id}" ]]; then
+              break
+            fi
+            if (( SECONDS >= selection_deadline )); then
+              break
+            fi
+            sleep 5
+          done
+
+          if [[ -z "${bound_run_id}" ]]; then
+            dispatch_response="$(gh api --method POST \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/dispatches" \
+              -f ref=changeset-release/main \
+              -F return_run_details=true)"
+            bound_run_id="$(jq -r '.workflow_run_id // ""' <<<"${dispatch_response}")"
+            bound_run_url="$(jq -r '.html_url // ""' <<<"${dispatch_response}")"
+            bound_run_event=workflow_dispatch
+          fi
           expected_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}"
           if [[ ! "${bound_run_id}" =~ ^[1-9][0-9]*$ || \
-            "${bound_run_url}" != "${expected_run_url}" ]]; then
-            fail_attestation "Release PR CI dispatch did not return an exact run"
+            "${bound_run_url}" != "${expected_run_url}" || \
+            ( "${bound_run_event}" != "pull_request" && \
+              "${bound_run_event}" != "workflow_dispatch" ) ]]; then
+            fail_attestation "Release PR CI did not resolve to one exact run"
           fi
 
           deadline=$((SECONDS + 2100))
@@ -283,18 +327,37 @@ jobs:
               continue
             fi
             read -r run_id run_path run_event run_head_branch run_head_sha \
-              bound_run_attempt run_url run_status run_conclusion < <(jq -r \
+              bound_run_attempt run_url run_head_repository run_pull_request_count \
+              run_pull_request_number run_pull_request_head_ref \
+              run_pull_request_head_sha run_pull_request_base_ref \
+              run_pull_request_base_sha run_status run_conclusion < <(jq -r \
               '[.id, .path, .event, .head_branch, .head_sha, .run_attempt,
-                .html_url, .status, .conclusion // ""] | @tsv' \
+                .html_url, .head_repository.full_name, (.pull_requests | length),
+                (.pull_requests[0].number // "missing"), (.pull_requests[0].head.ref // "missing"),
+                (.pull_requests[0].head.sha // "missing"), (.pull_requests[0].base.ref // "missing"),
+                (.pull_requests[0].base.sha // "missing"), .status, .conclusion // ""] | @tsv' \
               <<<"${bound_run}")
             if [[ "${run_id}" != "${bound_run_id}" || \
               "${run_path}" != ".github/workflows/ci.yml" || \
-              "${run_event}" != "workflow_dispatch" || \
+              "${run_event}" != "${bound_run_event}" || \
               "${run_head_branch}" != "changeset-release/main" || \
               "${run_head_sha}" != "${head_sha}" || \
               "${bound_run_attempt}" != "1" || \
-              "${run_url}" != "${bound_run_url}" ]]; then
+              "${run_url}" != "${bound_run_url}" || \
+              "${run_head_repository}" != "${GITHUB_REPOSITORY}" ]]; then
               fail_attestation "Release PR CI dispatch resolved to unexpected evidence"
+            fi
+            if [[ "${run_event}" == "pull_request" ]]; then
+              if [[ "${run_pull_request_count}" != "1" || \
+                "${run_pull_request_number}" != "${RELEASE_PULL_REQUEST}" || \
+                "${run_pull_request_head_ref}" != "changeset-release/main" || \
+                "${run_pull_request_head_sha}" != "${head_sha}" || \
+                "${run_pull_request_base_ref}" != "main" || \
+                "${run_pull_request_base_sha}" != "${base_sha}" ]]; then
+                fail_attestation "Release PR CI run lost its pull request provenance"
+              fi
+            elif [[ "${run_pull_request_count}" != "0" ]]; then
+              fail_attestation "Dispatched release PR CI has unexpected pull request provenance"
             fi
 
             if ! jobs="$(gh api -H 'Accept: application/vnd.github+json' \
@@ -404,19 +467,39 @@ jobs:
             fi
             read -r final_run_id final_run_path final_run_event \
               final_run_head_branch final_run_head_sha final_run_attempt \
-              final_run_url final_run_status \
+              final_run_url final_run_head_repository \
+              final_run_pull_request_count final_run_pull_request_number \
+              final_run_pull_request_head_ref final_run_pull_request_head_sha \
+              final_run_pull_request_base_ref final_run_pull_request_base_sha \
+              final_run_status \
               final_run_conclusion < <(jq -r \
               '[.id, .path, .event, .head_branch, .head_sha, .run_attempt,
-                .html_url, .status, .conclusion // ""] | @tsv' \
+                .html_url, .head_repository.full_name, (.pull_requests | length),
+                (.pull_requests[0].number // "missing"), (.pull_requests[0].head.ref // "missing"),
+                (.pull_requests[0].head.sha // "missing"), (.pull_requests[0].base.ref // "missing"),
+                (.pull_requests[0].base.sha // "missing"), .status, .conclusion // ""] | @tsv' \
               <<<"${final_bound_run}")
             if [[ "${final_run_id}" != "${bound_run_id}" || \
               "${final_run_path}" != ".github/workflows/ci.yml" || \
-              "${final_run_event}" != "workflow_dispatch" || \
+              "${final_run_event}" != "${bound_run_event}" || \
               "${final_run_head_branch}" != "changeset-release/main" || \
               "${final_run_head_sha}" != "${head_sha}" || \
               "${final_run_attempt}" != "1" || \
-              "${final_run_url}" != "${expected_run_url}" ]]; then
+              "${final_run_url}" != "${expected_run_url}" || \
+              "${final_run_head_repository}" != "${GITHUB_REPOSITORY}" ]]; then
               fail_attestation "Final release PR CI evidence changed identity"
+            fi
+            if [[ "${final_run_event}" == "pull_request" ]]; then
+              if [[ "${final_run_pull_request_count}" != "1" || \
+                "${final_run_pull_request_number}" != "${RELEASE_PULL_REQUEST}" || \
+                "${final_run_pull_request_head_ref}" != "changeset-release/main" || \
+                "${final_run_pull_request_head_sha}" != "${head_sha}" || \
+                "${final_run_pull_request_base_ref}" != "main" || \
+                "${final_run_pull_request_base_sha}" != "${base_sha}" ]]; then
+                fail_attestation "Final release PR CI pull request provenance changed"
+              fi
+            elif [[ "${final_run_pull_request_count}" != "0" ]]; then
+              fail_attestation "Final dispatched CI pull request provenance changed"
             fi
             if [[ "${final_run_status}" != "completed" ]]; then
               sleep 5

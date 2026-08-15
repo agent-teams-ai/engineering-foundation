@@ -12,6 +12,7 @@ import {
   releasePullRequestContentViolations,
   releasePullRequestFileViolations,
 } from "../scripts/check-release-pr-files.mjs";
+import { selectReleaseCiRun } from "../scripts/select-release-ci-run.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const reviewRouterRevision = "8a0a31ae1d92c89466c8a939272a1e333e88c5a0";
@@ -125,7 +126,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
       .length,
     2,
   );
-  assert.match(attestation.run, /run_event.*workflow_dispatch/su);
+  assert.match(attestation.run, /run_event.*bound_run_event/su);
   assert.match(attestation.run, /run_head_branch.*changeset-release\/main/su);
   assert.match(attestation.run, /run_head_sha.*head_sha/su);
   assert.match(attestation.run, /bound_run_attempt.*"1"/su);
@@ -173,6 +174,103 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
         10,
   );
 }
+
+function exactPullRequestRun(overrides = {}) {
+  const repository = "agent-teams-ai/engineering-foundation";
+  const baseSha = "a".repeat(40);
+  const headSha = "b".repeat(40);
+  return {
+    id: 123,
+    path: ".github/workflows/ci.yml",
+    event: "pull_request",
+    head_branch: "changeset-release/main",
+    head_sha: headSha,
+    run_attempt: 1,
+    status: "in_progress",
+    conclusion: null,
+    html_url: `https://github.com/${repository}/actions/runs/123`,
+    head_repository: { full_name: repository },
+    pull_requests: [
+      {
+        number: 127,
+        head: { ref: "changeset-release/main", sha: headSha },
+        base: { ref: "main", sha: baseSha },
+      },
+    ],
+    ...overrides,
+  };
+}
+
+const exactRunExpectation = {
+  repository: "agent-teams-ai/engineering-foundation",
+  serverUrl: "https://github.com",
+  branch: "changeset-release/main",
+  baseSha: "a".repeat(40),
+  headSha: "b".repeat(40),
+  pullRequestNumber: 127,
+};
+
+test("release CI selection reuses only one exact attempt-1 pull request run", () => {
+  assert.deepEqual(
+    selectReleaseCiRun({ workflow_runs: [exactPullRequestRun()] }, exactRunExpectation),
+    {
+      id: 123,
+      event: "pull_request",
+      url: "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123",
+    },
+  );
+  for (const incompatible of [
+    { run_attempt: 2 },
+    { status: "completed", conclusion: "action_required" },
+    { event: "workflow_dispatch" },
+    { head_repository: { full_name: "attacker/fork" } },
+    { html_url: "https://example.test/actions/runs/123" },
+    { pull_requests: [] },
+    {
+      pull_requests: [
+        {
+          number: 127,
+          head: { ref: "changeset-release/main", sha: "b".repeat(40) },
+          base: { ref: "main", sha: "c".repeat(40) },
+        },
+      ],
+    },
+  ]) {
+    assert.equal(
+      selectReleaseCiRun(
+        { workflow_runs: [exactPullRequestRun(incompatible)] },
+        exactRunExpectation,
+      ),
+      null,
+    );
+  }
+  assert.throws(
+    () =>
+      selectReleaseCiRun(
+        {
+          workflow_runs: [
+            exactPullRequestRun(),
+            exactPullRequestRun({
+              id: 124,
+              html_url:
+                "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/124",
+            }),
+          ],
+        },
+        exactRunExpectation,
+      ),
+    /Multiple exact attempt-1/u,
+  );
+});
+
+test("CI concurrency isolates pull request checks from attester dispatches", async () => {
+  const ci = await workflow("ci.yml");
+  assert.equal(
+    ci.concurrency.group,
+    "foundation-ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}",
+  );
+  assert.equal(ci.concurrency["cancel-in-progress"], true);
+});
 
 test("release pipeline keeps App review and a bounded generated-diff attestation", async () => {
   const release = await workflow("release.yml");
@@ -327,6 +425,23 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     2,
   );
   assert.match(attestation.run, /--base "\$\{base_sha\}" --head "\$\{head_sha\}"/u);
+  assert.match(attestation.run, /selection_deadline=\$\(\(SECONDS \+ 30\)\)/u);
+  assert.match(attestation.run, /select-release-ci-run\.mjs/u);
+  assert.match(attestation.run, /-f event=pull_request/u);
+  assert.match(attestation.run, /-f head_sha="\$\{head_sha\}"/u);
+  assert.match(
+    attestation.run,
+    /if ! candidate_runs=.*SECONDS >= selection_deadline.*break.*sleep 5.*continue/su,
+  );
+  assert.ok(
+    attestation.run.indexOf("select-release-ci-run.mjs") <
+      attestation.run.indexOf("actions/workflows/ci.yml/dispatches"),
+  );
+  assert.match(attestation.run, /if \[\[ -z "\$\{bound_run_id\}" \]\]; then/u);
+  assert.match(attestation.run, /run_head_repository.*GITHUB_REPOSITORY/su);
+  assert.match(attestation.run, /run_pull_request_count.*"1"/su);
+  assert.match(attestation.run, /run_pull_request_base_sha.*base_sha/su);
+  assert.match(attestation.run, /final_run_pull_request_base_sha.*base_sha/su);
   assert.ok(
     attestation.run.lastIndexOf("check-release-pr-freshness.mjs") <
       attestation.run.lastIndexOf('post_status "${release_gate_context}" success'),

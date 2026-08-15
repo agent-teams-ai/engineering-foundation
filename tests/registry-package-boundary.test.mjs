@@ -126,7 +126,7 @@ test("Windows registry qualification requires matching doctor and recover inspec
   }), /manual recovery classification/u);
 });
 
-async function runWindowsEvidenceScenario(context, mutateAfterInspection) {
+async function runWindowsEvidenceScenario(context, mutateAfterInspection, prepareTransition) {
   const consumerRoot = await mkdtemp(join(tmpdir(), "registry-windows-recovery-"));
   context.after(() => rm(consumerRoot, { force: true, recursive: true }));
   const catalogRoot = join(consumerRoot, "docs", "catalog");
@@ -143,12 +143,15 @@ async function runWindowsEvidenceScenario(context, mutateAfterInspection) {
       commands.push({ args, exitCode });
       if (args[0] === "new") {
         const stateRoot = join(consumerRoot, ".agent-teams-local");
+        const transitionPath = join(stateRoot,
+          "scaffolding-transaction.json.document-transition");
         await mkdir(stateRoot);
-        await Promise.all([
-          writeFile(join(stateRoot, "foundation-operation.lock"), "", "utf8"),
-          writeFile(join(stateRoot,
-            "scaffolding-transaction.json.document-transition"), "evidence", "utf8")
-        ]);
+        await writeFile(join(stateRoot, "foundation-operation.lock"), "", "utf8");
+        if (prepareTransition === undefined) {
+          await writeFile(transitionPath, "evidence", "utf8");
+        } else {
+          await prepareTransition({ consumerRoot, stateRoot, transitionPath });
+        }
         return windowsRecoveryApply();
       }
       if (args[0] === "doctor") {
@@ -192,4 +195,14 @@ test("Windows registry qualification rejects extra recovery state entries", asyn
   await assert.rejects(runWindowsEvidenceScenario(context, async ({ stateRoot }) => {
     await writeFile(join(stateRoot, "unexpected-residue"), "unexpected", "utf8");
   }), /unexpected entry census/u);
+});
+
+const symlinkEvidenceTest = process.platform === "win32" ? test.skip : test;
+symlinkEvidenceTest("Windows registry qualification rejects symlink transition evidence", async (context) => {
+  await assert.rejects(runWindowsEvidenceScenario(context, undefined,
+    async ({ consumerRoot, transitionPath }) => {
+      const target = join(consumerRoot, "outside-transition-evidence");
+      await writeFile(target, "evidence", "utf8");
+      await symlink(target, transitionPath);
+    }), /not a regular physical file/u);
 });

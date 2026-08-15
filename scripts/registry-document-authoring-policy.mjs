@@ -77,17 +77,22 @@ export function assertWindowsDocsRecoveryInspection(doctor, recover) {
 }
 
 function portableFileIdentity(stats) {
-  return stats.ino === 0n ? undefined : { device: stats.dev, inode: stats.ino };
+  assert.notEqual(stats.ino, 0n,
+    "Windows Docs Protocol transition evidence has no portable file identity.");
+  return { device: stats.dev, inode: stats.ino };
 }
 
 async function readTransitionEvidence(path) {
-  const lexical = await lstat(path);
-  assert.ok(lexical.isFile() && !lexical.isSymbolicLink(),
-    "Windows Docs Protocol transition evidence is not a regular physical file.");
   const handle = await open(path, "r");
   try {
-    const stats = await handle.stat({ bigint: true });
-    return { bytes: await handle.readFile(), identity: portableFileIdentity(stats) };
+    const opened = await handle.stat({ bigint: true });
+    const lexical = await lstat(path, { bigint: true });
+    assert.ok(opened.isFile() && lexical.isFile() && !lexical.isSymbolicLink(),
+      "Windows Docs Protocol transition evidence is not a regular physical file.");
+    const identity = portableFileIdentity(opened);
+    assert.deepEqual(portableFileIdentity(lexical), identity,
+      "Windows Docs Protocol transition evidence changed while binding its open handle.");
+    return { bytes: await handle.readFile(), identity };
   } finally {
     await handle.close();
   }
@@ -113,10 +118,8 @@ async function assertMutationEvidenceUnchanged(input, expected) {
     "Windows Docs Protocol recovery state census changed during inspection.");
   assert.deepEqual(observed.transition.bytes, expected.transition.bytes,
     "Windows Docs Protocol transition evidence bytes changed during inspection.");
-  if (expected.transition.identity !== undefined) {
-    assert.deepEqual(observed.transition.identity, expected.transition.identity,
-      "Windows Docs Protocol transition evidence file identity changed during inspection.");
-  }
+  assert.deepEqual(observed.transition.identity, expected.transition.identity,
+    "Windows Docs Protocol transition evidence file identity changed during inspection.");
 }
 
 export async function verifyWindowsDocsRecoveryQualification(input) {

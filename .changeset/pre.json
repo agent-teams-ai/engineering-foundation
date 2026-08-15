@@ -7,6 +7,8 @@
     "@agent-teams/source-dependency-parser-spike": "0.0.0"
   },
   "changesets": [
+    "docs-protocol-bootstrap",
+    "docs-protocol-first-rc",
     "unified-docs-protocol"
   ]
 }

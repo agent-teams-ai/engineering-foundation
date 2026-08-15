@@ -83,7 +83,11 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     provenance: true,
     registry: "https://registry.npmjs.org/",
   });
-  assert.equal(docsProtocol.version, "0.0.0");
+  assert.match(
+    docsProtocol.version,
+    exactVersion,
+    "Docs Protocol must retain an exact semver version after Changesets promotes the bootstrap manifest",
+  );
   assert.deepEqual(reverseDependencyReferences(foundation, workspace), []);
   assert.equal(docsProtocol.dependencies?.[foundationName], "workspace:*");
   assert.match(foundation.version, exactVersion);

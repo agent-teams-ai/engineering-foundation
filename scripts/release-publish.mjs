@@ -4,16 +4,20 @@ import { readFile, readdir, readlink } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 
-import {
-  DOCS_PROTOCOL_BOOTSTRAP,
-  ordinaryReleaseDocsPolicy,
-} from "./docs-protocol-bootstrap.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 import {
   assertExactChangesetInventory,
   exactChangesetPreState,
 } from "./release-changeset-state.mjs";
 import { changesetsPublishArguments, releasePublishInvocation } from "./release-publish-command.mjs";
+import { assertOrdinaryDocsReleasePolicy } from "./release-publish-docs-policy.mjs";
+import {
+  comparePublishedVersions,
+  compareVersionCore,
+  parsePublishedVersion,
+  parseRcVersion,
+  parseStableVersion,
+} from "./release-publish-registry-version.mjs";
 
 export { changesetsPublishArguments, releasePublishInvocation };
 
@@ -25,32 +29,9 @@ const releaseControlPaths = Object.freeze([
 ]);
 const workspaceRoots = Object.freeze(workspacePackageGlobs.map((pattern) => pattern.slice(0, -2)));
 const registryTimeoutMilliseconds = 10_000;
-const stableVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
-const rcVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-rc\.(0|[1-9]\d*)$/u;
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function parseStableVersion(version) {
-  const match = stableVersionPattern.exec(version);
-  return match === null ? undefined : match.slice(1).map(BigInt);
-}
-
-function parseRcVersion(version) {
-  const match = rcVersionPattern.exec(version);
-  return match === null ? undefined : {
-    core: match.slice(1, 4).map(BigInt), iteration: BigInt(match[4]),
-  };
-}
-
-function compareVersionCore(left, right) {
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) {
-      return left[index] > right[index] ? 1 : -1;
-    }
-  }
-  return 0;
 }
 
 function exactRecord(left, right) {
@@ -385,57 +366,6 @@ export async function registryPackageMetadata(packageInfo, fetchImplementation =
 export async function registryVersionExists(packageInfo, fetchImplementation = fetch) {
   const metadata = await registryPackageMetadata(packageInfo, fetchImplementation);
   return metadata.versions.includes(packageInfo.version);
-}
-
-function parsePublishedVersion(version) {
-  const stable = parseStableVersion(version);
-  if (stable !== undefined) {
-    return { core: stable, iteration: undefined };
-  }
-  return parseRcVersion(version);
-}
-
-function comparePublishedVersions(left, right) {
-  const coreComparison = compareVersionCore(left.core, right.core);
-  if (coreComparison !== 0) {
-    return coreComparison;
-  }
-  if (left.iteration === undefined || right.iteration === undefined) {
-    if (left.iteration === right.iteration) {
-      return 0;
-    }
-    return left.iteration === undefined ? 1 : -1;
-  }
-  if (left.iteration === right.iteration) {
-    return 0;
-  }
-  return left.iteration > right.iteration ? 1 : -1;
-}
-
-function workspaceManifest(state, name) {
-  const packageInfo = [...state.packages.private, ...state.packages.public].find(
-    (candidate) => candidate.name === name,
-  );
-  return packageInfo === undefined ? undefined : JSON.parse(packageInfo.manifestBytes);
-}
-
-function changesetsConfig(state) {
-  const config = state.inventory.files.find(({ name }) => name === "config.json");
-  return config === undefined ? undefined : JSON.parse(config.bytes);
-}
-
-function assertOrdinaryDocsReleasePolicy(state, registryState) {
-  const docsRegistry = registryState.find(({ name }) => name === DOCS_PROTOCOL_BOOTSTRAP.name);
-  ordinaryReleaseDocsPolicy({
-    changesetsConfig: changesetsConfig(state),
-    docsManifest: workspaceManifest(state, DOCS_PROTOCOL_BOOTSTRAP.name),
-    foundationManifest: workspaceManifest(state, DOCS_PROTOCOL_BOOTSTRAP.foundationName),
-    preState: state.preState,
-    publishablePackageNames: PUBLISHABLE_PACKAGES.map(({ name }) => name),
-    registryVersion: docsRegistry?.versions.includes(DOCS_PROTOCOL_BOOTSTRAP.version)
-      ? DOCS_PROTOCOL_BOOTSTRAP.version
-      : undefined,
-  });
 }
 
 async function verifyPublishRegistryState(state) {

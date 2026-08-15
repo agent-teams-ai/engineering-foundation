@@ -58,6 +58,7 @@
         "tests/document-planning-qualification.test.mjs",
         "tests/documentation-architecture-decisions.test.mjs",
         "tests/documentation-local-references.test.mjs",
+        "tests/docs-protocol-bootstrap-policy.test.mjs",
         "tests/executable-specification-topology.test.mjs",
         "tests/legacy-document-transaction-envelope.test.mjs",
         "tests/local-mode-recovery.test.mjs",

@@ -14,9 +14,9 @@ import {
 } from "../scripts/check-release-pr-files.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const reviewRouterRevision = "999da4783098b82faed1890ec80165c4a501d872";
+const reviewRouterRevision = "8a0a31ae1d92c89466c8a939272a1e333e88c5a0";
 const reviewRouterSecretName =
-  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E4_de3af9290374982b22a8acd272f83571";
+  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E6_a044b5a422572340930b268b2f3b9007";
 
 async function workflow(name) {
   return parseYaml(

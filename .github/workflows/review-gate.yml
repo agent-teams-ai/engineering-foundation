@@ -10,7 +10,7 @@ permissions: {}
 jobs:
   review-gate:
     name: publish-review-gate
-    if: ${{ (github.event_name == 'status' && github.event.context == 'ReviewRouter' && github.event.state == 'success' && github.event.creator.id == 281702430) || github.event.action == 'review-gate-recover' }}
+    if: ${{ (github.event_name == 'status' && github.event.context == 'ReviewRouter' && github.event.state == 'success' && github.event.sender.id == 281702430 && github.event.sender.type == 'Bot') || github.event.action == 'review-gate-recover' }}
     permissions:
       actions: read
       contents: read
@@ -24,8 +24,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEW_RUN_ID: ${{ github.event.client_payload.review_run_id }}
           REVIEW_STATUS_CONTEXT: ${{ github.event.context }}
-          REVIEW_STATUS_CREATOR_ID: ${{ github.event.creator.id }}
-          REVIEW_STATUS_CREATOR_TYPE: ${{ github.event.creator.type }}
+          REVIEW_STATUS_SENDER_ID: ${{ github.event.sender.id }}
+          REVIEW_STATUS_SENDER_TYPE: ${{ github.event.sender.type }}
           REVIEW_STATUS_SHA: ${{ github.event.sha }}
           REVIEW_STATUS_STATE: ${{ github.event.state }}
           REVIEW_STATUS_TARGET_URL: ${{ github.event.target_url }}
@@ -37,8 +37,8 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "status" ]]; then
             if [[ "${REVIEW_STATUS_CONTEXT}" != "ReviewRouter" || \
               "${REVIEW_STATUS_STATE}" != "success" || \
-              "${REVIEW_STATUS_CREATOR_ID}" != "${REVIEWROUTER_APP_BOT_ID}" || \
-              "${REVIEW_STATUS_CREATOR_TYPE}" != "Bot" ]]; then
+              "${REVIEW_STATUS_SENDER_ID}" != "${REVIEWROUTER_APP_BOT_ID}" || \
+              "${REVIEW_STATUS_SENDER_TYPE}" != "Bot" ]]; then
               echo "Status event is not an App-owned successful ReviewRouter status." >&2
               exit 1
             fi

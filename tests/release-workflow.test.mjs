@@ -16,7 +16,7 @@ import {
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const reviewRouterRevision = "999da4783098b82faed1890ec80165c4a501d872";
 const reviewRouterSecretName =
-  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E3_2dda7c2cf70bbc98987ac8efe27336ba";
+  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E4_de3af9290374982b22a8acd272f83571";
 
 async function workflow(name) {
   return parseYaml(

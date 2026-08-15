@@ -65,16 +65,24 @@ but it is enabled at repository level only for `engineering-foundation`; other
 repositories keep it disabled unless they acquire an approved release workflow.
 All workflows still receive read-only permissions by default, and the foundation
 release workflow requests only the permissions it needs. Pull requests created
-with `GITHUB_TOKEN` do not recursively emit another workflow event, so the
-release workflow explicitly dispatches the read-only CI workflow against the
-generated release branch. GitHub does not attach manually dispatched checks to
-the pull request's required-check rollup. A separate attestation job therefore
-verifies the exact open release PR SHA and the narrow generated-file allowlist,
-waits for both expected GitHub Actions jobs, and publishes their real conclusions
-as `check` and `windows-check` commit statuses. It publishes `ReviewGate` only
-for that bounded generated release diff; it does not claim an external
-ReviewRouter review. The release attester fails closed on an unexpected PR,
-forbidden diff, missing result, timeout, head change, or failed conclusion.
+with `GITHUB_TOKEN` are not guaranteed to emit another workflow event. The
+attester therefore waits briefly for one unique attempt-1 `pull_request` CI run
+bound to the exact repository, PR number, base, head, branch, workflow path, and
+Actions URL. It reuses that run when present instead of launching a duplicate
+full suite; otherwise it explicitly dispatches read-only CI against the generated
+release branch. Pull request and dispatched CI use event-separated concurrency
+groups, so the fallback cannot cancel required PR CheckRuns.
+
+GitHub does not attach manually dispatched checks to the pull request's
+required-check rollup. The attester verifies the selected run again while waiting
+and immediately before publishing its real conclusions as `check`,
+`windows-check`, and `macos-qualification` commit statuses. `ReviewGate` is
+published only for that bounded generated release diff; the other canonical
+required contexts remain the CodeQL-owned `CodeQL` and `analyze` checks. No
+context is removed or bypassed. The release attester fails closed on ambiguous
+selection, a rerun attempt, a terminal approval-blocked run, changed provenance,
+an unexpected PR, forbidden diff, missing result, timeout, head change, or failed
+conclusion.
 Source pull requests still require the independent ReviewRouter gate before
 merge. The Changesets action does not receive status or Actions write
 permission, and no release-branch code runs with write credentials. If automatic

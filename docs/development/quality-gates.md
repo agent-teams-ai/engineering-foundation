@@ -42,6 +42,13 @@ and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, o
 missing prerequisite fails the required context. Every executable pull request
 job depends directly on Dependency Review.
 
+CI concurrency is separated by event type and pull request or ref identity.
+Normal updates still cancel stale runs for the same pull request, while an
+exact-head release-attester dispatch cannot cancel the pull request run and leave
+failed required CheckRuns behind. For generated release pull requests, the
+attester prefers the single exact attempt-1 PR run and dispatches a second suite
+only when no such run appears during its bounded selection window.
+
 `tests/manifests/test-shards.v1.json` is the closed inventory of top-level test
 files. `pnpm test:manifests:check` rejects missing, extra, duplicate, nested,
 non-portable, or symlinked entries and rejects missing coverage tests. Add or

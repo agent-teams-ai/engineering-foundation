@@ -19,6 +19,14 @@ function canonicalIntegrity(integrity) {
   return match[1];
 }
 
+export function npmPurlName(name) {
+  if (typeof name !== "string" ||
+      !/^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u.test(name)) {
+    fail("artifact has a non-canonical npm package name");
+  }
+  return name.startsWith("@") ? `%40${name.slice(1)}` : name;
+}
+
 async function exactSource(provenance, artifact, source) {
   return (
     provenance?.repository === source.repository &&
@@ -27,7 +35,7 @@ async function exactSource(provenance, artifact, source) {
     provenance.dependencyUri === `git+${source.repository}@${source.ref}` &&
     typeof provenance.commit === "string" &&
     await source.isTrustedCommit(provenance.commit) &&
-    provenance.subjectName === `pkg:npm/${artifact.name.replace("@", "%40")}@${artifact.version}` &&
+    provenance.subjectName === `pkg:npm/${npmPurlName(artifact.name)}@${artifact.version}` &&
     provenance.sha512 === Buffer.from(canonicalIntegrity(artifact.integrity), "base64").toString("hex")
   );
 }

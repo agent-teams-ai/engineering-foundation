@@ -419,12 +419,22 @@ posixTest("held-fd editor bytes remain public and block conditional rollback", a
   } finally {
     await handle.close();
   }
-  assert.equal(await readFile(destination, "utf8"), "held-fd-edit\n");
+  const published = await open(destination, "r");
+  try {
+    assert.equal(await published.readFile("utf8"), "held-fd-edit\n");
+  } finally {
+    await published.close();
+  }
   await assert.rejects(
     recoverKnownFileTransaction({ consumerRoot: root }),
     (error) => error?.code === "KNOWN_FILE_RECOVERY_CONFLICT"
   );
-  assert.equal(await readFile(destination, "utf8"), "held-fd-edit\n");
+  const preserved = await open(destination, "r");
+  try {
+    assert.equal(await preserved.readFile("utf8"), "held-fd-edit\n");
+  } finally {
+    await preserved.close();
+  }
 });
 
 posixTest("an external hardlink injected during capture blocks publication", async () => {

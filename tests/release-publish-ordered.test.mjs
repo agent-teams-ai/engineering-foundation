@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   DOCS_PACKAGE,
   FOUNDATION_PACKAGE,
+  npmPurlName,
   orderedRelease,
   tarballIntegrity,
 } from "../scripts/release-publish-ordered.mjs";
@@ -40,14 +41,13 @@ function argumentField(args, prefix) {
 }
 
 function artifactProvenance(value, commit = source.commit) {
-  const encoded = value.name.replace("@", "%40");
   return {
     commit,
     dependencyUri: `git+${source.repository}@${source.ref}`,
     ref: source.ref,
     repository: source.repository,
     sha512: Buffer.from(value.integrity.slice("sha512-".length), "base64").toString("hex"),
-    subjectName: `pkg:npm/${encoded}@${value.version}`,
+    subjectName: `pkg:npm/${npmPurlName(value.name)}@${value.version}`,
     workflow: source.workflow,
   };
 }

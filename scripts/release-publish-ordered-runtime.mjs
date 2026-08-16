@@ -3,7 +3,11 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { orderedRelease, tarballIntegrity } from "./release-publish-ordered.mjs";
+import {
+  npmPurlName,
+  orderedRelease,
+  tarballIntegrity,
+} from "./release-publish-ordered.mjs";
 import { publishablePackageByName } from "./publishable-packages.mjs";
 
 const EXPECTED_NPM_VERSION = "11.16.0";
@@ -164,7 +168,7 @@ function expectedIntegrityHex(integrity) {
 export function verifiedProvenanceFromNpmAudit(evidence, artifact, source) {
   const { provenanceBundle } = exactVerifiedAuditEntry(evidence, artifact);
   const provenance = provenanceFrom(statementFromVerifiedBundle(provenanceBundle));
-  const expectedSubject = `pkg:npm/${artifact.name.replace("@", "%40")}@${artifact.version}`;
+  const expectedSubject = `pkg:npm/${npmPurlName(artifact.name)}@${artifact.version}`;
   if (provenance?.repository !== source.repository || provenance.workflow !== source.workflow ||
       provenance.ref !== source.ref ||
       provenance.dependencyUri !== `git+${source.repository}@${source.ref}` ||
@@ -195,6 +199,14 @@ async function verifyNpmSignature(artifact, source) {
 
 async function packedManifest(archivePath) {
   return JSON.parse(executeCommand("tar", ["-xOf", archivePath, "package/package.json"]));
+}
+
+function packedManifestFromBytes(archive) {
+  return JSON.parse(executeCommand(
+    "tar",
+    ["-xzOf", "-", "package/package.json"],
+    { input: archive },
+  ));
 }
 
 function releaseNotes(changelog, version) {
@@ -372,11 +384,7 @@ async function inspectVersion(artifact) {
     }
     const archive = Buffer.from(await archiveResponse.arrayBuffer());
     assertDownloadedTarballIntegrity(archive, version.dist.integrity, artifact.name);
-    const temporary = await mkdtemp(join(tmpdir(), "ordered-release-inspect-"));
-    const archivePath = join(temporary, "package.tgz");
-    await writeFile(archivePath, archive);
-    const manifest = await packedManifest(archivePath);
-    await rm(temporary, { force: true, recursive: true });
+    const manifest = packedManifestFromBytes(archive);
     const attestations = await fetchJson(
       registryUrl(artifact, `-/npm/v1/attestations/${encodeURIComponent(artifact.name)}@${artifact.version}`),
     );

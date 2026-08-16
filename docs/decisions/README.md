@@ -30,6 +30,7 @@ No proposed decisions.
 - [ADR-0029: Immutable Docs Bootstrap Reconciliation](0029-immutable-docs-bootstrap-reconciliation.md)
 - [ADR-0030: Recoverable Known-File Transactions](0030-recoverable-known-file-transactions.md)
 - [ADR-0031: Managed Docs Protocol Consumer Integration](0031-managed-docs-consumer-integration.md)
+- [ADR-0032: Qualified Runtime and Source-Owned Cohort Transitions](0032-qualified-runtime-and-source-owned-cohort-transitions.md)
 
 ## Superseded
 

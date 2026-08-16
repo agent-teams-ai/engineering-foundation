@@ -345,6 +345,8 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-repository-path.ts

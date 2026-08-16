@@ -1,4 +1,3 @@
-/* oxlint-disable max-lines -- the serialized CAS state machine stays colocated with its journal transitions. */
 import {
   link,
   lstat,
@@ -450,7 +449,7 @@ async function retireCapturedDestination(options: {
   await syncDirectoryStrictly(options.capture.paths.directory);
 }
 
-// oxlint-disable-next-line complexity, max-lines-per-function -- each branch is one journaled crash-recovery transition.
+// oxlint-disable-next-line complexity, max-lines-per-function
 async function executeOperation(options: {
   readonly faultInjector?: KnownFileTransactionFaultInjector;
   readonly index: number;

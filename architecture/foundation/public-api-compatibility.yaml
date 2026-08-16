@@ -29,6 +29,8 @@ packages:
     tsconfigPath: packages/engineering-foundation/tsconfig.json
     releasedBaselinePath: architecture/public-api/engineering-foundation.json
     approvedBreakingChanges:
+      - fingerprint: sha256:0eb24a3f641fe85b6b805f606b597c7a51481b81541506ac7190fcdcc94b7c7b
+        decisionId: ADR-0032
       - fingerprint: sha256:f11c5502fc004a03c72c9571370aad35779bce1a4736658c6c312c683f928259
         decisionId: ADR-0030
       - fingerprint: sha256:1c4c93fc648080de769cbb4008fc3825df464b65ffb95a2f7708d9da481027e2

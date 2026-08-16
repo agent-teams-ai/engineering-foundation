@@ -1,4 +1,3 @@
-/* oxlint-disable max-lines -- rollback and cleanup transitions remain auditable beside their replay logic. */
 import {
   link,
   lstat,
@@ -135,7 +134,7 @@ function retirementPath(options: {
   return { captured: join(directory, "captured"), directory, source };
 }
 
-// oxlint-disable-next-line complexity, max-lines-per-function -- durable sub-states make every rename/unlink crash window replayable.
+// oxlint-disable-next-line complexity, max-lines-per-function
 async function retireJournalBoundPath(options: {
   readonly expectedIdentity: ReturnType<typeof deserializeKnownFileIdentity>;
   readonly faultInjector?: KnownFileRecoveryFaultInjector;
@@ -415,7 +414,7 @@ function assertPublishedIdentity(options: {
   }
 }
 
-// oxlint-disable-next-line complexity, max-lines-per-function -- legacy and capture-bound journals intentionally share one exact-build dispatcher.
+// oxlint-disable-next-line complexity, max-lines-per-function
 async function restorePreimage(options: {
   readonly faultInjector?: KnownFileRecoveryFaultInjector;
   readonly operation: KnownFileTransactionPlanV1["operations"][number];
@@ -602,7 +601,7 @@ async function restorePreimage(options: {
   });
 }
 
-// oxlint-disable-next-line complexity, max-lines-per-function -- every branch preserves foreign bytes or proves an identity-bound rollback.
+// oxlint-disable-next-line complexity, max-lines-per-function
 async function restoreCapturedPreimage(options: {
   readonly faultInjector?: KnownFileRecoveryFaultInjector;
   readonly journalOperation: KnownFileTransactionJournalV1["operations"][number] & {

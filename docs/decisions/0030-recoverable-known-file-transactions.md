@@ -66,15 +66,6 @@ unknown content, and ambiguous crash state from being overwritten.
     or `renameat` handle-relative publication, so the protocol does not claim
     protection from a hostile same-user process swapping paths between proof
     and use.
-12. Preimage evidence is copied independently from the live identity witness.
-    Destination publication is no-replace, external hardlinks are rejected, and
-    the journal binds deterministic retirement identities. Temp and retirement
-    parent directories are durably synchronized before their identities become
-    recovery authority.
-13. Successful completion re-verifies every final postimage after cleanup and
-    before emitting the receipt. Recovery and cleanup are idempotent; an
-    unverifiable or no-longer-bound artifact is preserved and reported instead
-    of being guessed away.
 
 ## Consequences
 

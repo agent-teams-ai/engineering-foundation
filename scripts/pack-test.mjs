@@ -301,7 +301,12 @@ async function verifyPackedDocsConsumerIntegration(input) {
   };
   await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify(installedManifest, null, 2)}\n`);
   await writeFile(join(consumerRoot, ".node-version"), `${process.versions.node}\n`);
-  await runPnpm(["install", "--offline", "--ignore-scripts"], consumerRoot);
+  await runPnpm(["install", "--ignore-scripts"], consumerRoot);
+  await rm(join(consumerRoot, "node_modules"), { force: true, recursive: true });
+  await runPnpm(
+    ["install", "--offline", "--frozen-lockfile", "--ignore-scripts"],
+    consumerRoot
+  );
 
   let cohort = input.docs.sourceB;
   const desired = {
@@ -367,32 +372,49 @@ snapshots:
       throw error;
     }
   };
-  const checked = await invoke(["check"]);
-  if (checked.outcome !== "change-required") {
-    throw new Error(`Packed consumer check did not plan adoption: ${JSON.stringify(checked)}`);
-  }
-  const planned = await invoke(["plan", "--to", cohort.cohortId]);
-  if (planned.outcome !== "change-required") {throw new Error("Packed consumer plan did not require adoption.");}
-  const applied = await invoke(["apply", "--expect", planned.plan.planDigest]);
-  if (applied.outcome !== "applied") {throw new Error("Packed consumer apply did not commit adoption.");}
-  const current = await invoke(["check"]);
-  if (current.outcome !== "current") {throw new Error("Packed consumer check did not converge.");}
-  installedManifest.scripts = JSON.parse(
-    await readFile(join(consumerRoot, "package.json"), "utf8")
-  ).scripts;
+  const previousRepositoryId = process.env["GITHUB_REPOSITORY_ID"];
+  const previousRepository = process.env["GITHUB_REPOSITORY"];
+  process.env["GITHUB_REPOSITORY_ID"] = "999999999";
+  process.env["GITHUB_REPOSITORY"] = "agent-teams-ai/packed-docs-consumer-e2e";
+  try {
+    const checked = await invoke(["check"]);
+    if (checked.outcome !== "change-required") {
+      throw new Error(`Packed consumer check did not plan adoption: ${JSON.stringify(checked)}`);
+    }
+    const planned = await invoke(["plan", "--to", cohort.cohortId]);
+    if (planned.outcome !== "change-required") {throw new Error("Packed consumer plan did not require adoption.");}
+    const applied = await invoke(["apply", "--expect", planned.plan.planDigest]);
+    if (applied.outcome !== "applied") {throw new Error("Packed consumer apply did not commit adoption.");}
+    const current = await invoke(["check"]);
+    if (current.outcome !== "current") {throw new Error("Packed consumer check did not converge.");}
+    installedManifest.scripts = JSON.parse(
+      await readFile(join(consumerRoot, "package.json"), "utf8")
+    ).scripts;
 
-  cohort = input.docs.targetA;
-  await writeAuthority();
-  const rollbackPlan = await invoke(["plan", "--to", cohort.cohortId]);
-  if (rollbackPlan.outcome !== "change-required") {
-    throw new Error(
-      `Packed source executor did not plan B to A rollback: ${JSON.stringify(rollbackPlan)}`
-    );
+    cohort = input.docs.targetA;
+    await writeAuthority();
+    const rollbackPlan = await invoke(["plan", "--to", cohort.cohortId]);
+    if (rollbackPlan.outcome !== "change-required") {
+      throw new Error(
+        `Packed source executor did not plan B to A rollback: ${JSON.stringify(rollbackPlan)}`
+      );
+    }
+    const rollback = await invoke(["apply", "--expect", rollbackPlan.plan.planDigest]);
+    if (rollback.outcome !== "applied") {throw new Error("Packed source executor did not apply B to A rollback.");}
+    const rolledBack = await invoke(["check"]);
+    if (rolledBack.outcome !== "current") {throw new Error("Packed B to A rollback did not converge.");}
+  } finally {
+    if (previousRepositoryId === undefined) {
+      delete process.env["GITHUB_REPOSITORY_ID"];
+    } else {
+      process.env["GITHUB_REPOSITORY_ID"] = previousRepositoryId;
+    }
+    if (previousRepository === undefined) {
+      delete process.env["GITHUB_REPOSITORY"];
+    } else {
+      process.env["GITHUB_REPOSITORY"] = previousRepository;
+    }
   }
-  const rollback = await invoke(["apply", "--expect", rollbackPlan.plan.planDigest]);
-  if (rollback.outcome !== "applied") {throw new Error("Packed source executor did not apply B to A rollback.");}
-  const rolledBack = await invoke(["check"]);
-  if (rolledBack.outcome !== "current") {throw new Error("Packed B to A rollback did not converge.");}
 }
 
 try {

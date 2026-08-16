@@ -31,6 +31,11 @@ const docsProtocolRequiredArtifacts = [
   "schemas/docs-protocol-command-envelope/v1.schema.json",
   "schemas/docs-protocol-profile/v1.schema.json",
   "schemas/docs-protocol/v1.schema.json",
+  "schemas/docs-consumer-integration-execution/v1.schema.json",
+  "schemas/docs-consumer-integration-plan/v1.schema.json",
+  "schemas/docs-consumer-integration-profile/v1.schema.json",
+  "schemas/docs-consumer-managed-state/v1.schema.json",
+  "schemas/qualified-docs-cohort/v1.schema.json",
 ];
 const temporaryRoot = await mkdtemp(join(tmpdir(), "agent-teams-foundation-pack-"));
 const keepTemporaryRoot = process.env.AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS === "1";

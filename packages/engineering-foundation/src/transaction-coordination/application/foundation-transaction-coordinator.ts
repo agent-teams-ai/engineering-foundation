@@ -75,7 +75,6 @@ function isKnownFileRecoveryAllowed(
 ): boolean {
   return status.state === "pending" &&
     status.operationKind === "known-file-transaction" &&
-    status.format === "known-file-transaction-envelope-v1" &&
     status.recovery.exactFoundationVersion === status.foundationVersion &&
     status.recovery.exactFoundationBuildIdentity === status.foundationBuildIdentity &&
     options.allowRecoveryOf === "known-file-transaction" &&

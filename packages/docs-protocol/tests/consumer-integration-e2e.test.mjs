@@ -37,6 +37,13 @@ function cohort() {
   return { ...provisional, assets: describeCanonicalConsumerAssets(provisional) };
 }
 
+function sandboxRepository() {
+  return {
+    id: process.env.GITHUB_REPOSITORY_ID ?? "999999999",
+    nameWithOwner: process.env.GITHUB_REPOSITORY ?? "agent-teams-ai/docs-protocol-sandbox"
+  };
+}
+
 async function sandbox() {
   const root = await mkdtemp(join(tmpdir(), "docs-consumer-e2e-"));
   await mkdir(join(root, "architecture", "foundation"), { recursive: true });
@@ -61,8 +68,7 @@ async function sandbox() {
     schemaVersion: 1,
     repository: {
       provider: "github",
-      id: "999999999",
-      nameWithOwner: "agent-teams-ai/docs-protocol-sandbox"
+      ...sandboxRepository()
     },
     integrationRoot: ".",
     packageManager: "pnpm",
@@ -187,7 +193,7 @@ test("plans, applies, verifies, and repeats the full consumer lifecycle offline"
     encoding: "utf8",
     env: {
       ...process.env,
-      GITHUB_REPOSITORY: "agent-teams-ai/docs-protocol-sandbox",
+      GITHUB_REPOSITORY: sandboxRepository().nameWithOwner,
       GITHUB_REPOSITORY_ID: "123",
       NO_PROXY: "*"
     }

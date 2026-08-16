@@ -222,7 +222,7 @@ export function assertKnownFileTransactionPlan(
         throw new KnownFileTransactionPlanError("Known-file transaction operation is invalid.");
       }
       const path = String(Reflect.get(candidate, "path"));
-      const precondition = Reflect.get(candidate, "precondition");
+      const precondition: unknown = Reflect.get(candidate, "precondition");
       const postimage = readImage(Reflect.get(candidate, "postimage"), `${path} postimage`);
       if (typeof precondition !== "object" || precondition === null || Array.isArray(precondition)) {
         throw new KnownFileTransactionPlanError(`${path} precondition is invalid.`);
@@ -233,7 +233,7 @@ export function assertKnownFileTransactionPlan(
           mode: 0o644
         } };
       }
-      const accepted = Reflect.get(precondition, "acceptedPreimages");
+      const accepted: unknown = Reflect.get(precondition, "acceptedPreimages");
       if (Reflect.get(precondition, "state") !== "known-file" || !Array.isArray(accepted)) {
         throw new KnownFileTransactionPlanError(`${path} precondition is invalid.`);
       }
@@ -267,10 +267,10 @@ function readImage(
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new KnownFileTransactionPlanError(`${subject} is invalid.`);
   }
-  const contentBase64 = Reflect.get(value, "contentBase64");
-  const digest = Reflect.get(value, "digest");
-  const mode = Reflect.get(value, "mode");
-  const size = Reflect.get(value, "size");
+  const contentBase64: unknown = Reflect.get(value, "contentBase64");
+  const digest: unknown = Reflect.get(value, "digest");
+  const mode: unknown = Reflect.get(value, "mode");
+  const size: unknown = Reflect.get(value, "size");
   if (
     typeof contentBase64 !== "string" ||
     typeof digest !== "string" ||

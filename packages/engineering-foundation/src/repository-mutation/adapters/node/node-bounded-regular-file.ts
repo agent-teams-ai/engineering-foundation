@@ -125,34 +125,46 @@ export async function readBoundedRegularFile(
     throw error;
   }
   try {
-    const before = await handle.stat({ bigint: true });
-    if (!before.isFile() || before.size > BigInt(maximumBytes)) {
-      return { outcome: "invalid" };
-    }
-    const identity = identityFromStat(before);
-    const bytes = await readAtMost(handle, maximumBytes);
-    if (bytes === undefined) {
-      return { outcome: "invalid" };
-    }
-    await faultInjector?.({ phase: "before-stability-check", path });
-    const after = await handle.stat({ bigint: true });
-    if (
-      !after.isFile() ||
-      !sameFileObservation(before, after) ||
-      after.size !== BigInt(bytes.byteLength) ||
-      (await pathMatchesRegularFileIdentity(path, identity)) !== "match"
-    ) {
-      return { outcome: "changed" };
-    }
-    return {
-      outcome: "read",
-      bytes,
-      identity,
-      mode: Number(after.mode)
-    };
+    return await readBoundedRegularFileHandle(handle, path, maximumBytes, faultInjector);
   } finally {
     await handle.close();
   }
+}
+
+export async function readBoundedRegularFileHandle(
+  handle: FileHandle,
+  path: string,
+  maximumBytes: number,
+  faultInjector?: BoundedRegularFileReadFaultInjector
+): Promise<BoundedRegularFileRead> {
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 0) {
+    throw new TypeError("maximumBytes must be a non-negative safe integer.");
+  }
+  const before = await handle.stat({ bigint: true });
+  if (!before.isFile() || before.size > BigInt(maximumBytes)) {
+    return { outcome: "invalid" };
+  }
+  const identity = identityFromStat(before);
+  const bytes = await readAtMost(handle, maximumBytes);
+  if (bytes === undefined) {
+    return { outcome: "invalid" };
+  }
+  await faultInjector?.({ phase: "before-stability-check", path });
+  const after = await handle.stat({ bigint: true });
+  if (
+    !after.isFile() ||
+    !sameFileObservation(before, after) ||
+    after.size !== BigInt(bytes.byteLength) ||
+    (await pathMatchesRegularFileIdentity(path, identity)) !== "match"
+  ) {
+    return { outcome: "changed" };
+  }
+  return {
+    outcome: "read",
+    bytes,
+    identity,
+    mode: Number(after.mode)
+  };
 }
 
 export async function captureFileHandleIdentity(

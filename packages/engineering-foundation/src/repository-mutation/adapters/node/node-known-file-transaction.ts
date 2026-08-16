@@ -349,7 +349,7 @@ export function compileKnownFileTransactionReceipt(
     receiptDigest: sha256Json({
       domain: "agent-teams.foundation.known-file-transaction-receipt/v1",
       body
-    } as unknown as CanonicalJsonValue)
+    })
   });
 }
 

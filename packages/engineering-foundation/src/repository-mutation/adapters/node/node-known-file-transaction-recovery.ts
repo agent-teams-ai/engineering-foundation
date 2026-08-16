@@ -1,4 +1,12 @@
-import { lstat, open, rename, rmdir, unlink } from "node:fs/promises";
+import {
+  constants,
+  lstat,
+  open,
+  rename,
+  rmdir,
+  unlink,
+  type FileHandle
+} from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import { LOCAL_STATE_DIRECTORY } from "../../../foundation-state-contract.js";
@@ -16,7 +24,11 @@ import type {
   KnownFileTransactionJournalV1
 } from "../../application/model/known-file-transaction-journal.js";
 import { deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
-import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
+import {
+  captureFileHandleIdentity,
+  readBoundedRegularFile,
+  readBoundedRegularFileHandle
+} from "./node-bounded-regular-file.js";
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
 import {
   canonicalKnownFileRoot,
@@ -34,6 +46,87 @@ import {
   compileKnownFileTransactionReceipt,
   verifyCommittedKnownFilePostimages
 } from "./node-known-file-transaction.js";
+
+async function prepareRollbackTemporary(options: {
+  readonly operationPath: string;
+  readonly path: string;
+  readonly preimage: KnownFileImageV1;
+}): Promise<void> {
+  let handle: FileHandle;
+  let rollbackIdentity;
+  try {
+    handle = await open(options.path, "wx", 0o600);
+    rollbackIdentity = await captureFileHandleIdentity(handle);
+  } catch (error) {
+    if (knownFileErrorCode(error) !== "EEXIST") {throw error;}
+    const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+    handle = await open(options.path, constants.O_RDWR | noFollow);
+    try {
+      const stale = await readBoundedRegularFileHandle(
+        handle,
+        options.path,
+        options.preimage.size
+      );
+      if (stale.outcome !== "read" || !matchesKnownFileImage({
+        state: "file", bytes: stale.bytes, identity: stale.identity,
+        mode: stale.mode & 0o777
+      }, options.preimage)) {
+        throw new KnownFileTransactionError(
+          "KNOWN_FILE_RECOVERY_CONFLICT",
+          `Rollback temporary is foreign or modified: ${options.operationPath}.`
+        );
+      }
+      rollbackIdentity = await captureFileHandleIdentity(handle);
+      if (!sameKnownFileIdentity(rollbackIdentity, stale.identity)) {
+        throw new KnownFileTransactionError(
+          "KNOWN_FILE_RECOVERY_CONFLICT",
+          `Rollback temporary changed while it was opened: ${options.operationPath}.`
+        );
+      }
+    } catch (inspectionError) {
+      await handle.close();
+      throw inspectionError;
+    }
+  }
+  try {
+    const bytes = knownFileImageBytes(options.preimage);
+    await handle.truncate(0);
+    let offset = 0;
+    while (offset < bytes.byteLength) {
+      const { bytesWritten } = await handle.write(
+        bytes,
+        offset,
+        bytes.byteLength - offset,
+        offset
+      );
+      if (bytesWritten === 0) {
+        throw new KnownFileTransactionError(
+          "KNOWN_FILE_RECOVERY_FAILED",
+          `Rollback temporary write made no progress: ${options.operationPath}.`
+        );
+      }
+      offset += bytesWritten;
+    }
+    await handle.chmod(options.preimage.mode);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  const prepared = await readBoundedRegularFile(options.path, options.preimage.size);
+  if (prepared.outcome !== "read" ||
+    !sameKnownFileIdentity(prepared.identity, rollbackIdentity) ||
+    !matchesKnownFileImage({
+      state: "file",
+      bytes: prepared.bytes,
+      identity: prepared.identity,
+      mode: prepared.mode & 0o777
+    }, options.preimage)) {
+    throw new KnownFileTransactionError(
+      "KNOWN_FILE_RECOVERY_CONFLICT",
+      `Rollback temporary changed before publication: ${options.operationPath}.`
+    );
+  }
+}
 
 async function restorePreimage(options: {
   readonly operation: KnownFileTransactionPlanV1["operations"][number];
@@ -97,31 +190,11 @@ async function restorePreimage(options: {
     parent,
     `.${basename(operation.path)}.agent-teams.rollback.${options.operationIndex}.tmp`
   );
-  let handle;
-  try {
-    handle = await open(rollbackPath, "wx", 0o600);
-  } catch (error) {
-    if (knownFileErrorCode(error) !== "EEXIST") {throw error;}
-    const stale = await readBoundedRegularFile(rollbackPath, preimage.size);
-    if (stale.outcome !== "read" || !matchesKnownFileImage({
-      state: "file", bytes: stale.bytes, identity: stale.identity,
-      mode: stale.mode & 0o777
-    }, preimage)) {
-      throw new KnownFileTransactionError(
-        "KNOWN_FILE_RECOVERY_CONFLICT",
-        `Rollback temporary is foreign or modified: ${operation.path}.`
-      );
-    }
-    await unlink(rollbackPath);
-    handle = await open(rollbackPath, "wx", 0o600);
-  }
-  try {
-    await handle.writeFile(knownFileImageBytes(preimage));
-    await handle.chmod(preimage.mode);
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
+  await prepareRollbackTemporary({
+    operationPath: operation.path,
+    path: rollbackPath,
+    preimage
+  });
   const beforeRename = await observeKnownFile(
     options.root,
     operation.path,

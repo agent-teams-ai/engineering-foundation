@@ -263,10 +263,7 @@ async function inspectLegacyScaffoldingJournal(options: {
 
 function transactionSchemaVersion(value: Record<string, unknown>): number {
   const schemaVersion = value["schemaVersion"];
-  if (typeof schemaVersion !== "number") {
-    throw new Error("Foundation transaction schema version is invalid.");
-  }
-  return schemaVersion;
+  return typeof schemaVersion === "number" ? schemaVersion : Number.NaN;
 }
 
 async function inspectParsedTransaction(

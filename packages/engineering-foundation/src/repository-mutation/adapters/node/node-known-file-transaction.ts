@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- the serialized CAS state machine stays colocated with its journal transitions. */
 import {
   link,
   lstat,
@@ -36,17 +37,23 @@ import { compileKnownFileTransactionEnvelope } from "../../application/policies/
 import { assertKnownFileTransactionPlan } from "../../application/policies/known-file-transaction-plan.js";
 import {
   captureFileHandleIdentity,
+  pathMatchesRegularFileIdentity,
   readBoundedRegularFile
 } from "./node-bounded-regular-file.js";
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
+import {
+  cleanupCommittedKnownFileCaptures,
+  prepareRollbackTemporary
+} from "./node-known-file-recovery-filesystem.js";
 import { isLexicallyContainedPath } from "./node-repository-path.js";
 import { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
-import { inspectKnownFileTransactionBarrier } from "./node-known-file-transaction-inspection.js";
 import type { KnownFileJournalAuthority } from "./node-known-file-transaction-journal-store.js";
+import { inspectKnownFileTransactionBarrier } from "./node-known-file-transaction-inspection.js";
 import {
   canonicalKnownFileRoot,
   classifyKnownFileOperation,
   knownFileAliasEntry,
+  knownFileCaptureDirectoryName,
   knownFileErrorCode,
   knownFileImageBytes,
   knownFileTemporaryName,
@@ -60,13 +67,28 @@ import {
 export { KnownFileTransactionError } from "./node-known-file-transaction-filesystem.js";
 
 export type KnownFileTransactionFaultPoint =
-  | { readonly phase: "after-journal-created" | "after-journal-committed" }
+  | { readonly phase: "after-barrier-acquired" | "after-journal-created" | "after-journal-committed" | "after-journal-retired" }
   | {
       readonly phase:
         | "after-directory-created"
+        | "after-directory-created-unbound"
+        | "after-directory-authorized"
+        | "after-temporary-authorized"
         | "after-temporary-synced"
+        | "after-temporary-created-unbound"
+        | "after-capture-ready"
+        | "after-capture-created-unbound"
+        | "after-capture-authorized"
+        | "after-preimage-captured"
+        | "after-preimage-linked-unbound"
+        | "after-rollback-temporary-created-unbound"
+        | "after-rollback-temporary-ready"
+        | "after-destination-captured"
+        | "after-destination-retired"
         | "after-operation-publishing"
-        | "after-operation-published";
+        | "after-postimage-linked"
+        | "after-operation-published"
+        | "after-committed-capture-unlinked";
       readonly operationIndex: number;
       readonly path: string;
     };
@@ -95,6 +117,7 @@ async function initialJournal(
     schemaVersion: 1,
     plan,
     operations: Object.freeze(operations),
+    authorizedDirectories: Object.freeze([]),
     createdDirectories: Object.freeze([])
   });
 }
@@ -142,6 +165,19 @@ async function ensureParentDirectories(options: {
     const repositoryPath = traversed.join("/");
     const exists = await knownFileAliasEntry(current, segment);
     if (exists === undefined) {
+      const authorized = Object.freeze({
+        ...options.stored.envelope.journal,
+        authorizedDirectories: Object.freeze([
+          ...options.stored.envelope.journal.authorizedDirectories,
+          repositoryPath
+        ])
+      });
+      await persist(options.store, options.stored, authorized);
+      await options.faultInjector?.({
+        phase: "after-directory-authorized",
+        operationIndex: options.index,
+        path: repositoryPath
+      });
       await mkdir(join(current, segment), { mode: 0o755 });
       await syncDirectoryStrictly(current);
       const metadata = await lstat(join(current, segment), { bigint: true });
@@ -156,8 +192,18 @@ async function ensureParentDirectories(options: {
         dev: metadata.dev,
         ino: metadata.ino
       });
+      await options.faultInjector?.({
+        phase: "after-directory-created-unbound",
+        operationIndex: options.index,
+        path: repositoryPath
+      });
       const journal = Object.freeze({
         ...options.stored.envelope.journal,
+        authorizedDirectories: Object.freeze(
+          options.stored.envelope.journal.authorizedDirectories.filter(
+            (path) => path !== repositoryPath
+          )
+        ),
         createdDirectories: Object.freeze([
           ...options.stored.envelope.journal.createdDirectories,
           Object.freeze({ path: repositoryPath, identity })
@@ -229,6 +275,182 @@ async function verifyTemporary(
   }
 }
 
+function capturePaths(options: {
+  readonly operation: KnownFileTransactionPlanV1["operations"][number];
+  readonly operationIndex: number;
+  readonly parent: string;
+  readonly planDigest: string;
+}): { readonly captured: string; readonly directory: string; readonly retired: string } {
+  const directory = join(options.parent, knownFileCaptureDirectoryName(
+    options.operation.path,
+    options.planDigest,
+    options.operationIndex
+  ));
+  return {
+    captured: join(directory, "preimage"),
+    directory,
+    retired: join(directory, "retired")
+  };
+}
+
+async function prepareCaptureDirectory(options: {
+  readonly operation: KnownFileTransactionPlanV1["operations"][number];
+  readonly operationIndex: number;
+  readonly parent: string;
+  readonly planDigest: string;
+}): Promise<{
+  readonly identity: Awaited<ReturnType<typeof captureFileHandleIdentity>>;
+  readonly paths: ReturnType<typeof capturePaths>;
+}> {
+  const paths = capturePaths(options);
+  await mkdir(paths.directory, { mode: 0o700 }).catch((error: unknown) => {
+    throw new KnownFileTransactionError(
+      knownFileErrorCode(error) === "EEXIST"
+        ? "KNOWN_FILE_CAPTURE_EXISTS"
+        : "KNOWN_FILE_CAPTURE_CREATE_FAILED",
+      `Could not create the transaction-owned capture for ${options.operation.path}.`,
+      { cause: error }
+    );
+  });
+  await syncDirectoryStrictly(options.parent);
+  const metadata = await lstat(paths.directory, { bigint: true });
+  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+    throw new KnownFileTransactionError(
+      "KNOWN_FILE_CAPTURE_INVALID",
+      `Transaction capture is not one real directory: ${options.operation.path}.`
+    );
+  }
+  return {
+    identity: {
+      birthtimeNs: metadata.birthtimeNs,
+      dev: metadata.dev,
+      ino: metadata.ino
+    },
+    paths
+  };
+}
+
+async function captureKnownPreimage(options: {
+  readonly capture: Awaited<ReturnType<typeof prepareCaptureDirectory>>;
+  readonly faultInjector?: KnownFileTransactionFaultInjector;
+  readonly index: number;
+  readonly operation: KnownFileTransactionPlanV1["operations"][number] & {
+    readonly precondition: Extract<KnownFileTransactionPlanV1["operations"][number]["precondition"], { readonly state: "known-file" }>;
+  };
+  readonly root: string;
+}): Promise<{
+  readonly identity: Awaited<ReturnType<typeof captureFileHandleIdentity>>;
+  readonly matchedPreimage: number;
+}> {
+  const destination = join(options.root, ...options.operation.path.split("/"));
+  await link(destination, options.capture.paths.captured).catch((error: unknown) => {
+    throw new KnownFileTransactionError(
+      "KNOWN_FILE_CAS_MISMATCH",
+      `Could not capture the exact replacement preimage: ${options.operation.path}.`,
+      { cause: error }
+    );
+  });
+  await syncDirectoryStrictly(options.capture.paths.directory);
+  const captured = await readBoundedRegularFile(
+    options.capture.paths.captured,
+    maximumKnownFileEvidenceBytes(options.operation)
+  );
+  const matchedPreimage = captured.outcome === "read"
+    ? options.operation.precondition.acceptedPreimages.findIndex((image) =>
+        matchesKnownFileImage({
+          state: "file",
+          bytes: captured.bytes,
+          identity: captured.identity,
+          mode: captured.mode & 0o777
+        }, image)
+      )
+    : -1;
+  if (captured.outcome !== "read" || captured.linkCount !== 2n || matchedPreimage < 0) {
+    // This pathname is an alias created by this transaction. Removing the alias
+    // cannot remove the editor's public pathname and never discards unknown bytes.
+    await unlink(options.capture.paths.captured);
+    await syncDirectoryStrictly(options.capture.paths.directory);
+    throw new KnownFileTransactionError(
+      "KNOWN_FILE_CAS_MISMATCH",
+      `Captured replacement preimage is no longer accepted: ${options.operation.path}.`
+    );
+  }
+  return { identity: captured.identity, matchedPreimage };
+}
+
+async function retireCapturedDestination(options: {
+  readonly capture: Awaited<ReturnType<typeof prepareCaptureDirectory>>;
+  readonly capturedIdentity: Awaited<ReturnType<typeof captureFileHandleIdentity>>;
+  readonly destination: string;
+  readonly faultInjector?: KnownFileTransactionFaultInjector;
+  readonly index: number;
+  readonly operationPath: string;
+  readonly parent: string;
+  readonly preimage: KnownFileImageV1;
+}): Promise<void> {
+  await rename(options.destination, options.capture.paths.retired).catch((error: unknown) => {
+    throw new KnownFileTransactionError(
+      "KNOWN_FILE_CAS_MISMATCH",
+      `Destination disappeared before identity-bound capture: ${options.operationPath}.`,
+      { cause: error }
+    );
+  });
+  await syncDirectoryStrictly(options.capture.paths.directory);
+  await syncDirectoryStrictly(options.parent);
+  await options.faultInjector?.({
+    phase: "after-destination-captured",
+    operationIndex: options.index,
+    path: options.operationPath
+  });
+  const retired = await readBoundedRegularFile(options.capture.paths.retired, 8 * 1024 * 1024);
+  if (retired.outcome !== "read" ||
+    !sameKnownFileIdentity(retired.identity, options.capturedIdentity)) {
+    if (retired.outcome === "read") {
+      try {
+        await link(options.capture.paths.retired, options.destination);
+        await syncDirectoryStrictly(options.parent);
+        await unlink(options.capture.paths.retired);
+        await syncDirectoryStrictly(options.capture.paths.directory);
+      } catch (error) {
+        if (knownFileErrorCode(error) !== "EEXIST") {throw error;}
+      }
+    }
+    throw new KnownFileTransactionError(
+      "KNOWN_FILE_CAS_MISMATCH",
+      `A foreign destination appeared during identity-bound capture: ${options.operationPath}.`
+    );
+  }
+  const stableCaptured = await readBoundedRegularFile(
+    options.capture.paths.captured,
+    options.preimage.size
+  );
+  if (stableCaptured.outcome !== "read" ||
+    stableCaptured.linkCount !== 2n ||
+    !sameKnownFileIdentity(stableCaptured.identity, options.capturedIdentity) ||
+    !matchesKnownFileImage({
+      state: "file", bytes: stableCaptured.bytes, identity: stableCaptured.identity,
+      mode: stableCaptured.mode & 0o777
+    }, options.preimage)) {
+    await link(options.capture.paths.retired, options.destination).catch((error: unknown) => {
+      throw new KnownFileTransactionError(
+        "KNOWN_FILE_RECOVERY_CONFLICT",
+        `Mutated retired destination could not be restored: ${options.operationPath}.`,
+        { cause: error }
+      );
+    });
+    await syncDirectoryStrictly(options.parent);
+    await unlink(options.capture.paths.retired);
+    await syncDirectoryStrictly(options.capture.paths.directory);
+    throw new KnownFileTransactionError(
+      "KNOWN_FILE_CAS_MISMATCH",
+      `Captured replacement preimage changed through an open file handle: ${options.operationPath}.`
+    );
+  }
+  await unlink(options.capture.paths.retired);
+  await syncDirectoryStrictly(options.capture.paths.directory);
+}
+
+// oxlint-disable-next-line complexity, max-lines-per-function -- each branch is one journaled crash-recovery transition.
 async function executeOperation(options: {
   readonly faultInjector?: KnownFileTransactionFaultInjector;
   readonly index: number;
@@ -251,11 +473,27 @@ async function executeOperation(options: {
     ...options,
     operationPath: operation.path
   });
+  journalOperation = Object.freeze({ ...journalOperation, state: "temporary-authorized" as const });
+  await persist(
+    options.store,
+    options.stored,
+    replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
+  );
+  await options.faultInjector?.({
+    phase: "after-temporary-authorized",
+    operationIndex: options.index,
+    path: operation.path
+  });
   const temporary = await prepareTemporary({
     operation,
     operationIndex: options.index,
     parent,
     planDigest: options.stored.envelope.journal.plan.planDigest
+  });
+  await options.faultInjector?.({
+    phase: "after-temporary-created-unbound",
+    operationIndex: options.index,
+    path: operation.path
   });
   journalOperation = Object.freeze({
     ...journalOperation,
@@ -272,22 +510,20 @@ async function executeOperation(options: {
     operationIndex: options.index,
     path: operation.path
   });
-  journalOperation = Object.freeze({ ...journalOperation, state: "publishing" as const });
-  await persist(
-    options.store,
-    options.stored,
-    replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
-  );
-  await options.faultInjector?.({
-    phase: "after-operation-publishing",
-    operationIndex: options.index,
-    path: operation.path
-  });
   await verifyTemporary(temporary.path, temporary.identity, operation.postimage);
-  const observed = await observeKnownFile(options.root, operation.path, maximumKnownFileEvidenceBytes(operation));
-  classifyKnownFileOperation(operation, observed);
   const destination = join(options.root, ...operation.path.split("/"));
   if (operation.precondition.state === "absent") {
+    journalOperation = Object.freeze({ ...journalOperation, state: "publishing" as const });
+    await persist(
+      options.store,
+      options.stored,
+      replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
+    );
+    await options.faultInjector?.({
+      phase: "after-operation-publishing",
+      operationIndex: options.index,
+      path: operation.path
+    });
     await link(temporary.path, destination).catch((error: unknown) => {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_CAS_MISMATCH",
@@ -295,9 +531,158 @@ async function executeOperation(options: {
         { cause: error }
       );
     });
+    await options.faultInjector?.({
+      phase: "after-postimage-linked",
+      operationIndex: options.index,
+      path: operation.path
+    });
     await unlink(temporary.path);
   } else {
-    await rename(temporary.path, destination);
+    journalOperation = Object.freeze({ ...journalOperation, state: "capture-authorized" as const });
+    await persist(
+      options.store,
+      options.stored,
+      replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
+    );
+    await options.faultInjector?.({
+      phase: "after-capture-authorized",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    const capture = await prepareCaptureDirectory({
+      operation,
+      operationIndex: options.index,
+      parent,
+      planDigest: options.stored.envelope.journal.plan.planDigest
+    });
+    await options.faultInjector?.({
+      phase: "after-capture-created-unbound",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    journalOperation = Object.freeze({
+      ...journalOperation,
+      captureDirectoryIdentity: serializeKnownFileIdentity(capture.identity),
+      state: "capture-ready" as const
+    });
+    await persist(
+      options.store,
+      options.stored,
+      replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
+    );
+    await options.faultInjector?.({
+      phase: "after-capture-ready",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    const captured = await captureKnownPreimage({
+      capture,
+      ...(options.faultInjector === undefined ? {} : { faultInjector: options.faultInjector }),
+      index: options.index,
+      operation: { ...operation, precondition: operation.precondition },
+      root: options.root
+    });
+    await options.faultInjector?.({
+      phase: "after-preimage-linked-unbound",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    journalOperation = Object.freeze({
+      ...journalOperation,
+      capturedPreimageIdentity: serializeKnownFileIdentity(captured.identity),
+      matchedPreimage: captured.matchedPreimage,
+      state: "preimage-captured" as const
+    });
+    await persist(
+      options.store,
+      options.stored,
+      replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
+    );
+    await options.faultInjector?.({
+      phase: "after-preimage-captured",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    const rollbackPath = join(
+      parent,
+      `.${operation.path.split("/").at(-1)!}.agent-teams.rollback.${options.index}.tmp`
+    );
+    const rollbackIdentity = await prepareRollbackTemporary({
+      operationPath: operation.path,
+      path: rollbackPath,
+      preimage: operation.precondition.acceptedPreimages[captured.matchedPreimage]!
+    });
+    await options.faultInjector?.({
+      phase: "after-rollback-temporary-created-unbound",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    await syncDirectoryStrictly(parent);
+    if (await pathMatchesRegularFileIdentity(rollbackPath, rollbackIdentity) !== "match") {
+      throw new KnownFileTransactionError(
+        "KNOWN_FILE_CAS_MISMATCH",
+        `Rollback temporary changed before durable identity binding: ${operation.path}.`
+      );
+    }
+    journalOperation = Object.freeze({
+      ...journalOperation,
+      rollbackTemporaryIdentity: serializeKnownFileIdentity(rollbackIdentity)
+    });
+    await persist(
+      options.store,
+      options.stored,
+      replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
+    );
+    await options.faultInjector?.({
+      phase: "after-rollback-temporary-ready",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    await retireCapturedDestination({
+      capture,
+      capturedIdentity: captured.identity,
+      destination,
+      ...(options.faultInjector === undefined ? {} : { faultInjector: options.faultInjector }),
+      index: options.index,
+      operationPath: operation.path,
+      parent,
+      preimage: operation.precondition.acceptedPreimages[captured.matchedPreimage]!
+    });
+    journalOperation = Object.freeze({ ...journalOperation, state: "destination-retired" as const });
+    await persist(
+      options.store,
+      options.stored,
+      replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
+    );
+    await options.faultInjector?.({
+      phase: "after-destination-retired",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    journalOperation = Object.freeze({ ...journalOperation, state: "publishing" as const });
+    await persist(
+      options.store,
+      options.stored,
+      replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
+    );
+    await options.faultInjector?.({
+      phase: "after-operation-publishing",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    await link(temporary.path, destination).catch((error: unknown) => {
+      throw new KnownFileTransactionError(
+        "KNOWN_FILE_CAS_MISMATCH",
+        `Destination appeared during replacement publication: ${operation.path}.`,
+        { cause: error }
+      );
+    });
+    await options.faultInjector?.({
+      phase: "after-postimage-linked",
+      operationIndex: options.index,
+      path: operation.path
+    });
+    await unlink(temporary.path);
   }
   await syncDirectoryStrictly(parent);
   const published = await observeKnownFile(options.root, operation.path, operation.postimage.size);
@@ -357,8 +742,7 @@ export async function verifyCommittedKnownFilePostimages(
   root: string,
   journal: KnownFileTransactionJournalV1
 ): Promise<void> {
-  for (const [index, operation] of journal.plan.operations.entries()) {
-    if (journal.operations[index]?.state !== "published") {continue;}
+  for (const operation of journal.plan.operations) {
     if (!matchesKnownFileImage(
       await observeKnownFile(root, operation.path, operation.postimage.size),
       operation.postimage
@@ -402,22 +786,27 @@ export async function applyKnownFileTransaction(options: {
   }
   const root = await canonicalKnownFileRoot(options.consumerRoot);
   const barrier = await inspectKnownFileTransactionBarrier({ consumerRoot: root });
-  if (barrier.state !== "idle") {
+  if (barrier.state !== "idle" && barrier.code === "KNOWN_FILE_RECOVERY_REQUIRED") {
     throw new KnownFileTransactionError(
-      "KNOWN_FILE_RECOVERY_REQUIRED",
+      barrier.code,
       barrier.message
     );
   }
-  const preview = await initialJournal(root, options.plan);
-  if (preview.operations.every(({ state }) => state === "already-satisfied")) {
-    return compileKnownFileTransactionReceipt(preview, "already-satisfied");
+  const optimisticJournal = await initialJournal(root, options.plan);
+  if (barrier.state === "idle" &&
+    optimisticJournal.operations.every(({ state }) => state === "already-satisfied")) {
+    return compileKnownFileTransactionReceipt(optimisticJournal, "already-satisfied");
   }
   const coordinator = await createNodeFoundationTransactionCoordinator(root);
   const lease = await coordinator.acquire({ requestedMutation: "known-file-transaction" });
   let retainBarrier = false;
   let store: NodeKnownFileTransactionJournalStore | undefined;
   try {
+    await options.faultInjector?.({ phase: "after-barrier-acquired" });
     const journal = await initialJournal(root, options.plan);
+    if (journal.operations.every(({ state }) => state === "already-satisfied")) {
+      return compileKnownFileTransactionReceipt(journal, "already-satisfied");
+    }
     const [version, buildIdentity] = await Promise.all([
       installedFoundationVersion(),
       installedFoundationBuildIdentity()
@@ -448,8 +837,15 @@ export async function applyKnownFileTransaction(options: {
     await persist(store, stored, stored.envelope.journal, "COMMITTED");
     await options.faultInjector?.({ phase: "after-journal-committed" });
     await verifyCommittedKnownFilePostimages(root, stored.envelope.journal);
+    await cleanupCommittedKnownFileCaptures(
+      root,
+      stored.envelope.journal,
+      options.faultInjector
+    );
+    await verifyCommittedKnownFilePostimages(root, stored.envelope.journal);
     const result = compileKnownFileTransactionReceipt(stored.envelope.journal, "applied");
     await store.remove(stored.authority);
+    await options.faultInjector?.({ phase: "after-journal-retired" });
     retainBarrier = false;
     return result;
   } catch (error) {

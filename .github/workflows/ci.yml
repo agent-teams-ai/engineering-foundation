@@ -364,6 +364,8 @@ jobs:
         run: >-
           node --test --test-concurrency=1
           tests/repository-mutation-*.test.mjs
+          tests/known-file-transaction-node.test.mjs
+          tests/known-file-transaction-plan.test.mjs
           tests/scaffolding-authority.test.mjs
           tests/document-authoring-application-use-cases.test.mjs
           tests/document-authoring-journal-store.test.mjs

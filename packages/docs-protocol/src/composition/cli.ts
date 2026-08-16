@@ -370,7 +370,7 @@ function helpText(command?: string): string {
   if (["info", "doctor", "recover", "check"].includes(command ?? "")) {
     return `Usage: agent-teams-docs ${command} [--consumer PATH] [--profile PATH] [--json]\n`;
   }
-  return "Usage: agent-teams-docs <info|find|new|doctor|recover|check> [options]\n";
+  return "Usage: agent-teams-docs <info|find|new|doctor|recover|check|consumer> [options]\nRun 'agent-teams-docs consumer --help' for maintainer integration commands.\n";
 }
 
 async function validatedMachineExecution(

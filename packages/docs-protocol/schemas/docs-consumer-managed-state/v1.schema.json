@@ -3,19 +3,18 @@
   "$id": "https://agent-teams.ai/schemas/docs-consumer-managed-state/v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "cohortId", "cohortAuthority", "repository", "packages", "profilePath", "skillPath", "callerWorkflowPath", "managedStatePath", "assets", "stateDigest"],
+  "required": ["schemaVersion", "cohortId", "cohortAuthority", "repository", "packages", "schemas", "runtime", "profilePath", "skillPath", "callerWorkflowPath", "managedStatePath", "assets", "stateDigest"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "cohortId": { "type": "string", "minLength": 1 },
     "cohortAuthority": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["channel", "recordDigest", "qualificationEventDigest", "lifecycleState", "eligibleAfter", "upgradeFrom", "rollbackTo"],
+      "required": ["channel", "recordDigest", "qualificationEventDigest", "eligibleAfter", "upgradeFrom", "rollbackTo"],
       "properties": {
         "channel": { "enum": ["rc", "stable"] },
         "recordDigest": { "$ref": "#/$defs/sha256" },
         "qualificationEventDigest": { "$ref": "#/$defs/sha256" },
-        "lifecycleState": { "enum": ["QUALIFIED", "CANARY", "RECOMMENDED"] },
         "eligibleAfter": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
         "upgradeFrom": { "$ref": "#/$defs/cohortIds" },
         "rollbackTo": { "$ref": "#/$defs/cohortIds" }
@@ -40,6 +39,26 @@
         "engineeringFoundation": { "$ref": "#/$defs/package" }
       }
     },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumerIntegration", "managedState", "docsProtocol"],
+      "properties": {
+        "consumerIntegration": { "const": 1 },
+        "managedState": { "const": 1 },
+        "docsProtocol": { "const": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "pnpm", "runtimeClosureDigest"],
+      "properties": {
+        "node": { "const": ">=24.18.0 <25" },
+        "pnpm": { "const": ">=11.17.0 <12" },
+        "runtimeClosureDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
     "profilePath": { "type": "string", "minLength": 1 },
     "skillPath": { "type": "string", "minLength": 1 },
     "callerWorkflowPath": { "type": "string", "minLength": 1 },
@@ -47,10 +66,12 @@
     "assets": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["skillDigest", "callerWorkflowDigest", "agentsRouteDigest", "docsScriptsDigest"],
+      "required": ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest", "agentsRouteDigest", "docsScriptsDigest"],
       "properties": {
         "skillDigest": { "$ref": "#/$defs/sha256" },
         "callerWorkflowDigest": { "$ref": "#/$defs/sha256" },
+        "assetCatalogDigest": { "$ref": "#/$defs/sha256" },
+        "transitionCatalogDigest": { "$ref": "#/$defs/sha256" },
         "agentsRouteDigest": { "$ref": "#/$defs/sha256" },
         "docsScriptsDigest": { "$ref": "#/$defs/sha256" }
       }

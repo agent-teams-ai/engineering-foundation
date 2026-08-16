@@ -1,7 +1,3 @@
-import type {
-  KnownFileTransactionPlanV1
-} from "@agent-teams/engineering-foundation/mutation";
-
 export type ConsumerIntegrationDigest = `sha256:${string}`;
 
 export interface QualifiedDocsCohortV1 {
@@ -35,6 +31,7 @@ export interface QualifiedDocsCohortV1 {
     readonly skillDigest: ConsumerIntegrationDigest;
     readonly callerWorkflowDigest: ConsumerIntegrationDigest;
     readonly assetCatalogDigest: ConsumerIntegrationDigest;
+    readonly transitionCatalogDigest: ConsumerIntegrationDigest;
   };
   readonly schemas: {
     readonly consumerIntegration: 1;
@@ -44,8 +41,15 @@ export interface QualifiedDocsCohortV1 {
   readonly runtime: {
     readonly node: ">=24.18.0 <25";
     readonly pnpm: ">=11.17.0 <12";
+    readonly runtimeClosureDigest: ConsumerIntegrationDigest;
   };
 }
+
+/** Immutable Cohort evidence that may be committed in a consumer repository. */
+export type QualifiedDocsCohortBindingV1 = Omit<
+  QualifiedDocsCohortV1,
+  "canaryRepositoryIds" | "lifecycleState"
+>;
 
 export interface ConsumerIntegrationDesiredStateV1 {
   readonly schemaVersion: 1;
@@ -60,7 +64,8 @@ export interface ConsumerIntegrationDesiredStateV1 {
   readonly skillPath: string;
   readonly callerWorkflowPath: string;
   readonly managedStatePath: string;
-  readonly cohort: QualifiedDocsCohortV1;
+  readonly governedDocsRoots?: readonly string[];
+  readonly cohort: QualifiedDocsCohortBindingV1;
 }
 
 export type ConsumerIntegrationFileObservation =
@@ -121,11 +126,4 @@ export interface ConsumerIntegrationPlanV1 {
   readonly outcome: "blocked" | "change-required" | "current";
   readonly assets: readonly ConsumerIntegrationAssetPlan[];
   readonly issues: readonly ConsumerIntegrationIssue[];
-  readonly mutationPlan?: KnownFileTransactionPlanV1;
-}
-
-export interface KnownPriorConsumerAssets {
-  readonly skill?: readonly Uint8Array[];
-  readonly callerWorkflow?: readonly Uint8Array[];
-  readonly agentsRoute?: readonly Uint8Array[];
 }

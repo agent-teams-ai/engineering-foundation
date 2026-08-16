@@ -1,0 +1,13 @@
+name: Documentation Protocol
+
+on:
+  pull_request:
+  merge_group:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-protocol:
+    uses: {{REUSABLE_WORKFLOW_REPOSITORY}}/{{REUSABLE_WORKFLOW_PATH}}@{{REUSABLE_WORKFLOW_REVISION}}

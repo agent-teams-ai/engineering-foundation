@@ -19,6 +19,7 @@ export {
   KnownFileTransactionError
 } from "../repository-mutation/adapters/node/node-known-file-transaction.js";
 export { recoverKnownFileTransaction } from "../repository-mutation/adapters/node/node-known-file-transaction-recovery.js";
+export type { KnownFileRecoveryFaultInjector } from "../repository-mutation/adapters/node/node-known-file-transaction-recovery.js";
 export { inspectKnownFileTransactionBarrier } from "../repository-mutation/adapters/node/node-known-file-transaction-inspection.js";
 export type { KnownFileTransactionBarrierInspection } from "../repository-mutation/adapters/node/node-known-file-transaction-inspection.js";
 export type {

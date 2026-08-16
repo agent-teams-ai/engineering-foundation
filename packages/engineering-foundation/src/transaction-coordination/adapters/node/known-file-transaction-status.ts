@@ -1,7 +1,7 @@
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 import { assertKnownFileTransactionEnvelope } from "../../../repository-mutation/application/policies/known-file-transaction-envelope.js";
 
-export function pendingKnownFileTransaction(options: {
+function pendingKnownFileTransaction(options: {
   readonly foundationVersion: string;
   readonly foundationBuildIdentity: string;
   readonly installedVersion: string;
@@ -38,7 +38,18 @@ export function inspectKnownFileTransactionStatus(options: {
   readonly installedBuildIdentity: string;
 }): InternalFoundationTransactionStatus | undefined {
   if (options.schemaVersion !== 5) {return undefined;}
-  assertKnownFileTransactionEnvelope(options.value);
+  try {
+    assertKnownFileTransactionEnvelope(options.value);
+  } catch {
+    return {
+      state: "manual-recovery-required",
+      reason: "corrupt-or-incompatible",
+      diagnostics: [{
+        code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+        message: "The Foundation known-file transaction envelope is corrupt, tampered, or incompatible; it was preserved."
+      }]
+    };
+  }
   return pendingKnownFileTransaction({
     foundationVersion: options.value.foundation.version,
     foundationBuildIdentity: options.value.foundation.buildIdentity,

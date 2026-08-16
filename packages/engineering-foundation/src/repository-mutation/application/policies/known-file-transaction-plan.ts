@@ -182,6 +182,15 @@ export function compileKnownFileTransactionPlan(
       `Operation paths collide portably: ${collision.first} and ${collision.second}.`
     );
   }
+  for (let index = 1; index < operations.length; index += 1) {
+    const ancestor = operations[index - 1]!.path;
+    const descendant = operations[index]!.path;
+    if (descendant.startsWith(`${ancestor}/`)) {
+      throw new KnownFileTransactionPlanError(
+        `Operation paths overlap as ancestor and descendant: ${ancestor} and ${descendant}.`
+      );
+    }
+  }
   const totalBytes = operations.reduce(
     (total, operation) => total + operation.postimage.size +
       (operation.precondition.state === "known-file"
@@ -238,7 +247,7 @@ export function assertKnownFileTransactionPlan(
       if (Reflect.get(precondition, "state") === "absent") {
         return { path, precondition: { state: "absent" }, postimage: {
           bytes: postimage.bytes,
-          mode: 0o644
+          mode: postimage.mode
         } };
       }
       const accepted: unknown = Reflect.get(precondition, "acceptedPreimages");

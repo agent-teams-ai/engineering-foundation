@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- compiler phases remain colocated to keep the private mutation intent non-exported. */
 import {
   compileKnownFileTransactionPlan,
   type KnownFileTransactionOperationInput
@@ -12,27 +13,28 @@ import type {
   ConsumerIntegrationFileObservation,
   ConsumerIntegrationIssue,
   ConsumerIntegrationPlanV1,
-  ConsumerIntegrationSnapshot,
-  KnownPriorConsumerAssets
+  ConsumerIntegrationSnapshot
 } from "../../domain/model.js";
 import {
+  BUNDLED_KNOWN_PRIOR_COHORTS,
   BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS,
   BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS,
   CANONICAL_DOCS_SKILL,
   canonicalCallerWorkflow,
   canonicalConsumerIntegrationJson,
+  canonicalDocsScripts,
   canonicalDocsScriptsDigest,
   canonicalManagedRoute,
   canonicalManagedState,
+  type ConsumerAssetCatalogV1,
+  BUNDLED_CURRENT_SOURCE_EXECUTORS,
   describeCanonicalConsumerAssets,
   digestBytes,
-  isBootstrapKnownPriorCallerWorkflow
+  isBootstrapKnownPriorCallerWorkflow,
+  type KnownPriorCohortCatalogEntryV1
 } from "../policies/consumer-integration-assets.js";
 import { consumerIntegrationAuthorityGuards } from "../policies/consumer-integration-authority-guards.js";
 import { assertConsumerIntegrationDesiredStateV1 } from "../policies/consumer-integration-desired-state.js";
-
-const SHA256 = /^sha256:[0-9a-f]{64}$/u;
-const COHORT_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
 
 interface FullAssetResult {
   readonly plan: ConsumerIntegrationAssetPlan;
@@ -40,80 +42,259 @@ interface FullAssetResult {
   readonly issue?: ConsumerIntegrationIssue;
 }
 
-interface ManagedStateEvidence {
-  readonly managedState: readonly Uint8Array[];
-  readonly cohort?: {
-    readonly cohortId: string;
-    readonly channel: "rc" | "stable";
-    readonly rollbackTo: readonly string[];
-  };
-  readonly skillDigest?: ConsumerIntegrationDigest;
-  readonly callerWorkflowDigest?: ConsumerIntegrationDigest;
-  readonly agentsRouteDigest?: ConsumerIntegrationDigest;
-  readonly docsScriptsDigest?: ConsumerIntegrationDigest;
+interface TrustedPrior {
+  readonly cohortId: string;
+  readonly allowedTargetCohortIds: readonly string[];
+  readonly schemas: ConsumerIntegrationDesiredStateV1["cohort"]["schemas"];
+  readonly skill: Uint8Array;
+  readonly callerWorkflow: Uint8Array;
+  readonly agentsRouteDigest: ConsumerIntegrationDigest;
+  readonly docsScriptsDigest: ConsumerIntegrationDigest;
+  readonly managedState: Uint8Array;
 }
 
-function isManagedStateIdentity(
-  record: Record<string, unknown>,
-  desired: ConsumerIntegrationDesiredStateV1
-): boolean {
+function desiredAtRecordedRepository(
+  desired: ConsumerIntegrationDesiredStateV1,
+  record: Record<string, unknown>
+): ConsumerIntegrationDesiredStateV1 | undefined {
   const repository = record["repository"];
-  return record["schemaVersion"] === 1 &&
-    typeof record["stateDigest"] === "string" &&
-    SHA256.test(record["stateDigest"]) &&
-    typeof repository === "object" &&
-    repository !== null &&
-    !Array.isArray(repository) &&
-    (repository as Record<string, unknown>)["provider"] === desired.repository.provider &&
-    (repository as Record<string, unknown>)["id"] === desired.repository.id;
-}
-
-function managedAssetDigests(
-  record: Record<string, unknown>,
-  bytes: Uint8Array
-): ManagedStateEvidence {
-  const assets = record["assets"];
-  if (typeof assets !== "object" || assets === null || Array.isArray(assets)) {
-    return { managedState: [] };
+  if (typeof repository !== "object" || repository === null || Array.isArray(repository)) {
+    return undefined;
   }
-  const assetRecord = assets as Record<string, unknown>;
-  const digest = (key: string): ConsumerIntegrationDigest | undefined => {
-    const value = assetRecord[key];
-    return typeof value === "string" && SHA256.test(value)
-      ? value as ConsumerIntegrationDigest
-      : undefined;
-  };
-  const skillDigest = digest("skillDigest");
-  const callerWorkflowDigest = digest("callerWorkflowDigest");
-  const agentsRouteDigest = digest("agentsRouteDigest");
-  const docsScriptsDigest = digest("docsScriptsDigest");
-  const cohortId = record["cohortId"];
-  const cohortAuthority = record["cohortAuthority"];
-  const cohort = typeof cohortId === "string" && COHORT_ID.test(cohortId) &&
-    typeof cohortAuthority === "object" && cohortAuthority !== null &&
-    !Array.isArray(cohortAuthority) &&
-    ["rc", "stable"].includes(String((cohortAuthority as Record<string, unknown>)["channel"])) &&
-    Array.isArray((cohortAuthority as Record<string, unknown>)["rollbackTo"])
-    ? {
-        cohortId,
-        channel: (cohortAuthority as Record<string, unknown>)["channel"] as "rc" | "stable",
-        rollbackTo: Object.freeze([
-          ...((cohortAuthority as Record<string, unknown>)["rollbackTo"] as string[])
-        ])
-      }
-    : undefined;
-  return {
-    managedState: [bytes],
-    ...(cohort === undefined ? {} : { cohort }),
-    ...(skillDigest === undefined ? {} : { skillDigest }),
-    ...(callerWorkflowDigest === undefined ? {} : { callerWorkflowDigest }),
-    ...(agentsRouteDigest === undefined ? {} : { agentsRouteDigest }),
-    ...(docsScriptsDigest === undefined ? {} : { docsScriptsDigest })
-  };
+  const candidate = repository as ConsumerIntegrationDesiredStateV1["repository"];
+  if (candidate.provider !== desired.repository.provider || candidate.id !== desired.repository.id) {
+    return undefined;
+  }
+  const recorded = { ...desired, repository: candidate };
+  try {
+    assertConsumerIntegrationDesiredStateV1(recorded);
+    return recorded;
+  } catch {
+    return undefined;
+  }
 }
 
 function issue(code: string, subject: string, message: string): ConsumerIntegrationIssue {
   return { code, severity: "error", subject, message };
+}
+
+function assertSnapshotRuntime(snapshot: ConsumerIntegrationSnapshot): void {
+  const expected = [
+    "agents", "callerWorkflow", "integrationProfile", "lockfile",
+    "managedState", "packageManifest", "skill"
+  ];
+  if (Object.getPrototypeOf(snapshot) !== Object.prototype ||
+    Object.keys(snapshot).toSorted().join("\u0000") !== expected.join("\u0000")) {
+    throw new TypeError("Consumer snapshot must contain only the seven V1 observations.");
+  }
+  let totalBytes = 0;
+  for (const key of expected) {
+    const observation = snapshot[key as keyof ConsumerIntegrationSnapshot];
+    if (Object.getPrototypeOf(observation) !== Object.prototype) {
+      throw new TypeError(`Consumer snapshot observation is invalid: ${key}.`);
+    }
+    if (observation.state === "absent") {
+      if (Object.keys(observation).length !== 1) {
+        throw new TypeError(`Absent snapshot observation has extra fields: ${key}.`);
+      }
+      continue;
+    }
+    if (observation.state !== "file" || !(observation.bytes instanceof Uint8Array) ||
+      !Number.isInteger(observation.mode) || observation.mode < 0 || observation.mode > 0o777 ||
+      Object.keys(observation).toSorted().join("\u0000") !== "bytes\u0000mode\u0000state") {
+      throw new TypeError(`File snapshot observation is invalid: ${key}.`);
+    }
+    totalBytes += observation.bytes.byteLength;
+    if (totalBytes > 64 * 1024 * 1024) {
+      throw new TypeError("Consumer snapshot exceeds the bounded 64 MiB runtime contract.");
+    }
+  }
+}
+
+function managedRouteDigest(observation: ConsumerIntegrationFileObservation): ConsumerIntegrationDigest | undefined {
+  if (observation.state !== "file") {return undefined;}
+  const source = Buffer.from(observation.bytes).toString("utf8").replaceAll("\r\n", "\n");
+  const begin = source.indexOf("<!-- agent-teams-docs:route/v1 begin -->");
+  const endMarker = "<!-- agent-teams-docs:route/v1 end -->";
+  const end = source.indexOf(endMarker, begin);
+  return begin >= 0 && end >= begin
+    ? digestBytes(Buffer.from(source.slice(begin, end + endMarker.length), "utf8"))
+    : undefined;
+}
+
+function manifestScriptsDigest(
+  observation: ConsumerIntegrationFileObservation,
+  profilePath: string
+): ConsumerIntegrationDigest | undefined {
+  if (observation.state !== "file") {return undefined;}
+  try {
+    const manifest = JSON.parse(Buffer.from(observation.bytes).toString("utf8")) as Record<string, unknown>;
+    const scripts = typeof manifest["scripts"] === "object" && manifest["scripts"] !== null &&
+      !Array.isArray(manifest["scripts"])
+      ? manifest["scripts"] as Record<string, unknown>
+      : {};
+    const observed = Object.fromEntries(Object.keys(canonicalDocsScripts(profilePath)).map((name) => [
+      name,
+      scripts[name] ?? null
+    ]));
+    return digestBytes(Buffer.from(canonicalConsumerIntegrationJson(observed), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+function matchesRecordedCatalogEvidence(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly record: Record<string, unknown>;
+  readonly prior: KnownPriorCohortCatalogEntryV1;
+}): boolean {
+  const recordedDesired = desiredAtRecordedRepository(input.desired, input.record);
+  if (recordedDesired === undefined) {return false;}
+  const expected = canonicalManagedState(
+    { ...recordedDesired, cohort: input.prior.cohort },
+    {
+      skillDigest: digestBytes(input.prior.skill),
+      callerWorkflowDigest: digestBytes(input.prior.callerWorkflow),
+      assetCatalogDigest: input.prior.cohort.assets.assetCatalogDigest,
+      transitionCatalogDigest: input.prior.cohort.assets.transitionCatalogDigest,
+      agentsRouteDigest: input.prior.agentsRouteDigest,
+      docsScriptsDigest: input.prior.docsScriptsDigest
+    }
+  );
+  return canonicalConsumerIntegrationJson(input.record) ===
+    canonicalConsumerIntegrationJson(JSON.parse(expected) as unknown);
+}
+
+function matchesObservedCatalogEvidence(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly prior: KnownPriorCohortCatalogEntryV1;
+}): boolean {
+  return input.snapshot.skill.state === "file" &&
+    Buffer.from(input.snapshot.skill.bytes).equals(Buffer.from(input.prior.skill)) &&
+    input.snapshot.callerWorkflow.state === "file" &&
+    Buffer.from(input.snapshot.callerWorkflow.bytes).equals(Buffer.from(input.prior.callerWorkflow)) &&
+    managedRouteDigest(input.snapshot.agents) === input.prior.agentsRouteDigest &&
+    manifestScriptsDigest(input.snapshot.packageManifest, input.desired.profilePath) === input.prior.docsScriptsDigest;
+}
+
+// oxlint-disable-next-line complexity -- every evidence predicate must hold before source-executor trust.
+function trustedPriorCohort(
+  desired: ConsumerIntegrationDesiredStateV1,
+  snapshot: ConsumerIntegrationSnapshot,
+  catalog: ConsumerAssetCatalogV1
+): TrustedPrior | undefined {
+  if (snapshot.managedState.state !== "file") {return undefined;}
+  try {
+    const stateSource = Buffer.from(snapshot.managedState.bytes).toString("utf8");
+    const record = JSON.parse(stateSource) as Record<string, unknown>;
+    const { stateDigest, ...body } = record;
+    if (typeof stateDigest !== "string" || stateDigest !== digestBytes(Buffer.from(
+      canonicalConsumerIntegrationJson({ domain: "agent-teams.docs-protocol.managed-state/v1", body }),
+      "utf8"
+    )) || `${canonicalConsumerIntegrationJson(record)}\n` !== stateSource) {return undefined;}
+    const recordedDesired = desiredAtRecordedRepository(desired, record);
+    const currentSkill = Buffer.from(CANONICAL_DOCS_SKILL, "utf8");
+    const currentCaller = Buffer.from(canonicalCallerWorkflow(desired.cohort), "utf8");
+    const currentRouteDigest = digestBytes(Buffer.from(canonicalManagedRoute(desired.skillPath), "utf8"));
+    const currentScriptsDigest = canonicalDocsScriptsDigest(desired.profilePath);
+    const currentState = recordedDesired === undefined ? undefined : canonicalManagedState(
+      recordedDesired,
+      {
+        skillDigest: digestBytes(currentSkill),
+        callerWorkflowDigest: digestBytes(currentCaller),
+        assetCatalogDigest: catalog.catalogDigest,
+        transitionCatalogDigest: catalog.transitionCatalogDigest,
+        agentsRouteDigest: currentRouteDigest,
+        docsScriptsDigest: currentScriptsDigest
+      }
+    );
+    if (record["cohortId"] === desired.cohort.cohortId &&
+      desired.cohort.assets.skillDigest === digestBytes(currentSkill) &&
+      desired.cohort.assets.callerWorkflowDigest === digestBytes(currentCaller) &&
+      desired.cohort.assets.assetCatalogDigest === catalog.catalogDigest &&
+      desired.cohort.assets.transitionCatalogDigest === catalog.transitionCatalogDigest &&
+      currentState === stateSource && inputDigest(snapshot.skill) === digestBytes(currentSkill) &&
+      inputDigest(snapshot.callerWorkflow) === digestBytes(currentCaller) &&
+      managedRouteDigest(snapshot.agents) === currentRouteDigest &&
+      manifestScriptsDigest(snapshot.packageManifest, desired.profilePath) === currentScriptsDigest &&
+      snapshot.skill.state === "file" && snapshot.callerWorkflow.state === "file") {
+      return {
+        cohortId: desired.cohort.cohortId,
+        allowedTargetCohortIds: [],
+        schemas: desired.cohort.schemas,
+        skill: snapshot.skill.bytes,
+        callerWorkflow: snapshot.callerWorkflow.bytes,
+        agentsRouteDigest: currentRouteDigest,
+        docsScriptsDigest: currentScriptsDigest,
+        managedState: snapshot.managedState.bytes
+      };
+    }
+    const prior = catalog.directTargetBundles.find(({ cohort }) =>
+      cohort.cohortId === record["cohortId"]
+    );
+    if (prior !== undefined && matchesRecordedCatalogEvidence({ desired, record, prior }) &&
+      matchesObservedCatalogEvidence({ desired, snapshot, prior })) {
+      return {
+        cohortId: prior.cohort.cohortId,
+        allowedTargetCohortIds: desired.cohort.upgradeFrom.includes(prior.cohort.cohortId) ||
+          prior.cohort.rollbackTo.includes(desired.cohort.cohortId)
+          ? [desired.cohort.cohortId]
+          : [],
+        schemas: prior.cohort.schemas,
+        skill: prior.skill,
+        callerWorkflow: prior.callerWorkflow,
+        agentsRouteDigest: prior.agentsRouteDigest,
+        docsScriptsDigest: prior.docsScriptsDigest,
+        managedState: snapshot.managedState.bytes
+      };
+    }
+    const technicalRecordedDesired = desiredAtRecordedRepository(desired, record);
+    const assets = record["assets"] as Record<string, unknown> | undefined;
+    const sources = assets === undefined || technicalRecordedDesired === undefined ||
+      typeof record["cohortId"] !== "string" ? [] :
+      catalog.currentSourceExecutors.filter((candidate) =>
+        canonicalConsumerIntegrationJson(record["packages"]) ===
+          canonicalConsumerIntegrationJson(candidate.packages) &&
+        canonicalConsumerIntegrationJson(record["schemas"]) ===
+          canonicalConsumerIntegrationJson(candidate.schemas) &&
+        canonicalConsumerIntegrationJson(record["runtime"]) ===
+          canonicalConsumerIntegrationJson(candidate.runtime) &&
+        assets["skillDigest"] === candidate.skillDigest &&
+        assets["callerWorkflowDigest"] === candidate.callerWorkflowDigest &&
+        assets["assetCatalogDigest"] === candidate.assetCatalogDigest &&
+        assets["assetCatalogDigest"] === catalog.catalogDigest &&
+        assets["transitionCatalogDigest"] === catalog.transitionCatalogDigest &&
+        assets["agentsRouteDigest"] === candidate.agentsRouteDigest &&
+        assets["docsScriptsDigest"] === candidate.docsScriptsDigest &&
+        inputDigest(snapshot.skill) === candidate.skillDigest &&
+        inputDigest(snapshot.callerWorkflow) === candidate.callerWorkflowDigest &&
+        managedRouteDigest(snapshot.agents) === candidate.agentsRouteDigest &&
+        manifestScriptsDigest(snapshot.packageManifest, desired.profilePath) ===
+          candidate.docsScriptsDigest
+      );
+    const source = sources.length === 1 ? sources[0] : undefined;
+    if (source === undefined || snapshot.skill.state !== "file" ||
+      snapshot.callerWorkflow.state !== "file") {
+      return undefined;
+    }
+    return {
+      cohortId: String(record["cohortId"]),
+      allowedTargetCohortIds: source.directTargetCohortIds,
+      schemas: source.schemas,
+      skill: snapshot.skill.bytes,
+      callerWorkflow: snapshot.callerWorkflow.bytes,
+      agentsRouteDigest: source.agentsRouteDigest,
+      docsScriptsDigest: source.docsScriptsDigest,
+      managedState: snapshot.managedState.bytes
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function inputDigest(observation: ConsumerIntegrationFileObservation): ConsumerIntegrationDigest | undefined {
+  return observation.state === "file" ? digestBytes(observation.bytes) : undefined;
 }
 
 function fullAsset(input: {
@@ -207,61 +388,17 @@ function fullAsset(input: {
   };
 }
 
-function managedStateEvidence(
-  observation: ConsumerIntegrationFileObservation,
-  desired: ConsumerIntegrationDesiredStateV1
-): ManagedStateEvidence {
-  if (observation.state === "absent") {
-    return { managedState: [] };
-  }
-  try {
-    const source = Buffer.from(observation.bytes).toString("utf8");
-    const parsed = JSON.parse(source) as unknown;
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return { managedState: [] };
-    }
-    const record = parsed as Record<string, unknown>;
-    if (!isManagedStateIdentity(record, desired)) {
-      return { managedState: [] };
-    }
-    const stateDigest = record["stateDigest"] as string;
-    const { stateDigest: _ignored, ...body } = record;
-    const expected = digestBytes(Buffer.from(canonicalConsumerIntegrationJson({
-      domain: "agent-teams.docs-protocol.managed-state/v1",
-      body
-    }), "utf8"));
-    if (expected !== stateDigest || `${canonicalConsumerIntegrationJson(record)}\n` !== source) {
-      return { managedState: [] };
-    }
-    return managedAssetDigests(record, observation.bytes);
-  } catch {
-    return { managedState: [] };
-  }
-}
-
-function knownObservedBytes(
-  observation: ConsumerIntegrationFileObservation,
-  recordedDigest: ConsumerIntegrationDigest | undefined,
-  explicit: readonly Uint8Array[]
-): readonly Uint8Array[] {
-  if (observation.state !== "file" || recordedDigest === undefined ||
-    digestBytes(observation.bytes) !== recordedDigest) {
-    return explicit;
-  }
-  return [...explicit, observation.bytes];
-}
-
 function partialAsset(input: {
   readonly id: "agents-route" | "package-manifest";
   readonly path: string;
   readonly ownership: "managed-block" | "partial-fields";
-  readonly state: "conflict" | "exact-current" | "known-prior";
+  readonly state: "absent" | "conflict" | "exact-current" | "known-prior";
   readonly currentDigest: ConsumerIntegrationDigest;
   readonly expectedDigest: ConsumerIntegrationDigest;
   readonly current: ConsumerIntegrationFileObservation;
   readonly postimage?: Uint8Array;
 }): { readonly plan: ConsumerIntegrationAssetPlan; readonly operation?: KnownFileTransactionOperationInput } {
-  const action = input.state === "conflict" ? "blocked" :
+  const action = input.state === "conflict" ? "blocked" : input.state === "absent" ? "create" :
     input.state === "exact-current" ? "none" : "replace";
   const plan: ConsumerIntegrationAssetPlan = {
     id: input.id,
@@ -272,9 +409,20 @@ function partialAsset(input: {
     expectedDigest: input.expectedDigest,
     action
   };
-  if (action !== "replace" || input.current.state !== "file" || input.postimage === undefined) {
+  if ((action !== "replace" && action !== "create") || input.postimage === undefined) {
     return { plan };
   }
+  if (action === "create") {
+    return {
+      plan,
+      operation: {
+        path: input.path,
+        precondition: { state: "absent" },
+        postimage: { bytes: input.postimage }
+      }
+    };
+  }
+  if (input.current.state !== "file") {return { plan };}
   return {
     plan,
     operation: {
@@ -290,43 +438,78 @@ function partialAsset(input: {
 
 function cohortIssues(
   desired: ConsumerIntegrationDesiredStateV1,
-  previous: ManagedStateEvidence
+  prior: TrustedPrior | undefined,
+  catalog: ConsumerAssetCatalogV1
 ): readonly ConsumerIntegrationIssue[] {
   const issues: ConsumerIntegrationIssue[] = [];
-  const prior = previous.cohort;
-  if (prior !== undefined && prior.cohortId !== desired.cohort.cohortId) {
-    const isUpgrade = desired.cohort.channel === prior.channel &&
-      desired.cohort.upgradeFrom.includes(prior.cohortId);
-    const isRollback = prior.rollbackTo.includes(desired.cohort.cohortId);
-    if (!isUpgrade && !isRollback) {
-      issues.push(issue(
-        "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN",
-        desired.cohort.cohortId,
-        `Cohort transition from ${prior.cohortId} is not an authorized upgrade or rollback edge.`
-      ));
-    }
+  if (prior !== undefined && prior.cohortId !== desired.cohort.cohortId &&
+    !prior.allowedTargetCohortIds.includes(desired.cohort.cohortId)) {
+    issues.push(issue(
+      "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN",
+      desired.cohort.cohortId,
+      `Cohort transition from ${prior.cohortId} is not an authorized upgrade or rollback edge.`
+    ));
   }
-  const canonical = describeCanonicalConsumerAssets(desired.cohort);
+  if (prior !== undefined && prior.cohortId !== desired.cohort.cohortId &&
+    canonicalConsumerIntegrationJson(prior.schemas) !==
+      canonicalConsumerIntegrationJson(desired.cohort.schemas)) {
+    issues.push(issue(
+      "DOCS_CONSUMER_COHORT_SCHEMA_INCOMPATIBLE",
+      desired.cohort.cohortId,
+      "The requested transition crosses a schema boundary and requires a qualified fix-forward Cohort."
+    ));
+  }
+  const targetBundle = catalog.directTargetBundles.find(({ cohort }) =>
+    cohort.cohortId === desired.cohort.cohortId &&
+    canonicalConsumerIntegrationJson(cohort) === canonicalConsumerIntegrationJson(desired.cohort)
+  );
+  const canonical = targetBundle === undefined
+    ? {
+        ...describeCanonicalConsumerAssets(desired.cohort),
+        assetCatalogDigest: catalog.catalogDigest,
+        transitionCatalogDigest: catalog.transitionCatalogDigest
+      }
+    : {
+      skillDigest: digestBytes(targetBundle.skill),
+      callerWorkflowDigest: digestBytes(targetBundle.callerWorkflow),
+      assetCatalogDigest: targetBundle.cohort.assets.assetCatalogDigest,
+      transitionCatalogDigest: targetBundle.cohort.assets.transitionCatalogDigest
+      };
   if (canonical.skillDigest !== desired.cohort.assets.skillDigest ||
     canonical.callerWorkflowDigest !== desired.cohort.assets.callerWorkflowDigest ||
-    canonical.assetCatalogDigest !== desired.cohort.assets.assetCatalogDigest) {
+    canonical.assetCatalogDigest !== desired.cohort.assets.assetCatalogDigest ||
+    canonical.transitionCatalogDigest !== desired.cohort.assets.transitionCatalogDigest) {
     issues.push(issue(
       "DOCS_CONSUMER_COHORT_ASSET_MISMATCH",
       desired.cohort.cohortId,
       "Qualified Cohort asset digests do not match this exact Docs Protocol build."
     ));
   }
+  for (const rollbackId of desired.cohort.rollbackTo) {
+    const bundled = catalog.directTargetBundles.find(({ cohort }) => cohort.cohortId === rollbackId);
+    if (bundled === undefined || canonicalConsumerIntegrationJson(bundled.cohort.schemas) !==
+      canonicalConsumerIntegrationJson(desired.cohort.schemas)) {
+      issues.push(issue(
+        "DOCS_CONSUMER_ROLLBACK_BUNDLE_MISSING",
+        rollbackId,
+        "Every declared rollback edge requires one exact schema-compatible package-owned target bundle."
+      ));
+    }
+  }
   return issues;
 }
 
 function planFullAssets(input: {
   readonly desired: ConsumerIntegrationDesiredStateV1;
-  readonly knownPrior: KnownPriorConsumerAssets;
-  readonly previous: ManagedStateEvidence;
   readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly prior: TrustedPrior | undefined;
+  readonly targetBundle: KnownPriorCohortCatalogEntryV1 | undefined;
+  readonly targetCatalogDigest: ConsumerIntegrationDigest;
+  readonly targetTransitionCatalogDigest: ConsumerIntegrationDigest;
 }): readonly FullAssetResult[] {
-  const skillBytes = Buffer.from(CANONICAL_DOCS_SKILL, "utf8");
-  const callerBytes = Buffer.from(canonicalCallerWorkflow(input.desired.cohort), "utf8");
+  const skillBytes = input.targetBundle?.skill ?? Buffer.from(CANONICAL_DOCS_SKILL, "utf8");
+  const callerBytes = input.targetBundle?.callerWorkflow ??
+    Buffer.from(canonicalCallerWorkflow(input.desired.cohort), "utf8");
   const routeBytes = Buffer.from(canonicalManagedRoute(input.desired.skillPath), "utf8");
   const bootstrapCaller = input.snapshot.callerWorkflow.state === "file" &&
     isBootstrapKnownPriorCallerWorkflow(input.snapshot.callerWorkflow.bytes)
@@ -335,6 +518,8 @@ function planFullAssets(input: {
   const managedStateBytes = Buffer.from(canonicalManagedState(input.desired, {
     skillDigest: digestBytes(skillBytes),
     callerWorkflowDigest: digestBytes(callerBytes),
+    assetCatalogDigest: input.targetCatalogDigest,
+    transitionCatalogDigest: input.targetTransitionCatalogDigest,
     agentsRouteDigest: digestBytes(routeBytes),
     docsScriptsDigest: canonicalDocsScriptsDigest(input.desired.profilePath)
   }), "utf8");
@@ -344,66 +529,83 @@ function planFullAssets(input: {
       path: input.desired.skillPath,
       observation: input.snapshot.skill,
       postimage: skillBytes,
-      knownPrior: knownObservedBytes(
-        input.snapshot.skill,
-        input.previous.skillDigest,
-        input.knownPrior.skill ?? BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS
-      )
+      knownPrior: input.prior === undefined
+        ? BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS
+        : [input.prior.skill]
     }),
     fullAsset({
       id: "caller-workflow",
       path: input.desired.callerWorkflowPath,
       observation: input.snapshot.callerWorkflow,
       postimage: callerBytes,
-      knownPrior: knownObservedBytes(
-        input.snapshot.callerWorkflow,
-        input.previous.callerWorkflowDigest,
-        input.knownPrior.callerWorkflow ?? [
-          ...BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS,
-          ...bootstrapCaller
-        ]
-      )
+      knownPrior: input.prior === undefined ? [
+        ...BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS,
+        ...bootstrapCaller
+      ] : [input.prior.callerWorkflow]
     }),
     fullAsset({
       id: "managed-state",
       path: input.desired.managedStatePath,
       observation: input.snapshot.managedState,
       postimage: managedStateBytes,
-      knownPrior: input.previous.managedState
+      knownPrior: input.prior === undefined ? [] : [input.prior.managedState]
     })
   ];
 }
 
-export function planConsumerIntegration(input: {
+export function compileConsumerIntegration(input: {
   readonly desired: ConsumerIntegrationDesiredStateV1;
   readonly snapshot: ConsumerIntegrationSnapshot;
-  readonly knownPrior?: KnownPriorConsumerAssets;
-}): ConsumerIntegrationPlanV1 {
+  readonly assetCatalog?: ConsumerAssetCatalogV1;
+  /** Unit-level compatibility input; production composition loads package assets. */
+  readonly knownPriorCohorts?: readonly KnownPriorCohortCatalogEntryV1[];
+}): {
+  readonly plan: ConsumerIntegrationPlanV1;
+  readonly mutationPlan?: ReturnType<typeof compileKnownFileTransactionPlan>;
+} {
   assertConsumerIntegrationDesiredStateV1(input.desired);
+  assertSnapshotRuntime(input.snapshot);
   const desired = input.desired;
-  const knownPrior = input.knownPrior ?? {};
-  const previous = managedStateEvidence(input.snapshot.managedState, desired);
-  const issues: ConsumerIntegrationIssue[] = [...cohortIssues(desired, previous)];
+  const assetCatalog = input.assetCatalog ?? Object.freeze({
+    catalogDigest: describeCanonicalConsumerAssets(desired.cohort).assetCatalogDigest,
+    transitionCatalogDigest: describeCanonicalConsumerAssets(desired.cohort).transitionCatalogDigest,
+    currentSourceExecutors: BUNDLED_CURRENT_SOURCE_EXECUTORS,
+    directTargetBundles: input.knownPriorCohorts ?? BUNDLED_KNOWN_PRIOR_COHORTS
+  });
+  const prior = trustedPriorCohort(
+    desired,
+    input.snapshot,
+    assetCatalog
+  );
+  const issues: ConsumerIntegrationIssue[] = [...cohortIssues(desired, prior, assetCatalog)];
 
   const manifest = planPnpmManifestV1({
     observation: input.snapshot.packageManifest,
     profilePath: desired.profilePath,
     cohort: desired.cohort,
-    ...(previous.docsScriptsDigest === undefined
-      ? {}
-      : { knownPriorScriptsDigest: previous.docsScriptsDigest })
+    ...(prior === undefined ? {} : { knownPriorScriptsDigest: prior.docsScriptsDigest })
   });
   issues.push(...manifest.issues);
   const route = planAgentsRouteV1({
     observation: input.snapshot.agents,
     skillPath: desired.skillPath,
-    ...(previous.agentsRouteDigest === undefined
-      ? {}
-      : { knownPriorRouteDigest: previous.agentsRouteDigest })
+    ...(prior === undefined ? {} : { knownPriorRouteDigest: prior.agentsRouteDigest })
   });
   issues.push(...route.issues);
 
-  const results = planFullAssets({ desired, knownPrior, previous, snapshot: input.snapshot });
+  const targetBundle = assetCatalog.directTargetBundles.find(({ cohort }) =>
+    cohort.cohortId === desired.cohort.cohortId &&
+    canonicalConsumerIntegrationJson(cohort) === canonicalConsumerIntegrationJson(desired.cohort)
+  );
+  const results = planFullAssets({
+    desired,
+    snapshot: input.snapshot,
+    prior,
+    targetBundle,
+    targetCatalogDigest: targetBundle?.cohort.assets.assetCatalogDigest ?? assetCatalog.catalogDigest,
+    targetTransitionCatalogDigest: targetBundle?.cohort.assets.transitionCatalogDigest ??
+      assetCatalog.transitionCatalogDigest
+  });
   for (const result of results) {
     if (result.issue !== undefined) {
       issues.push(result.issue);
@@ -463,14 +665,24 @@ export function planConsumerIntegration(input: {
     issues,
     mutationPlanDigest: mutationPlan?.planDigest ?? null
   }), "utf8"));
-  return Object.freeze({
+  const plan = Object.freeze({
     schemaVersion: 1,
     cohortId: desired.cohort.cohortId,
     repository: Object.freeze({ ...desired.repository }),
     planDigest,
     outcome,
     assets,
-    issues: Object.freeze(issues),
+    issues: Object.freeze(issues)
+  });
+  return Object.freeze({
+    plan,
     ...(mutationPlan === undefined ? {} : { mutationPlan })
   });
+}
+
+export function planConsumerIntegration(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+}): ConsumerIntegrationPlanV1 {
+  return compileConsumerIntegration(input).plan;
 }

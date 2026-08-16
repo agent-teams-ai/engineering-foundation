@@ -331,10 +331,22 @@ test("creates one platform-native command shim without a shadowing extensionless
 });
 
 async function runRelease(root, marker) {
+  const harness = join(root, "release-harness.mjs");
+  await writeFile(
+    harness,
+    `import { appendFile, writeFile } from "node:fs/promises";\n` +
+      `import { main } from ${JSON.stringify(pathToFileURL(releaseScript).href)};\n` +
+      `await main({\n` +
+      `  publishOrdered: async () => {\n` +
+      `    await writeFile(process.env.PUBLISH_MARKER, "ordered publish");\n` +
+      `    await appendFile(process.env.COMMAND_SHIM_MARKER, "ordered publish\\n");\n` +
+      `  },\n` +
+      `});\n`,
+  );
   return await new Promise((resolve) => {
     const environment = commandEnvironment(root, marker);
     environment.NODE_OPTIONS = `--import=${pathToFileURL(join(root, "registry-fetch-shim.mjs"))}`;
-    const child = spawn(process.execPath, [releaseScript], {
+    const child = spawn(process.execPath, [harness], {
       cwd: root,
       env: environment,
       stdio: ["ignore", "pipe", "pipe"],
@@ -537,9 +549,8 @@ test("publish entrypoint independently rejects every publish-control drift bound
           }
           return await releaseState(repositoryRoot);
         },
-        spawn: () => {
+        publishOrdered: async () => {
           spawned = true;
-          return { status: 0 };
         },
         verifyRegistry: noop,
       }),
@@ -591,7 +602,7 @@ test("real release entrypoint proves multi-package registry state and fails clos
 
   const currentPromotion = await scenario("current-promotion", async () => {}, /^\n$/u);
   assert.equal(currentPromotion.result.status, 0);
-  assert.equal(await readFile(currentPromotion.marker, "utf8"), "changeset publish");
+  assert.equal(await readFile(currentPromotion.marker, "utf8"), "ordered publish");
 
   versions.get(foundation.name).delete(foundation.version);
   const absent = await scenario(
@@ -781,9 +792,9 @@ test("real release entrypoint proves multi-package registry state and fails clos
     /^\n$/u,
   );
   assert.equal(publish.result.status, 0, `${publish.result.stdout}\n${publish.result.stderr}`);
-  assert.equal(await readFile(publish.marker, "utf8"), "changeset publish");
+  assert.equal(await readFile(publish.marker, "utf8"), "ordered publish");
   assert.match(
     await readFile(join(publish.root, "command-shim.marker"), "utf8"),
-    /^pnpm changeset publish$/mu,
+    /^ordered publish$/mu,
   );
 });

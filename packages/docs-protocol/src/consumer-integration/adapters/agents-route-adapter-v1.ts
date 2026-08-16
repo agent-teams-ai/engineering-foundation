@@ -12,7 +12,7 @@ import {
 
 /** @public */
 export interface AgentsRoutePlanV1 {
-  readonly state: "conflict" | "exact-current" | "known-prior";
+  readonly state: "absent" | "conflict" | "exact-current" | "known-prior";
   readonly currentDigest: ConsumerIntegrationDigest;
   readonly expectedDigest: ConsumerIntegrationDigest;
   readonly postimage?: Uint8Array;
@@ -54,7 +54,14 @@ export function planAgentsRouteV1(input: {
 }): AgentsRoutePlanV1 {
   if (input.observation.state === "absent") {
     const empty = digestBytes(new Uint8Array());
-    return conflict(empty, "A root AGENTS.md is required and is never created by consumer integration.");
+    const postimage = Buffer.from(`${canonicalManagedRoute(input.skillPath)}\n`, "utf8");
+    return {
+      state: "absent",
+      currentDigest: empty,
+      expectedDigest: digestBytes(postimage),
+      postimage,
+      issues: []
+    };
   }
   const bytes = Buffer.from(input.observation.bytes);
   const currentDigest = digestBytes(bytes);

@@ -102,6 +102,14 @@ Other package managers and mixed lockfiles fail closed. Windows supports check
 and plan; apply and recovery refuse until strict directory durability has a
 separate qualification.
 
+Before changing package pins or the lockfile, run the currently installed
+`agent-teams-docs consumer check --json`. If it reports recovery, run the
+current build's `consumer recover --json` first. Only after the old transaction
+is clear may the reviewed branch update the exact Cohort profile, package pins,
+and lockfile, install with `pnpm install --frozen-lockfile`, and use the newly
+installed CLI for `consumer plan` and `consumer apply`. Replacing the installed
+build while its journal is active is unsupported and must fail the upgrade.
+
 ## Consumer qualification
 
 `@agent-teams/docs-protocol/qualification` exports

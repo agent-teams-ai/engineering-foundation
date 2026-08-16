@@ -1,6 +1,7 @@
+/* oxlint-disable max-lines -- V1 keeps the security-sensitive repository observation boundary cohesive. */
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
-import { isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
+import { dirname, isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
 import { execFile } from "node:child_process";
 import { parseDocument } from "yaml";
 
@@ -11,6 +12,15 @@ import type {
   ConsumerIntegrationSnapshot
 } from "../domain/model.js";
 import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-schema-validator.js";
+import { targetsManagedPackage, validPnpmPeerContext } from "./pnpm-lockfile-policy-v1.js";
+import {
+  computePnpmRuntimeClosureDigestV1,
+  PnpmRuntimeClosureError
+} from "./pnpm-runtime-closure-v1.js";
+import {
+  scanConsumerRepositoryTopology,
+  type ConsumerRepositoryTopology
+} from "./bounded-repository-topology.js";
 
 const MAXIMUM_PROFILE_BYTES = 256 * 1024;
 const MAXIMUM_MANIFEST_BYTES = 1024 * 1024;
@@ -61,7 +71,16 @@ function contained(root: string, repositoryPath: string): string {
 
 async function canonicalRoot(consumerRoot: string): Promise<string> {
   const requested = resolvePath(consumerRoot);
-  const metadata = await lstat(requested);
+  let metadata;
+  try {
+    metadata = await lstat(requested);
+  } catch (error) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_ROOT_INVALID",
+      "Consumer root is unavailable or is not a real directory.",
+      { cause: error }
+    );
+  }
   if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_ROOT_INVALID",
@@ -71,18 +90,36 @@ async function canonicalRoot(consumerRoot: string): Promise<string> {
   return realpath(requested);
 }
 
+function assertSingleIntegrationTopology(topology: ConsumerRepositoryTopology): void {
+  if (topology.lockfiles.length !== 1 || topology.lockfiles[0] !== "pnpm-lock.yaml") {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_NESTED_LOCKFILE_UNSUPPORTED",
+      "V1 requires exactly one root pnpm-lock.yaml and no nested lockfiles."
+    );
+  }
+  if (topology.integrationProfiles.length !== 1 ||
+    topology.integrationProfiles[0] !== INTEGRATION_PROFILE_PATH) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_MULTIPLE_INTEGRATION_UNITS",
+      `V1 requires exactly one integration profile at ${INTEGRATION_PROFILE_PATH}.`
+    );
+  }
+  if (topology.pnpmfiles.length > 0) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_PNPMFILE_UNSUPPORTED",
+      "V1 does not permit .pnpmfile.cjs in the integration repository."
+    );
+  }
+}
+
 async function assertGitRepositoryRoot(root: string): Promise<void> {
   let gitRoot: string;
-  let agents: string;
   try {
-    const [topLevel, nestedAgents] = await Promise.all([
-      executeGit(root, ["rev-parse", "--show-toplevel"], 64 * 1024),
-      executeGit(root, [
-        "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "**/AGENTS.md"
-      ], 1024 * 1024)
-    ]);
-    gitRoot = await realpath(topLevel.trim());
-    agents = nestedAgents;
+    gitRoot = await realpath((await executeGit(
+      root,
+      ["rev-parse", "--show-toplevel"],
+      64 * 1024
+    )).trim());
   } catch (error) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_GIT_ROOT_INVALID",
@@ -96,11 +133,27 @@ async function assertGitRepositoryRoot(root: string): Promise<void> {
       "Consumer root must equal the Git repository top-level directory."
     );
   }
-  const nested = agents.split("\u0000").filter((path) => path.length > 0 && path !== "AGENTS.md");
-  if (nested.length > 0) {
+}
+
+function assertNestedAgentsAuthority(
+  topology: ConsumerRepositoryTopology,
+  governedRoots: readonly string[] | undefined
+): void {
+  const nested = topology.agents.filter((path) => path !== "AGENTS.md");
+  const conflicting = governedRoots === undefined
+    ? nested
+    : nested.filter((path) => {
+        const authorityRoot = dirname(path);
+        return governedRoots.some((docsRoot) =>
+          authorityRoot === docsRoot ||
+          authorityRoot.startsWith(`${docsRoot}/`) ||
+          docsRoot.startsWith(`${authorityRoot}/`)
+        );
+      });
+  if (conflicting.length > 0) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_NESTED_AGENTS_UNSUPPORTED",
-      `V1 does not support nested AGENTS.md authority: ${nested.join(", ")}.`
+      `Nested AGENTS.md overlaps governed documentation authority: ${conflicting.join(", ")}.`
     );
   }
 }
@@ -220,11 +273,22 @@ async function assertQualifiedPnpmRoot(root: string): Promise<void> {
       { cause: error }
     );
   }
-  if (typeof manifest["packageManager"] !== "string" ||
-    !/^pnpm@11\.[0-9]+\.[0-9]+(?:\+sha512\.[A-Za-z0-9+/=]+)?$/u.test(manifest["packageManager"])) {
+  const packageManager = manifest["packageManager"];
+  const match = typeof packageManager === "string"
+    ? /^pnpm@(11)\.([0-9]+)\.([0-9]+)(?:\+sha512\.[A-Za-z0-9+/=]+)?$/u.exec(packageManager)
+    : null;
+  if (match === null || Number(match[2]) < 17) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UNSUPPORTED_PACKAGE_MANAGER",
-      "V1 requires one exact root packageManager declaration for pnpm 11."
+      "V1 requires one exact root packageManager declaration within >=11.17.0 <12."
+    );
+  }
+  const nodeVersion = await readStableFile(root, ".node-version", 128, true);
+  if (nodeVersion.state !== "file" ||
+    !/^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(Buffer.from(nodeVersion.bytes).toString("utf8"))) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID",
+      ".node-version must pin one exact Node version within >=24.18.0 <25."
     );
   }
   await readStableFile(root, "pnpm-lock.yaml", MAXIMUM_LOCKFILE_BYTES, true);
@@ -238,6 +302,43 @@ async function assertQualifiedPnpmRoot(root: string): Promise<void> {
   }
 }
 
+function sameObservation(
+  left: ConsumerIntegrationFileObservation,
+  right: ConsumerIntegrationFileObservation
+): boolean {
+  return left.state === right.state && (left.state === "absent" ||
+    (right.state === "file" && left.mode === right.mode &&
+      Buffer.from(left.bytes).equals(Buffer.from(right.bytes))));
+}
+
+async function assertSnapshotStillStable(input: {
+  readonly root: string;
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+}): Promise<void> {
+  const paths = [
+    ["integrationProfile", INTEGRATION_PROFILE_PATH, MAXIMUM_PROFILE_BYTES, true],
+    ["lockfile", "pnpm-lock.yaml", MAXIMUM_LOCKFILE_BYTES, true],
+    ["packageManifest", "package.json", MAXIMUM_MANIFEST_BYTES, true],
+    ["agents", "AGENTS.md", MAXIMUM_MANAGED_ASSET_BYTES, false],
+    ["skill", input.desired.skillPath, MAXIMUM_MANAGED_ASSET_BYTES, false],
+    ["callerWorkflow", input.desired.callerWorkflowPath, MAXIMUM_MANAGED_ASSET_BYTES, false],
+    ["managedState", input.desired.managedStatePath, MAXIMUM_MANAGED_ASSET_BYTES, false]
+  ] as const;
+  const reread = await Promise.all(paths.map(([, path, maximum, required]) =>
+    readStableFile(input.root, path, maximum, required)
+  ));
+  const unstable = paths.find(([key], index) =>
+    !sameObservation(input.snapshot[key], reread[index]!)
+  );
+  if (unstable !== undefined) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_SNAPSHOT_UNSTABLE",
+      `Consumer integration input changed while the repository snapshot was assembled: ${unstable[1]}.`
+    );
+  }
+}
+
 function yamlRecord(value: unknown, subject: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new ConsumerIntegrationNodeError(
@@ -246,36 +347,6 @@ function yamlRecord(value: unknown, subject: string): Record<string, unknown> {
     );
   }
   return value as Record<string, unknown>;
-}
-
-function validPnpmPeerContext(value: unknown, exactVersion: string): value is string {
-  if (value === exactVersion) {return true;}
-  if (typeof value !== "string" || !value.startsWith(`${exactVersion}(`)) {
-    return false;
-  }
-  const contentByDepth: boolean[] = [];
-  for (const character of value.slice(exactVersion.length)) {
-    if (character === "(") {
-      contentByDepth.push(false);
-    } else if (character === ")") {
-      if (contentByDepth.pop() !== true) {return false;}
-      if (contentByDepth.length > 0) {contentByDepth[contentByDepth.length - 1] = true;}
-    } else {
-      if (contentByDepth.length === 0 || /\s/u.test(character)) {return false;}
-      contentByDepth[contentByDepth.length - 1] = true;
-    }
-  }
-  return contentByDepth.length === 0;
-}
-
-function targetsManagedPackage(value: unknown): boolean {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-  return Object.keys(value).some((key) =>
-    key.includes("@agent-teams/docs-protocol") ||
-    key.includes("@agent-teams/engineering-foundation")
-  );
 }
 
 function assertRegistryPackageEntry(options: {
@@ -299,6 +370,46 @@ function assertRegistryPackageEntry(options: {
       "DOCS_CONSUMER_LOCKFILE_SOURCE_INVALID",
       `${options.packageName} must resolve from registry.npmjs.org.`
     );
+  }
+}
+
+function assertRootOwnsCohortPins(
+  importers: Record<string, unknown>,
+  packageNames: readonly string[]
+): void {
+  for (const [importerPath, importerValue] of Object.entries(importers)) {
+    if (importerPath === ".") {continue;}
+    const nestedImporter = yamlRecord(importerValue, `pnpm-lock.yaml#importers.${importerPath}`);
+    for (const field of ["dependencies", "devDependencies", "optionalDependencies"]) {
+      const declarations = nestedImporter[field];
+      if (declarations === undefined) {continue;}
+      const record = yamlRecord(declarations, `pnpm-lock.yaml#importers.${importerPath}.${field}`);
+      if (packageNames.some((packageName) => record[packageName] !== undefined)) {
+        throw new ConsumerIntegrationNodeError(
+          "DOCS_CONSUMER_NESTED_IMPORTER_PIN_FORBIDDEN",
+          `Only the root importer may own Docs Protocol cohort pins; found one in ${importerPath}.`
+        );
+      }
+    }
+  }
+}
+
+function assertRuntimeClosure(
+  lockfile: Record<string, unknown>,
+  desired: ConsumerIntegrationDesiredStateV1
+): void {
+  try {
+    const closureDigest = computePnpmRuntimeClosureDigestV1(lockfile, desired.cohort);
+    if (closureDigest !== desired.cohort.runtime.runtimeClosureDigest) {
+      throw new PnpmRuntimeClosureError(
+        "pnpm-lock.yaml transitive runtime closure does not match the qualified Cohort digest."
+      );
+    }
+  } catch (error) {
+    if (error instanceof PnpmRuntimeClosureError) {
+      throw new ConsumerIntegrationNodeError(error.code, error.message, { cause: error });
+    }
+    throw error;
   }
 }
 
@@ -338,10 +449,10 @@ async function assertQualifiedLockfile(
     );
   }
   const importers = yamlRecord(lockfile["importers"], "pnpm-lock.yaml#importers");
-  if (Object.keys(importers).length !== 1 || importers["."] === undefined) {
+  if (importers["."] === undefined) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UNSUPPORTED_WORKSPACE",
-      "V1 supports exactly one root pnpm importer."
+      "V1 requires one root pnpm importer in the repository lockfile."
     );
   }
   const importer = yamlRecord(
@@ -352,12 +463,25 @@ async function assertQualifiedLockfile(
     importer["devDependencies"],
     "pnpm-lock.yaml#importers...devDependencies"
   );
+  for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
+    const declarations = importer[field];
+    if (declarations === undefined) {continue;}
+    const record = yamlRecord(declarations, `pnpm-lock.yaml#importers...${field}`);
+    if (["@agent-teams/docs-protocol", "@agent-teams/engineering-foundation"]
+      .some((packageName) => record[packageName] !== undefined)) {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_NON_DEV_DEPENDENCY",
+        "Docs Protocol cohort packages may be declared only in root devDependencies."
+      );
+    }
+  }
   const packages = yamlRecord(lockfile["packages"], "pnpm-lock.yaml#packages");
   const snapshots = yamlRecord(lockfile["snapshots"], "pnpm-lock.yaml#snapshots");
   const targets = [
     ["@agent-teams/docs-protocol", desired.cohort.packages.docsProtocol],
     ["@agent-teams/engineering-foundation", desired.cohort.packages.engineeringFoundation]
   ] as const;
+  assertRootOwnsCohortPins(importers, targets.map(([packageName]) => packageName));
   for (const [packageName, target] of targets) {
     const importerEntry = yamlRecord(
       devDependencies[packageName],
@@ -421,6 +545,7 @@ async function assertQualifiedLockfile(
       "The selected Docs Protocol snapshot must depend on the exact cohort Foundation version."
     );
   }
+  assertRuntimeClosure(lockfile, desired);
   return observation;
 }
 
@@ -434,6 +559,8 @@ export async function readConsumerIntegrationInput(options: {
 }> {
   const root = await canonicalRoot(options.consumerRoot);
   await assertGitRepositoryRoot(root);
+  const topology = await scanConsumerRepositoryTopology(root);
+  assertSingleIntegrationTopology(topology);
   await assertQualifiedPnpmRoot(root);
   const profilePath = options.integrationProfilePath ?? INTEGRATION_PROFILE_PATH;
   if (profilePath !== INTEGRATION_PROFILE_PATH) {
@@ -457,6 +584,7 @@ export async function readConsumerIntegrationInput(options: {
     ) as unknown as ConsumerIntegrationDesiredStateV1;
     rejectPrototypeKeys(desired);
     await assertConsumerIntegrationProfileSchema(desired);
+    assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
     lockfile = await assertQualifiedLockfile(root, desired);
   } catch (error) {
@@ -474,17 +602,19 @@ export async function readConsumerIntegrationInput(options: {
     readStableFile(root, desired.callerWorkflowPath, MAXIMUM_MANAGED_ASSET_BYTES, false),
     readStableFile(root, desired.managedStatePath, MAXIMUM_MANAGED_ASSET_BYTES, false)
   ]);
+  const snapshot = {
+    integrationProfile: profile,
+    lockfile,
+    packageManifest,
+    agents,
+    skill,
+    callerWorkflow,
+    managedState
+  };
+  await assertSnapshotStillStable({ root, desired, snapshot });
   return {
     desired,
     root,
-    snapshot: {
-      integrationProfile: profile,
-      lockfile,
-      packageManifest,
-      agents,
-      skill,
-      callerWorkflow,
-      managedState
-    }
+    snapshot
   };
 }

@@ -75,6 +75,21 @@ test("rejects path collisions, unknown bytes, mode changes, and duplicate preima
   })) }), /Transaction evidence exceeds/u);
 });
 
+test("rejects operation paths that overlap as ancestor and descendant", () => {
+  assert.throws(() => compileKnownFileTransactionPlan({ operations: [
+    {
+      path: "managed",
+      precondition: { state: "absent" },
+      postimage: { bytes: bytes("file\n") }
+    },
+    {
+      path: "managed/child.txt",
+      precondition: { state: "absent" },
+      postimage: { bytes: bytes("child\n") }
+    }
+  ] }), /ancestor and descendant/u);
+});
+
 test("rejects non-canonical or tampered wire Plans", () => {
   const plan = compileKnownFileTransactionPlan({ operations: [{
     path: "package.json",
@@ -85,4 +100,14 @@ test("rejects non-canonical or tampered wire Plans", () => {
   const tampered = structuredClone(plan);
   tampered.operations[0].postimage.contentBase64 = Buffer.from("other\n").toString("base64");
   assert.throws(() => assertKnownFileTransactionPlan(tampered), /bytes or digest/u);
+});
+
+test("validates canonical create Plans with an explicit non-default mode", () => {
+  const plan = compileKnownFileTransactionPlan({ operations: [{
+    path: "bin/tool",
+    precondition: { state: "absent" },
+    postimage: { bytes: bytes("#!/bin/sh\n"), mode: 0o755 }
+  }] });
+  assert.equal(plan.operations[0].postimage.mode, 0o755);
+  assert.doesNotThrow(() => assertKnownFileTransactionPlan(plan));
 });

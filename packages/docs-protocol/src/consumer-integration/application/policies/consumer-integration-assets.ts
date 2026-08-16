@@ -3,38 +3,20 @@ import { createHash } from "node:crypto";
 import type {
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDigest,
-  QualifiedDocsCohortV1
+  QualifiedDocsCohortBindingV1
 } from "../../domain/model.js";
+import {
+  GENERATED_CALLER_WORKFLOW_TEMPLATE,
+  GENERATED_DOCS_SKILL
+} from "../../generated/canonical-assets.js";
 
-export const CANONICAL_DOCS_SKILL = `---
-name: docs-authoring
-description: Use when creating, changing, reorganizing, or reviewing governed documentation in this repository.
----
+const CATALOG_SOURCE = Object.freeze({
+  skill: GENERATED_DOCS_SKILL,
+  callerWorkflowTemplate: GENERATED_CALLER_WORKFLOW_TEMPLATE
+});
 
-# Documentation Authoring
-
-Protocol: \`agent-teams.docs-protocol/v1\`.
-
-## Required workflow
-
-- Read the current types, owners, placement, metadata, and index policy with \`pnpm docs:info\`.
-- Search first with \`pnpm docs:find -- --text query\`.
-- Reuse or relate existing authority instead of creating a competing source.
-- Preview with \`pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --dry-run\`.
-- Review the exact destination, metadata, relations, anchors, and diagnostics.
-- Apply with \`pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --apply\` after review.
-- Manually update the reported index/link exactly when reachability requires it.
-- Finish with \`pnpm docs:check\` after the index is current.
-
-## Rules
-
-- Never invent owners, types, statuses, paths, or metadata outside \`docs:info\`.
-- If dependencies are absent, use only \`pnpm install --frozen-lockfile\`; never use npx, dlx, or latest tags.
-- Keep preview and apply inputs identical.
-- Stop when recovery is required; use \`pnpm docs:doctor\` before \`pnpm docs:recover\`.
-- Resolve required anchors and blockers before apply.
-- Do not bypass repository scripts or hand-edit transaction evidence.
-`;
+export const CANONICAL_DOCS_SKILL = CATALOG_SOURCE.skill;
+export const CANONICAL_CALLER_WORKFLOW_TEMPLATE = CATALOG_SOURCE.callerWorkflowTemplate;
 
 export const BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS: readonly Uint8Array[] = Object.freeze([
   Buffer.from(CANONICAL_DOCS_SKILL
@@ -73,6 +55,57 @@ jobs:
 `, "utf8")
 ]);
 
+export interface KnownPriorCohortCatalogEntryV1 {
+  readonly cohort: QualifiedDocsCohortBindingV1;
+  readonly skill: Uint8Array;
+  readonly callerWorkflow: Uint8Array;
+  readonly agentsRouteDigest: ConsumerIntegrationDigest;
+  readonly docsScriptsDigest: ConsumerIntegrationDigest;
+}
+
+export interface CurrentSourceExecutorV1 {
+  readonly packages: QualifiedDocsCohortBindingV1["packages"];
+  readonly schemas: QualifiedDocsCohortBindingV1["schemas"];
+  readonly runtime: QualifiedDocsCohortBindingV1["runtime"];
+  readonly assetCatalogDigest: ConsumerIntegrationDigest;
+  readonly skillDigest: ConsumerIntegrationDigest;
+  readonly callerWorkflowDigest: ConsumerIntegrationDigest;
+  readonly agentsRouteDigest: ConsumerIntegrationDigest;
+  readonly docsScriptsDigest: ConsumerIntegrationDigest;
+  readonly directTargetCohortIds: readonly string[];
+}
+
+export interface ConsumerAssetCatalogV1 {
+  readonly catalogDigest: ConsumerIntegrationDigest;
+  readonly transitionCatalogDigest: ConsumerIntegrationDigest;
+  readonly currentSourceExecutors: readonly CurrentSourceExecutorV1[];
+  readonly directTargetBundles: readonly KnownPriorCohortCatalogEntryV1[];
+}
+
+export const BUNDLED_KNOWN_PRIOR_COHORTS: readonly KnownPriorCohortCatalogEntryV1[] =
+  Object.freeze([]);
+export const BUNDLED_CURRENT_SOURCE_EXECUTORS: readonly CurrentSourceExecutorV1[] =
+  Object.freeze([]);
+
+export const CANONICAL_TRANSITION_CATALOG = `${canonicalConsumerIntegrationJson({
+  schemaVersion: 1,
+  currentSourceExecutors: BUNDLED_CURRENT_SOURCE_EXECUTORS,
+  directTargetBundles: []
+})}\n`;
+
+export const CANONICAL_ASSET_CATALOG = `${canonicalConsumerIntegrationJson({
+  schemaVersion: 1,
+  skillPath: "skills/docs/SKILL.md",
+  skillDigest: digestBytes(Buffer.from(CATALOG_SOURCE.skill, "utf8")),
+  callerWorkflowTemplatePath: "assets/docs-protocol.yml",
+  callerWorkflowTemplateDigest: digestBytes(Buffer.from(
+    CATALOG_SOURCE.callerWorkflowTemplate,
+    "utf8"
+  )),
+  routeTemplate: canonicalManagedRoute("{skillPath}"),
+  scriptsTemplate: canonicalDocsScripts("{profilePath}"),
+})}\n`;
+
 export function isBootstrapKnownPriorCallerWorkflow(bytes: Uint8Array): boolean {
   let source: string;
   try {
@@ -97,20 +130,11 @@ export function digestBytes(value: Uint8Array): ConsumerIntegrationDigest {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-export function canonicalCallerWorkflow(cohort: QualifiedDocsCohortV1): string {
-  return `name: Documentation Protocol
-
-on:
-  pull_request:
-  push:
-
-permissions:
-  contents: read
-
-jobs:
-  docs-protocol:
-    uses: ${cohort.workflow.repository}/${cohort.workflow.path}@${cohort.workflow.revision}
-`;
+export function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV1): string {
+  return CANONICAL_CALLER_WORKFLOW_TEMPLATE
+    .replace("{{REUSABLE_WORKFLOW_REPOSITORY}}", cohort.workflow.repository)
+    .replace("{{REUSABLE_WORKFLOW_PATH}}", cohort.workflow.path)
+    .replace("{{REUSABLE_WORKFLOW_REVISION}}", cohort.workflow.revision);
 }
 
 export function canonicalDocsScriptsDigest(profilePath: string): ConsumerIntegrationDigest {
@@ -161,6 +185,8 @@ export function canonicalManagedState(
   assets: {
     readonly skillDigest: ConsumerIntegrationDigest;
     readonly callerWorkflowDigest: ConsumerIntegrationDigest;
+    readonly assetCatalogDigest: ConsumerIntegrationDigest;
+    readonly transitionCatalogDigest: ConsumerIntegrationDigest;
     readonly agentsRouteDigest: ConsumerIntegrationDigest;
     readonly docsScriptsDigest: ConsumerIntegrationDigest;
   }
@@ -172,13 +198,14 @@ export function canonicalManagedState(
       channel: desired.cohort.channel,
       recordDigest: desired.cohort.recordDigest,
       qualificationEventDigest: desired.cohort.qualificationEventDigest,
-      lifecycleState: desired.cohort.lifecycleState,
       eligibleAfter: desired.cohort.eligibleAfter,
       upgradeFrom: desired.cohort.upgradeFrom,
       rollbackTo: desired.cohort.rollbackTo
     },
     repository: desired.repository,
     packages: desired.cohort.packages,
+    schemas: desired.cohort.schemas,
+    runtime: desired.cohort.runtime,
     profilePath: desired.profilePath,
     skillPath: desired.skillPath,
     callerWorkflowPath: desired.callerWorkflowPath,
@@ -195,31 +222,19 @@ export function canonicalManagedState(
   return `${canonicalConsumerIntegrationJson({ ...body, stateDigest })}\n`;
 }
 
-export function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortV1): {
+export function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortBindingV1): {
   readonly skillDigest: ConsumerIntegrationDigest;
   readonly callerWorkflowDigest: ConsumerIntegrationDigest;
   readonly assetCatalogDigest: ConsumerIntegrationDigest;
+  readonly transitionCatalogDigest: ConsumerIntegrationDigest;
 } {
   const skillDigest = digestBytes(Buffer.from(CANONICAL_DOCS_SKILL, "utf8"));
   const callerWorkflowDigest = digestBytes(Buffer.from(canonicalCallerWorkflow(cohort), "utf8"));
-  const assetCatalogDigest = digestBytes(Buffer.from(canonicalConsumerIntegrationJson({
-    schemaVersion: 1,
-    current: {
-      skillDigest,
-      callerWorkflowDigest,
-      routeTemplateDigest: digestBytes(Buffer.from(canonicalManagedRoute("{skillPath}"), "utf8")),
-      scriptsTemplateDigest: canonicalDocsScriptsDigest("{profilePath}")
-    },
-    knownPriorCallerWorkflowDigests: BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS
-      .map(digestBytes)
-      .toSorted(),
-    knownPriorSkillDigests: BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS
-      .map(digestBytes)
-      .toSorted()
-  }), "utf8"));
+  const assetCatalogDigest = digestBytes(Buffer.from(CANONICAL_ASSET_CATALOG, "utf8"));
   return Object.freeze({
     skillDigest,
     callerWorkflowDigest,
-    assetCatalogDigest
+    assetCatalogDigest,
+    transitionCatalogDigest: digestBytes(Buffer.from(CANONICAL_TRANSITION_CATALOG, "utf8"))
   });
 }

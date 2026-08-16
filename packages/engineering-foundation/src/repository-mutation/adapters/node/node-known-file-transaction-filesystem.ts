@@ -72,6 +72,14 @@ export function knownFileTemporaryName(
   return `.${basename(path)}.agent-teams.${planDigest.slice(7, 23)}.${operationIndex}.tmp`;
 }
 
+export function knownFileCaptureDirectoryName(
+  path: string,
+  planDigest: string,
+  operationIndex: number
+): string {
+  return `.${basename(path)}.agent-teams.capture.${planDigest.slice(7, 23)}.${operationIndex}`;
+}
+
 export async function canonicalKnownFileRoot(consumerRoot: string): Promise<string> {
   const requested = resolve(consumerRoot);
   const metadata = await lstat(requested);
@@ -157,12 +165,6 @@ export async function observeKnownFile(
       `Managed path must be a real regular file: ${repositoryPath}.`
     );
   }
-  if (metadata.nlink > 1n) {
-    throw new KnownFileTransactionError(
-      "KNOWN_FILE_HARDLINK",
-      `Managed path has multiple hard links: ${repositoryPath}.`
-    );
-  }
   const observed = await readBoundedRegularFile(
     path,
     Math.max(maximumBytes, MAXIMUM_MANAGED_FILE_BYTES)
@@ -171,6 +173,12 @@ export async function observeKnownFile(
     throw new KnownFileTransactionError(
       "KNOWN_FILE_UNSTABLE",
       `Managed path is oversized, unstable, or invalid: ${repositoryPath}.`
+    );
+  }
+  if (observed.linkCount !== 1n) {
+    throw new KnownFileTransactionError(
+      "KNOWN_FILE_HARDLINK",
+      `Managed path has multiple hard links: ${repositoryPath}.`
     );
   }
   return {

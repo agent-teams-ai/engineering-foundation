@@ -31,11 +31,12 @@
     "journal": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "plan", "operations", "createdDirectories"],
+      "required": ["schemaVersion", "plan", "operations", "authorizedDirectories", "createdDirectories"],
       "properties": {
         "schemaVersion": { "const": 1 },
         "plan": { "$ref": "https://agent-teams.ai/schemas/known-file-transaction-plan/v1" },
         "operations": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/journalOperation" } },
+        "authorizedDirectories": { "type": "array", "maxItems": 128, "items": { "type": "string", "minLength": 1, "maxLength": 1024 } },
         "createdDirectories": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/createdDirectory" } }
       }
     },
@@ -59,11 +60,26 @@
       "required": ["path", "state"],
       "properties": {
         "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
-        "state": { "enum": ["already-satisfied", "pending", "temporary-ready", "publishing", "published"] },
+        "state": { "enum": ["already-satisfied", "pending", "temporary-authorized", "temporary-ready", "capture-authorized", "capture-ready", "preimage-captured", "destination-retired", "publishing", "published", "rollback-restored"] },
         "matchedPreimage": { "type": "integer", "minimum": 0, "maximum": 15 },
-        "temporaryIdentity": { "$ref": "#/$defs/identity" }
+        "rollbackTemporaryIdentity": { "$ref": "#/$defs/identity" },
+        "temporaryIdentity": { "$ref": "#/$defs/identity" },
+        "captureDirectoryIdentity": { "$ref": "#/$defs/identity" },
+        "capturedPreimageIdentity": { "$ref": "#/$defs/identity" },
+        "retirement": { "$ref": "#/$defs/retirement" }
       },
       "additionalProperties": false
+    },
+    "retirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "state", "directoryIdentity", "pathIdentity"],
+      "properties": {
+        "kind": { "enum": ["destination", "rollback-temporary", "temporary"] },
+        "state": { "enum": ["ready", "captured", "unlink-authorized"] },
+        "directoryIdentity": { "$ref": "#/$defs/identity" },
+        "pathIdentity": { "$ref": "#/$defs/identity" }
+      }
     },
     "createdDirectory": {
       "type": "object",

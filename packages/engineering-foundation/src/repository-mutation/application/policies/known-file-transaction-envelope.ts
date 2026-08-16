@@ -9,12 +9,13 @@ import type {
 } from "../model/known-file-transaction-journal.js";
 import { deserializeKnownFileIdentity } from "../model/known-file-transaction-journal.js";
 import type { KnownFileTransactionPlanV1 } from "../model/known-file-transaction.js";
+import { portableRepositoryPathProblem } from "../model/repository-path.js";
 import { assertKnownFileTransactionPlan } from "./known-file-transaction-plan.js";
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const POSITIVE_INTEGER = /^[1-9][0-9]*$/u;
 
-export class KnownFileTransactionEnvelopeError extends Error {
+class KnownFileTransactionEnvelopeError extends Error {
   public constructor(message: string) {
     super(message);
     this.name = "KnownFileTransactionEnvelopeError";
@@ -53,6 +54,77 @@ function assertIdentity(value: unknown, subject: string): void {
   });
 }
 
+function journalOperationKeys(
+  operation: Record<string, unknown>,
+  withTemporary: boolean
+): string[] {
+  if (!withTemporary) {
+    return operation["matchedPreimage"] === undefined
+      ? ["path", "state"]
+      : ["matchedPreimage", "path", "state"];
+  }
+  return [
+    ...(operation["matchedPreimage"] === undefined ? [] : ["matchedPreimage"]),
+    "path",
+    ...(operation["rollbackTemporaryIdentity"] === undefined
+      ? []
+      : ["rollbackTemporaryIdentity"]),
+    ...(operation["captureDirectoryIdentity"] === undefined
+      ? []
+      : ["captureDirectoryIdentity"]),
+    ...(operation["capturedPreimageIdentity"] === undefined
+      ? []
+      : ["capturedPreimageIdentity"]),
+    ...(operation["retirement"] === undefined ? [] : ["retirement"]),
+    "state",
+    "temporaryIdentity"
+  ];
+}
+
+function assertJournalOperationIdentities(options: {
+  readonly index: number;
+  readonly operation: Record<string, unknown>;
+  readonly precondition: KnownFileTransactionPlanV1["operations"][number]["precondition"] | undefined;
+  readonly state: unknown;
+}): void {
+  const subject = `Known-file journal operation ${options.index}`;
+  assertIdentity(options.operation["temporaryIdentity"], `${subject} temporary identity`);
+  if (options.operation["rollbackTemporaryIdentity"] !== undefined) {
+    if (options.precondition?.state !== "known-file") {
+      throw new KnownFileTransactionEnvelopeError(`${subject} rollback identity is invalid.`);
+    }
+    assertIdentity(options.operation["rollbackTemporaryIdentity"], `${subject} rollback temporary identity`);
+  }
+  if (options.operation["captureDirectoryIdentity"] !== undefined) {
+    if (options.precondition?.state !== "known-file") {
+      throw new KnownFileTransactionEnvelopeError(`${subject} capture directory identity is invalid.`);
+    }
+    assertIdentity(options.operation["captureDirectoryIdentity"], `${subject} capture directory identity`);
+  }
+  if (options.operation["capturedPreimageIdentity"] !== undefined) {
+    if (options.precondition?.state !== "known-file" ||
+      options.operation["captureDirectoryIdentity"] === undefined ||
+      !["preimage-captured", "destination-retired", "publishing", "published", "rollback-restored"].includes(String(options.state))) {
+      throw new KnownFileTransactionEnvelopeError(`${subject} captured preimage identity is invalid.`);
+    }
+    assertIdentity(options.operation["capturedPreimageIdentity"], `${subject} captured preimage identity`);
+  }
+  if (options.operation["retirement"] !== undefined) {
+    const retirement = record(options.operation["retirement"], `${subject} retirement`);
+    exactKeys(retirement, ["directoryIdentity", "kind", "pathIdentity", "state"], `${subject} retirement`);
+    if (!["destination", "rollback-temporary", "temporary"].includes(String(retirement["kind"])) ||
+      !["ready", "captured", "unlink-authorized"].includes(String(retirement["state"]))) {
+      throw new KnownFileTransactionEnvelopeError(`${subject} retirement transition is invalid.`);
+    }
+    assertIdentity(retirement["directoryIdentity"], `${subject} retirement directory identity`);
+    assertIdentity(retirement["pathIdentity"], `${subject} retirement path identity`);
+  }
+  if (["capture-ready", "preimage-captured", "destination-retired"].includes(String(options.state)) &&
+    options.operation["captureDirectoryIdentity"] === undefined) {
+    throw new KnownFileTransactionEnvelopeError(`${subject} lacks capture directory identity.`);
+  }
+}
+
 function assertJournalOperation(
   candidate: unknown,
   index: number,
@@ -60,20 +132,16 @@ function assertJournalOperation(
 ): void {
     const operation = record(candidate, `Known-file journal operation ${index}`);
     const state = operation["state"];
-    const withTemporary = ["temporary-ready", "publishing", "published"].includes(String(state));
-    exactKeys(
-      operation,
-      withTemporary
-        ? operation["matchedPreimage"] === undefined
-          ? ["path", "state", "temporaryIdentity"]
-          : ["matchedPreimage", "path", "state", "temporaryIdentity"]
-        : operation["matchedPreimage"] === undefined
-          ? ["path", "state"]
-          : ["matchedPreimage", "path", "state"],
-      `Known-file journal operation ${index}`
-    );
+    const withTemporary = [
+      "temporary-ready", "capture-authorized", "capture-ready", "preimage-captured",
+      "destination-retired", "publishing", "published", "rollback-restored"
+    ].includes(String(state));
+    exactKeys(operation, journalOperationKeys(operation, withTemporary), `Known-file journal operation ${index}`);
     if (operation["path"] !== plan.operations[index]?.path ||
-      !["already-satisfied", "pending", "temporary-ready", "publishing", "published"].includes(String(state))) {
+      ![
+        "already-satisfied", "pending", "temporary-authorized", "temporary-ready", "capture-authorized", "capture-ready",
+        "preimage-captured", "destination-retired", "publishing", "published", "rollback-restored"
+      ].includes(String(state))) {
       throw new KnownFileTransactionEnvelopeError(`Known-file journal operation ${index} is invalid.`);
     }
     const matched = operation["matchedPreimage"];
@@ -84,27 +152,52 @@ function assertJournalOperation(
       throw new KnownFileTransactionEnvelopeError(`Known-file journal operation ${index} preimage binding is invalid.`);
     }
     if (withTemporary) {
-      assertIdentity(operation["temporaryIdentity"], `Known-file journal operation ${index} temporary identity`);
+      assertJournalOperationIdentities({ index, operation, precondition, state });
     }
 }
 
-function assertCreatedDirectories(value: unknown): void {
+function permittedParentDirectories(plan: KnownFileTransactionPlanV1): Set<string> {
+  const permitted = new Set<string>();
+  for (const operation of plan.operations) {
+    const segments = operation.path.split("/");
+    segments.pop();
+    for (let count = 1; count <= segments.length; count += 1) {
+      permitted.add(segments.slice(0, count).join("/"));
+    }
+  }
+  return permitted;
+}
+
+function assertCreatedDirectories(
+  value: unknown,
+  plan: KnownFileTransactionPlanV1
+): readonly string[] {
   if (!Array.isArray(value) || value.length > 128) {
     throw new KnownFileTransactionEnvelopeError("Known-file created-directory evidence is invalid.");
   }
+  const permitted = permittedParentDirectories(plan);
+  const paths: string[] = [];
   for (const [index, candidate] of value.entries()) {
     const directory = record(candidate, `Known-file created directory ${index}`);
     exactKeys(directory, ["identity", "path"], `Known-file created directory ${index}`);
-    if (typeof directory["path"] !== "string") {
+    if (typeof directory["path"] !== "string" ||
+      portableRepositoryPathProblem(directory["path"]) !== undefined ||
+      directory["path"].normalize("NFC") !== directory["path"] ||
+      !permitted.has(directory["path"])) {
       throw new KnownFileTransactionEnvelopeError(`Known-file created directory ${index} path is invalid.`);
     }
     assertIdentity(directory["identity"], `Known-file created directory ${index} identity`);
+    paths.push(directory["path"]);
   }
+  if (new Set(paths).size !== paths.length) {
+    throw new KnownFileTransactionEnvelopeError("Known-file created-directory evidence contains duplicates.");
+  }
+  return paths;
 }
 
 function assertJournal(value: unknown): asserts value is KnownFileTransactionJournalV1 {
   const journal = record(value, "Known-file transaction journal");
-  exactKeys(journal, ["createdDirectories", "operations", "plan", "schemaVersion"], "Known-file transaction journal");
+  exactKeys(journal, ["authorizedDirectories", "createdDirectories", "operations", "plan", "schemaVersion"], "Known-file transaction journal");
   if (journal["schemaVersion"] !== 1) {
     throw new KnownFileTransactionEnvelopeError("Known-file transaction journal version is unsupported.");
   }
@@ -116,7 +209,16 @@ function assertJournal(value: unknown): asserts value is KnownFileTransactionJou
   journal["operations"].forEach((candidate, index) => {
     assertJournalOperation(candidate, index, plan);
   });
-  assertCreatedDirectories(journal["createdDirectories"]);
+  const createdPaths = assertCreatedDirectories(journal["createdDirectories"], plan);
+  const authorizedDirectories: unknown = journal["authorizedDirectories"];
+  if (!Array.isArray(authorizedDirectories) || authorizedDirectories.length > 128 ||
+    authorizedDirectories.some((path: unknown) => typeof path !== "string" ||
+      portableRepositoryPathProblem(path) !== undefined || path.normalize("NFC") !== path ||
+      !permittedParentDirectories(plan).has(path)) ||
+    new Set(authorizedDirectories as string[]).size !== authorizedDirectories.length ||
+    (authorizedDirectories as string[]).some((path) => createdPaths.includes(path))) {
+    throw new KnownFileTransactionEnvelopeError("Known-file authorized-directory evidence is invalid.");
+  }
 }
 
 function body(input: {

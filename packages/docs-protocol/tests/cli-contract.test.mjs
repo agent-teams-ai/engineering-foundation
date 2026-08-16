@@ -10,6 +10,8 @@ const fixture = new URL("./fixtures/qualification", import.meta.url).pathname;
 test("help succeeds through one pnpm-style separator", async () => {
   const result = await execute(process.execPath, [cli.pathname, "--", "--help"]);
   assert.match(result.stdout, /^Usage: agent-teams-docs/u);
+  assert.match(result.stdout, /\|consumer>/u);
+  assert.match(result.stdout, /consumer --help/u);
   assert.equal(result.stderr, "");
 });
 

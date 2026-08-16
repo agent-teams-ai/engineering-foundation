@@ -44,11 +44,12 @@
     "assets": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest"],
+      "required": ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest"],
       "properties": {
         "skillDigest": { "$ref": "#/$defs/sha256" },
         "callerWorkflowDigest": { "$ref": "#/$defs/sha256" },
-        "assetCatalogDigest": { "$ref": "#/$defs/sha256" }
+        "assetCatalogDigest": { "$ref": "#/$defs/sha256" },
+        "transitionCatalogDigest": { "$ref": "#/$defs/sha256" }
       }
     },
     "schemas": {
@@ -64,10 +65,11 @@
     "runtime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["node", "pnpm"],
+      "required": ["node", "pnpm", "runtimeClosureDigest"],
       "properties": {
         "node": { "const": ">=24.18.0 <25" },
-        "pnpm": { "const": ">=11.17.0 <12" }
+        "pnpm": { "const": ">=11.17.0 <12" },
+        "runtimeClosureDigest": { "$ref": "#/$defs/nonzeroSha256" }
       }
     }
   },

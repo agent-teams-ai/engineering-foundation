@@ -1,13 +1,8 @@
 # Release Procedure
 
-The first public `@agent-teams/engineering-foundation` release is bootstrapped
-manually with npm 2FA after `pnpm check` passes. After that release:
-
-1. configure this repository and release workflow as the package's npm trusted
-   publisher;
-2. enable GitHub OIDC publishing and automatic provenance;
-3. revoke any temporary automation write token;
-4. require the release PR and complete CI before publication.
+All current Foundation and Docs Protocol releases use npm Trusted Publishing
+from the protected `main` workflow with GitHub OIDC and automatic provenance.
+Manual workstation publication and stored npm credentials are not supported.
 
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
@@ -22,12 +17,56 @@ the public catalog entry directly and binds it to the exact packed Foundation
 version.
 
 Release-candidate waves use committed Changesets prerelease state with the exact
-`rc` tag. The publish policy requires an `-rc.N` version for every package in
-the wave, then invokes plain `changeset publish`; Changesets applies the
-committed prerelease tag. Contradictory, mixed, or unknown prerelease state fails
-closed before npm publication. Therefore an RC cannot move npm's `latest`
-dist-tag. Returning to stable publication requires a separately reviewed
-Changesets prerelease-exit change.
+`rc` tag. Changesets remains the sole version and changelog authority, but the
+publish step is deliberately ordered rather than delegated to concurrent
+workspace publication. It packs both reviewed artifacts, proves that Docs
+Protocol names the exact packed Foundation version, and publishes Foundation
+directly under the reviewed final `rc` or `latest` tag using npm Trusted
+Publishing with the npm version bundled by the pinned Node runtime. No npm
+token is stored. Immediately before each npm write, the live protected
+`refs/heads/main` must still equal the run's exact `GITHUB_SHA`; an older run may
+inspect and reconcile an already-published exact pair but cannot publish a
+missing version. Only after npm exposes the exact SRI, tarball manifest,
+trusted provenance, source repository, workflow and commit does it run npm's
+cryptographic signature and attestation audit. Release authority is derived
+only from the exact SLSA statement inside that npm-verified Sigstore bundle,
+including package subject, tarball SRI, repository, workflow, ref and commit.
+Separately fetched registry attestation data is only supplementary and must
+agree with the verified statement. Only a clean exact-package signature result
+permits Docs Protocol publication under the same final tag. Docs Protocol must
+pass the same audit before Git tags or GitHub releases are reconciled. It
+additionally requires
+`Foundation published_at <= Docs Protocol published_at`. After both signature
+checks it re-reads both exact tarballs, final tags, SRI and provenance before
+creating any GitHub release. The short interval where only Foundation's final
+tag has moved is non-authoritative: consumer admission starts only after the
+exact pair receives an external Qualified Cohort.
+
+The ordered publisher also owns idempotent Git tag and GitHub release
+reconciliation. The Changesets action's built-in GitHub release creation is
+disabled because its two-package boundary is not retry-safe. Existing refs and
+releases are reused only when their commit, prerelease flag, title and exact
+Changesets changelog body match. A partial boundary is completed on retry.
+Later `main` commits accept only package provenance from a verified protected-main
+ancestor, require intact final tags, perform no npm writes, and emit no `New tag:`
+lines. A same-release-commit retry emits the two parser-compatible lines only
+after npm and GitHub postconditions have converged.
+
+A partial retry never uses `npm dist-tag`, overwrites or unpublishes an
+immutable npm version. It may skip an existing version only when its SRI,
+complete packed manifest and trusted source provenance exactly match the local
+reviewed artifact. A Foundation-only partial release can publish its missing
+Docs Protocol partner only while the current run SHA is the commit named by
+Foundation's verified provenance; a later unrelated `main` run performs no npm
+write. Before the first publication, both exact package states are inspected;
+a Docs-only state is quarantined without publishing Foundation. A timeout, 5xx,
+unknown publish result or temporarily missing version is retried only as a
+read-only registry observation. Persistent uncertainty fails closed. Any
+identity mismatch requires quarantine/deprecation and an explicitly reviewed
+new version; no further publication or GitHub release reconciliation occurs.
+Contradictory, mixed or unknown prerelease state still fails before npm
+publication, and an RC cannot move `latest`. Returning to stable publication
+requires a separately reviewed Changesets prerelease-exit change.
 
 Do not introduce Docs Protocol into the active Foundation 0.16 RC wave. First
 qualify and release stable Foundation 0.16.0 through a reviewed prerelease exit.
@@ -36,25 +75,10 @@ Changesets CLI, and let its Foundation-only minor Changeset generate
 Foundation 0.17.0-rc.0. Docs Protocol must remain private and exactly 0.0.0 in
 this release PR. Never edit Foundation versions or `.changeset/pre.json` by hand.
 
-After Foundation 0.17.0-rc.0 is available, dispatch the dormant ADR-0029
-workflow at the exact reviewed promotion commit. Use a granular read/write token
-restricted to the existing `@agent-teams` scope, expiring within one day; enable
-2FA bypass only if npm requires it for publication. The workflow publishes or
-resumes only the exact reviewed tarball and requires exact integrity, the sole
-`bootstrap: 0.0.0` tag, deprecation, and npm provenance. Only after those checks
-does a separate GitHub write job create or reuse the exact-SHA package tag and
-non-draft prerelease. Configure and verify npm trusted publishing, immediately
-revoke the token, remove the secret and bootstrap authority, and clean up the
-one-time workflow. Only then add the Docs Protocol minor Changeset that
-generates 0.1.0-rc.0 through the normal protected-main release path.
-
-If npm accepts `0.0.0` but its SRI or provenance cannot be verified, stop
-reconciliation. Never unpublish, overwrite, or silently reuse that immutable
-version. Retain the registry, signature, tag, and workflow evidence; deprecate
-the bad bootstrap and remove any adoptable dist-tags. The owner must approve a
-new bootstrap version or release candidate in a separate review. Restore only
-the explicitly approved tags after the replacement artifact's exact SRI and
-provenance pass, then record the incident before enabling trusted publishing.
+The one-time ADR-0029 namespace bootstrap is completed historical evidence, not
+an executable release procedure. Do not rerun its retired workflow. Any future
+namespace bootstrap requires a new reviewed ADR and must not weaken this
+repository's OIDC-only current release boundary.
 
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against
@@ -169,7 +193,7 @@ Before every publication:
   as separate supply-chain evidence.
 
 `release:publish` runs the real pinned Buf qualification and hermetic registry
-qualification after the normal repository checks and before `changeset publish`.
+qualification after the normal repository checks and before ordered publication.
 The registry qualification starts an isolated
 npm-compatible registry with no uplinks, publishes the packed package and its
 runtime dependency closure, installs by exact version, and verifies registry

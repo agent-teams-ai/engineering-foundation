@@ -6,7 +6,8 @@ import {
 } from "@agent-teams/engineering-foundation/mutation";
 
 import { readConsumerIntegrationInput } from "../adapters/node-consumer-integration-repository.js";
-import { planConsumerIntegration } from "../application/use-cases/plan-consumer-integration.js";
+import { loadPackageConsumerAssetCatalog } from "../adapters/package-consumer-asset-catalog.js";
+import { compileConsumerIntegration } from "../application/use-cases/plan-consumer-integration.js";
 import type {
   ConsumerIntegrationIssue,
   ConsumerIntegrationPlanV1
@@ -24,11 +25,21 @@ export interface ConsumerIntegrationExecutionV1 {
 async function compile(options: {
   readonly consumerRoot: string;
   readonly integrationProfilePath?: string;
-}): Promise<{ readonly root: string; readonly plan: ConsumerIntegrationPlanV1 }> {
+}): Promise<{
+  readonly root: string;
+  readonly plan: ConsumerIntegrationPlanV1;
+  readonly mutationPlan?: Parameters<typeof applyKnownFileTransaction>[0]["plan"];
+}> {
   const input = await readConsumerIntegrationInput(options);
+  const assetCatalog = await loadPackageConsumerAssetCatalog();
+  const compiled = compileConsumerIntegration({
+    desired: input.desired,
+    snapshot: input.snapshot,
+    assetCatalog
+  });
   return {
     root: input.root,
-    plan: planConsumerIntegration({ desired: input.desired, snapshot: input.snapshot })
+    ...compiled
   };
 }
 
@@ -109,7 +120,7 @@ export async function applyConsumerIntegration(options: {
 }): Promise<ConsumerIntegrationExecutionV1> {
   const issue = await recoveryIssue(options.consumerRoot);
   if (issue !== undefined) {return blockedExecution("consumer.apply", issue);}
-  const { root, plan } = await compile(options);
+  const { root, plan, mutationPlan } = await compile(options);
   if (plan.planDigest !== options.expect) {
     return Object.freeze({
       schemaVersion: 1,
@@ -124,7 +135,7 @@ export async function applyConsumerIntegration(options: {
       plan
     });
   }
-  if (plan.outcome === "blocked" || plan.mutationPlan === undefined) {
+  if (plan.outcome === "blocked" || mutationPlan === undefined) {
     return Object.freeze({
       schemaVersion: 1,
       command: "consumer.apply",
@@ -135,7 +146,7 @@ export async function applyConsumerIntegration(options: {
   }
   const receipt = await applyKnownFileTransaction({
     consumerRoot: root,
-    plan: plan.mutationPlan
+    plan: mutationPlan
   });
   const after = await compile(options);
   if (after.plan.outcome !== "current") {

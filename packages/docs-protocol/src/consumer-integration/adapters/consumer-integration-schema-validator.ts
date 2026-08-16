@@ -11,21 +11,10 @@ async function validator(
   if (existing !== undefined) {return existing;}
   const loading = (async () => {
     const ajv = new Ajv2020({ allErrors: true, strict: true });
-    if (id === "docs-consumer-integration-profile") {
-      const cohortUrl = new URL(
-        "../../../schemas/qualified-docs-cohort/v1.schema.json",
-        import.meta.url
-      );
-      ajv.addSchema(JSON.parse(await readFile(cohortUrl, "utf8")) as object);
-    }
     if (id === "docs-consumer-integration-execution") {
-      const [plan, mutationPlan, mutationReceipt] = await Promise.all([
+      const [plan, mutationReceipt] = await Promise.all([
         readFile(new URL(
           "../../../schemas/docs-consumer-integration-plan/v1.schema.json",
-          import.meta.url
-        ), "utf8"),
-        readFile(new URL(
-          "../../../../engineering-foundation/schemas/known-file-transaction-plan/v1.schema.json",
           import.meta.url
         ), "utf8"),
         readFile(new URL(
@@ -34,7 +23,6 @@ async function validator(
         ), "utf8")
       ]);
       ajv.addSchema(JSON.parse(plan) as object);
-      ajv.addSchema(JSON.parse(mutationPlan) as object);
       ajv.addSchema(JSON.parse(mutationReceipt) as object);
     }
     const schemaUrl = new URL(`../../../schemas/${id}/v1.schema.json`, import.meta.url);

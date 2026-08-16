@@ -16,7 +16,8 @@ import {
   pathMatchesRegularFileIdentity,
   readBoundedRegularFile
 } from "./node-bounded-regular-file.js";
-import { syncDirectoryStrictly } from "./node-directory-durability.js";
+import { cleanupIdentityMatchingOwnedTemporary } from "./node-cleanup-owned-temporary.js";
+import { syncDirectoryDurably, syncDirectoryStrictly } from "./node-directory-durability.js";
 
 const MAXIMUM_JOURNAL_BYTES = 32 * 1024 * 1024;
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
@@ -164,15 +165,41 @@ export class NodeKnownFileTransactionJournalStore {
 
   public async canonicalizeTemporary(): Promise<void> {
     const canonical = await readEnvelope(this.#journalPath);
-    const temporary = await readEnvelope(this.#temporaryPath);
     if (canonical !== undefined) {
-      if (temporary !== undefined) {
-        await prove(this.#temporaryPath, temporary.authority);
-        await unlink(this.#temporaryPath);
-        await syncDirectoryStrictly(this.#parent);
+      // The canonical envelope remains authoritative during replacement. A
+      // crash can leave an unbound candidate torn or foreign; recovery must
+      // neither parse nor mutate that pathname. It remains preserved evidence
+      // and must not be parsed as authority. Capture a stable regular
+      // candidate by identity and retire it into terminal evidence so neither
+      // a torn write nor a concurrent pathname replacement can block replay.
+      let candidate;
+      try {
+        candidate = await readBoundedRegularFile(
+          this.#temporaryPath,
+          MAXIMUM_JOURNAL_BYTES
+        );
+      } catch (error) {
+        if (errorCode(error) === "ENOENT") {return;}
+        throw error;
+      }
+      if (candidate.outcome !== "read") {
+        throw new Error("Known-file transaction candidate cannot be retired safely.");
+      }
+      const retired = await cleanupIdentityMatchingOwnedTemporary({
+        allowUnsupportedDirectoryDurability: false,
+        displayPath: KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
+        expectedIdentity: candidate.identity,
+        parent: this.#parent,
+        rm: async () => {},
+        syncDirectory: syncDirectoryDurably,
+        temporaryPath: this.#temporaryPath
+      });
+      if (retired === "different") {
+        throw new Error("Known-file transaction candidate changed during retirement.");
       }
       return;
     }
+    const temporary = await readEnvelope(this.#temporaryPath);
     if (temporary === undefined) {
       throw new Error("Known-file recovery journal is absent.");
     }

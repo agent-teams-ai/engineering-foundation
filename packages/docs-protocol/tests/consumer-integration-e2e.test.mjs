@@ -11,7 +11,6 @@ import {
   describeCanonicalConsumerAssets,
   planNodeConsumerIntegration
 } from "../dist/consumer-integration/index.js";
-import { applyKnownFileTransaction } from "../../engineering-foundation/dist/mutation/index.js";
 
 const INTEGRITY = `sha512-${"A".repeat(86)}==`;
 
@@ -22,11 +21,9 @@ function cohort() {
     channel: "rc",
     recordDigest: `sha256:${"1".repeat(64)}`,
     qualificationEventDigest: `sha256:${"2".repeat(64)}`,
-    lifecycleState: "RECOMMENDED",
     eligibleAfter: "2026-08-16T00:00:00Z",
     upgradeFrom: [],
     rollbackTo: [],
-    canaryRepositoryIds: [sandboxRepository().id],
     packages: {
       docsProtocol: { version: "0.2.0-rc.0", integrity: INTEGRITY },
       engineeringFoundation: { version: "0.18.0-rc.0", integrity: INTEGRITY }
@@ -42,7 +39,10 @@ function cohort() {
       callerWorkflowDigest: `sha256:${"0".repeat(64)}`
     },
     schemas: { consumerIntegration: 1, managedState: 1, docsProtocol: 1 },
-    runtime: { node: ">=24.18.0 <25", pnpm: ">=11.17.0 <12" }
+    runtime: {
+      node: ">=24.18.0 <25", pnpm: ">=11.17.0 <12",
+      runtimeClosureDigest: "sha256:a8d6c781ed2db0eddcb24f8b3a8e4a3e41b423a7f18a645e78e1c02f8d287293"
+    }
   };
   return { ...provisional, assets: describeCanonicalConsumerAssets(provisional) };
 }
@@ -92,6 +92,7 @@ async function sandbox() {
   };
   await Promise.all([
     writeFile(join(root, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`),
+    writeFile(join(root, ".node-version"), "24.18.0\n"),
     writeFile(join(root, "pnpm-lock.yaml"), `lockfileVersion: '9.0'
 importers:
   .:
@@ -102,6 +103,11 @@ importers:
       '@agent-teams/engineering-foundation':
         specifier: 0.18.0-rc.0
         version: 0.18.0-rc.0(supports-color@8.1.1)
+  packages/platform-app:
+    dependencies:
+      unrelated:
+        specifier: 1.2.3
+        version: 1.2.3
 packages:
   '@agent-teams/docs-protocol@0.2.0-rc.0':
     resolution:
@@ -235,7 +241,9 @@ test("plans, applies, verifies, and repeats the full consumer lifecycle offline"
     "consumer", "check", "--consumer", join(root, "missing"), "--json"
   ], { encoding: "utf8", env: { ...process.env, NO_PROXY: "*" } });
   assert.equal(missingRoot.status, 3, missingRoot.stderr);
-  assert.equal(JSON.parse(missingRoot.stdout).issues[0].code, "DOCS_CONSUMER_EXECUTION_FAILURE");
+  const missingRootIssue = JSON.parse(missingRoot.stdout).issues[0];
+  assert.equal(missingRootIssue.code, "DOCS_CONSUMER_EXECUTION_FAILURE");
+  assert.doesNotMatch(missingRootIssue.message, new RegExp(root.replaceAll("/", "\\/"), "u"));
 
   await mkdir(join(root, "nested"));
   await assert.rejects(
@@ -248,21 +256,110 @@ test("plans, applies, verifies, and repeats the full consumer lifecycle offline"
     checkConsumerIntegration({ consumerRoot: root }),
     (error) => error?.code === "DOCS_CONSUMER_NESTED_AGENTS_UNSUPPORTED"
   );
+  const integrationProfilePath = join(
+    root,
+    "architecture",
+    "foundation",
+    "docs-consumer-integration.json"
+  );
+  const scoped = JSON.parse(await readFile(integrationProfilePath, "utf8"));
+  scoped.governedDocsRoots = ["docs"];
+  await writeFile(integrationProfilePath, `${JSON.stringify(scoped, null, 2)}\n`);
+  assert.equal((await checkConsumerIntegration({ consumerRoot: root })).outcome, "current");
 });
 
-test("fails stale profile authority before publishing any managed operation", async () => {
+test("keeps the public plan byte-free and fails stale profile authority before mutation", async () => {
   const root = await sandbox();
   const planned = await planNodeConsumerIntegration({
     consumerRoot: root,
     to: cohort().cohortId
   });
   const agentsBefore = await readFile(join(root, "AGENTS.md"));
+  const serialized = JSON.stringify(planned);
+  assert.doesNotMatch(serialized, /mutationPlan|acceptedPreimages|contentBase64/u);
+  assert.ok(Buffer.byteLength(serialized) < 64 * 1024);
   const profilePath = join(root, "architecture", "foundation", "docs-consumer-integration.json");
-  await writeFile(profilePath, `${await readFile(profilePath, "utf8")}\n`);
+  await writeFile(profilePath, `${await readFile(profilePath, "utf8")}x`);
   await assert.rejects(
-    applyKnownFileTransaction({ consumerRoot: root, plan: planned.plan.mutationPlan }),
-    (error) => error?.code === "KNOWN_FILE_CAS_MISMATCH"
+    applyConsumerIntegration({ consumerRoot: root, expect: planned.plan.planDigest })
   );
   assert.deepEqual(await readFile(join(root, "AGENTS.md")), agentsBefore);
   await assert.rejects(readFile(join(root, ".agents", "skills", "docs-authoring", "SKILL.md")), /ENOENT/u);
+});
+
+test("fails closed for nested integration units, lockfiles, pnpmfile hooks, and non-dev pins", async () => {
+  const nestedLock = await sandbox();
+  await writeFile(join(nestedLock, ".gitignore"), "packages/\n");
+  await mkdir(join(nestedLock, "packages", "app"), { recursive: true });
+  await writeFile(join(nestedLock, "packages", "app", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+  await assert.rejects(
+    checkConsumerIntegration({ consumerRoot: nestedLock }),
+    (error) => error?.code === "DOCS_CONSUMER_NESTED_LOCKFILE_UNSUPPORTED"
+  );
+
+  const secondProfile = await sandbox();
+  await mkdir(join(secondProfile, "packages", "app", "architecture", "foundation"), { recursive: true });
+  await writeFile(
+    join(secondProfile, "packages", "app", "architecture", "foundation", "docs-consumer-integration.json"),
+    "{}\n"
+  );
+  await assert.rejects(
+    checkConsumerIntegration({ consumerRoot: secondProfile }),
+    (error) => error?.code === "DOCS_CONSUMER_MULTIPLE_INTEGRATION_UNITS"
+  );
+
+  const pnpmfile = await sandbox();
+  await writeFile(join(pnpmfile, ".pnpmfile.cjs"), "module.exports = {};\n");
+  await assert.rejects(
+    checkConsumerIntegration({ consumerRoot: pnpmfile }),
+    (error) => error?.code === "DOCS_CONSUMER_PNPMFILE_UNSUPPORTED"
+  );
+
+  const optionalPin = await sandbox();
+  const manifestPath = join(optionalPin, "package.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.optionalDependencies = { "@agent-teams/docs-protocol": "0.2.0-rc.0" };
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  const checked = await checkConsumerIntegration({ consumerRoot: optionalPin });
+  assert.equal(checked.outcome, "blocked");
+  assert.ok(checked.issues.some(({ code }) => code === "DOCS_CONSUMER_NON_DEV_DEPENDENCY"));
+});
+
+test("fails local check when a reachable transitive runtime dependency drifts", async () => {
+  const root = await sandbox();
+  const lockPath = join(root, "pnpm-lock.yaml");
+  const source = await readFile(lockPath, "utf8");
+  const changed = source
+    .replace("snapshots:\n", `  transitive-runtime@1.0.0:\n    resolution:\n      integrity: sha512-${"B".repeat(86)}==\nsnapshots:\n`)
+    .replace(
+      "      '@agent-teams/engineering-foundation': 0.18.0-rc.0(supports-color@8.1.1)\n",
+      "      '@agent-teams/engineering-foundation': 0.18.0-rc.0(supports-color@8.1.1)\n      transitive-runtime: 1.0.0\n"
+    )
+    .replace(
+      "  '@agent-teams/engineering-foundation@0.18.0-rc.0(supports-color@8.1.1)': {}\n",
+      "  '@agent-teams/engineering-foundation@0.18.0-rc.0(supports-color@8.1.1)': {}\n  transitive-runtime@1.0.0: {}\n"
+    );
+  await writeFile(lockPath, changed);
+  await assert.rejects(
+    checkConsumerIntegration({ consumerRoot: root }),
+    (error) => error?.code === "DOCS_CONSUMER_RUNTIME_CLOSURE_MISMATCH"
+  );
+});
+
+test("commits only immutable Cohort binding evidence", async () => {
+  const root = await sandbox();
+  const planned = await planNodeConsumerIntegration({ consumerRoot: root, to: cohort().cohortId });
+  await applyConsumerIntegration({ consumerRoot: root, expect: planned.plan.planDigest });
+  const state = JSON.parse(await readFile(
+    join(root, "architecture", "foundation", "docs-protocol-managed-state.json"),
+    "utf8"
+  ));
+  assert.equal(Object.hasOwn(state.cohortAuthority, "lifecycleState"), false);
+  assert.equal(Object.hasOwn(state, "canaryRepositoryIds"), false);
+
+  const profilePath = join(root, "architecture", "foundation", "docs-consumer-integration.json");
+  const profile = JSON.parse(await readFile(profilePath, "utf8"));
+  profile.cohort.lifecycleState = "RECOMMENDED";
+  await writeFile(profilePath, `${JSON.stringify(profile, null, 2)}\n`);
+  await assert.rejects(checkConsumerIntegration({ consumerRoot: root }), /additional properties/u);
 });

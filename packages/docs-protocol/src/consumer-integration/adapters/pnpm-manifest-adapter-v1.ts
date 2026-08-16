@@ -5,7 +5,7 @@ import type {
   ConsumerIntegrationDigest,
   ConsumerIntegrationFileObservation,
   ConsumerIntegrationIssue,
-  QualifiedDocsCohortV1
+  QualifiedDocsCohortBindingV1
 } from "../domain/model.js";
 import {
   canonicalConsumerIntegrationJson,
@@ -76,7 +76,9 @@ function parseManifest(bytes: Uint8Array): {
 
 function manifestShapeIssues(manifest: Record<string, unknown>): ConsumerIntegrationIssue[] {
   const issues: ConsumerIntegrationIssue[] = [];
-  for (const field of ["scripts", "dependencies", "devDependencies"] as const) {
+  for (const field of [
+    "scripts", "dependencies", "devDependencies", "optionalDependencies", "peerDependencies"
+  ] as const) {
     const value = manifest[field];
     if (value !== undefined &&
       (typeof value !== "object" || value === null || Array.isArray(value))) {
@@ -89,12 +91,24 @@ function manifestShapeIssues(manifest: Record<string, unknown>): ConsumerIntegra
 function cohortDependencyIssues(
   dependencies: Record<string, unknown>,
   devDependencies: Record<string, unknown>,
-  cohort: QualifiedDocsCohortV1
+  optionalDependencies: Record<string, unknown>,
+  peerDependencies: Record<string, unknown>,
+  cohort: QualifiedDocsCohortBindingV1
 ): ConsumerIntegrationIssue[] {
   const issues: ConsumerIntegrationIssue[] = [];
   for (const packageName of [DOCS_PACKAGE, FOUNDATION_PACKAGE]) {
-    if (dependencies[packageName] !== undefined) {
-      issues.push(issue("package.json#dependencies", "DOCS_CONSUMER_RUNTIME_DEPENDENCY", `${packageName} must remain development-only.`));
+    for (const [field, declarations] of [
+      ["dependencies", dependencies],
+      ["optionalDependencies", optionalDependencies],
+      ["peerDependencies", peerDependencies]
+    ] as const) {
+      if (declarations[packageName] !== undefined) {
+        issues.push(issue(
+          `package.json#${field}`,
+          "DOCS_CONSUMER_NON_DEV_DEPENDENCY",
+          `${packageName} may be declared only in root devDependencies.`
+        ));
+      }
     }
   }
   const requiredVersions = {
@@ -112,7 +126,7 @@ function cohortDependencyIssues(
 export function planPnpmManifestV1(input: {
   readonly observation: ConsumerIntegrationFileObservation;
   readonly profilePath: string;
-  readonly cohort: QualifiedDocsCohortV1;
+  readonly cohort: QualifiedDocsCohortBindingV1;
   readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;
 }): PnpmManifestPlanV1 {
   if (input.observation.state === "absent") {
@@ -142,7 +156,15 @@ export function planPnpmManifestV1(input: {
   const scripts = recordField(manifest, "scripts");
   const dependencies = recordField(manifest, "dependencies");
   const devDependencies = recordField(manifest, "devDependencies");
-  issues.push(...cohortDependencyIssues(dependencies, devDependencies, input.cohort));
+  const optionalDependencies = recordField(manifest, "optionalDependencies");
+  const peerDependencies = recordField(manifest, "peerDependencies");
+  issues.push(...cohortDependencyIssues(
+    dependencies,
+    devDependencies,
+    optionalDependencies,
+    peerDependencies,
+    input.cohort
+  ));
   const desiredScripts = canonicalDocsScripts(input.profilePath);
   const observedScripts = Object.fromEntries(Object.keys(desiredScripts).map((script) => [
     script,

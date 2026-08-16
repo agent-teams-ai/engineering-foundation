@@ -53,7 +53,7 @@ export type KnownFileTransactionOperationInput =
       readonly precondition: { readonly state: "absent" };
       readonly postimage: {
         readonly bytes: Uint8Array;
-        readonly mode?: 0o644;
+        readonly mode?: number;
       };
     }
   | {

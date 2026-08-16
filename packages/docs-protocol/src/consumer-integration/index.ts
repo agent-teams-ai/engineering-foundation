@@ -33,6 +33,6 @@ export type {
   ConsumerIntegrationIssue,
   ConsumerIntegrationPlanV1,
   ConsumerIntegrationSnapshot,
-  KnownPriorConsumerAssets,
+  QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortV1
 } from "./domain/model.js";

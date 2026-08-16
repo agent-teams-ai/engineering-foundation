@@ -1,7 +1,8 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": [
-    "./packages/engineering-foundation/presets/oxlint/type-aware.json"
+    "./packages/engineering-foundation/presets/oxlint/type-aware.json",
+    "./packages/engineering-foundation/presets/oxlint/maintainability.json"
   ],
   "ignorePatterns": [
     "packages/engineering-foundation/dist/**",

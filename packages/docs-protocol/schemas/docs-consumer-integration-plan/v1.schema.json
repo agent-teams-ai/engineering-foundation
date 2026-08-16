@@ -20,9 +20,6 @@
       "type": "array",
       "maxItems": 64,
       "items": { "$ref": "#/$defs/issue" }
-    },
-    "mutationPlan": {
-      "$ref": "https://agent-teams.ai/schemas/known-file-transaction-plan/v1"
     }
   },
   "$defs": {

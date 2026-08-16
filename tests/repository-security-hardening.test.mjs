@@ -490,6 +490,11 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   assert.equal(ci.jobs.check.needs.includes("dependency-review"), true);
   assert.equal(ci.jobs["windows-check"].needs.includes("dependency-review"), true);
   assert.equal(ci.jobs["macos-qualification"].needs, "dependency-review");
+  const macosMutationQualification = ci.jobs["macos-qualification"].steps.find(
+    ({ name }) => name === "Qualify repository mutation, scaffolding, and durable document writing",
+  )?.run;
+  assert.match(macosMutationQualification, /tests\/known-file-transaction-node\.test\.mjs/u);
+  assert.match(macosMutationQualification, /tests\/known-file-transaction-plan\.test\.mjs/u);
   for (const [jobId, job] of Object.entries(ci.jobs)) {
     if (jobId === "dependency-review") {
       continue;

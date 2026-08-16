@@ -39,12 +39,17 @@ maintenance mutation in one application object.
 4. `check` and `plan` are offline and write-free. They create no lock, cache,
    temporary, journal, receipt, telemetry, or mtime change.
 5. A Qualified Cohort is the upgrade unit. Floating npm tags and independent
-   package updates are not authority. The committed projection carries the
-   central Cohort record digest, qualification event digest, lifecycle state,
-   eligibility boundary, canary set, and explicit upgrade/rollback edges.
-   Local planning validates that projection and migration edge; the required
-   central governance check binds its opaque digests to the append-only registry
-   and remains the authority for qualification.
+   package updates are not authority. The committed projection carries only an
+   immutable Cohort binding: record and qualification-event digests, eligibility
+   boundary, explicit upgrade and rollback edges, and exact package, workflow,
+   asset, schema, and runtime identities. Runtime identity includes a digest of
+   the complete reachable pnpm runtime closure, including peer-qualified and
+   optional dependency edges, not only the two direct package pins. Local
+   planning recomputes that closure from the committed lockfile and validates
+   the immutable projection and migration edge. Current lifecycle, canary
+   admission, support, suspension, and fleet eligibility remain mutable central
+   governance state and are resolved only by the trusted required workflow
+   against the append-only registry.
 6. Full-byte ownership is limited to the canonical Skill, standalone caller
    workflow, and managed state. Partial ownership is limited to six docs scripts,
    two development dependency fields, and one exact managed route block in
@@ -59,12 +64,23 @@ maintenance mutation in one application object.
    `unsupported` without partial changes.
 9. Apply rebuilds the Plan, compares its expected digest, and delegates the
    exact operation set to Foundation's `replace-known-file/v1` port. The
-   integration profile and pnpm lockfile are exact read-only transaction guards,
-   validated before any managed publication. It never
-   executes operations from an untrusted saved plan and has no force mode.
+   integration profile, exact installed source executor, dependency pair, and
+   pnpm lockfile closure are read-only transaction guards validated before any
+   managed publication. It never executes operations from an untrusted saved
+   plan and has no force mode.
 10. The package manager remains the only lockfile writer. The reviewed upgrade
     branch updates exact dependency pins and the lockfile before the new CLI
     updates managed assets.
+11. Migration execution is source-owned. A package release carries a separate,
+    content-addressed transition catalog that identifies the exact source
+    executors it implements and bundles every directly reachable target Cohort's
+    immutable binding and managed assets. A central `upgradeFrom` or `rollbackTo`
+    edge is necessary governance authority, but cannot make an installed CLI
+    capable of a transition it does not bundle.
+12. The first production Cohort declares no fabricated rollback edge. It is
+    fix-forward only. A later release may qualify rollback by carrying the prior
+    Cohort as an exact direct target bundle while the central lifecycle still
+    considers that target eligible.
 
 ## Consequences
 
@@ -75,6 +91,9 @@ maintenance mutation in one application object.
 - Bootstrap still requires a reviewed branch with a profile projected from the
   qualified central record because an old CLI cannot install or generate its
   own successor.
+- A mutable governance event can suspend selection immediately, while immutable
+  committed consumer bytes and package-owned historical transition executors
+  remain reproducible.
 
 ## Rejected alternatives
 

@@ -384,7 +384,20 @@ snapshots:
     const planned = await invoke(["plan", "--to", cohort.cohortId]);
     if (planned.outcome !== "change-required") {throw new Error("Packed consumer plan did not require adoption.");}
     const applied = await invoke(["apply", "--expect", planned.plan.planDigest]);
-    if (applied.outcome !== "applied") {throw new Error("Packed consumer apply did not commit adoption.");}
+    if (process.platform === "win32") {
+      if (applied.outcome !== "blocked" ||
+          !applied.issues.some(({ code }) => code === "KNOWN_FILE_APPLY_UNSUPPORTED")) {
+        throw new Error(`Packed Windows consumer apply did not fail closed: ${JSON.stringify(applied)}`);
+      }
+      const unchanged = await invoke(["check"]);
+      if (unchanged.outcome !== "change-required") {
+        throw new Error("Packed Windows apply refusal changed the consumer.");
+      }
+      return;
+    }
+    if (applied.outcome !== "applied") {
+      throw new Error(`Packed consumer apply did not commit adoption: ${JSON.stringify(applied)}`);
+    }
     const current = await invoke(["check"]);
     if (current.outcome !== "current") {throw new Error("Packed consumer check did not converge.");}
     installedManifest.scripts = JSON.parse(

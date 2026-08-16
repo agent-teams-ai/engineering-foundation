@@ -10,6 +10,7 @@ import {
   MANAGED_ROUTE_END
 } from "../application/policies/consumer-integration-assets.js";
 
+/** @public */
 export interface AgentsRoutePlanV1 {
   readonly state: "conflict" | "exact-current" | "known-prior";
   readonly currentDigest: ConsumerIntegrationDigest;

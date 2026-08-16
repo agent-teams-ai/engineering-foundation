@@ -46,6 +46,11 @@ test("compiles a deterministic sorted create and replace-known Plan", () => {
 });
 
 test("rejects path collisions, unknown bytes, mode changes, and duplicate preimages", () => {
+  assert.throws(() => compileKnownFileTransactionPlan({ operations: [{
+    path: ".agent-teams-local/foundation-operation.lock",
+    precondition: { state: "absent" },
+    postimage: { bytes: bytes("foreign") }
+  }] }), /internal state namespace/u);
   assert.throws(() => compileKnownFileTransactionPlan({ operations: [
     { path: "Docs/README.md", precondition: { state: "absent" }, postimage: { bytes: bytes("a") } },
     { path: "docs/README.md", precondition: { state: "absent" }, postimage: { bytes: bytes("b") } }
@@ -63,6 +68,11 @@ test("rejects path collisions, unknown bytes, mode changes, and duplicate preima
     ] },
     postimage: { bytes: bytes("b"), mode: 0o644 }
   }] }), /duplicate exact preimage/u);
+  assert.throws(() => compileKnownFileTransactionPlan({ operations: [0, 1, 2].map((index) => ({
+    path: `large/${index}.bin`,
+    precondition: { state: "absent" },
+    postimage: { bytes: Buffer.alloc(6 * 1024 * 1024, index) }
+  })) }), /Transaction evidence exceeds/u);
 });
 
 test("rejects non-canonical or tampered wire Plans", () => {

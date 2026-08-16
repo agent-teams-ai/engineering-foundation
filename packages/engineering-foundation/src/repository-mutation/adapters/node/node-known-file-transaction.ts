@@ -257,11 +257,6 @@ async function executeOperation(options: {
     parent,
     planDigest: options.stored.envelope.journal.plan.planDigest
   });
-  await options.faultInjector?.({
-    phase: "after-temporary-synced",
-    operationIndex: options.index,
-    path: operation.path
-  });
   journalOperation = Object.freeze({
     ...journalOperation,
     state: "temporary-ready" as const,
@@ -272,6 +267,11 @@ async function executeOperation(options: {
     options.stored,
     replaceOperation(options.stored.envelope.journal, options.index, journalOperation)
   );
+  await options.faultInjector?.({
+    phase: "after-temporary-synced",
+    operationIndex: options.index,
+    path: operation.path
+  });
   journalOperation = Object.freeze({ ...journalOperation, state: "publishing" as const });
   await persist(
     options.store,
@@ -357,7 +357,8 @@ export async function verifyCommittedKnownFilePostimages(
   root: string,
   journal: KnownFileTransactionJournalV1
 ): Promise<void> {
-  for (const operation of journal.plan.operations) {
+  for (const [index, operation] of journal.plan.operations.entries()) {
+    if (journal.operations[index]?.state !== "published") {continue;}
     if (!matchesKnownFileImage(
       await observeKnownFile(root, operation.path, operation.postimage.size),
       operation.postimage
@@ -365,6 +366,23 @@ export async function verifyCommittedKnownFilePostimages(
       throw new KnownFileTransactionError(
         "KNOWN_FILE_COMMITTED_DRIFT",
         `Committed postimage changed before journal retirement: ${operation.path}.`
+      );
+    }
+  }
+}
+
+async function verifyApplyingKnownFilePostimages(
+  root: string,
+  journal: KnownFileTransactionJournalV1
+): Promise<void> {
+  for (const operation of journal.plan.operations) {
+    if (!matchesKnownFileImage(
+      await observeKnownFile(root, operation.path, operation.postimage.size),
+      operation.postimage
+    )) {
+      throw new KnownFileTransactionError(
+        "KNOWN_FILE_PRECOMMIT_DRIFT",
+        `Transaction postimage changed before commit: ${operation.path}.`
       );
     }
   }
@@ -397,6 +415,7 @@ export async function applyKnownFileTransaction(options: {
   const coordinator = await createNodeFoundationTransactionCoordinator(root);
   const lease = await coordinator.acquire({ requestedMutation: "known-file-transaction" });
   let retainBarrier = false;
+  let store: NodeKnownFileTransactionJournalStore | undefined;
   try {
     const journal = await initialJournal(root, options.plan);
     const [version, buildIdentity] = await Promise.all([
@@ -409,7 +428,7 @@ export async function applyKnownFileTransaction(options: {
       state: "APPLYING"
     });
     const stateDirectory = await ensureFoundationStateDirectory(root);
-    const store = new NodeKnownFileTransactionJournalStore(stateDirectory);
+    store = new NodeKnownFileTransactionJournalStore(stateDirectory);
     const stored: StoredJournal = {
       authority: await store.create(envelope),
       envelope
@@ -425,6 +444,7 @@ export async function applyKnownFileTransaction(options: {
         stored
       });
     }
+    await verifyApplyingKnownFilePostimages(root, stored.envelope.journal);
     await persist(store, stored, stored.envelope.journal, "COMMITTED");
     await options.faultInjector?.({ phase: "after-journal-committed" });
     await verifyCommittedKnownFilePostimages(root, stored.envelope.journal);
@@ -433,7 +453,14 @@ export async function applyKnownFileTransaction(options: {
     retainBarrier = false;
     return result;
   } catch (error) {
-    retainBarrier = true;
+    if (store !== undefined) {
+      try {
+        retainBarrier = await store.read() !== undefined;
+      } catch {
+        // Unreadable evidence must stay protected for manual inspection.
+        retainBarrier = true;
+      }
+    }
     throw error;
   } finally {
     await lease.release({ retainTransactionBarrier: retainBarrier });

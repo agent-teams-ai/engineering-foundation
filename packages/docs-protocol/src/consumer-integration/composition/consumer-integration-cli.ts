@@ -61,7 +61,7 @@ class Arguments {
 function failure(command: string, error: unknown): ConsumerIntegrationExecutionV1 {
   const candidateCode = typeof error === "object" && error !== null && "code" in error &&
     typeof error.code === "string" ? error.code : "DOCS_CONSUMER_EXECUTION_FAILURE";
-  const code = /^[A-Z0-9_]{1,128}$/u.test(candidateCode)
+  const code = /^(?:DOCS_|KNOWN_)[A-Z0-9_]{1,122}$/u.test(candidateCode)
     ? candidateCode
     : "DOCS_CONSUMER_EXECUTION_FAILURE";
   const commandId = ["apply", "check", "plan", "recover"].includes(command)
@@ -101,7 +101,10 @@ function human(execution: ConsumerIntegrationExecutionV1): string {
 
 function exitCode(execution: ConsumerIntegrationExecutionV1): number {
   if (["applied", "current", "recovered"].includes(execution.outcome)) {return 0;}
-  return execution.outcome === "change-required" ? 1 : 2;
+  if (execution.outcome === "change-required") {return 1;}
+  const codes = new Set(execution.issues.map(({ code }) => code));
+  if (codes.has("DOCS_CONSUMER_CLI_INVALID")) {return 2;}
+  return codes.has("DOCS_CONSUMER_EXECUTION_FAILURE") ? 3 : 1;
 }
 
 export function consumerIntegrationHelp(): string {
@@ -114,12 +117,13 @@ export async function runConsumerIntegrationCli(argv: readonly string[]): Promis
     process.stdout.write(consumerIntegrationHelp());
     return 0;
   }
-  const args = new Arguments(argv.slice(1));
-  const json = args.flag("--json");
-  const consumerRoot = args.one("--consumer") ?? ".";
-  const integrationProfilePath = args.one("--integration-profile");
+  const jsonRequested = argv.includes("--json");
   let execution: ConsumerIntegrationExecutionV1;
   try {
+    const args = new Arguments(argv.slice(1));
+    args.flag("--json");
+    const consumerRoot = args.one("--consumer") ?? ".";
+    const integrationProfilePath = args.one("--integration-profile");
     if (command === "check") {
       args.assertConsumed();
       execution = await checkConsumerIntegration({
@@ -156,7 +160,11 @@ export async function runConsumerIntegrationCli(argv: readonly string[]): Promis
   } catch (error) {
     execution = failure(command || "check", error);
   }
-  await assertConsumerIntegrationExecutionSchema(execution);
-  process.stdout.write(json ? `${JSON.stringify(execution)}\n` : human(execution));
+  try {
+    await assertConsumerIntegrationExecutionSchema(execution);
+  } catch (error) {
+    execution = failure(command || "check", error);
+  }
+  process.stdout.write(jsonRequested ? `${JSON.stringify(execution)}\n` : human(execution));
   return exitCode(execution);
 }

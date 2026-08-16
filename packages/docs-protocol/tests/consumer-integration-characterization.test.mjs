@@ -14,6 +14,7 @@ const shapes = JSON.parse(await readFile(
 ));
 
 const absent = { state: "absent" };
+const INTEGRITY = `sha512-${"A".repeat(86)}==`;
 const file = (bytes) => ({ state: "file", bytes, mode: 0o644 });
 const decode = (value) => Buffer.from(value, "base64");
 
@@ -22,9 +23,16 @@ function cohort() {
     schemaVersion: 1,
     cohortId: "docs-2026-08-16-rc1",
     channel: "rc",
+    recordDigest: `sha256:${"1".repeat(64)}`,
+    qualificationEventDigest: `sha256:${"2".repeat(64)}`,
+    lifecycleState: "RECOMMENDED",
+    eligibleAfter: "2026-08-16T00:00:00Z",
+    upgradeFrom: [],
+    rollbackTo: [],
+    canaryRepositoryIds: ["1314129620"],
     packages: {
-      docsProtocol: { version: "0.2.0-rc.0", integrity: "sha512-ZG9jcw==" },
-      engineeringFoundation: { version: "0.18.0-rc.0", integrity: "sha512-Zm91bmRhdGlvbg==" }
+      docsProtocol: { version: "0.2.0-rc.0", integrity: INTEGRITY },
+      engineeringFoundation: { version: "0.18.0-rc.0", integrity: INTEGRITY }
     },
     workflow: {
       repository: "agent-teams-ai/.github",
@@ -70,6 +78,8 @@ for (const shape of shapes.fixtures) {
       cohort: cohort()
     };
     const snapshot = {
+      integrationProfile: file(Buffer.from("profile\n", "utf8")),
+      lockfile: file(Buffer.from("lockfile\n", "utf8")),
       packageManifest: file(upgradedManifest(shape.files.packageJsonBase64)),
       agents: file(decode(shape.files.agentsBase64)),
       skill: file(decode(shape.files.skillBase64)),
@@ -86,10 +96,10 @@ for (const shape of shapes.fixtures) {
     assert.deepEqual(
       first.assets.filter(({ action }) => action !== "none").map(({ id, action }) => [id, action]),
       shape.callerKind === "standalone"
-        ? [["caller-workflow", "replace"], ["agents-route", "replace"], ["managed-state", "create"]]
-        : [["caller-workflow", "create"], ["agents-route", "replace"], ["managed-state", "create"]]
+        ? [["skill", "replace"], ["caller-workflow", "replace"], ["agents-route", "replace"], ["managed-state", "create"]]
+        : [["skill", "replace"], ["caller-workflow", "create"], ["agents-route", "replace"], ["managed-state", "create"]]
     );
     assert.equal(first.assets.find(({ id }) => id === "package-manifest").action, "none");
-    assert.equal(first.assets.find(({ id }) => id === "skill").action, "none");
+    assert.equal(first.assets.find(({ id }) => id === "skill").action, "replace");
   });
 }

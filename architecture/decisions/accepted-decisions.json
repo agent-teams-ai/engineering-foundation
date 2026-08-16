@@ -146,6 +146,16 @@
       "id": "ADR-0029",
       "path": "docs/decisions/0029-immutable-docs-bootstrap-reconciliation.md",
       "immutableDigest": "sha256:db8fe9f52e1ab6d09bdb0b2688f3ccb2097108cdf38ea85fc48715199bdc7a25"
+    },
+    {
+      "id": "ADR-0030",
+      "path": "docs/decisions/0030-recoverable-known-file-transactions.md",
+      "immutableDigest": "sha256:1308e4c0abb0ff9cc5cde9442307b474563941d43030bb26ec30307a72c823c9"
+    },
+    {
+      "id": "ADR-0031",
+      "path": "docs/decisions/0031-managed-docs-consumer-integration.md",
+      "immutableDigest": "sha256:cb2734171f4c8ff4e39661368f29219379c44600ff97b75090f7a721e8c1873e"
     }
   ]
 }

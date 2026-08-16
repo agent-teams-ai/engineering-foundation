@@ -48,9 +48,10 @@ unknown content, and ambiguous crash state from being overwritten.
 6. The protocol does not claim multi-file atomicity or protection from an
    arbitrary same-user editor. Required CI is the merge barrier that prevents a
    partial cohort from reaching the default branch.
-7. User-requested delete is absent. Recovery may remove only an identity-bound
-   transaction temporary or a file proven to have been created by that
-   transaction. Directory recovery is retain-only.
+7. User-requested delete is absent. Recovery may remove only a transaction
+   temporary or destination whose exact identity is recorded in the journal,
+   or an identity-bound, still-empty directory proven to have been created by
+   that transaction.
 8. Unknown, corrupt, incompatible, rebuilt-same-version, or third-party-modified
    evidence is preserved for manual recovery. Journals are never migrated or
    reinterpreted.
@@ -60,6 +61,11 @@ unknown content, and ambiguous crash state from being overwritten.
 10. Receipt, Plan, journal, and diagnostic schemas are versioned and bounded.
     They contain no timestamps, absolute paths, process identifiers, locale, or
     network-derived state.
+11. Identity checks and path operations are serialized against cooperative
+    Foundation writers. Portable Node filesystem APIs do not provide `unlinkat`
+    or `renameat` handle-relative publication, so the protocol does not claim
+    protection from a hostile same-user process swapping paths between proof
+    and use.
 
 ## Consequences
 
@@ -77,4 +83,3 @@ unknown content, and ambiguous crash state from being overwritten.
 - Implement package, AGENTS, Skill, or workflow writers inside Docs Protocol.
 - Claim atomic multi-file commit from sequential filesystem operations.
 - Permit `--force`, wildcard ownership, delete, rename, or executable hooks.
-

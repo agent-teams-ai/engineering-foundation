@@ -1,6 +1,7 @@
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
+import { execFile } from "node:child_process";
 import { parseDocument } from "yaml";
 
 import { parseJsonRecord } from "../../adapters/adoption-input.js";
@@ -15,6 +16,20 @@ const MAXIMUM_PROFILE_BYTES = 256 * 1024;
 const MAXIMUM_MANIFEST_BYTES = 1024 * 1024;
 const MAXIMUM_MANAGED_ASSET_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_LOCKFILE_BYTES = 32 * 1024 * 1024;
+const INTEGRATION_PROFILE_PATH = "architecture/foundation/docs-consumer-integration.json";
+
+function executeGit(root: string, args: readonly string[], maximumBytes: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile("git", [...args], {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: maximumBytes
+    }, (error, stdout) => {
+      if (error === null) {resolve(stdout);}
+      else {reject(error);}
+    });
+  });
+}
 
 export class ConsumerIntegrationNodeError extends Error {
   readonly code: string;
@@ -33,7 +48,7 @@ function errorCode(error: unknown): string | undefined {
 }
 
 function contained(root: string, repositoryPath: string): string {
-  const absolute = resolve(root, repositoryPath);
+  const absolute = resolvePath(root, repositoryPath);
   const relation = relative(root, absolute);
   if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
     throw new ConsumerIntegrationNodeError(
@@ -45,7 +60,7 @@ function contained(root: string, repositoryPath: string): string {
 }
 
 async function canonicalRoot(consumerRoot: string): Promise<string> {
-  const requested = resolve(consumerRoot);
+  const requested = resolvePath(consumerRoot);
   const metadata = await lstat(requested);
   if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
     throw new ConsumerIntegrationNodeError(
@@ -54,6 +69,40 @@ async function canonicalRoot(consumerRoot: string): Promise<string> {
     );
   }
   return realpath(requested);
+}
+
+async function assertGitRepositoryRoot(root: string): Promise<void> {
+  let gitRoot: string;
+  let agents: string;
+  try {
+    const [topLevel, nestedAgents] = await Promise.all([
+      executeGit(root, ["rev-parse", "--show-toplevel"], 64 * 1024),
+      executeGit(root, [
+        "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "**/AGENTS.md"
+      ], 1024 * 1024)
+    ]);
+    gitRoot = await realpath(topLevel.trim());
+    agents = nestedAgents;
+  } catch (error) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_GIT_ROOT_INVALID",
+      "Consumer root must be the exact top-level directory of one Git repository.",
+      { cause: error }
+    );
+  }
+  if (gitRoot !== root) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_GIT_ROOT_INVALID",
+      "Consumer root must equal the Git repository top-level directory."
+    );
+  }
+  const nested = agents.split("\u0000").filter((path) => path.length > 0 && path !== "AGENTS.md");
+  if (nested.length > 0) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_NESTED_AGENTS_UNSUPPORTED",
+      `V1 does not support nested AGENTS.md authority: ${nested.join(", ")}.`
+    );
+  }
 }
 
 async function readStableFile(
@@ -256,7 +305,7 @@ function assertRegistryPackageEntry(options: {
 async function assertQualifiedLockfile(
   root: string,
   desired: ConsumerIntegrationDesiredStateV1
-): Promise<void> {
+): Promise<ConsumerIntegrationFileObservation> {
   const observation = await readStableFile(
     root,
     "pnpm-lock.yaml",
@@ -372,6 +421,7 @@ async function assertQualifiedLockfile(
       "The selected Docs Protocol snapshot must depend on the exact cohort Foundation version."
     );
   }
+  return observation;
 }
 
 export async function readConsumerIntegrationInput(options: {
@@ -383,9 +433,15 @@ export async function readConsumerIntegrationInput(options: {
   readonly snapshot: ConsumerIntegrationSnapshot;
 }> {
   const root = await canonicalRoot(options.consumerRoot);
+  await assertGitRepositoryRoot(root);
   await assertQualifiedPnpmRoot(root);
-  const profilePath = options.integrationProfilePath ??
-    "architecture/foundation/docs-consumer-integration.json";
+  const profilePath = options.integrationProfilePath ?? INTEGRATION_PROFILE_PATH;
+  if (profilePath !== INTEGRATION_PROFILE_PATH) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_PROFILE_PATH_UNSUPPORTED",
+      `V1 requires the integration profile at ${INTEGRATION_PROFILE_PATH}.`
+    );
+  }
   const profile = await readStableFile(
     root,
     profilePath,
@@ -394,6 +450,7 @@ export async function readConsumerIntegrationInput(options: {
   );
   if (profile.state !== "file") {throw new Error("unreachable");}
   let desired: ConsumerIntegrationDesiredStateV1;
+  let lockfile: ConsumerIntegrationFileObservation;
   try {
     desired = parseJsonRecord(
       Buffer.from(profile.bytes).toString("utf8")
@@ -401,7 +458,7 @@ export async function readConsumerIntegrationInput(options: {
     rejectPrototypeKeys(desired);
     await assertConsumerIntegrationProfileSchema(desired);
     assertGitHubRuntimeIdentity(desired);
-    await assertQualifiedLockfile(root, desired);
+    lockfile = await assertQualifiedLockfile(root, desired);
   } catch (error) {
     if (error instanceof ConsumerIntegrationNodeError) {throw error;}
     throw new ConsumerIntegrationNodeError(
@@ -420,6 +477,14 @@ export async function readConsumerIntegrationInput(options: {
   return {
     desired,
     root,
-    snapshot: { packageManifest, agents, skill, callerWorkflow, managedState }
+    snapshot: {
+      integrationProfile: profile,
+      lockfile,
+      packageManifest,
+      agents,
+      skill,
+      callerWorkflow,
+      managedState
+    }
   };
 }

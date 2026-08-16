@@ -18,13 +18,10 @@
     },
     "integrationRoot": { "const": "." },
     "packageManager": { "const": "pnpm" },
-    "profilePath": { "$ref": "#/$defs/path" },
-    "skillPath": { "$ref": "#/$defs/path" },
-    "callerWorkflowPath": { "$ref": "#/$defs/path" },
-    "managedStatePath": { "$ref": "#/$defs/path" },
+    "profilePath": { "const": "architecture/foundation/docs-protocol.yaml" },
+    "skillPath": { "const": ".agents/skills/docs-authoring/SKILL.md" },
+    "callerWorkflowPath": { "const": ".github/workflows/docs-protocol.yml" },
+    "managedStatePath": { "const": "architecture/foundation/docs-protocol-managed-state.json" },
     "cohort": { "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v1" }
-  },
-  "$defs": {
-    "path": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" }
   }
 }

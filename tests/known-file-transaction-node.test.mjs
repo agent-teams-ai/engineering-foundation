@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { link, mkdtemp, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -105,7 +105,9 @@ for (const phase of ["after-operation-publishing", "after-operation-published"])
       "utf8"
     ));
     await assertSchema("foundation-transaction-envelope/v5", envelope, "test");
-    await recoverKnownFileTransaction({ consumerRoot: root });
+    const recovered = await recoverKnownFileTransaction({ consumerRoot: root });
+    assert.equal(recovered.outcome, "rolled-back");
+    assert.equal(recovered.operations[0].outcome, "rolled-back-to-preimage");
     assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "old\n");
   });
 }
@@ -136,6 +138,57 @@ posixTest("reuses an exact rollback temporary left by an interrupted recovery", 
     { mode: 0o640 }
   );
   await recoverKnownFileTransaction({ consumerRoot: root });
+  assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "old\n");
+});
+
+posixTest("preserves an exact-content foreign temporary when its identity changed", async () => {
+  const root = await fixture();
+  const single = compileKnownFileTransactionPlan({ operations: [plan().operations[0]].map((operation) => ({
+    path: operation.path,
+    precondition: {
+      state: "known-file",
+      acceptedPreimages: operation.precondition.acceptedPreimages.map((image) => ({
+        bytes: Buffer.from(image.contentBase64, "base64"),
+        mode: image.mode
+      }))
+    },
+    postimage: {
+      bytes: Buffer.from(operation.postimage.contentBase64, "base64"),
+      mode: operation.postimage.mode
+    }
+  })) });
+  await assert.rejects(applyKnownFileTransaction({
+    consumerRoot: root,
+    plan: single,
+    faultInjector(point) {
+      if (point.phase === "after-temporary-synced") {throw new Error("simulated crash");}
+    }
+  }), /simulated crash/u);
+  const files = await readdir(join(root, "managed"));
+  const temporary = files.find((name) =>
+    name.startsWith(".existing.txt.agent-teams.") && name.endsWith(".tmp")
+  );
+  assert.ok(temporary);
+  const temporaryPath = join(root, "managed", temporary);
+  await rename(temporaryPath, `${temporaryPath}.original`);
+  await writeFile(temporaryPath, "new\n", { mode: 0o640 });
+  await assert.rejects(
+    recoverKnownFileTransaction({ consumerRoot: root }),
+    (error) => error?.code === "KNOWN_FILE_RECOVERY_CONFLICT"
+  );
+  assert.equal(await readFile(temporaryPath, "utf8"), "new\n");
+});
+
+posixTest("rejects hard-linked destinations before mutation", async () => {
+  const root = await fixture();
+  await link(
+    join(root, "managed", "existing.txt"),
+    join(root, "managed", "existing-hardlink.txt")
+  );
+  await assert.rejects(
+    applyKnownFileTransaction({ consumerRoot: root, plan: plan() }),
+    (error) => error?.code === "KNOWN_FILE_HARDLINK"
+  );
   assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "old\n");
 });
 

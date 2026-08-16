@@ -16,23 +16,23 @@ import type {
   KnownPriorConsumerAssets
 } from "../../domain/model.js";
 import {
-  CANONICAL_DOCS_SKILL,
   BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS,
+  BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS,
+  CANONICAL_DOCS_SKILL,
   canonicalCallerWorkflow,
   canonicalConsumerIntegrationJson,
   canonicalDocsScriptsDigest,
   canonicalManagedRoute,
   canonicalManagedState,
   describeCanonicalConsumerAssets,
-  digestBytes
+  digestBytes,
+  isBootstrapKnownPriorCallerWorkflow
 } from "../policies/consumer-integration-assets.js";
+import { consumerIntegrationAuthorityGuards } from "../policies/consumer-integration-authority-guards.js";
+import { assertConsumerIntegrationDesiredStateV1 } from "../policies/consumer-integration-desired-state.js";
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
-const SHA = /^[0-9a-f]{40}$/u;
-const SEMVER = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/u;
 const COHORT_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
-const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
-const REPOSITORY_ID = /^[1-9][0-9]*$/u;
 
 interface FullAssetResult {
   readonly plan: ConsumerIntegrationAssetPlan;
@@ -42,6 +42,11 @@ interface FullAssetResult {
 
 interface ManagedStateEvidence {
   readonly managedState: readonly Uint8Array[];
+  readonly cohort?: {
+    readonly cohortId: string;
+    readonly channel: "rc" | "stable";
+    readonly rollbackTo: readonly string[];
+  };
   readonly skillDigest?: ConsumerIntegrationDigest;
   readonly callerWorkflowDigest?: ConsumerIntegrationDigest;
   readonly agentsRouteDigest?: ConsumerIntegrationDigest;
@@ -82,8 +87,24 @@ function managedAssetDigests(
   const callerWorkflowDigest = digest("callerWorkflowDigest");
   const agentsRouteDigest = digest("agentsRouteDigest");
   const docsScriptsDigest = digest("docsScriptsDigest");
+  const cohortId = record["cohortId"];
+  const cohortAuthority = record["cohortAuthority"];
+  const cohort = typeof cohortId === "string" && COHORT_ID.test(cohortId) &&
+    typeof cohortAuthority === "object" && cohortAuthority !== null &&
+    !Array.isArray(cohortAuthority) &&
+    ["rc", "stable"].includes(String((cohortAuthority as Record<string, unknown>)["channel"])) &&
+    Array.isArray((cohortAuthority as Record<string, unknown>)["rollbackTo"])
+    ? {
+        cohortId,
+        channel: (cohortAuthority as Record<string, unknown>)["channel"] as "rc" | "stable",
+        rollbackTo: Object.freeze([
+          ...((cohortAuthority as Record<string, unknown>)["rollbackTo"] as string[])
+        ])
+      }
+    : undefined;
   return {
     managedState: [bytes],
+    ...(cohort === undefined ? {} : { cohort }),
     ...(skillDigest === undefined ? {} : { skillDigest }),
     ...(callerWorkflowDigest === undefined ? {} : { callerWorkflowDigest }),
     ...(agentsRouteDigest === undefined ? {} : { agentsRouteDigest }),
@@ -230,29 +251,6 @@ function knownObservedBytes(
   return [...explicit, observation.bytes];
 }
 
-function assertDesiredState(desired: ConsumerIntegrationDesiredStateV1): void {
-  if (
-    desired.schemaVersion !== 1 ||
-    desired.integrationRoot !== "." ||
-    desired.packageManager !== "pnpm" ||
-    desired.repository.provider !== "github" ||
-    !REPOSITORY_ID.test(desired.repository.id) ||
-    !REPOSITORY.test(desired.repository.nameWithOwner) ||
-    desired.cohort.schemaVersion !== 1 ||
-    !COHORT_ID.test(desired.cohort.cohortId) ||
-    !SEMVER.test(desired.cohort.packages.docsProtocol.version) ||
-    !SEMVER.test(desired.cohort.packages.engineeringFoundation.version) ||
-    !SHA256.test(desired.cohort.assets.skillDigest) ||
-    !SHA256.test(desired.cohort.assets.callerWorkflowDigest) ||
-    !SHA256.test(desired.cohort.assets.assetCatalogDigest) ||
-    !REPOSITORY.test(desired.cohort.workflow.repository) ||
-    !SHA.test(desired.cohort.workflow.revision) ||
-    !SHA.test(desired.cohort.workflow.blobSha)
-  ) {
-    throw new TypeError("Consumer integration desired state is invalid or unsupported.");
-  }
-}
-
 function partialAsset(input: {
   readonly id: "agents-route" | "package-manifest";
   readonly path: string;
@@ -290,38 +288,102 @@ function partialAsset(input: {
   };
 }
 
-export function planConsumerIntegration(input: {
-  readonly desired: ConsumerIntegrationDesiredStateV1;
-  readonly snapshot: ConsumerIntegrationSnapshot;
-  readonly knownPrior?: KnownPriorConsumerAssets;
-}): ConsumerIntegrationPlanV1 {
-  assertDesiredState(input.desired);
-  const desired = input.desired;
-  const knownPrior = input.knownPrior ?? {};
-  const previous = managedStateEvidence(input.snapshot.managedState, desired);
+function cohortIssues(
+  desired: ConsumerIntegrationDesiredStateV1,
+  previous: ManagedStateEvidence
+): readonly ConsumerIntegrationIssue[] {
   const issues: ConsumerIntegrationIssue[] = [];
+  const prior = previous.cohort;
+  if (prior !== undefined && prior.cohortId !== desired.cohort.cohortId) {
+    const isUpgrade = desired.cohort.channel === prior.channel &&
+      desired.cohort.upgradeFrom.includes(prior.cohortId);
+    const isRollback = prior.rollbackTo.includes(desired.cohort.cohortId);
+    if (!isUpgrade && !isRollback) {
+      issues.push(issue(
+        "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN",
+        desired.cohort.cohortId,
+        `Cohort transition from ${prior.cohortId} is not an authorized upgrade or rollback edge.`
+      ));
+    }
+  }
   const canonical = describeCanonicalConsumerAssets(desired.cohort);
-  if (
-    canonical.skillDigest !== desired.cohort.assets.skillDigest ||
+  if (canonical.skillDigest !== desired.cohort.assets.skillDigest ||
     canonical.callerWorkflowDigest !== desired.cohort.assets.callerWorkflowDigest ||
-    canonical.assetCatalogDigest !== desired.cohort.assets.assetCatalogDigest
-  ) {
+    canonical.assetCatalogDigest !== desired.cohort.assets.assetCatalogDigest) {
     issues.push(issue(
       "DOCS_CONSUMER_COHORT_ASSET_MISMATCH",
       desired.cohort.cohortId,
       "Qualified Cohort asset digests do not match this exact Docs Protocol build."
     ));
   }
+  return issues;
+}
 
+function planFullAssets(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly knownPrior: KnownPriorConsumerAssets;
+  readonly previous: ManagedStateEvidence;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+}): readonly FullAssetResult[] {
   const skillBytes = Buffer.from(CANONICAL_DOCS_SKILL, "utf8");
-  const callerBytes = Buffer.from(canonicalCallerWorkflow(desired.cohort), "utf8");
-  const routeBytes = Buffer.from(canonicalManagedRoute(desired.skillPath), "utf8");
-  const managedStateBytes = Buffer.from(canonicalManagedState(desired, {
+  const callerBytes = Buffer.from(canonicalCallerWorkflow(input.desired.cohort), "utf8");
+  const routeBytes = Buffer.from(canonicalManagedRoute(input.desired.skillPath), "utf8");
+  const bootstrapCaller = input.snapshot.callerWorkflow.state === "file" &&
+    isBootstrapKnownPriorCallerWorkflow(input.snapshot.callerWorkflow.bytes)
+    ? [input.snapshot.callerWorkflow.bytes]
+    : [];
+  const managedStateBytes = Buffer.from(canonicalManagedState(input.desired, {
     skillDigest: digestBytes(skillBytes),
     callerWorkflowDigest: digestBytes(callerBytes),
     agentsRouteDigest: digestBytes(routeBytes),
-    docsScriptsDigest: canonicalDocsScriptsDigest(desired.profilePath)
+    docsScriptsDigest: canonicalDocsScriptsDigest(input.desired.profilePath)
   }), "utf8");
+  return [
+    fullAsset({
+      id: "skill",
+      path: input.desired.skillPath,
+      observation: input.snapshot.skill,
+      postimage: skillBytes,
+      knownPrior: knownObservedBytes(
+        input.snapshot.skill,
+        input.previous.skillDigest,
+        input.knownPrior.skill ?? BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS
+      )
+    }),
+    fullAsset({
+      id: "caller-workflow",
+      path: input.desired.callerWorkflowPath,
+      observation: input.snapshot.callerWorkflow,
+      postimage: callerBytes,
+      knownPrior: knownObservedBytes(
+        input.snapshot.callerWorkflow,
+        input.previous.callerWorkflowDigest,
+        input.knownPrior.callerWorkflow ?? [
+          ...BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS,
+          ...bootstrapCaller
+        ]
+      )
+    }),
+    fullAsset({
+      id: "managed-state",
+      path: input.desired.managedStatePath,
+      observation: input.snapshot.managedState,
+      postimage: managedStateBytes,
+      knownPrior: input.previous.managedState
+    })
+  ];
+}
+
+export function planConsumerIntegration(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly knownPrior?: KnownPriorConsumerAssets;
+}): ConsumerIntegrationPlanV1 {
+  assertConsumerIntegrationDesiredStateV1(input.desired);
+  const desired = input.desired;
+  const knownPrior = input.knownPrior ?? {};
+  const previous = managedStateEvidence(input.snapshot.managedState, desired);
+  const issues: ConsumerIntegrationIssue[] = [...cohortIssues(desired, previous)];
 
   const manifest = planPnpmManifestV1({
     observation: input.snapshot.packageManifest,
@@ -341,37 +403,7 @@ export function planConsumerIntegration(input: {
   });
   issues.push(...route.issues);
 
-  const results: FullAssetResult[] = [
-    fullAsset({
-      id: "skill",
-      path: desired.skillPath,
-      observation: input.snapshot.skill,
-      postimage: skillBytes,
-      knownPrior: knownObservedBytes(
-        input.snapshot.skill,
-        previous.skillDigest,
-        knownPrior.skill ?? []
-      )
-    }),
-    fullAsset({
-      id: "caller-workflow",
-      path: desired.callerWorkflowPath,
-      observation: input.snapshot.callerWorkflow,
-      postimage: callerBytes,
-      knownPrior: knownObservedBytes(
-        input.snapshot.callerWorkflow,
-        previous.callerWorkflowDigest,
-        knownPrior.callerWorkflow ?? BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS
-      )
-    }),
-    fullAsset({
-      id: "managed-state",
-      path: desired.managedStatePath,
-      observation: input.snapshot.managedState,
-      postimage: managedStateBytes,
-      knownPrior: previous.managedState
-    })
-  ];
+  const results = planFullAssets({ desired, knownPrior, previous, snapshot: input.snapshot });
   for (const result of results) {
     if (result.issue !== undefined) {
       issues.push(result.issue);
@@ -409,7 +441,13 @@ export function planConsumerIntegration(input: {
   ].filter((operation): operation is KnownFileTransactionOperationInput => operation !== undefined);
   const blocked = issues.some(({ severity }) => severity === "error");
   const outcome = blocked ? "blocked" : operations.length === 0 ? "current" : "change-required";
-  const mutationPlan = blocked ? undefined : compileKnownFileTransactionPlan({ operations });
+  const guardOperations = consumerIntegrationAuthorityGuards(
+    input.snapshot,
+    operations.length > 0
+  );
+  const mutationPlan = blocked
+    ? undefined
+    : compileKnownFileTransactionPlan({ operations: [...operations, ...guardOperations] });
   const planDigest = digestBytes(Buffer.from(canonicalConsumerIntegrationJson({
     domain: "agent-teams.docs-protocol.consumer-integration-plan/v1",
     desired,

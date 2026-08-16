@@ -8,6 +8,13 @@ export interface QualifiedDocsCohortV1 {
   readonly schemaVersion: 1;
   readonly cohortId: string;
   readonly channel: "rc" | "stable";
+  readonly recordDigest: ConsumerIntegrationDigest;
+  readonly qualificationEventDigest: ConsumerIntegrationDigest;
+  readonly lifecycleState: "QUALIFIED" | "CANARY" | "RECOMMENDED";
+  readonly eligibleAfter: string;
+  readonly upgradeFrom: readonly string[];
+  readonly rollbackTo: readonly string[];
+  readonly canaryRepositoryIds: readonly string[];
   readonly packages: {
     readonly docsProtocol: {
       readonly version: string;
@@ -65,6 +72,8 @@ export type ConsumerIntegrationFileObservation =
     };
 
 export interface ConsumerIntegrationSnapshot {
+  readonly integrationProfile: ConsumerIntegrationFileObservation;
+  readonly lockfile: ConsumerIntegrationFileObservation;
   readonly packageManifest: ConsumerIntegrationFileObservation;
   readonly agents: ConsumerIntegrationFileObservation;
   readonly skill: ConsumerIntegrationFileObservation;

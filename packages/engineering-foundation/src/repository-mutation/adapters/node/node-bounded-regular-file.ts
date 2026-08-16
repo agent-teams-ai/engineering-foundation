@@ -63,6 +63,7 @@ interface BigIntFileObservation {
   readonly dev: bigint;
   readonly ino: bigint;
   readonly mtimeNs: bigint;
+  readonly nlink: bigint;
   readonly size: bigint;
 }
 
@@ -76,6 +77,7 @@ function sameFileObservation(
     left.birthtimeNs === right.birthtimeNs &&
     left.ctimeNs === right.ctimeNs &&
     left.mtimeNs === right.mtimeNs &&
+    left.nlink === right.nlink &&
     left.size === right.size
   );
 }
@@ -141,7 +143,7 @@ export async function readBoundedRegularFileHandle(
     throw new TypeError("maximumBytes must be a non-negative safe integer.");
   }
   const before = await handle.stat({ bigint: true });
-  if (!before.isFile() || before.size > BigInt(maximumBytes)) {
+  if (!before.isFile() || before.nlink !== 1n || before.size > BigInt(maximumBytes)) {
     return { outcome: "invalid" };
   }
   const identity = identityFromStat(before);
@@ -152,7 +154,7 @@ export async function readBoundedRegularFileHandle(
   await faultInjector?.({ phase: "before-stability-check", path });
   const after = await handle.stat({ bigint: true });
   if (
-    !after.isFile() ||
+    !after.isFile() || after.nlink !== 1n ||
     !sameFileObservation(before, after) ||
     after.size !== BigInt(bytes.byteLength) ||
     (await pathMatchesRegularFileIdentity(path, identity)) !== "match"
@@ -179,7 +181,7 @@ export async function pathMatchesRegularFileIdentity(
 ): Promise<PathIdentityMatch> {
   try {
     const metadata = await lstat(path, { bigint: true });
-    if (metadata.isSymbolicLink() || !metadata.isFile()) {
+    if (metadata.isSymbolicLink() || !metadata.isFile() || metadata.nlink !== 1n) {
       return "different";
     }
     const observed = identityFromStat(metadata);

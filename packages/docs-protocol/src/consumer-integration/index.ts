@@ -10,7 +10,9 @@ export {
 } from "./application/policies/consumer-integration-assets.js";
 export { planConsumerIntegration } from "./application/use-cases/plan-consumer-integration.js";
 export { planAgentsRouteV1 } from "./adapters/agents-route-adapter-v1.js";
+export type { AgentsRoutePlanV1 } from "./adapters/agents-route-adapter-v1.js";
 export { planPnpmManifestV1 } from "./adapters/pnpm-manifest-adapter-v1.js";
+export type { PnpmManifestPlanV1 } from "./adapters/pnpm-manifest-adapter-v1.js";
 export {
   applyConsumerIntegration,
   checkConsumerIntegration,

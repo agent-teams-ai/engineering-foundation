@@ -18,7 +18,9 @@ import {
 
 const MAXIMUM_OPERATION_COUNT = 32;
 const MAXIMUM_FILE_BYTES = 8 * 1024 * 1024;
-const MAXIMUM_TRANSACTION_BYTES = 32 * 1024 * 1024;
+// Keep the canonical Base64 journal comfortably below its separate 32 MiB
+// serialized limit. Raw transaction evidence expands by at least 4/3.
+const MAXIMUM_TRANSACTION_BYTES = 16 * 1024 * 1024;
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 
 export class KnownFileTransactionPlanError extends Error {
@@ -82,6 +84,12 @@ function compileOperation(
   if (operation.path.normalize("NFC") !== operation.path) {
     throw new KnownFileTransactionPlanError(
       `Operation path ${operation.path} must use NFC normalization.`
+    );
+  }
+  if (operation.path === ".agent-teams-local" ||
+    operation.path.startsWith(".agent-teams-local/")) {
+    throw new KnownFileTransactionPlanError(
+      `Operation path ${operation.path} overlaps Foundation's internal state namespace.`
     );
   }
   if (operation.precondition.state === "absent") {

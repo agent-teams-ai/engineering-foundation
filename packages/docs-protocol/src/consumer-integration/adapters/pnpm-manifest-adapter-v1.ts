@@ -16,6 +16,7 @@ import {
 const DOCS_PACKAGE = "@agent-teams/docs-protocol";
 const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
 
+/** @public */
 export interface PnpmManifestPlanV1 {
   readonly state: "conflict" | "exact-current" | "known-prior";
   readonly currentDigest: ConsumerIntegrationDigest;

@@ -39,23 +39,28 @@ maintenance mutation in one application object.
 4. `check` and `plan` are offline and write-free. They create no lock, cache,
    temporary, journal, receipt, telemetry, or mtime change.
 5. A Qualified Cohort is the upgrade unit. Floating npm tags and independent
-   package updates are not authority. The local desired cohort is human-owned;
-   committed managed state is generated; Foundation transaction evidence is
-   local and uncommitted; hosted CI observation remains external governance
-   evidence.
+   package updates are not authority. The committed projection carries the
+   central Cohort record digest, qualification event digest, lifecycle state,
+   eligibility boundary, canary set, and explicit upgrade/rollback edges.
+   Local planning validates that projection and migration edge; the required
+   central governance check binds its opaque digests to the append-only registry
+   and remains the authority for qualification.
 6. Full-byte ownership is limited to the canonical Skill, standalone caller
    workflow, and managed state. Partial ownership is limited to six docs scripts,
    two development dependency fields, and one exact managed route block in
    `AGENTS.md`. Lockfiles, profiles, owners, schemas, templates, validators, and
    documentation remain outside mutation authority.
-7. Unknown files, unknown managed hashes, duplicate JSON keys, reserved script
+7. V1 fixes every executable path and the reusable workflow repository/path to
+   canonical literals. Unknown files, unknown managed hashes, duplicate JSON keys, reserved script
    collisions, ambiguous roots, nested routing conflicts, symlinks, multiple
    lockfiles, and unsupported package managers fail closed.
 8. V1 supports Node 24, root pnpm 11, one root manifest, one root lockfile,
    GitHub Actions, and one integration root. Other topologies report
    `unsupported` without partial changes.
 9. Apply rebuilds the Plan, compares its expected digest, and delegates the
-   exact operation set to Foundation's `replace-known-file/v1` port. It never
+   exact operation set to Foundation's `replace-known-file/v1` port. The
+   integration profile and pnpm lockfile are exact read-only transaction guards,
+   validated before any managed publication. It never
    executes operations from an untrusted saved plan and has no force mode.
 10. The package manager remains the only lockfile writer. The reviewed upgrade
     branch updates exact dependency pins and the lockfile before the new CLI
@@ -67,8 +72,9 @@ maintenance mutation in one application object.
   deterministic upgrade lifecycle.
 - Consumer-specific documentation authority stays local and byte-stable.
 - Shared integration behavior evolves once without a second mutation engine.
-- Bootstrap still requires a reviewed branch because an old CLI cannot install
-  or generate its own successor.
+- Bootstrap still requires a reviewed branch with a profile projected from the
+  qualified central record because an old CLI cannot install or generate its
+  own successor.
 
 ## Rejected alternatives
 
@@ -77,4 +83,3 @@ maintenance mutation in one application object.
 - Postinstall mutation, network-backed templates, `npx ...@latest`, callbacks,
   consumer hooks, or package-manager execution from the integration CLI.
 - Expanding `NodeDocsAdoptionInspector` into planner and writer responsibilities.
-

@@ -30,17 +30,19 @@ export interface KnownFileTransactionPlanV1 {
 export type KnownFileTransactionOperationOutcome =
   | "already-satisfied"
   | "created"
-  | "replaced";
+  | "replaced"
+  | "rolled-back-to-absent"
+  | "rolled-back-to-preimage";
 
 export interface KnownFileTransactionReceiptV1 {
   readonly schemaVersion: 1;
   readonly protocol: "foundation.replace-known-file/v1";
   readonly planDigest: KnownFileDigest;
-  readonly outcome: "already-satisfied" | "applied";
+  readonly outcome: "already-satisfied" | "applied" | "rolled-back";
   readonly operations: readonly {
     readonly path: string;
     readonly outcome: KnownFileTransactionOperationOutcome;
-    readonly resultDigest: KnownFileDigest;
+    readonly resultDigest?: KnownFileDigest;
   }[];
   readonly receiptDigest: KnownFileDigest;
 }
@@ -72,4 +74,3 @@ export type KnownFileTransactionOperationInput =
 export interface CompileKnownFileTransactionPlanInput {
   readonly operations: readonly KnownFileTransactionOperationInput[];
 }
-

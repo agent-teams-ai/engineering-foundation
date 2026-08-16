@@ -15,15 +15,23 @@ const file = (value, mode = 0o644) => ({
   mode
 });
 const absent = { state: "absent" };
+const INTEGRITY = `sha512-${"A".repeat(86)}==`;
 
 function cohort() {
   const provisional = {
     schemaVersion: 1,
     cohortId: "docs-2026-08-16-rc1",
     channel: "rc",
+    recordDigest: `sha256:${"1".repeat(64)}`,
+    qualificationEventDigest: `sha256:${"2".repeat(64)}`,
+    lifecycleState: "RECOMMENDED",
+    eligibleAfter: "2026-08-16T00:00:00Z",
+    upgradeFrom: [],
+    rollbackTo: [],
+    canaryRepositoryIds: ["1314129620"],
     packages: {
-      docsProtocol: { version: "0.2.0-rc.0", integrity: "sha512-ZG9jcw==" },
-      engineeringFoundation: { version: "0.18.0-rc.0", integrity: "sha512-Zm91bmRhdGlvbg==" }
+      docsProtocol: { version: "0.2.0-rc.0", integrity: INTEGRITY },
+      engineeringFoundation: { version: "0.18.0-rc.0", integrity: INTEGRITY }
     },
     workflow: {
       repository: "agent-teams-ai/.github",
@@ -80,6 +88,8 @@ function manifest(lineEnding = "\n") {
 function snapshot() {
   const target = cohort();
   return {
+    integrationProfile: file("profile\n"),
+    lockfile: file("lockfile\n"),
     packageManifest: file(manifest()),
     agents: file("# Agents\n\nUse [.agents/skills/docs-authoring/SKILL.md](.agents/skills/docs-authoring/SKILL.md) for documentation.\n"),
     skill: file(CANONICAL_DOCS_SKILL),
@@ -100,7 +110,9 @@ test("plans only the legacy route migration and generated managed state", () => 
   ]);
   assert.deepEqual(first.mutationPlan.operations.map(({ path }) => path), [
     "AGENTS.md",
-    "architecture/foundation/docs-protocol-managed-state.json"
+    "architecture/foundation/docs-consumer-integration.json",
+    "architecture/foundation/docs-protocol-managed-state.json",
+    "pnpm-lock.yaml"
   ]);
   assert.match(first.planDigest, /^sha256:[0-9a-f]{64}$/u);
 });
@@ -118,6 +130,66 @@ test("recognizes the qualified bootstrap caller without trusting arbitrary old b
     "replace"
   );
   assert.equal(plan.outcome, "change-required");
+});
+
+test("recognizes the exact bootstrap caller on a renamed safe default branch", () => {
+  const current = snapshot();
+  current.callerWorkflow = file(Buffer.from(
+    BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS[0]
+  ).toString("utf8").replace("- main", "- trunk"));
+  const plan = planConsumerIntegration({ desired: desired(), snapshot: current });
+  assert.equal(plan.assets.find(({ id }) => id === "caller-workflow").action, "replace");
+  assert.equal(plan.outcome, "change-required");
+});
+
+test("rejects executable path and workflow injection before rendering assets", () => {
+  assert.throws(() => planConsumerIntegration({
+    desired: { ...desired(), profilePath: "architecture/foundation/docs-protocol.yaml; touch pwned" },
+    snapshot: snapshot()
+  }), /invalid or unsupported/u);
+  assert.throws(() => planConsumerIntegration({
+    desired: {
+      ...desired(),
+      cohort: {
+        ...desired().cohort,
+        workflow: {
+          ...desired().cohort.workflow,
+          path: ".github/workflows/docs-protocol-check.yml\npermissions: write-all"
+        }
+      }
+    },
+    snapshot: snapshot()
+  }), /invalid or unsupported/u);
+});
+
+test("blocks invented cohort transitions and permits only declared edges", () => {
+  const initialDesired = desired();
+  const initial = planConsumerIntegration({ desired: initialDesired, snapshot: snapshot() });
+  const current = snapshot();
+  for (const operation of initial.mutationPlan.operations) {
+    const postimage = file(Buffer.from(operation.postimage.contentBase64, "base64").toString("utf8"));
+    if (operation.path === "AGENTS.md") {current.agents = postimage;}
+    if (operation.path.endsWith("managed-state.json")) {current.managedState = postimage;}
+  }
+  const target = desired();
+  target.cohort = {
+    ...target.cohort,
+    cohortId: "docs-2026-08-18-rc3",
+    qualificationEventDigest: `sha256:${"3".repeat(64)}`,
+    upgradeFrom: []
+  };
+  const blocked = planConsumerIntegration({ desired: target, snapshot: current });
+  assert.equal(blocked.outcome, "blocked");
+  assert.ok(blocked.issues.some(({ code }) => code === "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN"));
+});
+
+test("canonical Skill contains executable identical preview and apply arguments", () => {
+  assert.match(CANONICAL_DOCS_SKILL, /--title TITLE --owner OWNER --summary SUMMARY --dry-run/u);
+  assert.match(CANONICAL_DOCS_SKILL, /--title TITLE --owner OWNER --summary SUMMARY --apply/u);
+  assert.match(CANONICAL_DOCS_SKILL, /pnpm install --frozen-lockfile/u);
+  assert.match(CANONICAL_DOCS_SKILL, /never use npx, dlx, or latest tags/u);
+  assert.ok(CANONICAL_DOCS_SKILL.split("\n").length >= 20);
+  assert.ok(CANONICAL_DOCS_SKILL.split("\n").length <= 30);
 });
 
 test("becomes current after exact postimages and binds the changed observations", () => {
@@ -163,6 +235,7 @@ test("uses a self-authenticating managed state to authorize a cohort asset upgra
   const provisional = {
     ...initialDesired.cohort,
     cohortId: "docs-2026-08-17-rc2",
+    upgradeFrom: [initialDesired.cohort.cohortId],
     workflow: {
       ...initialDesired.cohort.workflow,
       revision: "3".repeat(40),

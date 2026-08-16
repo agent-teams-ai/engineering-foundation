@@ -11,15 +11,25 @@ import {
   describeCanonicalConsumerAssets,
   planNodeConsumerIntegration
 } from "../dist/consumer-integration/index.js";
+import { applyKnownFileTransaction } from "../../engineering-foundation/dist/mutation/index.js";
+
+const INTEGRITY = `sha512-${"A".repeat(86)}==`;
 
 function cohort() {
   const provisional = {
     schemaVersion: 1,
     cohortId: "docs-2026-08-16-rc1",
     channel: "rc",
+    recordDigest: `sha256:${"1".repeat(64)}`,
+    qualificationEventDigest: `sha256:${"2".repeat(64)}`,
+    lifecycleState: "RECOMMENDED",
+    eligibleAfter: "2026-08-16T00:00:00Z",
+    upgradeFrom: [],
+    rollbackTo: [],
+    canaryRepositoryIds: [sandboxRepository().id],
     packages: {
-      docsProtocol: { version: "0.2.0-rc.0", integrity: "sha512-ZG9jcw==" },
-      engineeringFoundation: { version: "0.18.0-rc.0", integrity: "sha512-Zm91bmRhdGlvbg==" }
+      docsProtocol: { version: "0.2.0-rc.0", integrity: INTEGRITY },
+      engineeringFoundation: { version: "0.18.0-rc.0", integrity: INTEGRITY }
     },
     workflow: {
       repository: "agent-teams-ai/.github",
@@ -46,6 +56,8 @@ function sandboxRepository() {
 
 async function sandbox() {
   const root = await mkdtemp(join(tmpdir(), "docs-consumer-e2e-"));
+  const initialized = spawnSync("git", ["init", "-q", root], { encoding: "utf8" });
+  assert.equal(initialized.status, 0, initialized.stderr);
   await mkdir(join(root, "architecture", "foundation"), { recursive: true });
   const scripts = Object.fromEntries(
     ["check", "doctor", "find", "info", "new", "recover"].map((command) => [
@@ -93,10 +105,10 @@ importers:
 packages:
   '@agent-teams/docs-protocol@0.2.0-rc.0':
     resolution:
-      integrity: sha512-ZG9jcw==
+      integrity: ${INTEGRITY}
   '@agent-teams/engineering-foundation@0.18.0-rc.0':
     resolution:
-      integrity: sha512-Zm91bmRhdGlvbg==
+      integrity: ${INTEGRITY}
 snapshots:
   '@agent-teams/docs-protocol@0.2.0-rc.0(supports-color@8.1.1)':
     dependencies:
@@ -198,9 +210,59 @@ test("plans, applies, verifies, and repeats the full consumer lifecycle offline"
       NO_PROXY: "*"
     }
   });
-  assert.equal(wrongRepository.status, 2, wrongRepository.stderr);
+  assert.equal(wrongRepository.status, 1, wrongRepository.stderr);
   assert.equal(
     JSON.parse(wrongRepository.stdout).issues[0].code,
     "DOCS_CONSUMER_REPOSITORY_ID_MISMATCH"
   );
+
+  const duplicateJson = spawnSync(process.execPath, [
+    join(import.meta.dirname, "..", "dist", "cli.js"),
+    "consumer", "check", "--consumer", root, "--json", "--json"
+  ], { encoding: "utf8", env: { ...process.env, NO_PROXY: "*" } });
+  assert.equal(duplicateJson.status, 2, duplicateJson.stderr);
+  assert.equal(JSON.parse(duplicateJson.stdout).issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
+
+  const invalidFlag = spawnSync(process.execPath, [
+    join(import.meta.dirname, "..", "dist", "cli.js"),
+    "consumer", "check", "--consumer", root, "--unknown", "--json"
+  ], { encoding: "utf8", env: { ...process.env, NO_PROXY: "*" } });
+  assert.equal(invalidFlag.status, 2, invalidFlag.stderr);
+  assert.equal(JSON.parse(invalidFlag.stdout).issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
+
+  const missingRoot = spawnSync(process.execPath, [
+    join(import.meta.dirname, "..", "dist", "cli.js"),
+    "consumer", "check", "--consumer", join(root, "missing"), "--json"
+  ], { encoding: "utf8", env: { ...process.env, NO_PROXY: "*" } });
+  assert.equal(missingRoot.status, 3, missingRoot.stderr);
+  assert.equal(JSON.parse(missingRoot.stdout).issues[0].code, "DOCS_CONSUMER_EXECUTION_FAILURE");
+
+  await mkdir(join(root, "nested"));
+  await assert.rejects(
+    checkConsumerIntegration({ consumerRoot: join(root, "nested") }),
+    (error) => error?.code === "DOCS_CONSUMER_GIT_ROOT_INVALID"
+  );
+  await mkdir(join(root, "packages", "nested"), { recursive: true });
+  await writeFile(join(root, "packages", "nested", "AGENTS.md"), "# Nested\n");
+  await assert.rejects(
+    checkConsumerIntegration({ consumerRoot: root }),
+    (error) => error?.code === "DOCS_CONSUMER_NESTED_AGENTS_UNSUPPORTED"
+  );
+});
+
+test("fails stale profile authority before publishing any managed operation", async () => {
+  const root = await sandbox();
+  const planned = await planNodeConsumerIntegration({
+    consumerRoot: root,
+    to: cohort().cohortId
+  });
+  const agentsBefore = await readFile(join(root, "AGENTS.md"));
+  const profilePath = join(root, "architecture", "foundation", "docs-consumer-integration.json");
+  await writeFile(profilePath, `${await readFile(profilePath, "utf8")}\n`);
+  await assert.rejects(
+    applyKnownFileTransaction({ consumerRoot: root, plan: planned.plan.mutationPlan }),
+    (error) => error?.code === "KNOWN_FILE_CAS_MISMATCH"
+  );
+  assert.deepEqual(await readFile(join(root, "AGENTS.md")), agentsBefore);
+  await assert.rejects(readFile(join(root, ".agents", "skills", "docs-authoring", "SKILL.md")), /ENOENT/u);
 });

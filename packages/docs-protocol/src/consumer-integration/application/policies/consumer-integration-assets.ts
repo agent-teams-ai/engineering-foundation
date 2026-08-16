@@ -20,20 +20,35 @@ Protocol: \`agent-teams.docs-protocol/v1\`.
 - Read the current types, owners, placement, metadata, and index policy with \`pnpm docs:info\`.
 - Search first with \`pnpm docs:find -- --text query\`.
 - Reuse or relate existing authority instead of creating a competing source.
-- Preview with \`pnpm docs:new -- --type TYPE --id ID --dry-run\`.
+- Preview with \`pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --dry-run\`.
 - Review the exact destination, metadata, relations, anchors, and diagnostics.
-- Apply with \`pnpm docs:new -- --type TYPE --id ID --apply\` after review.
+- Apply with \`pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --apply\` after review.
 - Manually update the reported index/link exactly when reachability requires it.
 - Finish with \`pnpm docs:check\` after the index is current.
 
 ## Rules
 
 - Never invent owners, types, statuses, paths, or metadata outside \`docs:info\`.
+- If dependencies are absent, use only \`pnpm install --frozen-lockfile\`; never use npx, dlx, or latest tags.
 - Keep preview and apply inputs identical.
 - Stop when recovery is required; use \`pnpm docs:doctor\` before \`pnpm docs:recover\`.
 - Resolve required anchors and blockers before apply.
 - Do not bypass repository scripts or hand-edit transaction evidence.
 `;
+
+export const BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS: readonly Uint8Array[] = Object.freeze([
+  Buffer.from(CANONICAL_DOCS_SKILL
+    .replace(
+      "--type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --dry-run",
+      "--type TYPE --id ID --dry-run"
+    )
+    .replace(
+      "--type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --apply",
+      "--type TYPE --id ID --apply"
+    )
+    .replace("- If dependencies are absent, use only `pnpm install --frozen-lockfile`; never use npx, dlx, or latest tags.\n", ""),
+  "utf8")
+]);
 
 export const MANAGED_ROUTE_BEGIN = "<!-- agent-teams-docs:route/v1 begin -->";
 export const MANAGED_ROUTE_END = "<!-- agent-teams-docs:route/v1 end -->";
@@ -57,6 +72,26 @@ jobs:
     uses: agent-teams-ai/.github/.github/workflows/docs-protocol-check.yml@${BOOTSTRAP_WORKFLOW_REVISION}
 `, "utf8")
 ]);
+
+export function isBootstrapKnownPriorCallerWorkflow(bytes: Uint8Array): boolean {
+  let source: string;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return false;
+  }
+  if (source.normalize("NFC") !== source || source.includes("\u0000") || source.includes("\r")) {
+    return false;
+  }
+  const escapedRevision = BOOTSTRAP_WORKFLOW_REVISION.replaceAll("-", "\\-");
+  const match = new RegExp(
+    `^name: Documentation Protocol\\n\\non:\\n  pull_request:\\n  push:\\n    branches:\\n      - ([A-Za-z0-9._/-]+)\\n\\npermissions:\\n  contents: read\\n\\njobs:\\n  docs-protocol:\\n    uses: agent-teams-ai/\\.github/\\.github/workflows/docs-protocol-check\\.yml@${escapedRevision}\\n$`,
+    "u"
+  ).exec(source);
+  const branch = match?.[1];
+  return branch !== undefined && !branch.startsWith("/") && !branch.endsWith("/") &&
+    !branch.includes("..") && !branch.includes("//");
+}
 
 export function digestBytes(value: Uint8Array): ConsumerIntegrationDigest {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -133,6 +168,15 @@ export function canonicalManagedState(
   const body = {
     schemaVersion: 1,
     cohortId: desired.cohort.cohortId,
+    cohortAuthority: {
+      channel: desired.cohort.channel,
+      recordDigest: desired.cohort.recordDigest,
+      qualificationEventDigest: desired.cohort.qualificationEventDigest,
+      lifecycleState: desired.cohort.lifecycleState,
+      eligibleAfter: desired.cohort.eligibleAfter,
+      upgradeFrom: desired.cohort.upgradeFrom,
+      rollbackTo: desired.cohort.rollbackTo
+    },
     repository: desired.repository,
     packages: desired.cohort.packages,
     profilePath: desired.profilePath,
@@ -167,6 +211,9 @@ export function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortV1): 
       scriptsTemplateDigest: canonicalDocsScriptsDigest("{profilePath}")
     },
     knownPriorCallerWorkflowDigests: BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS
+      .map(digestBytes)
+      .toSorted(),
+    knownPriorSkillDigests: BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS
       .map(digestBytes)
       .toSorted()
   }), "utf8"));

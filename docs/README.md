@@ -20,6 +20,7 @@ not repeat their rules.
 | Scaffolding compiler | [Scaffolding compiler protocol](architecture/scaffolding-compiler-protocol.md) | Kernel and generic Node TypeScript library recipe implemented; Nx deferred |
 | Document authoring | [Document authoring protocol](architecture/document-authoring-protocol.md) | Catalog, Plan compiler, create-only writer, doctor, and exact-version recovery implemented; packed registry RC qualification pending |
 | Unified documentation UX | [ADR-0025](decisions/0025-unified-documentation-protocol-package.md) | Separate Docs Protocol package accepted; implementation and consumer parity rollout in progress |
+| Managed consumer integration | [Consumer integration](architecture/managed-docs-consumer-integration.md) | Accepted target; implementation and qualification in progress |
 | Document authoring security | [Cooperative writer threat model](security/document-authoring-threat-model.md) | Implemented cooperative-writer boundary; packed platform and registry qualification pending |
 | Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |

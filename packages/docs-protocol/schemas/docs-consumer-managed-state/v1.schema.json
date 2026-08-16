@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-consumer-managed-state/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "cohortId", "repository", "packages", "profilePath", "skillPath", "callerWorkflowPath", "managedStatePath", "assets", "stateDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "cohortId": { "type": "string", "minLength": 1 },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "id", "nameWithOwner"],
+      "properties": {
+        "provider": { "const": "github" },
+        "id": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "nameWithOwner": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" }
+      }
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docsProtocol", "engineeringFoundation"],
+      "properties": {
+        "docsProtocol": { "$ref": "#/$defs/package" },
+        "engineeringFoundation": { "$ref": "#/$defs/package" }
+      }
+    },
+    "profilePath": { "type": "string", "minLength": 1 },
+    "skillPath": { "type": "string", "minLength": 1 },
+    "callerWorkflowPath": { "type": "string", "minLength": 1 },
+    "managedStatePath": { "type": "string", "minLength": 1 },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["skillDigest", "callerWorkflowDigest", "agentsRouteDigest", "docsScriptsDigest"],
+      "properties": {
+        "skillDigest": { "$ref": "#/$defs/sha256" },
+        "callerWorkflowDigest": { "$ref": "#/$defs/sha256" },
+        "agentsRouteDigest": { "$ref": "#/$defs/sha256" },
+        "docsScriptsDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "stateDigest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "integrity"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+        "integrity": { "type": "string", "pattern": "^sha512-[A-Za-z0-9+/=]+$" }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocol", "planDigest", "outcome", "operations", "receiptDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "foundation.replace-known-file/v1" },
+    "planDigest": { "$ref": "#/$defs/sha256" },
+    "outcome": { "enum": ["already-satisfied", "applied"] },
+    "operations": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "outcome", "resultDigest"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "outcome": { "enum": ["already-satisfied", "created", "replaced"] },
+          "resultDigest": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "receiptDigest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

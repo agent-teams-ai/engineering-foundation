@@ -6,6 +6,7 @@ import {
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_LINK_STATE_FILE,
   FOUNDATION_REGISTRY_BACKUP,
+  KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
   LOCAL_STATE_DIRECTORY
 } from "../../../foundation-state-contract.js";
 import { assertSchema } from "../../../schema-catalog.js";
@@ -36,6 +37,8 @@ import {
   inspectDocumentTransactionBindings
 } from "./document-envelope-bindings.js";
 import { inspectFoundationTransitionEvidence } from "./foundation-transition-evidence.js";
+import { inspectKnownFileTransactionStatus } from "./known-file-transaction-status.js";
+import { pendingDocumentTransaction } from "./document-transaction-status.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
@@ -103,42 +106,6 @@ function pending(options: {
     foundationVersion: options.foundationVersion,
     recovery: recoveryRoute(options.foundationVersion),
     diagnostics
-  };
-}
-
-function pendingDocument(options: {
-  readonly format?: "document-authoring-envelope-v3" | "document-authoring-envelope-v4";
-  readonly foundationVersion: string;
-  readonly foundationBuildIdentity: string;
-  readonly installedVersion: string;
-  readonly installedBuildIdentity: string;
-}): InternalFoundationTransactionStatus {
-  const exactBuild =
-    options.foundationVersion === options.installedVersion &&
-    options.foundationBuildIdentity === options.installedBuildIdentity;
-  return {
-    state: "pending",
-    operationKind: "document-authoring",
-    format: options.format ?? "document-authoring-envelope-v3",
-    foundationVersion: options.foundationVersion,
-    foundationBuildIdentity: options.foundationBuildIdentity,
-    recovery: {
-      commandId: "docs-recover",
-      exactFoundationVersion: options.foundationVersion,
-      exactFoundationBuildIdentity: options.foundationBuildIdentity
-    },
-    diagnostics: [
-      exactBuild
-        ? {
-            code: "FOUNDATION_TRANSACTION_ACTIVE",
-            message:
-              "A pending document-authoring transaction must be recovered before another Foundation mutation can start."
-          }
-        : {
-            code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-            message: `Foundation ${options.foundationVersion} (${options.foundationBuildIdentity}) must recover the pending document-authoring transaction before package ${options.installedVersion} (${options.installedBuildIdentity}) can mutate this repository.`
-          }
-    ]
   };
 }
 
@@ -294,6 +261,14 @@ async function inspectLegacyScaffoldingJournal(options: {
   });
 }
 
+function transactionSchemaVersion(value: Record<string, unknown>): number {
+  const schemaVersion = value["schemaVersion"];
+  if (typeof schemaVersion !== "number") {
+    throw new Error("Foundation transaction schema version is invalid.");
+  }
+  return schemaVersion;
+}
+
 async function inspectParsedTransaction(
   value: unknown,
   installedVersion: string,
@@ -305,10 +280,7 @@ async function inspectParsedTransaction(
       "The Foundation transaction slot is invalid and was preserved."
     );
   }
-  const schemaVersion = value["schemaVersion"];
-  if (typeof schemaVersion !== "number") {
-    return manual("invalid-slot", "The Foundation transaction slot is invalid and was preserved.");
-  }
+  const schemaVersion = transactionSchemaVersion(value);
   switch (schemaVersion) {
   case 1:
     return inspectLegacyScaffoldingJournal({
@@ -318,14 +290,14 @@ async function inspectParsedTransaction(
     });
   case 3:
     return inspectCurrentDocumentEnvelope({
-      value, installedVersion, installedBuildIdentity, pending: pendingDocument
+      value, installedVersion, installedBuildIdentity, pending: pendingDocumentTransaction
     });
   case 4:
     return inspectCurrentDocumentEnvelope({
       value,
       installedVersion,
       installedBuildIdentity,
-      pending: (identity) => pendingDocument({
+      pending: (identity) => pendingDocumentTransaction({
         ...identity,
         format: "document-authoring-envelope-v4"
       })
@@ -400,7 +372,12 @@ async function inspectParsedTransaction(
     };
   }
   default:
-    return manual(
+    return inspectKnownFileTransactionStatus({
+      value,
+      schemaVersion,
+      installedVersion,
+      installedBuildIdentity
+    }) ?? manual(
       "unsupported-schema",
       `Foundation transaction schema version ${String(schemaVersion)} is unsupported and was preserved.`
     );
@@ -412,6 +389,7 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
   readonly #installedVersion: string;
   readonly #stateDirectory: string;
   readonly #slotPath: string;
+  readonly #knownFileTemporaryPath: string;
 
   constructor(options: {
     readonly consumerRoot: string;
@@ -423,6 +401,10 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
     const stateDirectory = join(options.consumerRoot, LOCAL_STATE_DIRECTORY);
     this.#stateDirectory = stateDirectory;
     this.#slotPath = join(stateDirectory, FOUNDATION_TRANSACTION_FILE);
+    this.#knownFileTemporaryPath = join(
+      stateDirectory,
+      KNOWN_FILE_TRANSACTION_TEMPORARY_FILE
+    );
   }
 
   async #inspectTransactionEvidence(): Promise<InternalFoundationTransactionStatus> {
@@ -440,12 +422,32 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
       );
     } catch (error) {
       if (isMissing(error)) {
-        return { state: "idle", diagnostics: [] };
+        try {
+          record = await readBoundedRegularFile(
+            this.#knownFileTemporaryPath,
+            maximumTransactionBytes
+          );
+        } catch (temporaryError) {
+          if (isMissing(temporaryError)) {
+            return { state: "idle", diagnostics: [] };
+          }
+          return manual(
+            "invalid-slot",
+            "The Foundation known-file transaction transition could not be read safely and was preserved."
+          );
+        }
+        if (record.outcome !== "read") {
+          return manual(
+            "unstable-slot",
+            "The Foundation known-file transaction transition is not a stable bounded regular file and was preserved."
+          );
+        }
+      } else {
+        return manual(
+          "invalid-slot",
+          "The Foundation transaction slot could not be read safely and was preserved."
+        );
       }
-      return manual(
-        "invalid-slot",
-        "The Foundation transaction slot could not be read safely and was preserved."
-      );
     }
     if (record.outcome !== "read") {
       return manual(

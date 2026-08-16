@@ -46,7 +46,7 @@ function isDocumentRecoveryAllowed(
   status: InternalFoundationTransactionStatus,
   options: {
     readonly requestedMutation: FoundationMutationKind;
-    readonly allowRecoveryOf?: "document-authoring" | "local-mode" | "scaffolding";
+    readonly allowRecoveryOf?: "document-authoring" | "known-file-transaction" | "local-mode" | "scaffolding";
   }
 ): boolean {
   return (
@@ -64,6 +64,23 @@ function isDocumentRecoveryAllowed(
       ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
     )
   );
+}
+
+function isKnownFileRecoveryAllowed(
+  status: InternalFoundationTransactionStatus,
+  options: {
+    readonly requestedMutation: FoundationMutationKind;
+    readonly allowRecoveryOf?: "document-authoring" | "known-file-transaction" | "local-mode" | "scaffolding";
+  }
+): boolean {
+  return status.state === "pending" &&
+    status.operationKind === "known-file-transaction" &&
+    status.format === "known-file-transaction-envelope-v1" &&
+    status.recovery.exactFoundationVersion === status.foundationVersion &&
+    status.recovery.exactFoundationBuildIdentity === status.foundationBuildIdentity &&
+    options.allowRecoveryOf === "known-file-transaction" &&
+    options.requestedMutation === "known-file-transaction" &&
+    !status.diagnostics.some(({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH");
 }
 
 export interface FoundationTransactionLease {
@@ -89,7 +106,7 @@ export class FoundationTransactionCoordinator {
 
   async acquire(options: {
     readonly requestedMutation: FoundationMutationKind;
-    readonly allowRecoveryOf?: "document-authoring" | "local-mode" | "scaffolding";
+    readonly allowRecoveryOf?: "document-authoring" | "known-file-transaction" | "local-mode" | "scaffolding";
   }): Promise<FoundationTransactionLease> {
     const release = await this.#lock.acquire();
     let held = true;
@@ -111,11 +128,13 @@ export class FoundationTransactionCoordinator {
         options.allowRecoveryOf === "local-mode" &&
         options.requestedMutation === "detach";
       const documentRecoveryAllowed = isDocumentRecoveryAllowed(status, options);
+      const knownFileRecoveryAllowed = isKnownFileRecoveryAllowed(status, options);
       if (
         status.state !== "idle" &&
         !scaffoldingRecoveryAllowed &&
         !localModeRecoveryAllowed &&
-        !documentRecoveryAllowed
+        !documentRecoveryAllowed &&
+        !knownFileRecoveryAllowed
       ) {
         throw new FoundationTransactionError({
           requestedMutation: options.requestedMutation,

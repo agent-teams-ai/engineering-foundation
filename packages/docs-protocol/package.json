@@ -25,6 +25,11 @@
     "schemas/docs-protocol/v1.schema.json",
     "schemas/docs-protocol-profile/v1.schema.json",
     "schemas/docs-protocol-command-envelope/v1.schema.json",
+    "schemas/docs-consumer-integration-execution/v1.schema.json",
+    "schemas/docs-consumer-integration-plan/v1.schema.json",
+    "schemas/docs-consumer-integration-profile/v1.schema.json",
+    "schemas/docs-consumer-managed-state/v1.schema.json",
+    "schemas/qualified-docs-cohort/v1.schema.json",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
@@ -55,6 +60,7 @@
     "@agent-teams/engineering-foundation": "workspace:*",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
+    "jsonc-parser": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {

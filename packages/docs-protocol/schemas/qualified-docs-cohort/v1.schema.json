@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/qualified-docs-cohort/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "cohortId", "channel", "packages", "workflow", "assets", "schemas", "runtime"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+    "channel": { "enum": ["rc", "stable"] },
+    "packages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docsProtocol", "engineeringFoundation"],
+      "properties": {
+        "docsProtocol": { "$ref": "#/$defs/package" },
+        "engineeringFoundation": { "$ref": "#/$defs/package" }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "path", "revision", "blobSha"],
+      "properties": {
+        "repository": { "$ref": "#/$defs/repository" },
+        "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "revision": { "$ref": "#/$defs/sha" },
+        "blobSha": { "$ref": "#/$defs/sha" }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest"],
+      "properties": {
+        "skillDigest": { "$ref": "#/$defs/sha256" },
+        "callerWorkflowDigest": { "$ref": "#/$defs/sha256" },
+        "assetCatalogDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumerIntegration", "managedState", "docsProtocol"],
+      "properties": {
+        "consumerIntegration": { "const": 1 },
+        "managedState": { "const": 1 },
+        "docsProtocol": { "const": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "pnpm"],
+      "properties": {
+        "node": { "const": ">=24.18.0 <25" },
+        "pnpm": { "const": ">=11.17.0 <12" }
+      }
+    }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "integrity"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+        "integrity": { "type": "string", "pattern": "^sha512-[A-Za-z0-9+/=]+$" }
+      }
+    }
+  }
+}

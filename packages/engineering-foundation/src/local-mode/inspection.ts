@@ -260,6 +260,17 @@ function projectPublicTransactionStatus(
 ): FoundationTransactionStatus {
   if (
     status.state === "pending" &&
+    status.operationKind === "known-file-transaction"
+  ) {
+    return {
+      state: "manual-recovery-required",
+      reason: "recovery-handler-unavailable",
+      operationKind: "known-file-transaction",
+      diagnostics: status.diagnostics
+    };
+  }
+  if (
+    status.state === "pending" &&
     status.operationKind === "document-authoring"
   ) {
     return {
@@ -274,7 +285,8 @@ function projectPublicTransactionStatus(
       status.reason === "journal-transition-residue" ||
       status.reason === "physical-identity-unverifiable" ||
       status.format === "envelope-v3" ||
-      status.format === "envelope-v4"
+      status.format === "envelope-v4" ||
+      status.format === "known-file-transaction-envelope-v1"
     ) {
       return {
         state: "manual-recovery-required",

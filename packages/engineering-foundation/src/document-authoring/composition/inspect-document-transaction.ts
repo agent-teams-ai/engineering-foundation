@@ -44,11 +44,9 @@ function isExactDocumentRecovery(
 function operationKind(status: Exclude<ObservedTransactionStatus, {
   readonly state: "idle";
 }>): "document-authoring" | "local-mode" | "scaffolding" | undefined {
-  return property(status, "operationKind") as
-    | "document-authoring"
-    | "local-mode"
-    | "scaffolding"
-    | undefined;
+  const observed = property(status, "operationKind");
+  return observed === "document-authoring" || observed === "local-mode" ||
+    observed === "scaffolding" ? observed : undefined;
 }
 
 function stringProperty(value: unknown, key: string): string | undefined {
@@ -73,11 +71,12 @@ function transactionKind(
     return "version-mismatch";
   }
   if (status.state === "pending") {
-    switch (status.operationKind) {
-      case "document-authoring": return "document";
-      case "local-mode": return "local-mode";
-      case "scaffolding": return "scaffold";
-    }
+    return {
+      "document-authoring": "document" as const,
+      "known-file-transaction": "unknown" as const,
+      "local-mode": "local-mode" as const,
+      scaffolding: "scaffold" as const
+    }[status.operationKind];
   }
   switch (status.reason) {
     case "journal-transition-residue":
@@ -89,12 +88,8 @@ function transactionKind(
     case "unstable-slot": return "corrupt";
     case "unsupported-schema": return "version-mismatch";
     case "recovery-handler-unavailable":
-      switch (status.operationKind) {
-        case "document-authoring": return "document";
-        case "scaffolding": return "scaffold";
-        case undefined: return "unknown";
-      }
-      return "unknown";
+      return status.operationKind === "document-authoring" ? "document" :
+        status.operationKind === "scaffolding" ? "scaffold" : "unknown";
     case "multiple-transactions": return "unknown";
   }
 }

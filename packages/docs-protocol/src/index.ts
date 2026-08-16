@@ -12,6 +12,7 @@ export {
   DOCS_PROTOCOL_ID,
   DOCS_PROTOCOL_VERSION
 } from "./domain/model.js";
+export * as consumerIntegration from "./consumer-integration/index.js";
 export type {
   DocsCommand,
   DocsCommandEnvelope,

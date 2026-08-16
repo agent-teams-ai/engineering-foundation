@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-consumer-integration-plan/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "cohortId", "repository", "planDigest", "outcome", "assets", "issues"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+    "repository": { "$ref": "#/$defs/repository" },
+    "planDigest": { "$ref": "#/$defs/sha256" },
+    "outcome": { "enum": ["blocked", "change-required", "current"] },
+    "assets": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/asset" }
+    },
+    "issues": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/issue" }
+    },
+    "mutationPlan": {
+      "$ref": "https://agent-teams.ai/schemas/known-file-transaction-plan/v1"
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "id", "nameWithOwner"],
+      "properties": {
+        "provider": { "const": "github" },
+        "id": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "nameWithOwner": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "ownership", "state", "expectedDigest", "action"],
+      "properties": {
+        "id": { "enum": ["agents-route", "caller-workflow", "managed-state", "package-manifest", "skill"] },
+        "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "ownership": { "enum": ["full-bytes", "partial-fields", "managed-block"] },
+        "state": { "enum": ["absent", "exact-current", "known-prior", "partial-adoption", "outdated-cohort", "unknown-modified", "conflict", "unsupported"] },
+        "currentDigest": { "$ref": "#/$defs/sha256" },
+        "expectedDigest": { "$ref": "#/$defs/sha256" },
+        "action": { "enum": ["create", "none", "replace", "blocked"] }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "subject", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$", "maxLength": 128 },
+        "severity": { "enum": ["error", "warning"] },
+        "subject": { "type": "string", "maxLength": 2048 },
+        "message": { "type": "string", "maxLength": 4096 }
+      }
+    }
+  }
+}

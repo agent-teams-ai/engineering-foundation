@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-consumer-integration-execution/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "command", "outcome", "issues"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "command": { "enum": ["consumer.apply", "consumer.check", "consumer.plan", "consumer.recover"] },
+    "outcome": { "enum": ["applied", "blocked", "change-required", "current", "recovered"] },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "subject", "message"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "severity": { "enum": ["error", "warning"] },
+          "subject": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "plan": { "$ref": "https://agent-teams.ai/schemas/docs-consumer-integration-plan/v1" },
+    "receipt": { "$ref": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1" }
+  }
+}

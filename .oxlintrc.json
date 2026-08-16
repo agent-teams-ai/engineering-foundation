@@ -2,7 +2,8 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": [
     "./packages/engineering-foundation/presets/oxlint/node.json",
-    "./packages/engineering-foundation/presets/oxlint/maintainability.json"
+    "./packages/engineering-foundation/presets/oxlint/maintainability.json",
+    "./.oxlintrc.repository-mutation-budgets.json"
   ],
   "ignorePatterns": [
     "**/dist/**",
@@ -20,36 +21,6 @@
         "max-lines": "off",
         "max-lines-per-function": "off",
         "max-params": "off"
-      }
-    },
-    {
-      "files": [
-        "packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts"
-      ],
-      "rules": {
-        "max-lines": [
-          "error",
-          {
-            "max": 900,
-            "skipBlankLines": true,
-            "skipComments": true
-          }
-        ]
-      }
-    },
-    {
-      "files": [
-        "packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts"
-      ],
-      "rules": {
-        "max-lines": [
-          "error",
-          {
-            "max": 1400,
-            "skipBlankLines": true,
-            "skipComments": true
-          }
-        ]
       }
     },
     {

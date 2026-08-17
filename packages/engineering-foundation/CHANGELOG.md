@@ -1,5 +1,13 @@
 # @agent-teams/engineering-foundation
 
+## 0.17.0-rc.7
+
+### Patch Changes
+
+- [#160](https://github.com/agent-teams-ai/engineering-foundation/pull/160) [`c5f3718`](https://github.com/agent-teams-ai/engineering-foundation/commit/c5f3718f1c4829de00bacaf5f37b0ead133abdd2) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc9 Cohort as an immutable upgrade source and accept
+  consumer-specific registry-bound transitive resolutions while preserving exact
+  managed package versions, SRI, physical resolution, and dependency edges.
+
 ## 0.17.0-rc.6
 
 ### Patch Changes

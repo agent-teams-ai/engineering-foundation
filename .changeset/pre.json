@@ -12,6 +12,7 @@
     "docs-protocol-first-rc",
     "docs-protocol-idempotent-postimage",
     "docs-rc7-source-bundle",
+    "docs-rc9-portable-upgrades",
     "docs-release-pair-identity",
     "docs-release-provenance-pair-refresh",
     "docs-rollback-bundle",

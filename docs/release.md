@@ -193,10 +193,11 @@ Before every publication:
   as separate supply-chain evidence.
 
 The exact generated release PR must pass the protected cross-platform repository
-checks before merge. `release:publish` does not repeat that full suite on the
-same reviewed artifact tree; it runs the release-only pinned Buf qualification,
-hermetic registry qualification, published-version compatibility checks, and
-ordered publication.
+checks before merge. A fresh publish runner builds the reviewed sources once to
+materialize package artifacts. `release:publish` does not repeat the full
+repository suite on the same reviewed artifact tree; it then runs the
+release-only pinned Buf qualification, hermetic registry qualification,
+published-version compatibility checks, and ordered publication.
 The registry qualification starts an isolated
 npm-compatible registry with no uplinks, publishes the packed package and its
 runtime dependency closure, installs by exact version, and verifies registry

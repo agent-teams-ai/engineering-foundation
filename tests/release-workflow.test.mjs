@@ -513,10 +513,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["release:publish"],
     /node scripts\/release-publish\.mjs/u,
   );
-  assert.match(
-    manifest.scripts["release:publish"],
-    /^pnpm build &&/u,
-  );
+  assert.match(manifest.scripts["release:publish"], /^pnpm build &&/u);
   assert.doesNotMatch(
     manifest.scripts["release:publish"],
     /(?:^|&&\s*)(?:changeset publish|pnpm check)(?:\s|&&|$)/u,

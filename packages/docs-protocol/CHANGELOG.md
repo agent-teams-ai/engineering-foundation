@@ -1,5 +1,14 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.9
+
+### Patch Changes
+
+- [#158](https://github.com/agent-teams-ai/engineering-foundation/pull/158) [`ca276ca`](https://github.com/agent-teams-ai/engineering-foundation/commit/ca276ca5a502ceba013106bf2270bc87b9b407a5) Thanks [@777genius](https://github.com/777genius)! - Keep ordered trusted publishing open for bounded three-minute npm provenance and idempotent GitHub reconciliation windows.
+
+- Updated dependencies [[`ca276ca`](https://github.com/agent-teams-ai/engineering-foundation/commit/ca276ca5a502ceba013106bf2270bc87b9b407a5)]:
+  - @agent-teams/engineering-foundation@0.17.0-rc.6
+
 ## 0.1.0-rc.8
 
 ### Patch Changes

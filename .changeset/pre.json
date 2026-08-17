@@ -10,6 +10,8 @@
     "docs-protocol-bootstrap",
     "docs-protocol-first-rc",
     "docs-protocol-idempotent-postimage",
+    "managed-docs-consumer-integration",
+    "prerelease-api-promotion",
     "unified-docs-protocol"
   ]
 }

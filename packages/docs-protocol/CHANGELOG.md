@@ -1,5 +1,15 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.10
+
+### Patch Changes
+
+- [#160](https://github.com/agent-teams-ai/engineering-foundation/pull/160) [`c5f3718`](https://github.com/agent-teams-ai/engineering-foundation/commit/c5f3718f1c4829de00bacaf5f37b0ead133abdd2) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc9 Cohort as an immutable upgrade source and accept
+  consumer-specific registry-bound transitive resolutions while preserving exact
+  managed package versions, SRI, physical resolution, and dependency edges.
+- Updated dependencies [[`c5f3718`](https://github.com/agent-teams-ai/engineering-foundation/commit/c5f3718f1c4829de00bacaf5f37b0ead133abdd2)]:
+  - @agent-teams/engineering-foundation@0.17.0-rc.7
+
 ## 0.1.0-rc.9
 
 ### Patch Changes

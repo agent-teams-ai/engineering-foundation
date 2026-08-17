@@ -1,5 +1,11 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.3
+
+### Patch Changes
+
+- [#144](https://github.com/agent-teams-ai/engineering-foundation/pull/144) [`3e188cb`](https://github.com/agent-teams-ai/engineering-foundation/commit/3e188cb7988026cc78713511f72e718080899d4f) Thanks [@777genius](https://github.com/777genius)! - Grant the canonical reusable-workflow caller the OIDC permission required by the qualified documentation gate.
+
 ## 0.1.0-rc.2
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.6
+
+### Patch Changes
+
+- [#151](https://github.com/agent-teams-ai/engineering-foundation/pull/151) [`08ee0bf`](https://github.com/agent-teams-ai/engineering-foundation/commit/08ee0bf8a6157981e3761c3c56c10c31b5693c27) Thanks [@777genius](https://github.com/777genius)! - Treat the optional `@types/node` peer context as type-only metadata when validating a pnpm runtime closure. Continue to verify the complete executable dependency graph, exact versions, registry integrity values, and every non-type peer context.
+
 ## 0.1.0-rc.5
 
 ### Patch Changes

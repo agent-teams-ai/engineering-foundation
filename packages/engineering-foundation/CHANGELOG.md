@@ -1,5 +1,12 @@
 # @agent-teams/engineering-foundation
 
+## 0.17.0-rc.2
+
+### Patch Changes
+
+- [#146](https://github.com/agent-teams-ai/engineering-foundation/pull/146) [`06c6586`](https://github.com/agent-teams-ai/engineering-foundation/commit/06c6586b2426cfeb605be20d9089c70fb246a7cf) Thanks [@777genius](https://github.com/777genius)! - Refresh the Foundation release identity so the corrected Docs Protocol can
+  publish as one provenance-owned ordered pair.
+
 ## 0.17.0-rc.1
 
 ### Minor Changes

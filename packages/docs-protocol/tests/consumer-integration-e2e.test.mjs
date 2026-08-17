@@ -275,11 +275,11 @@ test("plans, applies, verifies, and repeats the full consumer lifecycle offline"
   assert.equal((await checkConsumerIntegration({ consumerRoot: root })).outcome, "current");
 });
 
-test("upgrades exact qualified rc7 assets through the package-owned bundle", async () => {
+test("upgrades exact qualified rc9 assets through the package-owned bundle", async () => {
   const root = await sandbox();
   const catalog = await loadPackageConsumerAssetCatalog();
   const prior = catalog.directTargetBundles.find((entry) =>
-    entry.cohort.cohortId === "docs-2026-08-17-rc7"
+    entry.cohort.cohortId === "docs-2026-08-17-rc9"
   );
   assert.ok(prior);
 
@@ -287,7 +287,7 @@ test("upgrades exact qualified rc7 assets through the package-owned bundle", asy
   const target = JSON.parse(await readFile(profilePath, "utf8"));
   target.cohort = {
     ...target.cohort,
-    cohortId: "docs-2026-08-17-rc9",
+    cohortId: "docs-2026-08-18-rc1",
     upgradeFrom: [prior.cohort.cohortId]
   };
   target.cohort.assets = describeCanonicalConsumerAssets(target.cohort);
@@ -396,7 +396,7 @@ test("fails closed for nested integration units, lockfiles, pnpmfile hooks, and 
   assert.ok(checked.issues.some(({ code }) => code === "DOCS_CONSUMER_NON_DEV_DEPENDENCY"));
 });
 
-test("fails local check when a reachable transitive runtime dependency drifts", async () => {
+test("accepts a registry-bound consumer transitive while preserving exact cohort roots", async () => {
   const root = await sandbox();
   const lockPath = join(root, "pnpm-lock.yaml");
   const source = await readFile(lockPath, "utf8");
@@ -409,8 +409,14 @@ test("fails local check when a reachable transitive runtime dependency drifts", 
     .replace(
       "  '@agent-teams/engineering-foundation@0.18.0-rc.0(supports-color@8.1.1)': {}\n",
       "  '@agent-teams/engineering-foundation@0.18.0-rc.0(supports-color@8.1.1)': {}\n  transitive-runtime@1.0.0: {}\n"
-    );
+  );
   await writeFile(lockPath, changed);
+  assert.equal((await checkConsumerIntegration({ consumerRoot: root })).outcome, "change-required");
+
+  await writeFile(lockPath, changed.replace(
+    "      transitive-runtime: 1.0.0\n",
+    "      transitive-runtime: file:vendor/transitive-runtime\n"
+  ));
   await assert.rejects(
     checkConsumerIntegration({ consumerRoot: root }),
     (error) => error?.code === "DOCS_CONSUMER_RUNTIME_CLOSURE_MISMATCH"

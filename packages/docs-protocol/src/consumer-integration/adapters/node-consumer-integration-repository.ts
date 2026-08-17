@@ -215,7 +215,9 @@ async function readStableFile(
 
 function rejectPrototypeKeys(value: unknown, path = "integration profile"): void {
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => rejectPrototypeKeys(entry, `${path}[${index}]`));
+    value.forEach((entry, index) => {
+      rejectPrototypeKeys(entry, `${path}[${index}]`);
+    });
     return;
   }
   if (typeof value !== "object" || value === null) {return;}
@@ -394,17 +396,14 @@ function assertRootOwnsCohortPins(
   }
 }
 
-function assertRuntimeClosure(
+function assertRegistryBoundRuntimeClosure(
   lockfile: Record<string, unknown>,
   desired: ConsumerIntegrationDesiredStateV1
 ): void {
   try {
-    const closureDigest = computePnpmRuntimeClosureDigestV1(lockfile, desired.cohort);
-    if (closureDigest !== desired.cohort.runtime.runtimeClosureDigest) {
-      throw new PnpmRuntimeClosureError(
-        "pnpm-lock.yaml transitive runtime closure does not match the qualified Cohort digest."
-      );
-    }
+    // The Cohort digest qualifies the isolated release graph. A consumer may select
+    // compatible transitives or peer contexts, but every reachable edge stays registry/SRI bound.
+    computePnpmRuntimeClosureDigestV1(lockfile, desired.cohort);
   } catch (error) {
     if (error instanceof PnpmRuntimeClosureError) {
       throw new ConsumerIntegrationNodeError(error.code, error.message, { cause: error });
@@ -545,7 +544,7 @@ async function assertQualifiedLockfile(
       "The selected Docs Protocol snapshot must depend on the exact cohort Foundation version."
     );
   }
-  assertRuntimeClosure(lockfile, desired);
+  assertRegistryBoundRuntimeClosure(lockfile, desired);
   return observation;
 }
 

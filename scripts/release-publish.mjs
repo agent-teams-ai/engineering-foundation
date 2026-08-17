@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, readdir, readlink } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
@@ -11,6 +10,7 @@ import {
 } from "./release-changeset-state.mjs";
 import { changesetsPublishArguments, releasePublishInvocation } from "./release-publish-command.mjs";
 import { assertOrdinaryDocsReleasePolicy } from "./release-publish-docs-policy.mjs";
+import { publishOrderedRelease } from "./release-publish-ordered-runtime.mjs";
 import {
   comparePublishedVersions,
   compareVersionCore,
@@ -431,8 +431,7 @@ export async function releaseState(cwd) {
 export async function main({
   cwd = process.cwd(),
   inspectReleaseState = releaseState,
-  resolvePublishInvocation = releasePublishInvocation,
-  spawn = spawnSync,
+  publishOrdered = publishOrderedRelease,
   verifyRegistry = verifyPublishRegistryState,
 } = {}) {
   const initialState = await inspectReleaseState(cwd);
@@ -466,12 +465,7 @@ export async function main({
   if (JSON.stringify(finalState) !== JSON.stringify(initialState)) {
     throw new Error("Release filesystem state changed during final registry verification.");
   }
-  const invocation = resolvePublishInvocation();
-  const result = spawn(invocation.command, invocation.args, { cwd, stdio: "inherit" });
-  if (result.error !== undefined) {
-    throw result.error;
-  }
-  process.exitCode = result.status ?? 1;
+  await publishOrdered({ cwd, decision, state: finalState });
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === process.argv[1]) {

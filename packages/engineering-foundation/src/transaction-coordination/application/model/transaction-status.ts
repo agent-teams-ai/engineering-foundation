@@ -2,6 +2,7 @@ export type FoundationMutationKind =
   | "attach"
   | "detach"
   | "document-authoring"
+  | "known-file-transaction"
   | "scaffolding";
 
 export type FoundationRecoveryRoute =
@@ -12,6 +13,11 @@ export type FoundationRecoveryRoute =
     }
   | {
       readonly commandId: "detach";
+    }
+  | {
+      readonly commandId: "replace-known-file-recover";
+      readonly exactFoundationVersion: string;
+      readonly exactFoundationBuildIdentity: string;
     };
 
 export type FoundationTransactionDiagnostic =
@@ -61,7 +67,7 @@ export type FoundationTransactionStatus =
   | {
       readonly state: "manual-recovery-required";
       readonly reason: FoundationManualRecoveryReason;
-      readonly operationKind?: "document-authoring" | "scaffolding";
+      readonly operationKind?: "document-authoring" | "known-file-transaction" | "scaffolding";
       readonly format?: "envelope-v2";
       readonly foundationVersion?: string;
       readonly foundationBuildIdentity?: string;

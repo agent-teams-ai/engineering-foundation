@@ -59,6 +59,13 @@ Foundation cannot depend on Docs Protocol. Consumers still own their data-only
 profiles, schemas, owners, templates, reachability, and semantic validators;
 neither shared package accepts executable consumer extensions.
 
+ADR-0030 and ADR-0031 extend that split for consumer maintenance. Foundation
+alone owns recoverable create-or-replace-known-file transactions. Docs Protocol
+owns the pure consumer-integration compiler and package-owned asset catalog, and
+delegates every apply to that Foundation port. Organization governance owns the
+Qualified Cohort and enrollment evidence. Lockfiles remain package-manager-owned,
+while profiles and documentation authority remain consumer-owned.
+
 The corrected authoring v1 applies that split mechanically. Foundation owns
 Intent normalization, closed ID/placement operators, filename slug derivation,
 canonical frontmatter and domain-separated protocol digests. A complete rebuilt

@@ -28,10 +28,23 @@ export type InternalFoundationTransactionStatus =
       readonly diagnostics: readonly FoundationTransactionDiagnostic[];
     }
   | {
+      readonly state: "pending";
+      readonly operationKind: "known-file-transaction";
+      readonly format: "known-file-transaction-envelope-v1";
+      readonly foundationVersion: string;
+      readonly foundationBuildIdentity: string;
+      readonly recovery: {
+        readonly commandId: "replace-known-file-recover";
+        readonly exactFoundationVersion: string;
+        readonly exactFoundationBuildIdentity: string;
+      };
+      readonly diagnostics: readonly FoundationTransactionDiagnostic[];
+    }
+  | {
       readonly state: "manual-recovery-required";
       readonly reason: InternalFoundationManualRecoveryReason;
-      readonly operationKind?: "document-authoring" | "scaffolding";
-      readonly format?: "envelope-v2" | "envelope-v3" | "envelope-v4";
+      readonly operationKind?: "document-authoring" | "known-file-transaction" | "scaffolding";
+      readonly format?: "envelope-v2" | "envelope-v3" | "envelope-v4" | "known-file-transaction-envelope-v1";
       readonly foundationVersion?: string;
       readonly foundationBuildIdentity?: string;
       readonly diagnostics: readonly FoundationTransactionDiagnostic[];

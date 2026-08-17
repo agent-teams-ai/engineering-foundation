@@ -10,6 +10,7 @@ export type BoundedRegularFileRead =
       readonly outcome: "read";
       readonly bytes: Buffer;
       readonly identity: PortablePathIdentity;
+      readonly linkCount: bigint;
       readonly mode: number;
     }
   | { readonly outcome: "changed" }
@@ -63,6 +64,7 @@ interface BigIntFileObservation {
   readonly dev: bigint;
   readonly ino: bigint;
   readonly mtimeNs: bigint;
+  readonly nlink: bigint;
   readonly size: bigint;
 }
 
@@ -76,6 +78,7 @@ function sameFileObservation(
     left.birthtimeNs === right.birthtimeNs &&
     left.ctimeNs === right.ctimeNs &&
     left.mtimeNs === right.mtimeNs &&
+    left.nlink === right.nlink &&
     left.size === right.size
   );
 }
@@ -125,34 +128,47 @@ export async function readBoundedRegularFile(
     throw error;
   }
   try {
-    const before = await handle.stat({ bigint: true });
-    if (!before.isFile() || before.size > BigInt(maximumBytes)) {
-      return { outcome: "invalid" };
-    }
-    const identity = identityFromStat(before);
-    const bytes = await readAtMost(handle, maximumBytes);
-    if (bytes === undefined) {
-      return { outcome: "invalid" };
-    }
-    await faultInjector?.({ phase: "before-stability-check", path });
-    const after = await handle.stat({ bigint: true });
-    if (
-      !after.isFile() ||
-      !sameFileObservation(before, after) ||
-      after.size !== BigInt(bytes.byteLength) ||
-      (await pathMatchesRegularFileIdentity(path, identity)) !== "match"
-    ) {
-      return { outcome: "changed" };
-    }
-    return {
-      outcome: "read",
-      bytes,
-      identity,
-      mode: Number(after.mode)
-    };
+    return await readBoundedRegularFileHandle(handle, path, maximumBytes, faultInjector);
   } finally {
     await handle.close();
   }
+}
+
+export async function readBoundedRegularFileHandle(
+  handle: FileHandle,
+  path: string,
+  maximumBytes: number,
+  faultInjector?: BoundedRegularFileReadFaultInjector
+): Promise<BoundedRegularFileRead> {
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 0) {
+    throw new TypeError("maximumBytes must be a non-negative safe integer.");
+  }
+  const before = await handle.stat({ bigint: true });
+  if (!before.isFile() || before.size > BigInt(maximumBytes)) {
+    return { outcome: "invalid" };
+  }
+  const identity = identityFromStat(before);
+  const bytes = await readAtMost(handle, maximumBytes);
+  if (bytes === undefined) {
+    return { outcome: "invalid" };
+  }
+  await faultInjector?.({ phase: "before-stability-check", path });
+  const after = await handle.stat({ bigint: true });
+  if (
+    !after.isFile() ||
+    !sameFileObservation(before, after) ||
+    after.size !== BigInt(bytes.byteLength) ||
+    (await pathMatchesRegularFileIdentity(path, identity)) !== "match"
+  ) {
+    return { outcome: "changed" };
+  }
+  return {
+    outcome: "read",
+    bytes,
+    identity,
+    linkCount: after.nlink,
+    mode: Number(after.mode)
+  };
 }
 
 export async function captureFileHandleIdentity(

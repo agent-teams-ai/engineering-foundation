@@ -347,6 +347,7 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     reviewGateSteps[0].run,
     /\[\[ "\$\{gate_state\}" == "success" \]\]/u,
   );
+  assert.deepEqual([releaseJob.permissions["id-token"], releaseJob.permissions.contents, releaseJob.steps.find(({ run }) => run?.startsWith("pnpm install"))?.run, releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases], ["write", "write", "pnpm install --frozen-lockfile --ignore-scripts", false]);
   assert.equal(
     reviewGateSteps[0].env.REVIEWROUTER_APP_BOT_ID,
     "281702430",

@@ -152,6 +152,17 @@ Changesets version workflow. Normal feature checks never update released API
 baselines. Publishing consumers must also enforce release-owned baseline
 mutation in required pull-request CI.
 
+### Recoverable known-file transactions
+
+The `@agent-teams/engineering-foundation/mutation` entrypoint exports the closed
+`foundation.replace-known-file/v1` protocol. It can create an absent file or
+replace a regular file only when its bytes and mode match an accepted exact
+preimage. A shared Foundation barrier, versioned journal, repeated CAS checks,
+strict directory durability, conditional rollback, and exact-build recovery
+make a serialized multi-file update recoverable without claiming impossible
+cross-file atomicity. Unknown content, aliases, symlinks, hard links, path
+collisions, and unsupported Windows durability fail closed.
+
 Every command that accepts `--json` or `--format json` returns one JSON value on
 success and failure. Generic command failures use
 `foundation-command-error/v1`; document commands keep their command-specific

@@ -3,4 +3,44 @@ governedRoots:
   - packages/engineering-foundation/src
 nonWaivableRulePrefixes:
   - access-control.
-waivers: []
+waivers:
+  - id: FOUNDATION-CAS-APPLY-COMPLEXITY
+    path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
+    line: 452
+    directive: oxlint-disable-next-line
+    rules: [complexity, max-lines-per-function]
+    owner: foundation-maintainers
+    reason: Each explicit branch records one durable crash-recovery transition and is retained for auditability during qualification.
+    createdOn: 2026-08-16
+    expiresOn: 2026-11-14
+    decisionRef: ADR-0032
+  - id: FOUNDATION-RECOVERY-RETIREMENT-COMPLEXITY
+    path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+    line: 137
+    directive: oxlint-disable-next-line
+    rules: [complexity, max-lines-per-function]
+    owner: foundation-maintainers
+    reason: Durable retirement substates remain explicit so every rename and unlink crash window is independently replayable.
+    createdOn: 2026-08-16
+    expiresOn: 2026-11-14
+    decisionRef: ADR-0032
+  - id: FOUNDATION-RECOVERY-DISPATCH-COMPLEXITY
+    path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+    line: 417
+    directive: oxlint-disable-next-line
+    rules: [complexity, max-lines-per-function]
+    owner: foundation-maintainers
+    reason: Legacy and capture-bound journals share one exact-build dispatcher during the bounded compatibility window.
+    createdOn: 2026-08-16
+    expiresOn: 2026-11-14
+    decisionRef: ADR-0032
+  - id: FOUNDATION-RECOVERY-ROLLBACK-COMPLEXITY
+    path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+    line: 604
+    directive: oxlint-disable-next-line
+    rules: [complexity, max-lines-per-function]
+    owner: foundation-maintainers
+    reason: Explicit rollback branches preserve foreign bytes or prove identity-bound cleanup at every durable state.
+    createdOn: 2026-08-16
+    expiresOn: 2026-11-14
+    decisionRef: ADR-0032

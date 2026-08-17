@@ -4,11 +4,9 @@ One deterministic documentation UX for Agent Teams repositories. This package
 is a thin application and CLI layer over the versioned mutation kernel exported
 by `@agent-teams/engineering-foundation`.
 
-> **Stage status:** source, API, and registry qualification are complete. The
-> public `0.0.0` manifest is bootstrap-only and is not installable from npm until
-> Foundation 0.17.0-rc.0 exists and the fail-closed bootstrap in
-> [ADR-0029](../../docs/decisions/0029-immutable-docs-bootstrap-reconciliation.md).
-> The commands below define the later supported consumer contract.
+The authoring protocol is independently versioned from its managed consumer
+integration. A consumer upgrade selects one externally qualified cohort with
+exact package, workflow, provenance, and asset identities.
 
 ## Boundary
 
@@ -80,6 +78,37 @@ codes: `0` success, `1` violation/conflict/recovery, `2` invalid input, `3`
 execution failure, and `130` cancellation.
 Recovery is bound to the persisted transaction and exact installed Foundation
 build, so it does not parse mutable authoring profiles before resuming.
+
+## Maintainer lifecycle
+
+Daily authoring commands stay unchanged. Integration maintenance uses a separate
+namespace and the committed
+`architecture/foundation/docs-consumer-integration.json` profile:
+
+```bash
+agent-teams-docs consumer check --json
+agent-teams-docs consumer plan --to docs-YYYY-MM-DD-N --json
+agent-teams-docs consumer apply --expect sha256:EXACT_PLAN_DIGEST --json
+agent-teams-docs consumer recover --json
+```
+
+`check` and `plan` are write-free and offline. `apply` recompiles the Plan,
+requires its exact digest, and delegates all writes to Foundation's recoverable
+known-file transaction. The integration never edits a lockfile, documentation
+profile, owner catalog, schema, template, validator, or governed document.
+
+V1 supports only one root pnpm 11 integration on Node 24 and GitHub Actions.
+Other package managers and mixed lockfiles fail closed. Windows supports check
+and plan; apply and recovery refuse until strict directory durability has a
+separate qualification.
+
+Before changing package pins or the lockfile, run the currently installed
+`agent-teams-docs consumer check --json`. If it reports recovery, run the
+current build's `consumer recover --json` first. Only after the old transaction
+is clear may the reviewed branch update the exact Cohort profile, package pins,
+and lockfile, install with `pnpm install --frozen-lockfile`, and use the newly
+installed CLI for `consumer plan` and `consumer apply`. Replacing the installed
+build while its journal is active is unsupported and must fail the upgrade.
 
 ## Consumer qualification
 

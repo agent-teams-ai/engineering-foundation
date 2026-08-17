@@ -15,6 +15,7 @@ boundaries:
         - "@agent-teams/engineering-foundation"
         - ajv
         - ajv-formats
+        - jsonc-parser
         - yaml
       builtins:
         - node:child_process
@@ -302,27 +303,36 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/repository-mutation/application
     allow:
-      boundaries: []
+      boundaries:
+        - foundation.canonical-json
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/repository-mutation/application/model/directory-materialization.ts
       - packages/engineering-foundation/src/repository-mutation/application/model/exact-postimage.ts
+      - packages/engineering-foundation/src/repository-mutation/application/model/known-file-transaction-journal.ts
+      - packages/engineering-foundation/src/repository-mutation/application/model/known-file-transaction.ts
       - packages/engineering-foundation/src/repository-mutation/application/model/path-identity.ts
       - packages/engineering-foundation/src/repository-mutation/application/model/repository-path.ts
       - packages/engineering-foundation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
+      - packages/engineering-foundation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts
+      - packages/engineering-foundation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
   - id: foundation.repository-mutation.node-adapters
     roots:
       - packages/engineering-foundation/src/repository-mutation/adapters/node
     allow:
       boundaries:
+        - foundation.canonical-json
+        - foundation.core
         - foundation.repository-mutation.application
+        - foundation.repository-input
       packages: []
       builtins:
         - node:crypto
         - node:fs/promises
         - node:path
+        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
@@ -333,10 +343,37 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-durability.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-materialization.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-repository-path.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
+  - id: foundation.known-file-transaction.composition
+    roots:
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+    allow:
+      boundaries:
+        - foundation.canonical-json
+        - foundation.core
+        - foundation.package-identity
+        - foundation.repository-mutation.application
+        - foundation.repository-mutation.node-adapters
+        - foundation.transaction-coordination.adapters
+        - foundation.transaction-coordination.application
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
   - id: foundation.mutation.public-api
     roots:
       - packages/engineering-foundation/src/mutation/index.ts
@@ -344,6 +381,7 @@ boundaries:
       boundaries:
         - foundation.repository-mutation.application
         - foundation.repository-mutation.node-adapters
+        - foundation.known-file-transaction.composition
       packages: []
       builtins: []
       runtimeReferences: []

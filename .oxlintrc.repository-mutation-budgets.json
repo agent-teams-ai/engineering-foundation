@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "overrides": [
+    {
+      "files": [
+        "packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts"
+      ],
+      "rules": {
+        "max-lines": [
+          "error",
+          {
+            "max": 900,
+            "skipBlankLines": true,
+            "skipComments": true
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts"
+      ],
+      "rules": {
+        "max-lines": [
+          "error",
+          {
+            "max": 1400,
+            "skipBlankLines": true,
+            "skipComments": true
+          }
+        ]
+      }
+    }
+  ]
+}

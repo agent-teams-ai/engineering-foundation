@@ -25,12 +25,21 @@
     "schemas/docs-protocol/v1.schema.json",
     "schemas/docs-protocol-profile/v1.schema.json",
     "schemas/docs-protocol-command-envelope/v1.schema.json",
+    "schemas/docs-consumer-integration-execution/v1.schema.json",
+    "schemas/docs-consumer-integration-plan/v1.schema.json",
+    "schemas/docs-consumer-integration-profile/v1.schema.json",
+    "schemas/docs-consumer-managed-state/v1.schema.json",
+    "schemas/qualified-docs-cohort/v1.schema.json",
+    "skills/docs/SKILL.md",
+    "assets",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc --build tsconfig.json --pretty false",
+    "assets:generate": "node scripts/generate-consumer-assets.mjs --write",
+    "assets:check": "node scripts/generate-consumer-assets.mjs",
+    "build": "pnpm assets:check && tsc --build tsconfig.json --pretty false",
     "test": "pnpm build && node --test tests/*.test.mjs"
   },
   "engines": {
@@ -55,6 +64,7 @@
     "@agent-teams/engineering-foundation": "workspace:*",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
+    "jsonc-parser": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {

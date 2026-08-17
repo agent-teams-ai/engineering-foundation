@@ -15,6 +15,10 @@ import {
   type DocsFindQuery
 } from "../domain/model.js";
 import { DocsProfileError } from "../domain/profile-policy.js";
+import {
+  consumerIntegrationHelp,
+  runConsumerIntegrationCli
+} from "../consumer-integration/composition/consumer-integration-cli.js";
 
 interface CommonArguments {
   readonly consumerRoot: string;
@@ -366,7 +370,7 @@ function helpText(command?: string): string {
   if (["info", "doctor", "recover", "check"].includes(command ?? "")) {
     return `Usage: agent-teams-docs ${command} [--consumer PATH] [--profile PATH] [--json]\n`;
   }
-  return "Usage: agent-teams-docs <info|find|new|doctor|recover|check> [options]\n";
+  return "Usage: agent-teams-docs <info|find|new|doctor|recover|check|consumer> [options]\nRun 'agent-teams-docs consumer --help' for maintainer integration commands.\n";
 }
 
 async function validatedMachineExecution(
@@ -401,6 +405,13 @@ async function validatedMachineExecution(
 
 export async function runDocsCli(argv: readonly string[]): Promise<number> {
   const normalizedArgv = argv[0] === "--" ? argv.slice(1) : argv;
+  if (normalizedArgv[0] === "consumer") {
+    if (normalizedArgv.length === 2 && normalizedArgv[1] === "--help") {
+      process.stdout.write(consumerIntegrationHelp());
+      return 0;
+    }
+    return runConsumerIntegrationCli(normalizedArgv.slice(1));
+  }
   if (
     (normalizedArgv.length === 1 && (normalizedArgv[0] === "--help" || normalizedArgv[0] === "help")) ||
     (normalizedArgv.length === 2 && normalizedArgv[1] === "--help")

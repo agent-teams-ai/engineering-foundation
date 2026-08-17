@@ -109,6 +109,9 @@ export function assertBootstrapPromotionManifest({
     fail("bootstrap publication requires the reviewed public Docs Protocol 0.0.0 manifest.");
   }
   assertOrdinaryPublicDocsManifest({ changesetsConfig, docsManifest, foundationManifest });
+  if (foundationManifest.version !== DOCS_PROTOCOL_BOOTSTRAP.foundationVersion) {
+    fail(`bootstrap publication requires Foundation ${DOCS_PROTOCOL_BOOTSTRAP.foundationVersion}.`);
+  }
 }
 
 export function assertOrdinaryPublicDocsManifest({
@@ -124,10 +127,9 @@ export function assertOrdinaryPublicDocsManifest({
   }
   if (
     docsManifest.dependencies?.[DOCS_PROTOCOL_BOOTSTRAP.foundationName] !== "workspace:*" ||
-    foundationManifest?.name !== DOCS_PROTOCOL_BOOTSTRAP.foundationName ||
-    foundationManifest.version !== DOCS_PROTOCOL_BOOTSTRAP.foundationVersion
+    foundationManifest?.name !== DOCS_PROTOCOL_BOOTSTRAP.foundationName
   ) {
-    fail("ordinary public release requires workspace Foundation 0.17.0-rc.0.");
+    fail("ordinary public release requires the workspace Foundation package.");
   }
   if (
     docsManifest.publishConfig?.access !== "public" ||

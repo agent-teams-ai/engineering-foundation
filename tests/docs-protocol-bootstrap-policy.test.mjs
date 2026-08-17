@@ -8,6 +8,7 @@ import {
   assertBootstrapPostconditions,
   assertBootstrapPromotionManifest,
   assertOneDayGranularTokenWindow,
+  assertOrdinaryPublicDocsManifest,
   assertOrdinaryReleaseBootstrapState,
   classifyRegistryPreflight,
   ordinaryReleaseDocsPolicy,
@@ -100,6 +101,20 @@ test("bootstrap promotion requires the exact public manifest and Foundation RC",
   assert.doesNotThrow(() => assertBootstrapPromotionManifest(input));
   input.foundationManifest.version = "0.17.0-rc.1";
   assert.throws(() => assertBootstrapPromotionManifest(input), /Foundation 0\.17\.0-rc\.0/u);
+});
+
+test("ordinary public release accepts the current workspace Foundation version", () => {
+  const input = stagingManifests();
+  input.changesetsConfig.ignore = [];
+  delete input.docsManifest.private;
+  input.docsManifest.publishConfig = {
+    access: "public",
+    provenance: true,
+    registry: DOCS_PROTOCOL_BOOTSTRAP.registry,
+  };
+  input.foundationManifest.version = "0.17.0-rc.1";
+
+  assert.doesNotThrow(() => assertOrdinaryPublicDocsManifest(input));
 });
 
 test("ordinary release command accepts the promoted Docs Protocol prerelease", () => {

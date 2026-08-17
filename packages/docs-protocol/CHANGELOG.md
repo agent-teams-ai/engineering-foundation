@@ -1,5 +1,14 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.5
+
+### Patch Changes
+
+- [#149](https://github.com/agent-teams-ai/engineering-foundation/pull/149) [`9a68e79`](https://github.com/agent-teams-ai/engineering-foundation/commit/9a68e7975093e426efe1b970f273a86ad9f55f9d) Thanks [@777genius](https://github.com/777genius)! - Bundle the withdrawn rc1 Cohort's immutable documentation assets so corrected
+  successor Cohorts can prove and execute their declared rollback edge.
+- Updated dependencies [[`9a68e79`](https://github.com/agent-teams-ai/engineering-foundation/commit/9a68e7975093e426efe1b970f273a86ad9f55f9d)]:
+  - @agent-teams/engineering-foundation@0.17.0-rc.3
+
 ## 0.1.0-rc.4
 
 ### Patch Changes

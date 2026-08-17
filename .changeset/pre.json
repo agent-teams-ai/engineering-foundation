@@ -12,6 +12,7 @@
     "docs-protocol-first-rc",
     "docs-protocol-idempotent-postimage",
     "docs-release-pair-identity",
+    "docs-rollback-bundle",
     "managed-docs-consumer-integration",
     "prerelease-api-promotion",
     "unified-docs-protocol"

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -27,7 +27,7 @@ test("keeps repository mutation private and vocabulary-neutral", async () => {
   assert.equal(files.some((path) => /(?:^|[/\\])index\.ts$/iu.test(path)), false);
   for (const path of files) {
     const source = await readFile(path, "utf8");
-    assert.doesNotMatch(`${path}\n${source}`, /scaffold|document|target|recipe/iu);
+    assert.doesNotMatch(`${relative(repositoryRoot, path)}\n${source}`, /scaffold|document|target|recipe/iu);
   }
   assert.equal(Object.hasOwn(packageManifest.exports, "./repository-mutation"), false);
   assert.equal(Object.keys(packageManifest.exports).some((key) => key.includes("repository-mutation")), false);

@@ -257,10 +257,15 @@ test("package-owned asset sources exactly match compiler constants and split cat
   assert.equal(transitionCatalogSource, CANONICAL_TRANSITION_CATALOG);
   const transitionCatalog = JSON.parse(transitionCatalogSource);
   assert.deepEqual(transitionCatalog.currentSourceExecutors, []);
-  assert.equal(transitionCatalog.directTargetBundles.length, 1);
-  assert.equal(transitionCatalog.directTargetBundles[0].cohort.cohortId, "docs-2026-08-17-rc1");
+  assert.deepEqual(
+    transitionCatalog.directTargetBundles.map(({ cohort: { cohortId } }) => cohortId),
+    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7"]
+  );
   const loadedTransitions = await loadPackageConsumerAssetCatalog();
-  assert.equal(loadedTransitions.directTargetBundles[0].cohort.cohortId, "docs-2026-08-17-rc1");
+  assert.deepEqual(
+    loadedTransitions.directTargetBundles.map(({ cohort: { cohortId } }) => cohortId),
+    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7"]
+  );
   const catalog = JSON.parse(catalogSource);
   assert.equal(catalog.skillDigest, digest(Buffer.from(skill)));
   assert.equal(catalog.callerWorkflowTemplateDigest, digest(Buffer.from(workflow)));

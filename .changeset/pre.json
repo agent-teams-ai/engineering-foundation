@@ -12,6 +12,7 @@
     "docs-protocol-first-rc",
     "docs-protocol-idempotent-postimage",
     "docs-release-pair-identity",
+    "docs-release-provenance-pair-refresh",
     "docs-rollback-bundle",
     "docs-runtime-closure-type-peer",
     "managed-docs-consumer-integration",

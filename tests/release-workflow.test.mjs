@@ -515,7 +515,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   );
   assert.doesNotMatch(
     manifest.scripts["release:publish"],
-    /(?:^|&&\s*)changeset publish(?:\s|$)/u,
+    /(?:^|&&\s*)(?:changeset publish|pnpm check)(?:\s|&&|$)/u,
   );
   assert.equal(
     manifest.scripts["registry-install-e2e:built"],

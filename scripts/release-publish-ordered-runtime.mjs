@@ -11,6 +11,12 @@ import {
 import { publishablePackageByName } from "./publishable-packages.mjs";
 
 const EXPECTED_NPM_VERSION = "11.16.0";
+export const GITHUB_RECONCILIATION_ATTEMPTS = 37;
+export const GITHUB_RECONCILIATION_RETRY_MILLISECONDS = 5_000;
+
+const delay = (milliseconds) => new Promise((resolve) => {
+  setTimeout(resolve, milliseconds);
+});
 
 export function npmPublishArguments(artifact, tag) {
   const registry = artifact.registry ?? "https://registry.npmjs.org/";
@@ -311,7 +317,7 @@ function gitObjectCommit(repository, object, request, depth = 0) {
   return gitObjectCommit(repository, tag.object, request, depth + 1);
 }
 
-export async function reconcileGithubRelease(artifact, releaseCommit, options = {}) {
+async function reconcileGithubReleaseOnce(artifact, releaseCommit, options) {
   const repository = options.repository ?? process.env.GITHUB_REPOSITORY;
   const request = options.request ?? githubJson;
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository ?? "")) {
@@ -342,6 +348,27 @@ export async function reconcileGithubRelease(artifact, releaseCommit, options = 
     "-F", `prerelease=${artifact.version.includes("-")}`, "-F", "draft=false",
   ]);
   assertExistingGithubRelease(createdRelease, artifact, tag);
+}
+
+function isTransientGithubFailure(error) {
+  return /HTTP (?:502|503|504)\b/u.test(error?.message ?? "");
+}
+
+export async function reconcileGithubRelease(artifact, releaseCommit, options = {}) {
+  const attempts = options.attempts ?? GITHUB_RECONCILIATION_ATTEMPTS;
+  const retryDelayMilliseconds = options.retryDelayMilliseconds ??
+    GITHUB_RECONCILIATION_RETRY_MILLISECONDS;
+  const wait = options.wait ?? delay;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await reconcileGithubReleaseOnce(artifact, releaseCommit, options);
+    } catch (error) {
+      if (!isTransientGithubFailure(error) || attempt + 1 >= attempts) {
+        throw error;
+      }
+      await wait(retryDelayMilliseconds);
+    }
+  }
 }
 
 function registryUrl(artifact, path) {

@@ -7,6 +7,8 @@ import {
   FOUNDATION_PACKAGE,
   npmPurlName,
   orderedRelease,
+  REGISTRY_OBSERVATION_ATTEMPTS,
+  REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
   tarballIntegrity,
 } from "../scripts/release-publish-ordered.mjs";
 import {
@@ -14,6 +16,8 @@ import {
   assertLiveMainHead,
   assertNpmSignatureEvidence,
   changesetsReleaseOutput,
+  GITHUB_RECONCILIATION_ATTEMPTS,
+  GITHUB_RECONCILIATION_RETRY_MILLISECONDS,
   npmPublishArguments,
   npmSignatureInstallArguments,
   provenanceFrom,
@@ -139,6 +143,20 @@ async function run(runtime, overrides = {}) {
     ...overrides,
   });
 }
+
+test("allows bounded npm provenance propagation without a failed publish attempt", () => {
+  assert.equal(
+    (REGISTRY_OBSERVATION_ATTEMPTS - 1) * REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
+    180_000,
+  );
+});
+
+test("bounds idempotent GitHub release reconciliation during transient outages", () => {
+  assert.equal(
+    (GITHUB_RECONCILIATION_ATTEMPTS - 1) * GITHUB_RECONCILIATION_RETRY_MILLISECONDS,
+    180_000,
+  );
+});
 
 test("publishes Foundation directly on the final tag and proves it before publishing Docs", async () => {
   const runtime = harness();
@@ -603,6 +621,51 @@ test("production GitHub reconciliation repairs a lost release response idempoten
     reconcileGithubRelease(releaseArtifact, source.commit, { repository, request }),
     /differs from the reviewed changelog evidence/u,
   );
+});
+
+test("production GitHub reconciliation re-observes state after a transient 503", async () => {
+  const repository = "agent-teams-ai/engineering-foundation";
+  const releaseArtifact = { ...foundation, releaseNotes: "Exact release notes" };
+  let ref;
+  let release;
+  let transient = true;
+  const writes = [];
+  const waits = [];
+  const request = (args) => {
+    const route = args[0] === "--method" ? args[2] : args[0];
+    if (route.includes("/git/ref/tags/")) {return ref;}
+    if (route.endsWith("/git/refs")) {
+      ref = { object: { sha: argumentField(args, "sha="), type: "commit" } };
+      writes.push("tag");
+      return ref;
+    }
+    if (route.includes("/releases/tags/")) {return release;}
+    if (route.endsWith("/releases")) {
+      release = {
+        body: argumentField(args, "body="),
+        draft: false,
+        name: argumentField(args, "name="),
+        prerelease: releaseArtifact.version.includes("-"),
+        tag_name: argumentField(args, "tag_name="),
+      };
+      writes.push("release");
+      if (transient) {
+        transient = false;
+        throw new Error("gh api failed: HTTP 503");
+      }
+      return release;
+    }
+    throw new Error(`Unexpected fake GitHub route: ${route}`);
+  };
+  await reconcileGithubRelease(releaseArtifact, source.commit, {
+    attempts: 2,
+    repository,
+    request,
+    retryDelayMilliseconds: 7,
+    wait: async (milliseconds) => waits.push(milliseconds),
+  });
+  assert.deepEqual(writes, ["tag", "release"]);
+  assert.deepEqual(waits, [7]);
 });
 
 for (const [name, state] of [

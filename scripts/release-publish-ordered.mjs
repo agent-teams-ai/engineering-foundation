@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 
 export const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
 export const DOCS_PACKAGE = "@agent-teams/docs-protocol";
+export const REGISTRY_OBSERVATION_ATTEMPTS = 37;
+export const REGISTRY_OBSERVATION_RETRY_MILLISECONDS = 5_000;
 
 const delay = (milliseconds) => new Promise((resolve) => {
   setTimeout(resolve, milliseconds);
@@ -168,8 +170,8 @@ export async function orderedRelease({
   verifySignature,
   reconcileRelease,
   source,
-  attempts = 12,
-  retryDelayMilliseconds = 5_000,
+  attempts = REGISTRY_OBSERVATION_ATTEMPTS,
+  retryDelayMilliseconds = REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
 }) {
   const foundation = artifacts.find(({ name }) => name === FOUNDATION_PACKAGE);
   const docs = artifacts.find(({ name }) => name === DOCS_PACKAGE);

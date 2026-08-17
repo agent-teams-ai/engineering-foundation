@@ -14,6 +14,7 @@ import {
   planConsumerIntegration as publicPlanConsumerIntegration
 } from "../dist/consumer-integration/index.js";
 import { compileConsumerIntegration } from "../dist/consumer-integration/application/use-cases/plan-consumer-integration.js";
+import { loadPackageConsumerAssetCatalog } from "../dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
 import {
   CANONICAL_ASSET_CATALOG,
   CANONICAL_CALLER_WORKFLOW_TEMPLATE,
@@ -254,6 +255,12 @@ test("package-owned asset sources exactly match compiler constants and split cat
   assert.equal(workflow, CANONICAL_CALLER_WORKFLOW_TEMPLATE);
   assert.equal(catalogSource, CANONICAL_ASSET_CATALOG);
   assert.equal(transitionCatalogSource, CANONICAL_TRANSITION_CATALOG);
+  const transitionCatalog = JSON.parse(transitionCatalogSource);
+  assert.deepEqual(transitionCatalog.currentSourceExecutors, []);
+  assert.equal(transitionCatalog.directTargetBundles.length, 1);
+  assert.equal(transitionCatalog.directTargetBundles[0].cohort.cohortId, "docs-2026-08-17-rc1");
+  const loadedTransitions = await loadPackageConsumerAssetCatalog();
+  assert.equal(loadedTransitions.directTargetBundles[0].cohort.cohortId, "docs-2026-08-17-rc1");
   const catalog = JSON.parse(catalogSource);
   assert.equal(catalog.skillDigest, digest(Buffer.from(skill)));
   assert.equal(catalog.callerWorkflowTemplateDigest, digest(Buffer.from(workflow)));

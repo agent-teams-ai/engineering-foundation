@@ -21,6 +21,26 @@ import {
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
 const docsProtocolRoot = join(repositoryRoot, "packages", "docs-protocol");
+const historicalBundlePath = /^assets\/history\/sha256-[0-9a-f]{64}\/(?:caller\.yml|skill\.md)$/u;
+
+function historicalBundlePaths(catalog) {
+  if (!Array.isArray(catalog.directTargetBundles)) {
+    throw new Error("Docs transition catalog must declare directTargetBundles.");
+  }
+  const paths = catalog.directTargetBundles.flatMap((target) => [
+    target?.skillPath,
+    target?.callerWorkflowPath,
+  ]);
+  if (paths.some((path) => typeof path !== "string" || !historicalBundlePath.test(path))) {
+    throw new Error("Docs transition bundles must use content-addressed release paths.");
+  }
+  return [...new Set(paths)].toSorted();
+}
+
+const docsProtocolTransitionCatalog = JSON.parse(await readFile(
+  join(docsProtocolRoot, "assets", "transition-catalog.json"),
+  "utf8",
+));
 const docsProtocolRequiredArtifacts = [
   "CHANGELOG.md",
   "assets/catalog.json",
@@ -41,6 +61,7 @@ const docsProtocolRequiredArtifacts = [
   "schemas/docs-consumer-managed-state/v1.schema.json",
   "schemas/qualified-docs-cohort/v1.schema.json",
   "skills/docs/SKILL.md",
+  ...historicalBundlePaths(docsProtocolTransitionCatalog),
 ];
 const temporaryRoot = await mkdtemp(join(tmpdir(), "agent-teams-foundation-pack-"));
 const keepTemporaryRoot = process.env.AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS === "1";

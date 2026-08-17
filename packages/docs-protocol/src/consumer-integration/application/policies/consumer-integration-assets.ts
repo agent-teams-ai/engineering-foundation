@@ -7,7 +7,8 @@ import type {
 } from "../../domain/model.js";
 import {
   GENERATED_CALLER_WORKFLOW_TEMPLATE,
-  GENERATED_DOCS_SKILL
+  GENERATED_DOCS_SKILL,
+  GENERATED_TRANSITION_CATALOG
 } from "../../generated/canonical-assets.js";
 
 const CATALOG_SOURCE = Object.freeze({
@@ -87,11 +88,7 @@ export const BUNDLED_KNOWN_PRIOR_COHORTS: readonly KnownPriorCohortCatalogEntryV
 export const BUNDLED_CURRENT_SOURCE_EXECUTORS: readonly CurrentSourceExecutorV1[] =
   Object.freeze([]);
 
-export const CANONICAL_TRANSITION_CATALOG = `${canonicalConsumerIntegrationJson({
-  schemaVersion: 1,
-  currentSourceExecutors: BUNDLED_CURRENT_SOURCE_EXECUTORS,
-  directTargetBundles: []
-})}\n`;
+export const CANONICAL_TRANSITION_CATALOG = GENERATED_TRANSITION_CATALOG;
 
 export const CANONICAL_ASSET_CATALOG = `${canonicalConsumerIntegrationJson({
   schemaVersion: 1,

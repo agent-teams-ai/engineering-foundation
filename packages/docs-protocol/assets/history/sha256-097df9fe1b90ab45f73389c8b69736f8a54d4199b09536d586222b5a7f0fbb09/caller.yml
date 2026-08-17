@@ -1,0 +1,13 @@
+name: Documentation Protocol
+
+on:
+  pull_request:
+  merge_group:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-protocol:
+    uses: agent-teams-ai/.github/.github/workflows/docs-protocol-check.yml@d55ebd46208f67736b5b76e7ef48a890570feeab

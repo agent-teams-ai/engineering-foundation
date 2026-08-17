@@ -11,6 +11,7 @@
     "docs-protocol-caller-oidc",
     "docs-protocol-first-rc",
     "docs-protocol-idempotent-postimage",
+    "docs-release-pair-identity",
     "managed-docs-consumer-integration",
     "prerelease-api-promotion",
     "unified-docs-protocol"

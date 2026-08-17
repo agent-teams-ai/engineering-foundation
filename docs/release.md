@@ -192,8 +192,11 @@ Before every publication:
 - retain the CI-generated SPDX JSON SBOM and npm Trusted Publishing provenance
   as separate supply-chain evidence.
 
-`release:publish` runs the real pinned Buf qualification and hermetic registry
-qualification after the normal repository checks and before ordered publication.
+The exact generated release PR must pass the protected cross-platform repository
+checks before merge. `release:publish` does not repeat that full suite on the
+same reviewed artifact tree; it runs the release-only pinned Buf qualification,
+hermetic registry qualification, published-version compatibility checks, and
+ordered publication.
 The registry qualification starts an isolated
 npm-compatible registry with no uplinks, publishes the packed package and its
 runtime dependency closure, installs by exact version, and verifies registry

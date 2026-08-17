@@ -1,5 +1,17 @@
 # @agent-teams/engineering-foundation
 
+## 0.17.0-rc.1
+
+### Minor Changes
+
+- [#140](https://github.com/agent-teams-ai/engineering-foundation/pull/140) [`b228651`](https://github.com/agent-teams-ai/engineering-foundation/commit/b2286510150293e7355a7abe284432a9e3d3671d) Thanks [@777genius](https://github.com/777genius)! - Add recoverable exact-preimage known-file transactions to Foundation and a
+  write-free, cohort-bound Docs Protocol consumer integration lifecycle with
+  deterministic check, plan, apply, recovery, schemas, and offline sandbox E2E.
+
+### Patch Changes
+
+- [#141](https://github.com/agent-teams-ai/engineering-foundation/pull/141) [`055f86e`](https://github.com/agent-teams-ai/engineering-foundation/commit/055f86eab2413cca4f0ff269bdaff3d979dd0f70) Thanks [@777genius](https://github.com/777genius)! - Honor the exact Changesets initial version when promoting public API baselines within one numbered prerelease train.
+
 ## 0.17.0-rc.0
 
 ### Minor Changes

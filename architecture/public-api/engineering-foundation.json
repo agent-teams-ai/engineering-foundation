@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.17.0-rc.0",
+  "packageVersion": "0.17.0-rc.1",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -180,7 +180,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "export type FoundationRecoveryRoute = {\n    readonly commandId: \"scaffold-recover\";\n    readonly exactFoundationVersion: string;\n    readonly exactFoundationBuildIdentity?: string;\n} | {\n    readonly commandId: \"detach\";\n};"
+          "signature": "export type FoundationRecoveryRoute = {\n    readonly commandId: \"scaffold-recover\";\n    readonly exactFoundationVersion: string;\n    readonly exactFoundationBuildIdentity?: string;\n} | {\n    readonly commandId: \"detach\";\n} | {\n    readonly commandId: \"replace-known-file-recover\";\n    readonly exactFoundationVersion: string;\n    readonly exactFoundationBuildIdentity: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!FoundationTransactionAwareStatus#transaction:member",
@@ -208,7 +208,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "export type FoundationTransactionStatus = {\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"scaffolding\";\n    readonly format: \"legacy-scaffolding-v1\";\n    readonly foundationVersion: string;\n    readonly recovery: FoundationRecoveryRoute;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"local-mode\";\n    readonly format: \"local-mode-v1\";\n    readonly recovery: {\n        readonly commandId: \"detach\";\n    };\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"manual-recovery-required\";\n    readonly reason: FoundationManualRecoveryReason;\n    readonly operationKind?: \"document-authoring\" | \"scaffolding\";\n    readonly format?: \"envelope-v2\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n};"
+          "signature": "export type FoundationTransactionStatus = {\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"scaffolding\";\n    readonly format: \"legacy-scaffolding-v1\";\n    readonly foundationVersion: string;\n    readonly recovery: FoundationRecoveryRoute;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"local-mode\";\n    readonly format: \"local-mode-v1\";\n    readonly recovery: {\n        readonly commandId: \"detach\";\n    };\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"manual-recovery-required\";\n    readonly reason: FoundationManualRecoveryReason;\n    readonly operationKind?: \"document-authoring\" | \"known-file-transaction\" | \"scaffolding\";\n    readonly format?: \"envelope-v2\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#counterexampleDigest:member",
@@ -876,6 +876,20 @@
           "signature": "export interface CapturedDirectory extends ProjectedDirectory"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.CompileKnownFileTransactionPlanInput#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.CompileKnownFileTransactionPlanInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly KnownFileTransactionOperationInput[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.CompileKnownFileTransactionPlanInput:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export interface CompileKnownFileTransactionPlanInput"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!mutation.DirectoryCreatePolicy:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
@@ -932,6 +946,244 @@
           "signature": "export type DirectoryMutationErrorCode = \"ALIAS_COLLISION\" | \"AMBIGUOUS_CREATION\" | \"CONCURRENT_CHANGE\" | \"CREATE_FORBIDDEN\" | \"IDENTITY_UNAVAILABLE\" | \"INVALID_PATH\" | \"NOT_DIRECTORY\" | \"OUTSIDE_ROOT\" | \"SYMLINK\";"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileDigest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export type KnownFileDigest = `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1#contentBase64:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly contentBase64: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1#mode:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mode: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1#size:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly size: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileImageV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export interface KnownFileImageV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFilePreconditionV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export type KnownFilePreconditionV1 = {\n    readonly state: \"absent\";\n} | {\n    readonly state: \"known-file\";\n    readonly acceptedPreimages: readonly KnownFileImageV1[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileRecoveryFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export type KnownFileRecoveryFaultInjector = (point: {\n    readonly phase: \"after-committed-capture-unlinked\" | \"after-destination-retired\" | \"after-rollback-linked\" | \"after-rollback-capture-unlinked\" | \"after-retirement-directory-bound\" | \"after-retirement-captured\" | \"after-retirement-unlink-authorized\";\n    readonly operationIndex: number;\n    readonly path: string;\n}) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionBarrierInspection:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export type KnownFileTransactionBarrierInspection = {\n    readonly state: \"idle\";\n} | {\n    readonly state: \"recovery-required\";\n    readonly code: \"KNOWN_FILE_OPERATION_ACTIVE\" | \"KNOWN_FILE_RECOVERY_REQUIRED\";\n    readonly recoverableByInstalledBuild: boolean;\n    readonly message: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionError#code:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionError:class",
+          "parentKind": "Class",
+          "signature": "readonly code: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare class KnownFileTransactionError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionError:class",
+          "parentKind": "Class",
+          "signature": "constructor(code: string, message: string, options?: ErrorOptions);"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export type KnownFileTransactionFaultInjector = (point: KnownFileTransactionFaultPoint) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionFaultPoint:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export type KnownFileTransactionFaultPoint = {\n    readonly phase: \"after-barrier-acquired\" | \"after-journal-created\" | \"after-journal-committed\" | \"after-journal-retired\";\n} | {\n    readonly phase: \"after-directory-created\" | \"after-directory-created-unbound\" | \"after-directory-authorized\" | \"after-temporary-authorized\" | \"after-temporary-synced\" | \"after-temporary-created-unbound\" | \"after-capture-ready\" | \"after-capture-created-unbound\" | \"after-capture-authorized\" | \"after-preimage-captured\" | \"after-preimage-linked-unbound\" | \"after-rollback-temporary-created-unbound\" | \"after-rollback-temporary-ready\" | \"after-destination-captured\" | \"after-destination-retired\" | \"after-operation-publishing\" | \"after-postimage-linked\" | \"after-operation-published\" | \"after-committed-capture-unlinked\";\n    readonly operationIndex: number;\n    readonly path: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationInput:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export type KnownFileTransactionOperationInput = {\n    readonly path: string;\n    readonly precondition: {\n        readonly state: \"absent\";\n    };\n    readonly postimage: {\n        readonly bytes: Uint8Array;\n        readonly mode?: number;\n    };\n} | {\n    readonly path: string;\n    readonly precondition: {\n        readonly state: \"known-file\";\n        readonly acceptedPreimages: readonly {\n            readonly bytes: Uint8Array;\n            readonly mode: number;\n        }[];\n    };\n    readonly postimage: {\n        readonly bytes: Uint8Array;\n        readonly mode: number;\n    };\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export type KnownFileTransactionOperationOutcome = \"already-satisfied\" | \"created\" | \"replaced\" | \"rolled-back-to-absent\" | \"rolled-back-to-preimage\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationV1#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationV1#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: KnownFileImageV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationV1#precondition:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly precondition: KnownFilePreconditionV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionOperationV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export interface KnownFileTransactionOperationV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare class KnownFileTransactionPlanError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanError:class",
+          "parentKind": "Class",
+          "signature": "constructor(message: string);"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly KnownFileTransactionOperationV1[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1#protocol:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocol: \"foundation.replace-known-file/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionPlanV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export interface KnownFileTransactionPlanV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly {\n        readonly path: string;\n        readonly outcome: KnownFileTransactionOperationOutcome;\n        readonly resultDigest?: KnownFileDigest;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: \"already-satisfied\" | \"applied\" | \"rolled-back\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1#protocol:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocol: \"foundation.replace-known-file/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.KnownFileTransactionReceiptV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export interface KnownFileTransactionReceiptV1"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!mutation.PortablePathIdentity#birthtimeNs:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!mutation.PortablePathIdentity:interface",
@@ -986,6 +1238,48 @@
           "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
           "parentKind": "Namespace",
           "signature": "export type UnboundDirectoryCreationRecovery = {\n    readonly outcome: \"not-created\";\n} | {\n    readonly observedIdentity: PortablePathIdentity;\n    readonly outcome: \"ambiguous-manual\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.applyKnownFileTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare function applyKnownFileTransaction(options: {\n    readonly consumerRoot: string;\n    readonly plan: KnownFileTransactionPlanV1;\n    readonly faultInjector?: KnownFileTransactionFaultInjector;\n}): Promise<KnownFileTransactionReceiptV1>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.assertKnownFileTransactionPlan:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare function assertKnownFileTransactionPlan(value: unknown): asserts value is KnownFileTransactionPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.canonicalKnownFileTransactionReceipt:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare function canonicalKnownFileTransactionReceipt(value: KnownFileTransactionReceiptV1): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.compileKnownFileTransactionPlan:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare function compileKnownFileTransactionPlan(input: CompileKnownFileTransactionPlanInput): KnownFileTransactionPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.inspectKnownFileTransactionBarrier:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare function inspectKnownFileTransactionBarrier(options: {\n    readonly consumerRoot: string;\n}): Promise<KnownFileTransactionBarrierInspection>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!mutation.recoverKnownFileTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!mutation:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare function recoverKnownFileTransaction(options: {\n    readonly consumerRoot: string;\n    readonly faultInjector?: KnownFileRecoveryFaultInjector;\n}): Promise<KnownFileTransactionReceiptV1>;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!mutation:namespace",
@@ -3948,6 +4242,20 @@
           "signature": "export interface CapturedDirectory extends ProjectedDirectory"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!CompileKnownFileTransactionPlanInput#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!CompileKnownFileTransactionPlanInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly KnownFileTransactionOperationInput[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!CompileKnownFileTransactionPlanInput:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CompileKnownFileTransactionPlanInput"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!DirectoryCreatePolicy:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/engineering-foundation!",
@@ -4004,6 +4312,244 @@
           "signature": "export type DirectoryMutationErrorCode = \"ALIAS_COLLISION\" | \"AMBIGUOUS_CREATION\" | \"CONCURRENT_CHANGE\" | \"CREATE_FORBIDDEN\" | \"IDENTITY_UNAVAILABLE\" | \"INVALID_PATH\" | \"NOT_DIRECTORY\" | \"OUTSIDE_ROOT\" | \"SYMLINK\";"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileDigest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileDigest = `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileImageV1#contentBase64:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly contentBase64: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileImageV1#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileImageV1#mode:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mode: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileImageV1#size:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly size: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileImageV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileImageV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFilePreconditionV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFilePreconditionV1 = {\n    readonly state: \"absent\";\n} | {\n    readonly state: \"known-file\";\n    readonly acceptedPreimages: readonly KnownFileImageV1[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileRecoveryFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileRecoveryFaultInjector = (point: {\n    readonly phase: \"after-committed-capture-unlinked\" | \"after-destination-retired\" | \"after-rollback-linked\" | \"after-rollback-capture-unlinked\" | \"after-retirement-directory-bound\" | \"after-retirement-captured\" | \"after-retirement-unlink-authorized\";\n    readonly operationIndex: number;\n    readonly path: string;\n}) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionBarrierInspection:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionBarrierInspection = {\n    readonly state: \"idle\";\n} | {\n    readonly state: \"recovery-required\";\n    readonly code: \"KNOWN_FILE_OPERATION_ACTIVE\" | \"KNOWN_FILE_RECOVERY_REQUIRED\";\n    readonly recoverableByInstalledBuild: boolean;\n    readonly message: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionError#code:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionError:class",
+          "parentKind": "Class",
+          "signature": "readonly code: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class KnownFileTransactionError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionError:class",
+          "parentKind": "Class",
+          "signature": "constructor(code: string, message: string, options?: ErrorOptions);"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionFaultInjector = (point: KnownFileTransactionFaultPoint) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionFaultPoint:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionFaultPoint = {\n    readonly phase: \"after-barrier-acquired\" | \"after-journal-created\" | \"after-journal-committed\" | \"after-journal-retired\";\n} | {\n    readonly phase: \"after-directory-created\" | \"after-directory-created-unbound\" | \"after-directory-authorized\" | \"after-temporary-authorized\" | \"after-temporary-synced\" | \"after-temporary-created-unbound\" | \"after-capture-ready\" | \"after-capture-created-unbound\" | \"after-capture-authorized\" | \"after-preimage-captured\" | \"after-preimage-linked-unbound\" | \"after-rollback-temporary-created-unbound\" | \"after-rollback-temporary-ready\" | \"after-destination-captured\" | \"after-destination-retired\" | \"after-operation-publishing\" | \"after-postimage-linked\" | \"after-operation-published\" | \"after-committed-capture-unlinked\";\n    readonly operationIndex: number;\n    readonly path: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationInput:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionOperationInput = {\n    readonly path: string;\n    readonly precondition: {\n        readonly state: \"absent\";\n    };\n    readonly postimage: {\n        readonly bytes: Uint8Array;\n        readonly mode?: number;\n    };\n} | {\n    readonly path: string;\n    readonly precondition: {\n        readonly state: \"known-file\";\n        readonly acceptedPreimages: readonly {\n            readonly bytes: Uint8Array;\n            readonly mode: number;\n        }[];\n    };\n    readonly postimage: {\n        readonly bytes: Uint8Array;\n        readonly mode: number;\n    };\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionOperationOutcome = \"already-satisfied\" | \"created\" | \"replaced\" | \"rolled-back-to-absent\" | \"rolled-back-to-preimage\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationV1#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationV1#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: KnownFileImageV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationV1#precondition:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly precondition: KnownFilePreconditionV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionOperationV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionOperationV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class KnownFileTransactionPlanError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanError:class",
+          "parentKind": "Class",
+          "signature": "constructor(message: string);"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly KnownFileTransactionOperationV1[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1#protocol:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocol: \"foundation.replace-known-file/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionPlanV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionPlanV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly {\n        readonly path: string;\n        readonly outcome: KnownFileTransactionOperationOutcome;\n        readonly resultDigest?: KnownFileDigest;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: \"already-satisfied\" | \"applied\" | \"rolled-back\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1#protocol:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocol: \"foundation.replace-known-file/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionReceiptV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionReceiptV1"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!PortablePathIdentity#birthtimeNs:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!PortablePathIdentity:interface",
@@ -4058,6 +4604,48 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export type UnboundDirectoryCreationRecovery = {\n    readonly outcome: \"not-created\";\n} | {\n    readonly observedIdentity: PortablePathIdentity;\n    readonly outcome: \"ambiguous-manual\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!applyKnownFileTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function applyKnownFileTransaction(options: {\n    readonly consumerRoot: string;\n    readonly plan: KnownFileTransactionPlanV1;\n    readonly faultInjector?: KnownFileTransactionFaultInjector;\n}): Promise<KnownFileTransactionReceiptV1>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!assertKnownFileTransactionPlan:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertKnownFileTransactionPlan(value: unknown): asserts value is KnownFileTransactionPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!canonicalKnownFileTransactionReceipt:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function canonicalKnownFileTransactionReceipt(value: KnownFileTransactionReceiptV1): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!compileKnownFileTransactionPlan:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function compileKnownFileTransactionPlan(input: CompileKnownFileTransactionPlanInput): KnownFileTransactionPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!inspectKnownFileTransactionBarrier:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function inspectKnownFileTransactionBarrier(options: {\n    readonly consumerRoot: string;\n}): Promise<KnownFileTransactionBarrierInspection>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!recoverKnownFileTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function recoverKnownFileTransaction(options: {\n    readonly consumerRoot: string;\n    readonly faultInjector?: KnownFileRecoveryFaultInjector;\n}): Promise<KnownFileTransactionReceiptV1>;"
         }
       ]
     },

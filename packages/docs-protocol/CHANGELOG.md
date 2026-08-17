@@ -1,5 +1,14 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.8
+
+### Patch Changes
+
+- [#156](https://github.com/agent-teams-ai/engineering-foundation/pull/156) [`89cd8d2`](https://github.com/agent-teams-ai/engineering-foundation/commit/89cd8d2226b0214b37eb2258b4dc078a20715fd4) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc7 Cohort's immutable managed assets so consumers can prove
+  and execute upgrades to successor Cohorts without weakening conflict detection.
+- Updated dependencies [[`89cd8d2`](https://github.com/agent-teams-ai/engineering-foundation/commit/89cd8d2226b0214b37eb2258b4dc078a20715fd4)]:
+  - @agent-teams/engineering-foundation@0.17.0-rc.5
+
 ## 0.1.0-rc.7
 
 ### Patch Changes

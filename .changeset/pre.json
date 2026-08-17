@@ -11,6 +11,7 @@
     "docs-protocol-caller-oidc",
     "docs-protocol-first-rc",
     "docs-protocol-idempotent-postimage",
+    "docs-rc7-source-bundle",
     "docs-release-pair-identity",
     "docs-release-provenance-pair-refresh",
     "docs-rollback-bundle",

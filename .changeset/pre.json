@@ -13,6 +13,7 @@
     "docs-protocol-idempotent-postimage",
     "docs-release-pair-identity",
     "docs-rollback-bundle",
+    "docs-runtime-closure-type-peer",
     "managed-docs-consumer-integration",
     "prerelease-api-promotion",
     "unified-docs-protocol"

@@ -18,6 +18,7 @@
     "docs-runtime-closure-type-peer",
     "managed-docs-consumer-integration",
     "prerelease-api-promotion",
+    "reliable-provenance-observation",
     "unified-docs-protocol"
   ]
 }

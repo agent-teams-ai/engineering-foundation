@@ -8,6 +8,7 @@
   },
   "changesets": [
     "docs-protocol-bootstrap",
+    "docs-protocol-caller-oidc",
     "docs-protocol-first-rc",
     "docs-protocol-idempotent-postimage",
     "managed-docs-consumer-integration",

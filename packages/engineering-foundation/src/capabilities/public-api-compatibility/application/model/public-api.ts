@@ -125,4 +125,6 @@ export interface PackageReleaseEvidence {
   readonly packageName: string;
   readonly packageVersion: string;
   readonly declaredBump?: ReleaseBump;
+  readonly prereleaseInitialVersion?: string;
+  readonly prereleaseTag?: string;
 }

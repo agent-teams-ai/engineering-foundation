@@ -72,6 +72,24 @@ function compareExactVersions(left: string, right: string): number {
 
 export type SemanticVersionBump = "major" | "minor" | "patch";
 
+export function sameNumberedPrereleaseTrain(
+  left: string,
+  right: string,
+  expectedTag?: string
+): boolean {
+  const leftVersion = parseExactVersion(left);
+  const rightVersion = parseExactVersion(right);
+  return (
+    leftVersion.core.every((part, index) => part === rightVersion.core[index]) &&
+    leftVersion.prerelease.length === 2 &&
+    rightVersion.prerelease.length === 2 &&
+    leftVersion.prerelease[0] === rightVersion.prerelease[0] &&
+    (expectedTag === undefined || leftVersion.prerelease[0] === expectedTag) &&
+    /^\d+$/u.test(leftVersion.prerelease[1] ?? "") &&
+    /^\d+$/u.test(rightVersion.prerelease[1] ?? "")
+  );
+}
+
 export function semanticVersionBumpBetween(
   released: string,
   candidate: string

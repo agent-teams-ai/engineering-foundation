@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 0.17.0-rc.4
+
+### Patch Changes
+
+- [#153](https://github.com/agent-teams-ai/engineering-foundation/pull/153) [`ed0a09b`](https://github.com/agent-teams-ai/engineering-foundation/commit/ed0a09b2b2c807e8362c0afe5a84d1d2bff2e982) Thanks [@777genius](https://github.com/777genius)! - Publish a fresh Foundation prerelease from the same source commit as the pending Docs Protocol prerelease so the exact package pair preserves its ordered provenance invariant.
+
 ## 0.17.0-rc.3
 
 ### Patch Changes

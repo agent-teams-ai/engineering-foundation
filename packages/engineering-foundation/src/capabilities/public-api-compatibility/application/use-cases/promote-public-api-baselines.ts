@@ -1,5 +1,8 @@
 import { CapabilityInputError } from "../../../../capability-runtime.js";
-import { semanticVersionBumpBetween } from "../../../../semantic-version.js";
+import {
+  sameNumberedPrereleaseTrain,
+  semanticVersionBumpBetween
+} from "../../../../semantic-version.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type {
   PublicApiCompatibilityPolicy,
@@ -24,6 +27,33 @@ function promotionError(code: string, message: string): never {
 
 const BUMP_RANK = Object.freeze({ patch: 0, minor: 1, major: 2 });
 const INITIAL_UNRELEASED_VERSION = "0.0.0";
+
+function effectiveReleaseBump(input: {
+  readonly actualBump: keyof typeof BUMP_RANK;
+  readonly candidateVersion: string;
+  readonly prereleaseInitialVersion: string | undefined;
+  readonly prereleaseTag: string | undefined;
+  readonly releasedVersion: string;
+}): keyof typeof BUMP_RANK {
+  if (input.prereleaseInitialVersion === undefined || input.prereleaseTag === undefined) {
+    return input.actualBump;
+  }
+  const prereleaseLineBump = semanticVersionBumpBetween(
+    input.prereleaseInitialVersion,
+    input.candidateVersion
+  );
+  if (
+    prereleaseLineBump === undefined ||
+    !sameNumberedPrereleaseTrain(
+      input.releasedVersion,
+      input.candidateVersion,
+      input.prereleaseTag
+    )
+  ) {
+    return input.actualBump;
+  }
+  return prereleaseLineBump;
+}
 
 function assertReviewedBootstrap(
   packagePolicy: PublicApiCompatibilityPolicy["packages"][number],
@@ -136,10 +166,17 @@ export async function promotePublicApiBaselines(
         : change.classification === "additive" || released.packageVersion.startsWith("0.")
           ? "minor"
           : "major";
-    if (BUMP_RANK[actualBump] < BUMP_RANK[requiredBump]) {
+    const effectiveBump = effectiveReleaseBump({
+      actualBump,
+      candidateVersion: releaseEvidence.packageVersion,
+      prereleaseInitialVersion: releaseEvidence.prereleaseInitialVersion,
+      prereleaseTag: releaseEvidence.prereleaseTag,
+      releasedVersion: released.packageVersion
+    });
+    if (BUMP_RANK[effectiveBump] < BUMP_RANK[requiredBump]) {
       promotionError(
         "PUBLIC_API_BASELINE_PROMOTION_VERSION_INSUFFICIENT",
-        `API change for ${packagePolicy.packageName} requires ${requiredBump}; release advances by ${actualBump}.`
+        `API change for ${packagePolicy.packageName} requires ${requiredBump}; release intent advances by ${effectiveBump}.`
       );
     }
     if (change.classification === "breaking") {

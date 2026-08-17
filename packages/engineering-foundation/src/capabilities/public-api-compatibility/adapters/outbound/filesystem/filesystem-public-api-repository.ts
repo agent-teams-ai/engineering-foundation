@@ -40,6 +40,7 @@ import {
   promotionBaselineSchemaId,
   releasedBaselineSchemaId
 } from "./public-api-baseline-mapper.js";
+import { readChangesetsPrereleaseState } from "./changesets-prerelease-state.js";
 
 const MAX_INPUT_BYTES = 32 * 1024 * 1024;
 const BUMP_RANK: Readonly<Record<ReleaseBump, number>> = {
@@ -376,16 +377,29 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
       }
       throw error;
     }
-    const bump = await declaredBump({
-      directory: changesetDirectory,
-      packageName: policy.packageName,
-      root,
-      ...(signal === undefined ? {} : { signal })
-    });
+    const [bump, preState] = await Promise.all([
+      declaredBump({
+        directory: changesetDirectory,
+        packageName: policy.packageName,
+        root,
+        ...(signal === undefined ? {} : { signal })
+      }),
+      readChangesetsPrereleaseState({
+        directory: changesetDirectory,
+        packageName: policy.packageName,
+        root
+      })
+    ]);
     return {
       packageName: policy.packageName,
       packageVersion,
-      ...(bump === undefined ? {} : { declaredBump: bump })
+      ...(bump === undefined ? {} : { declaredBump: bump }),
+      ...(preState === undefined
+        ? {}
+        : {
+            prereleaseInitialVersion: preState.initialVersion,
+            prereleaseTag: preState.tag
+          })
     };
   }
 

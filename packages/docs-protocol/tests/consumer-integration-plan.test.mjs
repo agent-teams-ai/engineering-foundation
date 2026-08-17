@@ -271,6 +271,8 @@ test("package-owned asset sources exactly match compiler constants and split cat
     digest(Buffer.from(transitionCatalogSource))
   );
   assert.match(workflow, /^name: Documentation Protocol\n\non:\n  pull_request:\n  merge_group:\n  push:\n/u);
+  assert.match(workflow, /\npermissions:\n  contents: read\n  id-token: write\n\njobs:\n/u);
+  assert.equal(workflow.match(/^permissions:/gmu)?.length, 1);
   assert.doesNotMatch(workflow, /\bwith:/u);
 });
 

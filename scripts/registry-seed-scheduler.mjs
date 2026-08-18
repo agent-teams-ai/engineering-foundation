@@ -131,6 +131,7 @@ export async function seedRegistryInParallel({
         await publishArchive(
           archivePath,
           registryUrl,
+          entry.manifest.name,
           entry.manifest.version,
         );
       }

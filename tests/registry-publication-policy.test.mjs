@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
   registryPublicationTag,
   registryPublishArguments,
 } from "../scripts/registry-publication-policy.mjs";
+import {
+  exactRegistryArchiveObserved,
+  publishWithExactEffectReconciliation,
+} from "../scripts/registry-publish-reconciliation.mjs";
 import {
   installRegistryConsumerWithRetry,
   registryInstallAttemptPaths,
@@ -49,6 +54,80 @@ test("rejects a missing package version", () => {
     () => registryPublicationTag(""),
     /requires a package version/u,
   );
+});
+
+test("reconciles only a confirmed publish timeout with the exact registry archive", async () => {
+  const archive = Buffer.from("exact archive", "utf8");
+  const integrity = `sha512-${createHash("sha512").update(archive).digest("base64")}`;
+  const shasum = createHash("sha1").update(archive).digest("hex");
+  const publication = {
+    archivePath: "/tmp/package.tgz",
+    name: "@agent-teams/example",
+    registryUrl: "http://127.0.0.1:4873",
+    version: "1.2.3",
+  };
+  const observed = await exactRegistryArchiveObserved({
+    ...publication,
+    readArchive: async () => archive,
+    readVersion: async () => ({
+      name: publication.name,
+      version: publication.version,
+      dist: { integrity, shasum },
+    }),
+  });
+  assert.equal(observed, true);
+  assert.equal(await exactRegistryArchiveObserved({
+    ...publication,
+    readArchive: async () => archive,
+    readVersion: async () => ({
+      name: publication.name,
+      version: publication.version,
+      dist: { integrity, shasum: "0".repeat(40) },
+    }),
+  }), false);
+
+  let observationCalls = 0;
+  assert.equal(await publishWithExactEffectReconciliation({
+    ...publication,
+    observe: async () => {
+      observationCalls += 1;
+      return true;
+    },
+    publish: async () => {},
+  }), "published");
+  assert.equal(observationCalls, 0);
+  const result = await publishWithExactEffectReconciliation({
+    ...publication,
+    observe: async () => true,
+    publish: async () => {
+      throw confirmedTimeout();
+    },
+  });
+  assert.equal(result, "reconciled");
+});
+
+test("publish reconciliation remains fail-closed for uncertain effects", async () => {
+  const publication = {
+    archivePath: "/tmp/package.tgz",
+    name: "@agent-teams/example",
+    registryUrl: "http://127.0.0.1:4873",
+    version: "1.2.3",
+  };
+  for (const failure of [
+    Object.assign(new Error("ordinary failure"), { timedOut: false }),
+    confirmedTimeout(),
+  ]) {
+    await assert.rejects(
+      publishWithExactEffectReconciliation({
+        ...publication,
+        observe: async () => false,
+        publish: async () => {
+          throw failure;
+        },
+      }),
+      failure,
+    );
+  }
 });
 
 test("seeds distinct packages concurrently while serializing package versions", async () => {

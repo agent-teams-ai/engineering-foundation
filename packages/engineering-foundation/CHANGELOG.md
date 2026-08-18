@@ -1,5 +1,12 @@
 # @agent-teams/engineering-foundation
 
+## 0.17.0-rc.8
+
+### Patch Changes
+
+- [#166](https://github.com/agent-teams-ai/engineering-foundation/pull/166) [`da4a859`](https://github.com/agent-teams-ai/engineering-foundation/commit/da4a859eb1bd86e9a51373751c5329d45a120fc5) Thanks [@777genius](https://github.com/777genius)! - Publish a fresh Foundation prerelease so the pending Docs Protocol rc11 and its
+  exact dependency are produced by one protected-main provenance commit.
+
 ## 0.17.0-rc.7
 
 ### Patch Changes

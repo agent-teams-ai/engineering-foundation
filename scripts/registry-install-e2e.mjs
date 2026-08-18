@@ -25,6 +25,7 @@ import {
   verifyRegistryPackage,
 } from "./registry-installed-package-qualification.mjs";
 import { registryPublishArguments } from "./registry-publication-policy.mjs";
+import { publishWithExactEffectReconciliation } from "./registry-publish-reconciliation.mjs";
 import {
   installRegistryConsumerWithRetry,
   registryInstallAttemptPaths,
@@ -50,6 +51,7 @@ const TARGET_PACKAGE_NAMES = new Set(
   REGISTRY_QUALIFICATION_PACKAGES.map((releasePackage) => releasePackage.name),
 );
 const COMMAND_TIMEOUT_MS = 120_000;
+const SEED_PUBLISH_TIMEOUT_MS = process.platform === "win32" ? 30_000 : COMMAND_TIMEOUT_MS;
 const REGISTRY_SEED_CONCURRENCY = Math.min(4, availableParallelism());
 const REGISTRY_TOKEN_ENVIRONMENT_KEY = "FOUNDATION_REGISTRY_E2E_TOKEN";
 const USER_CONFIG_ENVIRONMENT_KEY = "NPM_CONFIG_USERCONFIG";
@@ -310,11 +312,22 @@ async function packPackage(entry, index) {
   return join(destination, archives[0]);
 }
 
-async function publishArchive(archivePath, registryUrl, version) {
-  await runNpm(
-    registryPublishArguments({ archivePath, registryUrl, version }),
-    repositoryRoot,
-  );
+async function publishArchive(
+  archivePath, registryUrl, name, version, timeoutMs = COMMAND_TIMEOUT_MS,
+) {
+  const result = await publishWithExactEffectReconciliation({
+    archivePath,
+    name,
+    publish: () => runNpm(registryPublishArguments({ archivePath, registryUrl, version }),
+      repositoryRoot, { timeoutMs }),
+    registryUrl,
+    version,
+  });
+  if (result === "reconciled") {
+    process.stdout.write(
+      `Registry E2E publication reconciled exact effect for ${name}@${version}.\n`,
+    );
+  }
 }
 
 async function seedRegistry(dependencies, registryUrl) {
@@ -322,7 +335,14 @@ async function seedRegistry(dependencies, registryUrl) {
     concurrency: REGISTRY_SEED_CONCURRENCY,
     dependencies,
     packPackage,
-    publishArchive,
+    publishArchive: (archivePath, targetRegistryUrl, name, version) =>
+      publishArchive(
+        archivePath,
+        targetRegistryUrl,
+        name,
+        version,
+        SEED_PUBLISH_TIMEOUT_MS,
+      ),
     registryUrl,
   });
 }
@@ -467,6 +487,7 @@ try {
       await publishArchive(
         target.archivePath,
         registry.registryUrl,
+        target.manifest.name,
         target.manifest.version,
       );
     }

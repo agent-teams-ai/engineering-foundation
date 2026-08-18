@@ -1,5 +1,12 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.12
+
+### Patch Changes
+
+- Updated dependencies [[`da4a859`](https://github.com/agent-teams-ai/engineering-foundation/commit/da4a859eb1bd86e9a51373751c5329d45a120fc5)]:
+  - @agent-teams/engineering-foundation@0.17.0-rc.8
+
 ## 0.1.0-rc.11
 
 ### Patch Changes

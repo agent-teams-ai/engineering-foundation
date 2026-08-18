@@ -1,5 +1,13 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0-rc.11
+
+### Patch Changes
+
+- [#162](https://github.com/agent-teams-ai/engineering-foundation/pull/162) [`ef5d635`](https://github.com/agent-teams-ai/engineering-foundation/commit/ef5d63503de47f25dd8e1e5f2d87b473238a07cc) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc10 Cohort as an immutable upgrade source so consumers
+  can adopt a successor trusted workflow revision through the normal digest-bound
+  plan and apply lifecycle.
+
 ## 0.1.0-rc.10
 
 ### Patch Changes

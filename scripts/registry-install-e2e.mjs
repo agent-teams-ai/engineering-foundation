@@ -51,7 +51,6 @@ const TARGET_PACKAGE_NAMES = new Set(
   REGISTRY_QUALIFICATION_PACKAGES.map((releasePackage) => releasePackage.name),
 );
 const COMMAND_TIMEOUT_MS = 120_000;
-const SEED_PUBLISH_TIMEOUT_MS = process.platform === "win32" ? 30_000 : COMMAND_TIMEOUT_MS;
 const REGISTRY_SEED_CONCURRENCY = Math.min(4, availableParallelism());
 const REGISTRY_TOKEN_ENVIRONMENT_KEY = "FOUNDATION_REGISTRY_E2E_TOKEN";
 const USER_CONFIG_ENVIRONMENT_KEY = "NPM_CONFIG_USERCONFIG";
@@ -313,13 +312,13 @@ async function packPackage(entry, index) {
 }
 
 async function publishArchive(
-  archivePath, registryUrl, name, version, timeoutMs = COMMAND_TIMEOUT_MS,
+  archivePath, registryUrl, name, version,
 ) {
   const result = await publishWithExactEffectReconciliation({
     archivePath,
     name,
     publish: () => runNpm(registryPublishArguments({ archivePath, registryUrl, version }),
-      repositoryRoot, { timeoutMs }),
+      repositoryRoot, { timeoutMs: COMMAND_TIMEOUT_MS }),
     registryUrl,
     version,
   });
@@ -335,14 +334,7 @@ async function seedRegistry(dependencies, registryUrl) {
     concurrency: REGISTRY_SEED_CONCURRENCY,
     dependencies,
     packPackage,
-    publishArchive: (archivePath, targetRegistryUrl, name, version) =>
-      publishArchive(
-        archivePath,
-        targetRegistryUrl,
-        name,
-        version,
-        SEED_PUBLISH_TIMEOUT_MS,
-      ),
+    publishArchive,
     registryUrl,
   });
 }

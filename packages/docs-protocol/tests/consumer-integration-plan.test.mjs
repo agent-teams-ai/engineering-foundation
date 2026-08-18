@@ -259,12 +259,12 @@ test("package-owned asset sources exactly match compiler constants and split cat
   assert.deepEqual(transitionCatalog.currentSourceExecutors, []);
   assert.deepEqual(
     transitionCatalog.directTargetBundles.map(({ cohort: { cohortId } }) => cohortId),
-    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9"]
+    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9", "docs-2026-08-18-rc1"]
   );
   const loadedTransitions = await loadPackageConsumerAssetCatalog();
   assert.deepEqual(
     loadedTransitions.directTargetBundles.map(({ cohort: { cohortId } }) => cohortId),
-    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9"]
+    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9", "docs-2026-08-18-rc1"]
   );
   const catalog = JSON.parse(catalogSource);
   assert.equal(catalog.skillDigest, digest(Buffer.from(skill)));

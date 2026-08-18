@@ -339,6 +339,62 @@ test("upgrades exact qualified rc9 assets through the package-owned bundle", asy
   assert.equal(applied.plan.outcome, "current");
 });
 
+test("upgrades exact qualified rc10 assets to a successor workflow Cohort", async () => {
+  const root = await sandbox();
+  const catalog = await loadPackageConsumerAssetCatalog();
+  const prior = catalog.directTargetBundles.find((entry) =>
+    entry.cohort.cohortId === "docs-2026-08-18-rc1"
+  );
+  assert.ok(prior);
+
+  const profilePath = join(root, "architecture", "foundation", "docs-consumer-integration.json");
+  const target = JSON.parse(await readFile(profilePath, "utf8"));
+  target.cohort = {
+    ...target.cohort,
+    cohortId: "docs-2026-08-18-rc2",
+    upgradeFrom: [prior.cohort.cohortId],
+    workflow: {
+      ...target.cohort.workflow,
+      revision: "2".repeat(40)
+    }
+  };
+  target.cohort.assets = describeCanonicalConsumerAssets(target.cohort);
+  const priorDesired = { ...target, cohort: prior.cohort };
+  const priorState = canonicalManagedState(priorDesired, {
+    skillDigest: digestBytes(prior.skill),
+    callerWorkflowDigest: digestBytes(prior.callerWorkflow),
+    assetCatalogDigest: prior.cohort.assets.assetCatalogDigest,
+    transitionCatalogDigest: prior.cohort.assets.transitionCatalogDigest,
+    agentsRouteDigest: prior.agentsRouteDigest,
+    docsScriptsDigest: prior.docsScriptsDigest
+  });
+
+  await Promise.all([
+    mkdir(join(root, ".agents", "skills", "docs-authoring"), { recursive: true }),
+    mkdir(join(root, ".github", "workflows"), { recursive: true }),
+    writeFile(profilePath, `${JSON.stringify(target, null, 2)}\n`),
+    writeFile(join(root, "AGENTS.md"), `# Agents\n\n${canonicalManagedRoute(target.skillPath)}\n`),
+    writeFile(join(root, target.managedStatePath), priorState)
+  ]);
+  await Promise.all([
+    writeFile(join(root, target.skillPath), prior.skill),
+    writeFile(join(root, target.callerWorkflowPath), prior.callerWorkflow)
+  ]);
+
+  const planned = await planNodeConsumerIntegration({
+    consumerRoot: root,
+    to: target.cohort.cohortId
+  });
+  assert.equal(planned.outcome, "change-required");
+  assert.deepEqual(planned.plan.issues, []);
+  const applied = await applyConsumerIntegration({
+    consumerRoot: root,
+    expect: planned.plan.planDigest
+  });
+  assert.equal(applied.outcome, "applied");
+  assert.equal(applied.plan.outcome, "current");
+});
+
 test("keeps the public plan byte-free and fails stale profile authority before mutation", async () => {
   const root = await sandbox();
   const planned = await planNodeConsumerIntegration({

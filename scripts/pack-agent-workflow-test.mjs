@@ -5,6 +5,39 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
+async function verifyPackedEffectiveInstructions({ consumerRoot, runPnpm }) {
+  await writeFile(
+    join(consumerRoot, "src", "AGENTS.override.md"),
+    "# Packed source instructions\n",
+    "utf8",
+  );
+  const { stdout } = await runPnpm(
+    [
+      "--silent",
+      "exec",
+      "agent-teams-foundation",
+      "agent-workflow",
+      "instructions",
+      "src/index.ts",
+      "--consumer",
+      consumerRoot,
+      "--format",
+      "json",
+    ],
+    consumerRoot,
+  );
+  const report = JSON.parse(stdout);
+  if (
+    report.outcome !== "resolved" ||
+    report.target?.path !== "src/index.ts" ||
+    report.layers?.map(({ selectedPath }) => selectedPath).join(",") !==
+      "AGENTS.md,src/AGENTS.override.md" ||
+    !/^sha256:[a-f0-9]{64}$/u.test(report.resolutionDigest)
+  ) {
+    throw new Error("Packed effective-instructions workflow did not resolve end to end.");
+  }
+}
+
 export async function testPackedAgentWorkflow({
   consumerRoot,
   runPnpm,
@@ -113,6 +146,7 @@ await appendFile(".agent-workflow-invocations.jsonl", JSON.stringify({ kind, pat
     "export const packedAgentWorkflow = true;\n",
     "utf8",
   );
+  await verifyPackedEffectiveInstructions({ consumerRoot, runPnpm });
   const { stdout: workflowOutput } = await runPnpm(
     [
       "--silent",

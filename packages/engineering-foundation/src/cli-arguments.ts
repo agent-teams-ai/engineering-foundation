@@ -34,7 +34,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   "-v": 0,
   "assert-dev-only": 0,
   "assert-registry": 0,
-  "agent-workflow": 1,
+  "agent-workflow": 2,
   "architecture-decisions-promote-baseline": 0,
   attach: 1,
   check: 1,
@@ -405,7 +405,10 @@ function validateNonDocumentCommandOptions(
   command: string,
   state: ArgumentState
 ): void {
-  if (state.baseRef !== undefined && command !== "agent-workflow") {
+  if (
+    state.baseRef !== undefined &&
+    (command !== "agent-workflow" || state.positional[0] !== "changed")
+  ) {
     throw new FoundationError(
       "CONSUMER_INVALID",
       "--base is supported only by agent-workflow changed."

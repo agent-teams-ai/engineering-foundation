@@ -22,6 +22,7 @@ import {
   createJournalReconciled,
   replaceJournalReconciled
 } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/document-journal-reconciliation.js";
+import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 
 const requiresStrictDirectoryDurability = process.platform === "win32"
   ? test.skip
@@ -31,6 +32,18 @@ const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)
 );
 const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+
+test("scripted fault sequences fail when a planned step is skipped or reordered", () => {
+  const incomplete = createScriptedSequence(
+    ["prepare", "publish"],
+    "fault plan",
+  );
+  incomplete.consume("prepare");
+  assert.throws(() => incomplete.assertConsumed(), /did not consume 1 planned step/u);
+
+  const reordered = createScriptedSequence(["prepare", "publish"], "fault plan");
+  assert.throws(() => reordered.consume("publish"), /diverged at step 1/u);
+});
 
 async function envelope(destinationState = "pending") {
   const body = {
@@ -146,11 +159,14 @@ requiresStrictDirectoryDurability("reconciles create, replace, and remove only a
   await withFixture(async ({ path }) => {
     let operation = "create";
     let failedFinalSync = false;
-    let reconciliationSyncs = 0;
+    const reconciliations = createScriptedSequence(
+      ["create", "replace", "remove"],
+      "document journal reconciliations",
+    );
     const store = new NodeDocumentJournalStore(path, {
       faultInjector(point) {
         if (point.phase === "before-reconciliation-directory-sync") {
-          reconciliationSyncs += 1;
+          reconciliations.consume(operation);
         }
         if (point.phase === "before-final-directory-sync" &&
           point.operation === operation && !failedFinalSync) {
@@ -181,7 +197,7 @@ requiresStrictDirectoryDurability("reconciles create, replace, and remove only a
     failedFinalSync = false;
     await assert.rejects(store.remove(replaced.authority), /remove final directory sync/u);
     assert.equal(await store.stabilizeForReconciliation(), undefined);
-    assert.equal(reconciliationSyncs, 3);
+    reconciliations.assertConsumed();
   });
 });
 

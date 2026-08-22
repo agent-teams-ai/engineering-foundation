@@ -64,6 +64,19 @@ cells. Each consumer records its own activation status in its repository.
 - consumer business concepts, bounded-context catalogs, or authorization policy;
 - affected-only checks as a substitute for complete CI coverage.
 
+## Extraction admission invariant
+
+A consumer-owned implementation moves into Foundation only after two real
+consumers demonstrate the same semantics. The extraction must include shared
+parity fixtures and a conformance test in every adopting consumer. The adoption
+sequence must also delete the superseded consumer implementations; merely
+wrapping or copying them into Foundation does not satisfy DRY.
+
+This is an admission rule for shared extractions, not a requirement to invent a
+second copy of a Foundation-owned mechanism. Similar syntax, a possible future
+consumer, or a shared dependency alone are insufficient evidence. Generalize
+the reason for change only after the repeated semantics are proved.
+
 ## Ownership and flow
 
 ```mermaid

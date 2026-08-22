@@ -110,6 +110,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application
     allow:
       boundaries:
+        - foundation.canonical-json
         - foundation.core
         - foundation.repository-input
       packages: []
@@ -117,11 +118,14 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/changed-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/effective-instructions.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/repository-agent-workflow.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/changed-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/effective-instructions-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/repository-agent-workflow-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/rules.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/use-cases/analyze-repository-agent-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/use-cases/resolve-effective-instructions.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/use-cases/run-changed-agent-workflow.ts
   - id: capability.repository-agent-workflow.contract
     roots:
@@ -153,12 +157,14 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/report-renderer.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-repository-agent-workflow-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/git/git-repository-changes-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/pnpm-package-script-runner.ts
   - id: capability.repository-agent-workflow.composition
     roots:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/changed-command.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/instructions-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts
     allow:
       boundaries:
@@ -171,6 +177,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/changed-command.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/instructions-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts
   - id: foundation.core
     roots:

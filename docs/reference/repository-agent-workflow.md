@@ -42,6 +42,36 @@ Changed-file checks are an optimization only. A passing result never replaces
 the complete `check` command in required CI. Hooks may call the same script for
 convenience, but hooks are optional because agents and users can bypass them.
 
+## Effective instructions
+
+```sh
+agent-teams-foundation agent-workflow instructions packages/api/src/foo.ts
+```
+
+This read-only command explains the repository instruction files that apply to
+one caller-selected file. It walks real directories from the explicit consumer
+root to the target's directory. In each directory it selects the first regular
+candidate in this order: `AGENTS.override.md`, then `AGENTS.md`. The JSON and
+text reports show scope, root-to-target precedence, same-directory shadowing,
+source and loaded byte counts, SHA-256 digests, the 32 KiB default byte budget,
+truncation, and later layers excluded after budget exhaustion. A selected empty
+override still shadows `AGENTS.md` but contributes no effective text.
+
+The command models Codex's default project-level discovery. It deliberately
+does not read user-level instructions, session state, custom fallback names, or
+local Codex configuration, and it never injects or prints instruction content.
+Foundation is stricter than Codex about filesystem authority: a selected
+instruction symlink or a symlink in the target ancestry fails closed. Digests
+cover raw source and actually admitted bytes; the resolution digest binds the
+target and ordered admitted sources, not a provider-specific final prompt.
+Selected sources above the capability's 256 KiB inspection bound fail closed;
+shadowed sources are not read. After the 32 KiB budget is exhausted, later
+selected sources are reported from metadata only with a `null` source digest.
+
+The report proves file precedence, not natural-language rule conflicts. A
+deeper applied file can override an earlier file, but Foundation does not claim
+which individual sentence wins.
+
 ## Configuration
 
 ```yaml

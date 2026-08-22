@@ -56,6 +56,39 @@ function runChanged(consumerRoot, ...args) {
   };
 }
 
+function runInstructions(consumerRoot, targetPath, format = "json", ...args) {
+  const result = spawnSync(
+    process.execPath,
+    [
+      cliPath,
+      "agent-workflow",
+      "instructions",
+      targetPath,
+      "--consumer",
+      consumerRoot,
+      "--format",
+      format,
+      ...args,
+    ],
+    { encoding: "utf8" },
+  );
+  return {
+    result,
+    report: format === "json" && result.stdout.length > 0
+      ? JSON.parse(result.stdout)
+      : null,
+  };
+}
+
+function runAgentWorkflowRaw(...args) {
+  const result = spawnSync(
+    process.execPath,
+    [cliPath, "agent-workflow", ...args, "--format", "json"],
+    { encoding: "utf8" },
+  );
+  return { result, report: JSON.parse(result.stdout) };
+}
+
 async function invocations(consumerRoot) {
   const source = await readFile(
     join(consumerRoot, ".fixture-invocations.jsonl"),
@@ -96,6 +129,206 @@ test("accepts one canonical instruction source with portable adapters", async ()
     assert.equal(result.status, 0);
     assert.equal(report.outcome, "passed");
     assert.equal(report.capabilities[0].capabilityId, "repository.agent-workflow");
+  });
+});
+
+test("resolves effective instructions root-to-target with explicit shadowing", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    await writeFile(
+      join(consumerRoot, "src", "AGENTS.md"),
+      "x".repeat(300_000),
+      "utf8",
+    );
+    await writeFile(
+      join(consumerRoot, "src", "AGENTS.override.md"),
+      "# Effective source instructions\n",
+      "utf8",
+    );
+
+    const { result, report } = runInstructions(consumerRoot, "src/index.ts");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(report.outcome, "resolved");
+    assert.equal(
+      report.semantics,
+      "foundation-safe-codex-default-project-instructions-v1",
+    );
+    assert.deepEqual(
+      report.layers.map((layer) => ({
+        path: layer.selectedPath,
+        scope: layer.scope,
+        status: layer.status,
+        canOverrideEarlier: layer.canOverrideEarlier,
+        shadowed: layer.shadowed.map(({ path }) => path),
+      })),
+      [
+        {
+          path: "AGENTS.md",
+          scope: "**/*",
+          status: "applied",
+          canOverrideEarlier: [],
+          shadowed: [],
+        },
+        {
+          path: "src/AGENTS.override.md",
+          scope: "src/**/*",
+          status: "applied",
+          canOverrideEarlier: ["AGENTS.md"],
+          shadowed: ["src/AGENTS.md"],
+        },
+      ],
+    );
+    assert.match(report.resolutionDigest, /^sha256:[a-f0-9]{64}$/u);
+    assert.equal(
+      report.budget.loadedBytes,
+      Buffer.byteLength(await readFile(join(consumerRoot, "AGENTS.md"), "utf8")) +
+        Buffer.byteLength("# Effective source instructions\n"),
+    );
+    const repeated = runInstructions(consumerRoot, "src/index.ts").report;
+    assert.equal(repeated.resolutionDigest, report.resolutionDigest);
+
+    await writeFile(join(consumerRoot, "src", "AGENTS.md"), "y".repeat(300_000));
+    const shadowChanged = runInstructions(consumerRoot, "src/index.ts").report;
+    assert.equal(shadowChanged.resolutionDigest, report.resolutionDigest);
+
+    await writeFile(
+      join(consumerRoot, "src", "AGENTS.override.md"),
+      "# Changed effective source instructions\n",
+    );
+    const admittedChanged = runInstructions(consumerRoot, "src/index.ts").report;
+    assert.notEqual(admittedChanged.resolutionDigest, report.resolutionDigest);
+    const targetChanged = runInstructions(consumerRoot, "src/planned.ts").report;
+    assert.notEqual(targetChanged.resolutionDigest, admittedChanged.resolutionDigest);
+
+    const text = runInstructions(consumerRoot, "src/index.ts", "text").result;
+    assert.equal(text.status, 0, text.stderr);
+    assert.match(text.stdout, /Effective instructions for src\/index\.ts/u);
+    assert.match(text.stdout, /Shadowed: src\/AGENTS\.md/u);
+  });
+});
+
+test("reports an empty override that masks the canonical file without consuming budget", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    await writeFile(join(consumerRoot, "src", "AGENTS.md"), "# Hidden\n", "utf8");
+    await writeFile(join(consumerRoot, "src", "AGENTS.override.md"), " \n\t", "utf8");
+
+    const { result, report } = runInstructions(consumerRoot, "src/index.ts");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(report.layers[1].status, "ignored-empty");
+    assert.equal(report.layers[1].loadedBytes, 0);
+    assert.deepEqual(report.layers[1].shadowed.map(({ path }) => path), [
+      "src/AGENTS.md",
+    ]);
+    assert.deepEqual(report.layers[1].canOverrideEarlier, []);
+  });
+});
+
+test("shows truncation and later exclusions at the default instruction byte budget", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    await mkdir(join(consumerRoot, "src", "nested"));
+    await writeFile(join(consumerRoot, "AGENTS.md"), "r".repeat(32_760), "utf8");
+    await writeFile(join(consumerRoot, "src", "AGENTS.md"), "s".repeat(20), "utf8");
+    await writeFile(
+      join(consumerRoot, "src", "nested", "AGENTS.md"),
+      "n".repeat(300_000),
+      "utf8",
+    );
+
+    const { result, report } = runInstructions(
+      consumerRoot,
+      "src/nested/planned-file.ts",
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(report.budget, {
+      maximumBytes: 32_768,
+      loadedBytes: 32_768,
+      exhausted: true,
+      truncated: true,
+    });
+    assert.deepEqual(report.layers.map(({ status, loadedBytes }) => ({
+      status,
+      loadedBytes,
+    })), [
+      { status: "applied", loadedBytes: 32_760 },
+      { status: "truncated", loadedBytes: 8 },
+      { status: "budget-exhausted", loadedBytes: 0 },
+    ]);
+    assert.equal(report.layers[2].sourceBytes, 300_000);
+    assert.equal(report.layers[2].sourceDigest, null);
+
+    await writeFile(
+      join(consumerRoot, "src", "AGENTS.md"),
+      `${"s".repeat(8)}${"changed-after-budget".repeat(4)}`,
+      "utf8",
+    );
+    const beyondBudgetChanged = runInstructions(
+      consumerRoot,
+      "src/nested/planned-file.ts",
+    ).report;
+    assert.equal(beyondBudgetChanged.resolutionDigest, report.resolutionDigest);
+    assert.notEqual(
+      beyondBudgetChanged.layers[1].sourceDigest,
+      report.layers[1].sourceDigest,
+    );
+  });
+});
+
+test("rejects unsafe effective-instruction targets and selected symlinks", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    const escaped = runInstructions(consumerRoot, "../outside.ts");
+    assert.equal(escaped.result.status, 2);
+    assert.equal(escaped.report.error.code, "CONFIG_PATH_INVALID");
+
+    const changedOnlyOption = runInstructions(
+      consumerRoot,
+      "src/index.ts",
+      "json",
+      "--base",
+      "HEAD",
+    );
+    assert.equal(changedOnlyOption.result.status, 2);
+    assert.equal(changedOnlyOption.report.error.code, "CONSUMER_INVALID");
+    assert.match(changedOnlyOption.report.error.message, /only by agent-workflow changed/u);
+
+    const injected = runInstructions(consumerRoot, "src/evil\n\u001b[31m.ts");
+    assert.equal(injected.result.status, 2);
+    assert.equal(
+      injected.report.error.code,
+      "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
+    );
+
+    const directory = runInstructions(consumerRoot, "src");
+    assert.equal(directory.result.status, 2);
+    assert.equal(
+      directory.report.error.code,
+      "REPOSITORY_AGENT_WORKFLOW_TARGET_INVALID",
+    );
+
+    const unavailableRoot = join(consumerRoot, "does-not-exist");
+    const missingTarget = runAgentWorkflowRaw(
+      "instructions",
+      "--consumer",
+      unavailableRoot,
+    );
+    assert.equal(missingTarget.result.status, 2);
+    assert.match(missingTarget.report.error.message, /requires a repository-relative file/u);
+    const extraChangedTarget = runAgentWorkflowRaw(
+      "changed",
+      "src/index.ts",
+      "--consumer",
+      unavailableRoot,
+    );
+    assert.equal(extraChangedTarget.result.status, 2);
+    assert.match(extraChangedTarget.report.error.message, /does not accept a target path/u);
+
+    if (process.platform !== "win32") {
+      await symlink("../AGENTS.md", join(consumerRoot, "src", "AGENTS.override.md"));
+      const linked = runInstructions(consumerRoot, "src/index.ts");
+      assert.equal(linked.result.status, 2);
+      assert.equal(
+        linked.report.error.code,
+        "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_SYMLINK_PROHIBITED",
+      );
+    }
   });
 });
 

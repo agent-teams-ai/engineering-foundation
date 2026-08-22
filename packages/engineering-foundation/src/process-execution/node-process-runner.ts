@@ -15,6 +15,11 @@ const MAX_PROCESS_TIMEOUT_MS = 2_147_483_647;
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 const TERMINATION_GRACE_MS = 1_000;
 
+interface ManagedProcessRequest extends ProcessRequest {
+  /** Reject process output that is not well-formed UTF-8 instead of replacing bytes. */
+  readonly strictUtf8?: boolean;
+}
+
 function describeRequest(request: ProcessRequest): string {
   return `${request.command} ${request.args.join(" ")}`;
 }
@@ -75,6 +80,12 @@ function assertProcessCanStart(request: ProcessRequest): void {
       request.signal.reason
     );
   }
+}
+
+function prepareProcessRequest(request: ProcessRequest): number | undefined {
+  const timeoutMs = resolveTimeout(request);
+  assertProcessCanStart(request);
+  return timeoutMs;
 }
 
 async function waitForExit(
@@ -204,11 +215,34 @@ async function cleanUpAfterNormalExit(
   }
 }
 
+function decodeProcessOutput(
+  request: ManagedProcessRequest,
+  stdout: readonly Buffer[],
+  stderr: readonly Buffer[]
+): { readonly stdout: string; readonly stderr: string } | FoundationError {
+  const decode = (chunks: readonly Buffer[]) => {
+    const bytes = Buffer.concat(chunks);
+    const text = bytes.toString("utf8");
+    if (request.strictUtf8 === true && !Buffer.from(text, "utf8").equals(bytes)) {
+      throw new TypeError("Process output is not valid UTF-8.");
+    }
+    return text;
+  };
+  try {
+    return { stdout: decode(stdout), stderr: decode(stderr) };
+  } catch (error) {
+    return processFailure(
+      request,
+      "returned output that is not valid UTF-8.",
+      error
+    );
+  }
+}
+
 export async function executeManagedProcess(
-  request: ProcessRequest
+  request: ManagedProcessRequest
 ): Promise<ManagedProcessResult> {
-    const timeoutMs = resolveTimeout(request);
-    assertProcessCanStart(request);
+    const timeoutMs = prepareProcessRequest(request);
     return await new Promise((resolve, reject) => {
       let child: ReturnType<typeof spawn>;
       try {
@@ -299,8 +333,11 @@ export async function executeManagedProcess(
             );
             return;
           }
-          const stdoutText = Buffer.concat(stdout).toString("utf8");
-          const stderrText = Buffer.concat(stderr).toString("utf8");
+          const decoded = decodeProcessOutput(request, stdout, stderr);
+          if (decoded instanceof FoundationError) {
+            finish(decoded);
+            return;
+          }
           if (completionFailure !== undefined) {
             finish(completionFailure);
             return;
@@ -308,8 +345,8 @@ export async function executeManagedProcess(
           finish({
             exitCode: exitCode ?? 1,
             signal,
-            stdout: stdoutText,
-            stderr: stderrText
+            stdout: decoded.stdout,
+            stderr: decoded.stderr
           });
         })();
       };

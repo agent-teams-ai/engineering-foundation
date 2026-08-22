@@ -3,18 +3,51 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import { FoundationError } from "../../../../../errors.js";
 import type { RepositoryChangesReader } from "../../../application/ports/changed-workflow.js";
+import type {
+  RepositoryChangeGroup,
+  RepositoryChangeGroups
+} from "../../../application/model/changed-workflow.js";
 import { execute } from "../process/process-execution.js";
 
-const AUTO_BASE_REFS = ["origin/main", "origin/master", "main", "master"] as const;
+const AUTO_BASE_REFS = [
+  { display: "origin/main", ref: "refs/remotes/origin/main" },
+  { display: "origin/master", ref: "refs/remotes/origin/master" },
+  { display: "main", ref: "refs/heads/main" },
+  { display: "master", ref: "refs/heads/master" }
+] as const;
+const FULL_COMMIT = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/iu;
+const GIT_HARDENING = [
+  "--no-pager",
+  "--no-optional-locks",
+  "--no-replace-objects",
+  "-c",
+  "core.fsmonitor=false",
+  "-c",
+  "diff.external=",
+  "-c",
+  "diff.renames=false"
+] as const;
 
 function invalid(message: string): never {
   throw new FoundationError("CONSUMER_INVALID", message);
 }
 
-function parseNullDelimited(value: string): readonly string[] {
-  return value
-    .split("\0")
-    .filter((path) => path.length > 0);
+function parseNullDelimited(value: string, context: string): readonly string[] {
+  if (value.length === 0) {
+    return [];
+  }
+  if (!value.endsWith("\0")) {
+    invalid(`Git returned malformed NUL-delimited ${context} evidence.`);
+  }
+  const paths = value.slice(0, -1).split("\0");
+  if (paths.some((path) => path.length === 0)) {
+    invalid(`Git returned an empty path in ${context} evidence.`);
+  }
+  return paths;
+}
+
+function comparePaths(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function hasControlCharacter(value: string): boolean {
@@ -41,45 +74,219 @@ function assertSafeRepositoryPath(path: string): void {
   }
 }
 
-async function git(
-  cwd: string,
-  args: readonly string[],
+async function git(root: string, args: readonly string[], signal?: AbortSignal) {
+  try {
+    return await execute("git", [...GIT_HARDENING, ...args], {
+      cwd: root,
+      strictUtf8: true,
+      ...(signal === undefined ? {} : { signal })
+    });
+  } catch (error) {
+    if (error instanceof Error && /not valid UTF-8/u.test(error.message)) {
+      invalid("Git returned repository evidence that is not valid UTF-8.");
+    }
+    throw error;
+  }
+}
+
+function exactCommit(value: string, context: string): string {
+  const commit = value.replace(/\r?\n$/u, "");
+  if (!FULL_COMMIT.test(commit)) {
+    invalid(`Git did not return an immutable ${context} commit identifier.`);
+  }
+  return commit.toLowerCase();
+}
+
+async function resolveCommit(
+  root: string,
+  ref: string,
   signal?: AbortSignal
-) {
-  return execute("git", args, { cwd, ...(signal === undefined ? {} : { signal }) });
+): Promise<string | null> {
+  const resolved = await git(
+    root,
+    ["rev-parse", "--verify", "--quiet", "--end-of-options", `${ref}^{commit}`],
+    signal
+  );
+  if (resolved.exitCode === 0) {
+    return exactCommit(resolved.stdout, "resolved");
+  }
+  if (resolved.exitCode === 1) {
+    return null;
+  }
+  invalid(
+    `Git could not resolve an immutable commit: ${resolved.stderr.trim() || "git rev-parse failed"}.`
+  );
+}
+
+async function assertExactRef(
+  root: string,
+  ref: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const result = await git(root, ["check-ref-format", ref], signal);
+  if (result.exitCode === 0) {
+    return;
+  }
+  if (result.exitCode === 1) {
+    invalid(
+      `The explicit base ref ${JSON.stringify(ref)} is not an exact Git ref name.`
+    );
+  }
+  invalid(
+    `Git could not validate the explicit base ref: ${result.stderr.trim() || "git check-ref-format failed"}.`
+  );
+}
+
+async function resolveRequestedRef(
+  root: string,
+  requested: string,
+  signal?: AbortSignal
+): Promise<{ readonly ref: string; readonly commit: string } | null> {
+  if (requested === "HEAD" || FULL_COMMIT.test(requested)) {
+    const commit = await resolveCommit(root, requested, signal);
+    return commit === null ? null : { ref: requested, commit };
+  }
+  if (requested.startsWith("refs/")) {
+    await assertExactRef(root, requested, signal);
+    const commit = await resolveCommit(root, requested, signal);
+    return commit === null ? null : { ref: requested, commit };
+  }
+  const candidates = [
+    `refs/heads/${requested}`,
+    `refs/remotes/${requested}`,
+    `refs/tags/${requested}`
+  ];
+  await assertExactRef(root, `refs/heads/${requested}`, signal);
+  const matches = (
+    await Promise.all(
+      candidates.map(async (ref) => ({ ref, commit: await resolveCommit(root, ref, signal) }))
+    )
+  ).filter((match): match is { readonly ref: string; readonly commit: string } =>
+    match.commit !== null
+  );
+  if (matches.length > 1) {
+    invalid(
+      `The explicit base ref ${JSON.stringify(requested)} is ambiguous: ${matches.map(({ ref }) => ref).join(", ")}.`
+    );
+  }
+  return matches[0] ?? null;
+}
+
+async function uniqueMergeBase(
+  root: string,
+  headCommit: string,
+  baseCommit: string,
+  signal?: AbortSignal
+): Promise<string | null> {
+  const result = await git(
+    root,
+    ["merge-base", "--all", "--", headCommit, baseCommit],
+    signal
+  );
+  if (result.exitCode === 1) {
+    return null;
+  }
+  if (result.exitCode !== 0) {
+    invalid(
+      `Git could not inspect merge bases: ${result.stderr.trim() || "git merge-base failed"}.`
+    );
+  }
+  const lines = result.stdout.split(/\r?\n/u);
+  if (lines.at(-1) === "") {
+    lines.pop();
+  }
+  if (lines.length === 0) {
+    invalid("Git did not return a merge-base commit identifier.");
+  }
+  const commits = lines.map((value) => exactCommit(value, "merge-base"));
+  if (commits.length !== 1) {
+    invalid(
+      `Git reported ${String(commits.length)} merge bases; changed scope requires one unique merge base.`
+    );
+  }
+  return commits[0] ?? null;
+}
+
+interface BaselineResolution {
+  readonly requestedRef: string | null;
+  readonly resolvedRef: string;
+  readonly baseCommit: string | null;
+  readonly headCommit: string | null;
+  readonly mergeBaseCommit: string | null;
+  readonly baselineRef: string;
+  readonly baselineCommit: string | null;
 }
 
 async function resolveBaseline(
   root: string,
   requested: string | undefined,
   signal?: AbortSignal
-): Promise<{ readonly ref: string; readonly commit: string | null }> {
-  const head = await git(root, ["rev-parse", "--verify", "HEAD^{commit}"], signal);
-  if (head.exitCode !== 0) {
+): Promise<BaselineResolution> {
+  const headCommit = await resolveCommit(root, "HEAD", signal);
+  if (headCommit === null) {
     if (requested !== undefined) {
       invalid("An explicit base cannot be resolved before the repository has an initial commit.");
     }
-    return { ref: "unborn-head", commit: null };
+    return {
+      requestedRef: null,
+      resolvedRef: "unborn-head",
+      baseCommit: null,
+      headCommit: null,
+      mergeBaseCommit: null,
+      baselineRef: "unborn-head",
+      baselineCommit: null
+    };
   }
-  const candidates = requested === undefined ? AUTO_BASE_REFS : [requested];
+
+  const candidates = requested === undefined
+    ? AUTO_BASE_REFS
+    : [{ display: requested, ref: requested }];
+  let resolvedCandidateCount = 0;
   for (const candidate of candidates) {
-    const resolved = await git(root, ["rev-parse", "--verify", `${candidate}^{commit}`], signal);
-    if (resolved.exitCode !== 0) {
+    const resolved = requested === undefined
+      ? await resolveCommit(root, candidate.ref, signal).then((commit) =>
+          commit === null ? null : { ref: candidate.ref, commit }
+        )
+      : await resolveRequestedRef(root, candidate.ref, signal);
+    if (resolved === null) {
       continue;
     }
-    const mergeBase = await git(
+    resolvedCandidateCount += 1;
+    const mergeBaseCommit = await uniqueMergeBase(
       root,
-      ["merge-base", "HEAD", resolved.stdout.trim()],
+      headCommit,
+      resolved.commit,
       signal
     );
-    if (mergeBase.exitCode === 0 && mergeBase.stdout.trim().length > 0) {
-      return { ref: candidate, commit: mergeBase.stdout.trim() };
+    if (mergeBaseCommit !== null) {
+      return {
+        requestedRef: requested ?? null,
+        resolvedRef: resolved.ref,
+        baseCommit: resolved.commit,
+        headCommit,
+        mergeBaseCommit,
+        baselineRef: candidate.display,
+        baselineCommit: mergeBaseCommit
+      };
     }
   }
   if (requested !== undefined) {
-    invalid(`Unable to resolve an exact merge base for ${requested}.`);
+    invalid(`Unable to resolve one exact merge base for ${JSON.stringify(requested)}.`);
   }
-  return { ref: "HEAD", commit: head.stdout.trim() };
+  if (resolvedCandidateCount > 0) {
+    invalid(
+      "Unable to establish a merge base from the discovered refs; the history may be shallow or unrelated. Fetch the required history or pass an explicit base."
+    );
+  }
+  return {
+    requestedRef: null,
+    resolvedRef: "HEAD",
+    baseCommit: headCommit,
+    headCommit,
+    mergeBaseCommit: headCommit,
+    baselineRef: "HEAD",
+    baselineCommit: headCommit
+  };
 }
 
 async function existingFiles(
@@ -105,66 +312,102 @@ async function existingFiles(
   return Object.freeze(result);
 }
 
-async function changedPathGroups(
+const DIFF_PATH_OPTIONS = [
+  "--no-ext-diff",
+  "--no-textconv",
+  "--no-renames",
+  "--name-only",
+  "-z"
+] as const;
+
+async function diffGroup(
   root: string,
-  baselineCommit: string | null,
+  prefix: readonly string[],
   signal?: AbortSignal
-): Promise<{
-  readonly changed: readonly (readonly string[])[];
-  readonly deleted: readonly (readonly string[])[];
-}> {
-  const common = [
-    "--no-renames",
-    "--name-only",
-    "-z"
-  ] as const;
-  const trackedCommands: readonly (readonly string[])[] = [
-    ...(baselineCommit === null
-      ? []
-      : [["diff", ...common, `${baselineCommit}..HEAD`] as const]),
-    ["diff", ...common],
-    ["diff", "--cached", ...common]
-  ];
-  const commands: readonly {
-    readonly kind: "changed" | "deleted";
-    readonly args: readonly string[];
-  }[] = [
-    ...trackedCommands.map((args) => ({
-      kind: "changed" as const,
-      args: [...args.slice(0, 2), "--diff-filter=ACMRDTUXB", ...args.slice(2)]
-    })),
-    ...trackedCommands.map((args) => ({
-      kind: "deleted" as const,
-      args: [...args.slice(0, 2), "--diff-filter=D", ...args.slice(2)]
-    })),
-    {
-      kind: "changed",
-      args: ["ls-files", "--others", "--exclude-standard", "-z"]
-    }
-  ];
-  const results = await Promise.all(
-    commands.map(async ({ kind, args }) => ({
-      kind,
-      result: await git(root, args, signal)
-    }))
-  );
-  for (const { result } of results) {
+): Promise<RepositoryChangeGroup> {
+  const [all, deleted] = await Promise.all([
+    git(root, ["diff", ...prefix, ...DIFF_PATH_OPTIONS, "--end-of-options", "--"], signal),
+    git(
+      root,
+      ["diff", ...prefix, "--diff-filter=D", ...DIFF_PATH_OPTIONS, "--end-of-options", "--"],
+      signal
+    )
+  ]);
+  for (const result of [all, deleted]) {
     if (result.exitCode !== 0) {
-      invalid(`Unable to inspect repository changes: ${result.stderr.trim() || "git failed"}.`);
+      invalid(`Unable to inspect repository changes: ${result.stderr.trim() || "git diff failed"}.`);
     }
   }
   return Object.freeze({
-    changed: Object.freeze(
-      results
-        .filter(({ kind }) => kind === "changed")
-        .map(({ result }) => parseNullDelimited(result.stdout))
+    paths: Object.freeze(
+      [...new Set(parseNullDelimited(all.stdout, "changed-path"))].toSorted(
+        comparePaths
+      )
     ),
-    deleted: Object.freeze(
-      results
-        .filter(({ kind }) => kind === "deleted")
-        .map(({ result }) => parseNullDelimited(result.stdout))
+    deletedPaths: Object.freeze(
+      [...new Set(parseNullDelimited(deleted.stdout, "deleted-path"))].toSorted(
+        comparePaths
+      )
     )
   });
+}
+
+async function changedPathGroups(
+  root: string,
+  baseline: BaselineResolution,
+  signal?: AbortSignal
+): Promise<RepositoryChangeGroups> {
+  const committed = baseline.baselineCommit === null || baseline.headCommit === null
+    ? Object.freeze({ paths: Object.freeze([]), deletedPaths: Object.freeze([]) })
+    : await diffGroup(
+        root,
+        [`${baseline.baselineCommit}..${baseline.headCommit}`],
+        signal
+      );
+  const [staged, unstaged, untrackedResult] = await Promise.all([
+    diffGroup(root, ["--cached"], signal),
+    diffGroup(root, [], signal),
+    git(
+      root,
+      ["ls-files", "--others", "--exclude-standard", "-z", "--"],
+      signal
+    )
+  ]);
+  if (untrackedResult.exitCode !== 0) {
+    invalid(
+      `Unable to inspect repository changes: ${untrackedResult.stderr.trim() || "git ls-files failed"}.`
+    );
+  }
+  const untracked = Object.freeze({
+    paths: Object.freeze(
+      [...new Set(parseNullDelimited(untrackedResult.stdout, "untracked-path"))].toSorted(
+        comparePaths
+      )
+    ),
+    deletedPaths: Object.freeze([])
+  });
+  return Object.freeze({ committed, staged, unstaged, untracked });
+}
+
+async function scopeDigest(
+  baseline: BaselineResolution,
+  groups: RepositoryChangeGroups
+): Promise<string> {
+  const payload = JSON.stringify({
+    protocol: "agent-teams-foundation.changed-scope-evidence.v1",
+    requestedBaseRef: baseline.requestedRef,
+    resolvedBaseRef: baseline.resolvedRef,
+    baseCommit: baseline.baseCommit,
+    headRef: "HEAD",
+    headCommit: baseline.headCommit,
+    mergeBaseCommit: baseline.mergeBaseCommit,
+    changeGroups: groups
+  });
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(payload)
+  );
+  return `sha256:${Buffer.from(digest).toString("hex")}`;
 }
 
 export class GitRepositoryChangesReader implements RepositoryChangesReader {
@@ -179,7 +422,11 @@ export class GitRepositoryChangesReader implements RepositoryChangesReader {
     const root = await realpath(input.consumerRoot).catch(() =>
       invalid("The consumer root is unavailable.")
     );
-    const topLevel = await git(root, ["rev-parse", "--show-toplevel"], input.signal);
+    const topLevel = await git(
+      root,
+      ["rev-parse", "--show-toplevel"],
+      input.signal
+    );
     if (topLevel.exitCode !== 0) {
       invalid("The consumer root must be a Git repository.");
     }
@@ -188,13 +435,31 @@ export class GitRepositoryChangesReader implements RepositoryChangesReader {
       invalid("The consumer root must be the Git repository root.");
     }
     const baseline = await resolveBaseline(root, input.baseRef, input.signal);
-    const groups = await changedPathGroups(root, baseline.commit, input.signal);
-    const changedPaths = [...new Set(groups.changed.flat())].toSorted();
-    const deletedPaths = [...new Set(groups.deleted.flat())].toSorted();
+    const changeGroups = await changedPathGroups(root, baseline, input.signal);
+    const groups: readonly RepositoryChangeGroup[] = [
+      changeGroups.committed,
+      changeGroups.staged,
+      changeGroups.unstaged,
+      changeGroups.untracked
+    ];
+    const changedPaths = [
+      ...new Set(groups.flatMap(({ paths }) => paths))
+    ].toSorted(comparePaths);
+    const deletedPaths = [
+      ...new Set(groups.flatMap(({ deletedPaths: paths }) => paths))
+    ].toSorted(comparePaths);
     [...changedPaths, ...deletedPaths].forEach(assertSafeRepositoryPath);
     return Object.freeze({
-      baselineRef: baseline.ref,
-      baselineCommit: baseline.commit,
+      baselineRef: baseline.baselineRef,
+      baselineCommit: baseline.baselineCommit,
+      requestedBaseRef: baseline.requestedRef,
+      resolvedBaseRef: baseline.resolvedRef,
+      baseCommit: baseline.baseCommit,
+      headRef: "HEAD" as const,
+      headCommit: baseline.headCommit,
+      mergeBaseCommit: baseline.mergeBaseCommit,
+      changeGroups,
+      scopeDigest: await scopeDigest(baseline, changeGroups),
       changedPaths: Object.freeze(changedPaths),
       deletedPaths: Object.freeze(deletedPaths),
       existingPaths: await existingFiles(root, changedPaths)

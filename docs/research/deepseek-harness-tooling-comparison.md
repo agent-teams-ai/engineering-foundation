@@ -49,10 +49,10 @@ uses executable code and tests rather than README claims.
 
 ## Adaptation queue
 
-1. **Richer changed-scope evidence** - preserve the existing safe normalized
-   union for routing, but add committed, staged, unstaged, and untracked groups
-   plus exact head and merge-base SHA fields to the report. Do not duplicate Git
-   discovery. Estimated change: 120-220 lines.
+1. **Richer changed-scope evidence** - implemented by preserving the existing
+   safe normalized union for routing while reporting committed, staged,
+   unstaged, and untracked groups, exact base/head/merge-base identities, and a
+   deterministic scope digest. Git discovery remains one hardened path.
 2. **Partitioned coverage artifacts** - run several single-worker instrumented
    partitions in isolated CI jobs, require every expected SHA-bound artifact,
    merge once, and apply thresholds to the merged result. Node's coverage format

@@ -131,6 +131,14 @@ export async function runChangedAgentWorkflow(
     coverage: fastFull ? "fast-full" : "changed",
     baselineRef: changes.baselineRef,
     baselineCommit: changes.baselineCommit,
+    requestedBaseRef: changes.requestedBaseRef,
+    resolvedBaseRef: changes.resolvedBaseRef,
+    baseCommit: changes.baseCommit,
+    headRef: changes.headRef,
+    headCommit: changes.headCommit,
+    mergeBaseCommit: changes.mergeBaseCommit,
+    changeGroups: changes.changeGroups,
+    scopeDigest: changes.scopeDigest,
     changedPaths: changes.changedPaths,
     steps
   });

@@ -663,6 +663,27 @@ test("auto base preserves committed scope from a detached head", async () => {
   });
 });
 
+test("ignores local replacement objects when deriving immutable Git evidence", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    initializeRepository(consumerRoot);
+    const baseCommit = gitOutput(consumerRoot, "rev-parse", "HEAD");
+    await writeFile(join(consumerRoot, "src", "index.ts"), "export const fixture = false;\n");
+    git(consumerRoot, "add", "--", "src/index.ts");
+    git(consumerRoot, "commit", "--message", "test: replacement target");
+    const headCommit = gitOutput(consumerRoot, "rev-parse", "HEAD");
+    git(consumerRoot, "update-ref", "refs/remotes/origin/main", baseCommit);
+    git(consumerRoot, "checkout", "--detach", headCommit);
+    git(consumerRoot, "branch", "--delete", "--force", "main");
+    git(consumerRoot, "replace", headCommit, baseCommit);
+
+    const { result, report } = runChangedAuto(consumerRoot);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(report.headCommit, headCommit);
+    assert.equal(report.mergeBaseCommit, baseCommit);
+    assert.deepEqual(report.changeGroups.committed.paths, ["src/index.ts"]);
+  });
+});
+
 test("fails closed when an auto base is present but shallow history hides its merge base", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
     initializeRepository(consumerRoot);

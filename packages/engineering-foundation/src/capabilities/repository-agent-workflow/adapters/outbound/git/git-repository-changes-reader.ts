@@ -19,6 +19,7 @@ const FULL_COMMIT = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/iu;
 const GIT_HARDENING = [
   "--no-pager",
   "--no-optional-locks",
+  "--no-replace-objects",
   "-c",
   "core.fsmonitor=false",
   "-c",

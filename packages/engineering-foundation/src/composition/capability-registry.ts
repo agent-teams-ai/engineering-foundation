@@ -1,33 +1,18 @@
 import type { CapabilityDefinition } from "../capability-runtime.js";
-import { createJsonSchemaReleaseCapability } from "../capabilities/contract-json-schema-releases/module.js";
-import { createProtobufEvolutionCapability } from "../capabilities/contract-protobuf-evolution/module.js";
-import { createDocumentationLocalReferencesCapability } from "../capabilities/documentation-local-references/module.js";
-import { createExecutableSpecificationsCapability } from "../capabilities/executable-specifications/module.js";
-import { createArchitectureDecisionGovernanceCapability } from "../capabilities/governance-architecture-decisions/module.js";
-import { createPublicApiCompatibilityCapability } from "../capabilities/public-api-compatibility/module.js";
-import { createRepositoryAgentWorkflowCapability } from "../capabilities/repository-agent-workflow/module.js";
-import { createRepositorySecurityBaselineCapability } from "../capabilities/repository-security-baseline/module.js";
-import { createSourceDependenciesCapability } from "../capabilities/source-dependencies/module.js";
-import { createSuppressionGovernanceCapability } from "../capabilities/suppression-governance/module.js";
-import { createWorkspaceDependencyDeclarationsCapability } from "../capabilities/workspace-dependency-declarations/module.js";
 import { createUniqueRegistry } from "../unique-registry.js";
+import {
+  CAPABILITY_MODULES,
+  type CapabilityModuleDescriptor
+} from "./capability-modules.js";
 
-const capabilities: readonly CapabilityDefinition[] = Object.freeze([
-  createJsonSchemaReleaseCapability(),
-  createProtobufEvolutionCapability(),
-  createDocumentationLocalReferencesCapability(),
-  createExecutableSpecificationsCapability(),
-  createArchitectureDecisionGovernanceCapability(),
-  createPublicApiCompatibilityCapability(),
-  createRepositoryAgentWorkflowCapability(),
-  createRepositorySecurityBaselineCapability(),
-  createSourceDependenciesCapability(),
-  createSuppressionGovernanceCapability(),
-  createWorkspaceDependencyDeclarationsCapability()
-]);
+export function createCapabilityRegistry(
+  modules: readonly CapabilityModuleDescriptor[]
+): ReadonlyMap<string, CapabilityDefinition> {
+  return createUniqueRegistry(
+    "capability",
+    modules.map(({ definition }) => [definition.id, definition])
+  );
+}
 
 export const CAPABILITY_REGISTRY: ReadonlyMap<string, CapabilityDefinition> =
-  createUniqueRegistry(
-    "capability",
-    capabilities.map((capability) => [capability.id, capability])
-  );
+  createCapabilityRegistry(CAPABILITY_MODULES);

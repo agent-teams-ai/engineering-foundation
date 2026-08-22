@@ -7,6 +7,7 @@ import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.j
 import { promoteArchitectureDecisionBaseline } from "./capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
 import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
+import { runAgentWorkflowInstructionsCommand } from "./capabilities/repository-agent-workflow/instructions-command.js";
 import { runFoundationCheck } from "./check-runner.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { foundationCommandFailure } from "./command-error.js";
@@ -115,6 +116,7 @@ function printHelp(): void {
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation repo check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
+  agent-teams-foundation agent-workflow instructions <repository-file> [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
@@ -300,21 +302,31 @@ async function runAgentWorkflowCommand(
   if (parsed.command !== "agent-workflow") {
     return false;
   }
-  if (parsed.positional[0] !== "changed") {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "agent-workflow requires the changed subcommand."
-    );
+  const subcommand = parsed.positional[0];
+  if (subcommand !== "changed" && subcommand !== "instructions") {
+    throw new FoundationError("CONSUMER_INVALID", "agent-workflow requires the changed or instructions subcommand.");
+  }
+  const targetPath = parsed.positional[1];
+  if (subcommand === "instructions" && targetPath === undefined) {
+    throw new FoundationError("CONSUMER_INVALID", "agent-workflow instructions requires a repository-relative file path.");
+  }
+  if (subcommand === "changed" && parsed.positional.length !== 1) {
+    throw new FoundationError("CONSUMER_INVALID", "agent-workflow changed does not accept a target path.");
   }
   const settings = await loadFoundationConfig(parsed.consumerRoot);
   const declaration = settings.declaredCapabilities.find(
     ({ id }) => id === "repository.agent-workflow"
   );
   if (declaration === undefined) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "The consumer must declare repository.agent-workflow before running changed checks."
-    );
+    throw new FoundationError("CONSUMER_INVALID", "The consumer must declare repository.agent-workflow before using its commands.");
+  }
+  if (subcommand === "instructions") {
+    await runAgentWorkflowInstructionsCommand({
+      consumerRoot: parsed.consumerRoot,
+      format: parsed.format,
+      targetPath: targetPath as string
+    });
+    return true;
   }
   await runAgentWorkflowChangedCommand({
     consumerRoot: parsed.consumerRoot,

@@ -19,6 +19,7 @@ import test from "node:test";
 import { NodeScaffoldJournalStore } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-store.js";
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
 import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/index.js";
+import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixtureRoot = join(
@@ -336,6 +337,7 @@ test("shared rename syncs destination before source", async () => {
   await withStore(async ({ journal, root, state }) => {
     const syncs = [];
     let recording = false;
+    let sharedRenameSyncs;
     const store = new NodeScaffoldJournalStore(root, {
       faultInjector: (point) => {
         if (point.phase === "before-shared-quarantine") {
@@ -343,6 +345,7 @@ test("shared rename syncs destination before source", async () => {
           return;
         }
         if (recording && point.phase === "before-directory-sync") {
+          sharedRenameSyncs?.consume(point.role);
           syncs.push({ path: point.path, role: point.role });
           if (point.role === "source") {
             recording = false;
@@ -352,7 +355,12 @@ test("shared rename syncs destination before source", async () => {
     });
     const initial = await store.create(journal);
     syncs.length = 0;
+    sharedRenameSyncs = createScriptedSequence(
+      ["destination", "source"],
+      "shared quarantine rename syncs",
+    );
     await store.replace(initial, journalWithOperationState(journal, "publishing"));
+    sharedRenameSyncs.assertConsumed();
 
     assert.equal(syncs[0].role, "destination");
     assert.match(syncs[0].path, /\.scaffold-quarantine\./u);

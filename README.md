@@ -90,7 +90,8 @@ declared capability. See [consumer adoption](docs/development/consumer-adoption.
 The optional `repository.agent-workflow` capability keeps `AGENTS.md` canonical
 across coding agents and routes `check:changed` through the shared Foundation
 implementation; required CI still runs the complete `verify` evidence as
-independent fail-closed lanes.
+independent fail-closed lanes. Its read-only `agent-workflow instructions`
+command explains the effective `AGENTS.md` chain for a selected repository file.
 
 `foundation:assert-dev-only` rejects runtime dependency placement.
 `foundation:assert-registry` additionally proves that the exact declared version

@@ -135,6 +135,9 @@ Repositories may also declare `repository.agent-workflow` and expose
 `agent-teams-foundation agent-workflow changed`. Foundation then discovers the
 current Git delta and invokes the consumer's configured pnpm scripts. This local
 preflight is portable across agents and never replaces the complete CI gate.
+`agent-teams-foundation agent-workflow instructions <repository-file>` reports
+the applicable instruction scopes, precedence, shadowing, byte budget, and
+digests without printing or injecting instruction content.
 
 The root file is `foundation.config.yaml`. Use
 `agent-teams-foundation schema foundation-config/v1` for its canonical schema

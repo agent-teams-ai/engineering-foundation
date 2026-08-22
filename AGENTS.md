@@ -8,7 +8,8 @@ Hard rules:
 - never import this package from production runtime code;
 - keep consumer-specific catalogs, bounded contexts, classifications, and ADRs in
   the consumer repository;
-- do not extract a capability without parity fixtures and a consumer test;
+- follow the [extraction admission invariant](docs/architecture/executable-capabilities.md#extraction-admission-invariant)
+  before moving consumer implementations into Foundation;
 - keep registry mode reproducible and local mode explicit;
 - never commit local-link state or floating dependency ranges;
 - do not select or introduce a user-facing documentation site generator,

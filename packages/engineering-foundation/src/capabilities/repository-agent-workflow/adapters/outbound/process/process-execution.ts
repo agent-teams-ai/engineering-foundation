@@ -12,13 +12,15 @@ export async function execute(
   options: {
     readonly cwd: string;
     readonly signal?: AbortSignal;
+    readonly strictUtf8?: boolean;
   }
 ): Promise<ProcessExecution> {
   const result = await executeManagedProcess({
     args,
     command,
     cwd: options.cwd,
-    ...(options.signal === undefined ? {} : { signal: options.signal })
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+    ...(options.strictUtf8 === undefined ? {} : { strictUtf8: options.strictUtf8 })
   });
   return {
     exitCode: result.exitCode,

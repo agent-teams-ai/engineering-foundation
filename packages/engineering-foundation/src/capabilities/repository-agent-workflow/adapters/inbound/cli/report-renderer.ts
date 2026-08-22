@@ -7,6 +7,11 @@ export function renderAgentWorkflowReport(report: AgentWorkflowChangedReport): s
     `Agent workflow: ${report.outcome}`,
     `Coverage: ${report.coverage}`,
     `Baseline: ${report.baselineRef}${report.baselineCommit === null ? "" : ` (${report.baselineCommit})`}`,
+    `Base: ${report.resolvedBaseRef}${report.baseCommit === null ? "" : ` (${report.baseCommit})`}`,
+    `Head: ${report.headRef}${report.headCommit === null ? "" : ` (${report.headCommit})`}`,
+    `Merge base: ${report.mergeBaseCommit ?? "none"}`,
+    `Scope digest: ${report.scopeDigest}`,
+    `Evidence groups: committed ${report.changeGroups.committed.paths.length}, staged ${report.changeGroups.staged.paths.length}, unstaged ${report.changeGroups.unstaged.paths.length}, untracked ${report.changeGroups.untracked.paths.length}`,
     `Changed paths: ${report.changedPaths.length}`
   ];
   if (report.changedPaths.length > 0) {

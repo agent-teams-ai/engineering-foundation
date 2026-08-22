@@ -1,16 +1,19 @@
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants as fileConstants } from "node:fs";
 import {
   copyFile,
   lstat,
   mkdtemp,
+  open,
   readFile,
   readdir,
+  realpath,
   rm,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join, resolve as resolvePath } from "node:path";
+import { basename, join, relative, resolve as resolvePath, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
@@ -135,6 +138,92 @@ async function requireDirectory(path, label) {
   }
 }
 
+function sameFileObservation(left, right) {
+  return ["dev", "ino", "birthtimeNs", "ctimeNs", "mtimeNs", "nlink", "size"].every(
+    (field) => left[field] === right[field],
+  );
+}
+
+function pathMatchesOpenedFile(pathStats, openedStats) {
+  return (
+    pathStats.isFile() &&
+    !pathStats.isSymbolicLink() &&
+    pathStats.dev === openedStats.dev &&
+    pathStats.ino === openedStats.ino &&
+    pathStats.birthtimeNs === openedStats.birthtimeNs
+  );
+}
+
+export async function readBoundedRegularFile(path, maximumBytes, label, faultInjector) {
+  let handle;
+  try {
+    const noFollow = process.platform === "win32" ? 0 : fileConstants.O_NOFOLLOW;
+    const nonBlocking = process.platform === "win32" ? 0 : fileConstants.O_NONBLOCK;
+    handle = await open(
+      path,
+      fileConstants.O_RDONLY | noFollow | nonBlocking,
+    );
+    const openedStats = await handle.stat({ bigint: true });
+    if (
+      !openedStats.isFile() ||
+      openedStats.size === 0n ||
+      openedStats.size > BigInt(maximumBytes)
+    ) {
+      fail(`${label} is not a bounded regular file`);
+    }
+    const buffer = Buffer.allocUnsafe(
+      Math.min(maximumBytes + 1, Number(openedStats.size) + 1),
+    );
+    let offset = 0;
+    while (offset < buffer.byteLength) {
+      const { bytesRead } = await handle.read(
+        buffer,
+        offset,
+        buffer.byteLength - offset,
+        offset,
+      );
+      if (bytesRead === 0) {
+        break;
+      }
+      offset += bytesRead;
+    }
+    await faultInjector?.({ phase: "before-stability-check", path });
+    const [finalStats, pathStats] = await Promise.all([
+      handle.stat({ bigint: true }),
+      lstat(path, { bigint: true }),
+    ]);
+    if (
+      offset === 0 ||
+      offset > maximumBytes ||
+      finalStats.size !== BigInt(offset) ||
+      !sameFileObservation(openedStats, finalStats) ||
+      !pathMatchesOpenedFile(pathStats, openedStats)
+    ) {
+      fail(`${label} changed during its bounded read`);
+    }
+    return buffer.subarray(0, offset);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Coverage evidence is invalid:")) {
+      throw error;
+    }
+    fail(`${label} could not be opened safely`);
+  } finally {
+    await handle?.close();
+  }
+}
+
+export async function requireContainedRealDirectory(path, root, label) {
+  await requireDirectory(path, label);
+  const [realRoot, realDirectory] = await Promise.all([realpath(root), realpath(path)]);
+  const expectedRealDirectory = resolvePath(realRoot, relative(resolvePath(root), resolvePath(path)));
+  if (
+    realDirectory !== expectedRealDirectory ||
+    (realDirectory !== realRoot && !realDirectory.startsWith(`${realRoot}${sep}`))
+  ) {
+    fail(`${label} must not traverse a symlink outside its root`);
+  }
+}
+
 async function rawFileRecords(rawDirectory, expectedTests) {
   await requireDirectory(rawDirectory, "raw coverage directory");
   const entries = await readdir(rawDirectory, { withFileTypes: true });
@@ -148,21 +237,25 @@ async function rawFileRecords(rawDirectory, expectedTests) {
     left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
   );
   const boundedEntries = [];
-  let totalBytes = 0;
   for (const entry of sortedEntries) {
-      if (!entry.isFile() || entry.isSymbolicLink() || !rawCoverageFilename.test(entry.name)) {
-        fail(`unexpected raw coverage entry ${entry.name}`);
-      }
-      const path = join(rawDirectory, entry.name);
-      const stats = await lstat(path);
-      if (stats.size === 0 || stats.size > maximumRawFileBytes) {
-        fail(`raw coverage file ${entry.name} has an invalid size`);
-      }
-      totalBytes += stats.size;
-      if (totalBytes > maximumRawShardBytes) {
-        fail("raw coverage directory exceeds its total byte budget");
-      }
-      boundedEntries.push({ entry, path });
+    if (!entry.isFile() || entry.isSymbolicLink() || !rawCoverageFilename.test(entry.name)) {
+      fail(`unexpected raw coverage entry ${entry.name}`);
+    }
+    boundedEntries.push({ entry, path: join(rawDirectory, entry.name) });
+  }
+  let totalBytes = 0;
+  const readEntries = [];
+  for (const { entry, path } of boundedEntries) {
+    const bytes = await readBoundedRegularFile(
+      path,
+      maximumRawFileBytes,
+      `raw coverage file ${entry.name}`,
+    );
+    totalBytes += bytes.byteLength;
+    if (totalBytes > maximumRawShardBytes) {
+      fail("raw coverage directory exceeds its total byte budget");
+    }
+    readEntries.push({ bytes, entry });
   }
   const records = [];
   const expectedTestByUrl = new Map(
@@ -171,8 +264,7 @@ async function rawFileRecords(rawDirectory, expectedTests) {
       testPath,
     ]),
   );
-  for (const { entry, path } of boundedEntries) {
-    const bytes = await readFile(path);
+  for (const { bytes, entry } of readEntries) {
     const parsed = JSON.parse(bytes.toString("utf8"));
     if (!Array.isArray(parsed.result)) {
       fail(`raw coverage file ${entry.name} has no result array`);
@@ -208,7 +300,7 @@ export async function writeShardEvidence({ directory, headSha, shardId }) {
     fail("supplied head SHA differs from the checked-out Git HEAD");
   }
   const protocol = await loadCoverageProtocol();
-  const tests = protocol.manifest.shards.get(shardId);
+  const tests = protocol.manifest.coverageShards.get(shardId);
   if (tests === undefined) {
     fail(`unknown shard ${shardId}`);
   }
@@ -293,11 +385,12 @@ async function validateArtifactDirectory({ artifactDirectory, identity, shardId,
     fail(`artifact ${shardId} must contain exactly evidence.json and raw`);
   }
   const evidencePath = join(artifactDirectory, "evidence.json");
-  const evidenceStats = await lstat(evidencePath);
-  if (!evidenceStats.isFile() || evidenceStats.isSymbolicLink() || evidenceStats.size > maximumEvidenceBytes) {
-    fail(`artifact ${shardId} evidence.json is not a bounded regular file`);
-  }
-  const evidence = await readJson(evidencePath);
+  const evidenceBytes = await readBoundedRegularFile(
+    evidencePath,
+    maximumEvidenceBytes,
+    `artifact ${shardId} evidence.json`,
+  );
+  const evidence = JSON.parse(evidenceBytes.toString("utf8"));
   validateEvidenceShape(evidence, { identity, shardId, tests });
   const actualRawFiles = await rawFileRecords(join(artifactDirectory, "raw"), tests);
   if (canonicalJson(actualRawFiles) !== canonicalJson(evidence.rawFiles)) {
@@ -340,7 +433,7 @@ export async function validateCoverageEvidenceSet({ headSha, inputDirectory }) {
         ),
         identity,
         shardId,
-        tests: protocol.manifest.shards.get(shardId),
+        tests: protocol.manifest.coverageShards.get(shardId),
       });
     totalRawBytes += artifact.evidence.rawFiles.reduce(
       (total, record) => total + record.size,

@@ -62,10 +62,35 @@ function validateShardHeader(shardManifest) {
   }
 }
 
-function validateCoverageManifest(coverageManifest, testPaths) {
+function validateCoverageAdditionalTests(value, shardIds) {
+  assertExactKeys(value, shardIds, "coverage additionalTestsByShard");
+  const additionalTests = new Map();
+  for (const shardId of shardIds) {
+    const tests = value[shardId];
+    if (!Array.isArray(tests)) {
+      fail(`coverage additionalTestsByShard.${shardId} must be an array`);
+    }
+    for (const path of tests) {
+      validatePath(path, `coverage shard ${shardId} addition`);
+    }
+    additionalTests.set(shardId, Object.freeze([...tests]));
+  }
+  return additionalTests;
+}
+
+function validateCoverageManifest(coverageManifest, testPaths, shardIds) {
   assertExactKeys(
     coverageManifest,
-    ["schemaVersion", "tool", "processBootstrap", "include", "exclude", "legacyTests", "thresholds"],
+    [
+      "schemaVersion",
+      "tool",
+      "processBootstrap",
+      "include",
+      "exclude",
+      "additionalTestsByShard",
+      "legacyTests",
+      "thresholds",
+    ],
     "coverage manifest",
   );
   if (coverageManifest.schemaVersion !== 2) {
@@ -89,6 +114,10 @@ function validateCoverageManifest(coverageManifest, testPaths) {
       fail(`coverage ${key} contains a duplicate`);
     }
   }
+  const additionalTests = validateCoverageAdditionalTests(
+    coverageManifest.additionalTestsByShard,
+    shardIds,
+  );
   assertExactKeys(coverageManifest.thresholds, ["branches", "functions", "lines"], "coverage thresholds");
   for (const [key, value] of Object.entries(coverageManifest.thresholds)) {
     if (!Number.isInteger(value) || value < 1 || value > 100) {
@@ -108,6 +137,7 @@ function validateCoverageManifest(coverageManifest, testPaths) {
       fail(`legacy coverage test does not exist: ${path}`);
     }
   }
+  return additionalTests;
 }
 
 export function validateTestManifestData({ shardManifest, coverageManifest, testPaths }) {
@@ -133,6 +163,14 @@ export function validateTestManifestData({ shardManifest, coverageManifest, test
   if (shardIds.toSorted().join("\0") !== expectedShardIds.join("\0")) {
     fail("shard ids must be exactly 1, 2, 3, and 4");
   }
+  const additionalTests = validateCoverageManifest(
+    coverageManifest,
+    testPaths,
+    expectedShardIds,
+  );
+  for (const tests of additionalTests.values()) {
+    assigned.push(...tests);
+  }
   if (new Set(assigned).size !== assigned.length) {
     fail("a test is assigned more than once");
   }
@@ -147,10 +185,14 @@ export function validateTestManifestData({ shardManifest, coverageManifest, test
     fail(`shard union differs from test files; missing=[${missing.join(", ")}], extra=[${extra.join(", ")}]`);
   }
 
-  validateCoverageManifest(coverageManifest, testPaths);
-
   return Object.freeze({
     coverageConfig: Object.freeze(coverageManifest),
+    coverageShards: new Map(
+      shardManifest.shards.map((shard) => [
+        shard.id,
+        Object.freeze([...shard.tests, ...(additionalTests.get(shard.id) ?? [])]),
+      ]),
+    ),
     coverageTests: Object.freeze([...coverageManifest.legacyTests]),
     shards: new Map(shardManifest.shards.map((shard) => [shard.id, Object.freeze([...shard.tests])])),
     testCount: testPaths.length,

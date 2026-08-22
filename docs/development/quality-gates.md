@@ -43,6 +43,11 @@ its provider and measured universe are not yet declared numerically equivalent
 to Node's executed-module report. Promotion therefore requires observed CI
 parity, not merely one passing candidate threshold result.
 
+The evidence merger owns `c8` as a pinned CLI-only dependency, so Knip excludes
+that dependency from import-based usage detection. Its process-tree fixture is
+an explicit Knip entry because Node launches it directly rather than importing
+it from the test module.
+
 The shard's test result remains blocking. Candidate directory setup, sidecar
 finalization, artifact upload, and aggregation are advisory, so a collector-only
 failure cannot replace a passing required test result with a merge blocker. Raw
@@ -70,13 +75,17 @@ failed required CheckRuns behind. For generated release pull requests, the
 attester prefers the single exact attempt-1 PR run and dispatches a second suite
 only when no such run appears during its bounded selection window.
 
-`tests/manifests/test-shards.v1.json` is the closed inventory of repository and
-Docs Protocol test files. `tests/manifests/coverage.v1.json` pins the merger,
-production include/exclude boundaries, current thresholds, and the legacy
-blocking test selection. `pnpm test:manifests:check` rejects missing, extra,
+`tests/manifests/test-shards.v1.json` owns the cross-platform shards.
+`tests/manifests/coverage.v1.json` pins their coverage-only additions, the
+merger, production include/exclude boundaries, current thresholds, and the
+legacy blocking test selection. Together they are the closed inventory of
+repository and Docs Protocol test files. `pnpm test:manifests:check` rejects missing, extra,
 duplicate, nested, non-portable, or symlinked test entries and malformed
 coverage configuration. Add or rename a test and update the shard manifest in
-the same change. Keep
+the same change. Each shard's `tests` remain the cross-platform required suite;
+the coverage manifest's `additionalTestsByShard` extends only the Linux
+raw-evidence run with suites that are already qualified elsewhere but are needed
+for the complete coverage universe. Keep
 `--test-concurrency=1` inside a shard because recovery tests intentionally share
 process and filesystem assumptions.
 

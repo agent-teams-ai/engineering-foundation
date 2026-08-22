@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve as resolvePath, sep } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
-import { writeShardEvidence } from "./coverage-evidence.mjs";
+import { requireContainedRealDirectory, writeShardEvidence } from "./coverage-evidence.mjs";
 
 export function parseTestShardArguments(arguments_) {
   const normalizedArguments = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
@@ -47,14 +47,19 @@ export function parseTestShardArguments(arguments_) {
   return Object.freeze({ evidenceDirectory, headSha, ids });
 }
 
+export function selectTestShardPaths(manifest, ids, coverageEvidenceEnabled) {
+  const selectedShards = coverageEvidenceEnabled ? manifest.coverageShards : manifest.shards;
+  return ids.flatMap((id) => selectedShards.get(id) ?? []);
+}
+
 async function main() {
   const manifest = await validateTestManifests();
   const { evidenceDirectory, headSha, ids } = parseTestShardArguments(process.argv.slice(2));
-  const tests = ids.flatMap((id) => manifest.shards.get(id) ?? []);
+  const tests = selectTestShardPaths(manifest, ids, evidenceDirectory !== undefined);
   const activeEvidenceDirectory = await prepareEvidenceDirectory(evidenceDirectory);
-  const bootstrapPath = fileURLToPath(new URL("./coverage-process-bootstrap.mjs", import.meta.url));
+  const bootstrapUrl = new URL("./coverage-process-bootstrap.mjs", import.meta.url).href;
   const childArguments = [
-    ...(activeEvidenceDirectory === undefined ? [] : ["--import", bootstrapPath]),
+    ...(activeEvidenceDirectory === undefined ? [] : ["--import", bootstrapUrl]),
     "--test",
     "--test-concurrency=1",
     ...tests,
@@ -88,7 +93,13 @@ async function prepareEvidenceDirectory(evidenceDirectory) {
     return;
   }
   try {
-    await mkdir(dirname(evidenceDirectory), { recursive: true });
+    const parentDirectory = dirname(evidenceDirectory);
+    await mkdir(parentDirectory, { recursive: true });
+    await requireContainedRealDirectory(
+      parentDirectory,
+      repositoryRoot,
+      "coverage evidence parent directory",
+    );
     await mkdir(evidenceDirectory);
     await mkdir(joinEvidencePath(evidenceDirectory, "raw"));
     return evidenceDirectory;

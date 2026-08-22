@@ -13,7 +13,8 @@ test("partitioned coverage qualifies exact shard evidence without replacing bloc
     await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
   );
   const advisory = ci.jobs["linux-coverage-evidence-advisory"];
-  assert.equal(advisory["continue-on-error"], true);
+  assert.equal(advisory["continue-on-error"], undefined);
+  assert.equal(advisory.steps.every((step) => step["continue-on-error"] === true), true);
   assert.ok(ci.jobs.check.needs.includes("linux-coverage"));
   assert.equal(ci.jobs.check.needs.includes("linux-coverage-evidence-advisory"), false);
   assert.match(advisory.if, /FOUNDATION_PARTITIONED_COVERAGE != 'off'/u);

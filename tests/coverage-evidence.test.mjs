@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -13,10 +23,15 @@ import {
   currentHeadSha,
   sha256,
   parseCoverageEvidenceArguments,
+  readBoundedRegularFile,
+  requireContainedRealDirectory,
   validateCoverageEvidenceSet,
   writeShardEvidence,
 } from "../scripts/coverage-evidence.mjs";
-import { parseTestShardArguments } from "../scripts/run-test-shard.mjs";
+import {
+  parseTestShardArguments,
+  selectTestShardPaths,
+} from "../scripts/run-test-shard.mjs";
 import { validateTestManifests } from "../scripts/check-test-manifests.mjs";
 
 const headSha = await currentHeadSha();
@@ -30,7 +45,7 @@ async function evidenceSet() {
     const artifact = join(root, `coverage-evidence-${headSha}-shard-${shardId}`);
     const raw = join(artifact, "raw");
     await mkdir(raw, { recursive: true });
-    const tests = testManifest.shards.get(shardId);
+    const tests = testManifest.coverageShards.get(shardId);
     for (const [index, testPath] of tests.entries()) {
       const processId = index === 0 ? shardId : `${shardId}${index}`;
       const testUrl = pathToFileURL(join(repositoryRoot, ...testPath.split("/"))).href;
@@ -185,7 +200,53 @@ test("coverage evidence rejects an oversized sidecar before parsing", async (con
   );
 });
 
-test("coverage evidence checks the aggregate raw byte budget before reading files", async (context) => {
+test(
+  "bounded evidence reads reject a path swapped after its file handle is opened",
+  { skip: process.platform === "win32" },
+  async (context) => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-coverage-file-swap-"));
+    context.after(() => rm(root, { force: true, recursive: true }));
+    const path = join(root, "evidence.json");
+    const detachedPath = join(root, "detached-evidence.json");
+    await writeFile(path, "trusted");
+
+    await assert.rejects(
+      readBoundedRegularFile(path, 1024, "swapped evidence", async ({ phase }) => {
+        assert.equal(phase, "before-stability-check");
+        await rename(path, detachedPath);
+        await writeFile(path, "hostile");
+      }),
+      /changed during its bounded read/u,
+    );
+    assert.equal(await readFile(detachedPath, "utf8"), "trusted");
+    assert.equal(await readFile(path, "utf8"), "hostile");
+  },
+);
+
+test(
+  "coverage evidence containment rejects a symlinked parent path",
+  { skip: process.platform === "win32" },
+  async (context) => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-coverage-contained-root-"));
+    const outside = await mkdtemp(join(tmpdir(), "foundation-coverage-contained-outside-"));
+    context.after(() => Promise.all([
+      rm(root, { force: true, recursive: true }),
+      rm(outside, { force: true, recursive: true }),
+    ]));
+    await mkdir(join(outside, "evidence"));
+    await symlink(outside, join(root, "linked"), "dir");
+    await assert.rejects(
+      requireContainedRealDirectory(
+        join(root, "linked", "evidence"),
+        root,
+        "coverage evidence parent directory",
+      ),
+      /must not traverse a symlink/u,
+    );
+  },
+);
+
+test("coverage evidence checks the aggregate raw byte budget using bounded reads", async (context) => {
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));
   const raw = join(root, `coverage-evidence-${headSha}-shard-1`, "raw");
@@ -238,8 +299,26 @@ test("coverage shard arguments enforce one isolated shard and repository contain
   );
 });
 
+test("coverage additions extend Linux evidence without changing the cross-platform shards", () => {
+  const ids = ["1", "2", "3", "4"];
+  const crossPlatformTests = selectTestShardPaths(testManifest, ids, false);
+  const coverageTests = selectTestShardPaths(testManifest, ids, true);
+  assert.equal(crossPlatformTests.length, 121);
+  assert.equal(
+    crossPlatformTests.some((path) => path.startsWith("packages/docs-protocol/tests/")),
+    false,
+  );
+  assert.equal(coverageTests.length, testManifest.testCount);
+  assert.equal(
+    coverageTests.filter((path) => path.startsWith("packages/docs-protocol/tests/")).length,
+    15,
+  );
+});
+
 test("coverage bootstrap prevents raw evidence from leaking to test subprocesses", async (context) => {
-  const bootstrap = join(repositoryRoot, "scripts", "coverage-process-bootstrap.mjs");
+  const bootstrap = pathToFileURL(
+    join(repositoryRoot, "scripts", "coverage-process-bootstrap.mjs"),
+  ).href;
   const coverageDirectory = await mkdtemp(join(tmpdir(), "foundation-coverage-bootstrap-"));
   context.after(() => rm(coverageDirectory, { force: true, recursive: true }));
   const { stdout: childStdout } = await executeFile(
@@ -263,7 +342,9 @@ test("coverage bootstrap prevents raw evidence from leaking to test subprocesses
 });
 
 test("a real node:test worker emits raw coverage without instrumenting its grandchild", async (context) => {
-  const bootstrap = join(repositoryRoot, "scripts", "coverage-process-bootstrap.mjs");
+  const bootstrap = pathToFileURL(
+    join(repositoryRoot, "scripts", "coverage-process-bootstrap.mjs"),
+  ).href;
   const fixture = join(repositoryRoot, "tests", "fixtures", "coverage-process-tree.fixture.mjs");
   const coverageDirectory = await mkdtemp(join(tmpdir(), "foundation-coverage-process-tree-"));
   context.after(() => rm(coverageDirectory, { force: true, recursive: true }));

@@ -28,6 +28,7 @@ function fixture() {
       processBootstrap: "scripts/coverage-process-bootstrap.mjs",
       include: ["packages/example/dist/**/*.js"],
       exclude: ["packages/example/dist/**/*.d.ts"],
+      additionalTestsByShard: { 1: [], 2: [], 3: [], 4: [] },
       legacyTests: ["tests/a.test.mjs"],
       thresholds: { branches: 1, functions: 1, lines: 1 },
     },
@@ -44,6 +45,8 @@ test("repository test manifests cover every top-level test exactly once", async 
   const result = await validateTestManifests();
   assert.equal(result.testCount, 136);
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
+  assert.equal([...result.shards.values()].flat().length, 121);
+  assert.equal([...result.coverageShards.values()].flat().length, 136);
 });
 
 test("test manifests fail closed for missing, duplicate, and nonexistent coverage tests", () => {
@@ -54,6 +57,15 @@ test("test manifests fail closed for missing, duplicate, and nonexistent coverag
   const duplicate = fixture();
   duplicate.shardManifest.shards[1].tests = ["tests/a.test.mjs"];
   assert.throws(() => validateTestManifestData(duplicate), /assigned more than once/u);
+
+  const duplicateCoverageAddition = fixture();
+  duplicateCoverageAddition.coverageManifest.additionalTestsByShard["2"] = [
+    "tests/a.test.mjs",
+  ];
+  assert.throws(
+    () => validateTestManifestData(duplicateCoverageAddition),
+    /assigned more than once/u,
+  );
 
   const nonexistentCoverage = fixture();
   nonexistentCoverage.coverageManifest.legacyTests = ["tests/missing.test.mjs"];

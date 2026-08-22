@@ -81,7 +81,7 @@ async function executeTask(input: {
       failureTail: cancelled
         ? ""
         : error instanceof Error
-          ? error.message.slice(-FAILURE_TAIL_CHARACTERS)
+          ? failureTail("", error.message)
           : "Package script execution failed."
     });
   }

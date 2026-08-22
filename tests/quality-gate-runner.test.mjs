@@ -125,6 +125,15 @@ test("classifies timeout and cancellation without starting dependent tasks", asy
   }, { nowMs: () => 1 });
   controller.abort();
   assert.equal((await cancellation).outcome, "cancelled");
+
+  const adapterFailure = await runQualityGateProfile({
+    consumerRoot: "/fixture",
+    profile: policy([{ id: "broken", needs: [], after: [] }]).profiles[0],
+  }, {
+    async run() { throw new Error("unsafe\u001b]52;c;payload\u0007"); },
+  }, { nowMs: () => 1 });
+  assert.equal(adapterFailure.tasks[0].outcome, "failed");
+  assert.equal(adapterFailure.tasks[0].failureTail, "unsafe\\u{001b}]52;c;payload\\u{0007}");
 });
 
 test("package catalog cancellation keeps the stable cancelled outcome", async () => {

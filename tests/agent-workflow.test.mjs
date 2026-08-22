@@ -183,6 +183,8 @@ test("resolves effective instructions root-to-target with explicit shadowing", a
       Buffer.byteLength(await readFile(join(consumerRoot, "AGENTS.md"), "utf8")) +
         Buffer.byteLength("# Effective source instructions\n"),
     );
+    assert.equal(report.layers[0].sourceBytes, report.layers[0].loadedBytes);
+    assert.equal(report.layers[1].sourceBytes, report.layers[1].loadedBytes);
     const repeated = runInstructions(consumerRoot, "src/index.ts").report;
     assert.equal(repeated.resolutionDigest, report.resolutionDigest);
 

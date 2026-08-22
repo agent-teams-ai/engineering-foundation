@@ -31,13 +31,13 @@ export interface EffectiveInstructionDiscovery {
   readonly directories: readonly string[];
 }
 
-export type EffectiveInstructionLayerStatus =
+type EffectiveInstructionLayerStatus =
   | "applied"
   | "budget-exhausted"
   | "ignored-empty"
   | "truncated";
 
-export interface EffectiveInstructionShadowedCandidate {
+interface EffectiveInstructionShadowedCandidate {
   readonly path: string;
   readonly reason: "higher-priority-candidate-selected";
 }

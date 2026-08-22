@@ -166,15 +166,16 @@ async function readCandidate(
     });
   }
   try {
+    const bytes = await readContainedRegularFile({
+      candidate,
+      maxBytes: MAXIMUM_INSTRUCTION_SOURCE_BYTES,
+      root
+    });
     return Object.freeze({
       kind: "file",
       path: repositoryPath,
-      sourceBytes: metadata.size,
-      bytes: await readContainedRegularFile({
-        candidate,
-        maxBytes: MAXIMUM_INSTRUCTION_SOURCE_BYTES,
-        root
-      })
+      sourceBytes: bytes.byteLength,
+      bytes
     });
   } catch (error) {
     const detail = error instanceof ContainedFileReadError ? error.failure : "unavailable";

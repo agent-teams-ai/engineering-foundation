@@ -27,6 +27,7 @@ not repeat their rules.
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
 | Portable agent workflow | [Agent workflow](reference/repository-agent-workflow.md) | Implemented and dogfooded; activation is explicit |
+| Deterministic quality gates | [Quality gate runner](reference/quality-gate-runner.md) | Implemented and post-build dogfooded; activation is explicit |
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
 | Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Implemented and dogfooded; consumer adoption remains opt-in |
 | DeepSeek Harness tooling comparison | [Strict comparison](research/deepseek-harness-tooling-comparison.md) | Evidence review complete; selected adaptations only |

@@ -44,6 +44,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   "docs.new": 0,
   "docs.recover": 0,
   explain: 1,
+  "gate.run": 1,
   help: 0,
   "public-api-promote-release": 0,
   "protobuf-qualify-breaking": 0,
@@ -466,12 +467,8 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     optionsEnded: false
   };
 
-  const command = args[0] === "docs"
-    ? `docs.${args[1] ?? ""}`
-    : args[0] === "repo" && args[1] === "check"
-      ? "check"
-      : (args[0] ?? "help");
-  const firstArgumentIndex = args[0] === "docs" ||
+  const command = commandFromArguments(args);
+  const firstArgumentIndex = args[0] === "docs" || args[0] === "gate" ||
     (args[0] === "repo" && args[1] === "check") ? 2 : 1;
   for (let index = firstArgumentIndex; index < args.length; index += 1) {
     index += consumeArgument(args, index, state);
@@ -515,4 +512,14 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
       ? {}
       : { bufExecutablePath: state.bufExecutablePath })
   });
+}
+
+function commandFromArguments(args: readonly string[]): string {
+  if (args[0] === "docs" || args[0] === "gate") {
+    return `${args[0]}.${args[1] ?? ""}`;
+  }
+  if (args[0] === "repo" && args[1] === "check") {
+    return "check";
+  }
+  return args[0] ?? "help";
 }

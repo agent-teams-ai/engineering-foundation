@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
 import { promoteArchitectureDecisionBaseline } from "./capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
+import { tryRunQualityGateCommand } from "./capabilities/quality-gate-runner/gate-command.js";
 import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
 import { runAgentWorkflowInstructionsCommand } from "./capabilities/repository-agent-workflow/instructions-command.js";
 import { runFoundationCheck } from "./check-runner.js";
@@ -117,6 +118,7 @@ function printHelp(): void {
   agent-teams-foundation repo check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow instructions <repository-file> [--consumer <path>] [--format text|json]
+  agent-teams-foundation gate run <profile> [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
@@ -447,6 +449,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   });
   if (
     await runLocalModeCommand(parsed, service, json) ||
+    await tryRunQualityGateCommand(parsed, environment) ||
     await runAgentWorkflowCommand(parsed, environment) ||
     await runProtobufQualificationCommand(parsed, json) ||
     await runDocumentCommand(parsed, json) ||

@@ -95,6 +95,16 @@
             }
           }
         },
+        "quality.gate-runner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configPath"],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
         "quality.executable-specifications": {
           "type": "object",
           "additionalProperties": false,

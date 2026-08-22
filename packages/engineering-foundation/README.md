@@ -139,6 +139,14 @@ preflight is portable across agents and never replaces the complete CI gate.
 the applicable instruction scopes, precedence, shadowing, byte budget, and
 digests without printing or injecting instruction content.
 
+Repositories may independently declare `quality.gate-runner` and run
+`agent-teams-foundation gate run <profile>`. A profile is a validated DAG of
+existing root package scripts with bounded concurrency, optional task deadlines,
+and explicit `needs` versus `after` semantics. Configuration cannot supply
+commands or plugins, static `check` never executes scripts, and installation or
+upgrade never activates a profile. See the
+[quality gate runner reference](../../docs/reference/quality-gate-runner.md).
+
 The root file is `foundation.config.yaml`. Use
 `agent-teams-foundation schema foundation-config/v1` for its canonical schema
 and `agent-teams-foundation explain <rule-id>` for rule guidance.

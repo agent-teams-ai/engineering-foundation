@@ -24,6 +24,10 @@ import {
   PUBLIC_API_COMPATIBILITY_RULES_BY_ID
 } from "../capabilities/public-api-compatibility/module.js";
 import {
+  createQualityGateRunnerCapability,
+  QUALITY_GATE_RUNNER_RULES_BY_ID
+} from "../capabilities/quality-gate-runner/module.js";
+import {
   createRepositoryAgentWorkflowCapability,
   REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID
 } from "../capabilities/repository-agent-workflow/module.js";
@@ -88,6 +92,10 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
     defineCapabilityModule(
       createPublicApiCompatibilityCapability(),
       PUBLIC_API_COMPATIBILITY_RULES_BY_ID
+    ),
+    defineCapabilityModule(
+      createQualityGateRunnerCapability(),
+      QUALITY_GATE_RUNNER_RULES_BY_ID
     ),
     defineCapabilityModule(
       createRepositoryAgentWorkflowCapability(),

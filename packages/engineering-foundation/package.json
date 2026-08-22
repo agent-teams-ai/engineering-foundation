@@ -81,6 +81,8 @@
     "schemas/package-public-api-compatibility/v1.schema.json",
     "schemas/quality-executable-specification-catalog/v1.schema.json",
     "schemas/quality-executable-specifications/v1.schema.json",
+    "schemas/quality-gate-run-report/v1.schema.json",
+    "schemas/quality-gate-runner/v1.schema.json",
     "schemas/quality-suppression-governance/v1.schema.json",
     "schemas/repository-agent-workflow/v1.schema.json",
     "schemas/repository-security-baseline/v1.schema.json",

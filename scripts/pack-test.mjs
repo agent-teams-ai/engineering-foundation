@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { FOUNDATION_REQUIRED_ARTIFACT_PATHS } from "../packages/engineering-foundation/dist/package-self-check.js";
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
+import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs";
 import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
 import { packAndInspectArtifact } from "./pack-artifact-e2e.mjs";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
@@ -498,6 +499,10 @@ try {
     temporaryRoot
   });
   await testPackedAgentWorkflow({
+    consumerRoot: fixture.consumerRoot,
+    runPnpm
+  });
+  await testPackedQualityGateRunner({
     consumerRoot: fixture.consumerRoot,
     runPnpm
   });

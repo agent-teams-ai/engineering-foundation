@@ -29,6 +29,7 @@
     "lint:fast:files": "oxlint --config .oxlintrc.json --deny-warnings --disable-nested-config",
     "lint:typed": "oxlint --config .oxlintrc.type-aware.json --deny-warnings --disable-nested-config packages/engineering-foundation/src",
     "lint:typed:files": "oxlint --config .oxlintrc.type-aware.json --deny-warnings --disable-nested-config",
+    "quality:gate:fast": "pnpm build && node packages/engineering-foundation/dist/cli.js gate run fast --consumer .",
     "architecture:patterns": "node scripts/run-ast-grep.mjs scan --config sgconfig.yml --error=unused-suppression",
     "architecture:patterns:test": "node scripts/run-ast-grep.mjs test --config sgconfig.yml --skip-snapshot-tests",
     "dead-code:check": "knip --config knip.json --no-progress",

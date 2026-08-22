@@ -31,6 +31,8 @@ export const FOUNDATION_SCHEMA_IDS = [
   "package-public-api-compatibility/v1",
   "quality-executable-specification-catalog/v1",
   "quality-executable-specifications/v1",
+  "quality-gate-run-report/v1",
+  "quality-gate-runner/v1",
   "quality-suppression-governance/v1",
   "repository-agent-workflow/v1",
   "repository-security-baseline/v1",

@@ -641,6 +641,62 @@ test("auto base reports the resolved ref separately from its merge base", async 
   });
 });
 
+test("auto base preserves committed scope from a detached head", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    initializeRepository(consumerRoot);
+    const baseCommit = gitOutput(consumerRoot, "rev-parse", "HEAD");
+    await writeFile(join(consumerRoot, "src", "index.ts"), "export const fixture = false;\n");
+    git(consumerRoot, "add", "--", "src/index.ts");
+    git(consumerRoot, "commit", "--message", "test: detached change");
+    const headCommit = gitOutput(consumerRoot, "rev-parse", "HEAD");
+    git(consumerRoot, "update-ref", "refs/remotes/origin/main", baseCommit);
+    git(consumerRoot, "checkout", "--detach", headCommit);
+    git(consumerRoot, "branch", "--delete", "--force", "main");
+
+    const { result, report } = runChangedAuto(consumerRoot);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(report.resolvedBaseRef, "refs/remotes/origin/main");
+    assert.equal(report.baseCommit, baseCommit);
+    assert.equal(report.headCommit, headCommit);
+    assert.equal(report.mergeBaseCommit, baseCommit);
+    assert.deepEqual(report.changeGroups.committed.paths, ["src/index.ts"]);
+  });
+});
+
+test("fails closed when an auto base is present but shallow history hides its merge base", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    initializeRepository(consumerRoot);
+    const baseCommit = gitOutput(consumerRoot, "rev-parse", "HEAD");
+    await writeFile(join(consumerRoot, "src", "index.ts"), "export const fixture = false;\n");
+    git(consumerRoot, "add", "--", "src/index.ts");
+    git(consumerRoot, "commit", "--message", "test: shallow head");
+    const headCommit = gitOutput(consumerRoot, "rev-parse", "HEAD");
+    git(consumerRoot, "update-ref", "refs/remotes/origin/main", baseCommit);
+    git(consumerRoot, "checkout", "--detach", headCommit);
+    git(consumerRoot, "branch", "--delete", "--force", "main");
+    await writeFile(join(consumerRoot, ".git", "shallow"), `${headCommit}\n`, "utf8");
+
+    const { result, report } = runChangedAuto(consumerRoot);
+    assert.equal(result.status, 2);
+    assert.equal(report.error.code, "CONSUMER_INVALID");
+    assert.match(report.error.message, /history may be shallow or unrelated/u);
+  });
+});
+
+test("reports an unborn repository without inventing commit identities", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    git(consumerRoot, "init", "--initial-branch=main");
+    const { result, report } = runChangedAuto(consumerRoot);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(report.coverage, "fast-full");
+    assert.equal(report.resolvedBaseRef, "unborn-head");
+    assert.equal(report.baseCommit, null);
+    assert.equal(report.headCommit, null);
+    assert.equal(report.mergeBaseCommit, null);
+    assert.equal(report.changeGroups.untracked.paths.includes("AGENTS.md"), true);
+  });
+});
+
 test("routes changed source files to path-aware and project-wide checks", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
     initializeRepository(consumerRoot);
@@ -854,6 +910,22 @@ test("rejects an explicit base that is ambiguous across ref namespaces", async (
   });
 });
 
+test("rejects revision expressions disguised as exact or shorthand refs", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    initializeRepository(consumerRoot);
+    await writeFile(join(consumerRoot, "src", "index.ts"), "export const fixture = false;\n");
+    git(consumerRoot, "add", "--", "src/index.ts");
+    git(consumerRoot, "commit", "--message", "test: ref expression target");
+
+    for (const base of ["refs/heads/main~1", "main~1"]) {
+      const { result, report } = runChanged(consumerRoot, "--base", base);
+      assert.equal(result.status, 2);
+      assert.equal(report.error.code, "CONSUMER_INVALID");
+      assert.match(report.error.message, /not an exact Git ref name/u);
+    }
+  });
+});
+
 test("rejects non-UTF8 Git paths instead of decoding replacement characters", async () => {
   if (process.platform === "win32") {
     return;
@@ -903,6 +975,57 @@ process.exit(result.status ?? 1);
     assert.equal(result.stderr, "");
     assert.equal(report.error.code, "CONSUMER_INVALID");
     assert.match(report.error.message, /not valid UTF-8/u);
+  });
+});
+
+test("rejects Git path evidence without a terminating NUL", async () => {
+  if (process.platform === "win32") {
+    return;
+  }
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    initializeRepository(consumerRoot);
+    const gitPath = spawnSync("sh", ["-c", "command -v git"], {
+      encoding: "utf8",
+    }).stdout.trim();
+    const fakeBin = join(consumerRoot, ".fake-bin");
+    await mkdir(fakeBin);
+    const fakeGit = join(fakeBin, "git");
+    await writeFile(
+      fakeGit,
+      `#!/usr/bin/env node
+import { spawnSync } from "node:child_process";
+if (process.argv.includes("ls-files")) {
+  process.stdout.write("src/malformed.ts");
+  process.exit(0);
+}
+const result = spawnSync(${JSON.stringify(gitPath)}, process.argv.slice(2), { stdio: "inherit" });
+process.exit(result.status ?? 1);
+`,
+      "utf8",
+    );
+    await chmod(fakeGit, 0o755);
+    const result = spawnSync(
+      process.execPath,
+      [
+        cliPath,
+        "agent-workflow",
+        "changed",
+        "--base",
+        "HEAD",
+        "--consumer",
+        consumerRoot,
+        "--format",
+        "json",
+      ],
+      {
+        encoding: "utf8",
+        env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH ?? ""}` },
+      },
+    );
+    const report = JSON.parse(result.stdout);
+    assert.equal(result.status, 2);
+    assert.equal(report.error.code, "CONSUMER_INVALID");
+    assert.match(report.error.message, /malformed NUL-delimited/u);
   });
 });
 

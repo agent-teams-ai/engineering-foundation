@@ -15,7 +15,7 @@ const AUTO_BASE_REFS = [
   { display: "main", ref: "refs/heads/main" },
   { display: "master", ref: "refs/heads/master" }
 ] as const;
-const FULL_COMMIT = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;
+const FULL_COMMIT = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/iu;
 const GIT_HARDENING = [
   "--no-pager",
   "--no-optional-locks",
@@ -31,8 +31,18 @@ function invalid(message: string): never {
   throw new FoundationError("CONSUMER_INVALID", message);
 }
 
-function parseNullDelimited(value: string): readonly string[] {
-  return value.split("\0").filter((path) => path.length > 0);
+function parseNullDelimited(value: string, context: string): readonly string[] {
+  if (value.length === 0) {
+    return [];
+  }
+  if (!value.endsWith("\0")) {
+    invalid(`Git returned malformed NUL-delimited ${context} evidence.`);
+  }
+  const paths = value.slice(0, -1).split("\0");
+  if (paths.some((path) => path.length === 0)) {
+    invalid(`Git returned an empty path in ${context} evidence.`);
+  }
+  return paths;
 }
 
 function comparePaths(left: string, right: string): number {
@@ -79,11 +89,11 @@ async function git(root: string, args: readonly string[], signal?: AbortSignal) 
 }
 
 function exactCommit(value: string, context: string): string {
-  const commit = value.trim();
+  const commit = value.replace(/\r?\n$/u, "");
   if (!FULL_COMMIT.test(commit)) {
     invalid(`Git did not return an immutable ${context} commit identifier.`);
   }
-  return commit;
+  return commit.toLowerCase();
 }
 
 async function resolveCommit(
@@ -96,7 +106,34 @@ async function resolveCommit(
     ["rev-parse", "--verify", "--quiet", "--end-of-options", `${ref}^{commit}`],
     signal
   );
-  return resolved.exitCode === 0 ? exactCommit(resolved.stdout, "resolved") : null;
+  if (resolved.exitCode === 0) {
+    return exactCommit(resolved.stdout, "resolved");
+  }
+  if (resolved.exitCode === 1) {
+    return null;
+  }
+  invalid(
+    `Git could not resolve an immutable commit: ${resolved.stderr.trim() || "git rev-parse failed"}.`
+  );
+}
+
+async function assertExactRef(
+  root: string,
+  ref: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const result = await git(root, ["check-ref-format", ref], signal);
+  if (result.exitCode === 0) {
+    return;
+  }
+  if (result.exitCode === 1) {
+    invalid(
+      `The explicit base ref ${JSON.stringify(ref)} is not an exact Git ref name.`
+    );
+  }
+  invalid(
+    `Git could not validate the explicit base ref: ${result.stderr.trim() || "git check-ref-format failed"}.`
+  );
 }
 
 async function resolveRequestedRef(
@@ -104,7 +141,12 @@ async function resolveRequestedRef(
   requested: string,
   signal?: AbortSignal
 ): Promise<{ readonly ref: string; readonly commit: string } | null> {
-  if (requested === "HEAD" || requested.startsWith("refs/") || FULL_COMMIT.test(requested)) {
+  if (requested === "HEAD" || FULL_COMMIT.test(requested)) {
+    const commit = await resolveCommit(root, requested, signal);
+    return commit === null ? null : { ref: requested, commit };
+  }
+  if (requested.startsWith("refs/")) {
+    await assertExactRef(root, requested, signal);
     const commit = await resolveCommit(root, requested, signal);
     return commit === null ? null : { ref: requested, commit };
   }
@@ -113,6 +155,7 @@ async function resolveRequestedRef(
     `refs/remotes/${requested}`,
     `refs/tags/${requested}`
   ];
+  await assertExactRef(root, `refs/heads/${requested}`, signal);
   const matches = (
     await Promise.all(
       candidates.map(async (ref) => ({ ref, commit: await resolveCommit(root, ref, signal) }))
@@ -139,10 +182,22 @@ async function uniqueMergeBase(
     ["merge-base", "--all", "--", headCommit, baseCommit],
     signal
   );
-  if (result.exitCode !== 0 || result.stdout.trim().length === 0) {
+  if (result.exitCode === 1) {
     return null;
   }
-  const commits = result.stdout.trim().split("\n").map((value) => exactCommit(value, "merge-base"));
+  if (result.exitCode !== 0) {
+    invalid(
+      `Git could not inspect merge bases: ${result.stderr.trim() || "git merge-base failed"}.`
+    );
+  }
+  const lines = result.stdout.split(/\r?\n/u);
+  if (lines.at(-1) === "") {
+    lines.pop();
+  }
+  if (lines.length === 0) {
+    invalid("Git did not return a merge-base commit identifier.");
+  }
+  const commits = lines.map((value) => exactCommit(value, "merge-base"));
   if (commits.length !== 1) {
     invalid(
       `Git reported ${String(commits.length)} merge bases; changed scope requires one unique merge base.`
@@ -185,6 +240,7 @@ async function resolveBaseline(
   const candidates = requested === undefined
     ? AUTO_BASE_REFS
     : [{ display: requested, ref: requested }];
+  let resolvedCandidateCount = 0;
   for (const candidate of candidates) {
     const resolved = requested === undefined
       ? await resolveCommit(root, candidate.ref, signal).then((commit) =>
@@ -194,6 +250,7 @@ async function resolveBaseline(
     if (resolved === null) {
       continue;
     }
+    resolvedCandidateCount += 1;
     const mergeBaseCommit = await uniqueMergeBase(
       root,
       headCommit,
@@ -214,6 +271,11 @@ async function resolveBaseline(
   }
   if (requested !== undefined) {
     invalid(`Unable to resolve one exact merge base for ${JSON.stringify(requested)}.`);
+  }
+  if (resolvedCandidateCount > 0) {
+    invalid(
+      "Unable to establish a merge base from the discovered refs; the history may be shallow or unrelated. Fetch the required history or pass an explicit base."
+    );
   }
   return {
     requestedRef: null,
@@ -277,10 +339,14 @@ async function diffGroup(
   }
   return Object.freeze({
     paths: Object.freeze(
-      [...new Set(parseNullDelimited(all.stdout))].toSorted(comparePaths)
+      [...new Set(parseNullDelimited(all.stdout, "changed-path"))].toSorted(
+        comparePaths
+      )
     ),
     deletedPaths: Object.freeze(
-      [...new Set(parseNullDelimited(deleted.stdout))].toSorted(comparePaths)
+      [...new Set(parseNullDelimited(deleted.stdout, "deleted-path"))].toSorted(
+        comparePaths
+      )
     )
   });
 }
@@ -313,7 +379,9 @@ async function changedPathGroups(
   }
   const untracked = Object.freeze({
     paths: Object.freeze(
-      [...new Set(parseNullDelimited(untrackedResult.stdout))].toSorted(comparePaths)
+      [...new Set(parseNullDelimited(untrackedResult.stdout, "untracked-path"))].toSorted(
+        comparePaths
+      )
     ),
     deletedPaths: Object.freeze([])
   });

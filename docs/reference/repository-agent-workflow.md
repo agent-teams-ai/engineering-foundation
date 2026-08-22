@@ -46,12 +46,18 @@ current `HEAD` commit, and the unique merge base used for committed scope.
 `scopeDigest` is a domain-separated SHA-256 digest over those identities and
 groups; it excludes filesystem post-checks and package-script results.
 
+Explicit full refs must be valid exact Git ref names; revision expressions such
+as `refs/heads/main~1` are rejected. If an automatically discovered base exists
+but no unique merge base can be established because history is shallow or
+unrelated, discovery fails closed instead of silently treating `HEAD` as an
+empty committed scope.
+
 Discovery disables optional Git locks and fsmonitor observation, external diff
-drivers, text conversion, and rename detection. Paths remain NUL-delimited and
-must be valid UTF-8. Explicit shorthand refs that resolve in more than one ref
-namespace, multiple merge bases, malformed object identities, or undecodable
-Git evidence fail closed. Git discovery is read-only and must not refresh the
-repository index.
+drivers, text conversion, and rename detection. Paths remain strictly
+NUL-delimited and must be valid UTF-8. Explicit shorthand refs that resolve in
+more than one ref namespace, multiple merge bases, malformed object identities,
+or undecodable Git evidence fail closed. Git discovery is read-only and must not
+refresh the repository index.
 
 Changed-file checks are an optimization only. A passing result never replaces
 the complete `check` command in required CI. Hooks may call the same script for

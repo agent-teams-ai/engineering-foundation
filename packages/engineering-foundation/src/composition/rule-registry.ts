@@ -15,6 +15,21 @@ export const RULE_REGISTRIES: readonly ReadonlyMap<
 export function createRuleRegistry(
   modules: readonly CapabilityModuleDescriptor[]
 ): ReadonlyMap<string, RuleExplanation> {
+  for (const { definition, rules } of modules) {
+    const ownedRulePrefix = `${definition.id}.`;
+    for (const [ruleId, explanation] of rules) {
+      if (explanation.id !== ruleId) {
+        throw new Error(
+          `Rule registry key ${ruleId} does not match metadata ID ${explanation.id}.`
+        );
+      }
+      if (!ruleId.startsWith(ownedRulePrefix)) {
+        throw new Error(
+          `Rule ID ${ruleId} is not owned by capability ${definition.id}.`
+        );
+      }
+    }
+  }
   return createUniqueRegistry(
     "rule",
     modules.flatMap(({ rules }) => [...rules])

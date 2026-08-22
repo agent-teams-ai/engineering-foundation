@@ -94,8 +94,9 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
 });
 
 test("rejects duplicate capability and rule IDs before registry use", () => {
-  const [firstModule] = CAPABILITY_MODULES;
+  const [firstModule, secondModule] = CAPABILITY_MODULES;
   assert.notEqual(firstModule, undefined);
+  assert.notEqual(secondModule, undefined);
   assert.throws(
     () => createCapabilityRegistry([firstModule, firstModule]),
     new Error(`Duplicate capability ID: ${firstModule.definition.id}.`),
@@ -105,6 +106,28 @@ test("rejects duplicate capability and rule IDs before registry use", () => {
   assert.throws(
     () => createRuleRegistry([firstModule, firstModule]),
     new Error(`Duplicate rule ID: ${firstRuleId}.`),
+  );
+  const firstRule = firstModule.rules.get(firstRuleId);
+  assert.notEqual(firstRule, undefined);
+  assert.throws(
+    () => createRuleRegistry([{
+      definition: firstModule.definition,
+      rules: new Map([[firstRuleId, { ...firstRule, id: `${firstRuleId}.drifted` }]]),
+    }]),
+    new Error(
+      `Rule registry key ${firstRuleId} does not match metadata ID ${firstRuleId}.drifted.`,
+    ),
+  );
+  const secondRuleEntry = secondModule.rules.entries().next().value;
+  assert.notEqual(secondRuleEntry, undefined);
+  assert.throws(
+    () => createRuleRegistry([{
+      definition: firstModule.definition,
+      rules: new Map([secondRuleEntry]),
+    }]),
+    new Error(
+      `Rule ID ${secondRuleEntry[0]} is not owned by capability ${firstModule.definition.id}.`,
+    ),
   );
 
   assert.throws(

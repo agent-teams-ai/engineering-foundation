@@ -410,6 +410,8 @@ The private composition root binds each capability definition to its owned rule
 metadata in one typed immutable module descriptor. Capability execution and
 `explain` registries are projections of that ordered descriptor list, so adding
 a capability does not require a second synchronized rule-registration list.
+Composition rejects metadata/key drift and rule IDs outside the owning
+capability's `<capability-id>.` namespace before either registry can be used.
 The public root configuration schema remains the immutable wire contract and a
 closed-world test proves exact schema, runtime, and explanation coverage. These
 descriptors are static internal composition data, not runtime discovery, an

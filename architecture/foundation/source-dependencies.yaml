@@ -52,11 +52,13 @@ boundaries:
       - packages/engineering-foundation/src/cli.ts
       - packages/engineering-foundation/src/command-error.ts
       - packages/engineering-foundation/src/document-command.ts
+      - packages/engineering-foundation/src/quality-gate-cli-command.ts
     allow:
       boundaries:
         - capability.architecture-decisions.composition
         - capability.contract-protobuf.qualification.composition
         - capability.public-api-compatibility.composition
+        - capability.quality-gate-runner.composition
         - capability.repository-agent-workflow.composition
         - foundation.composition
         - foundation.core
@@ -89,6 +91,7 @@ boundaries:
         - capability.documentation-local-references.composition
         - capability.executable-specifications.composition
         - capability.public-api-compatibility.composition
+        - capability.quality-gate-runner.composition
         - capability.repository-agent-workflow.composition
         - capability.repository-security.composition
         - capability.source-dependencies.composition
@@ -179,6 +182,77 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/changed-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/instructions-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts
+  - id: capability.quality-gate-runner.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application
+    allow:
+      boundaries:
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/model/quality-gate-report.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/model/quality-gate.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/policies/evaluate-quality-gate-scripts.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/policies/validate-quality-gate-graph.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/monotonic-clock.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/package-script-catalog-reader.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/package-script-executor.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/use-cases/analyze-quality-gate-runner.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.ts
+  - id: capability.quality-gate-runner.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/contract
+    allow:
+      boundaries:
+        - capability.quality-gate-runner.application
+        - foundation.core
+        - foundation.repository-input
+        - foundation.schema-validation
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/contract/config.ts
+  - id: capability.quality-gate-runner.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters
+    allow:
+      boundaries:
+        - capability.quality-gate-runner.application
+        - foundation.cancellation
+        - foundation.core
+        - foundation.process-execution
+        - foundation.repository-input
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+        - node:perf_hooks
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/report-renderer.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/time/performance-monotonic-clock.ts
+  - id: capability.quality-gate-runner.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/gate-command.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/module.ts
+    allow:
+      boundaries:
+        - capability.quality-gate-runner.adapters
+        - capability.quality-gate-runner.application
+        - capability.quality-gate-runner.contract
+        - foundation.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/gate-command.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/module.ts
   - id: foundation.core
     roots:
       - packages/engineering-foundation/src/binary-string-comparator.ts

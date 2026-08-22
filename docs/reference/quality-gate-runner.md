@@ -64,6 +64,11 @@ cycles, overlap between `needs` and `after`, unsafe script IDs, missing scripts,
 direct runner recursion, recognized indirect package-script recursion, invalid
 concurrency, and invalid timeouts fail before execution.
 
+Static script inspection is intentionally conservative rather than a shell
+parser. An inherited runtime marker also rejects recursion assembled dynamically
+by a wrapper script, so an unrecognized command shape fails instead of creating
+an unbounded tree of nested runners.
+
 ## Lifecycle and evidence
 
 SIGINT and SIGTERM stop new scheduling and cancel active process-containment
@@ -74,8 +79,9 @@ applies when an adversarial descendant deliberately escapes its process group.
 JSON is the canonical `quality-gate-run-report/v1` evidence. It records profile
 outcome, monotonic duration, declaration-ordered tasks, task outcome, duration,
 exact observed exit code and signal, and at most the final 8192 characters of
-combined failure output. Successful task output is not retained. Text is a
-rendering of the same report.
+combined failure output. Unsafe terminal control characters are escaped before
+the evidence is retained or rendered. Successful task output is not retained.
+Text is a rendering of the same report.
 
 The command returns 0 on success, the first declaration-ordered failed task's
 non-zero exit code, 124 for a timeout when no earlier failed task determines the

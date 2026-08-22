@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import test from "node:test";
 import { assert as assertProperty, integer, property } from "fast-check";
 
 import { PackageScriptTimeoutError } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js";
+import { FilesystemPackageScriptCatalogReader } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import {
   QualityGateGraphError,
   validateQualityGatePolicy,
@@ -65,8 +66,8 @@ test("schedules needs and after with bounded concurrency and deterministic repor
       return {
         exitCode: scriptId === "a" ? 7 : 0,
         signal: null,
-        stdout: scriptId === "a" ? "old\n".repeat(5000) : "",
-        stderr: scriptId === "a" ? "failure-end" : "",
+        stdout: scriptId === "a" ? `old\n${"x".repeat(9000)}\u001b]52;c;unsafe\u0007` : "",
+        stderr: scriptId === "a" ? "begin\rfailure-end" : "",
       };
     },
   };
@@ -90,6 +91,14 @@ test("schedules needs and after with bounded concurrency and deterministic repor
   ]);
   assert.equal(report.tasks[0].failureTail.length <= 8192, true);
   assert.match(report.tasks[0].failureTail, /failure-end$/u);
+  assert.match(report.tasks[0].failureTail, /\\u\{001b\}/u);
+  assert.match(report.tasks[0].failureTail, /\\u\{000d\}/u);
+  assert.equal([...report.tasks[0].failureTail].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint <= 0x08 ||
+      (codePoint >= 0x0b && codePoint <= 0x1f) ||
+      (codePoint >= 0x7f && codePoint <= 0x9f);
+  }), false);
 });
 
 test("classifies timeout and cancellation without starting dependent tasks", async () => {
@@ -116,6 +125,15 @@ test("classifies timeout and cancellation without starting dependent tasks", asy
   }, { nowMs: () => 1 });
   controller.abort();
   assert.equal((await cancellation).outcome, "cancelled");
+});
+
+test("package catalog cancellation keeps the stable cancelled outcome", async () => {
+  const controller = new AbortController();
+  controller.abort("test cancellation");
+  await assert.rejects(
+    new FilesystemPackageScriptCatalogReader().read("/not-read", controller.signal),
+    (error) => error?.problem?.code === "EXECUTION_CANCELLED",
+  );
 });
 
 async function writeConsumer(root, profileSource, scripts) {
@@ -252,6 +270,84 @@ profiles:
     assert.equal(result.status, 124, JSON.stringify(result));
     assert.equal(JSON.parse(result.stdout).tasks[0].outcome, "timed-out");
   } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("runtime marker rejects dynamically assembled recursive gate commands", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-recursion-"));
+  try {
+    await writeConsumer(root, `schemaVersion: 1
+packageManager: pnpm
+profiles:
+  - id: verify
+    concurrency: 1
+    tasks:
+      - id: dynamic
+`, {
+      dynamic: "node --eval \"const {spawnSync}=require('node:child_process'); const child=spawnSync(process.execPath,[process.env.GATE_CLI,'gate','run','verify','--consumer',process.cwd()],{stdio:'inherit'}); process.exit(child.status ?? 1)\"",
+    });
+    const result = spawnSync(process.execPath, [
+      cliPath, "gate", "run", "verify", "--consumer", root, "--format", "json",
+    ], {
+      encoding: "utf8",
+      env: { ...process.env, GATE_CLI: cliPath },
+      timeout: 60_000,
+    });
+    assert.equal(result.status, 2, JSON.stringify(result));
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.tasks[0].outcome, "failed");
+    assert.match(report.tasks[0].failureTail, /QUALITY_GATE_RECURSION/u);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("SIGTERM cancels an active gate with the documented exit code", {
+  skip: process.platform === "win32",
+  timeout: 15_000,
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-sigterm-"));
+  const marker = join(root, ".started");
+  let command;
+  try {
+    await writeConsumer(root, `schemaVersion: 1
+packageManager: pnpm
+profiles:
+  - id: verify
+    concurrency: 1
+    tasks:
+      - id: slow
+`, {
+      slow: "node --eval \"require('node:fs').writeFileSync('.started',''); setInterval(() => {}, 1000)\"",
+    });
+    command = spawn(process.execPath, [
+      cliPath, "gate", "run", "verify", "--consumer", root, "--format", "json",
+    ], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    command.stdout.on("data", (chunk) => { stdout += chunk; });
+    command.stderr.on("data", (chunk) => { stderr += chunk; });
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      if (await access(marker).then(() => true, () => false)) {
+        break;
+      }
+      await new Promise((resolve) => { setTimeout(resolve, 25); });
+    }
+    await access(marker);
+    assert.equal(command.kill("SIGTERM"), true);
+    const result = await new Promise((resolve) => {
+      command.once("close", (code, signal) => resolve({ code, signal }));
+    });
+    assert.deepEqual(result, { code: 143, signal: null });
+    assert.equal(stderr, "");
+    const report = JSON.parse(stdout);
+    assert.equal(report.outcome, "cancelled");
+    assert.equal(report.tasks[0].outcome, "cancelled");
+  } finally {
+    if (command?.exitCode === null && command.signalCode === null) {
+      command.kill("SIGKILL");
+    }
     await rm(root, { force: true, recursive: true });
   }
 });

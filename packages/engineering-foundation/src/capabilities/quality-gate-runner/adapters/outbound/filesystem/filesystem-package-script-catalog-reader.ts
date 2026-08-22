@@ -1,5 +1,6 @@
 import { join } from "node:path";
 
+import { assertNotCancelled } from "../../../../../cancellation.js";
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
 import { readContainedRegularFile } from "../../../../../filesystem-path-safety.js";
 import { parseStrictJson } from "../../../../../strict-json.js";
@@ -22,9 +23,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export class FilesystemPackageScriptCatalogReader implements PackageScriptCatalogReader {
   async read(consumerRoot: string, signal?: AbortSignal) {
-    if (signal?.aborted === true) {
-      inputError("Package script catalog inspection was cancelled.");
-    }
+    assertNotCancelled(signal);
     let input: unknown;
     try {
       const source = await readContainedRegularFile({
@@ -40,6 +39,7 @@ export class FilesystemPackageScriptCatalogReader implements PackageScriptCatalo
         }`
       );
     }
+    assertNotCancelled(signal);
     if (!isRecord(input)) {
       inputError("The consumer root package.json must be an object.");
     }

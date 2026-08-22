@@ -14,17 +14,35 @@ import {
 
 const FAILURE_TAIL_CHARACTERS = 8_192;
 
+function unsafeTerminalControl(codePoint: number): boolean {
+  return codePoint <= 0x08 ||
+    (codePoint >= 0x0b && codePoint <= 0x1f) ||
+    (codePoint >= 0x7f && codePoint <= 0x9f);
+}
+
+function sanitizeFailureOutput(value: string): string {
+  let sanitized = "";
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    sanitized += unsafeTerminalControl(codePoint)
+      ? `\\u{${codePoint.toString(16).padStart(4, "0")}}`
+      : character;
+  }
+  return sanitized;
+}
+
 function elapsed(clock: MonotonicClock, startedAt: number): number {
   return Math.max(0, Math.floor(clock.nowMs() - startedAt));
 }
 
 function failureTail(stdout: string, stderr: string): string {
-  const combined = [stdout.trim(), stderr.trim()]
+  const combined = sanitizeFailureOutput([stdout.trim(), stderr.trim()]
     .filter((value) => value.length > 0)
-    .join("\n");
-  return combined.length <= FAILURE_TAIL_CHARACTERS
+    .join("\n"));
+  const tail = combined.length <= FAILURE_TAIL_CHARACTERS
     ? combined
     : combined.slice(combined.length - FAILURE_TAIL_CHARACTERS);
+  return /^[\udc00-\udfff]/u.test(tail) ? tail.slice(1) : tail;
 }
 
 async function executeTask(input: {

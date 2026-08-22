@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import { CapabilityInputError, exitCodeForOutcome } from "./capability-runtime.js";
 import { promoteArchitectureDecisionBaseline } from "./capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "./capabilities/public-api-compatibility/module.js";
-import { tryRunQualityGateCommand } from "./capabilities/quality-gate-runner/gate-command.js";
 import { runAgentWorkflowChangedCommand } from "./capabilities/repository-agent-workflow/changed-command.js";
 import { runAgentWorkflowInstructionsCommand } from "./capabilities/repository-agent-workflow/instructions-command.js";
 import { runFoundationCheck } from "./check-runner.js";
@@ -28,6 +27,7 @@ import type {
 } from "./local-mode/types.js";
 import { inspectFoundationPackage } from "./package-self-check.js";
 import { installedFoundationVersion } from "./package-version.js";
+import { tryRunQualityGateCliCommand } from "./quality-gate-cli-command.js";
 import { renderFoundationReportText } from "./report-renderer.js";
 import { runScaffoldingCliCommand } from "./scaffolding/cli-command.js";
 import { ScaffoldError } from "./scaffolding/scaffold-error.js";
@@ -449,7 +449,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   });
   if (
     await runLocalModeCommand(parsed, service, json) ||
-    await tryRunQualityGateCommand(parsed, environment) ||
+    await tryRunQualityGateCliCommand(parsed, environment) ||
     await runAgentWorkflowCommand(parsed, environment) ||
     await runProtobufQualificationCommand(parsed, json) ||
     await runDocumentCommand(parsed, json) ||

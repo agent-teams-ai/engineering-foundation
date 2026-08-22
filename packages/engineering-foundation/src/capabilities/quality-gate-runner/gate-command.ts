@@ -1,7 +1,4 @@
 import { CapabilityInputError } from "../../capability-runtime.js";
-import type { ParsedArguments } from "../../cli-arguments.js";
-import { FoundationError } from "../../errors.js";
-import { loadFoundationConfig } from "../../foundation-config.js";
 import type { QualityGateRunReport } from "./application/model/quality-gate-report.js";
 import { evaluateQualityGateScripts } from "./application/policies/evaluate-quality-gate-scripts.js";
 import { runQualityGateProfile } from "./application/use-cases/run-quality-gate-profile.js";
@@ -13,6 +10,9 @@ import {
 } from "./adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import { performanceMonotonicClock } from "./adapters/outbound/time/performance-monotonic-clock.js";
 import { loadQualityGatePolicy } from "./contract/config.js";
+
+const ACTIVE_GATE_ENVIRONMENT_VARIABLE =
+  "AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE";
 
 function inputError(code: string, message: string): never {
   throw new CapabilityInputError({
@@ -44,13 +44,20 @@ function exitCodeForQualityGateRun(
   return 1;
 }
 
-async function runQualityGateCommand(input: {
+export async function runQualityGateCommand(input: {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly profileId: string;
   readonly format: "json" | "text";
+  readonly environment: NodeJS.ProcessEnv;
   readonly pnpmEnvironment: QualityGatePnpmEnvironment;
 }): Promise<void> {
+  if (input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE] !== undefined) {
+    inputError(
+      "QUALITY_GATE_RECURSION",
+      "A quality gate task cannot start another quality gate runner."
+    );
+  }
   const controller = new AbortController();
   let cancellationSignal: "SIGINT" | "SIGTERM" | undefined;
   const cancelFor = (signal: "SIGINT" | "SIGTERM") => () => {
@@ -85,15 +92,27 @@ async function runQualityGateCommand(input: {
         diagnostics.map(({ message }) => message).join(" ")
       );
     }
-    const report = await runQualityGateProfile(
-      {
-        consumerRoot: input.consumerRoot,
-        profile,
-        signal: controller.signal
-      },
-      new PnpmQualityGateScriptExecutor(input.pnpmEnvironment),
-      performanceMonotonicClock
-    );
+    const previousActiveGate =
+      input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE];
+    input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE] = input.profileId;
+    let report: QualityGateRunReport;
+    try {
+      report = await runQualityGateProfile(
+        {
+          consumerRoot: input.consumerRoot,
+          profile,
+          signal: controller.signal
+        },
+        new PnpmQualityGateScriptExecutor(input.pnpmEnvironment),
+        performanceMonotonicClock
+      );
+    } finally {
+      if (previousActiveGate === undefined) {
+        delete input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE];
+      } else {
+        input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE] = previousActiveGate;
+      }
+    }
     process.stdout.write(
       input.format === "json"
         ? `${JSON.stringify(report, null, 2)}\n`
@@ -104,39 +123,4 @@ async function runQualityGateCommand(input: {
     process.removeListener("SIGINT", onInterrupt);
     process.removeListener("SIGTERM", onTerminate);
   }
-}
-
-export async function tryRunQualityGateCommand(
-  parsed: ParsedArguments,
-  environment: NodeJS.ProcessEnv
-): Promise<boolean> {
-  if (parsed.command !== "gate.run") {
-    return false;
-  }
-  const profileId = parsed.positional[0];
-  if (profileId === undefined) {
-    throw new FoundationError("CONSUMER_INVALID", "gate run requires a profile ID.");
-  }
-  const settings = await loadFoundationConfig(parsed.consumerRoot);
-  const declaration = settings.declaredCapabilities.find(
-    ({ id }) => id === "quality.gate-runner"
-  );
-  if (declaration === undefined) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "The consumer must declare quality.gate-runner before using gate run."
-    );
-  }
-  await runQualityGateCommand({
-    consumerRoot: parsed.consumerRoot,
-    configPath: declaration.configPath,
-    profileId,
-    format: parsed.format,
-    pnpmEnvironment: {
-      ...(environment.npm_execpath === undefined ? {} : { npmExecPath: environment.npm_execpath }),
-      ...(environment.PNPM_HOME === undefined ? {} : { pnpmHome: environment.PNPM_HOME }),
-      ...(environment.PATH === undefined ? {} : { pathValue: environment.PATH })
-    }
-  });
-  return true;
 }

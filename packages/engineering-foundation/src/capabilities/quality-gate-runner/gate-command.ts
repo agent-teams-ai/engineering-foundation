@@ -92,8 +92,6 @@ export async function runQualityGateCommand(input: {
         diagnostics.map(({ message }) => message).join(" ")
       );
     }
-    const previousActiveGate =
-      input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE];
     input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE] = input.profileId;
     let report: QualityGateRunReport;
     try {
@@ -107,11 +105,7 @@ export async function runQualityGateCommand(input: {
         performanceMonotonicClock
       );
     } finally {
-      if (previousActiveGate === undefined) {
-        delete input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE];
-      } else {
-        input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE] = previousActiveGate;
-      }
+      delete input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE];
     }
     process.stdout.write(
       input.format === "json"

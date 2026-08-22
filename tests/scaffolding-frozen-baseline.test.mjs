@@ -241,6 +241,8 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     ...vector.schemaFiles,
     "schemas/foundation-command-error/v1.schema.json",
     "schemas/foundation-transaction-envelope/v3.schema.json",
+    "schemas/quality-gate-run-report/v1.schema.json",
+    "schemas/quality-gate-runner/v1.schema.json",
   ].toSorted();
   assert.deepEqual(runtimeSchemaFiles, expectedSchemaFiles);
   assert.deepEqual(

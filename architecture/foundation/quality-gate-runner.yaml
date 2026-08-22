@@ -1,0 +1,12 @@
+schemaVersion: 1
+packageManager: pnpm
+profiles:
+  - id: fast
+    concurrency: 3
+    tasks:
+      - id: test:manifests:check
+        timeoutMs: 120000
+      - id: lint:fast
+        timeoutMs: 300000
+      - id: typecheck
+        timeoutMs: 300000

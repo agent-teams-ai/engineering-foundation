@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/quality-gate-run-report/v1",
+  "title": "Quality gate run report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reportSchemaVersion",
+    "profileId",
+    "outcome",
+    "durationMs",
+    "tasks"
+  ],
+  "properties": {
+    "reportSchemaVersion": { "const": 1 },
+    "profileId": { "type": "string" },
+    "outcome": {
+      "enum": ["passed", "failed", "cancelled"]
+    },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "outcome",
+          "durationMs",
+          "exitCode",
+          "signal",
+          "failureTail"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "outcome": {
+            "enum": ["passed", "failed", "timed-out", "blocked", "cancelled"]
+          },
+          "durationMs": { "type": "integer", "minimum": 0 },
+          "exitCode": { "type": ["integer", "null"] },
+          "signal": { "type": ["string", "null"] },
+          "failureTail": { "type": "string", "maxLength": 8192 }
+        }
+      }
+    }
+  }
+}

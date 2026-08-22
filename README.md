@@ -22,6 +22,7 @@ data-only authority in each consumer repository.
 - static executable-specification and consumer-gate connectivity;
 - repository workflow, SBOM, provenance, and package-content security policy;
 - portable agent instructions and changed-file preflight routing;
+- opt-in deterministic composition of existing package-script quality gates;
 - shared Oxlint and TypeScript 7 baseline presets;
 - explicit registry and local-link modes;
 - deterministic attach, status, detach, and registry assertions;
@@ -53,6 +54,7 @@ pnpm check:fast
 pnpm check
 pnpm verify
 pnpm package:check
+pnpm quality:gate:fast
 ```
 
 Consumers use:

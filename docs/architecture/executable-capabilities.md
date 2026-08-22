@@ -42,6 +42,7 @@ These terms describe different facts and must not be used interchangeably:
 | `contract.protobuf-evolution` | Yes | Yes | No contract owned here | Only by explicit declaration and qualification evidence |
 | `contract.json-schema-releases` | Yes | Yes | No contract owned here | Only by explicit declaration and consumer evidence |
 | `repository.agent-workflow` | Yes | Yes | Yes | Only by explicit declaration |
+| `quality.gate-runner` | Yes | No | Yes, after build | Only by explicit declaration after release |
 
 Installing or upgrading the package changes none of the consumer activation
 cells. Each consumer records its own activation status in its repository.
@@ -171,6 +172,17 @@ consumer checks. They cannot be added to either dependency capability.
 
 Each remains an independent feature slice with its own model, ports, policies,
 adapters, schema, rules, and fixtures.
+
+### Deterministic quality gate runner
+
+`quality.gate-runner` validates and explicitly executes consumer-owned profiles
+made only from existing root package script IDs. Static capability execution
+never starts scripts. The separate `gate run` command owns deterministic DAG
+scheduling, `needs` pass dependencies, `after` settlement dependencies, bounded
+concurrency, task deadlines, cancellation, concise failure tails, and versioned
+result evidence. It accepts no command strings, arbitrary arguments, plugins, or
+shell configuration. It is not an agent orchestrator or CI replacement. See the
+[quality gate runner reference](../reference/quality-gate-runner.md).
 
 ### Executable specifications
 

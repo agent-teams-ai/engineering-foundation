@@ -139,6 +139,7 @@
         "tests/performance-signals.test.mjs",
         "tests/public-api-export-coverage.test.mjs",
         "tests/public-api-promotion.test.mjs",
+        "tests/quality-gate-runner.test.mjs",
         "tests/repository-mutation-owned-temporary-cleanup.test.mjs",
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
         "tests/test-manifests.test.mjs"

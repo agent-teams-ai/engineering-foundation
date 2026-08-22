@@ -90,6 +90,14 @@ state-model gates; Foundation only checks their static connectivity and must not
 be used as evidence that those scripts succeeded. See the
 [executable specification reference](../reference/executable-specifications.md).
 
+Adopt `quality.gate-runner` separately from a package upgrade. Profiles may
+reference only existing root package scripts and must define explicit bounded
+concurrency and per-task deadlines where a hung gate is a real risk. Run them
+with `agent-teams-foundation gate run <profile>` only after the consumer build
+has made the installed CLI available. Static `foundation check` validates the
+configuration but never runs the scripts. See the
+[quality gate runner reference](../reference/quality-gate-runner.md).
+
 ## Current contract version policy
 
 Foundation-owned configuration, evidence and protocol contracts currently have

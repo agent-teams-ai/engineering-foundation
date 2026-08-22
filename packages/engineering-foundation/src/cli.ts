@@ -27,6 +27,7 @@ import type {
 } from "./local-mode/types.js";
 import { inspectFoundationPackage } from "./package-self-check.js";
 import { installedFoundationVersion } from "./package-version.js";
+import { tryRunQualityGateCliCommand } from "./quality-gate-cli-command.js";
 import { renderFoundationReportText } from "./report-renderer.js";
 import { runScaffoldingCliCommand } from "./scaffolding/cli-command.js";
 import { ScaffoldError } from "./scaffolding/scaffold-error.js";
@@ -117,6 +118,7 @@ function printHelp(): void {
   agent-teams-foundation repo check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow instructions <repository-file> [--consumer <path>] [--format text|json]
+  agent-teams-foundation gate run <profile> [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
@@ -447,6 +449,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   });
   if (
     await runLocalModeCommand(parsed, service, json) ||
+    await tryRunQualityGateCliCommand(parsed, environment) ||
     await runAgentWorkflowCommand(parsed, environment) ||
     await runProtobufQualificationCommand(parsed, json) ||
     await runDocumentCommand(parsed, json) ||

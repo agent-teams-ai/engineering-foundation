@@ -30,6 +30,7 @@ not repeat their rules.
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
 | Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Implemented and dogfooded; consumer adoption remains opt-in |
 | DeepSeek Harness tooling comparison | [Strict comparison](research/deepseek-harness-tooling-comparison.md) | Evidence review complete; selected adaptations only |
+| Foundation architecture readiness | [Independent audit](research/foundation-architecture-audit-2026-08-23.md) | Audit complete; staged remediation proposed |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |
 | Package release | [Release](release.md) | Active |

@@ -3,19 +3,17 @@ import { spawn } from "node:child_process";
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
 
 const manifest = await validateTestManifests();
+const config = manifest.coverageConfig;
 const child = spawn(process.execPath, [
   "--test",
   "--test-concurrency=1",
   "--experimental-test-coverage",
-  "--test-coverage-include=packages/engineering-foundation/dist/**/*.js",
-  "--test-coverage-include=packages/docs-protocol/dist/**/*.js",
-  "--test-coverage-exclude=packages/engineering-foundation/dist/**/*.d.ts",
-  "--test-coverage-exclude=packages/docs-protocol/dist/**/*.d.ts",
-  "--test-coverage-lines=36",
-  "--test-coverage-branches=67",
-  "--test-coverage-functions=42",
+  ...config.include.map((pattern) => `--test-coverage-include=${pattern}`),
+  ...config.exclude.map((pattern) => `--test-coverage-exclude=${pattern}`),
+  `--test-coverage-lines=${config.thresholds.lines}`,
+  `--test-coverage-branches=${config.thresholds.branches}`,
+  `--test-coverage-functions=${config.thresholds.functions}`,
   ...manifest.coverageTests,
-  "packages/docs-protocol/tests/*.test.mjs",
 ], {
   cwd: repositoryRoot,
   stdio: "inherit",

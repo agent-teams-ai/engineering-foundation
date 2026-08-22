@@ -22,7 +22,15 @@ function fixture() {
         { id: "4", tests: ["tests/d.test.mjs"] },
       ],
     },
-    coverageManifest: { schemaVersion: 1, tests: ["tests/a.test.mjs"] },
+    coverageManifest: {
+      schemaVersion: 2,
+      tool: { name: "c8", version: "12.0.0" },
+      processBootstrap: "scripts/coverage-process-bootstrap.mjs",
+      include: ["packages/example/dist/**/*.js"],
+      exclude: ["packages/example/dist/**/*.d.ts"],
+      legacyTests: ["tests/a.test.mjs"],
+      thresholds: { branches: 1, functions: 1, lines: 1 },
+    },
     testPaths: [
       "tests/a.test.mjs",
       "tests/b.test.mjs",
@@ -34,7 +42,7 @@ function fixture() {
 
 test("repository test manifests cover every top-level test exactly once", async () => {
   const result = await validateTestManifests();
-  assert.equal(result.testCount, 119);
+  assert.equal(result.testCount, 136);
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
 });
 
@@ -48,8 +56,20 @@ test("test manifests fail closed for missing, duplicate, and nonexistent coverag
   assert.throws(() => validateTestManifestData(duplicate), /assigned more than once/u);
 
   const nonexistentCoverage = fixture();
-  nonexistentCoverage.coverageManifest.tests = ["tests/missing.test.mjs"];
+  nonexistentCoverage.coverageManifest.legacyTests = ["tests/missing.test.mjs"];
   assert.throws(() => validateTestManifestData(nonexistentCoverage), /does not exist/u);
+});
+
+test("coverage manifest pins its merger and bounded thresholds", () => {
+  const floatingTool = fixture();
+  floatingTool.coverageManifest.tool.version = "latest";
+  assert.throws(() => validateTestManifestData(floatingTool), /exact c8 version/u);
+
+  for (const invalidThreshold of [0, 101, 36.5]) {
+    const data = fixture();
+    data.coverageManifest.thresholds.lines = invalidThreshold;
+    assert.throws(() => validateTestManifestData(data), /integer from 1 through 100/u);
+  }
 });
 
 test("test manifests reject non-portable and traversal paths", () => {

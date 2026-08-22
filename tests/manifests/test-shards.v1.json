@@ -9,6 +9,10 @@
     {
       "id": "1",
       "tests": [
+        "packages/docs-protocol/tests/adoption.test.mjs",
+        "packages/docs-protocol/tests/authority-handshake.test.mjs",
+        "packages/docs-protocol/tests/cli-contract.test.mjs",
+        "packages/docs-protocol/tests/code-anchor.test.mjs",
         "tests/capability-public-api.test.mjs",
         "tests/contract-json-schema-releases.test.mjs",
         "tests/contract-protobuf-qualification.test.mjs",
@@ -45,6 +49,10 @@
     {
       "id": "2",
       "tests": [
+        "packages/docs-protocol/tests/consumer-integration-characterization.test.mjs",
+        "packages/docs-protocol/tests/consumer-integration-e2e.test.mjs",
+        "packages/docs-protocol/tests/consumer-integration-plan.test.mjs",
+        "packages/docs-protocol/tests/consumer-runtime-closure.test.mjs",
         "tests/agent-workflow.test.mjs",
         "tests/document-authoring-contract-policy-security.test.mjs",
         "tests/document-authoring-node-writer-adapters.test.mjs",
@@ -81,6 +89,10 @@
     {
       "id": "3",
       "tests": [
+        "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+        "packages/docs-protocol/tests/docs-protocol.test.mjs",
+        "packages/docs-protocol/tests/envelope-schema.test.mjs",
+        "packages/docs-protocol/tests/profile-policy.test.mjs",
         "tests/capability-policy.test.mjs",
         "tests/check-report-contract-conformance.test.mjs",
         "tests/contract-protobuf-evolution.test.mjs",
@@ -115,11 +127,16 @@
     {
       "id": "4",
       "tests": [
+        "packages/docs-protocol/tests/public-surface.test.mjs",
+        "packages/docs-protocol/tests/public-type-contract.test.mjs",
+        "packages/docs-protocol/tests/qualification.test.mjs",
         "tests/capability-public-api-namespace.test.mjs",
         "tests/capability.test.mjs",
         "tests/changeset-coverage.test.mjs",
         "tests/ci-feedback-signals.test.mjs",
         "tests/cli.test.mjs",
+        "tests/coverage-evidence.test.mjs",
+        "tests/coverage-workflow.test.mjs",
         "tests/document-authoring-application-spine.test.mjs",
         "tests/document-authoring-contracts.test.mjs",
         "tests/document-authoring-coordinator-adapter.test.mjs",

@@ -1,12 +1,12 @@
 import { lstat, readFile, readdir } from "node:fs/promises";
-import { dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptRoot = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = dirname(scriptRoot);
 const shardManifestPath = join(repositoryRoot, "tests", "manifests", "test-shards.v1.json");
 const coverageManifestPath = join(repositoryRoot, "tests", "manifests", "coverage.v1.json");
-const portableTestPath = /^tests\/[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
+const portableTestPath = /^(?:tests|packages\/docs-protocol\/tests)\/[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
 function fail(message) {
@@ -26,16 +26,19 @@ function assertExactKeys(value, keys, label) {
 
 function validatePath(path, label) {
   if (typeof path !== "string" || !portableTestPath.test(path)) {
-    fail(`${label} must be a portable top-level tests/*.test.mjs path: ${String(path)}`);
+    fail(`${label} must be a portable top-level test path: ${String(path)}`);
   }
-  const filename = path.slice("tests/".length);
+  const filename = basename(path);
   if (windowsReservedTestName.test(filename)) {
     fail(`${label} uses a Windows-reserved filename: ${path}`);
   }
   const absolute = resolve(repositoryRoot, ...path.split("/"));
-  const testRoot = `${resolve(repositoryRoot, "tests")}${sep}`;
-  if (!absolute.startsWith(testRoot)) {
-    fail(`${label} escapes the tests directory: ${path}`);
+  const allowedRoots = [
+    `${resolve(repositoryRoot, "tests")}${sep}`,
+    `${resolve(repositoryRoot, "packages", "docs-protocol", "tests")}${sep}`,
+  ];
+  if (!allowedRoots.some((root) => absolute.startsWith(root))) {
+    fail(`${label} escapes the allowed test directories: ${path}`);
   }
 }
 
@@ -56,6 +59,54 @@ function validateShardHeader(shardManifest) {
   }
   if (!Array.isArray(shardManifest.shards) || shardManifest.shards.length !== 4) {
     fail("exactly four shards are required");
+  }
+}
+
+function validateCoverageManifest(coverageManifest, testPaths) {
+  assertExactKeys(
+    coverageManifest,
+    ["schemaVersion", "tool", "processBootstrap", "include", "exclude", "legacyTests", "thresholds"],
+    "coverage manifest",
+  );
+  if (coverageManifest.schemaVersion !== 2) {
+    fail("unsupported coverage schemaVersion");
+  }
+  assertExactKeys(coverageManifest.tool, ["name", "version"], "coverage tool");
+  if (coverageManifest.tool.name !== "c8" || !/^\d+\.\d+\.\d+$/u.test(coverageManifest.tool.version)) {
+    fail("coverage tool must pin an exact c8 version");
+  }
+  if (coverageManifest.processBootstrap !== "scripts/coverage-process-bootstrap.mjs") {
+    fail("coverage processBootstrap must pin the test-process boundary");
+  }
+  for (const key of ["include", "exclude"]) {
+    if (!Array.isArray(coverageManifest[key]) || coverageManifest[key].length === 0) {
+      fail(`coverage ${key} must be a non-empty array`);
+    }
+    if (coverageManifest[key].some((value) => typeof value !== "string" || value === "")) {
+      fail(`coverage ${key} entries must be non-empty strings`);
+    }
+    if (new Set(coverageManifest[key]).size !== coverageManifest[key].length) {
+      fail(`coverage ${key} contains a duplicate`);
+    }
+  }
+  assertExactKeys(coverageManifest.thresholds, ["branches", "functions", "lines"], "coverage thresholds");
+  for (const [key, value] of Object.entries(coverageManifest.thresholds)) {
+    if (!Number.isInteger(value) || value < 1 || value > 100) {
+      fail(`coverage threshold ${key} must be an integer from 1 through 100`);
+    }
+  }
+  if (!Array.isArray(coverageManifest.legacyTests) || coverageManifest.legacyTests.length === 0) {
+    fail("coverage legacyTests must be a non-empty array");
+  }
+  if (new Set(coverageManifest.legacyTests).size !== coverageManifest.legacyTests.length) {
+    fail("coverage legacyTests contains a duplicate");
+  }
+  const testSet = new Set(testPaths);
+  for (const path of coverageManifest.legacyTests) {
+    validatePath(path, "legacy coverage test");
+    if (!testSet.has(path)) {
+      fail(`legacy coverage test does not exist: ${path}`);
+    }
   }
 }
 
@@ -96,26 +147,11 @@ export function validateTestManifestData({ shardManifest, coverageManifest, test
     fail(`shard union differs from test files; missing=[${missing.join(", ")}], extra=[${extra.join(", ")}]`);
   }
 
-  assertExactKeys(coverageManifest, ["schemaVersion", "tests"], "coverage manifest");
-  if (coverageManifest.schemaVersion !== 1) {
-    fail("unsupported coverage schemaVersion");
-  }
-  if (!Array.isArray(coverageManifest.tests) || coverageManifest.tests.length === 0) {
-    fail("coverage tests must be a non-empty array");
-  }
-  if (new Set(coverageManifest.tests).size !== coverageManifest.tests.length) {
-    fail("coverage manifest contains a duplicate");
-  }
-  const testSet = new Set(testPaths);
-  for (const path of coverageManifest.tests) {
-    validatePath(path, "coverage test");
-    if (!testSet.has(path)) {
-      fail(`coverage test does not exist: ${path}`);
-    }
-  }
+  validateCoverageManifest(coverageManifest, testPaths);
 
   return Object.freeze({
-    coverageTests: Object.freeze([...coverageManifest.tests]),
+    coverageConfig: Object.freeze(coverageManifest),
+    coverageTests: Object.freeze([...coverageManifest.legacyTests]),
     shards: new Map(shardManifest.shards.map((shard) => [shard.id, Object.freeze([...shard.tests])])),
     testCount: testPaths.length,
   });
@@ -126,27 +162,30 @@ async function readJson(path) {
 }
 
 export async function validateTestManifests() {
-  const testsRoot = join(repositoryRoot, "tests");
-  const entries = await readdir(testsRoot, { withFileTypes: true, recursive: true });
   const testPaths = [];
-  for (const entry of entries) {
-    if (!entry.name.endsWith(".test.mjs")) {
-      continue;
+  const testRoots = ["tests", "packages/docs-protocol/tests"];
+  for (const relativeRoot of testRoots) {
+    const testsRoot = resolve(repositoryRoot, ...relativeRoot.split("/"));
+    const entries = await readdir(testsRoot, { withFileTypes: true, recursive: true });
+    for (const entry of entries) {
+      if (!entry.name.endsWith(".test.mjs")) {
+        continue;
+      }
+      if (!entry.isFile() && !entry.isSymbolicLink()) {
+        fail(`unsupported test entry: ${entry.name}`);
+      }
+      const parentPath = entry.parentPath ?? entry.path;
+      const path = join(parentPath, entry.name);
+      const relativePath = path.slice(`${testsRoot}${sep}`.length).split(sep).join("/");
+      if (relativePath.includes("/")) {
+        fail(`nested test files are prohibited: ${relativeRoot}/${relativePath}`);
+      }
+      const stats = await lstat(path);
+      if (stats.isSymbolicLink()) {
+        fail(`test files may not be symlinks: ${relativeRoot}/${entry.name}`);
+      }
+      testPaths.push(`${relativeRoot}/${relativePath}`);
     }
-    if (!entry.isFile() && !entry.isSymbolicLink()) {
-      fail(`unsupported test entry: ${entry.name}`);
-    }
-    const parentPath = entry.parentPath ?? entry.path;
-    const path = join(parentPath, entry.name);
-    const relativePath = path.slice(`${testsRoot}${sep}`.length).split(sep).join("/");
-    if (relativePath.includes("/")) {
-      fail(`nested test files are prohibited: tests/${relativePath}`);
-    }
-    const stats = await lstat(path);
-    if (stats.isSymbolicLink()) {
-      fail(`test files may not be symlinks: tests/${entry.name}`);
-    }
-    testPaths.push(`tests/${relativePath}`);
   }
   const result = validateTestManifestData({
     shardManifest: await readJson(shardManifestPath),

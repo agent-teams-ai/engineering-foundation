@@ -18,8 +18,13 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { runFoundationCheck } from "../packages/engineering-foundation/dist/check-runner.js";
-import { CAPABILITY_REGISTRY } from "../packages/engineering-foundation/dist/composition/capability-registry.js";
 import {
+  CAPABILITY_REGISTRY,
+  createCapabilityRegistry,
+} from "../packages/engineering-foundation/dist/composition/capability-registry.js";
+import { CAPABILITY_MODULES } from "../packages/engineering-foundation/dist/composition/capability-modules.js";
+import {
+  createRuleRegistry,
   RULE_REGISTRIES,
   RULE_REGISTRY,
 } from "../packages/engineering-foundation/dist/composition/rule-registry.js";
@@ -59,16 +64,29 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
     foundationConfigSchema.properties.capabilities.properties,
   ).toSorted();
   const runtimeCapabilityIds = [...CAPABILITY_REGISTRY.keys()].toSorted();
+  const moduleCapabilityIds = CAPABILITY_MODULES.map(
+    ({ definition }) => definition.id,
+  );
 
   assert.deepEqual(schemaCapabilityIds, runtimeCapabilityIds);
+  assert.deepEqual(moduleCapabilityIds, [...CAPABILITY_REGISTRY.keys()]);
+  assert.equal(Object.isFrozen(CAPABILITY_MODULES), true);
+  assert.equal(CAPABILITY_MODULES.every((module) => Object.isFrozen(module)), true);
+  for (const { definition } of CAPABILITY_MODULES) {
+    assert.equal(CAPABILITY_REGISTRY.get(definition.id), definition);
+  }
 
-  const registeredRuleCount = RULE_REGISTRIES.reduce(
-    (count, registry) => count + registry.size,
+  assert.deepEqual(
+    RULE_REGISTRIES,
+    CAPABILITY_MODULES.map(({ rules }) => rules),
+  );
+  const registeredRuleCount = CAPABILITY_MODULES.reduce(
+    (count, { rules }) => count + rules.size,
     0,
   );
   assert.equal(RULE_REGISTRY.size, registeredRuleCount);
-  for (const registry of RULE_REGISTRIES) {
-    for (const [ruleId, metadata] of registry) {
+  for (const { rules } of CAPABILITY_MODULES) {
+    for (const [ruleId, metadata] of rules) {
       assert.equal(metadata.id, ruleId);
       assert.equal(RULE_REGISTRY.get(ruleId), metadata);
     }
@@ -76,15 +94,23 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
 });
 
 test("rejects duplicate capability and rule IDs before registry use", () => {
-  for (const registryKind of ["capability", "rule"]) {
-    assert.throws(
-      () => createUniqueRegistry(registryKind, [
-        ["duplicate", {}],
-        ["duplicate", {}],
-      ]),
-      new Error(`Duplicate ${registryKind} ID: duplicate.`),
-    );
-  }
+  const [firstModule] = CAPABILITY_MODULES;
+  assert.notEqual(firstModule, undefined);
+  assert.throws(
+    () => createCapabilityRegistry([firstModule, firstModule]),
+    new Error(`Duplicate capability ID: ${firstModule.definition.id}.`),
+  );
+  const firstRuleId = firstModule.rules.keys().next().value;
+  assert.equal(typeof firstRuleId, "string");
+  assert.throws(
+    () => createRuleRegistry([firstModule, firstModule]),
+    new Error(`Duplicate rule ID: ${firstRuleId}.`),
+  );
+
+  assert.throws(
+    () => createUniqueRegistry("test", [["duplicate", {}], ["duplicate", {}]]),
+    new Error("Duplicate test ID: duplicate."),
+  );
 });
 
 test("restricts released contract and API baseline mutation to the Changesets release branch", () => {

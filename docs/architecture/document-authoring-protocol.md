@@ -6,8 +6,9 @@ recovery-handler contract v2. ADR-0026 supersedes ADR-0025 and adds
 Plan/Receipt v2, envelope v4, document journal v3, and recovery-handler contract
 v3. Published older evidence remains immutable and is never reinterpreted.
 The catalog, compiler, create-only writer, `docs new`, `docs doctor`, and
-`docs recover` are implemented in this repository. Packed registry and
-cross-platform RC qualification remains required before release adoption.
+`docs recover` are implemented and released. Packed registry and cross-platform
+qualification evidence supports release adoption; consumer activation remains
+explicit.
 
 ADR-0026 carries forward ADR-0025's placement of the unified documentation CLI
 and metadata/query workflow in the separate `@agent-teams/docs-protocol`

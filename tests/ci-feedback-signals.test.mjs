@@ -144,7 +144,7 @@ test("CI signal artifact rejects ambiguous job identity and invalid timestamps",
       jobs: [invalid],
       relevance: { status: "current", pullRequest: 7 },
     }),
-    /completed_at must be an ISO timestamp/u,
+    /completed_at must be a GitHub UTC ISO-8601 instant/u,
   );
   assert.throws(
     () => buildCiSignalArtifact({
@@ -152,7 +152,47 @@ test("CI signal artifact rejects ambiguous job identity and invalid timestamps",
       jobs: [],
       relevance: { status: "current", pullRequest: 7 },
     }),
-    /completed_at must be an ISO timestamp/u,
+    /completed_at must be a GitHub UTC ISO-8601 instant/u,
+  );
+});
+
+test("CI signal artifact strictly validates GitHub UTC instants", () => {
+  for (const invalidTimestamp of [
+    "2026-02-30T10:00:00Z",
+    "2026-08-13",
+    "Thu, 13 Aug 2026 10:00:00 GMT",
+    "2026-08-13T12:00:00+02:00",
+  ]) {
+    const invalid = { ...job(1, "invalid", 1), completed_at: invalidTimestamp };
+    assert.throws(
+      () => buildCiSignalArtifact({
+        sourceRun: sourceRun(),
+        jobs: [invalid],
+        relevance: { status: "current", pullRequest: 7 },
+      }),
+      /completed_at must be a GitHub UTC ISO-8601 instant/u,
+    );
+  }
+
+  const seconds = job(1, "seconds", 1);
+  seconds.started_at = "2026-08-13T10:00:00Z";
+  seconds.completed_at = "2026-08-13T10:00:01Z";
+  const artifact = buildCiSignalArtifact({
+    sourceRun: sourceRun(),
+    jobs: [seconds],
+    relevance: { status: "current", pullRequest: 7 },
+  });
+  assert.equal(artifact.jobs[0].durationMilliseconds, 1_000);
+});
+
+test("CI signal artifact validates source created_at", () => {
+  assert.throws(
+    () => buildCiSignalArtifact({
+      sourceRun: { ...sourceRun(), created_at: "2026-02-30T10:00:00Z" },
+      jobs: [],
+      relevance: { status: "current", pullRequest: 7 },
+    }),
+    /source created_at must be a GitHub UTC ISO-8601 instant/u,
   );
 });
 
@@ -196,7 +236,7 @@ test("CI signal artifact validates present timestamps when the other endpoint is
       jobs: [invalid],
       relevance: { status: "current", pullRequest: 7 },
     }),
-    /completed_at must be an ISO timestamp/u,
+    /completed_at must be a GitHub UTC ISO-8601 instant/u,
   );
 });
 

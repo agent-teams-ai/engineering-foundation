@@ -26,14 +26,16 @@ function instant(value, label) {
 }
 
 function duration(startedAt, completedAt) {
-  if (startedAt === null || completedAt === null) {
-    return null;
+  const start = startedAt === null ? null : instant(startedAt, "started_at");
+  const end = completedAt === null ? null : instant(completedAt, "completed_at");
+  if (start === null || end === null) {
+    return { anomaly: null, milliseconds: null };
   }
-  const value = instant(completedAt, "completed_at") - instant(startedAt, "started_at");
+  const value = end - start;
   if (value < 0) {
-    throw new Error("completed_at precedes started_at");
+    return { anomaly: "end-precedes-start", milliseconds: null };
   }
-  return value;
+  return { anomaly: null, milliseconds: value };
 }
 
 function topologyFingerprint(jobs) {
@@ -66,6 +68,7 @@ export function buildCiSignalArtifact({ sourceRun, jobs, relevance }) {
   }
   const normalizedJobs = jobs.map((job) => {
     const name = requireString(job.name, "job name");
+    const measuredDuration = duration(job.started_at ?? null, job.completed_at ?? null);
     const labels = Array.isArray(job.labels) && job.labels.every((label) => typeof label === "string")
       ? [...job.labels]
       : [];
@@ -76,13 +79,15 @@ export function buildCiSignalArtifact({ sourceRun, jobs, relevance }) {
       status: requireString(job.status, `${name} status`),
       startedAt: job.started_at ?? null,
       completedAt: job.completed_at ?? null,
-      durationMilliseconds: duration(job.started_at ?? null, job.completed_at ?? null),
+      durationMilliseconds: measuredDuration.milliseconds,
+      timingAnomaly: measuredDuration.anomaly,
       labels,
     };
   }).toSorted((left, right) => left.name.localeCompare(right.name, "en"));
   if (new Set(normalizedJobs.map(({ name }) => name)).size !== normalizedJobs.length) {
     throw new Error("source run contains duplicate job names");
   }
+  const measuredWallDuration = duration(sourceRun.run_started_at, sourceRun.updated_at);
   return {
     schemaVersion: 1,
     advisory: true,
@@ -99,7 +104,8 @@ export function buildCiSignalArtifact({ sourceRun, jobs, relevance }) {
       createdAt: requireString(sourceRun.created_at, "source created_at"),
       runStartedAt: requireString(sourceRun.run_started_at, "source run_started_at"),
       updatedAt: requireString(sourceRun.updated_at, "source updated_at"),
-      wallMilliseconds: duration(sourceRun.run_started_at, sourceRun.updated_at),
+      wallMilliseconds: measuredWallDuration.milliseconds,
+      timingAnomaly: measuredWallDuration.anomaly,
       htmlUrl: requireString(sourceRun.html_url, "source html_url"),
     },
     relevance,
@@ -116,12 +122,23 @@ export function renderCiSignalSummary(artifact) {
   const rows = slowest.map((job) =>
     `| <code>${markdownCodeCell(job.name)}</code> | <code>${markdownCodeCell(job.conclusion ?? job.status)}</code> | ${(job.durationMilliseconds / 60_000).toFixed(2)} min |`,
   );
+  const timingAnomalies = [
+    artifact.source.timingAnomaly,
+    ...artifact.jobs.map(({ timingAnomaly }) => timingAnomaly),
+  ].filter((anomaly) => typeof anomaly === "string");
+  const anomalyCodes = [...new Set(timingAnomalies)].toSorted();
+  const wallTime = artifact.source.wallMilliseconds === null
+    ? "unavailable"
+    : `${(artifact.source.wallMilliseconds / 60_000).toFixed(2)} min`;
   return [
     "## CI feedback",
     "",
     `Source: [run ${artifact.source.runId}, attempt ${artifact.source.runAttempt}](${artifact.source.htmlUrl}) at \`${artifact.source.headSha.slice(0, 12)}\``,
     `Relevance: **${artifact.relevance.status}**. Timings are advisory and never block a pull request.`,
-    `Wall time: **${(artifact.source.wallMilliseconds / 60_000).toFixed(2)} min**`,
+    `Wall time: **${wallTime}**`,
+    ...(timingAnomalies.length === 0
+      ? []
+      : [`Timing anomalies: **${timingAnomalies.length}** (${anomalyCodes.map((code) => `\`${code}\``).join(", ")}). Affected durations are unavailable.`]),
     "",
     "| Slowest lanes | Result | Duration |",
     "|---|---|---:|",

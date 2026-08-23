@@ -42,7 +42,7 @@ These terms describe different facts and must not be used interchangeably:
 | `contract.protobuf-evolution` | Yes | Yes | No contract owned here | Only by explicit declaration and qualification evidence |
 | `contract.json-schema-releases` | Yes | Yes | No contract owned here | Only by explicit declaration and consumer evidence |
 | `repository.agent-workflow` | Yes | Yes | Yes | Only by explicit declaration |
-| `quality.gate-runner` | Yes | No | Yes, after build | Only by explicit declaration after release |
+| `quality.gate-runner` | Yes | Yes, since 0.17.0 | Yes, after build | Only by explicit declaration |
 
 Installing or upgrading the package changes none of the consumer activation
 cells. Each consumer records its own activation status in its repository.

@@ -366,21 +366,53 @@ test("resumes a Foundation-only prior publish without republishing it", async ()
   assert.match(changesetsReleaseOutput(released), new RegExp(`New tag: ${FOUNDATION_PACKAGE}`, "u"));
 });
 
-test("later unrelated main cannot complete an ancestor Foundation-only pair", async () => {
+test("later protected main may publish missing Docs against a verified reusable Foundation", async () => {
   const runtime = harness({
     [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:00.000Z"),
   });
+  const currentCommit = "b".repeat(40);
   const laterSource = {
     ...source,
-    commit: "b".repeat(40),
-    isTrustedCommit: async (commit) => commit === source.commit,
+    commit: currentCommit,
+    isTrustedCommit: async (commit) => [source.commit, currentCommit].includes(commit),
   };
+  runtime.publish = async (value, tag) => {
+    runtime.calls.push(`publish:${value.name}:${tag}`);
+    const published = present(value, "2026-01-01T00:00:01.000Z", tag);
+    published.provenance = artifactProvenance(value, currentCommit);
+    runtime.states.set(value.name, published);
+  };
+
+  const released = await run(runtime, { source: laterSource });
+
+  assert.equal(runtime.calls.some((entry) =>
+    entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)), false);
+  assert.equal(runtime.calls.some((entry) =>
+    entry.startsWith(`publish:${DOCS_PACKAGE}:latest`)), true);
+  assert.equal(
+    changesetsReleaseOutput(released),
+    `New tag: ${DOCS_PACKAGE}@${docs.version}\n`,
+  );
+});
+
+test("reused Foundation cannot publish missing Docs after protected main advances", async () => {
+  const runtime = harness({
+    [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:00.000Z"),
+  });
+  const currentCommit = "b".repeat(40);
+  runtime.authorizePublish = () => {
+    throw new Error("protected main advanced");
+  };
+
   await assert.rejects(
-    run(runtime, { source: laterSource }),
-    /Foundation provenance-owning commit/u,
+    run(runtime, { source: {
+      ...source,
+      commit: currentCommit,
+      isTrustedCommit: async (commit) => [source.commit, currentCommit].includes(commit),
+    } }),
+    /protected main advanced/u,
   );
   assert.equal(runtime.calls.some((entry) => entry.startsWith("publish:")), false);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("authorize:")), false);
 });
 
 test("Docs-only ancestor state is quarantined before any Foundation npm write", async () => {

@@ -165,7 +165,7 @@
     {
       "id": "ADR-0033",
       "path": "docs/decisions/0033-freeze-legacy-foundation-docs-cli.md",
-      "immutableDigest": "sha256:b19d210dc863a35514fdd4d61e0f35cfe52b9ad230eb18aba816131df7aafc89"
+      "immutableDigest": "sha256:3d86d143d10bb38cef7007c3c53150420abbab8015552230c126d115d2850a0e"
     }
   ]
 }

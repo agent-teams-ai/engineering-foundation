@@ -64,6 +64,10 @@ test("classifies only the top-level legacy namespace", () => {
     ["docs", "new"],
     ["docs", "doctor"],
     ["docs", "recover"],
+    ["docs.find"],
+    ["docs.new"],
+    ["docs.doctor"],
+    ["docs.recover"],
   ]) {
     assert.equal(isLegacyDocsCliInvocation(rawArguments), true);
   }
@@ -168,13 +172,18 @@ test("preserves the legacy JSON stream contract while keeping execution availabl
 });
 
 test("emits the stable human notice before a legacy invocation error", () => {
-  const result = spawnSync(process.execPath, [cliPath, "docs", "unknown"], {
-    encoding: "utf8",
-  });
+  for (const rawArguments of [
+    ["docs", "unknown"],
+    ["docs.new"],
+  ]) {
+    const result = spawnSync(process.execPath, [cliPath, ...rawArguments], {
+      encoding: "utf8",
+    });
 
-  assert.equal(result.status, 2, result.stderr);
-  assert.match(result.stderr, new RegExp(`^${LEGACY_DOCS_CLI_DEPRECATION_CODE}:`, "u"));
-  assert.match(result.stderr, /CONSUMER_INVALID:/u);
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, new RegExp(`^${LEGACY_DOCS_CLI_DEPRECATION_CODE}:`, "u"));
+    assert.match(result.stderr, /CONSUMER_INVALID:/u);
+  }
 });
 
 async function waitForFile(path) {

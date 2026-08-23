@@ -84,10 +84,14 @@ no passive waiting period: evidence, not elapsed time, opens the gate.
 
 The removal change must include:
 
-1. a current, reproducible inventory of every governed consumer in the
-   Qualified Cohort, bound to consumer repository and default-branch commit,
-   showing zero package scripts, workflows, agent instructions, or automation
-   invoking the legacy Foundation docs namespace;
+1. an organization-governance attestation bound to an exact revision of the
+   append-only central Cohort registry, the selected Qualified Cohort record
+   digest, and its qualification-event digest. It must enumerate every
+   repository in that revision's supported, suspended, or otherwise
+   fleet-governed membership with its default-branch commit and show zero
+   package scripts, workflows, agent instructions, or automation invoking the
+   legacy Foundation docs namespace. An unresolvable registry revision,
+   lifecycle state, or member closes the gate;
 2. per-consumer cutover evidence showing exact registry versions of Docs
    Protocol and Foundation, the managed aliases owned by Docs Protocol, a clean
    lockfile, and the consumer's required hosted check at the inventoried commit;
@@ -97,9 +101,14 @@ The removal change must include:
 4. packed-registry qualification proving the Docs Protocol CLI starts and
    executes against exact published package artifacts on Linux, macOS, and
    Windows, with dependency direction still one-way;
-5. recovery qualification proving every supported legacy journal and evidence
-   version can be inspected and recovered through a retained exact compatible
-   implementation, without requiring the removed top-level namespace;
+5. a closed recovery-compatibility inventory derived from the canonical
+   [transaction and compatibility](../architecture/document-authoring-protocol.md#transaction-and-compatibility)
+   contract at the removal head. It must explicitly enumerate every recognized
+   document evidence pair - currently envelope v2/journal v1 as manual-only
+   evidence, envelope v3/journal v2 with its exact handler generation, and
+   envelope v4/journal v3 with its exact handler generation - and bind each
+   entry to fixtures plus the retained exact registry artifact or manual
+   procedure that handles it without the removed top-level namespace;
 6. a source and package-boundary report proving Foundation has no Docs Protocol
    import, dependency, dynamic loader, subprocess proxy, or generated package
    reference that creates a reverse runtime edge;
@@ -110,10 +119,12 @@ The removal change must include:
    contents, public API compatibility, registry installation, crash/recovery,
    and security checks.
 
-If any governed consumer is absent from the inventory, any legacy invocation
-remains, any required hosted check is stale or failing, or any recovery version
-has no proven route, the removal gate is closed. The compatibility namespace
-stays frozen; the missing evidence is repaired without expanding its behavior.
+If the exact central registry revision cannot be reproduced, any governed
+consumer or lifecycle state is absent from the inventory, any legacy invocation
+remains, any required hosted check is stale or failing, or the closed recovery
+inventory omits a recognized evidence pair or proven route, the removal gate is
+closed. The compatibility namespace stays frozen; the missing evidence is
+repaired without expanding its behavior.
 
 ## Compatibility observations
 

@@ -1,6 +1,12 @@
 export const LEGACY_DOCS_CLI_DEPRECATION_CODE =
   "FOUNDATION_DOCS_CLI_DEPRECATED";
-export const LEGACY_DOCS_CLI_COMMAND = "agent-teams-foundation docs";
+const LEGACY_DOCS_CLI_COMMAND = "agent-teams-foundation docs";
+const LEGACY_DOCS_CLI_DIRECT_ALIASES = new Set([
+  "docs.doctor",
+  "docs.find",
+  "docs.new",
+  "docs.recover"
+]);
 export const DOCS_PROTOCOL_CLI_COMMAND = "agent-teams-docs";
 export const DOCS_PROTOCOL_PACKAGE_NAME = ["@agent-teams", "docs-protocol"].join(
   "/"
@@ -16,7 +22,9 @@ function requestsJson(rawArguments: readonly string[]): boolean {
 export function isLegacyDocsCliInvocation(
   rawArguments: readonly string[]
 ): boolean {
-  return rawArguments[0] === "docs";
+  const command = rawArguments[0];
+  return command === "docs" ||
+    (command !== undefined && LEGACY_DOCS_CLI_DIRECT_ALIASES.has(command));
 }
 
 export function renderLegacyDocsCliDeprecation(

@@ -1,5 +1,44 @@
 # @agent-teams/docs-protocol
 
+## 0.1.0
+
+### Minor Changes
+
+- [#132](https://github.com/agent-teams-ai/engineering-foundation/pull/132) [`58ae887`](https://github.com/agent-teams-ai/engineering-foundation/commit/58ae8876c97779d0140bad6c3711788dfa117a24) Thanks [@777genius](https://github.com/777genius)! - Publish the first unified deterministic documentation authoring protocol release candidate.
+
+- [#140](https://github.com/agent-teams-ai/engineering-foundation/pull/140) [`b228651`](https://github.com/agent-teams-ai/engineering-foundation/commit/b2286510150293e7355a7abe284432a9e3d3671d) Thanks [@777genius](https://github.com/777genius)! - Add recoverable exact-preimage known-file transactions to Foundation and a
+  write-free, cohort-bound Docs Protocol consumer integration lifecycle with
+  deterministic check, plan, apply, recovery, schemas, and offline sandbox E2E.
+
+### Patch Changes
+
+- [#177](https://github.com/agent-teams-ai/engineering-foundation/pull/177) [`6d0b88b`](https://github.com/agent-teams-ai/engineering-foundation/commit/6d0b88b18bc9676c03357748bc79571f4a13ce3a) Thanks [@777genius](https://github.com/777genius)! - Enforce the consumer-integration application, adapter, and composition boundaries without changing public commands or wire contracts.
+
+- [#144](https://github.com/agent-teams-ai/engineering-foundation/pull/144) [`3e188cb`](https://github.com/agent-teams-ai/engineering-foundation/commit/3e188cb7988026cc78713511f72e718080899d4f) Thanks [@777genius](https://github.com/777genius)! - Grant the canonical reusable-workflow caller the OIDC permission required by the qualified documentation gate.
+
+- [#138](https://github.com/agent-teams-ai/engineering-foundation/pull/138) [`3ac7f66`](https://github.com/agent-teams-ai/engineering-foundation/commit/3ac7f66d07275829f803e7e7d51c52b435bdf121) Thanks [@777genius](https://github.com/777genius)! - Accept a stable expected catalog postimage when an exact document is applied again, preserving deterministic idempotency without weakening authority race detection. Keep disposable qualification roots within the portable Windows path budget.
+
+- [#162](https://github.com/agent-teams-ai/engineering-foundation/pull/162) [`ef5d635`](https://github.com/agent-teams-ai/engineering-foundation/commit/ef5d63503de47f25dd8e1e5f2d87b473238a07cc) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc10 Cohort as an immutable upgrade source so consumers
+  can adopt a successor trusted workflow revision through the normal digest-bound
+  plan and apply lifecycle.
+
+- [#156](https://github.com/agent-teams-ai/engineering-foundation/pull/156) [`89cd8d2`](https://github.com/agent-teams-ai/engineering-foundation/commit/89cd8d2226b0214b37eb2258b4dc078a20715fd4) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc7 Cohort's immutable managed assets so consumers can prove
+  and execute upgrades to successor Cohorts without weakening conflict detection.
+
+- [#160](https://github.com/agent-teams-ai/engineering-foundation/pull/160) [`c5f3718`](https://github.com/agent-teams-ai/engineering-foundation/commit/c5f3718f1c4829de00bacaf5f37b0ead133abdd2) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc9 Cohort as an immutable upgrade source and accept
+  consumer-specific registry-bound transitive resolutions while preserving exact
+  managed package versions, SRI, physical resolution, and dependency edges.
+
+- [#149](https://github.com/agent-teams-ai/engineering-foundation/pull/149) [`9a68e79`](https://github.com/agent-teams-ai/engineering-foundation/commit/9a68e7975093e426efe1b970f273a86ad9f55f9d) Thanks [@777genius](https://github.com/777genius)! - Bundle the withdrawn rc1 Cohort's immutable documentation assets so corrected
+  successor Cohorts can prove and execute their declared rollback edge.
+
+- [#151](https://github.com/agent-teams-ai/engineering-foundation/pull/151) [`08ee0bf`](https://github.com/agent-teams-ai/engineering-foundation/commit/08ee0bf8a6157981e3761c3c56c10c31b5693c27) Thanks [@777genius](https://github.com/777genius)! - Treat the optional `@types/node` peer context as type-only metadata when validating a pnpm runtime closure. Continue to verify the complete executable dependency graph, exact versions, registry integrity values, and every non-type peer context.
+
+- [#158](https://github.com/agent-teams-ai/engineering-foundation/pull/158) [`ca276ca`](https://github.com/agent-teams-ai/engineering-foundation/commit/ca276ca5a502ceba013106bf2270bc87b9b407a5) Thanks [@777genius](https://github.com/777genius)! - Keep ordered trusted publishing open for bounded three-minute npm provenance and idempotent GitHub reconciliation windows.
+
+- Updated dependencies [[`207a357`](https://github.com/agent-teams-ai/engineering-foundation/commit/207a3570370eeb23dd8c4ea39d8ed836a00e4916), [`da4a859`](https://github.com/agent-teams-ai/engineering-foundation/commit/da4a859eb1bd86e9a51373751c5329d45a120fc5), [`89cd8d2`](https://github.com/agent-teams-ai/engineering-foundation/commit/89cd8d2226b0214b37eb2258b4dc078a20715fd4), [`c5f3718`](https://github.com/agent-teams-ai/engineering-foundation/commit/c5f3718f1c4829de00bacaf5f37b0ead133abdd2), [`06c6586`](https://github.com/agent-teams-ai/engineering-foundation/commit/06c6586b2426cfeb605be20d9089c70fb246a7cf), [`ed0a09b`](https://github.com/agent-teams-ai/engineering-foundation/commit/ed0a09b2b2c807e8362c0afe5a84d1d2bff2e982), [`9a68e79`](https://github.com/agent-teams-ai/engineering-foundation/commit/9a68e7975093e426efe1b970f273a86ad9f55f9d), [`36d9053`](https://github.com/agent-teams-ai/engineering-foundation/commit/36d905362955255c3faed930b11a1e6f05a87ee9), [`21184bf`](https://github.com/agent-teams-ai/engineering-foundation/commit/21184bfcd9b19e2a8bc23ab2d0c68d987c2e92cd), [`dd3a17c`](https://github.com/agent-teams-ai/engineering-foundation/commit/dd3a17ca67a397d90340243e0566f3db94c34458), [`c099de7`](https://github.com/agent-teams-ai/engineering-foundation/commit/c099de7195c4c926bec0999a3936114435861b07), [`5724da1`](https://github.com/agent-teams-ai/engineering-foundation/commit/5724da1399182efbc424292101e599b1125cbb30), [`b228651`](https://github.com/agent-teams-ai/engineering-foundation/commit/b2286510150293e7355a7abe284432a9e3d3671d), [`055f86e`](https://github.com/agent-teams-ai/engineering-foundation/commit/055f86eab2413cca4f0ff269bdaff3d979dd0f70), [`ca276ca`](https://github.com/agent-teams-ai/engineering-foundation/commit/ca276ca5a502ceba013106bf2270bc87b9b407a5), [`9b1544b`](https://github.com/agent-teams-ai/engineering-foundation/commit/9b1544bcefed647fbe7d4bee5a05d12cd526d6d6)]:
+  - @agent-teams/engineering-foundation@0.17.0
+
 ## 0.1.0-rc.12
 
 ### Patch Changes

@@ -10,7 +10,7 @@ import type {
   ConsumerIntegrationSnapshot
 } from "../../domain/model.js";
 
-export interface ConsumerIntegrationInput {
+interface ConsumerIntegrationInput {
   readonly desired: ConsumerIntegrationDesiredStateV1;
   readonly root: string;
   readonly snapshot: ConsumerIntegrationSnapshot;

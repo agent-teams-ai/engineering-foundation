@@ -93,7 +93,25 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 1
+      - name: Run isolated test shard
+        env:
+          FOUNDATION_PARTITIONED_COVERAGE: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE }}
+        run: |
+          if [ "$FOUNDATION_PARTITIONED_COVERAGE" = "off" ]; then
+            pnpm test:shard:built -- --shards 1
+          else
+            pnpm test:shard:built -- --shards 1 --coverage-evidence-dir .coverage-evidence/shard-1 --head-sha "${{ github.sha }}"
+          fi
+      - name: Upload raw coverage evidence
+        if: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE != 'off' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-1
+          path: .coverage-evidence/shard-1
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
 
   linux-test-2:
     name: linux-test-2
@@ -109,7 +127,25 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 2
+      - name: Run isolated test shard
+        env:
+          FOUNDATION_PARTITIONED_COVERAGE: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE }}
+        run: |
+          if [ "$FOUNDATION_PARTITIONED_COVERAGE" = "off" ]; then
+            pnpm test:shard:built -- --shards 2
+          else
+            pnpm test:shard:built -- --shards 2 --coverage-evidence-dir .coverage-evidence/shard-2 --head-sha "${{ github.sha }}"
+          fi
+      - name: Upload raw coverage evidence
+        if: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE != 'off' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-2
+          path: .coverage-evidence/shard-2
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
 
   linux-test-3:
     name: linux-test-3
@@ -125,7 +161,25 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 3
+      - name: Run isolated test shard
+        env:
+          FOUNDATION_PARTITIONED_COVERAGE: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE }}
+        run: |
+          if [ "$FOUNDATION_PARTITIONED_COVERAGE" = "off" ]; then
+            pnpm test:shard:built -- --shards 3
+          else
+            pnpm test:shard:built -- --shards 3 --coverage-evidence-dir .coverage-evidence/shard-3 --head-sha "${{ github.sha }}"
+          fi
+      - name: Upload raw coverage evidence
+        if: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE != 'off' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-3
+          path: .coverage-evidence/shard-3
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
 
   linux-test-4:
     name: linux-test-4
@@ -141,7 +195,62 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 4
+      - name: Run isolated test shard
+        env:
+          FOUNDATION_PARTITIONED_COVERAGE: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE }}
+        run: |
+          if [ "$FOUNDATION_PARTITIONED_COVERAGE" = "off" ]; then
+            pnpm test:shard:built -- --shards 4
+          else
+            pnpm test:shard:built -- --shards 4 --coverage-evidence-dir .coverage-evidence/shard-4 --head-sha "${{ github.sha }}"
+          fi
+      - name: Upload raw coverage evidence
+        if: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE != 'off' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-4
+          path: .coverage-evidence/shard-4
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
+
+  linux-coverage-evidence-advisory:
+    name: linux-coverage-evidence-advisory
+    needs:
+      - dependency-review
+      - linux-test-1
+      - linux-test-2
+      - linux-test-3
+      - linux-test-4
+    if: ${{ vars.FOUNDATION_PARTITIONED_COVERAGE != 'off' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        continue-on-error: true
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9 # v6.0.9
+        continue-on-error: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        continue-on-error: true
+        with: { node-version-file: .node-version, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+        continue-on-error: true
+      - run: pnpm rebuild
+        continue-on-error: true
+      - run: pnpm build
+        continue-on-error: true
+      - name: Download exact-head shard evidence
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: coverage-evidence-${{ github.sha }}-shard-*
+          path: .coverage-evidence/downloaded
+          merge-multiple: false
+      - name: Validate, merge once, and enforce coverage thresholds
+        continue-on-error: true
+        run: pnpm test:coverage:evidence:built -- --input .coverage-evidence/downloaded --head-sha "${{ github.sha }}"
 
   linux-coverage:
     name: linux-coverage

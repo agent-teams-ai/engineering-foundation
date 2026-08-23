@@ -1,12 +1,13 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreBinaries": ["mkfifo"],
-  "ignoreDependencies": ["@openai/codex"],
+  "ignoreDependencies": ["@openai/codex", "c8"],
   "workspaces": {
     ".": {
       "entry": [
         "scripts/*.mjs",
         "tests/*.test.mjs",
+        "tests/fixtures/coverage-process-tree.fixture.mjs",
         "tests/fixtures/foundation-transaction-holder.mjs",
         "tests/fixtures/scaffolding-crash-worker.mjs",
         "tests/fixtures/**/scripts/*.mjs"

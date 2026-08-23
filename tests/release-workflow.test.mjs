@@ -489,11 +489,11 @@ test("release publishing requires real Buf and hermetic registry qualification",
     join(repositoryRoot, "scripts", "run-test-coverage.mjs"),
     "utf8",
   );
+  const coverageManifestPath = join(repositoryRoot, "tests", "manifests", "coverage.v1.json");
+  const coverageManifest = JSON.parse(await readFile(coverageManifestPath, "utf8"));
   for (const threshold of ["lines", "branches", "functions"]) {
-    assert.match(
-      coverageRunner,
-      new RegExp(`--test-coverage-${threshold}=[1-9]\\d*`, "u"),
-    );
+    assert.ok(coverageManifest.thresholds[threshold] > 0);
+    assert.match(coverageRunner, new RegExp(`config\\.thresholds\\.${threshold}`, "u"));
   }
   assert.match(manifest.scripts.check, /pnpm test:coverage:built/u);
   const ci = await workflow("ci.yml");
@@ -568,7 +568,6 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.equal(ci.jobs.check.if, "always()");
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });
-
 
 test("release ReviewGate permits only version and generated changelog changes", () => {
   const evidence = {

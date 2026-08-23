@@ -21,6 +21,8 @@ allowedUses:
     transitiveUses: []
   - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
     transitiveUses: []
+  - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+    transitiveUses: []
   - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
     transitiveUses: []
   - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38

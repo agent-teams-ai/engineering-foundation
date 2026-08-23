@@ -1,6 +1,59 @@
 {
-  "schemaVersion": 1,
-  "tests": [
+  "schemaVersion": 2,
+  "tool": {
+    "name": "c8",
+    "version": "12.0.0"
+  },
+  "processBootstrap": "scripts/coverage-process-bootstrap.mjs",
+  "include": [
+    "packages/engineering-foundation/dist/**/*.js",
+    "packages/docs-protocol/dist/**/*.js"
+  ],
+  "exclude": [
+    "packages/engineering-foundation/dist/**/*.d.ts",
+    "packages/docs-protocol/dist/**/*.d.ts"
+  ],
+  "additionalTestsByShard": {
+    "1": [
+      "packages/docs-protocol/tests/adoption.test.mjs",
+      "packages/docs-protocol/tests/authority-handshake.test.mjs",
+      "packages/docs-protocol/tests/cli-contract.test.mjs",
+      "packages/docs-protocol/tests/code-anchor.test.mjs"
+    ],
+    "2": [
+      "packages/docs-protocol/tests/consumer-integration-characterization.test.mjs",
+      "packages/docs-protocol/tests/consumer-integration-e2e.test.mjs",
+      "packages/docs-protocol/tests/consumer-integration-plan.test.mjs",
+      "packages/docs-protocol/tests/consumer-runtime-closure.test.mjs"
+    ],
+    "3": [
+      "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+      "packages/docs-protocol/tests/docs-protocol.test.mjs",
+      "packages/docs-protocol/tests/envelope-schema.test.mjs",
+      "packages/docs-protocol/tests/profile-policy.test.mjs"
+    ],
+    "4": [
+      "packages/docs-protocol/tests/public-surface.test.mjs",
+      "packages/docs-protocol/tests/public-type-contract.test.mjs",
+      "packages/docs-protocol/tests/qualification.test.mjs"
+    ]
+  },
+  "legacyTests": [
+    "packages/docs-protocol/tests/adoption.test.mjs",
+    "packages/docs-protocol/tests/authority-handshake.test.mjs",
+    "packages/docs-protocol/tests/cli-contract.test.mjs",
+    "packages/docs-protocol/tests/code-anchor.test.mjs",
+    "packages/docs-protocol/tests/consumer-integration-characterization.test.mjs",
+    "packages/docs-protocol/tests/consumer-integration-e2e.test.mjs",
+    "packages/docs-protocol/tests/consumer-integration-plan.test.mjs",
+    "packages/docs-protocol/tests/consumer-runtime-closure.test.mjs",
+    "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+    "packages/docs-protocol/tests/docs-protocol.test.mjs",
+    "packages/docs-protocol/tests/envelope-schema.test.mjs",
+    "packages/docs-protocol/tests/profile-policy.test.mjs",
+    "packages/docs-protocol/tests/public-surface.test.mjs",
+    "packages/docs-protocol/tests/public-type-contract.test.mjs",
+    "packages/docs-protocol/tests/qualification.test.mjs",
     "tests/capability.test.mjs",
     "tests/check-report-contract-conformance.test.mjs",
     "tests/cli.test.mjs",
@@ -24,5 +77,10 @@
     "tests/repository-security-hardening.test.mjs",
     "tests/scaffolding-frozen-baseline.test.mjs",
     "tests/source-dependency-graph.test.mjs"
-  ]
+  ],
+  "thresholds": {
+    "lines": 36,
+    "branches": 67,
+    "functions": 42
+  }
 }

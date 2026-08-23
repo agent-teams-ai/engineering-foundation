@@ -120,6 +120,8 @@
         "tests/changeset-coverage.test.mjs",
         "tests/ci-feedback-signals.test.mjs",
         "tests/cli.test.mjs",
+        "tests/coverage-evidence.test.mjs",
+        "tests/coverage-workflow.test.mjs",
         "tests/document-authoring-application-spine.test.mjs",
         "tests/document-authoring-contracts.test.mjs",
         "tests/document-authoring-coordinator-adapter.test.mjs",

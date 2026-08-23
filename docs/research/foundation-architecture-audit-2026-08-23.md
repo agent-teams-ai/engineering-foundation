@@ -1,11 +1,19 @@
 # Post-release аудит архитектуры Engineering Foundation
 
-Статус: независимый аудит и последующая rollout-валидация завершены 2026-08-23.
+Статус: независимый аудит release snapshot и последующая remediation/rollout-
+валидация завершены 2026-08-23.
 
-Проверенная ревизия:
+Архитектурный snapshot:
 `ae9d022a003978e30d33006132beaa5b49fc6f80` (`origin/main`, опубликованные
 `@agent-teams/engineering-foundation@0.17.0` и
 `@agent-teams/docs-protocol@0.1.0`).
+
+Post-audit closure дополнительно проверен на Foundation repository revision
+`608200c49a361a785e631d824c3b79d7e8cacf56` с опубликованным
+`@agent-teams/docs-protocol@0.1.1`, controller main
+`fdfedb5f76bc74a5bec37bf3afca2290658311ae` и exact default-branch evidence
+четырёх реальных consumers. Snapshot-оценка ниже не переписывается задним
+числом; отдельно указано текущее состояние системы после remediation.
 
 Это повторная оценка после аудита ревизии
 `36d905362955255c3faed930b11a1e6f05a87ee9`. Между ревизиями в `main` вошли
@@ -20,21 +28,29 @@ Docs CLI.
 [CI run 32611325543](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/32611325543).
 Agent runtime, provisioning и реальные consumer flows не запускались.
 
-После первоначального read-only прохода был выполнен governed rollout analysis
-для текущей RC3 fleet. Он нашёл дефекты, которые не были видны по зелёному
-producer CI: опубликованный stable transition catalog не содержит текущий RC3,
-а центральный verifier проверяет digest каталога, но не его семантическую
-достижимость. Поэтому первоначальная оценка 7.8/10 пересмотрена вниз.
+После первоначального read-only прохода governed rollout analysis для RC3 fleet
+нашёл дефекты, которые не были видны по зелёному producer CI: опубликованный
+stable transition catalog не содержал текущий RC3, а центральный verifier
+проверял digest каталога, но не его семантическую достижимость. Поэтому
+первоначальная snapshot-оценка 7.8/10 была пересмотрена вниз до 7.3/10.
+
+Затем дефект был исправлен на обеих trust boundaries, Docs Protocol 0.1.1
+опубликован, Orchestrator прошёл canary, stable Cohort стал RECOMMENDED, а
+Runtime, Extension и Platform последовательно прошли plan/apply, hosted
+default-branch gate и central bind. Текущая system-readiness оценка после этого
+closure вернулась к 7.8/10.
 
 ## Вердикт
 
-**Итоговая строгая оценка: 7.3/10, было 6.2/10. P0 не найдено. Два P1 остаются.**
+**Строгая оценка snapshot 0.17.0/0.1.0: 7.3/10, было 6.2/10. Текущее состояние
+после Docs 0.1.1 и полного stable rollout: 7.8/10. P0 не найдено. Один P1
+остаётся.**
 
 Foundation достаточно силён для разработки новых независимых feature slices:
 направление зависимостей защищено кодом, capabilities являются opt-in, а
-проектные проверки остаются у consumer. Но расширять governed Docs rollout на
-новые repositories пока нельзя: опубликованный stable 0.1.0 не имеет
-исполняемого перехода из текущего RC3 Cohort.
+проектные проверки остаются у consumer. Governed Docs rollout теперь также
+доказан end-to-end на четырёх реальных repositories; новые consumers можно
+подключать к RECOMMENDED stable Cohort через тот же staged workflow.
 
 До 9/10 не хватает не новых абстракций, а уменьшения риска уже существующего
 кода: production recovery всё ещё сконцентрирован в двух очень больших Node
@@ -140,6 +156,30 @@ Partitioned coverage уже собирается без повторного в�
 остаётся advisory до доказанной parity. Блокирующий legacy coverage lane пока
 сохраняется, что правильно для миграции, хотя временно дублирует работу.
 
+## Закрыто после audit snapshot: Stable Cohort стал deployable
+
+На snapshot опубликованный `@agent-teams/docs-protocol@0.1.0` не содержал direct
+target bundle для `docs-2026-08-18-rc3`, а central verifier не доказывал
+семантическую достижимость каждого `upgrade_from`. Package integrity,
+provenance и producer CI поэтому могли быть зелёными при невозможном реальном
+plan/apply.
+
+Пробел закрыт без nominal rollback и без ослабления trust model:
+
+- [Foundation PR 181](https://github.com/agent-teams-ai/engineering-foundation/pull/181)
+  добавил exact RC3 bundle и ADR fix-forward lifecycle;
+- [controller PR 89](https://github.com/agent-teams-ai/.github/pull/89)
+  добавил base-owned semantic deployability verification;
+- `@agent-teams/docs-protocol@0.1.1` опубликован с provenance и exact SRI;
+- Orchestrator прошёл canary и promotion в RECOMMENDED stable Cohort;
+- Runtime, Extension и Platform последовательно прошли consumer merge,
+  успешный default-branch Docs gate и central evidence bind.
+
+На controller main `fdfedb5f76bc74a5bec37bf3afca2290658311ae`
+`rollout_pending` отсутствует. Orchestrator, Runtime, Extension и Platform имеют
+`bound`, exact `0.17.0`/`0.1.1` и один observed Cohort
+`docs-2026-08-23-stable1`. Этот P1 закрыт.
+
 ## P1
 
 ### Recovery остаётся слишком сложным для безопасного изменения
@@ -161,42 +201,13 @@ windows и side effects.
 семантики нужен behaviour-preserving structural extraction. Новые независимые
 capabilities ждать этого не обязаны.
 
-### Stable Cohort опубликован, но недостижим для текущей fleet
-
-Опубликованный `@agent-teams/docs-protocol@0.1.0` содержит transition catalog без
-`docs-2026-08-18-rc3`, хотя все действующие consumers привязаны именно к этому
-Cohort. `currentSourceExecutors` также пуст. Поэтому package integrity,
-provenance и полный producer CI зелёные, но governed plan/apply из реального
-текущего состояния невозможен.
-
-Существующий packed test не доказывает production realizability rollback: он
-добавляет synthetic executor с фиктивным SRI. Для той же публикуемой tarball V1
-контракт создаёт self-reference: future package SRI нельзя честно записать внутрь
-каталога, входящего в вычисление этого SRI. Первый stable переход должен быть
-явно fix-forward, без выдуманного `rollback_to`.
-
-Центральный controller усугубляет пробел: live verifier сверяет точные asset
-digests, но не доказывает, что каждый `upgrade_from` имеет bundled immutable
-target и content-addressed historical bytes. Digest-valid, но недостижимый
-Cohort поэтому мог стать Qualified.
-
-Исправление уже разделено по правильным trust boundaries:
-
-- [Foundation PR 181](https://github.com/agent-teams-ai/engineering-foundation/pull/181)
-  добавляет точный RC3 bundle и ADR fix-forward lifecycle;
-- [controller PR 89](https://github.com/agent-teams-ai/.github/pull/89)
-  проверяет semantic deployability base-owned кодом до qualification.
-
-Пока оба изменения, patch release и первый canary rollout не завершены, этот P1
-считается открытым. Новые независимые Foundation capabilities он не блокирует,
-но подключение новых governed consumers блокирует.
-
 ## P2
 
 ### Unexpected errors теряют безопасную причину
 
 [`check-runner.ts`](../../packages/engineering-foundation/src/check-runner.ts) и
-несколько capability modules превращают неожиданные исключения в общий
+все 12 зарегистрированных capability module wrappers превращают неожиданные
+исключения в общий
 `FOUNDATION_CHECK_FAILED` или `CAPABILITY_EXECUTION_FAILED`. Пользователь видит
 phase, но часто не различает filesystem, parser, process и internal invariant
 failure.
@@ -310,19 +321,20 @@ recovery authority для evidence, созданного той версией. 
 
 ## Поэтапный roadmap без overengineering
 
-### Этап 0: доказать deployable stable rollout
+### Этап 0: доказать deployable stable rollout - завершён
 
-Ориентир: два authority PR, один Docs Protocol patch release и один canary PR.
+Выполнены два authority hardening PR, Docs Protocol patch release, Orchestrator
+canary/promotion и последовательный rollout остальных real consumers.
 
-1. Опубликовать Docs Protocol с exact RC3 direct target bundle и пустым
+1. Docs Protocol 0.1.1 содержит exact RC3 direct target bundle и пустой
    `rollback_to` для stable Cohort.
-2. До qualification включить base-owned semantic verifier: central projection,
-   canonical route/scripts digests и content-addressed historical bytes.
-3. Пройти RC3 -> stable plan/apply в Orchestrator canary, затем hosted default-
-   branch gate. Только после этого отметить Cohort CANARY/RECOMMENDED и обновлять
-   остальные consumers.
-4. Не использовать nominal V1 rollback. До отдельного lifecycle ADR incidents
-   обрабатываются suspension и fix-forward patch.
+2. Base-owned semantic verifier проверяет central projection, canonical
+   route/scripts digests и content-addressed historical bytes.
+3. Orchestrator доказал RC3 -> stable plan/apply и hosted default-branch gate;
+   Cohort прошёл CANARY -> RECOMMENDED.
+4. Остальные real consumers обновлены последовательно, каждый с exact-head
+   review, hosted default-branch evidence и central bind.
+5. Nominal V1 rollback не используется; lifecycle остаётся fix-forward.
 
 ### Этап 1: закрыть быстрый operational drift
 
@@ -385,9 +397,9 @@ filesystem loader и injectable ports с `createDefault...()` composition.
 registry и source-built self-dogfooding. Не строить plugin platform, отдельный
 bootstrap package или универсальный recovery engine.
 
-Foundation уже можно масштабировать новыми независимыми feature slices. Новые
-consumer repositories подключать после завершения exact RC3 -> stable canary и
-central deployability guard. Новую recovery semantics не добавлять, пока
-behaviour-preserving decomposition не уменьшит второй P1. После rollout
-максимальный эффект дают recovery extraction, bounded diagnostics и устранение
-шума CI observer, а не новый слой governance.
+Foundation уже можно масштабировать новыми независимыми feature slices и
+подключать новые consumer repositories к доказанному stable Cohort. Новую
+recovery semantics не добавлять, пока behaviour-preserving decomposition не
+уменьшит оставшийся P1. После rollout максимальный эффект дают recovery
+extraction, bounded diagnostics и устранение шума CI observer, а не новый слой
+governance.

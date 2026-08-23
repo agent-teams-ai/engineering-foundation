@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -37,8 +37,9 @@ function createPlan({ nested = false } = {}) {
   }] });
 }
 
-async function createFixture({ nested = false } = {}) {
+async function createFixture(context, { nested = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), "foundation-known-file-characterization-"));
+  context.after(() => rm(root, { force: true, recursive: true }));
   if (!nested) {
     await mkdir(join(root, "managed"));
     await writeFile(join(root, "managed", "existing.txt"), "old\n", { mode: 0o640 });
@@ -126,6 +127,27 @@ function assertOperationShape(operation, expected) {
   }
 }
 
+async function assertDestinationState(root, expected) {
+  const destination = join(root, "managed", "existing.txt");
+  if (expected === "absent") {
+    await assert.rejects(stat(destination), (error) => error?.code === "ENOENT");
+    return;
+  }
+  assert.equal(await readFile(destination, "utf8"), `${expected}\n`);
+}
+
+async function assertCaptureEntries(root, expected) {
+  const managed = join(root, "managed");
+  const captureDirectories = (await readdir(managed)).filter((name) =>
+    name.includes(".agent-teams.capture.")
+  );
+  assert.equal(captureDirectories.length, 1);
+  assert.deepEqual(
+    (await readdir(join(managed, captureDirectories[0]))).toSorted(),
+    expected
+  );
+}
+
 const replacementPath = "managed/existing.txt";
 const replacementApplySequence = [
   { phase: "after-barrier-acquired" },
@@ -169,22 +191,27 @@ const rollbackReadyKeys = [
 
 const replacementApplyCases = [
   {
+    destination: "old",
     phase: "after-journal-created",
     operation: { keys: ["matchedPreimage", "path", "state"], state: "pending" }
   },
   {
+    destination: "old",
     phase: "after-temporary-authorized",
     operation: { keys: ["matchedPreimage", "path", "state"], state: "temporary-authorized" }
   },
   {
+    destination: "old",
     phase: "after-temporary-synced",
     operation: { keys: temporaryKeys, state: "temporary-ready" }
   },
   {
+    destination: "old",
     phase: "after-capture-authorized",
     operation: { keys: temporaryKeys, state: "capture-authorized" }
   },
   {
+    destination: "old",
     phase: "after-capture-ready",
     operation: {
       keys: [
@@ -198,34 +225,44 @@ const replacementApplyCases = [
     }
   },
   {
+    destination: "old",
     phase: "after-preimage-captured",
     operation: { keys: capturedKeys, state: "preimage-captured" }
   },
   {
+    destination: "old",
     phase: "after-rollback-temporary-ready",
     operation: { keys: rollbackReadyKeys, state: "preimage-captured" }
   },
   {
+    captureEntries: ["preimage", "retired"],
+    destination: "absent",
     phase: "after-destination-captured",
     operation: { keys: rollbackReadyKeys, state: "preimage-captured" }
   },
   {
+    captureEntries: ["preimage"],
+    destination: "absent",
     phase: "after-destination-retired",
     operation: { keys: rollbackReadyKeys, state: "destination-retired" }
   },
   {
+    destination: "absent",
     phase: "after-operation-publishing",
     operation: { keys: rollbackReadyKeys, state: "publishing" }
   },
   {
+    destination: "new",
     phase: "after-postimage-linked",
     operation: { keys: rollbackReadyKeys, state: "publishing" }
   },
   {
+    destination: "new",
     phase: "after-operation-published",
     operation: { keys: rollbackReadyKeys, state: "published" }
   },
   {
+    destination: "new",
     envelopeState: "COMMITTED",
     phase: "after-journal-committed",
     operation: { keys: rollbackReadyKeys, state: "published" },
@@ -234,8 +271,8 @@ const replacementApplyCases = [
 ];
 
 for (const characterization of replacementApplyCases) {
-  posixTest(`characterizes replacement apply at ${characterization.phase}`, async () => {
-    const { plan, root } = await createFixture();
+  posixTest(`characterizes replacement apply at ${characterization.phase}`, async (context) => {
+    const { plan, root } = await createFixture(context);
     const terminalIndex = replacementApplySequence.findIndex(
       ({ phase }) => phase === characterization.phase
     );
@@ -253,6 +290,10 @@ for (const characterization of replacementApplyCases) {
     assert.equal(envelope.state, characterization.envelopeState ?? "APPLYING");
     assert.equal(envelope.journal.plan.planDigest, plan.planDigest);
     assertOperationShape(envelope.journal.operations[0], characterization.operation);
+    await assertDestinationState(root, characterization.destination);
+    if (characterization.captureEntries !== undefined) {
+      await assertCaptureEntries(root, characterization.captureEntries);
+    }
 
     const recovery = await recoverKnownFileTransaction({ consumerRoot: root });
     assert.equal(recovery.outcome, characterization.recoveryOutcome ?? "rolled-back");
@@ -283,8 +324,8 @@ for (const characterization of [
     phase: "after-directory-created"
   }
 ]) {
-  posixTest(`characterizes parent recovery at ${characterization.phase}`, async () => {
-    const { plan, root } = await createFixture({ nested: true });
+  posixTest(`characterizes parent recovery at ${characterization.phase}`, async (context) => {
+    const { plan, root } = await createFixture(context, { nested: true });
     const terminalIndex = nestedApplySequence.findIndex(
       ({ phase }) => phase === characterization.phase
     );
@@ -318,6 +359,29 @@ for (const characterization of [
   });
 }
 
+posixTest("preserves a directory that appears after parent authorization", async (context) => {
+  const { plan, root } = await createFixture(context, { nested: true });
+  const terminalIndex = nestedApplySequence.findIndex(
+    ({ phase }) => phase === "after-directory-authorized"
+  );
+  const crash = scriptedCrash(
+    nestedApplySequence.slice(0, terminalIndex + 1),
+    "directory apply through after-directory-authorized"
+  );
+  await assert.rejects(
+    applyKnownFileTransaction({ consumerRoot: root, plan, faultInjector: crash.faultInjector }),
+    /characterization-stop:after-directory-authorized/u
+  );
+  crash.assertConsumed();
+
+  await mkdir(join(root, "nested"));
+  await assert.rejects(
+    recoverKnownFileTransaction({ consumerRoot: root }),
+    (error) => error?.code === "KNOWN_FILE_RECOVERY_CONFLICT"
+  );
+  assert.equal((await stat(join(root, "nested"))).isDirectory(), true);
+});
+
 const replacementRecoverySequence = [
   operationPoint("after-retirement-directory-bound", replacementPath),
   operationPoint("after-retirement-captured", replacementPath),
@@ -329,6 +393,7 @@ const replacementRecoverySequence = [
 
 const replacementRecoveryCases = [
   {
+    destination: "new",
     phase: "after-retirement-directory-bound",
     operation: {
       keys: [...rollbackReadyKeys, "retirement"].toSorted(),
@@ -337,6 +402,7 @@ const replacementRecoveryCases = [
     }
   },
   {
+    destination: "absent",
     phase: "after-retirement-captured",
     operation: {
       keys: [...rollbackReadyKeys, "retirement"].toSorted(),
@@ -345,6 +411,7 @@ const replacementRecoveryCases = [
     }
   },
   {
+    destination: "absent",
     phase: "after-retirement-unlink-authorized",
     operation: {
       keys: [...rollbackReadyKeys, "retirement"].toSorted(),
@@ -353,22 +420,25 @@ const replacementRecoveryCases = [
     }
   },
   {
+    destination: "absent",
     phase: "after-destination-retired",
     operation: { keys: rollbackReadyKeys, state: "published" }
   },
   {
+    destination: "old",
     phase: "after-rollback-linked",
     operation: { keys: rollbackReadyKeys, state: "published" }
   },
   {
+    destination: "old",
     phase: "after-rollback-capture-unlinked",
     operation: { keys: rollbackReadyKeys, state: "rollback-restored" }
   }
 ];
 
 for (const characterization of replacementRecoveryCases) {
-  posixTest(`characterizes replacement recovery at ${characterization.phase}`, async () => {
-    const { plan, root } = await createFixture();
+  posixTest(`characterizes replacement recovery at ${characterization.phase}`, async (context) => {
+    const { plan, root } = await createFixture(context);
     await assert.rejects(applyKnownFileTransaction({
       consumerRoot: root,
       plan,
@@ -395,6 +465,7 @@ for (const characterization of replacementRecoveryCases) {
     const envelope = await readJournal(root);
     assert.equal(envelope.state, "APPLYING");
     assertOperationShape(envelope.journal.operations[0], characterization.operation);
+    await assertDestinationState(root, characterization.destination);
 
     const recovered = await recoverKnownFileTransaction({ consumerRoot: root });
     assert.equal(recovered.outcome, "rolled-back");

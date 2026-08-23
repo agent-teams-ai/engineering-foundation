@@ -90,10 +90,11 @@ function validateCoverageManifest(coverageManifest, testPaths, shardIds) {
       "additionalTestsByShard",
       "legacyTests",
       "thresholds",
+      "evidenceThresholds",
     ],
     "coverage manifest",
   );
-  if (coverageManifest.schemaVersion !== 2) {
+  if (coverageManifest.schemaVersion !== 3) {
     fail("unsupported coverage schemaVersion");
   }
   assertExactKeys(coverageManifest.tool, ["name", "version"], "coverage tool");
@@ -118,10 +119,16 @@ function validateCoverageManifest(coverageManifest, testPaths, shardIds) {
     coverageManifest.additionalTestsByShard,
     shardIds,
   );
-  assertExactKeys(coverageManifest.thresholds, ["branches", "functions", "lines"], "coverage thresholds");
-  for (const [key, value] of Object.entries(coverageManifest.thresholds)) {
-    if (!Number.isInteger(value) || value < 1 || value > 100) {
-      fail(`coverage threshold ${key} must be an integer from 1 through 100`);
+  for (const authority of ["thresholds", "evidenceThresholds"]) {
+    assertExactKeys(
+      coverageManifest[authority],
+      ["branches", "functions", "lines"],
+      `coverage ${authority}`,
+    );
+    for (const [key, value] of Object.entries(coverageManifest[authority])) {
+      if (!Number.isInteger(value) || value < 1 || value > 100) {
+        fail(`coverage ${authority} ${key} must be an integer from 1 through 100`);
+      }
     }
   }
   if (!Array.isArray(coverageManifest.legacyTests) || coverageManifest.legacyTests.length === 0) {

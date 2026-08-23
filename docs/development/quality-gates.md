@@ -94,8 +94,10 @@ only when no such run appears during its bounded selection window.
 
 `tests/manifests/test-shards.v1.json` owns the cross-platform shards.
 `tests/manifests/coverage.v1.json` pins their coverage-only additions, the
-merger, production include/exclude boundaries, current thresholds, and the
-legacy blocking test selection. Together they are the closed inventory of
+merger, production include/exclude boundaries, c8 evidence thresholds, and the
+separate legacy Node coverage thresholds and test selection. The two threshold
+authorities remain explicit because Node and c8 do not calculate every metric
+identically. Together the manifests are the closed inventory of
 repository and Docs Protocol test files. `pnpm test:manifests:check` rejects missing, extra,
 duplicate, nested, non-portable, or symlinked test entries and malformed
 coverage configuration. Add or rename a test and update the shard manifest in

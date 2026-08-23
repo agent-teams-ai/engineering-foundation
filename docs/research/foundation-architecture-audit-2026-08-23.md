@@ -332,8 +332,8 @@ canary/promotion и последовательный rollout остальных 
    route/scripts digests и content-addressed historical bytes.
 3. Orchestrator доказал RC3 -> stable plan/apply и hosted default-branch gate;
    Cohort прошёл CANARY -> RECOMMENDED.
-4. Остальные real consumers обновлены последовательно, каждый с exact-head
-   review, hosted default-branch evidence и central bind.
+4. Остальные real consumers обновлены последовательно, каждый с hosted
+   default-branch evidence и central bind.
 5. Nominal V1 rollback не используется; lifecycle остаётся fix-forward.
 
 ### Этап 1: закрыть быстрый operational drift

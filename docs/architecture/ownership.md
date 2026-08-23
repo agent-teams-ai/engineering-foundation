@@ -66,6 +66,14 @@ delegates every apply to that Foundation port. Organization governance owns the
 Qualified Cohort and enrollment evidence. Lockfiles remain package-manager-owned,
 while profiles and documentation authority remain consumer-owned.
 
+ADR-0033 closes the remaining dual-CLI ambiguity. Docs Protocol is the target
+owner of documentation commands and workflow. Foundation's older top-level
+`docs` namespace is frozen for compatibility, emits a stable human-mode
+deprecation code, and cannot gain new behavior. It is removed only by a later
+breaking change with exact consumer-cutover, packed-registry, hosted-matrix,
+and legacy-recovery evidence. The freeze does not deprecate Foundation's
+reusable document-authoring, mutation, transaction, or recovery mechanisms.
+
 The corrected authoring v1 applies that split mechanically. Foundation owns
 Intent normalization, closed ID/placement operators, filename slug derivation,
 canonical frontmatter and domain-separated protocol digests. A complete rebuilt

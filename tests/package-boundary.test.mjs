@@ -174,10 +174,15 @@ test("source dependency capability accepts the exact repository allowlist", asyn
 });
 
 test("current authoring guidance uses only the unified explicit-mutation CLI", async () => {
-  for (const path of ["README.md", "docs/architecture/document-authoring-protocol.md"]) {
+  for (const path of [
+    "README.md",
+    "docs/architecture/document-authoring-protocol.md",
+    "packages/engineering-foundation/README.md",
+  ]) {
     const source = await readFile(join(repositoryRoot, path), "utf8");
     assert.doesNotMatch(source, /agent-teams-foundation docs/u, path);
     assert.doesNotMatch(source, /without `--dry-run`/u, path);
+    assert.match(source, /agent-teams-docs/u, path);
   }
 });
 

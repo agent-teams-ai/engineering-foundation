@@ -13,6 +13,7 @@ import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { foundationCommandFailure } from "./command-error.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
+import { DOCS_PROTOCOL_CLI_COMMAND, DOCS_PROTOCOL_PACKAGE_NAME, emitLegacyDocsCliDeprecation } from "./legacy-docs-cli-deprecation.js";
 import { projectDocumentLaunchFailure } from "./document-authoring/composition/document-command-cli.js";
 import { runDocumentCommand } from "./document-command.js";
 import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
@@ -126,10 +127,8 @@ function printHelp(): void {
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
   agent-teams-foundation scaffold-recover [--consumer <path>] [--json]
-  agent-teams-foundation docs find [text] [--id <id>] [--type <type>] [--status <status>] [--owner <owner>] [--consumer <path>] [--profile <path>] [--json]
-  agent-teams-foundation docs new --type <type> --id <id> --title <title> --owner <owner> --summary <summary> [--slug <slug>] [--destination <path>] [--related <id>...] [--dry-run] [--consumer <path>] [--profile <path>] [--json]
-  agent-teams-foundation docs doctor [--consumer <path>] [--json]
-  agent-teams-foundation docs recover [--consumer <path>] [--json]
+  [DEPRECATED] agent-teams-foundation docs <command> [...]
+    Compatibility-only legacy CLI. Use ${DOCS_PROTOCOL_CLI_COMMAND} from ${DOCS_PROTOCOL_PACKAGE_NAME}.
   agent-teams-foundation schema <schema-id>
   agent-teams-foundation attach <path> [--consumer <path>]
   agent-teams-foundation status [--consumer <path>] [--json]
@@ -441,7 +440,8 @@ async function runInformationCommand(
 }
 
 async function main(environment: NodeJS.ProcessEnv): Promise<void> {
-  const parsed = parseArguments(process.argv.slice(2));
+  const rawArguments = process.argv.slice(2);
+  const parsed = parseArguments(rawArguments);
   const json = parsed.format === "json";
   const service = new FoundationLocalModeService({
     runner: new NodeProcessRunner(),
@@ -457,6 +457,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
     await runPolicyCommand(parsed, json) ||
     await runInformationCommand(parsed, json)
   ) {
+    emitLegacyDocsCliDeprecation(rawArguments, { machineOutput: json });
     return;
   }
   throw new FoundationError(
@@ -468,6 +469,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
 try {
   await main(process.env);
 } catch (error) {
+  emitLegacyDocsCliDeprecation(process.argv.slice(2));
   const documentFailure = projectDocumentLaunchFailure(process.argv.slice(2), error);
   if (documentFailure !== undefined) {
     process.stdout.write(documentFailure.stdout);

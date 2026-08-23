@@ -34,70 +34,45 @@ const catalog = await buildDocumentationCatalog({
 });
 ```
 
-Agents can query the same stable catalog without a generated search index. The
-v1 query is a normalized, case-independent literal substring over document ID,
-title, summary, headings, and body. Filters are exact and combine with AND;
-results sort by ID and then repository path.
-
-Node/pnpm consumers expose the short agent-facing commands through their own
-repository manifest; Foundation keeps the underlying CLI package-manager
-neutral:
+The operator and agent-facing documentation workflow is owned by
+`@agent-teams/docs-protocol`. New and migrated consumers expose its commands
+through their repository manifest:
 
 ```json
 {
   "scripts": {
-    "docs:find": "agent-teams-foundation docs find",
-    "docs:new": "agent-teams-foundation docs new",
-    "docs:doctor": "agent-teams-foundation docs doctor",
+    "docs:info": "agent-teams-docs info",
+    "docs:find": "agent-teams-docs find",
+    "docs:new": "agent-teams-docs new",
+    "docs:doctor": "agent-teams-docs doctor",
+    "docs:recover": "agent-teams-docs recover",
+    "docs:check": "agent-teams-docs check",
     "check": "agent-teams-foundation repo check"
   }
 }
 ```
 
 ```bash
-pnpm docs:find "tenant isolation" --consumer /repo
-pnpm docs:find --type adr --status proposed --owner architecture --consumer /repo --json
-```
-
-The default profile is
-`architecture/foundation/document-authoring.yaml`; `--profile` selects another
-repository-relative profile. Zero matches is success. A partial catalog retains
-valid matches and structured diagnostics while returning exit code `1`.
-
-Create a governed document with an explicit ID, owner, and summary. Foundation
-does not infer `--owner` or `--summary` from the document type, schema, path, or
-current user:
-
-```bash
-agent-teams-foundation docs new --type adr --id ADR-0083 \
+agent-teams-docs find "tenant isolation" --consumer /repo
+agent-teams-docs new --type adr --id ADR-0083 \
   --title "Tenant isolation" --owner architecture/tooling \
   --summary "Defines the tenant-isolation boundary and its verification evidence." \
   --dry-run --consumer /repo
-agent-teams-foundation docs new --type adr --id ADR-0083 \
+agent-teams-docs new --type adr --id ADR-0083 \
   --title "Tenant isolation" --owner architecture/tooling \
   --summary "Defines the tenant-isolation boundary and its verification evidence." \
-  --consumer /repo
+  --apply --consumer /repo
+agent-teams-docs check --consumer /repo
 ```
 
-`--dry-run` compiles a non-reserving preview and performs no repository
-mutation. A successful create reports the document path and either the exact
-consumer-authorized index path and Markdown link to add, or the standard
-repository check as the next step. Use the read-only doctor before operating on
-uncertain transaction state, and run recovery only when it reports an automatic
-document recovery route:
-
-```bash
-agent-teams-foundation docs doctor --consumer /repo
-agent-teams-foundation docs recover --consumer /repo
-agent-teams-foundation check --consumer /repo
-```
-
-Every docs command accepts `--json`. Search uses command-envelope v1; mutation
-commands use command-envelope v2. Machine mode writes exactly one bounded JSON
-object to stdout, keeps diagnostics and remediation structured, uses `/` in
-repository paths, and omits timestamps and durations. Stable exit codes are
-`0` success, `1` conflict or recovery required, `2` invalid input, `3`
-execution failure, and `130` cancellation. The canonical details are in the
+Foundation's legacy `docs` CLI namespace remains executable only as a frozen
+compatibility surface. Human invocations emit the stable diagnostic code
+`FOUNDATION_DOCS_CLI_DEPRECATED`; JSON invocations retain their published
+stdout, stderr, envelope, and exit-code contract. The legacy namespace must not
+receive new commands, options, orchestration behavior, or Docs Protocol imports.
+Removal requires the evidence defined by
+[ADR-0033](../../docs/decisions/0033-freeze-legacy-foundation-docs-cli.md).
+The canonical current workflow and JSON contract are in the
 [document authoring protocol](../../docs/architecture/document-authoring-protocol.md#canonical-agent-and-operator-cli).
 
 Consumer CI should run both policy gates:

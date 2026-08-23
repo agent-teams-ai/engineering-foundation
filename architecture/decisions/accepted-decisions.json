@@ -166,6 +166,11 @@
       "id": "ADR-0033",
       "path": "docs/decisions/0033-freeze-legacy-foundation-docs-cli.md",
       "immutableDigest": "sha256:3d86d143d10bb38cef7007c3c53150420abbab8015552230c126d115d2850a0e"
+    },
+    {
+      "id": "ADR-0034",
+      "path": "docs/decisions/0034-fix-forward-stable-cohort-admission.md",
+      "immutableDigest": "sha256:3204d21acdb4c36747c3379d4a559e8749def9545c77f4cbb30679ece8e4624a"
     }
   ]
 }

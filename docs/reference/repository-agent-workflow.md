@@ -81,8 +81,10 @@ override still shadows `AGENTS.md` but contributes no effective text.
 The target must name either an existing regular file or a planned file path;
 an existing directory is rejected. Target paths must be normalized
 repository-relative POSIX paths in Unicode NFC and cannot contain C0, DEL, C1,
-line-separator, or paragraph-separator characters. This keeps both filesystem
-routing and the human-readable report single-line and unambiguous.
+line-separator, paragraph-separator, malformed Unicode, or bidirectional-formatting
+characters. Windows absolute paths are rejected consistently on every platform.
+This keeps filesystem routing portable and the human-readable report single-line
+and resistant to terminal direction spoofing.
 
 The command models Codex's default project-level discovery. It deliberately
 does not read user-level instructions, session state, custom fallback names, or
@@ -93,7 +95,13 @@ cover raw source and actually admitted bytes; the resolution digest binds the
 target and ordered admitted sources, not a provider-specific final prompt.
 Selected sources above the capability's 256 KiB inspection bound fail closed;
 shadowed sources are not read. After the 32 KiB budget is exhausted, later
-selected sources are reported from metadata only with a `null` source digest.
+selected sources are opened without content reads and reported from stable
+file-handle metadata with a `null` source digest. If that stable handle cannot
+be opened, the command fails closed instead of trusting pathname-only metadata.
+Repeated containment and identity checks reject observed path mutation, but the
+portable Node implementation does not claim protection from a fully coordinated
+same-user ancestor ABA swap because it lacks directory-handle-relative traversal.
+Shadowed candidates are only classified and their content is never opened.
 
 The report proves file precedence, not natural-language rule conflicts. A
 deeper applied file can override an earlier file, but Foundation does not claim

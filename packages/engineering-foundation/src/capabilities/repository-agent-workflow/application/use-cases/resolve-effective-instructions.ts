@@ -30,8 +30,12 @@ function selectedCandidate(
   return index < 0 || candidate === undefined ? undefined : { candidate, index };
 }
 
-function decodedText(bytes: Uint8Array): string {
-  return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+function hasInstructionText(bytes: Uint8Array): boolean {
+  const text = new TextDecoder("utf-8", {
+    fatal: false,
+    ignoreBOM: true
+  }).decode(bytes);
+  return /\P{White_Space}/u.test(text);
 }
 
 function scopeFor(directory: string): string {
@@ -87,7 +91,7 @@ export async function resolveEffectiveInstructions(
 
     const source = selected.candidate.bytes;
     const admitted = source?.slice(0, remainingBytes) ?? new Uint8Array();
-    const hasInstructionText = source !== null && decodedText(admitted).trim().length > 0;
+    const instructionTextPresent = source !== null && hasInstructionText(admitted);
     const wasTruncated = source !== null && source.byteLength > admitted.byteLength;
     const canOverrideEarlier = [...effectivePaths];
     let status: EffectiveInstructionLayerReport["status"];
@@ -95,7 +99,7 @@ export async function resolveEffectiveInstructions(
     if (remainingBytes === 0) {
       status = "budget-exhausted";
       appliedBytes = new Uint8Array();
-    } else if (!hasInstructionText) {
+    } else if (!instructionTextPresent) {
       status = "ignored-empty";
       appliedBytes = new Uint8Array();
     } else {

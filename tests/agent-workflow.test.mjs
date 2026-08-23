@@ -12,7 +12,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve as resolvePath } from "node:path";
 import test from "node:test";
 
 import {
@@ -24,6 +24,10 @@ import {
   sha256Bytes,
   sha256Json,
 } from "../packages/engineering-foundation/dist/canonical-json.js";
+import {
+  ContainedFileReadError,
+  inspectContainedRegularFile,
+} from "../packages/engineering-foundation/dist/filesystem-path-safety.js";
 import { PnpmPackageScriptRunner } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/pnpm/pnpm-package-script-runner.js";
 import { FilesystemEffectiveInstructionsReader } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.js";
 import { resolveEffectiveInstructions } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/use-cases/resolve-effective-instructions.js";
@@ -487,6 +491,222 @@ test("truncates exactly one byte beyond the instruction budget", async () => {
   );
 });
 
+test("matches Codex lossy UTF-8 and Unicode whitespace admission semantics", async () => {
+  const cases = [
+    {
+      name: "UTF-8 BOM",
+      bytes: Uint8Array.from([0xef, 0xbb, 0xbf]),
+      status: "applied",
+      loadedBytes: 3,
+    },
+    {
+      name: "Unicode next-line whitespace",
+      bytes: new TextEncoder().encode("\u0085"),
+      status: "ignored-empty",
+      loadedBytes: 0,
+    },
+    {
+      name: "malformed UTF-8",
+      bytes: Uint8Array.from([0x80]),
+      status: "applied",
+      loadedBytes: 1,
+    },
+  ];
+
+  for (const fixture of cases) {
+    const observations = new Map([
+      [
+        ".",
+        Object.freeze([
+          Object.freeze({ kind: "missing", path: "AGENTS.override.md" }),
+          instructionFile("AGENTS.md", fixture.bytes),
+        ]),
+      ],
+    ]);
+    const targetPath = "src/index.ts";
+    const report = await resolveEffectiveInstructions(
+      { consumerRoot: "/disposable-fixture", targetPath },
+      instructionReader({
+        targetPath,
+        directories: ["."],
+        observations,
+      }),
+    );
+
+    assert.equal(report.layers[0].status, fixture.status, fixture.name);
+    assert.equal(report.layers[0].loadedBytes, fixture.loadedBytes, fixture.name);
+    assert.equal(report.budget.loadedBytes, fixture.loadedBytes, fixture.name);
+    assert.equal(
+      report.resolutionDigest,
+      expectedResolutionDigest(
+        targetPath,
+        fixture.loadedBytes === 0
+          ? []
+          : [{ path: "AGENTS.md", bytes: fixture.bytes }],
+      ),
+      fixture.name,
+    );
+  }
+});
+
+test("observes stable instruction metadata without reading candidate content", async () => {
+  const root = resolvePath("disposable-contained-root");
+  const sourceDirectory = join(root, "src");
+  const candidate = join(sourceDirectory, "AGENTS.md");
+  const fileSnapshot = {
+    ctimeMs: 1n,
+    dev: 1n,
+    ino: 2n,
+    mode: 0o100644n,
+    mtimeMs: 1n,
+    size: 1_337n,
+    isFile: () => true,
+  };
+  let readCalls = 0;
+  let closeCalls = 0;
+  let metadataOpenAllowed = true;
+  const operations = {
+    async lstat(path) {
+      assert.ok(path === sourceDirectory || path === candidate);
+      return { isSymbolicLink: () => false };
+    },
+    async open(path) {
+      assert.equal(path, candidate);
+      if (!metadataOpenAllowed) {
+        const error = new Error("Read access denied.");
+        error.code = "EACCES";
+        throw error;
+      }
+      return {
+        async close() {
+          closeCalls += 1;
+        },
+        async read() {
+          readCalls += 1;
+          throw new Error("Metadata inspection must not read content.");
+        },
+        async stat() {
+          return fileSnapshot;
+        },
+      };
+    },
+    async realpath(path) {
+      assert.ok(path === root || path === candidate);
+      return path;
+    },
+    async stat(path) {
+      if (path === root) {
+        return {
+          ...fileSnapshot,
+          isDirectory: () => true,
+          isFile: () => false,
+        };
+      }
+      assert.equal(path, candidate);
+      return {
+        ...fileSnapshot,
+        isDirectory: () => false,
+      };
+    },
+  };
+  const observation = await inspectContainedRegularFile(
+    { candidate, root },
+    operations,
+  );
+  assert.deepEqual(observation, { size: 1_337 });
+  assert.equal(readCalls, 0);
+  assert.equal(closeCalls, 1);
+
+  metadataOpenAllowed = false;
+  await assert.rejects(
+    inspectContainedRegularFile({ candidate, root }, operations),
+    (error) => {
+      assert.ok(error instanceof ContainedFileReadError);
+      assert.equal(error.failure, "unavailable");
+      return true;
+    },
+  );
+  assert.equal(readCalls, 0);
+  assert.equal(closeCalls, 1);
+});
+
+test("rejects a metadata-only observation when candidate ancestry changes", async () => {
+  const root = resolvePath("disposable-contained-root");
+  const sourceDirectory = join(root, "src");
+  const candidate = join(sourceDirectory, "AGENTS.md");
+  const fileSnapshot = {
+    ctimeMs: 1n,
+    dev: 1n,
+    ino: 2n,
+    mode: 0o100644n,
+    mtimeMs: 1n,
+    size: 1_337n,
+    isFile: () => true,
+  };
+  let sourceDirectoryChecks = 0;
+  let readCalls = 0;
+  let closeCalls = 0;
+
+  await assert.rejects(
+    inspectContainedRegularFile(
+      { candidate, root },
+      {
+        async lstat(path) {
+          if (path === sourceDirectory) {
+            sourceDirectoryChecks += 1;
+            return {
+              isSymbolicLink: () => sourceDirectoryChecks > 1,
+            };
+          }
+          assert.equal(path, candidate);
+          return { isSymbolicLink: () => false };
+        },
+        async open(path) {
+          assert.equal(path, candidate);
+          return {
+            async close() {
+              closeCalls += 1;
+            },
+            async read() {
+              readCalls += 1;
+              throw new Error("Metadata inspection must not read content.");
+            },
+            async stat() {
+              return fileSnapshot;
+            },
+          };
+        },
+        async realpath(path) {
+          assert.ok(path === root || path === candidate);
+          return path;
+        },
+        async stat(path) {
+          if (path === candidate) {
+            return {
+              ...fileSnapshot,
+              isDirectory: () => false,
+            };
+          }
+          assert.equal(path, root);
+          return {
+            ...fileSnapshot,
+            isDirectory: () => true,
+            isFile: () => false,
+          };
+        },
+      },
+    ),
+    (error) => {
+      assert.ok(error instanceof ContainedFileReadError);
+      assert.equal(error.failure, "symlink");
+      return true;
+    },
+  );
+  assert.equal(sourceDirectoryChecks, 2);
+  assert.equal(readCalls, 0);
+  assert.equal(closeCalls, 1);
+});
+
 test("reports an empty override that masks the canonical file without consuming budget", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
     await writeFile(join(consumerRoot, "src", "AGENTS.md"), "# Hidden\n", "utf8");
@@ -502,6 +722,30 @@ test("reports an empty override that masks the canonical file without consuming 
     assert.deepEqual(report.layers[1].canOverrideEarlier, []);
   });
 });
+
+test(
+  "does not open an unreadable shadowed instruction candidate",
+  { skip: process.platform === "win32" },
+  async () => {
+    await withAgentWorkflowFixture(async (consumerRoot) => {
+      const shadowedPath = join(consumerRoot, "src", "AGENTS.md");
+      await writeFile(shadowedPath, "# Hidden\n", "utf8");
+      await chmod(shadowedPath, 0o000);
+      await writeFile(
+        join(consumerRoot, "src", "AGENTS.override.md"),
+        "# Selected\n",
+        "utf8",
+      );
+
+      const { result, report } = runInstructions(consumerRoot, "src/index.ts");
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(report.layers[1].status, "applied");
+      assert.deepEqual(report.layers[1].shadowed.map(({ path }) => path), [
+        "src/AGENTS.md",
+      ]);
+    });
+  },
+);
 
 test("shows truncation and later exclusions at the default instruction byte budget", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
@@ -589,6 +833,25 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
       ["C1 control sequence introducer", "\u009b"],
       ["Unicode line separator", "\u2028"],
       ["Unicode paragraph separator", "\u2029"],
+      ["lone high surrogate", "\ud800"],
+      ["lone low surrogate", "\udc00"],
+      ...[
+        0x061c,
+        0x200e,
+        0x200f,
+        0x202a,
+        0x202b,
+        0x202c,
+        0x202d,
+        0x202e,
+        0x2066,
+        0x2067,
+        0x2068,
+        0x2069,
+      ].map((codePoint) => [
+        `bidirectional control U+${codePoint.toString(16).toUpperCase()}`,
+        String.fromCodePoint(codePoint),
+      ]),
     ];
     for (const [name, character] of unsafeDisplayCharacters) {
       await assert.rejects(
@@ -607,6 +870,21 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
         },
       );
     }
+
+    await assert.rejects(
+      reader.discover({
+        consumerRoot: unavailableRoot,
+        targetPath: "C:/planned.ts",
+      }),
+      (error) => {
+        assert.equal(
+          error.problem?.code,
+          "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
+        );
+        assert.doesNotMatch(error.message, /planned/u);
+        return true;
+      },
+    );
 
     const directory = runInstructions(consumerRoot, "src");
     assert.equal(directory.result.status, 2);

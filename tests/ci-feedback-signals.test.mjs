@@ -127,7 +127,7 @@ test("CI observer refetches immutable attempt-specific run evidence", () => {
   );
 });
 
-test("CI signal artifact rejects ambiguous job identity and invalid chronology", () => {
+test("CI signal artifact rejects ambiguous job identity and invalid timestamps", () => {
   assert.throws(
     () => buildCiSignalArtifact({
       sourceRun: sourceRun(),
@@ -137,14 +137,106 @@ test("CI signal artifact rejects ambiguous job identity and invalid chronology",
     /duplicate job names/u,
   );
   const invalid = job(1, "invalid", 1);
-  invalid.completed_at = "2026-08-13T09:59:00.000Z";
+  invalid.completed_at = "not-a-timestamp";
   assert.throws(
     () => buildCiSignalArtifact({
       sourceRun: sourceRun(),
       jobs: [invalid],
       relevance: { status: "current", pullRequest: 7 },
     }),
-    /precedes/u,
+    /completed_at must be a GitHub UTC ISO-8601 instant/u,
+  );
+  assert.throws(
+    () => buildCiSignalArtifact({
+      sourceRun: { ...sourceRun(), updated_at: "not-a-timestamp" },
+      jobs: [],
+      relevance: { status: "current", pullRequest: 7 },
+    }),
+    /completed_at must be a GitHub UTC ISO-8601 instant/u,
+  );
+});
+
+test("CI signal artifact strictly validates GitHub UTC instants", () => {
+  for (const invalidTimestamp of [
+    "2026-02-30T10:00:00Z",
+    "2026-08-13",
+    "Thu, 13 Aug 2026 10:00:00 GMT",
+    "2026-08-13T12:00:00+02:00",
+  ]) {
+    const invalid = { ...job(1, "invalid", 1), completed_at: invalidTimestamp };
+    assert.throws(
+      () => buildCiSignalArtifact({
+        sourceRun: sourceRun(),
+        jobs: [invalid],
+        relevance: { status: "current", pullRequest: 7 },
+      }),
+      /completed_at must be a GitHub UTC ISO-8601 instant/u,
+    );
+  }
+
+  const seconds = job(1, "seconds", 1);
+  seconds.started_at = "2026-08-13T10:00:00Z";
+  seconds.completed_at = "2026-08-13T10:00:01Z";
+  const artifact = buildCiSignalArtifact({
+    sourceRun: sourceRun(),
+    jobs: [seconds],
+    relevance: { status: "current", pullRequest: 7 },
+  });
+  assert.equal(artifact.jobs[0].durationMilliseconds, 1_000);
+});
+
+test("CI signal artifact validates source created_at", () => {
+  assert.throws(
+    () => buildCiSignalArtifact({
+      sourceRun: { ...sourceRun(), created_at: "2026-02-30T10:00:00Z" },
+      jobs: [],
+      relevance: { status: "current", pullRequest: 7 },
+    }),
+    /source created_at must be a GitHub UTC ISO-8601 instant/u,
+  );
+});
+
+test("CI signal artifact preserves cancelled runs with negative GitHub durations", () => {
+  const cancelledRun = {
+    ...sourceRun(),
+    conclusion: "cancelled",
+    updated_at: "2026-08-13T10:00:00.000Z",
+  };
+  const cancelledJob = {
+    ...job(1, "cancelled", 1),
+    conclusion: "cancelled",
+    completed_at: "2026-08-13T09:59:00.000Z",
+  };
+  const successfulJob = job(2, "completed evidence", 60);
+  const artifact = buildCiSignalArtifact({
+    sourceRun: cancelledRun,
+    jobs: [cancelledJob, successfulJob],
+    relevance: { status: "current", pullRequest: 7 },
+  });
+
+  assert.equal(artifact.source.wallMilliseconds, null);
+  assert.equal(artifact.source.timingAnomaly, "end-precedes-start");
+  assert.equal(artifact.jobs[0].durationMilliseconds, null);
+  assert.equal(artifact.jobs[0].timingAnomaly, "end-precedes-start");
+  assert.equal(artifact.jobs[1].durationMilliseconds, 60_000);
+  assert.equal(artifact.jobs[1].timingAnomaly, null);
+
+  const summary = renderCiSignalSummary(artifact);
+  assert.match(summary, /Wall time: \*\*unavailable\*\*/u);
+  assert.match(summary, /Timing anomalies: \*\*2\*\* \(`end-precedes-start`\)/u);
+  assert.match(summary, /completed evidence/u);
+  assert.doesNotMatch(summary, /cancelled<\/code> \| <code>cancelled<\/code> \|/u);
+});
+
+test("CI signal artifact validates present timestamps when the other endpoint is missing", () => {
+  const invalid = { ...job(1, "invalid", 1), started_at: null, completed_at: "not-a-timestamp" };
+  assert.throws(
+    () => buildCiSignalArtifact({
+      sourceRun: sourceRun(),
+      jobs: [invalid],
+      relevance: { status: "current", pullRequest: 7 },
+    }),
+    /completed_at must be a GitHub UTC ISO-8601 instant/u,
   );
 });
 

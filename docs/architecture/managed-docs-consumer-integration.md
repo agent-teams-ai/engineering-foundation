@@ -1,7 +1,8 @@
 # Managed Docs Protocol Consumer Integration
 
 Status: Accepted target from ADR-0030 and ADR-0031. The internal bounded-context
-dependency fence is implemented; release qualification remains in progress.
+dependency fence is implemented and the managed integration is release-qualified;
+consumer activation remains explicit.
 
 ## Boundaries
 

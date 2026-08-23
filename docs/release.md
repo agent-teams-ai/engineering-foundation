@@ -7,14 +7,26 @@ Manual workstation publication and stored npm credentials are not supported.
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
-During the D' stage-one rollout, Foundation `0.17.0-rc.0` publishes first. The
-same Docs Protocol promotion PR carries the official empty Changeset, exposes
-the exact public `0.0.0` manifest, removes the Changesets ignore, and adds the
-package to the bounded public catalog. Ordinary release automation still cannot
-create the missing stable baseline: it fails closed until the bootstrap proves
-that exact `0.0.0` already exists on npm. Hermetic registry qualification uses
-the public catalog entry directly and binds it to the exact packed Foundation
-version.
+The current stable line is Foundation `0.17.0` with Docs Protocol `0.1.1`.
+Normal package changes enter the ordinary Changesets flow described below; the
+completed namespace bootstrap and D'/RC rollout are not prerequisites to rerun.
+
+## Completed bootstrap history
+
+The D' rollout first published Foundation `0.17.0-rc.0`, then promoted Docs
+Protocol from its exact public `0.0.0` namespace baseline into the bounded
+catalog and qualified the packed pair through the RC waves. Stable Foundation
+`0.17.0`, Docs Protocol `0.1.0`, and the follow-up Docs Protocol `0.1.1` are now
+published. This paragraph records completed history; it is not an executable
+release checklist.
+
+The one-time ADR-0029 namespace bootstrap is likewise completed historical
+evidence. Do not rerun its retired workflow. Any future namespace bootstrap
+requires a new reviewed ADR and must not weaken this repository's OIDC-only
+current release boundary. Never edit package versions or `.changeset/pre.json`
+by hand.
+
+## Current stable procedure
 
 Release-candidate waves use committed Changesets prerelease state with the exact
 `rc` tag. Changesets remains the sole version and changelog authority, but the
@@ -72,18 +84,6 @@ new version; no further publication or GitHub release reconciliation occurs.
 Contradictory, mixed or unknown prerelease state still fails before npm
 publication, and an RC cannot move `latest`. Returning to stable publication
 requires a separately reviewed Changesets prerelease-exit change.
-
-Do not introduce Docs Protocol into the active Foundation 0.16 RC wave. First
-qualify and release stable Foundation 0.16.0 through a reviewed prerelease exit.
-Then rebase the unified-protocol feature, enter a fresh `rc` wave through the
-Changesets CLI, and let its Foundation-only minor Changeset generate
-Foundation 0.17.0-rc.0. Docs Protocol must remain private and exactly 0.0.0 in
-this release PR. Never edit Foundation versions or `.changeset/pre.json` by hand.
-
-The one-time ADR-0029 namespace bootstrap is completed historical evidence, not
-an executable release procedure. Do not rerun its retired workflow. Any future
-namespace bootstrap requires a new reviewed ADR and must not weaken this
-repository's OIDC-only current release boundary.
 
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against

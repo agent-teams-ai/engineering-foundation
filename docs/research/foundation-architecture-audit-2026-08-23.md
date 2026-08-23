@@ -1,320 +1,393 @@
-# Engineering Foundation Architecture Audit
+# Post-release аудит архитектуры Engineering Foundation
 
-Status: independent read-only audit completed on 2026-08-23.
+Статус: независимый аудит и последующая rollout-валидация завершены 2026-08-23.
 
-Audited revision:
-`36d905362955255c3faed930b11a1e6f05a87ee9` (`origin/main` after PR #168).
+Проверенная ревизия:
+`ae9d022a003978e30d33006132beaa5b49fc6f80` (`origin/main`, опубликованные
+`@agent-teams/engineering-foundation@0.17.0` и
+`@agent-teams/docs-protocol@0.1.0`).
 
-The audit evaluates the repository as a long-lived foundation for multiple
-projects. It focuses on Clean Architecture, SOLID, DDD bounded contexts,
-capability modularity, dependency direction, public API, self-hosting, and the
-cost of adding future capabilities. No agent runtime, provisioning, or consumer
-project flow was executed.
+Это повторная оценка после аудита ревизии
+`36d905362955255c3faed930b11a1e6f05a87ee9`. Между ревизиями в `main` вошли
+отдельные изменения для границ Docs Protocol, единого capability registry,
+детерминированного quality gate runner, recovery characterization, эффективных
+инструкций, changed-scope evidence, partitioned coverage и заморозки legacy
+Docs CLI.
 
-This was a static source, manifest, policy, contract, documentation, and test
-review at the pinned revision. Existing tests were inspected as evidence but not
-re-executed as part of the audit. Source line references below refer to that
-revision. Scores are unweighted, and the overall score is their arithmetic mean
-rounded to one decimal. P0 means a present correctness, safety, or release
-invariant failure; P1 means an accepted boundary is already violated or a
-safety-critical change surface needs containment; P2 means bounded structural
-debt without a demonstrated current invariant failure.
+Аудит основан на исходном коде, manifests, architecture policy, ADR, публичных
+контрактах, тестах и exact-head hosted CI. Тесты локально не перезапускались.
+Последний полный успешный PR run для release head занял 7 минут 25 секунд:
+[CI run 32611325543](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/32611325543).
+Agent runtime, provisioning и реальные consumer flows не запускались.
 
-## Verdict
+После первоначального read-only прохода был выполнен governed rollout analysis
+для текущей RC3 fleet. Он нашёл дефекты, которые не были видны по зелёному
+producer CI: опубликованный stable transition catalog не содержит текущий RC3,
+а центральный verifier проверяет digest каталога, но не его семантическую
+достижимость. Поэтому первоначальная оценка 7.8/10 пересмотрена вниз.
 
-The architecture is stronger than average. Its package direction, data-only
-consumer authority, deterministic evidence, recovery model, and release
-qualification are deliberately designed and well tested. It is not yet a
-9/10 growth-ready foundation: implementation has drifted from the accepted Docs
-Protocol boundaries, two documentation orchestration paths remain active, and
-safety-critical recovery logic has become cognitively dangerous to change.
+## Вердикт
 
-**Overall score: 6.2/10. No P0 issue was found; three P1 issues require scoped
-containment, not a repository-wide feature freeze.**
+**Итоговая строгая оценка: 7.3/10, было 6.2/10. P0 не найдено. Два P1 остаются.**
 
-| Criterion | Score |
-| --- | ---: |
-| Clean Architecture | 6/10 |
-| SOLID | 6/10 |
-| DDD and bounded contexts | 6/10 |
-| Capability modularity | 7/10 |
-| Dependency direction | 8/10 |
-| Composition roots | 6/10 |
-| Registry design | 6/10 |
-| Public API | 6/10 |
-| Capability growth readiness | 5/10 |
-| Testability | 7/10 |
-| Diagnostics | 6/10 |
-| Bootstrap and self-hosting | 8/10 |
-| Cognitive complexity | 4/10 |
+Foundation достаточно силён для разработки новых независимых feature slices:
+направление зависимостей защищено кодом, capabilities являются opt-in, а
+проектные проверки остаются у consumer. Но расширять governed Docs rollout на
+новые repositories пока нельзя: опубликованный stable 0.1.0 не имеет
+исполняемого перехода из текущего RC3 Cohort.
 
-## Architecture map
+До 9/10 не хватает не новых абстракций, а уменьшения риска уже существующего
+кода: production recovery всё ещё сконцентрирован в двух очень больших Node
+адаптерах; неожиданные ошибки теряют полезную классификацию; публичный API всё
+ещё показывает несколько concrete/fault seams; advisory CI observer не всегда
+переваривает отменённые GitHub jobs.
+
+| Критерий | Было | Сейчас |
+| --- | ---: | ---: |
+| Clean Architecture | 6/10 | 8/10 |
+| SOLID | 6/10 | 7/10 |
+| DDD и bounded contexts | 6/10 | 8/10 |
+| Feature slicing и модульность | 7/10 | 8.5/10 |
+| Направление зависимостей | 8/10 | 9/10 |
+| Composition roots | 6/10 | 8/10 |
+| Registry design | 6/10 | 9/10 |
+| Публичный API | 6/10 | 6.5/10 |
+| Готовность к новым capabilities | 5/10 | 7.5/10 |
+| Тестируемость и evidence | 7/10 | 8/10 |
+| Диагностика | 6/10 | 6/10 |
+| Bootstrap и self-dogfooding | 8/10 | 8/10 |
+| Когнитивная сложность | 4/10 | 5.5/10 |
+| Скорость feedback loop | не оценивалась отдельно | 8/10 |
+
+Оценка DDD относится к техническим bounded contexts Foundation. Это не доменная
+модель продуктов: [ownership boundary](../architecture/ownership.md) правильно
+оставляет бизнес-термины, topology, catalogs и решения в consumer repositories.
+
+## Что изменилось после прошлого аудита
+
+### Закрыто: consumer integration стал настоящим bounded context
+
+Вместо одной плоской границы теперь определены domain, generated assets,
+application, adapters и composition в
+[`source-dependencies.yaml`](../../architecture/foundation/source-dependencies.yaml).
+Application зависит от узких lifecycle/planner ports, а concrete Node,
+package-manager и Foundation mutation adapters собираются только в
+[`node-consumer-integration.ts`](../../packages/docs-protocol/src/consumer-integration/composition/node-consumer-integration.ts).
+
+Направление защищено golden policy и негативным тестом в
+[`package-boundary.test.mjs`](../../tests/package-boundary.test.mjs). Это
+закрывает прежнюю P1 по Dependency Inversion и заметно повышает DDD/SOLID.
+
+### Закрыто: двойное владение Docs CLI ограничено совместимостью
+
+ADR-0033 явно заморозил Foundation `docs` namespace. Human mode выдаёт стабильное
+предупреждение через
+[`legacy-docs-cli-deprecation.ts`](../../packages/engineering-foundation/src/legacy-docs-cli-deprecation.ts),
+а machine output сохраняет опубликованный контракт. Новое поведение принадлежит
+Docs Protocol. Legacy путь пока существует, но больше не является вторым местом
+развития продукта.
+
+### Закрыто: capability и rule registries имеют один источник
+
+[`capability-modules.ts`](../../packages/engineering-foundation/src/composition/capability-modules.ts)
+содержит единый статический список descriptors. Capability registry и rule
+registry выводятся из него. Тест
+[`capability.test.mjs`](../../tests/capability.test.mjs) связывает schema IDs,
+runtime IDs, rule ownership, explain metadata и rejection duplicate IDs.
+
+Это правильный Open/Closed компромисс: внутреннее добавление capability требует
+одного descriptor, но runtime discovery и исполняемые consumer plugins не
+появились.
+
+### Частично закрыто: recovery получил сильную characterization-сетку
+
+[`known-file-transaction-characterization.test.mjs`](../../tests/known-file-transaction-characterization.test.mjs)
+фиксирует durable journal shapes, digests, filesystem post-state, apply/recovery
+checkpoints и обязательное потребление scripted sequence. Более широкие hostile,
+foreign-byte, crash и idempotency сценарии остаются в
+[`known-file-transaction-node.test.mjs`](../../tests/known-file-transaction-node.test.mjs).
+
+Это хороший safety harness для рефакторинга, но production структура не стала
+проще. Поэтому прежняя P1 не закрыта полностью.
+
+### Закрыто: проектные проверки получили безопасную opt-in композицию
+
+[`quality.gate-runner`](../reference/quality-gate-runner.md) позволяет каждому
+consumer собрать свои профили из существующих root `package.json` scripts,
+описать `needs`, `after`, concurrency и timeout. Foundation не принимает inline
+commands, environment, plugins или shell fragments. Статическая capability
+только проверяет конфигурацию; выполнение происходит лишь по явной команде.
+
+Это именно нужный уровень гибкости для разных проектов:
+
+- проект владеет содержанием своих команд;
+- Foundation владеет безопасным DAG scheduler, process containment и evidence;
+- установка или upgrade ничего не активирует;
+- сложные provider/agent/plugin abstractions не проникают в Foundation.
+
+Не надо сейчас делать generic command/plugin framework. Возможное разделение
+`task.id` и `task.script` в v2 имеет смысл только когда реальный второй consumer
+докажет необходимость нескольких логических tasks поверх одного script.
+
+### Улучшено: feedback loop стал практически пригодным
+
+Linux tests разделены на четыре изолированных shard, coverage/package/registry/
+published/static lanes выполняются параллельно, Windows tests разделены на две
+части, performance вынесен в advisory workflow. Exact-head release run уложился
+в 7:25, а Linux merge aggregate завершился примерно за 5 минут.
+
+Partitioned coverage уже собирается без повторного выполнения shard tests, но
+остаётся advisory до доказанной parity. Блокирующий legacy coverage lane пока
+сохраняется, что правильно для миграции, хотя временно дублирует работу.
+
+## P1
+
+### Recovery остаётся слишком сложным для безопасного изменения
+
+[`node-known-file-transaction-recovery.ts`](../../packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts)
+имеет 1,334 строки, а
+[`node-known-file-transaction.ts`](../../packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts)
+- 869 строк. В одном уровне смешаны transition decisions, journal evolution,
+identity checks, filesystem effects и orchestration. Четыре временные complexity
+waiver для этой области зафиксированы в
+[`suppression-governance.yaml`](../../architecture/foundation/suppression-governance.yaml).
+
+Нарушение в первую очередь относится к SRP и DIP. Explicit states и fail-closed
+семантика являются сильной стороной и не должны упрощаться. Риск в том, что
+маленькое изменение поведения требует одновременно понимать слишком много crash
+windows и side effects.
+
+Это не найденный production bug и не P0. Но до следующего изменения recovery
+семантики нужен behaviour-preserving structural extraction. Новые независимые
+capabilities ждать этого не обязаны.
+
+### Stable Cohort опубликован, но недостижим для текущей fleet
+
+Опубликованный `@agent-teams/docs-protocol@0.1.0` содержит transition catalog без
+`docs-2026-08-18-rc3`, хотя все действующие consumers привязаны именно к этому
+Cohort. `currentSourceExecutors` также пуст. Поэтому package integrity,
+provenance и полный producer CI зелёные, но governed plan/apply из реального
+текущего состояния невозможен.
+
+Существующий packed test не доказывает production realizability rollback: он
+добавляет synthetic executor с фиктивным SRI. Для той же публикуемой tarball V1
+контракт создаёт self-reference: future package SRI нельзя честно записать внутрь
+каталога, входящего в вычисление этого SRI. Первый stable переход должен быть
+явно fix-forward, без выдуманного `rollback_to`.
+
+Центральный controller усугубляет пробел: live verifier сверяет точные asset
+digests, но не доказывает, что каждый `upgrade_from` имеет bundled immutable
+target и content-addressed historical bytes. Digest-valid, но недостижимый
+Cohort поэтому мог стать Qualified.
+
+Исправление уже разделено по правильным trust boundaries:
+
+- [Foundation PR 181](https://github.com/agent-teams-ai/engineering-foundation/pull/181)
+  добавляет точный RC3 bundle и ADR fix-forward lifecycle;
+- [controller PR 89](https://github.com/agent-teams-ai/.github/pull/89)
+  проверяет semantic deployability base-owned кодом до qualification.
+
+Пока оба изменения, patch release и первый canary rollout не завершены, этот P1
+считается открытым. Новые независимые Foundation capabilities он не блокирует,
+но подключение новых governed consumers блокирует.
+
+## P2
+
+### Unexpected errors теряют безопасную причину
+
+[`check-runner.ts`](../../packages/engineering-foundation/src/check-runner.ts) и
+несколько capability modules превращают неожиданные исключения в общий
+`FOUNDATION_CHECK_FAILED` или `CAPABILITY_EXECUTION_FAILED`. Пользователь видит
+phase, но часто не различает filesystem, parser, process и internal invariant
+failure.
+
+Нужна общая bounded classification: стабильный cause kind и безопасная phase,
+без absolute paths, содержимого repository и secrets. Stack и исходное сообщение
+не должны попадать в machine contract.
+
+### Публичный API показывает concrete и qualification seams
+
+[`mutation/index.ts`](../../packages/engineering-foundation/src/mutation/index.ts)
+экспортирует concrete Node operations и fault injector types.
+[`consumer-integration/index.ts`](../../packages/docs-protocol/src/consumer-integration/index.ts)
+экспортирует planners/adapters и Node error рядом с основными use cases.
+
+Это полезно для существующей qualification, но увеличивает стоимость каждого
+рефакторинга. Удалять сразу нельзя: public API baseline правильно защищает
+consumers. Сначала нужны реальные import-usage данные и migration path, затем
+deprecation и только потом major removal.
+
+### Contract folders всё ещё смешивают контракт и inbound I/O
+
+Например,
+[`source-dependencies/contract/config.ts`](../../packages/engineering-foundation/src/capabilities/source-dependencies/contract/config.ts)
+и
+[`contract-json-schema-releases/contract/config.ts`](../../packages/engineering-foundation/src/capabilities/contract-json-schema-releases/contract/config.ts)
+одновременно читают YAML/baseline files, валидируют schemas и строят application
+models. Некоторые module factories принимают ports, другие создают concrete Node
+adapters внутри.
+
+Это bounded debt, а не повод переписывать все capabilities. Разделять loader,
+mapper и pure contract стоит только при следующем содержательном изменении
+конкретного slice.
+
+### CI observer неустойчив к реальным GitHub timestamp anomalies
+
+Advisory observer дважды упал на отменённых main runs с
+`completed_at precedes started_at`:
+[run 32611727079](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/32611727079)
+и
+[run 32611271403](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/32611271403).
+Основной CI не затронут, но история скорости теряется именно на нормальном
+cancel-in-progress сценарии. Observer должен записывать bounded anomaly signal,
+а не падать целиком.
+
+### Release status в документации уже немного отстал
+
+В таблице lifecycle
+[`executable-capabilities.md`](../architecture/executable-capabilities.md)
+`quality.gate-runner` всё ещё отмечен как `Released: No`, хотя он вошёл в
+0.17.0. Несколько строк documentation index также продолжают описывать RC или
+pending qualification после стабильного release. Это не runtime defect, но для
+Foundation документация является операторским интерфейсом, поэтому release-state
+drift надо исправлять в том же release closure.
+
+## Сильные стороны, которые нельзя потерять
+
+- Foundation не является production runtime dependency и не присваивает себе
+  business facts consumers.
+- Две publishable packages имеют одностороннее направление: Docs Protocol ->
+  Foundation. Reverse manifest, source и policy paths проверяются тестом.
+- Каждый capability является отдельным feature slice с model, policies, ports,
+  adapters, contract и composition, когда сложность этого требует.
+- Consumer configuration data-only; executable plugins и runtime discovery
+  отсутствуют.
+- Deterministic sorting, strict schemas, immutable evidence, CAS, identity-bound
+  journals и fail-closed recovery являются системными инвариантами.
+- Release boundary защищён public API baselines, Changesets, packed consumers,
+  hermetic registry E2E и provenance.
+- 137 test files распределены через fail-closed manifest; stateful recovery tests
+  изолированы внутри shard.
+- `check:changed`, `check:fast`, параллельный hosted CI и advisory performance
+  дают нормальный путь от быстрого feedback к полному evidence.
+
+## Как Foundation безопасно использует Foundation
+
+Цикла package dependencies сейчас нет. Есть два разных графа:
 
 ```text
-Private repository composition
-  -> Engineering Foundation
-       -> capabilities/*
-       -> document-authoring kernel
-       -> scaffolding
-       -> repository-mutation
-       -> transaction-coordination
-  -> Docs Protocol
-       -> Foundation public ports
-       -> daily docs application
-       -> consumer-integration
+Package graph
+  @agent-teams/docs-protocol -> @agent-teams/engineering-foundation
+
+Bootstrap execution graph
+  pnpm + TypeScript compiler
+    -> build current Foundation source
+      -> run current built Foundation checks against this repository
+        -> packed/registry qualification
+        -> published-version compatibility oracle
 ```
 
-The package direction is correct: Docs Protocol depends on Foundation, while
-Foundation does not import Docs Protocol. Manifest and source tests enforce this
-direction in
-[`tests/package-boundary.test.mjs:72-173`](../../tests/package-boundary.test.mjs).
+Private root workspace является composition host, а не публикуемой библиотекой.
+Его `workspace:*` devDependency создаёт локальную ссылку на current source; код
+Foundation не импортирует собственный npm package. Root сначала вызывает
+`tsc --build`, и только после этого использует свежий `dist/cli.js` через
+`foundation:check`, `check:changed` и `quality:gate:fast`.
 
-## P1 findings
+Предыдущая опубликованная версия нужна как compatibility oracle и как exact
+recovery authority для evidence, созданного той версией. Она не должна управлять
+проверкой текущего source. Иначе публикация новой версии зависела бы от уже
+опубликованной новой версии.
 
-### 1. Consumer integration is accepted as a bounded context but is not protected as one
+Инварианты self-dogfooding:
 
-The source policy models all Docs Protocol source as one flat
-`docs-protocol.package` boundary in
-[`architecture/foundation/source-dependencies.yaml:5-32`](../../architecture/foundation/source-dependencies.yaml).
-It therefore cannot detect invalid dependencies between domain, application,
-adapters, and composition.
+1. compiler/package-manager bootstrap не зависит от Foundation CLI;
+2. Foundation source никогда не зависит от Docs Protocol;
+3. current-source checks запускаются только после успешного build;
+4. registry и previous-release checks идут после source checks и не подменяют их;
+5. recovery всегда следует exact recorded package/build identity.
 
-The drift is already visible:
+Отдельный bootstrap package сейчас не нужен.
 
-- the consumer-integration application use case imports concrete adapters in
-  [`plan-consumer-integration.ts:1-35`](../../packages/docs-protocol/src/consumer-integration/application/use-cases/plan-consumer-integration.ts);
-- consumer-integration application policies depend on daily Docs Protocol
-  domain objects in
-  [`consumer-integration-assets.ts:1-10`](../../packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-assets.ts);
-- the accepted managed-integration architecture requires a separate bounded
-  context with its own model, use cases, ports, adapters, and composition in
-  [`ADR-0031:30-32`](../decisions/0031-managed-docs-consumer-integration.md),
-  but the current source tree has no consumer-integration application port.
+## Поэтапный roadmap без overengineering
 
-This is a Dependency Inversion violation and makes future cycles easier to
-introduce unnoticed.
+### Этап 0: доказать deployable stable rollout
 
-### 2. Foundation and Docs Protocol both own documentation orchestration
+Ориентир: два authority PR, один Docs Protocol patch release и один canary PR.
 
-The active ownership split says Foundation owns mutation mechanisms while Docs
-Protocol owns orchestration, query semantics, diagnostics, and command
-vocabulary
-([`ADR-0026:31-52`](../decisions/0026-retain-only-document-directory-materialization.md)).
-The implementation still has two operational paths:
+1. Опубликовать Docs Protocol с exact RC3 direct target bundle и пустым
+   `rollback_to` для stable Cohort.
+2. До qualification включить base-owned semantic verifier: central projection,
+   canonical route/scripts digests и content-addressed historical bytes.
+3. Пройти RC3 -> stable plan/apply в Orchestrator canary, затем hosted default-
+   branch gate. Только после этого отметить Cohort CANARY/RECOMMENDED и обновлять
+   остальные consumers.
+4. Не использовать nominal V1 rollback. До отдельного lifecycle ADR incidents
+   обрабатываются suspension и fix-forward patch.
 
-- Foundation imports, advertises, and dispatches its legacy documentation
-  commands through
-  [`cli.ts:16-17,114-130`](../../packages/engineering-foundation/src/cli.ts),
-  [`document-command.ts:90-158`](../../packages/engineering-foundation/src/document-command.ts),
-  and its
-  [`published package README:49-91`](../../packages/engineering-foundation/README.md);
-- Docs Protocol exposes another complete command composition through
-  [`packages/docs-protocol/src/composition/cli.ts:196-293,406-440`](../../packages/docs-protocol/src/composition/cli.ts).
+### Этап 1: закрыть быстрый operational drift
 
-If compatibility still requires the Foundation path, it needs an explicit
-frozen boundary and sunset policy. Without that, responsibilities and behavior
-can drift while both paths continue to look authoritative.
+Ориентир: 50-130 изменённых строк, два маленьких PR.
 
-### 3. Safety-critical recovery code is cognitively unsafe to extend
+1. Синхронизировать lifecycle/index с фактом стабильного release.
+2. На отрицательную GitHub duration записывать anomaly с `durationMs: null` или
+   bounded zero и сохранять весь остальной CI artifact; добавить fixture
+   cancelled job.
 
-The known-file recovery adapter has 1,334 lines:
-[`node-known-file-transaction-recovery.ts`](../../packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts).
-Its largest functions mix transition evaluation, durable evidence mutation,
-filesystem effects, and orchestration. The apply adapter has 869 lines
-([`node-known-file-transaction.ts`](../../packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts)),
-and the 688-line consumer-integration planner has the same pressure
-([`plan-consumer-integration.ts`](../../packages/docs-protocol/src/consumer-integration/application/use-cases/plan-consumer-integration.ts)).
+### Этап 2: декомпозировать recovery до следующего semantic change
 
-Four current complexity waivers are recorded in
-[`suppression-governance.yaml:1-46`](../../architecture/foundation/suppression-governance.yaml),
-but its governed root covers only Foundation source. Docs Protocol has five
-ungoverned suppressions, including blanket `max-lines` disables in the planner
-above and
-[`node-consumer-integration-repository.ts:1`](../../packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts).
+Ориентир: 1,500-3,000 изменённых строк в 3-4 PR, включая тесты.
 
-Explicit recovery states are a strength and must remain unchanged. The problem
-is not the number of states; it is that several reasons to change live inside
-the same functions and adapters.
+1. Считать текущие journal/envelope/receipt bytes и characterization fixtures
+   неизменяемой golden baseline.
+2. Извлечь pure transition classification из Node adapter.
+3. Отделить identity-bound evidence observation от effect execution.
+4. Оставить один тонкий orchestrator; после каждого extraction сравнивать все
+   existing crash/recovery post-states и exact serialized evidence.
 
-## P2 findings
+Не объединять document, scaffold и known-file recovery в универсальный engine:
+их wire contracts и причины изменения различаются.
 
-### Static registries are safe but cause change amplification
+### Этап 3: улучшить diagnostics единым маленьким mapper
 
-Adding a capability currently touches the capability registry, rule registry,
-root schema, schema catalog, source boundaries, tests, and documentation. The
-closed registry is the correct security model, but the multiple synchronized
-lists weaken Open/Closed compliance. A single internal static
-`CapabilityDescriptor` should derive capability and rule registries without
-introducing runtime discovery or plugins. The duplicated registry lists are
-visible in
-[`capability-registry.ts:1-33`](../../packages/engineering-foundation/src/composition/capability-registry.ts)
-and
-[`rule-registry.ts:1-39`](../../packages/engineering-foundation/src/composition/rule-registry.ts).
+Ориентир: 180-350 изменённых строк.
 
-### Public API exposes implementation and qualification seams
+Ввести внутренний `classifyUnexpectedFailure(error, phase)` и использовать его
+в check runner/capability modules. Не менять успешные reports и не экспортировать
+raw causes.
 
-The mutation API exports concrete Node functions and fault injectors, while the
-document API and Docs Protocol consumer-integration surface expose concrete Node
-adapters. Compatibility baselines correctly protect consumers, but they also
-make later cleanup expensive. Test and fault seams should move to explicit
-qualification entrypoints when consumer evidence permits it. Current examples
-are
-[`mutation/index.ts:17-28`](../../packages/engineering-foundation/src/mutation/index.ts)
-and
-[`document-authoring/index.ts:119-127`](../../packages/engineering-foundation/src/document-authoring/index.ts),
-and
-[`consumer-integration/index.ts:11-26`](../../packages/docs-protocol/src/consumer-integration/index.ts).
+### Этап 4: завершить coverage migration по evidence, а не по календарю
 
-### Contract folders mix contract, I/O, mapping, and validation
+Ориентир: 80-180 изменённых строк после накопления parity history.
 
-Several capability `contract/config.ts` files read YAML, call the schema
-catalog, normalize policy, and validate it. These are inbound adapters and
-mappers rather than pure contracts. Naming and placement should reflect those
-responsibilities. Examples include
-[`source-dependencies/contract/config.ts:1-8,177-213`](../../packages/engineering-foundation/src/capabilities/source-dependencies/contract/config.ts)
-and
-[`contract-json-schema-releases/contract/config.ts:147-210`](../../packages/engineering-foundation/src/capabilities/contract-json-schema-releases/contract/config.ts).
+После серии репрезентативных exact-head runs сравнить measured universe и floors.
+Только затем сделать partitioned merge blocking и удалить повторный legacy
+coverage run. Абсолютные timing budgets оставить advisory.
 
-### Dependency injection is inconsistent
+### Этап 5: сузить public API в ближайшем осмысленном major
 
-Some capability factories accept ports, while others construct all concrete
-Node adapters internally. Production defaults are useful, but a consistent
-injectable factory plus `createDefault...()` composition would improve tests
-without turning Foundation into a plugin system. Compare
-[`contract-json-schema-releases/module.ts:41-44`](../../packages/engineering-foundation/src/capabilities/contract-json-schema-releases/module.ts)
-with
-[`source-dependencies/module.ts:21-26`](../../packages/engineering-foundation/src/capabilities/source-dependencies/module.ts).
+Ориентир: 300-800 изменённых строк плюс consumer migrations.
 
-### Unexpected error diagnostics lose useful classification
+Сначала измерить реальные imports в двух consumers. Qualification helpers
+перенести в отдельные qualification exports, concrete Node adapters скрыть за
+stable use cases. Не делать major только ради эстетики.
 
-The check runner and several capability modules replace unexpected failures
-with generic errors. Diagnostics should retain a safe bounded cause class and
-phase without exposing absolute paths, repository content, or secrets; see
-[`check-runner.ts:19-43`](../../packages/engineering-foundation/src/check-runner.ts).
+### Этап 6: улучшать contract/adapter placement по мере изменения slices
 
-### Coverage does not reflect the price of recovery defects
+Ориентир: 200-500 строк на затронутый capability.
 
-The current global floors are 36% lines, 67% branches, and 42% functions
-([`run-test-coverage.mjs:5-18`](../../scripts/run-test-coverage.mjs)). The test
-suite is broad, but these floors do not protect safety-critical mutation and
-recovery modules. The separately recommended partitioned evidence protocol is
-research, not an accepted decision
-([`deepseek-harness-tooling-comparison.md:1-4,50-60`](deepseek-harness-tooling-comparison.md));
-if adopted, it should be followed by module-specific floors for those
-boundaries.
+Новый или изменяемый capability получает pure mapping/validation отдельно от
+filesystem loader и injectable ports с `createDefault...()` composition.
+Старые стабильные slices не переписываются массово.
 
-## Strengths to preserve
+## Итоговая рекомендация
 
-- one-way package dependencies are actively enforced;
-- capabilities are mostly separated into model, policies, ports, adapters, and
-  composition;
-- consumer authority is data-only and no executable plugin surface exists;
-- deterministic sorting, bounded schemas, immutable evidence, and exact-build
-  recovery are systemic rather than isolated conventions;
-- CAS, durable journals, explicit failure states, crash fixtures, and hostile
-  filesystem tests provide unusually strong mutation safety;
-- public API baselines, Changesets, packed tarball consumers, registry E2E, and
-  provenance protect the release boundary;
-- independent Foundation capability checks already execute concurrently and
-  produce deterministically ordered results.
+Сохранять текущую двухпакетную модульную архитектуру, закрытый opt-in capability
+registry и source-built self-dogfooding. Не строить plugin platform, отдельный
+bootstrap package или универсальный recovery engine.
 
-## Bootstrap and self-hosting decision
-
-Foundation should continue using the current source build as its primary
-dogfood runtime. The existing workspace dependency is not a cycle: the private
-repository root is a composition host, Foundation source does not import its
-own npm package, and Docs Protocol depends only downward on Foundation. The root
-build invokes the compiler directly before current-source checks
-([`package.json:15-26`](../../package.json)), and the Docs Protocol TypeScript
-project references Foundation only in the allowed direction
-([`packages/docs-protocol/tsconfig.json:23-24`](../../packages/docs-protocol/tsconfig.json)).
-
-```text
-Ring 0: package-manager, compiler, and project-reference bootstrap
-  -> Ring 1: build current Foundation source
-    -> Ring 2: current-source dogfood checks
-      -> Ring 3: packed/registry tests and previous-release compatibility
-```
-
-The build and minimum dependency-direction guard must remain independent of the
-Foundation runtime. The richer package-boundary test imports the freshly built
-capability and therefore belongs after Ring 1
-([`tests/package-boundary.test.mjs:8,134-173`](../../tests/package-boundary.test.mjs)).
-For current-source bootstrapping, a previous release is a compatibility oracle,
-not the authority for current source. It remains authoritative for recovery
-evidence written by that exact release. Making it the current-source authority
-would create a publication chicken-and-egg problem. A separate bootstrap
-package is not justified now.
-
-## Staged remediation plan
-
-1. **Contain Docs Protocol boundaries, 700-1,300 changed lines**
-   - model daily docs and consumer integration as explicit boundaries;
-   - forbid application-to-adapter imports;
-   - include Docs Protocol in suppression governance;
-   - add architecture tests for every allowed direction.
-
-2. **Close dual documentation ownership, 600-1,400 changed lines**
-   - freeze the legacy Foundation docs CLI;
-   - define its compatibility window and removal evidence;
-   - move published guidance to the Docs Protocol path;
-   - delete the legacy path only after consumer parity.
-
-3. **Decompose recovery without changing wire semantics, 2,000-4,000 changed lines**
-   - extract typed transition evaluators, evidence readers, and filesystem
-     executors;
-   - preserve every journal state, digest, and exact-build recovery rule;
-   - capture a complete characterization and crash matrix before extraction.
-
-4. **Reduce capability change amplification, 800-1,500 changed lines**
-   - introduce one internal static capability descriptor source;
-   - derive capability and rule registries;
-   - keep schema and source-boundary drift tests;
-   - do not introduce runtime plugins.
-
-5. **Narrow API and strengthen evidence, 700-1,500 changed lines**
-   - move fault injection to qualification entrypoints;
-   - add recovery-specific coverage floors;
-   - retain safe unexpected-error classification.
-
-These are order-of-magnitude estimates including tests and migration evidence,
-not delivery commitments. For MVP sequencing, contain findings 1 and 2 before
-adding documentation behavior. Before the next recovery semantic change,
-complete the characterization matrix from finding 3, then extract incrementally.
-Unrelated capability delivery does not need to wait for the full decomposition,
-and P2 work should follow measured change pressure or a second real consumer.
-
-## Options
-
-### 1. Staged repair of the existing two-package modular monolith - recommended
-
-🎯 9/10 🛡️ 9/10 🧠 6/10. Approximately 4,800-9,700 changed lines across focused
-pull requests.
-
-This preserves package and wire contracts while bringing implementation back
-into alignment with the accepted architecture.
-
-### 2. Minimum containment only
-
-🎯 8/10 🛡️ 6/10 🧠 3/10. Approximately 1,800-3,900 changed lines.
-
-This fixes boundaries, freezes the legacy CLI, and extracts only the worst
-recovery hotspot. Registry and public API debt would continue growing.
-
-### 3. Split Foundation into additional kernel and CLI packages
-
-🎯 5/10 🛡️ 8/10 🧠 9/10. Approximately 8,000-15,000 changed lines.
-
-Physical isolation would improve, but the added release, versioning, and
-bootstrap complexity is not justified during MVP growth.
-
-## Final recommendation
-
-Keep the existing package graph and self-hosting model. Do not create a new
-bootstrap package or a dynamic plugin platform. Before broad capability growth,
-make Docs Protocol a real bounded context, retire dual docs orchestration with
-consumer evidence, and contain recovery changes behind a characterization
-matrix. Decompose recovery incrementally by stable transition responsibilities.
-The capability descriptor and partitioned coverage protocol remain supporting
-recommendations until separately accepted; neither should block unrelated MVP
-delivery.
+Foundation уже можно масштабировать новыми независимыми feature slices. Новые
+consumer repositories подключать после завершения exact RC3 -> stable canary и
+central deployability guard. Новую recovery semantics не добавлять, пока
+behaviour-preserving decomposition не уменьшит второй P1. После rollout
+максимальный эффект дают recovery extraction, bounded diagnostics и устранение
+шума CI observer, а не новый слой governance.

@@ -8,6 +8,9 @@ import {
   type KnownPriorCohortCatalogEntryV1
 } from "../application/policies/consumer-integration-assets.js";
 import { assertQualifiedDocsCohortBindingV1 } from "../application/policies/consumer-integration-desired-state.js";
+import type {
+  ConsumerAssetCatalogReader
+} from "../application/ports/consumer-integration-lifecycle.js";
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const COHORT_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
@@ -179,3 +182,6 @@ export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCa
     directTargetBundles: Object.freeze(directTargetBundles)
   });
 }
+
+export const packageConsumerAssetCatalogReader: ConsumerAssetCatalogReader =
+  Object.freeze({ read: loadPackageConsumerAssetCatalog });

@@ -1,8 +1,11 @@
 import type {
   ConsumerIntegrationDigest,
-  ConsumerIntegrationFileObservation,
-  ConsumerIntegrationIssue
+  ConsumerIntegrationFileObservation
 } from "../domain/model.js";
+import type {
+  AgentsRoutePlanV1,
+  AgentsRoutePlannerV1
+} from "../application/ports/consumer-integration-planners.js";
 import {
   canonicalManagedRoute,
   digestBytes,
@@ -10,14 +13,7 @@ import {
   MANAGED_ROUTE_END
 } from "../application/policies/consumer-integration-assets.js";
 
-/** @public */
-export interface AgentsRoutePlanV1 {
-  readonly state: "absent" | "conflict" | "exact-current" | "known-prior";
-  readonly currentDigest: ConsumerIntegrationDigest;
-  readonly expectedDigest: ConsumerIntegrationDigest;
-  readonly postimage?: Uint8Array;
-  readonly issues: readonly ConsumerIntegrationIssue[];
-}
+export type { AgentsRoutePlanV1 } from "../application/ports/consumer-integration-planners.js";
 
 function conflict(
   currentDigest: ConsumerIntegrationDigest,
@@ -120,3 +116,7 @@ export function planAgentsRouteV1(input: {
     issues: []
   };
 }
+
+export const agentsRoutePlannerV1: AgentsRoutePlannerV1 = Object.freeze({
+  plan: planAgentsRouteV1
+});

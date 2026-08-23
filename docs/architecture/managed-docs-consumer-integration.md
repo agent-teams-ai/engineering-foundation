@@ -1,7 +1,7 @@
 # Managed Docs Protocol Consumer Integration
 
-Status: Accepted target from ADR-0030 and ADR-0031. Implementation and release
-qualification are in progress.
+Status: Accepted target from ADR-0030 and ADR-0031. The internal bounded-context
+dependency fence is implemented; release qualification remains in progress.
 
 ## Boundaries
 
@@ -39,6 +39,30 @@ evidence, positive and negative parity fixtures, packed-registry and platform
 qualification, and a closed inventory plus proven route for every recognized
 legacy evidence version. Until then, the compatibility surface is maintained
 but cannot evolve.
+
+## Internal Docs Protocol boundary
+
+Within Docs Protocol, consumer integration now follows one enforced source
+direction:
+
+```text
+composition -> adapters -> application -> domain
+             \------------> domain
+application -------------> generated package assets
+```
+
+Application ports own the repository-observation, package-asset, partial-file
+planning, and Foundation transaction needs. The Node composition root supplies
+the concrete repository, asset-catalog, manifest, route, and transaction
+adapters. Application source cannot import adapter source. The repository source
+policy and its golden boundary test reject a reversed edge, undeclared package
+or Node builtin, or cross-boundary import that bypasses a declared entrypoint.
+
+This containment changes no public exports or wire schemas. Planning still
+sorts the exact asset and operation sets deterministically. Apply still rebuilds
+the Plan before comparing `--expect`, delegates the rebuilt mutation Plan to
+Foundation, recaptures the repository afterward, and returns Foundation's
+unchanged receipt.
 
 ## Ownership
 

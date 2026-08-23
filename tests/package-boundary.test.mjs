@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { createSourceDependenciesCapability } from "../packages/engineering-foundation/dist/capabilities/source-dependencies/module.js";
 import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
@@ -151,18 +152,214 @@ test("Foundation source and source-boundary authority cannot import Docs Protoco
   for (const boundary of foundationBoundaries) {
     assert.ok(!boundary.allow.packages.includes(docsProtocolName), boundary.id);
   }
-  const docsBoundary = policy.boundaries.find(
-    (boundary) => boundary.id === "docs-protocol.package",
+  const docsBoundaries = policy.boundaries.filter((boundary) =>
+    boundary.roots.some((root) => root.startsWith("packages/docs-protocol/")),
   );
   const docsSources = await sourceFiles(join(repositoryRoot, "packages/docs-protocol/src"));
   const specifiers = (await Promise.all(docsSources.map((path) => readFile(path, "utf8"))))
     .flatMap(importedSpecifiers);
   const observedBuiltins = [...new Set(specifiers.filter((specifier) => specifier.startsWith("node:")))].toSorted();
   const observedPackages = [...new Set(specifiers.map(packageName).filter(Boolean))].toSorted();
-  assert.deepEqual(docsBoundary.allow.builtins.toSorted(), observedBuiltins);
-  assert.deepEqual(docsBoundary.allow.packages.toSorted(), observedPackages);
+  const allowedBuiltins = [...new Set(docsBoundaries.flatMap((boundary) =>
+    boundary.allow.builtins))].toSorted();
+  const allowedPackages = [...new Set(docsBoundaries.flatMap((boundary) =>
+    boundary.allow.packages))].toSorted();
+  assert.deepEqual(allowedBuiltins, observedBuiltins);
+  assert.deepEqual(allowedPackages, observedPackages);
   const docsManifest = await json("packages/docs-protocol/package.json");
   assert.deepEqual(Object.keys(docsManifest.dependencies).toSorted(), observedPackages);
+});
+
+test("Docs Protocol consumer integration retains its golden internal dependency fence", async () => {
+  const policy = parseYaml(await readFile(join(
+    repositoryRoot,
+    "architecture/foundation/source-dependencies.yaml",
+  ), "utf8"));
+  const boundaries = Object.fromEntries(policy.boundaries
+    .filter(({ id }) => id.startsWith("docs-protocol.consumer-integration."))
+    .map(({ id, roots, allow, entrypoints }) => [id, {
+      roots,
+      boundaries: allow.boundaries,
+      packages: allow.packages,
+      builtins: allow.builtins,
+      entrypoints,
+    }]));
+  assert.deepEqual(boundaries, {
+    "docs-protocol.consumer-integration.domain": {
+      roots: ["packages/docs-protocol/src/consumer-integration/domain"],
+      boundaries: [], packages: [], builtins: [],
+      entrypoints: ["packages/docs-protocol/src/consumer-integration/domain/model.ts"],
+    },
+    "docs-protocol.consumer-integration.generated-assets": {
+      roots: ["packages/docs-protocol/src/consumer-integration/generated"],
+      boundaries: [], packages: [], builtins: [],
+      entrypoints: ["packages/docs-protocol/src/consumer-integration/generated/canonical-assets.ts"],
+    },
+    "docs-protocol.consumer-integration.application": {
+      roots: ["packages/docs-protocol/src/consumer-integration/application"],
+      boundaries: [
+        "docs-protocol.consumer-integration.domain",
+        "docs-protocol.consumer-integration.generated-assets",
+      ],
+      packages: [foundationName],
+      builtins: ["node:crypto"],
+      entrypoints: [
+        "packages/docs-protocol/src/consumer-integration/application/model/consumer-integration-execution.ts",
+        "packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-assets.ts",
+        "packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-desired-state.ts",
+        "packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts",
+        "packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-planners.ts",
+        "packages/docs-protocol/src/consumer-integration/application/use-cases/plan-consumer-integration.ts",
+        "packages/docs-protocol/src/consumer-integration/application/use-cases/run-consumer-integration.ts",
+      ],
+    },
+    "docs-protocol.consumer-integration.adapters": {
+      roots: ["packages/docs-protocol/src/consumer-integration/adapters"],
+      boundaries: [
+        "docs-protocol.consumer-integration.application",
+        "docs-protocol.consumer-integration.domain",
+      ],
+      packages: [foundationName, "ajv", "ajv-formats", "jsonc-parser", "yaml"],
+      builtins: ["node:child_process", "node:crypto", "node:fs", "node:fs/promises", "node:path"],
+      entrypoints: [
+        "packages/docs-protocol/src/consumer-integration/adapters/agents-route-adapter-v1.ts",
+        "packages/docs-protocol/src/consumer-integration/adapters/consumer-integration-schema-validator.ts",
+        "packages/docs-protocol/src/consumer-integration/adapters/foundation-known-file-transaction.ts",
+        "packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
+        "packages/docs-protocol/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
+        "packages/docs-protocol/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts",
+      ],
+    },
+    "docs-protocol.consumer-integration.composition": {
+      roots: [
+        "packages/docs-protocol/src/consumer-integration/composition",
+        "packages/docs-protocol/src/consumer-integration/index.ts",
+      ],
+      boundaries: [
+        "docs-protocol.consumer-integration.adapters",
+        "docs-protocol.consumer-integration.application",
+        "docs-protocol.consumer-integration.domain",
+      ],
+      packages: [], builtins: [],
+      entrypoints: [
+        "packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts",
+        "packages/docs-protocol/src/consumer-integration/index.ts",
+      ],
+    },
+  });
+
+  const applicationSources = await sourceFiles(join(
+    repositoryRoot,
+    "packages/docs-protocol/src/consumer-integration/application",
+  ));
+  for (const path of applicationSources) {
+    const source = await readFile(path, "utf8");
+    assert.doesNotMatch(source, /(?:^|\/)adapters(?:\/|$)/u, path);
+    assert.doesNotMatch(source, /node:(?:child_process|fs|module|os|path|url)/u, path);
+  }
+});
+
+test("Docs Protocol boundary policy classifies new application files and rejects adapter imports", async () => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "docs-consumer-boundary-"));
+  try {
+    const policy = parseYaml(await readFile(join(
+      repositoryRoot,
+      "architecture/foundation/source-dependencies.yaml",
+    ), "utf8"));
+    const relevantBoundaryIds = new Set([
+      "docs-protocol.consumer-integration.adapters",
+      "docs-protocol.consumer-integration.application",
+      "docs-protocol.consumer-integration.domain",
+      "docs-protocol.consumer-integration.generated-assets",
+    ]);
+    const fixturePolicy = {
+      schemaVersion: 1,
+      workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
+      governedRoots: ["packages/docs-protocol/src/consumer-integration"],
+      boundaries: policy.boundaries
+        .filter(({ id }) => relevantBoundaryIds.has(id))
+        .map((boundary) => ({
+          ...boundary,
+          entrypoints: boundary.id.endsWith(".adapters")
+            ? ["packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts"]
+            : boundary.id.endsWith(".domain")
+              ? ["packages/docs-protocol/src/consumer-integration/domain/model.ts"]
+              : [],
+        })),
+    };
+    const paths = {
+      application: join(
+        temporaryRoot,
+        "packages/docs-protocol/src/consumer-integration/application/use-cases/new-use-case.ts",
+      ),
+      adapter: join(
+        temporaryRoot,
+        "packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
+      ),
+      domain: join(
+        temporaryRoot,
+        "packages/docs-protocol/src/consumer-integration/domain/model.ts",
+      ),
+      generated: join(
+        temporaryRoot,
+        "packages/docs-protocol/src/consumer-integration/generated",
+      ),
+    };
+    await Promise.all([
+      mkdir(join(temporaryRoot, "architecture/foundation"), { recursive: true }),
+      mkdir(dirname(paths.application), { recursive: true }),
+      mkdir(dirname(paths.adapter), { recursive: true }),
+      mkdir(dirname(paths.domain), { recursive: true }),
+      mkdir(paths.generated, { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(join(temporaryRoot, "package.json"), `${JSON.stringify({
+        name: "@fixture/repository",
+        version: "0.0.0",
+        private: true,
+        type: "module",
+        packageManager: "pnpm@11.20.0",
+      }, null, 2)}\n`),
+      writeFile(join(temporaryRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n"),
+      writeFile(join(temporaryRoot, "packages/docs-protocol/package.json"), `${JSON.stringify({
+        name: docsProtocolName,
+        version: "0.0.0",
+        private: true,
+        type: "module",
+      }, null, 2)}\n`),
+      writeFile(
+        join(temporaryRoot, "architecture/foundation/source-dependencies.yaml"),
+        stringifyYaml(fixturePolicy, { lineWidth: 0 }),
+      ),
+      writeFile(paths.adapter, "export const nodeAdapter = true;\n"),
+      writeFile(paths.domain, "export interface DomainMarker { readonly id: string; }\n"),
+      writeFile(
+        paths.application,
+        "import { nodeAdapter } from \"../../adapters/node-consumer-integration-repository.js\";\nexport const execute = nodeAdapter;\n",
+      ),
+    ]);
+
+    const rejected = await createSourceDependenciesCapability().run({
+      consumerRoot: temporaryRoot,
+      configPath: "architecture/foundation/source-dependencies.yaml",
+    });
+    assert.equal(rejected.outcome, "violations");
+    assert.ok(rejected.diagnostics.some(({ location, ruleId }) =>
+      ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" &&
+      location.path.endsWith("application/use-cases/new-use-case.ts")));
+
+    await writeFile(
+      paths.application,
+      "import type { DomainMarker } from \"../../domain/model.js\";\nexport type UseCaseMarker = DomainMarker;\n",
+    );
+    const accepted = await createSourceDependenciesCapability().run({
+      consumerRoot: temporaryRoot,
+      configPath: "architecture/foundation/source-dependencies.yaml",
+    });
+    assert.equal(accepted.outcome, "passed", JSON.stringify(accepted, null, 2));
+  } finally {
+    await rm(temporaryRoot, { force: true, recursive: true });
+  }
 });
 
 test("source dependency capability accepts the exact repository allowlist", async () => {

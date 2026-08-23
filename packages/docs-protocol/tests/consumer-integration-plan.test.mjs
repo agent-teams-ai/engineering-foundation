@@ -13,7 +13,7 @@ import {
   describeCanonicalConsumerAssets,
   planConsumerIntegration as publicPlanConsumerIntegration
 } from "../dist/consumer-integration/index.js";
-import { compileConsumerIntegration } from "../dist/consumer-integration/application/use-cases/plan-consumer-integration.js";
+import { compileConsumerIntegration } from "../dist/consumer-integration/composition/consumer-integration-planner.js";
 import { loadPackageConsumerAssetCatalog } from "../dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
 import {
   CANONICAL_ASSET_CATALOG,

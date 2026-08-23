@@ -10,7 +10,8 @@ boundaries:
     roots:
       - packages/docs-protocol/src
     allow:
-      boundaries: []
+      boundaries:
+        - docs-protocol.consumer-integration.composition
       packages:
         - "@agent-teams/engineering-foundation"
         - ajv
@@ -30,6 +31,88 @@ boundaries:
     entrypoints:
       - packages/docs-protocol/src/index.ts
       - packages/docs-protocol/src/cli.ts
+  - id: docs-protocol.consumer-integration.domain
+    roots:
+      - packages/docs-protocol/src/consumer-integration/domain
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/consumer-integration/domain/model.ts
+  - id: docs-protocol.consumer-integration.generated-assets
+    roots:
+      - packages/docs-protocol/src/consumer-integration/generated
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/consumer-integration/generated/canonical-assets.ts
+  - id: docs-protocol.consumer-integration.application
+    roots:
+      - packages/docs-protocol/src/consumer-integration/application
+    allow:
+      boundaries:
+        - docs-protocol.consumer-integration.domain
+        - docs-protocol.consumer-integration.generated-assets
+      packages:
+        - "@agent-teams/engineering-foundation"
+      builtins:
+        - node:crypto
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/consumer-integration/application/model/consumer-integration-execution.ts
+      - packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-assets.ts
+      - packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
+      - packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts
+      - packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-planners.ts
+      - packages/docs-protocol/src/consumer-integration/application/use-cases/plan-consumer-integration.ts
+      - packages/docs-protocol/src/consumer-integration/application/use-cases/run-consumer-integration.ts
+  - id: docs-protocol.consumer-integration.adapters
+    roots:
+      - packages/docs-protocol/src/consumer-integration/adapters
+    allow:
+      boundaries:
+        - docs-protocol.consumer-integration.application
+        - docs-protocol.consumer-integration.domain
+      packages:
+        - "@agent-teams/engineering-foundation"
+        - ajv
+        - ajv-formats
+        - jsonc-parser
+        - yaml
+      builtins:
+        - node:child_process
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/consumer-integration/adapters/agents-route-adapter-v1.ts
+      - packages/docs-protocol/src/consumer-integration/adapters/consumer-integration-schema-validator.ts
+      - packages/docs-protocol/src/consumer-integration/adapters/foundation-known-file-transaction.ts
+      - packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+      - packages/docs-protocol/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
+      - packages/docs-protocol/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts
+  - id: docs-protocol.consumer-integration.composition
+    roots:
+      - packages/docs-protocol/src/consumer-integration/composition
+      - packages/docs-protocol/src/consumer-integration/index.ts
+    allow:
+      boundaries:
+        - docs-protocol.consumer-integration.adapters
+        - docs-protocol.consumer-integration.application
+        - docs-protocol.consumer-integration.domain
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts
+      - packages/docs-protocol/src/consumer-integration/index.ts
   - id: foundation.public-api
     roots:
       - packages/engineering-foundation/src/index.ts

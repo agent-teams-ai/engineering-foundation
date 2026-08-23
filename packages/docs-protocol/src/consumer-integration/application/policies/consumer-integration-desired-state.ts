@@ -41,7 +41,7 @@ function isCanonicalUtcSeconds(value: string): boolean {
 function assertPlainBoundedJson(value: unknown): void {
   let remaining = 2048;
   const seen = new Set<object>();
-  // oxlint-disable-next-line complexity -- this rejects every non-JSON runtime category.
+  // oxlint-disable-next-line complexity
   const visit = (candidate: unknown, depth: number): void => {
     if (--remaining < 0 || depth > 16) {throw new TypeError("Consumer input exceeds bounded JSON limits.");}
     if (candidate === null || typeof candidate === "boolean" ||

@@ -1,6 +1,7 @@
 schemaVersion: 1
 governedRoots:
   - packages/engineering-foundation/src
+  - packages/docs-protocol/src
 nonWaivableRulePrefixes:
   - access-control.
 waivers:
@@ -44,3 +45,33 @@ waivers:
     createdOn: 2026-08-16
     expiresOn: 2026-11-14
     decisionRef: ADR-0032
+  - id: DOCS-CONSUMER-BOUNDED-JSON-COMPLEXITY
+    path: packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
+    line: 44
+    directive: oxlint-disable-next-line
+    rules: [complexity]
+    owner: foundation-maintainers
+    reason: The closed V1 input guard rejects every non-JSON runtime category within one bounded traversal.
+    createdOn: 2026-08-23
+    expiresOn: 2026-11-21
+    decisionRef: ADR-0031
+  - id: DOCS-CONSUMER-PRIOR-EVIDENCE-COMPLEXITY
+    path: packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-prior-cohort.ts
+    line: 131
+    directive: oxlint-disable-next-line
+    rules: [complexity]
+    owner: foundation-maintainers
+    reason: Every exact prior-Cohort evidence predicate must hold before the source executor is trusted.
+    createdOn: 2026-08-23
+    expiresOn: 2026-11-21
+    decisionRef: ADR-0032
+  - id: DOCS-CONSUMER-CLI-ROUTER-COMPLEXITY
+    path: packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts
+    line: 154
+    directive: oxlint-disable-next-line
+    rules: [complexity]
+    owner: foundation-maintainers
+    reason: The bounded CLI router keeps the four fixed V1 command envelopes and their error mapping together.
+    createdOn: 2026-08-23
+    expiresOn: 2026-11-21
+    decisionRef: ADR-0031

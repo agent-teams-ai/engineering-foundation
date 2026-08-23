@@ -1,12 +1,16 @@
 import { applyEdits, modify } from "jsonc-parser";
 
-import { parseJsonRecord, recordField } from "../../adapters/adoption-input.js";
+import { parseJsonRecord, recordField } from "./strict-json-record.js";
 import type {
   ConsumerIntegrationDigest,
   ConsumerIntegrationFileObservation,
   ConsumerIntegrationIssue,
   QualifiedDocsCohortBindingV1
 } from "../domain/model.js";
+import type {
+  PnpmManifestPlanV1,
+  PnpmManifestPlannerV1
+} from "../application/ports/consumer-integration-planners.js";
 import {
   canonicalConsumerIntegrationJson,
   canonicalDocsScripts,
@@ -16,14 +20,7 @@ import {
 const DOCS_PACKAGE = "@agent-teams/docs-protocol";
 const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
 
-/** @public */
-export interface PnpmManifestPlanV1 {
-  readonly state: "conflict" | "exact-current" | "known-prior";
-  readonly currentDigest: ConsumerIntegrationDigest;
-  readonly expectedDigest: ConsumerIntegrationDigest;
-  readonly postimage?: Uint8Array;
-  readonly issues: readonly ConsumerIntegrationIssue[];
-}
+export type { PnpmManifestPlanV1 } from "../application/ports/consumer-integration-planners.js";
 
 function issue(subject: string, code: string, message: string): ConsumerIntegrationIssue {
   return { code, severity: "error", subject, message };
@@ -207,3 +204,7 @@ export function planPnpmManifestV1(input: {
     issues: []
   };
 }
+
+export const pnpmManifestPlannerV1: PnpmManifestPlannerV1 = Object.freeze({
+  plan: planPnpmManifestV1
+});

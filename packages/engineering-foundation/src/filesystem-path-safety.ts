@@ -93,6 +93,14 @@ const nodeContainedFileReadOperations: ContainedFileReadOperations = {
   stat: (path) => stat(path, { bigint: true })
 };
 
+interface OpenedContainedRegularFile {
+  readonly candidate: string;
+  readonly expectedBytes: number;
+  readonly handle: ContainedFileHandle;
+  readonly openedMetadata: FileSnapshot;
+  readonly root: string;
+}
+
 function sameSnapshot(left: FileSnapshot, right: FileSnapshot): boolean {
   return (
     sameIdentity(left, right) &&
@@ -140,6 +148,12 @@ function assertByteLimit(maxBytes: number): void {
   }
 }
 
+function containedFileOpenFlags(): number {
+  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const nonBlocking = process.platform === "win32" ? 0 : constants.O_NONBLOCK;
+  return constants.O_RDONLY | noFollow | nonBlocking;
+}
+
 async function assertNoSymbolicLinks(input: {
   readonly candidate: string;
   readonly operations: ContainedFileReadOperations;
@@ -165,7 +179,7 @@ async function assertNoSymbolicLinks(input: {
   }
 }
 
-async function assertNamedFileMatchesHandle(input: {
+async function assertNamedFileMatchesSnapshot(input: {
   readonly candidate: string;
   readonly opened: FileSnapshot;
   readonly operations: ContainedFileReadOperations;
@@ -230,11 +244,11 @@ async function readAtMost(input: {
   return Buffer.concat(chunks, bytesReadTotal);
 }
 
-export async function readContainedRegularFile(input: {
+async function openContainedRegularFile(input: {
   readonly candidate: string;
   readonly maxBytes: number;
   readonly root: string;
-}, operations: ContainedFileReadOperations = nodeContainedFileReadOperations): Promise<Buffer> {
+}, operations: ContainedFileReadOperations): Promise<OpenedContainedRegularFile> {
   assertByteLimit(input.maxBytes);
   const lexicalRoot = resolve(input.root);
   const lexicalCandidate = resolve(input.candidate);
@@ -260,48 +274,114 @@ export async function readContainedRegularFile(input: {
   });
   let handle: ContainedFileHandle;
   try {
-    handle = await operations.open(candidate, constants.O_RDONLY | constants.O_NOFOLLOW);
+    handle = await operations.open(candidate, containedFileOpenFlags());
   } catch (error) {
     throw readError(error, "before-open");
   }
-  let bytes: Buffer | undefined;
-  let failure: ContainedFileReadError | undefined;
   try {
     const openedMetadata = await handle.stat();
     const expectedBytes = boundedSnapshotSize(openedMetadata, input.maxBytes);
     if (!openedMetadata.isFile() || expectedBytes === undefined) {
       throw new ContainedFileReadError("invalid");
     }
-    await assertNamedFileMatchesHandle({
+    await assertNamedFileMatchesSnapshot({
       candidate,
       opened: openedMetadata,
       operations,
       phase: "after-open",
       root
     });
-    bytes = await readAtMost({
+    return {
+      candidate,
       expectedBytes,
-      handle
-    });
-    const finalMetadata = await handle.stat();
-    if (!sameSnapshot(openedMetadata, finalMetadata) || bytes.length !== expectedBytes) {
-      throw new ContainedFileReadError("changed");
-    }
-    await assertNamedFileMatchesHandle({
-      candidate,
-      opened: openedMetadata,
-      operations,
-      phase: "after-open",
+      handle,
+      openedMetadata,
       root
-    });
+    };
+  } catch (error) {
+    try {
+      await handle.close();
+    } catch {
+      // Preserve the validation failure that made the handle unusable.
+    }
+    throw readError(error, "after-open");
+  }
+}
+
+async function assertOpenedFileStable(
+  opened: OpenedContainedRegularFile,
+  operations: ContainedFileReadOperations
+): Promise<void> {
+  const finalMetadata = await opened.handle.stat();
+  if (!sameSnapshot(opened.openedMetadata, finalMetadata)) {
+    throw new ContainedFileReadError("changed");
+  }
+  await assertNamedFileMatchesSnapshot({
+    candidate: opened.candidate,
+    opened: opened.openedMetadata,
+    operations,
+    phase: "after-open",
+    root: opened.root
+  });
+}
+
+async function closeContainedFile(
+  opened: OpenedContainedRegularFile,
+  failure?: ContainedFileReadError
+): Promise<void> {
+  try {
+    await opened.handle.close();
+  } catch (error) {
+    if (failure === undefined) {
+      throw readError(error, "after-open");
+    }
+  }
+}
+
+export async function inspectContainedRegularFile(input: {
+  readonly candidate: string;
+  readonly root: string;
+}, operations: ContainedFileReadOperations = nodeContainedFileReadOperations): Promise<{
+  readonly size: number;
+}> {
+  const opened = await openContainedRegularFile({
+    ...input,
+    maxBytes: Number.MAX_SAFE_INTEGER - 1
+  }, operations);
+  let failure: ContainedFileReadError | undefined;
+  try {
+    await assertOpenedFileStable(opened, operations);
   } catch (error) {
     failure = readError(error, "after-open");
   }
-  try {
-    await handle.close();
-  } catch (error) {
-    failure ??= readError(error, "after-open");
+  await closeContainedFile(opened, failure);
+  if (failure !== undefined) {
+    throw failure;
   }
+  return { size: opened.expectedBytes };
+}
+
+export async function readContainedRegularFile(input: {
+  readonly candidate: string;
+  readonly maxBytes: number;
+  readonly root: string;
+}, operations: ContainedFileReadOperations = nodeContainedFileReadOperations): Promise<Buffer> {
+  const opened = await openContainedRegularFile(input, operations);
+  let bytes: Buffer | undefined;
+  let failure: ContainedFileReadError | undefined;
+  try {
+    bytes = await readAtMost({
+      expectedBytes: opened.expectedBytes,
+      handle: opened.handle
+    });
+    if (bytes.length !== opened.expectedBytes) {
+      throw new ContainedFileReadError("changed");
+    }
+    await assertOpenedFileStable(opened, operations);
+  } catch (error) {
+    failure = readError(error, "after-open");
+  }
+  await closeContainedFile(opened, failure);
   if (failure !== undefined) {
     throw failure;
   }

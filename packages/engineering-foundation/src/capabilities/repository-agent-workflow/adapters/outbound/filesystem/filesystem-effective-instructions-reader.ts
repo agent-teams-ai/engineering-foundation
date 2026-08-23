@@ -1,9 +1,10 @@
 import { lstat, realpath, stat } from "node:fs/promises";
-import { isAbsolute, join, posix, relative, sep } from "node:path";
+import { isAbsolute, join, posix, relative, sep, win32 } from "node:path";
 
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
 import {
   ContainedFileReadError,
+  inspectContainedRegularFile,
   readContainedRegularFile
 } from "../../../../../filesystem-path-safety.js";
 import {
@@ -40,10 +41,21 @@ function contained(root: string, candidate: string): boolean {
     (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`));
 }
 
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const codeUnit = value.charCodeAt(index);
-    if (codeUnit <= 31 || codeUnit === 127) {
+function hasUnsafeDisplayCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint === undefined ||
+      codePoint <= 0x1f ||
+      (codePoint >= 0x7f && codePoint <= 0x9f) ||
+      (codePoint >= 0xd800 && codePoint <= 0xdfff) ||
+      codePoint === 0x2028 ||
+      codePoint === 0x2029 ||
+      codePoint === 0x061c ||
+      (codePoint >= 0x200e && codePoint <= 0x200f) ||
+      (codePoint >= 0x202a && codePoint <= 0x202e) ||
+      (codePoint >= 0x2066 && codePoint <= 0x2069)
+    ) {
       return true;
     }
   }
@@ -127,7 +139,7 @@ async function readCandidate(
   root: string,
   directory: { readonly absolute: string; readonly repositoryPath: string },
   name: string,
-  readBytes: boolean
+  mode: "classify" | "content" | "metadata"
 ): Promise<EffectiveInstructionCandidateObservation> {
   const repositoryPath = directory.repositoryPath === "."
     ? name
@@ -157,13 +169,30 @@ async function readCandidate(
       `The instruction candidate has an unsupported size: ${repositoryPath}.`
     );
   }
-  if (!readBytes) {
+  if (mode === "classify") {
     return Object.freeze({
       kind: "file",
       path: repositoryPath,
       sourceBytes: metadata.size,
       bytes: null
     });
+  }
+  if (mode === "metadata") {
+    try {
+      const observation = await inspectContainedRegularFile({ candidate, root });
+      return Object.freeze({
+        kind: "file",
+        path: repositoryPath,
+        sourceBytes: observation.size,
+        bytes: null
+      });
+    } catch (error) {
+      const detail = error instanceof ContainedFileReadError ? error.failure : "unavailable";
+      inputError(
+        "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_UNAVAILABLE",
+        `The instruction candidate must remain a stable real repository file: ${repositoryPath} (${detail}).`
+      );
+    }
   }
   try {
     const bytes = await readContainedRegularFile({
@@ -193,19 +222,20 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
     readonly signal?: AbortSignal;
   }): Promise<EffectiveInstructionDiscovery> {
     assertNotCancelled(input.signal);
-    assertRepositoryRelativePath(
-      input.targetPath,
-      "repository-agent-workflow-effective-instructions"
-    );
     if (
-      hasControlCharacter(input.targetPath) ||
+      hasUnsafeDisplayCharacter(input.targetPath) ||
+      win32.isAbsolute(input.targetPath) ||
       input.targetPath.normalize("NFC") !== input.targetPath
     ) {
       inputError(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
-        "The target path must use Unicode NFC normalization without control characters."
+        "The target path must be a well-formed repository-relative POSIX path in Unicode NFC without control, bidirectional-formatting, or line-separator characters."
       );
     }
+    assertRepositoryRelativePath(
+      input.targetPath,
+      "repository-agent-workflow-effective-instructions"
+    );
     const root = await resolveConsumerRoot(input.consumerRoot);
     const targetDirectory = posix.dirname(input.targetPath);
     const directories = await safeTargetDirectories(root, targetDirectory);
@@ -259,11 +289,14 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
     const candidates: EffectiveInstructionCandidateObservation[] = [];
     let selected = false;
     for (const name of EFFECTIVE_INSTRUCTION_CANDIDATE_NAMES) {
+      const mode = selected
+        ? "classify"
+        : input.readSelectedBytes ? "content" : "metadata";
       const candidate = await readCandidate(
         root,
         directory,
         name,
-        input.readSelectedBytes && !selected
+        mode
       );
       candidates.push(candidate);
       selected ||= candidate.kind === "file" || candidate.kind === "symlink";

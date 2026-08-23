@@ -23,6 +23,22 @@ Engineering Foundation mutation
 Foundation never imports Docs Protocol. Docs Protocol never owns organization
 admission. Consumers retain all repository-specific documentation meaning.
 
+## Legacy Foundation CLI boundary
+
+Docs Protocol is the target command owner. The older Foundation `docs`
+namespace remains executable only as the frozen compatibility boundary defined
+by [ADR-0033](../decisions/0033-freeze-legacy-foundation-docs-cli.md). Foundation
+does not forward that namespace to Docs Protocol or add a reverse dependency.
+Human invocations receive the stable `FOUNDATION_DOCS_CLI_DEPRECATED` signal;
+machine invocations preserve their published one-envelope stream contract.
+
+The later removal event is evidence-gated, not time-gated. It requires a
+complete Qualified Cohort inventory with zero legacy invocations, exact
+consumer cutover evidence, positive and negative parity fixtures,
+packed-registry and platform qualification, and a proven recovery route for
+every supported legacy evidence version. Until then, the compatibility surface
+is maintained but cannot evolve.
+
 ## Ownership
 
 | Surface | Owner | Integration authority |
@@ -65,4 +81,3 @@ qualified.
 - network access during local lifecycle commands;
 - multi-file atomicity claims;
 - continuous organization-wide compliance before a separate read-only auditor.
-

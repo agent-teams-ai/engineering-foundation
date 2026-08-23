@@ -161,6 +161,11 @@
       "id": "ADR-0032",
       "path": "docs/decisions/0032-qualified-runtime-and-source-owned-cohort-transitions.md",
       "immutableDigest": "sha256:ce5083d0ff3d206bfcfad0791c569c5fe90470c8a02c8aee98fbac0e6fee0a31"
+    },
+    {
+      "id": "ADR-0033",
+      "path": "docs/decisions/0033-freeze-legacy-foundation-docs-cli.md",
+      "immutableDigest": "sha256:b19d210dc863a35514fdd4d61e0f35cfe52b9ad230eb18aba816131df7aafc89"
     }
   ]
 }

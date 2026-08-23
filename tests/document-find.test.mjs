@@ -17,10 +17,15 @@ import {
   documentFindSuccess,
 } from "../packages/engineering-foundation/dist/document-authoring/find-command.js";
 import { DocumentCatalogError } from "../packages/engineering-foundation/dist/document-authoring/document-catalog-error.js";
+import { LEGACY_DOCS_CLI_DEPRECATION_CODE } from "../packages/engineering-foundation/dist/legacy-docs-cli-deprecation.js";
 
 const cliPath = fileURLToPath(
   new URL("../packages/engineering-foundation/dist/cli.js", import.meta.url),
 );
+
+function assertHumanDeprecation(stderr) {
+  assert.match(stderr, new RegExp(`^${LEGACY_DOCS_CLI_DEPRECATION_CODE}:`, "u"));
+}
 
 const metadataSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -278,7 +283,7 @@ test("CLI emits one schema-valid JSON object, partial diagnostics, and never wri
       root,
     ], { encoding: "utf8" });
     assert.equal(human.status, 1, human.stderr);
-    assert.equal(human.stderr, "");
+    assertHumanDeprecation(human.stderr);
     assert.match(human.stdout, /^Catalog: partial\nMatches: 1\n/u);
     assert.match(human.stdout, /guide\.valid \[guide\/active\] docs\/content\/valid\.md/u);
     assert.match(human.stdout, /ERROR document\.catalog\.frontmatter-required/u);
@@ -359,6 +364,19 @@ test("CLI reports zero matches as success and invalid JSON invocations structura
       matches: 0,
       documents: [],
     });
+
+    const terminated = spawnSync(process.execPath, [
+      cliPath,
+      "docs",
+      "find",
+      "--consumer",
+      root,
+      "--",
+      "--json",
+    ], { encoding: "utf8" });
+    assert.equal(terminated.status, 0, terminated.stderr);
+    assertHumanDeprecation(terminated.stderr);
+    assert.match(terminated.stdout, /^Catalog: success\nMatches: 0\n/u);
 
     for (const args of [
       ["docs", "find", "one", "two", "--json"],

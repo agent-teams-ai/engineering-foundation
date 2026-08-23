@@ -26,7 +26,11 @@ Publishing with the npm version bundled by the pinned Node runtime. No npm
 token is stored. Immediately before each npm write, the live protected
 `refs/heads/main` must still equal the run's exact `GITHUB_SHA`; an older run may
 inspect and reconcile an already-published exact pair but cannot publish a
-missing version. Only after npm exposes the exact SRI, tarball manifest,
+missing version after `main` advances. A current exact-main run may publish a
+missing Docs Protocol patch against an already-published Foundation version only
+after proving the local Foundation tarball, complete manifest, final tag,
+cryptographically verified provenance, and protected-main ancestry. Only after
+npm exposes the exact SRI, tarball manifest,
 trusted provenance, source repository, workflow and commit does it run npm's
 cryptographic signature and attestation audit. Release authority is derived
 only from the exact SLSA statement inside that npm-verified Sigstore bundle,
@@ -48,17 +52,18 @@ disabled because its two-package boundary is not retry-safe. Existing refs and
 releases are reused only when their commit, prerelease flag, title and exact
 Changesets changelog body match. A partial boundary is completed on retry.
 Later `main` commits accept only package provenance from a verified protected-main
-ancestor, require intact final tags, perform no npm writes, and emit no `New tag:`
-lines. A same-release-commit retry emits the two parser-compatible lines only
-after npm and GitHub postconditions have converged.
+ancestor and require intact final tags. An already-published exact pair performs
+no npm writes and emits no `New tag:` lines. A current exact-main Docs-only patch
+may publish only its missing Docs version and emits only that package's
+parser-compatible line after npm and GitHub postconditions have converged.
 
 A partial retry never uses `npm dist-tag`, overwrites or unpublishes an
 immutable npm version. It may skip an existing version only when its SRI,
 complete packed manifest and trusted source provenance exactly match the local
 reviewed artifact. A Foundation-only partial release can publish its missing
-Docs Protocol partner only while the current run SHA is the commit named by
-Foundation's verified provenance; a later unrelated `main` run performs no npm
-write. Before the first publication, both exact package states are inspected;
+Docs Protocol partner from a later exact protected-main run under the same
+reusable-Foundation proof as a reviewed Docs-only patch. Before the first
+publication, both exact package states are inspected;
 a Docs-only state is quarantined without publishing Foundation. A timeout, 5xx,
 unknown publish result or temporarily missing version is retried only as a
 read-only registry observation. Persistent uncertainty fails closed. Any

@@ -212,9 +212,6 @@ export async function orderedRelease({
   } else if (docsBefore.status === "unknown") {
     fail(`${docs.name}@${docs.version} preflight result is unknown`);
   }
-  if (docsBefore.status === "absent" && foundationProvenance.commit !== source.commit) {
-    fail("a missing Docs Protocol version may be published only by the Foundation provenance-owning commit");
-  }
   const docsPublished = docsBefore.status === "present"
     ? docsBefore
     : await publishOrReuse({

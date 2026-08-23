@@ -1,5 +1,56 @@
 # @agent-teams/engineering-foundation
 
+## 0.17.0
+
+### Minor Changes
+
+- [#171](https://github.com/agent-teams-ai/engineering-foundation/pull/171) [`21184bf`](https://github.com/agent-teams-ai/engineering-foundation/commit/21184bfcd9b19e2a8bc23ab2d0c68d987c2e92cd) Thanks [@777genius](https://github.com/777genius)! - Add the opt-in `quality.gate-runner` capability and explicit `gate run` CLI for deterministic, bounded package-script DAG profiles with timeout, cancellation, and versioned result evidence.
+
+- [#140](https://github.com/agent-teams-ai/engineering-foundation/pull/140) [`b228651`](https://github.com/agent-teams-ai/engineering-foundation/commit/b2286510150293e7355a7abe284432a9e3d3671d) Thanks [@777genius](https://github.com/777genius)! - Add recoverable exact-preimage known-file transactions to Foundation and a
+  write-free, cohort-bound Docs Protocol consumer integration lifecycle with
+  deterministic check, plan, apply, recovery, schemas, and offline sandbox E2E.
+
+- [#113](https://github.com/agent-teams-ai/engineering-foundation/pull/113) [`9b1544b`](https://github.com/agent-teams-ai/engineering-foundation/commit/9b1544bcefed647fbe7d4bee5a05d12cd526d6d6) Thanks [@777genius](https://github.com/777genius)! - Add the versioned Foundation directory-materialization kernel used by the
+  staged unified documentation protocol. Provide deterministic planning,
+  publication, evidence, and recovery backed by consumer-owned data-only profiles
+  and portable transactional filesystem guarantees.
+
+### Patch Changes
+
+- [#173](https://github.com/agent-teams-ai/engineering-foundation/pull/173) [`207a357`](https://github.com/agent-teams-ai/engineering-foundation/commit/207a3570370eeb23dd8c4ea39d8ed836a00e4916) Thanks [@777genius](https://github.com/777genius)! - Derive the private capability and rule registries from one typed module descriptor list.
+
+- [#166](https://github.com/agent-teams-ai/engineering-foundation/pull/166) [`da4a859`](https://github.com/agent-teams-ai/engineering-foundation/commit/da4a859eb1bd86e9a51373751c5329d45a120fc5) Thanks [@777genius](https://github.com/777genius)! - Publish a fresh Foundation prerelease so the pending Docs Protocol rc11 and its
+  exact dependency are produced by one protected-main provenance commit.
+
+- [#156](https://github.com/agent-teams-ai/engineering-foundation/pull/156) [`89cd8d2`](https://github.com/agent-teams-ai/engineering-foundation/commit/89cd8d2226b0214b37eb2258b4dc078a20715fd4) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc7 Cohort's immutable managed assets so consumers can prove
+  and execute upgrades to successor Cohorts without weakening conflict detection.
+
+- [#160](https://github.com/agent-teams-ai/engineering-foundation/pull/160) [`c5f3718`](https://github.com/agent-teams-ai/engineering-foundation/commit/c5f3718f1c4829de00bacaf5f37b0ead133abdd2) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified rc9 Cohort as an immutable upgrade source and accept
+  consumer-specific registry-bound transitive resolutions while preserving exact
+  managed package versions, SRI, physical resolution, and dependency edges.
+
+- [#146](https://github.com/agent-teams-ai/engineering-foundation/pull/146) [`06c6586`](https://github.com/agent-teams-ai/engineering-foundation/commit/06c6586b2426cfeb605be20d9089c70fb246a7cf) Thanks [@777genius](https://github.com/777genius)! - Refresh the Foundation release identity so the corrected Docs Protocol can
+  publish as one provenance-owned ordered pair.
+
+- [#153](https://github.com/agent-teams-ai/engineering-foundation/pull/153) [`ed0a09b`](https://github.com/agent-teams-ai/engineering-foundation/commit/ed0a09b2b2c807e8362c0afe5a84d1d2bff2e982) Thanks [@777genius](https://github.com/777genius)! - Publish a fresh Foundation prerelease from the same source commit as the pending Docs Protocol prerelease so the exact package pair preserves its ordered provenance invariant.
+
+- [#149](https://github.com/agent-teams-ai/engineering-foundation/pull/149) [`9a68e79`](https://github.com/agent-teams-ai/engineering-foundation/commit/9a68e7975093e426efe1b970f273a86ad9f55f9d) Thanks [@777genius](https://github.com/777genius)! - Bundle the withdrawn rc1 Cohort's immutable documentation assets so corrected
+  successor Cohorts can prove and execute their declared rollback edge.
+
+- [#168](https://github.com/agent-teams-ai/engineering-foundation/pull/168) [`36d9053`](https://github.com/agent-teams-ai/engineering-foundation/commit/36d905362955255c3faed930b11a1e6f05a87ee9) Thanks [@777genius](https://github.com/777genius)! - Add a read-only repository agent workflow command that explains effective `AGENTS.md` precedence, shadowing, byte budgets, and digests for a selected file.
+
+- [#179](https://github.com/agent-teams-ai/engineering-foundation/pull/179) [`dd3a17c`](https://github.com/agent-teams-ai/engineering-foundation/commit/dd3a17ca67a397d90340243e0566f3db94c34458) Thanks [@777genius](https://github.com/777genius)! - Mark the legacy Foundation docs CLI as a frozen compatibility surface, emit a
+  stable human-mode deprecation diagnostic, and direct current usage to Docs
+  Protocol without changing legacy JSON behavior.
+
+- [#172](https://github.com/agent-teams-ai/engineering-foundation/pull/172) [`c099de7`](https://github.com/agent-teams-ai/engineering-foundation/commit/c099de7195c4c926bec0999a3936114435861b07) Thanks [@777genius](https://github.com/777genius)! - Report deterministic committed, staged, unstaged, and untracked changed-scope evidence with immutable Git identities, a stable digest, strict UTF-8 paths, and hardened read-only Git discovery.
+
+- [#178](https://github.com/agent-teams-ai/engineering-foundation/pull/178) [`5724da1`](https://github.com/agent-teams-ai/engineering-foundation/commit/5724da1399182efbc424292101e599b1125cbb30) Thanks [@777genius](https://github.com/777genius)! - Harden effective-instruction target validation, exact CLI arity, byte-budget reads, stable metadata observation, Codex-compatible text admission, and deterministic digest evidence.
+
+- [#141](https://github.com/agent-teams-ai/engineering-foundation/pull/141) [`055f86e`](https://github.com/agent-teams-ai/engineering-foundation/commit/055f86eab2413cca4f0ff269bdaff3d979dd0f70) Thanks [@777genius](https://github.com/777genius)! - Honor the exact Changesets initial version when promoting public API baselines within one numbered prerelease train.
+
+- [#158](https://github.com/agent-teams-ai/engineering-foundation/pull/158) [`ca276ca`](https://github.com/agent-teams-ai/engineering-foundation/commit/ca276ca5a502ceba013106bf2270bc87b9b407a5) Thanks [@777genius](https://github.com/777genius)! - Keep ordered trusted publishing open for bounded three-minute npm provenance and idempotent GitHub reconciliation windows.
+
 ## 0.17.0-rc.8
 
 ### Patch Changes

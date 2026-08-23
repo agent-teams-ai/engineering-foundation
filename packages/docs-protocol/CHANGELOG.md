@@ -1,5 +1,12 @@
 # @agent-teams/docs-protocol
 
+## 0.1.1
+
+### Patch Changes
+
+- [#181](https://github.com/agent-teams-ai/engineering-foundation/pull/181) [`798f57e`](https://github.com/agent-teams-ai/engineering-foundation/commit/798f57e881dfaf1bb8283510a237fd289ede6284) Thanks [@777genius](https://github.com/777genius)! - Bundle the exact `docs-2026-08-18-rc3` managed assets so a separately qualified
+  stable Cohort can safely recognize and migrate existing rc3 consumers.
+
 ## 0.1.0
 
 ### Minor Changes

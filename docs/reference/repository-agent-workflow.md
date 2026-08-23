@@ -78,6 +78,12 @@ source and loaded byte counts, SHA-256 digests, the 32 KiB default byte budget,
 truncation, and later layers excluded after budget exhaustion. A selected empty
 override still shadows `AGENTS.md` but contributes no effective text.
 
+The target must name either an existing regular file or a planned file path;
+an existing directory is rejected. Target paths must be normalized
+repository-relative POSIX paths in Unicode NFC and cannot contain C0, DEL, C1,
+line-separator, or paragraph-separator characters. This keeps both filesystem
+routing and the human-readable report single-line and unambiguous.
+
 The command models Codex's default project-level discovery. It deliberately
 does not read user-level instructions, session state, custom fallback names, or
 local Codex configuration, and it never injects or prints instruction content.

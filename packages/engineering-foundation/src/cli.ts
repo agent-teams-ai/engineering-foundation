@@ -308,8 +308,8 @@ async function runAgentWorkflowCommand(
     throw new FoundationError("CONSUMER_INVALID", "agent-workflow requires the changed or instructions subcommand.");
   }
   const targetPath = parsed.positional[1];
-  if (subcommand === "instructions" && targetPath === undefined) {
-    throw new FoundationError("CONSUMER_INVALID", "agent-workflow instructions requires a repository-relative file path.");
+  if (subcommand === "instructions" && parsed.positional.length !== 2) {
+    throw new FoundationError("CONSUMER_INVALID", "agent-workflow instructions requires exactly one repository-relative file path.");
   }
   if (subcommand === "changed" && parsed.positional.length !== 1) {
     throw new FoundationError("CONSUMER_INVALID", "agent-workflow changed does not accept a target path.");

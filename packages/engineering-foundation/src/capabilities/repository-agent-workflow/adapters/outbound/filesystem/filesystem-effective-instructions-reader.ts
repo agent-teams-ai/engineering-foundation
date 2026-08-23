@@ -40,10 +40,16 @@ function contained(root: string, candidate: string): boolean {
     (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`));
 }
 
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const codeUnit = value.charCodeAt(index);
-    if (codeUnit <= 31 || codeUnit === 127) {
+function hasUnsafeDisplayCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint === undefined ||
+      codePoint <= 0x1f ||
+      (codePoint >= 0x7f && codePoint <= 0x9f) ||
+      codePoint === 0x2028 ||
+      codePoint === 0x2029
+    ) {
       return true;
     }
   }
@@ -193,19 +199,19 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
     readonly signal?: AbortSignal;
   }): Promise<EffectiveInstructionDiscovery> {
     assertNotCancelled(input.signal);
-    assertRepositoryRelativePath(
-      input.targetPath,
-      "repository-agent-workflow-effective-instructions"
-    );
     if (
-      hasControlCharacter(input.targetPath) ||
+      hasUnsafeDisplayCharacter(input.targetPath) ||
       input.targetPath.normalize("NFC") !== input.targetPath
     ) {
       inputError(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
-        "The target path must use Unicode NFC normalization without control characters."
+        "The target path must use Unicode NFC normalization without control or line-separator characters."
       );
     }
+    assertRepositoryRelativePath(
+      input.targetPath,
+      "repository-agent-workflow-effective-instructions"
+    );
     const root = await resolveConsumerRoot(input.consumerRoot);
     const targetDirectory = posix.dirname(input.targetPath);
     const directories = await safeTargetDirectories(root, targetDirectory);

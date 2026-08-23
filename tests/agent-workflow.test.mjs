@@ -20,7 +20,71 @@ import {
   cliPath,
   withAgentWorkflowFixture,
 } from "./support/capability-fixtures.mjs";
+import {
+  sha256Bytes,
+  sha256Json,
+} from "../packages/engineering-foundation/dist/canonical-json.js";
 import { PnpmPackageScriptRunner } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/pnpm/pnpm-package-script-runner.js";
+import { FilesystemEffectiveInstructionsReader } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.js";
+import { resolveEffectiveInstructions } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/use-cases/resolve-effective-instructions.js";
+
+const instructionSemantics =
+  "foundation-safe-codex-default-project-instructions-v1";
+const instructionBudgetBytes = 32 * 1024;
+
+function instructionFile(path, bytes) {
+  return Object.freeze({
+    kind: "file",
+    path,
+    sourceBytes: bytes.byteLength,
+    bytes,
+  });
+}
+
+function unreadInstructionFile(path, sourceBytes) {
+  return Object.freeze({
+    kind: "file",
+    path,
+    sourceBytes,
+    bytes: null,
+  });
+}
+
+function instructionReader({ targetPath, directories, observations, reads = [] }) {
+  return {
+    async discover() {
+      return Object.freeze({
+        targetPath,
+        targetDirectory: "src",
+        directories: Object.freeze([...directories]),
+      });
+    },
+    async readDirectory(input) {
+      reads.push(Object.freeze({
+        directory: input.directory,
+        readSelectedBytes: input.readSelectedBytes,
+      }));
+      const candidates = observations.get(input.directory);
+      assert.notEqual(candidates, undefined);
+      return Object.freeze({
+        directory: input.directory,
+        candidates,
+      });
+    },
+  };
+}
+
+function expectedResolutionDigest(targetPath, sources) {
+  return sha256Json({
+    semantics: instructionSemantics,
+    sources: sources.map(({ path, bytes }) => ({
+      path,
+      loadedBytes: bytes.byteLength,
+      loadedDigest: sha256Bytes(bytes),
+    })),
+    targetPath,
+  });
+}
 
 function git(consumerRoot, ...args) {
   const result = spawnSync("git", args, { cwd: consumerRoot, encoding: "utf8" });
@@ -236,6 +300,193 @@ test("resolves effective instructions root-to-target with explicit shadowing", a
   });
 });
 
+test("binds the resolution digest only to ordered admitted bytes and target path", async () => {
+  const encoder = new TextEncoder();
+  const rootBytes = encoder.encode("# Root instructions\n");
+  const sourceBytes = encoder.encode("# Source instructions\n");
+  const changedSourceBytes = encoder.encode("# Changed source instructions\n");
+
+  async function resolve({
+    targetPath = "src/index.ts",
+    admittedBytes = sourceBytes,
+    shadowedBytes = 91,
+  } = {}) {
+    const observations = new Map([
+      [
+        ".",
+        Object.freeze([
+          Object.freeze({ kind: "missing", path: "AGENTS.override.md" }),
+          instructionFile("AGENTS.md", rootBytes),
+        ]),
+      ],
+      [
+        "src",
+        Object.freeze([
+          instructionFile("src/AGENTS.override.md", admittedBytes),
+          unreadInstructionFile("src/AGENTS.md", shadowedBytes),
+        ]),
+      ],
+    ]);
+    return await resolveEffectiveInstructions(
+      { consumerRoot: "/disposable-fixture", targetPath },
+      instructionReader({
+        targetPath,
+        directories: [".", "src"],
+        observations,
+      }),
+    );
+  }
+
+  const first = await resolve();
+  const repeated = await resolve();
+  assert.equal(first.resolutionDigest, repeated.resolutionDigest);
+  assert.equal(
+    first.resolutionDigest,
+    expectedResolutionDigest("src/index.ts", [
+      { path: "AGENTS.md", bytes: rootBytes },
+      { path: "src/AGENTS.override.md", bytes: sourceBytes },
+    ]),
+  );
+
+  const shadowedChanged = await resolve({ shadowedBytes: 8_192 });
+  assert.equal(shadowedChanged.resolutionDigest, first.resolutionDigest);
+  assert.equal(shadowedChanged.layers[1].shadowed[0].path, "src/AGENTS.md");
+
+  const admittedChanged = await resolve({ admittedBytes: changedSourceBytes });
+  assert.notEqual(admittedChanged.resolutionDigest, first.resolutionDigest);
+  assert.equal(
+    admittedChanged.resolutionDigest,
+    expectedResolutionDigest("src/index.ts", [
+      { path: "AGENTS.md", bytes: rootBytes },
+      { path: "src/AGENTS.override.md", bytes: changedSourceBytes },
+    ]),
+  );
+
+  const targetChanged = await resolve({ targetPath: "src/planned.ts" });
+  assert.notEqual(targetChanged.resolutionDigest, first.resolutionDigest);
+  assert.equal(
+    targetChanged.resolutionDigest,
+    expectedResolutionDigest("src/planned.ts", [
+      { path: "AGENTS.md", bytes: rootBytes },
+      { path: "src/AGENTS.override.md", bytes: sourceBytes },
+    ]),
+  );
+});
+
+test("stops reading instruction content at the exact byte boundary but retains metadata", async () => {
+  const boundaryBytes = new TextEncoder().encode("r".repeat(instructionBudgetBytes));
+  const reads = [];
+  const observations = new Map([
+    [
+      ".",
+      Object.freeze([
+        Object.freeze({ kind: "missing", path: "AGENTS.override.md" }),
+        instructionFile("AGENTS.md", boundaryBytes),
+      ]),
+    ],
+    [
+      "src",
+      Object.freeze([
+        Object.freeze({ kind: "missing", path: "src/AGENTS.override.md" }),
+        unreadInstructionFile("src/AGENTS.md", 400_000),
+      ]),
+    ],
+  ]);
+  const report = await resolveEffectiveInstructions(
+    { consumerRoot: "/disposable-fixture", targetPath: "src/index.ts" },
+    instructionReader({
+      targetPath: "src/index.ts",
+      directories: [".", "src"],
+      observations,
+      reads,
+    }),
+  );
+
+  assert.deepEqual(reads, [
+    { directory: ".", readSelectedBytes: true },
+    { directory: "src", readSelectedBytes: false },
+  ]);
+  assert.deepEqual(report.budget, {
+    maximumBytes: instructionBudgetBytes,
+    loadedBytes: instructionBudgetBytes,
+    exhausted: true,
+    truncated: false,
+  });
+  assert.deepEqual(
+    report.layers.map((layer) => ({
+      selectedPath: layer.selectedPath,
+      status: layer.status,
+      sourceBytes: layer.sourceBytes,
+      loadedBytes: layer.loadedBytes,
+      sourceDigest: layer.sourceDigest,
+    })),
+    [
+      {
+        selectedPath: "AGENTS.md",
+        status: "applied",
+        sourceBytes: instructionBudgetBytes,
+        loadedBytes: instructionBudgetBytes,
+        sourceDigest: sha256Bytes(boundaryBytes),
+      },
+      {
+        selectedPath: "src/AGENTS.md",
+        status: "budget-exhausted",
+        sourceBytes: 400_000,
+        loadedBytes: 0,
+        sourceDigest: null,
+      },
+    ],
+  );
+  assert.equal(
+    report.resolutionDigest,
+    expectedResolutionDigest("src/index.ts", [
+      { path: "AGENTS.md", bytes: boundaryBytes },
+    ]),
+  );
+});
+
+test("truncates exactly one byte beyond the instruction budget", async () => {
+  const source = new TextEncoder().encode(
+    `${"a".repeat(instructionBudgetBytes)}z`,
+  );
+  const admitted = source.slice(0, instructionBudgetBytes);
+  const observations = new Map([
+    [
+      ".",
+      Object.freeze([
+        Object.freeze({ kind: "missing", path: "AGENTS.override.md" }),
+        instructionFile("AGENTS.md", source),
+      ]),
+    ],
+  ]);
+  const report = await resolveEffectiveInstructions(
+    { consumerRoot: "/disposable-fixture", targetPath: "src/index.ts" },
+    instructionReader({
+      targetPath: "src/index.ts",
+      directories: ["."],
+      observations,
+    }),
+  );
+
+  assert.deepEqual(report.budget, {
+    maximumBytes: instructionBudgetBytes,
+    loadedBytes: instructionBudgetBytes,
+    exhausted: true,
+    truncated: true,
+  });
+  assert.equal(report.layers[0].status, "truncated");
+  assert.equal(report.layers[0].sourceBytes, instructionBudgetBytes + 1);
+  assert.equal(report.layers[0].loadedBytes, instructionBudgetBytes);
+  assert.equal(report.layers[0].sourceDigest, sha256Bytes(source));
+  assert.equal(report.layers[0].loadedDigest, sha256Bytes(admitted));
+  assert.equal(
+    report.resolutionDigest,
+    expectedResolutionDigest("src/index.ts", [
+      { path: "AGENTS.md", bytes: admitted },
+    ]),
+  );
+});
+
 test("reports an empty override that masks the canonical file without consuming budget", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
     await writeFile(join(consumerRoot, "src", "AGENTS.md"), "# Hidden\n", "utf8");
@@ -326,6 +577,37 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
       "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
     );
 
+    const reader = new FilesystemEffectiveInstructionsReader();
+    const unavailableRoot = join(consumerRoot, "does-not-exist");
+    const unsafeDisplayCharacters = [
+      ["NUL", "\u0000"],
+      ["newline", "\n"],
+      ["carriage return", "\r"],
+      ["ANSI escape", "\u001b"],
+      ["DEL", "\u007f"],
+      ["C1 next line", "\u0085"],
+      ["C1 control sequence introducer", "\u009b"],
+      ["Unicode line separator", "\u2028"],
+      ["Unicode paragraph separator", "\u2029"],
+    ];
+    for (const [name, character] of unsafeDisplayCharacters) {
+      await assert.rejects(
+        reader.discover({
+          consumerRoot: unavailableRoot,
+          targetPath: `src/${character}spoofed.ts`,
+        }),
+        (error) => {
+          assert.equal(
+            error.problem?.code,
+            "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
+            name,
+          );
+          assert.doesNotMatch(error.message, /spoofed/u, name);
+          return true;
+        },
+      );
+    }
+
     const directory = runInstructions(consumerRoot, "src");
     assert.equal(directory.result.status, 2);
     assert.equal(
@@ -333,14 +615,28 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
       "REPOSITORY_AGENT_WORKFLOW_TARGET_INVALID",
     );
 
-    const unavailableRoot = join(consumerRoot, "does-not-exist");
     const missingTarget = runAgentWorkflowRaw(
       "instructions",
       "--consumer",
       unavailableRoot,
     );
     assert.equal(missingTarget.result.status, 2);
-    assert.match(missingTarget.report.error.message, /requires a repository-relative file/u);
+    assert.match(
+      missingTarget.report.error.message,
+      /requires exactly one repository-relative file/u,
+    );
+    const extraTarget = runAgentWorkflowRaw(
+      "instructions",
+      "src/index.ts",
+      "src/other.ts",
+      "--consumer",
+      unavailableRoot,
+    );
+    assert.equal(extraTarget.result.status, 2);
+    assert.match(
+      extraTarget.report.error.message,
+      /accepts at most 2 positional arguments/u,
+    );
     const extraChangedTarget = runAgentWorkflowRaw(
       "changed",
       "src/index.ts",

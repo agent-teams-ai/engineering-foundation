@@ -43,10 +43,10 @@ function fixture() {
 
 test("repository test manifests cover every top-level test exactly once", async () => {
   const result = await validateTestManifests();
-  assert.equal(result.testCount, 136);
+  assert.equal(result.testCount, 137);
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
-  assert.equal([...result.shards.values()].flat().length, 121);
-  assert.equal([...result.coverageShards.values()].flat().length, 136);
+  assert.equal([...result.shards.values()].flat().length, 122);
+  assert.equal([...result.coverageShards.values()].flat().length, 137);
 });
 
 test("test manifests fail closed for missing, duplicate, and nonexistent coverage tests", () => {

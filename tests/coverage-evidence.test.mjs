@@ -303,7 +303,7 @@ test("coverage additions extend Linux evidence without changing the cross-platfo
   const ids = ["1", "2", "3", "4"];
   const crossPlatformTests = selectTestShardPaths(testManifest, ids, false);
   const coverageTests = selectTestShardPaths(testManifest, ids, true);
-  assert.equal(crossPlatformTests.length, 121);
+  assert.equal(crossPlatformTests.length, 122);
   assert.equal(
     crossPlatformTests.some((path) => path.startsWith("packages/docs-protocol/tests/")),
     false,

@@ -24,6 +24,7 @@
         "tests/foundation-operation-lock.test.mjs",
         "tests/foundation-transaction-coordinator.test.mjs",
         "tests/local-mode.test.mjs",
+        "tests/known-file-transaction-characterization.test.mjs",
         "tests/known-file-transaction-node.test.mjs",
         "tests/document-parent-materialization-v2.test.mjs",
         "tests/package-boundary.test.mjs",

@@ -128,7 +128,7 @@ function matchesObservedCatalogEvidence(input: {
       input.prior.docsScriptsDigest;
 }
 
-// oxlint-disable-next-line complexity -- every evidence predicate must hold before source-executor trust.
+// oxlint-disable-next-line complexity
 export function trustedPriorCohort(
   desired: ConsumerIntegrationDesiredStateV1,
   snapshot: ConsumerIntegrationSnapshot,

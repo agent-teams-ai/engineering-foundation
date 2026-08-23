@@ -151,7 +151,7 @@ Options:
 `;
 }
 
-// oxlint-disable-next-line complexity -- the bounded command router keeps all CLI variants in one envelope boundary.
+// oxlint-disable-next-line complexity
 export async function runConsumerIntegrationCli(argv: readonly string[]): Promise<number> {
   let command = "";
   let jsonRequested = false;

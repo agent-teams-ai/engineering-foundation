@@ -15,36 +15,6 @@ waivers:
     createdOn: 2026-08-16
     expiresOn: 2026-11-14
     decisionRef: ADR-0032
-  - id: FOUNDATION-RECOVERY-RETIREMENT-COMPLEXITY
-    path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-    line: 138
-    directive: oxlint-disable-next-line
-    rules: [complexity, max-lines-per-function]
-    owner: foundation-maintainers
-    reason: Durable retirement substates remain explicit so every rename and unlink crash window is independently replayable.
-    createdOn: 2026-08-16
-    expiresOn: 2026-11-14
-    decisionRef: ADR-0032
-  - id: FOUNDATION-RECOVERY-DISPATCH-COMPLEXITY
-    path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-    line: 418
-    directive: oxlint-disable-next-line
-    rules: [complexity, max-lines-per-function]
-    owner: foundation-maintainers
-    reason: Legacy and capture-bound journals share one exact-build dispatcher during the bounded compatibility window.
-    createdOn: 2026-08-16
-    expiresOn: 2026-11-14
-    decisionRef: ADR-0032
-  - id: FOUNDATION-RECOVERY-ROLLBACK-COMPLEXITY
-    path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-    line: 605
-    directive: oxlint-disable-next-line
-    rules: [complexity, max-lines-per-function]
-    owner: foundation-maintainers
-    reason: Explicit rollback branches preserve foreign bytes or prove identity-bound cleanup at every durable state.
-    createdOn: 2026-08-16
-    expiresOn: 2026-11-14
-    decisionRef: ADR-0032
   - id: DOCS-CONSUMER-BOUNDED-JSON-COMPLEXITY
     path: packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
     line: 44

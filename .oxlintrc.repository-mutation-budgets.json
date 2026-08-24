@@ -15,21 +15,6 @@
           }
         ]
       }
-    },
-    {
-      "files": [
-        "packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts"
-      ],
-      "rules": {
-        "max-lines": [
-          "error",
-          {
-            "max": 1400,
-            "skipBlankLines": true,
-            "skipComments": true
-          }
-        ]
-      }
     }
   ]
 }

@@ -513,7 +513,6 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
@@ -521,6 +520,15 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
   - id: foundation.known-file-transaction.composition
     roots:
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-cleanup.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-executor.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-observation.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-retirement.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-state.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts

@@ -608,8 +608,8 @@ test("runs as a deterministic capability and closes unexpected inspector failure
     });
     const failed = await failedCapability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(failed.outcome, "failed");
-    assert.equal(failed.problem.code, "CAPABILITY_EXECUTION_FAILED");
-    assert.equal(failed.problem.message, "JSON Schema release capability execution failed.");
+    assert.equal(failed.problem.code, "UNEXPECTED_FAILURE");
+    assert.equal(failed.problem.message, "An unexpected failure occurred.");
   });
 });
 

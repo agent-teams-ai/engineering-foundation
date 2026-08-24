@@ -83,6 +83,7 @@ function unconditionalTriggers(value: unknown): readonly string[] {
 
 const PULL_REQUEST_CODE_CHANGE_TYPES = Object.freeze([
   "opened",
+  "ready_for_review",
   "reopened",
   "synchronize"
 ]);

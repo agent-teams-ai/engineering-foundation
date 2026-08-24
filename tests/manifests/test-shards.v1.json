@@ -26,6 +26,7 @@
         "tests/local-mode.test.mjs",
         "tests/known-file-transaction-characterization.test.mjs",
         "tests/known-file-transaction-node.test.mjs",
+        "tests/known-file-transaction-recovery.test.mjs",
         "tests/document-parent-materialization-v2.test.mjs",
         "tests/package-boundary.test.mjs",
         "tests/repository-mutation-qualification-api.test.mjs",
@@ -48,6 +49,7 @@
       "id": "2",
       "tests": [
         "tests/agent-workflow.test.mjs",
+        "tests/agent-workflow-changed-scope.test.mjs",
         "tests/document-authoring-contract-policy-security.test.mjs",
         "tests/document-authoring-node-writer-adapters.test.mjs",
         "tests/document-authoring-planning-adapters.test.mjs",

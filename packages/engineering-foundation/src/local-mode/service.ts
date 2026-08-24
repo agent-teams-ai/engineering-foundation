@@ -13,6 +13,7 @@ import {
   writeLinkState
 } from "./local-state-store.js";
 import { createNodeFoundationTransactionCoordinator } from "../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { releaseFoundationTransactionLeaseSafely } from "../transaction-coordination/application/release-foundation-transaction-lease.js";
 import {
   restoreRegistryEntry
 } from "./registry-recovery.js";
@@ -159,8 +160,10 @@ export class FoundationLocalModeService {
       );
       await removeLinkState(before.consumerRoot);
     } finally {
-      await lease.release({
-        retainTransactionBarrier: (await coordinator.inspect()).state !== "idle"
+      await releaseFoundationTransactionLeaseSafely({
+        lease,
+        inspectRetainTransactionBarrier: async () =>
+          (await coordinator.inspect()).state !== "idle"
       });
     }
 

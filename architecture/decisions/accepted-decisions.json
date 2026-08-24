@@ -171,6 +171,11 @@
       "id": "ADR-0034",
       "path": "docs/decisions/0034-fix-forward-stable-cohort-admission.md",
       "immutableDigest": "sha256:3204d21acdb4c36747c3379d4a559e8749def9545c77f4cbb30679ece8e4624a"
+    },
+    {
+      "id": "ADR-0035",
+      "path": "docs/decisions/0035-evidence-gated-foundation-boundary-evolution.md",
+      "immutableDigest": "sha256:58400e734b2f2fe3c34981d4f1ecd9722acf48ac317bd62596e7ae8ddef11c12"
     }
   ]
 }

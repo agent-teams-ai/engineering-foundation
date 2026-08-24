@@ -13,6 +13,7 @@ import { LOCAL_STATE_DIRECTORY } from "../../../foundation-state-contract.js";
 import { createNodeFoundationTransactionCoordinator } from "../../../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import { FoundationTransactionError } from "../../../transaction-coordination/application/foundation-transaction-error.js";
 import type { FoundationTransactionLease } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
+import { releaseFoundationTransactionLeaseSafely } from "../../../transaction-coordination/application/release-foundation-transaction-lease.js";
 import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
 import {
   assertSafeExistingAncestors, assertSafeOperationPaths
@@ -472,19 +473,19 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       ...(faultInjector === undefined ? {} : { faultInjector })
     });
   } finally {
-    await lease.release({
-      retainTransactionBarrier: await scaffoldTransactionEvidenceExists(journalPath)
+    await releaseFoundationTransactionLeaseSafely({
+      lease,
+      inspectRetainTransactionBarrier: () => scaffoldTransactionEvidenceExists(journalPath)
     });
   }
 }
 
 export async function recoverAuthorityFilesystemScaffold(
-  consumerRoot: string
-): Promise<AuthorityScaffoldReceipt | undefined> {
+  consumerRoot: string): Promise<AuthorityScaffoldReceipt | undefined> {
   const canonicalRoot = await realpath(resolve(consumerRoot));
+  const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
   const lease = await acquireScaffoldingTransaction(canonicalRoot);
   try {
-    const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
     const journalStore = new NodeScaffoldJournalStore(canonicalRoot);
     const journalFaultContext: ScaffoldJournalFaultContext = {};
     const record = await readScaffoldJournal(journalStore);
@@ -502,10 +503,9 @@ export async function recoverAuthorityFilesystemScaffold(
       recovered: true
     });
   } finally {
-    await lease.release({
-      retainTransactionBarrier: await scaffoldTransactionEvidenceExists(
-        join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE)
-      )
+    await releaseFoundationTransactionLeaseSafely({
+      lease,
+      inspectRetainTransactionBarrier: () => scaffoldTransactionEvidenceExists(journalPath)
     });
   }
 }

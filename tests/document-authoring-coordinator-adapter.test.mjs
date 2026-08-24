@@ -25,7 +25,7 @@ function exactDocument() {
   };
 }
 
-function fixture(initial) {
+function fixture(initial, releaseFailure) {
   let status = initial;
   const acquisitions = [];
   const releases = [];
@@ -42,6 +42,9 @@ function fixture(initial) {
         status,
         async release(releaseOptions) {
           releases.push(releaseOptions);
+          if (releaseFailure !== undefined) {
+            throw releaseFailure;
+          }
         },
       };
     },
@@ -128,7 +131,29 @@ test("releases normally only after all transaction evidence is durably gone", as
 test("retains the barrier when post-operation evidence cannot be inspected", async () => {
   const value = fixture(idle());
   const lease = await value.coordinator.acquire({ mode: "apply" });
-  value.setStatus(new Error("slot unreadable"));
-  await assert.rejects(lease.release(), /slot unreadable/u);
+  const inspectionError = new Error("slot unreadable");
+  value.setStatus(inspectionError);
+  await assert.rejects(lease.release(), (error) => error === inspectionError);
   assert.deepEqual(value.releases, [{ retainTransactionBarrier: true }]);
+
+  const releaseError = new Error("operation lease release failed");
+  const blocked = fixture(idle(), releaseError);
+  const blockedLease = await blocked.coordinator.acquire({ mode: "apply" });
+  blocked.setStatus(inspectionError);
+  await assert.rejects(
+    blockedLease.release(),
+    (error) => {
+      assert.match(
+        error.message,
+        /inspection and barrier retention both failed/u,
+      );
+      assert.ok(error.cause instanceof AggregateError);
+      assert.deepEqual(
+        error.cause.errors,
+        [inspectionError, releaseError],
+      );
+      return true;
+    },
+  );
+  assert.deepEqual(blocked.releases, [{ retainTransactionBarrier: true }]);
 });

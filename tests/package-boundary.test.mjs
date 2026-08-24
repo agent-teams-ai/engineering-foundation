@@ -201,6 +201,202 @@ test("Foundation source and source-boundary authority cannot import Docs Protoco
   assert.deepEqual(Object.keys(docsManifest.dependencies).toSorted(), observedPackages);
 });
 
+test("Docs Protocol retains its golden clean-layer dependency fence", async () => {
+  const policy = parseYaml(await readFile(join(
+    repositoryRoot,
+    "architecture/foundation/source-dependencies.yaml",
+  ), "utf8"));
+  const boundaries = Object.fromEntries(policy.boundaries
+    .filter(({ id }) => [
+      "docs-protocol.adapters",
+      "docs-protocol.application",
+      "docs-protocol.composition",
+      "docs-protocol.domain",
+      "docs-protocol.qualification",
+    ].includes(id))
+    .map(({ id, roots, allow, entrypoints }) => [id, {
+      roots,
+      boundaries: allow.boundaries,
+      packages: allow.packages,
+      builtins: allow.builtins,
+      entrypoints,
+    }]));
+  assert.deepEqual(boundaries, {
+    "docs-protocol.domain": {
+      roots: ["packages/docs-protocol/src/domain"],
+      boundaries: [],
+      packages: [foundationName],
+      builtins: ["node:path"],
+      entrypoints: [
+        "packages/docs-protocol/src/domain/document-semantics.ts",
+        "packages/docs-protocol/src/domain/model.ts",
+        "packages/docs-protocol/src/domain/profile-policy.ts",
+      ],
+    },
+    "docs-protocol.application": {
+      roots: ["packages/docs-protocol/src/application"],
+      boundaries: ["docs-protocol.domain"],
+      packages: [foundationName],
+      builtins: [],
+      entrypoints: ["packages/docs-protocol/src/application/docs-protocol.ts"],
+    },
+    "docs-protocol.adapters": {
+      roots: ["packages/docs-protocol/src/adapters"],
+      boundaries: ["docs-protocol.application", "docs-protocol.domain"],
+      packages: [foundationName, "ajv", "ajv-formats", "yaml"],
+      builtins: ["node:fs", "node:fs/promises", "node:module", "node:path", "node:url"],
+      entrypoints: [
+        "packages/docs-protocol/src/adapters/docs-command-envelope-schema-validator.ts",
+        "packages/docs-protocol/src/adapters/foundation-docs-port.ts",
+        "packages/docs-protocol/src/adapters/node-adoption-inspector.ts",
+        "packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts",
+        "packages/docs-protocol/src/adapters/node-profile-reader.ts",
+      ],
+    },
+    "docs-protocol.composition": {
+      roots: [
+        "packages/docs-protocol/src/composition",
+        "packages/docs-protocol/src/index.ts",
+        "packages/docs-protocol/src/cli.ts",
+      ],
+      boundaries: [
+        "docs-protocol.adapters",
+        "docs-protocol.application",
+        "docs-protocol.consumer-integration.composition",
+        "docs-protocol.domain",
+      ],
+      packages: [foundationName],
+      builtins: [],
+      entrypoints: [
+        "packages/docs-protocol/src/index.ts",
+        "packages/docs-protocol/src/cli.ts",
+      ],
+    },
+    "docs-protocol.qualification": {
+      roots: ["packages/docs-protocol/src/qualification"],
+      boundaries: [
+        "docs-protocol.adapters",
+        "docs-protocol.application",
+        "docs-protocol.domain",
+      ],
+      packages: [foundationName],
+      builtins: [
+        "node:child_process",
+        "node:crypto",
+        "node:fs",
+        "node:fs/promises",
+        "node:os",
+        "node:path",
+        "node:url",
+      ],
+      entrypoints: ["packages/docs-protocol/src/qualification/index.ts"],
+    },
+  });
+});
+
+test("Docs Protocol clean-layer policy rejects outward imports and permits composition wiring", async () => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "docs-protocol-layer-boundary-"));
+  try {
+    const policy = parseYaml(await readFile(join(
+      repositoryRoot,
+      "architecture/foundation/source-dependencies.yaml",
+    ), "utf8"));
+    const layerIds = new Set([
+      "docs-protocol.adapters",
+      "docs-protocol.application",
+      "docs-protocol.composition",
+      "docs-protocol.domain",
+    ]);
+    const layers = ["domain", "application", "adapters", "composition"];
+    const fixturePolicy = {
+      schemaVersion: 1,
+      workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
+      governedRoots: ["packages/docs-protocol/src"],
+      boundaries: policy.boundaries
+        .filter(({ id }) => layerIds.has(id))
+        .map((boundary) => ({
+          ...boundary,
+          roots: [`packages/docs-protocol/src/${boundary.id.split(".").at(-1)}`],
+          allow: {
+            ...boundary.allow,
+            boundaries: boundary.allow.boundaries.filter((id) => layerIds.has(id)),
+            packages: [],
+            builtins: [],
+          },
+          entrypoints: [`packages/docs-protocol/src/${boundary.id.split(".").at(-1)}/index.ts`],
+        })),
+    };
+    await Promise.all([
+      mkdir(join(temporaryRoot, "architecture/foundation"), { recursive: true }),
+      ...layers.map((layer) => mkdir(join(
+        temporaryRoot,
+        `packages/docs-protocol/src/${layer}`,
+      ), { recursive: true })),
+    ]);
+    await Promise.all([
+      writeFile(join(temporaryRoot, "package.json"), `${JSON.stringify({
+        name: "@fixture/repository",
+        version: "0.0.0",
+        private: true,
+        type: "module",
+        packageManager: "pnpm@11.20.0",
+      }, null, 2)}\n`),
+      writeFile(join(temporaryRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n"),
+      writeFile(join(temporaryRoot, "packages/docs-protocol/package.json"), `${JSON.stringify({
+        name: docsProtocolName,
+        version: "0.0.0",
+        private: true,
+        type: "module",
+      }, null, 2)}\n`),
+      writeFile(
+        join(temporaryRoot, "architecture/foundation/source-dependencies.yaml"),
+        stringifyYaml(fixturePolicy, { lineWidth: 0 }),
+      ),
+      ...layers.map((layer) => writeFile(join(
+        temporaryRoot,
+        `packages/docs-protocol/src/${layer}/index.ts`,
+      ), "export const marker = true;\n")),
+    ]);
+
+    const forbiddenCases = [
+      ["domain", "application"],
+      ["application", "adapters"],
+      ["adapters", "composition"],
+    ];
+    for (const [sourceLayer, targetLayer] of forbiddenCases) {
+      const sourcePath = join(
+        temporaryRoot,
+        `packages/docs-protocol/src/${sourceLayer}/index.ts`,
+      );
+      await writeFile(
+        sourcePath,
+        `import { marker } from "../${targetLayer}/index.js";\nexport const probe = marker;\n`,
+      );
+      const rejected = await createSourceDependenciesCapability().run({
+        consumerRoot: temporaryRoot,
+        configPath: "architecture/foundation/source-dependencies.yaml",
+      });
+      assert.equal(rejected.outcome, "violations", `${sourceLayer} -> ${targetLayer}`);
+      assert.ok(rejected.diagnostics.some(({ location, ruleId }) =>
+        ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" &&
+        location.path.endsWith(`${sourceLayer}/index.ts`)), `${sourceLayer} -> ${targetLayer}`);
+      await writeFile(sourcePath, "export const marker = true;\n");
+    }
+
+    await writeFile(
+      join(temporaryRoot, "packages/docs-protocol/src/composition/index.ts"),
+      "import { marker } from \"../adapters/index.js\";\nexport const probe = marker;\n",
+    );
+    const accepted = await createSourceDependenciesCapability().run({
+      consumerRoot: temporaryRoot,
+      configPath: "architecture/foundation/source-dependencies.yaml",
+    });
+    assert.equal(accepted.outcome, "passed", JSON.stringify(accepted, null, 2));
+  } finally {
+    await rm(temporaryRoot, { force: true, recursive: true });
+  }
+});
+
 test("Docs Protocol consumer integration retains its golden internal dependency fence", async () => {
   const policy = parseYaml(await readFile(join(
     repositoryRoot,

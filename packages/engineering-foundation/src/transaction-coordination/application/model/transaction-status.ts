@@ -65,6 +65,18 @@ export type FoundationTransactionStatus =
       readonly diagnostics: readonly FoundationTransactionDiagnostic[];
     }
   | {
+      readonly state: "pending";
+      readonly operationKind: "known-file-transaction";
+      readonly format: "known-file-transaction-envelope-v1";
+      readonly foundationVersion: string;
+      readonly foundationBuildIdentity: string;
+      readonly recovery: Extract<
+        FoundationRecoveryRoute,
+        { readonly commandId: "replace-known-file-recover" }
+      >;
+      readonly diagnostics: readonly FoundationTransactionDiagnostic[];
+    }
+  | {
       readonly state: "manual-recovery-required";
       readonly reason: FoundationManualRecoveryReason;
       readonly operationKind?: "document-authoring" | "known-file-transaction" | "scaffolding";

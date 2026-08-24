@@ -22,8 +22,13 @@ import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
 } from "../packages/engineering-foundation/dist/package-self-check.js";
+import {
+  applyKnownFileTransaction,
+  compileKnownFileTransactionPlan,
+} from "../packages/engineering-foundation/dist/mutation/index.js";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
+const strictDirectoryDurabilityTest = process.platform === "win32" ? test.skip : test;
 const REGISTRY_INTEGRITY =
   "sha512-bIIjRzA6EHhga2N0sRQ1R5zZSnP3YJ9q8JcD1QmQf3uVn3f2r6q1aXJf0Hb2U5QG6QH0xBvM1nHqN9vQ9w==";
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -436,6 +441,58 @@ test("status JSON remains one parseable object when transaction recovery is requ
     assert.equal(status.mode, "INVALID");
     assert.equal(status.transaction.state, "manual-recovery-required");
     assert.doesNotMatch(result.stdout, /\nTransaction:/u);
+  } finally {
+    await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+strictDirectoryDurabilityTest("status preserves the exact known-file recovery route", async () => {
+  const fixture = await createFixture();
+  try {
+    const plan = compileKnownFileTransactionPlan({
+      operations: [{
+        path: "known-file-status-probe.txt",
+        precondition: { state: "absent" },
+        postimage: { bytes: Buffer.from("probe\n"), mode: 0o644 },
+      }],
+    });
+    await assert.rejects(
+      applyKnownFileTransaction({
+        consumerRoot: fixture.consumerRoot,
+        plan,
+        faultInjector(point) {
+          if (point.phase === "after-journal-created") {
+            throw new Error("status projection probe");
+          }
+        },
+      }),
+      /status projection probe/u,
+    );
+
+    const status = await inspectFoundationMode(fixture.consumerRoot);
+    assert.equal(status.mode, "INVALID");
+    assert.deepEqual(
+      {
+        state: status.transaction?.state,
+        operationKind: status.transaction?.operationKind,
+        format: status.transaction?.format,
+        foundationVersion: status.transaction?.foundationVersion,
+        foundationBuildIdentity: status.transaction?.foundationBuildIdentity,
+        recovery: status.transaction?.recovery,
+      },
+      {
+        state: "pending",
+        operationKind: "known-file-transaction",
+        format: "known-file-transaction-envelope-v1",
+        foundationVersion: status.transaction?.foundationVersion,
+        foundationBuildIdentity: status.transaction?.foundationBuildIdentity,
+        recovery: {
+          commandId: "replace-known-file-recover",
+          exactFoundationVersion: status.transaction?.foundationVersion,
+          exactFoundationBuildIdentity: status.transaction?.foundationBuildIdentity,
+        },
+      },
+    );
   } finally {
     await rm(fixture.root, { force: true, recursive: true });
   }

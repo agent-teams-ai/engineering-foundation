@@ -34,6 +34,11 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     "ready_for_review",
   ]);
   assert.equal(ci.jobs["dependency-review"].if, undefined);
+  assert.equal(
+    ci.jobs["draft-fast"].if,
+    "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true }}",
+  );
+  assert.equal(ci.jobs["draft-fast"].steps.at(-1).run, "pnpm check:changed");
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
   for (const [jobId, job] of Object.entries(ci.jobs)) {
     if (jobId === "dependency-review") {
@@ -41,11 +46,17 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     }
     const needs = Array.isArray(job.needs) ? job.needs : [job.needs];
     assert.ok(needs.includes("dependency-review"), `${jobId} bypasses ready gating`);
+    let expectedCondition = readyPullRequestCondition;
+    if (jobId === "draft-fast") {
+      expectedCondition =
+        "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true }}";
+    } else if (jobId === "check" || jobId === "windows-check") {
+      expectedCondition =
+        "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}";
+    }
     assert.equal(
       job.if,
-      jobId === "check" || jobId === "windows-check"
-        ? "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}"
-        : readyPullRequestCondition,
+      expectedCondition,
       `${jobId} must skip heavy work for draft pull requests`,
     );
   }

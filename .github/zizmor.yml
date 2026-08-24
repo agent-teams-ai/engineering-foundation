@@ -1,5 +1,5 @@
 rules:
   dangerous-triggers:
     ignore:
-      # ReviewRouter attests this exact v4 template; ReviewGate publishes only App-owned exact-head evidence.
+      # ReviewRouter's exact v4 template is the reviewed hosted-review entrypoint.
       - reviewrouter-codex.yml:5

@@ -161,7 +161,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   );
   assert.ok(
     attestation.run.lastIndexOf("final_bound_run") <
-      attestation.run.lastIndexOf('post_status "${release_gate_context}" success'),
+      attestation.run.lastIndexOf('post_status "${ci_contexts[index]}" success'),
   );
   assert.doesNotMatch(attestation.run, /baseline_run_id/u);
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| first/u);
@@ -285,7 +285,7 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   assert.equal(ci.concurrency["cancel-in-progress"], true);
 });
 
-test("release pipeline keeps App review and a bounded generated-diff attestation", async () => {
+test("release pipeline keeps hosted review separate from generated-diff attestation", async () => {
   const release = await workflow("release.yml");
   const ci = await workflow("ci.yml");
   const review = await workflow("reviewrouter-codex.yml");
@@ -294,14 +294,8 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     join(repositoryRoot, ".github", "workflows", "reviewrouter-interaction.yml"),
     "utf8",
   );
-  const reviewGate = await workflow("review-gate.yml");
-  const reviewGateSource = await readFile(
-    join(repositoryRoot, ".github", "workflows", "review-gate.yml"),
-    "utf8",
-  );
   const releaseJob = release.jobs.release;
   const releaseBinding = releaseJob.steps.find(({ id }) => id === "release-pr");
-  const reviewGateSteps = reviewGate.jobs["review-gate"].steps;
   const attestationSteps = release.jobs["attest-release-pr"].steps;
   const attestation = attestationSteps.find(
     ({ name }) => name === "Dispatch and attest release pull request checks",
@@ -335,53 +329,7 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
     releaseBinding.run.indexOf("check-release-pr-files.mjs") <
       releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
-  assert.equal(reviewGate.on.status, null);
-  assert.equal(reviewGate.on.workflow_run, undefined);
-  assert.deepEqual(reviewGate.on.repository_dispatch.types, ["review-gate-recover"]);
-  assert.equal(
-    reviewGate.jobs["review-gate"].if,
-    "${{ (github.event_name == 'status' && github.event.context == 'ReviewRouter' && github.event.state == 'success' && github.event.sender.id == 281702430 && github.event.sender.type == 'Bot') || github.event.action == 'review-gate-recover' }}",
-  );
-  assert.doesNotMatch(reviewGateSource, /workflow_run:/u);
-  assert.equal(reviewGateSteps.length, 1);
-  assert.equal(reviewGateSteps[0].uses, undefined);
-  assert.equal(reviewGate.jobs["review-gate"].permissions.actions, "read");
-  assert.equal(reviewGate.jobs["review-gate"].permissions["pull-requests"], "read");
-  assert.equal(reviewGate.jobs["review-gate"].permissions.statuses, "write");
-  assert.match(reviewGateSteps[0].run, /-f context="ReviewGate"/u);
-  assert.match(reviewGateSteps[0].run, /\.context == "ReviewRouter"/u);
-  assert.match(reviewGateSteps[0].run, /\.creator\.id == \$app_bot_id/u);
-  assert.match(reviewGateSteps[0].run, /\.creator\.type == "Bot"/u);
-  assert.match(
-    reviewGateSteps[0].run,
-    /Published a failing ReviewGate on pull request/u,
-  );
-  assert.doesNotMatch(
-    reviewGateSteps[0].run,
-    /\[\[ "\$\{gate_state\}" == "success" \]\]/u,
-  );
   assert.deepEqual([releaseJob.permissions["id-token"], releaseJob.permissions.contents, releaseJob.steps.find(({ run }) => run?.startsWith("pnpm install"))?.run, releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases], ["write", "write", "pnpm install --frozen-lockfile --ignore-scripts", false]);
-  assert.equal(
-    reviewGateSteps[0].env.REVIEWROUTER_APP_BOT_ID,
-    "281702430",
-  );
-  assert.equal(
-    reviewGateSteps[0].env.REVIEW_RUN_ID,
-    "${{ github.event.client_payload.review_run_id }}",
-  );
-  assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_TARGET_URL, "${{ github.event.target_url }}");
-  assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_SENDER_ID, "${{ github.event.sender.id }}");
-  assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_SENDER_TYPE, "${{ github.event.sender.type }}");
-  assert.equal(reviewGateSteps[0].env.REVIEW_STATUS_CREATOR_ID, undefined);
-  assert.doesNotMatch(reviewGateSource, /github\.event\.creator/u);
-  assert.match(reviewGateSteps[0].run, /review_run_id.*\^\[1-9\]\[0-9\]\*\$/u);
-  assert.match(reviewGateSteps[0].run, /REVIEW_STATUS_SENDER_ID.*REVIEWROUTER_APP_BOT_ID/u);
-  assert.match(reviewGateSteps[0].run, /expected_run_url_prefix/u);
-  assert.match(reviewGateSteps[0].run, /for attempt in \{1\.\.12\}/u);
-  assert.match(reviewGateSteps[0].run, /run_status.*completed/su);
-  assert.match(reviewGateSteps[0].run, /run_head_sha.*REVIEW_STATUS_SHA/u);
-  assert.match(reviewGateSteps[0].run, /reviewrouter-codex\.yml/u);
-  assert.match(reviewGateSteps[0].run, /run_event\}" != "pull_request_target"/u);
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
   assert.ok(attestationPnpmSetupIndex > 0);
   assert.ok(attestationNodeSetupIndex > attestationPnpmSetupIndex);
@@ -456,9 +404,9 @@ test("release pipeline keeps App review and a bounded generated-diff attestation
   assert.match(attestation.run, /final_run_pull_request_base_sha.*base_sha/su);
   assert.ok(
     attestation.run.lastIndexOf("check-release-pr-freshness.mjs") <
-      attestation.run.lastIndexOf('post_status "${release_gate_context}" success'),
+      attestation.run.lastIndexOf('post_status "${ci_contexts[index]}" success'),
   );
-  assert.match(attestation.run, /post_status "\$\{release_gate_context\}" success/u);
+  assert.doesNotMatch(attestation.run, /ReviewGate|release_gate_context/u);
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-codex\.yml/u);
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-release\.yml/u);
   assert.doesNotMatch(attestation.run, /\.context == "ReviewRouter"/u);
@@ -588,7 +536,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });
 
-test("release ReviewGate permits only version and generated changelog changes", () => {
+test("release diff policy permits only version and generated changelog changes", () => {
   const evidence = {
     baseManifest: { name: "@agent-teams/engineering-foundation", version: "0.4.1" },
     headManifest: { name: "@agent-teams/engineering-foundation", version: "0.5.0" },
@@ -617,7 +565,7 @@ test("release ReviewGate permits only version and generated changelog changes", 
   );
 });
 
-test("release ReviewGate validates Changesets prerelease consumption", () => {
+test("release diff policy validates Changesets prerelease consumption", () => {
   const basePrereleaseState = {
     mode: "pre",
     tag: "rc",
@@ -698,7 +646,7 @@ test("release ReviewGate validates Changesets prerelease consumption", () => {
   );
 });
 
-test("release ReviewGate accepts only an exact prerelease exit", () => {
+test("release diff policy accepts only an exact prerelease exit", () => {
   const basePrereleaseState = {
     mode: "exit",
     tag: "rc",
@@ -738,7 +686,7 @@ test("release ReviewGate accepts only an exact prerelease exit", () => {
   );
 });
 
-test("release ReviewGate accepts only normalized Changesets output", () => {
+test("release diff policy accepts only normalized Changesets output", () => {
   const validFiles = [
     { filename: ".changeset/portable-agent-workflow.md", status: "removed" },
     { filename: "architecture/contracts/protobuf/control.json", status: "modified" },
@@ -771,7 +719,7 @@ test("release ReviewGate accepts only normalized Changesets output", () => {
   );
 });
 
-test("release ReviewGate accepts normalized prerelease Changesets output", () => {
+test("release diff policy accepts normalized prerelease Changesets output", () => {
   const validFiles = [
     { filename: ".changeset/pre.json", status: "modified" },
     { filename: "architecture/public-api/engineering-foundation.json", status: "modified" },
@@ -790,7 +738,7 @@ test("release ReviewGate accepts normalized prerelease Changesets output", () =>
   );
 });
 
-test("release ReviewGate narrowly allows exit state deletion and rejects private noise", async () => {
+test("release diff policy narrowly allows exit state deletion and rejects private noise", async () => {
   const exitFiles = [
     { filename: ".changeset/durable-document-writer.md", status: "removed" },
     { filename: ".changeset/pre.json", status: "removed" },
@@ -825,7 +773,7 @@ test("release ReviewGate narrowly allows exit state deletion and rejects private
   assert.deepEqual(config.ignore, []);
 });
 
-test("release ReviewGate requires complete pairs from the promoted public catalog", () => {
+test("release diff policy requires complete pairs from the promoted public catalog", () => {
   const validFiles = [
     { filename: ".changeset/unified-docs-protocol.md", status: "removed" },
     { filename: "packages/engineering-foundation/CHANGELOG.md", status: "modified" },
@@ -840,7 +788,7 @@ test("release ReviewGate requires complete pairs from the promoted public catalo
   );
 });
 
-test("release ReviewGate reads piped GitHub evidence through portable stdin", async () => {
+test("release diff policy reads piped GitHub evidence through portable stdin", async () => {
   assert.equal(
     await readStreamText(Readable.from([Buffer.from('[{"filename":'), '"safe"}]'])),
     '[{"filename":"safe"}]',

@@ -99,6 +99,11 @@ Every synchronization of a ready pull request takes the same fail-closed path;
 there is no elapsed-time admission, artifact reuse from another SHA, or weaker
 ready-update route.
 
+Repository protection requires the stable exact-head contexts `CodeQL`,
+`analyze`, `check`, `windows-check`, and `macos-qualification`. Independent
+hosted-review evidence belongs in pull-request comments; it is not converted
+into a workflow-authored or self-attested status check. `ReviewGate` is retired.
+
 `tests/manifests/test-shards.v1.json` owns the cross-platform shards.
 `tests/manifests/coverage.v1.json` pins their coverage-only additions, the
 merger, production include/exclude boundaries, c8 evidence thresholds, and the

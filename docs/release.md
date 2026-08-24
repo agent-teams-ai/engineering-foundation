@@ -145,39 +145,24 @@ groups, so the fallback cannot cancel required PR CheckRuns.
 GitHub does not attach manually dispatched checks to the pull request's
 required-check rollup. The attester verifies the selected run again while waiting
 and immediately before publishing its real conclusions as `check`,
-`windows-check`, and `macos-qualification` commit statuses. `ReviewGate` is
-published only for that bounded generated release diff; the other canonical
-required contexts remain the CodeQL-owned `CodeQL` and `analyze` checks. No
-context is removed or bypassed. The release attester fails closed on ambiguous
+`windows-check`, and `macos-qualification` commit statuses. The other canonical
+required contexts remain the CodeQL-owned `CodeQL` and `analyze` checks. The
+release attester fails closed on ambiguous
 selection, a rerun attempt, a terminal approval-blocked run, changed provenance,
 an unexpected PR, forbidden diff, missing result, timeout, head change, or failed
 conclusion.
-Source pull requests still require the independent ReviewRouter gate before
-merge. The Changesets action does not receive status or Actions write
+Independent hosted review is recorded in pull-request comments and is not
+self-attested into a repository status. The obsolete `ReviewGate` workflow and
+required context were retired when repository governance decoupled hosted review
+from ReviewRouter OAuth. The stable required contexts remain `CodeQL`, `analyze`,
+`check`, `windows-check`, and `macos-qualification`; each applies to the exact
+pull-request head. The Changesets action does not receive status or Actions write
 permission, and no release-branch code runs with write credentials. If automatic
 pull request creation is unavailable, prepare the same
 version commit on a short `chore/release-*` branch, open a normal pull request,
 and let the unchanged release workflow publish its merge through npm Trusted
 Publishing. Never weaken branch protection or publish from a workstation to work
 around the policy.
-
-The default-branch `status` publisher runs only for a successful `ReviewRouter`
-status created by the expected GitHub App. It resolves the review run from the
-same-repository Actions target URL, binds that completed `pull_request_target`
-run to one open same-repository pull request at the exact head, and re-reads the
-App-owned status before publishing `ReviewGate`. The webhook `sender` is only an
-early event filter; the freshly read commit-status `creator` remains the
-authorization proof. A missing, failed, stale, or unbound review cannot produce
-a successful gate.
-
-If GitHub does not emit a new `workflow_run` event after a successful job rerun,
-send the `review-gate-recover` repository dispatch with that completed
-ReviewRouter Actions run ID in `client_payload.review_run_id`. Repository
-dispatches execute the workflow from the default branch, so a pull request
-cannot replace the privileged verifier. The recovery path still requires one
-open same-repository pull request at the exact run head and a matching App-owned
-`ReviewRouter` status before it can publish `ReviewGate`. It is not a manual
-approval or a branch-protection bypass.
 
 Before every publication:
 

@@ -533,7 +533,10 @@ test("release publishing requires real Buf and hermetic registry qualification",
     "linux-registry",
     "linux-published",
   ]);
-  assert.equal(ci.jobs.check.if, "always()");
+  assert.equal(
+    ci.jobs.check.if,
+    "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}",
+  );
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });
 

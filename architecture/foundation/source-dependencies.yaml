@@ -481,6 +481,7 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/application/model/path-identity.ts
       - packages/engineering-foundation/src/repository-mutation/application/model/repository-path.ts
       - packages/engineering-foundation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
+      - packages/engineering-foundation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts
       - packages/engineering-foundation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts
       - packages/engineering-foundation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
   - id: foundation.repository-mutation.node-adapters

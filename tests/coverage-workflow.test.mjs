@@ -24,24 +24,30 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(coverage.steps.every((step) => step["continue-on-error"] === undefined), true);
   assert.ok(ci.jobs.check.needs.includes("linux-coverage"));
   assert.equal(JSON.stringify(ci).includes("FOUNDATION_PARTITIONED_COVERAGE"), false);
-  assert.deepEqual(ci.on.pull_request.types, [
+  const readyPullRequestCondition =
+    "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}";
+  assert.equal(ci.on.pull_request, null);
+  assert.deepEqual(codeql.on.pull_request.types, [
     "opened",
     "synchronize",
     "reopened",
     "ready_for_review",
   ]);
-  assert.equal(
-    ci.jobs["dependency-review"].if,
-    "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}",
-  );
-  assert.deepEqual(codeql.on.pull_request.types, ci.on.pull_request.types);
-  assert.equal(codeql.jobs.analyze.if, ci.jobs["dependency-review"].if);
+  assert.equal(ci.jobs["dependency-review"].if, undefined);
+  assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
   for (const [jobId, job] of Object.entries(ci.jobs)) {
     if (jobId === "dependency-review") {
       continue;
     }
     const needs = Array.isArray(job.needs) ? job.needs : [job.needs];
     assert.ok(needs.includes("dependency-review"), `${jobId} bypasses ready gating`);
+    assert.equal(
+      job.if,
+      jobId === "check" || jobId === "windows-check"
+        ? "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}"
+        : readyPullRequestCondition,
+      `${jobId} must skip heavy work for draft pull requests`,
+    );
   }
   assert.deepEqual(coverage.needs, [
     "dependency-review",

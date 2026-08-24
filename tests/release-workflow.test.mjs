@@ -274,9 +274,10 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   ];
   const readyPullRequestCondition =
     "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}";
-  assert.deepEqual(ci.on.pull_request.types, requiredLifecycleEvents);
+  assert.equal(ci.on.pull_request, null);
   assert.deepEqual(codeql.on.pull_request.types, requiredLifecycleEvents);
-  assert.equal(ci.jobs["dependency-review"].if, readyPullRequestCondition);
+  assert.equal(ci.jobs["dependency-review"].if, undefined);
+  assert.equal(ci.jobs["linux-static"].if, readyPullRequestCondition);
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
   assert.equal(
     ci.concurrency.group,

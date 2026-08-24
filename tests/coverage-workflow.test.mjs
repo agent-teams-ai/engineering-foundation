@@ -12,6 +12,9 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   const ci = parseYaml(
     await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
   );
+  const codeql = parseYaml(
+    await readFile(join(repositoryRoot, ".github", "workflows", "codeql.yml"), "utf8"),
+  );
   const manifest = JSON.parse(
     await readFile(join(repositoryRoot, "tests", "manifests", "coverage.v1.json"), "utf8"),
   );
@@ -31,6 +34,15 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     ci.jobs["dependency-review"].if,
     "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}",
   );
+  assert.deepEqual(codeql.on.pull_request.types, ci.on.pull_request.types);
+  assert.equal(codeql.jobs.analyze.if, ci.jobs["dependency-review"].if);
+  for (const [jobId, job] of Object.entries(ci.jobs)) {
+    if (jobId === "dependency-review") {
+      continue;
+    }
+    const needs = Array.isArray(job.needs) ? job.needs : [job.needs];
+    assert.ok(needs.includes("dependency-review"), `${jobId} bypasses ready gating`);
+  }
   assert.deepEqual(coverage.needs, [
     "dependency-review",
     "linux-test-1",

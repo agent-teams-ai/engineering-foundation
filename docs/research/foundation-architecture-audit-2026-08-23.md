@@ -40,6 +40,46 @@ Runtime, Extension и Platform последовательно прошли plan/
 default-branch gate и central bind. Текущая system-readiness оценка после этого
 closure вернулась к 7.8/10.
 
+## Текущая revalidation: 2026-08-25
+
+Исторические оценки и факты ниже сохранены как snapshot. Текущее состояние
+проверено на exact PR head
+`7d1eb3529b3473efd74a0c8d593c4c5f0fb42dec` и merged main
+`393c51ebaa823d9b107fae287416aa821ac53548`. Required PR CI run
+`32785270609` и exact-main CI run `32785996812` прошли. Tree merge идентичен
+проверенному PR tree.
+
+Опубликованные и развёрнутые stable packages: Engineering Foundation `0.18.0`
+и Docs Protocol `0.1.2`. Все четыре real consumers и canary привязаны к
+`stable2`. Merged PR #192 закрыл fail-safe lease release, публичную проекцию
+known-file recovery, bounded argv JSON, Docs layer fence, широкие test
+suppressions и cleanup временных файлов. Автоматический release PR #193
+предлагает будущие `0.19.0`/`0.1.3`; эти версии ещё не являются deployed
+stable evidence.
+
+Актуальный evidence:
+
+- 141 test file входят в fail-closed manifests: 126 cross-platform и 15
+  Docs-specific coverage tests;
+- partitioned exact-SHA coverage является blocking authority, а не advisory
+  миграцией;
+- ADR-0035 фиксирует extraction admission invariant: два реальных consumer,
+  parity evidence и удаление дубликатов; тот же ADR задаёт поэтапную миграцию
+  публичных concrete seams;
+- runtime AgentLoop, replay и plugin platform по-прежнему находятся вне
+  ownership Foundation.
+
+Оставшийся долг ограничен и не блокирует новые независимые slices. Capability
+contract loaders всё ещё местами смешивают I/O, validation и mapping; concrete
+public seams мигрируют по ADR-0035. Fixed qualification timeout и свежесть
+shard timing относятся к P3. Отказ optional ReviewRouter не является отказом
+required gate.
+
+Текущая итоговая оценка после merge и независимого повторного аудита:
+**8.8/10**, P0 = 0, P1 = 0, blocking P2 = 0.
+Описанные ниже P1/P2 относятся к историческому snapshot; этот раздел является
+актуальной revalidation, а не ретроспективным изменением исходного вердикта.
+
 ## Вердикт
 
 **Строгая оценка snapshot 0.17.0/0.1.0: 7.3/10, было 6.2/10. Текущее состояние

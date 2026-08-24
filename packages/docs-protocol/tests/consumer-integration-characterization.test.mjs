@@ -123,7 +123,9 @@ function invoke(root, args) {
 }
 
 function assertFleetAuthority(bundle, cohortId) {
-  const expected = fleetAuthorities.cohorts.find(({ cohort }) => cohort.cohortId === cohortId);
+  const expected = fleetAuthorities.cohorts.find(({ cohort: authority }) =>
+    authority.cohortId === cohortId
+  );
   assert.ok(expected, `frozen fleet authority for ${cohortId}`);
   assert.deepEqual({
     cohort: bundle.cohort,
@@ -135,7 +137,9 @@ function assertFleetAuthority(bundle, cohortId) {
 }
 
 function fleetBundle(catalog, cohortId) {
-  const bundle = catalog.directTargetBundles.find(({ cohort }) => cohort.cohortId === cohortId);
+  const bundle = catalog.directTargetBundles.find(({ cohort: authority }) =>
+    authority.cohortId === cohortId
+  );
   assert.ok(bundle, `fleet bundle for ${cohortId}`);
   assertFleetAuthority(bundle, cohortId);
   return bundle;

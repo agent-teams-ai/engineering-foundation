@@ -27,6 +27,7 @@ import {
   deserializeKnownFileIdentity,
   serializeKnownFileIdentity
 } from "../../application/model/known-file-transaction-journal.js";
+import { classifyKnownFileRecoveryTransition } from "../../application/policies/classify-known-file-recovery-transition.js";
 import { compileKnownFileTransactionEnvelope } from "../../application/policies/known-file-transaction-envelope.js";
 import {
   pathMatchesRegularFileIdentity,
@@ -1293,14 +1294,17 @@ export async function recoverKnownFileTransaction(options: {
       installedFoundationVersion(),
       installedFoundationBuildIdentity()
     ]);
-    if (stored.envelope.foundation.version !== version ||
-      stored.envelope.foundation.buildIdentity !== buildIdentity) {
+    const transition = classifyKnownFileRecoveryTransition({
+      envelope: stored.envelope,
+      installedBuild: { buildIdentity, version }
+    });
+    if (transition.action === "reject") {
       throw new KnownFileTransactionError(
-        "KNOWN_FILE_EXACT_BUILD_REQUIRED",
-        "The exact Foundation build that created this journal must recover it."
+        transition.code,
+        transition.message
       );
     }
-    if (stored.envelope.state === "COMMITTED") {
+    if (transition.action === "resume-committed-cleanup") {
       await verifyCommittedKnownFilePostimages(root, stored.envelope.journal);
       await cleanupCommittedKnownFileCaptures(
         root,

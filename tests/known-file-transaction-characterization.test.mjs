@@ -9,6 +9,7 @@ import {
   compileKnownFileTransactionPlan,
   recoverKnownFileTransaction
 } from "../packages/engineering-foundation/dist/mutation/index.js";
+import { classifyKnownFileRecoveryTransition } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js";
 import { compileKnownFileTransactionEnvelope } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 
@@ -100,6 +101,92 @@ async function readJournal(root) {
   );
   return envelope;
 }
+
+function classifyStoredEnvelope(envelope) {
+  return classifyKnownFileRecoveryTransition({
+    envelope,
+    installedBuild: envelope.foundation
+  });
+}
+
+test("goldens top-level known-file v1 recovery transitions without changing envelope bytes", () => {
+  const plan = createPlan();
+  const journal = {
+    schemaVersion: 1,
+    plan,
+    operations: [{ path: plan.operations[0].path, state: "pending", matchedPreimage: 0 }],
+    authorizedDirectories: [],
+    createdDirectories: []
+  };
+  const foundation = {
+    version: "0.17.0",
+    buildIdentity: `sha256:${"1".repeat(64)}`
+  };
+  const applying = compileKnownFileTransactionEnvelope({
+    foundation,
+    journal,
+    state: "APPLYING"
+  });
+  const committed = compileKnownFileTransactionEnvelope({
+    foundation,
+    journal,
+    state: "COMMITTED"
+  });
+  const cases = [
+    {
+      label: "exact APPLYING journal rolls back",
+      envelope: applying,
+      installedBuild: foundation,
+      expected: { action: "rollback-applying" }
+    },
+    {
+      label: "exact COMMITTED journal resumes terminal cleanup",
+      envelope: committed,
+      installedBuild: foundation,
+      expected: { action: "resume-committed-cleanup" }
+    },
+    {
+      label: "different version rejects before APPLYING rollback",
+      envelope: applying,
+      installedBuild: { ...foundation, version: "0.17.1" },
+      expected: {
+        action: "reject",
+        code: "KNOWN_FILE_EXACT_BUILD_REQUIRED",
+        message: "The exact Foundation build that created this journal must recover it."
+      }
+    },
+    {
+      label: "different build rejects before COMMITTED cleanup",
+      envelope: committed,
+      installedBuild: {
+        ...foundation,
+        buildIdentity: `sha256:${"2".repeat(64)}`
+      },
+      expected: {
+        action: "reject",
+        code: "KNOWN_FILE_EXACT_BUILD_REQUIRED",
+        message: "The exact Foundation build that created this journal must recover it."
+      }
+    }
+  ];
+
+  for (const characterization of cases) {
+    const before = JSON.stringify(characterization.envelope);
+    assert.deepEqual(classifyKnownFileRecoveryTransition({
+      envelope: characterization.envelope,
+      installedBuild: characterization.installedBuild
+    }), characterization.expected, characterization.label);
+    assert.equal(JSON.stringify(characterization.envelope), before, characterization.label);
+  }
+});
+
+test("keeps the top-level recovery classifier free of Node and process adapters", async () => {
+  const source = await readFile(new URL(
+    "../packages/engineering-foundation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts",
+    import.meta.url
+  ), "utf8");
+  assert.doesNotMatch(source, /(?:node:|adapters\/node|\bprocess\b)/u);
+});
 
 function assertOperationShape(operation, expected) {
   assert.equal(operation.state, expected.state);
@@ -288,6 +375,9 @@ for (const characterization of replacementApplyCases) {
 
     const envelope = await readJournal(root);
     assert.equal(envelope.state, characterization.envelopeState ?? "APPLYING");
+    assert.deepEqual(classifyStoredEnvelope(envelope), characterization.envelopeState === "COMMITTED"
+      ? { action: "resume-committed-cleanup" }
+      : { action: "rollback-applying" });
     assert.equal(envelope.journal.plan.planDigest, plan.planDigest);
     assertOperationShape(envelope.journal.operations[0], characterization.operation);
     await assertDestinationState(root, characterization.destination);
@@ -464,6 +554,7 @@ for (const characterization of replacementRecoveryCases) {
 
     const envelope = await readJournal(root);
     assert.equal(envelope.state, "APPLYING");
+    assert.deepEqual(classifyStoredEnvelope(envelope), { action: "rollback-applying" });
     assertOperationShape(envelope.journal.operations[0], characterization.operation);
     await assertDestinationState(root, characterization.destination);
 

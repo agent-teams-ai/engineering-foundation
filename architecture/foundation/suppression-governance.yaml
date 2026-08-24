@@ -17,7 +17,7 @@ waivers:
     decisionRef: ADR-0032
   - id: FOUNDATION-RECOVERY-RETIREMENT-COMPLEXITY
     path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-    line: 137
+    line: 138
     directive: oxlint-disable-next-line
     rules: [complexity, max-lines-per-function]
     owner: foundation-maintainers
@@ -27,7 +27,7 @@ waivers:
     decisionRef: ADR-0032
   - id: FOUNDATION-RECOVERY-DISPATCH-COMPLEXITY
     path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-    line: 417
+    line: 418
     directive: oxlint-disable-next-line
     rules: [complexity, max-lines-per-function]
     owner: foundation-maintainers
@@ -37,7 +37,7 @@ waivers:
     decisionRef: ADR-0032
   - id: FOUNDATION-RECOVERY-ROLLBACK-COMPLEXITY
     path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-    line: 604
+    line: 605
     directive: oxlint-disable-next-line
     rules: [complexity, max-lines-per-function]
     owner: foundation-maintainers

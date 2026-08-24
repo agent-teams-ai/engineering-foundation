@@ -1,5 +1,14 @@
 # @agent-teams/docs-protocol
 
+## 0.1.2
+
+### Patch Changes
+
+- [#191](https://github.com/agent-teams-ai/engineering-foundation/pull/191) [`a2dbe00`](https://github.com/agent-teams-ai/engineering-foundation/commit/a2dbe0046f8e4c8ec80ab9b7a9859ae1353fcf13) Thanks [@777genius](https://github.com/777genius)! - Bundle the disposable canary rc2 and recommended stable1 Docs Cohorts as source-owned migration targets for successor stable qualification.
+
+- Updated dependencies [[`8469679`](https://github.com/agent-teams-ai/engineering-foundation/commit/8469679d25a60974f7059425283b0d065e4c7c98), [`bc50b70`](https://github.com/agent-teams-ai/engineering-foundation/commit/bc50b704aa4f3832d612b4a1c94738335be702c9), [`d41f51c`](https://github.com/agent-teams-ai/engineering-foundation/commit/d41f51c641a6318b69ac33f29154baf7640c9bf0), [`b4b5f14`](https://github.com/agent-teams-ai/engineering-foundation/commit/b4b5f1466238e90c4e55db6a4faadd8ffb4c53ae)]:
+  - @agent-teams/engineering-foundation@0.18.0
+
 ## 0.1.1
 
 ### Patch Changes

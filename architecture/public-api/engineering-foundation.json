@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.17.0",
+  "packageVersion": "0.18.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -4646,6 +4646,123 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function recoverKnownFileTransaction(options: {\n    readonly consumerRoot: string;\n    readonly faultInjector?: KnownFileRecoveryFaultInjector;\n}): Promise<KnownFileTransactionReceiptV1>;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./mutation/qualification",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileRecoveryFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileRecoveryFaultInjector = (point: {\n    readonly phase: \"after-committed-capture-unlinked\" | \"after-destination-retired\" | \"after-rollback-linked\" | \"after-rollback-capture-unlinked\" | \"after-retirement-directory-bound\" | \"after-retirement-captured\" | \"after-retirement-unlink-authorized\";\n    readonly operationIndex: number;\n    readonly path: string;\n}) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionFaultInjector = (point: KnownFileTransactionFaultPoint) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!KnownFileTransactionFaultPoint:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionFaultPoint = {\n    readonly phase: \"after-barrier-acquired\" | \"after-journal-created\" | \"after-journal-committed\" | \"after-journal-retired\";\n} | {\n    readonly phase: \"after-directory-created\" | \"after-directory-created-unbound\" | \"after-directory-authorized\" | \"after-temporary-authorized\" | \"after-temporary-synced\" | \"after-temporary-created-unbound\" | \"after-capture-ready\" | \"after-capture-created-unbound\" | \"after-capture-authorized\" | \"after-preimage-captured\" | \"after-preimage-linked-unbound\" | \"after-rollback-temporary-created-unbound\" | \"after-rollback-temporary-ready\" | \"after-destination-captured\" | \"after-destination-retired\" | \"after-operation-publishing\" | \"after-postimage-linked\" | \"after-operation-published\" | \"after-committed-capture-unlinked\";\n    readonly operationIndex: number;\n    readonly path: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!NodeProcessRunner#run:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/engineering-foundation!NodeProcessRunner:class",
+          "parentKind": "Class",
+          "signature": "run(request: ProcessRequest): Promise<ProcessResult>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!NodeProcessRunner:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class NodeProcessRunner implements ProcessRunner"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessRequest#args:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ProcessRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly args: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessRequest#command:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ProcessRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly command: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessRequest#cwd:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ProcessRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cwd: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ProcessRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessRequest#timeoutMs:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ProcessRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly timeoutMs?: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ProcessRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessResult#stderr:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ProcessResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly stderr: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessResult#stdout:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ProcessResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly stdout: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessResult:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ProcessResult"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessRunner#run:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/engineering-foundation!ProcessRunner:interface",
+          "parentKind": "Interface",
+          "signature": "run(request: ProcessRequest): Promise<ProcessResult>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ProcessRunner:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ProcessRunner"
         }
       ]
     },

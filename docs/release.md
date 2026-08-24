@@ -7,7 +7,7 @@ Manual workstation publication and stored npm credentials are not supported.
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
-The current stable line is Foundation `0.17.0` with Docs Protocol `0.1.1`.
+The current stable line is Foundation `0.18.0` with Docs Protocol `0.1.2`.
 Normal package changes enter the ordinary Changesets flow described below; the
 completed namespace bootstrap and D'/RC rollout are not prerequisites to rerun.
 
@@ -16,8 +16,9 @@ completed namespace bootstrap and D'/RC rollout are not prerequisites to rerun.
 The D' rollout first published Foundation `0.17.0-rc.0`, then promoted Docs
 Protocol from its exact public `0.0.0` namespace baseline into the bounded
 catalog and qualified the packed pair through the RC waves. Stable Foundation
-`0.17.0`, Docs Protocol `0.1.0`, and the follow-up Docs Protocol `0.1.1` are now
-published. This paragraph records completed history; it is not an executable
+`0.17.0`, Docs Protocol `0.1.0`, and follow-up releases through Foundation
+`0.18.0` and Docs Protocol `0.1.2` are now published. This paragraph records
+completed history; it is not an executable
 release checklist.
 
 The one-time ADR-0029 namespace bootstrap is likewise completed historical

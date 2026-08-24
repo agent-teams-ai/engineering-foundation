@@ -5,16 +5,6 @@ governedRoots:
 nonWaivableRulePrefixes:
   - access-control.
 waivers:
-  - id: FOUNDATION-CAS-APPLY-COMPLEXITY
-    path: packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
-    line: 452
-    directive: oxlint-disable-next-line
-    rules: [complexity, max-lines-per-function]
-    owner: foundation-maintainers
-    reason: Each explicit branch records one durable crash-recovery transition and is retained for auditability during qualification.
-    createdOn: 2026-08-16
-    expiresOn: 2026-11-14
-    decisionRef: ADR-0032
   - id: DOCS-CONSUMER-BOUNDED-JSON-COMPLEXITY
     path: packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
     line: 44

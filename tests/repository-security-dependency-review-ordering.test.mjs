@@ -50,10 +50,14 @@ function ciWorkflow(preReviewStep = "", options = {}) {
     ...(options.pullRequestTypes === undefined
       ? []
       : [`    types: [${options.pullRequestTypes.join(", ")}]`]),
+    ...(options.pullRequestFilters ?? []),
     "permissions:",
     "  contents: read",
     "jobs:",
     "  dependency-review:",
+    ...(options.dependencyReviewCondition === undefined
+      ? []
+      : [`    if: ${options.dependencyReviewCondition}`]),
     "    runs-on: ubuntu-24.04",
     "    steps:",
     `      - uses: actions/checkout@${CHECKOUT_SHA}`,
@@ -237,6 +241,64 @@ test("rejects an activity filter that omits pull-request synchronization", async
           "repository.security-baseline.dependency-review-missing",
           "repository.security-baseline.sbom-missing",
         ],
+      );
+    },
+  );
+});
+
+test("rejects an activity filter that omits ready-for-review transitions", async () => {
+  await withConsumer(
+    { pullRequestTypes: ["opened", "synchronize", "reopened"] },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+        [
+          "repository.security-baseline.dependency-review-missing",
+          "repository.security-baseline.sbom-missing",
+        ],
+      );
+    },
+  );
+});
+
+test("rejects path and branch filters even with every required activity type", async (t) => {
+  for (const pullRequestFilter of ["    paths: [packages/**]", "    branches: [main]"]) {
+    await t.test(pullRequestFilter.trim(), async () => {
+      await withConsumer(
+        {
+          pullRequestFilters: [pullRequestFilter],
+          pullRequestTypes: ["opened", "synchronize", "reopened", "ready_for_review"],
+        },
+        async (consumerRoot) => {
+          const { result, report } = runCheck(consumerRoot);
+          assert.equal(result.status, 1);
+          assert.deepEqual(
+            report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+            [
+              "repository.security-baseline.dependency-review-missing",
+              "repository.security-baseline.sbom-missing",
+            ],
+          );
+        },
+      );
+    });
+  }
+});
+
+test("rejects a conditional Dependency Review job with an otherwise valid trigger", async () => {
+  await withConsumer(
+    {
+      dependencyReviewCondition: false,
+      pullRequestTypes: ["opened", "synchronize", "reopened", "ready_for_review"],
+    },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+        ["repository.security-baseline.dependency-review-missing"],
       );
     },
   );

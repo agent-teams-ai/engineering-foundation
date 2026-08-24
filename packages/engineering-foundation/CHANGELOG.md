@@ -1,5 +1,19 @@
 # @agent-teams/engineering-foundation
 
+## 0.18.0
+
+### Minor Changes
+
+- [#188](https://github.com/agent-teams-ai/engineering-foundation/pull/188) [`b4b5f14`](https://github.com/agent-teams-ai/engineering-foundation/commit/b4b5f1466238e90c4e55db6a4faadd8ffb4c53ae) Thanks [@777genius](https://github.com/777genius)! - Add bounded unexpected-failure diagnostics without changing the v1 check-report contract, expose repository-mutation qualification seams through a dedicated subpath, and deprecate the retained concrete and low-level aliases.
+
+### Patch Changes
+
+- [#186](https://github.com/agent-teams-ai/engineering-foundation/pull/186) [`8469679`](https://github.com/agent-teams-ai/engineering-foundation/commit/8469679d25a60974f7059425283b0d065e4c7c98) Thanks [@777genius](https://github.com/777genius)! - Classify known-file recovery transitions at the application boundary without changing recovery behavior or wire contracts.
+
+- [#190](https://github.com/agent-teams-ai/engineering-foundation/pull/190) [`bc50b70`](https://github.com/agent-teams-ai/engineering-foundation/commit/bc50b704aa4f3832d612b4a1c94738335be702c9) Thanks [@777genius](https://github.com/777genius)! - Decompose known-file apply observation, durable transitions, filesystem effects, and operation orchestration without changing its wire or fault contracts.
+
+- [#189](https://github.com/agent-teams-ai/engineering-foundation/pull/189) [`d41f51c`](https://github.com/agent-teams-ai/engineering-foundation/commit/d41f51c641a6318b69ac33f29154baf7640c9bf0) Thanks [@777genius](https://github.com/777genius)! - Require ready-for-review coverage in explicitly filtered pull-request Dependency Review workflows.
+
 ## 0.17.0
 
 ### Minor Changes

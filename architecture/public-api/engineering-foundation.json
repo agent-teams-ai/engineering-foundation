@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.18.0",
+  "packageVersion": "0.19.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -208,7 +208,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "export type FoundationTransactionStatus = {\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"scaffolding\";\n    readonly format: \"legacy-scaffolding-v1\";\n    readonly foundationVersion: string;\n    readonly recovery: FoundationRecoveryRoute;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"local-mode\";\n    readonly format: \"local-mode-v1\";\n    readonly recovery: {\n        readonly commandId: \"detach\";\n    };\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"manual-recovery-required\";\n    readonly reason: FoundationManualRecoveryReason;\n    readonly operationKind?: \"document-authoring\" | \"known-file-transaction\" | \"scaffolding\";\n    readonly format?: \"envelope-v2\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n};"
+          "signature": "export type FoundationTransactionStatus = {\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"scaffolding\";\n    readonly format: \"legacy-scaffolding-v1\";\n    readonly foundationVersion: string;\n    readonly recovery: FoundationRecoveryRoute;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"local-mode\";\n    readonly format: \"local-mode-v1\";\n    readonly recovery: {\n        readonly commandId: \"detach\";\n    };\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"known-file-transaction\";\n    readonly format: \"known-file-transaction-envelope-v1\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: Extract<FoundationRecoveryRoute, {\n        readonly commandId: \"replace-known-file-recover\";\n    }>;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"manual-recovery-required\";\n    readonly reason: FoundationManualRecoveryReason;\n    readonly operationKind?: \"document-authoring\" | \"known-file-transaction\" | \"scaffolding\";\n    readonly format?: \"envelope-v2\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#counterexampleDigest:member",

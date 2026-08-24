@@ -1,5 +1,15 @@
 # @agent-teams/docs-protocol
 
+## 0.1.3
+
+### Patch Changes
+
+- [#192](https://github.com/agent-teams-ai/engineering-foundation/pull/192) [`393c51e`](https://github.com/agent-teams-ai/engineering-foundation/commit/393c51ebaa823d9b107fae287416aa821ac53548) Thanks [@777genius](https://github.com/777genius)! - Guarantee fail-safe operation-lock release and preserve actionable known-file
+  recovery status. Keep Docs Protocol JSON output machine-readable for bounded
+  argument failures and enforce its internal source-layer boundaries.
+- Updated dependencies [[`393c51e`](https://github.com/agent-teams-ai/engineering-foundation/commit/393c51ebaa823d9b107fae287416aa821ac53548)]:
+  - @agent-teams/engineering-foundation@0.19.0
+
 ## 0.1.2
 
 ### Patch Changes

@@ -6,31 +6,96 @@ governedRoots:
   - packages/engineering-foundation/src
   - packages/docs-protocol/src
 boundaries:
-  - id: docs-protocol.package
+  - id: docs-protocol.domain
     roots:
-      - packages/docs-protocol/src
+      - packages/docs-protocol/src/domain
+    allow:
+      boundaries: []
+      packages:
+        - "@agent-teams/engineering-foundation"
+      builtins:
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/domain/document-semantics.ts
+      - packages/docs-protocol/src/domain/model.ts
+      - packages/docs-protocol/src/domain/profile-policy.ts
+  - id: docs-protocol.application
+    roots:
+      - packages/docs-protocol/src/application
     allow:
       boundaries:
-        - docs-protocol.consumer-integration.composition
+        - docs-protocol.domain
+      packages:
+        - "@agent-teams/engineering-foundation"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/application/docs-protocol.ts
+  - id: docs-protocol.adapters
+    roots:
+      - packages/docs-protocol/src/adapters
+    allow:
+      boundaries:
+        - docs-protocol.application
+        - docs-protocol.domain
       packages:
         - "@agent-teams/engineering-foundation"
         - ajv
         - ajv-formats
-        - jsonc-parser
         - yaml
+      builtins:
+        - node:fs
+        - node:fs/promises
+        - node:module
+        - node:path
+        - node:url
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/adapters/docs-command-envelope-schema-validator.ts
+      - packages/docs-protocol/src/adapters/foundation-docs-port.ts
+      - packages/docs-protocol/src/adapters/node-adoption-inspector.ts
+      - packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts
+      - packages/docs-protocol/src/adapters/node-profile-reader.ts
+  - id: docs-protocol.composition
+    roots:
+      - packages/docs-protocol/src/composition
+      - packages/docs-protocol/src/index.ts
+      - packages/docs-protocol/src/cli.ts
+    allow:
+      boundaries:
+        - docs-protocol.adapters
+        - docs-protocol.application
+        - docs-protocol.consumer-integration.composition
+        - docs-protocol.domain
+      packages:
+        - "@agent-teams/engineering-foundation"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/index.ts
+      - packages/docs-protocol/src/cli.ts
+  - id: docs-protocol.qualification
+    roots:
+      - packages/docs-protocol/src/qualification
+    allow:
+      boundaries:
+        - docs-protocol.adapters
+        - docs-protocol.application
+        - docs-protocol.domain
+      packages:
+        - "@agent-teams/engineering-foundation"
       builtins:
         - node:child_process
         - node:crypto
         - node:fs
         - node:fs/promises
-        - node:module
         - node:os
         - node:path
         - node:url
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/index.ts
-      - packages/docs-protocol/src/cli.ts
+      - packages/docs-protocol/src/qualification/index.ts
   - id: docs-protocol.consumer-integration.domain
     roots:
       - packages/docs-protocol/src/consumer-integration/domain

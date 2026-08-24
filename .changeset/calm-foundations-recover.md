@@ -1,5 +1,5 @@
 ---
-"@agent-teams/engineering-foundation": patch
+"@agent-teams/engineering-foundation": minor
 "@agent-teams/docs-protocol": patch
 ---
 

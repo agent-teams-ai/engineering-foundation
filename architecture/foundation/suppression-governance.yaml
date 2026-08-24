@@ -27,7 +27,7 @@ waivers:
     decisionRef: ADR-0032
   - id: DOCS-CONSUMER-CLI-ROUTER-COMPLEXITY
     path: packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts
-    line: 154
+    line: 158
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers

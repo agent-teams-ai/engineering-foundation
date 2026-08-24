@@ -6,9 +6,11 @@ import test from "node:test";
 
 import {
   applyKnownFileTransaction,
+  canonicalKnownFileTransactionReceipt,
   compileKnownFileTransactionPlan,
   recoverKnownFileTransaction
 } from "../packages/engineering-foundation/dist/mutation/index.js";
+import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
 import { classifyKnownFileRecoveryTransition } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js";
 import { compileKnownFileTransactionEnvelope } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
@@ -70,7 +72,13 @@ function assertIdentityShape(identity, label) {
 }
 
 async function readJournal(root) {
-  const envelope = JSON.parse(await readFile(journalPath(root), "utf8"));
+  const serialized = await readFile(journalPath(root), "utf8");
+  const envelope = JSON.parse(serialized);
+  assert.equal(
+    serialized,
+    `${canonicalJson(envelope)}\n`,
+    "journal bytes must remain canonical with one trailing newline"
+  );
   assert.deepEqual(Object.keys(envelope).toSorted(), [
     "adapterContractVersion",
     "envelopeDigest",
@@ -101,6 +109,22 @@ async function readJournal(root) {
   );
   return envelope;
 }
+
+posixTest("keeps applied receipt bytes canonical and deterministic", async (context) => {
+  const first = await createFixture(context);
+  const second = await createFixture(context);
+  const firstReceipt = await applyKnownFileTransaction({
+    consumerRoot: first.root,
+    plan: first.plan
+  });
+  const secondReceipt = await applyKnownFileTransaction({
+    consumerRoot: second.root,
+    plan: second.plan
+  });
+  const serialized = canonicalKnownFileTransactionReceipt(firstReceipt);
+  assert.equal(serialized, `${canonicalJson(firstReceipt)}\n`);
+  assert.equal(serialized, canonicalKnownFileTransactionReceipt(secondReceipt));
+});
 
 function classifyStoredEnvelope(envelope) {
   return classifyKnownFileRecoveryTransition({

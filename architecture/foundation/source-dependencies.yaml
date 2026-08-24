@@ -520,6 +520,11 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
   - id: foundation.known-file-transaction.composition
     roots:
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-effects.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-faults.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-observation.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-operation.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-state.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-cleanup.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-executor.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts

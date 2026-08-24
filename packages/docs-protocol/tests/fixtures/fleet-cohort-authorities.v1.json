@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "cohorts": [
+    {
+      "cohort": {
+        "schemaVersion": 1,
+        "cohortId": "docs-2026-08-18-rc2",
+        "channel": "rc",
+        "recordDigest": "sha256:02bc526540933e6ad1a1a648fa4398db199317a8de9dfa480adcf821c702bfd4",
+        "qualificationEventDigest": "sha256:5166d2df2cc6abfcabb7784d094668a309283d6d73d60ddbd0239ea162f6f502",
+        "eligibleAfter": "2026-08-19T03:39:37Z",
+        "upgradeFrom": [
+          "docs-2026-08-18-rc1"
+        ],
+        "rollbackTo": [
+          "docs-2026-08-18-rc1"
+        ],
+        "packages": {
+          "docsProtocol": {
+            "version": "0.1.0-rc.12",
+            "integrity": "sha512-ZxrhOFbc8iKn167sIszuFpzyPksrPExPRRpXBXtjZ85Bvf4iNyNgxcOk3NkStl0Jsm+8J67lI12bQK/Xs/mlDQ=="
+          },
+          "engineeringFoundation": {
+            "version": "0.17.0-rc.8",
+            "integrity": "sha512-srrROkDs3GfHmx8L74AKq3sgl8zf1fYKGnUq8mtvhI09ZcosGZvqgQ5tXyDIrLUlWcGsIn1Yv8lOt8G1QFnuEA=="
+          }
+        },
+        "workflow": {
+          "repository": "agent-teams-ai/.github",
+          "path": ".github/workflows/docs-protocol-check.yml",
+          "revision": "2375b0451a54b4889addef676b4788e14ad914c5",
+          "blobSha": "d452902e36bb144f9cb2816ced77cdd8ae629cd9"
+        },
+        "assets": {
+          "skillDigest": "sha256:7b31cd257532247f64c55a014dc926c601e4d742176cfb8513b6b0d8ab48213e",
+          "callerWorkflowDigest": "sha256:51d3f02a352ce2c3b0a4068a86b6899a57ab54b0a876c468e3fb3e536519caca",
+          "assetCatalogDigest": "sha256:b156dba1b2b88aa53bd9196dd49e93c0a153f6fb155ed2ce89c5dc1a0bf8eeb6",
+          "transitionCatalogDigest": "sha256:e9055f32a78bfba55e16c829383ec87fe2626da0ad8ee79b958753b574c441a1"
+        },
+        "schemas": {
+          "consumerIntegration": 1,
+          "managedState": 1,
+          "docsProtocol": 1
+        },
+        "runtime": {
+          "node": ">=24.18.0 <25",
+          "pnpm": ">=11.17.0 <12",
+          "runtimeClosureDigest": "sha256:031f8f0e946dfb8dbe17683b226bf79aeb6d0d379a37eb0124498667e0518cd8"
+        }
+      },
+      "agentsRouteDigest": "sha256:08ca6c0782dbc36ace6359c8fe36807810f9668d999c7d9e8ead6bf281d9bf30",
+      "docsScriptsDigest": "sha256:7a502ddeda5e3d0296b712b5c07e0905a9b7a8fcd374d37db8a02cb026a37881",
+      "callerWorkflowDigest": "sha256:51d3f02a352ce2c3b0a4068a86b6899a57ab54b0a876c468e3fb3e536519caca",
+      "skillDigest": "sha256:7b31cd257532247f64c55a014dc926c601e4d742176cfb8513b6b0d8ab48213e"
+    },
+    {
+      "cohort": {
+        "schemaVersion": 1,
+        "cohortId": "docs-2026-08-23-stable1",
+        "channel": "stable",
+        "recordDigest": "sha256:a35177e6ff340a475440b7f38bf099962ad3b39f2c50af56d43ba3cd08e0905f",
+        "qualificationEventDigest": "sha256:1e3a7faaf9fcbed32534536914d67fecafe35e3fb5d109c531c24d935320e55c",
+        "eligibleAfter": "2026-08-24T14:10:53Z",
+        "upgradeFrom": [
+          "docs-2026-08-18-rc3"
+        ],
+        "rollbackTo": [],
+        "packages": {
+          "docsProtocol": {
+            "version": "0.1.1",
+            "integrity": "sha512-Ci+UhsSUg+9K27zTbWBFUOO+DgWW80ZS4sCKK+K20W7hMDrG6ZXvDa1N/idmnbStytvWMa3baX0ppC1HwaN9FA=="
+          },
+          "engineeringFoundation": {
+            "version": "0.17.0",
+            "integrity": "sha512-ISF8bDrXN9ZQPtlDSGD+fE8zFaCAv1sLVddGUCJ5ysI0hnGuqrc8kNW442ly0Dxn34qvIjJ7TANZDAaNggpa9w=="
+          }
+        },
+        "workflow": {
+          "repository": "agent-teams-ai/.github",
+          "path": ".github/workflows/docs-protocol-check.yml",
+          "revision": "94190f4df44b536804fdef8341eab226d2b94f9c",
+          "blobSha": "d452902e36bb144f9cb2816ced77cdd8ae629cd9"
+        },
+        "assets": {
+          "skillDigest": "sha256:7b31cd257532247f64c55a014dc926c601e4d742176cfb8513b6b0d8ab48213e",
+          "callerWorkflowDigest": "sha256:f21dc19277a4ba24bcef90a7071c9cf50adf144769f42d6f74ff4eac9ef117cf",
+          "assetCatalogDigest": "sha256:b156dba1b2b88aa53bd9196dd49e93c0a153f6fb155ed2ce89c5dc1a0bf8eeb6",
+          "transitionCatalogDigest": "sha256:3672621f9d68e7bcef74b6560e2b8f54cfa08b475b22bb82a56b9b34d96a803d"
+        },
+        "schemas": {
+          "consumerIntegration": 1,
+          "managedState": 1,
+          "docsProtocol": 1
+        },
+        "runtime": {
+          "node": ">=24.18.0 <25",
+          "pnpm": ">=11.17.0 <12",
+          "runtimeClosureDigest": "sha256:6b1a419fc7437d5d4d0744f4013d6d9349a3220d268d4c20fc788439ec5bb902"
+        }
+      },
+      "agentsRouteDigest": "sha256:08ca6c0782dbc36ace6359c8fe36807810f9668d999c7d9e8ead6bf281d9bf30",
+      "docsScriptsDigest": "sha256:7a502ddeda5e3d0296b712b5c07e0905a9b7a8fcd374d37db8a02cb026a37881",
+      "callerWorkflowDigest": "sha256:f21dc19277a4ba24bcef90a7071c9cf50adf144769f42d6f74ff4eac9ef117cf",
+      "skillDigest": "sha256:7b31cd257532247f64c55a014dc926c601e4d742176cfb8513b6b0d8ab48213e"
+    }
+  ]
+}

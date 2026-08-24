@@ -21,6 +21,10 @@ const shapes = JSON.parse(await readFile(
   join(import.meta.dirname, "fixtures", "current-consumer-shapes.v1.json"),
   "utf8"
 ));
+const fleetAuthorities = JSON.parse(await readFile(
+  join(import.meta.dirname, "fixtures", "fleet-cohort-authorities.v1.json"),
+  "utf8"
+));
 
 const absent = { state: "absent" };
 const INTEGRITY = `sha512-${"A".repeat(86)}==`;
@@ -118,6 +122,29 @@ function invoke(root, args) {
   return { status: result.status, stderr: result.stderr, envelope: JSON.parse(result.stdout) };
 }
 
+function assertFleetAuthority(bundle, cohortId) {
+  const expected = fleetAuthorities.cohorts.find(({ cohort: authority }) =>
+    authority.cohortId === cohortId
+  );
+  assert.ok(expected, `frozen fleet authority for ${cohortId}`);
+  assert.deepEqual({
+    cohort: bundle.cohort,
+    agentsRouteDigest: bundle.agentsRouteDigest,
+    docsScriptsDigest: bundle.docsScriptsDigest,
+    callerWorkflowDigest: digestBytes(bundle.callerWorkflow),
+    skillDigest: digestBytes(bundle.skill)
+  }, expected);
+}
+
+function fleetBundle(catalog, cohortId) {
+  const bundle = catalog.directTargetBundles.find(({ cohort: authority }) =>
+    authority.cohortId === cohortId
+  );
+  assert.ok(bundle, `fleet bundle for ${cohortId}`);
+  assertFleetAuthority(bundle, cohortId);
+  return bundle;
+}
+
 for (const shape of shapes.fixtures) {
   test(`characterizes and migrates ${shape.repository.nameWithOwner} without repo-specific compiler code`, async () => {
     const desired = {
@@ -191,6 +218,70 @@ for (const shape of shapes.fixtures) {
   });
 }
 
+test("migrates the exact fleet rc2 bundle to a successor Cohort", async () => {
+  const shape = shapes.fixtures[0];
+  const catalog = await loadPackageConsumerAssetCatalog();
+  const prior = fleetBundle(catalog, "docs-2026-08-18-rc2");
+  assert.deepEqual(catalog.currentSourceExecutors, []);
+  const targetCohort = {
+    ...cohort(),
+    cohortId: "docs-2026-08-24-stable2",
+    channel: "stable",
+    upgradeFrom: ["docs-2026-08-18-rc2", "docs-2026-08-23-stable1"],
+    rollbackTo: []
+  };
+  targetCohort.assets = describeCanonicalConsumerAssets(targetCohort);
+  const desired = {
+    schemaVersion: 1,
+    repository: shape.repository,
+    integrationRoot: ".",
+    packageManager: "pnpm",
+    profilePath: "architecture/foundation/docs-protocol.yaml",
+    skillPath: ".agents/skills/docs-authoring/SKILL.md",
+    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
+    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
+    cohort: targetCohort
+  };
+  const priorState = canonicalManagedState({ ...desired, cohort: prior.cohort }, {
+    skillDigest: digestBytes(prior.skill),
+    callerWorkflowDigest: digestBytes(prior.callerWorkflow),
+    assetCatalogDigest: prior.cohort.assets.assetCatalogDigest,
+    transitionCatalogDigest: prior.cohort.assets.transitionCatalogDigest,
+    agentsRouteDigest: prior.agentsRouteDigest,
+    docsScriptsDigest: prior.docsScriptsDigest
+  });
+  const root = await mkdtemp(join(tmpdir(), "docs-consumer-rc2-successor-e2e-"));
+  assert.equal(spawnSync("git", ["init", "-q", root]).status, 0);
+  await Promise.all([
+    mkdir(join(root, "architecture", "foundation"), { recursive: true }),
+    mkdir(join(root, ".agents", "skills", "docs-authoring"), { recursive: true }),
+    mkdir(join(root, ".github", "workflows"), { recursive: true })
+  ]);
+  await Promise.all([
+    writeFile(join(root, "package.json"), upgradedManifest(shape.files.packageJsonBase64)),
+    writeFile(join(root, ".node-version"), "24.18.0\n"),
+    writeFile(join(root, "pnpm-lock.yaml"), qualifiedLockfile(shape.lockImporterPaths)),
+    writeFile(join(root, "AGENTS.md"), `# Agents\n\n${canonicalManagedRoute(desired.skillPath)}\n`),
+    writeFile(join(root, desired.skillPath), prior.skill),
+    writeFile(join(root, desired.callerWorkflowPath), prior.callerWorkflow),
+    writeFile(join(root, desired.managedStatePath), priorState),
+    writeFile(
+      join(root, "architecture", "foundation", "docs-consumer-integration.json"),
+      `${JSON.stringify(desired, null, 2)}\n`
+    )
+  ]);
+  const planned = invoke(root, ["plan", "--to", targetCohort.cohortId]);
+  assert.equal(planned.status, 1, planned.stderr);
+  assert.equal(planned.envelope.outcome, "change-required");
+  assert.deepEqual(planned.envelope.plan.issues, []);
+  const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
+  assert.equal(applied.status, 0, applied.stderr);
+  assert.equal(applied.envelope.plan.outcome, "current");
+  const checked = invoke(root, ["check"]);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.equal(checked.envelope.outcome, "current");
+});
+
 test("migrates the exact fleet rc3 bundle to a fix-forward stable Cohort", async () => {
   const shape = shapes.fixtures[0];
   const catalog = await loadPackageConsumerAssetCatalog();
@@ -256,4 +347,86 @@ test("migrates the exact fleet rc3 bundle to a fix-forward stable Cohort", async
   const checked = invoke(root, ["check"]);
   assert.equal(checked.status, 0, checked.stderr);
   assert.equal(checked.envelope.outcome, "current");
+});
+
+test("migrates the exact stable1 bundle to a successor without fabricating rollback", async () => {
+  const shape = shapes.fixtures[0];
+  const catalog = await loadPackageConsumerAssetCatalog();
+  const prior = fleetBundle(catalog, "docs-2026-08-23-stable1");
+  assert.deepEqual(catalog.currentSourceExecutors, []);
+  const targetCohort = {
+    ...cohort(),
+    cohortId: "docs-2026-08-24-stable2",
+    channel: "stable",
+    upgradeFrom: ["docs-2026-08-18-rc2", "docs-2026-08-23-stable1"],
+    rollbackTo: []
+  };
+  targetCohort.assets = describeCanonicalConsumerAssets(targetCohort);
+  const desired = {
+    schemaVersion: 1,
+    repository: shape.repository,
+    integrationRoot: ".",
+    packageManager: "pnpm",
+    profilePath: "architecture/foundation/docs-protocol.yaml",
+    skillPath: ".agents/skills/docs-authoring/SKILL.md",
+    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
+    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
+    cohort: targetCohort
+  };
+  const priorState = canonicalManagedState({ ...desired, cohort: prior.cohort }, {
+    skillDigest: digestBytes(prior.skill),
+    callerWorkflowDigest: digestBytes(prior.callerWorkflow),
+    assetCatalogDigest: prior.cohort.assets.assetCatalogDigest,
+    transitionCatalogDigest: prior.cohort.assets.transitionCatalogDigest,
+    agentsRouteDigest: prior.agentsRouteDigest,
+    docsScriptsDigest: prior.docsScriptsDigest
+  });
+  const root = await mkdtemp(join(tmpdir(), "docs-consumer-stable1-successor-e2e-"));
+  assert.equal(spawnSync("git", ["init", "-q", root]).status, 0);
+  await Promise.all([
+    mkdir(join(root, "architecture", "foundation"), { recursive: true }),
+    mkdir(join(root, ".agents", "skills", "docs-authoring"), { recursive: true }),
+    mkdir(join(root, ".github", "workflows"), { recursive: true })
+  ]);
+  await Promise.all([
+    writeFile(join(root, "package.json"), upgradedManifest(shape.files.packageJsonBase64)),
+    writeFile(join(root, ".node-version"), "24.18.0\n"),
+    writeFile(join(root, "pnpm-lock.yaml"), qualifiedLockfile(shape.lockImporterPaths)),
+    writeFile(join(root, "AGENTS.md"), `# Agents\n\n${canonicalManagedRoute(desired.skillPath)}\n`),
+    writeFile(join(root, desired.skillPath), prior.skill),
+    writeFile(join(root, desired.callerWorkflowPath), prior.callerWorkflow),
+    writeFile(join(root, desired.managedStatePath), priorState),
+    writeFile(
+      join(root, "architecture", "foundation", "docs-consumer-integration.json"),
+      `${JSON.stringify(desired, null, 2)}\n`
+    )
+  ]);
+  assert.deepEqual(prior.cohort.rollbackTo, []);
+  assert.deepEqual(targetCohort.rollbackTo, []);
+  const planned = invoke(root, ["plan", "--to", targetCohort.cohortId]);
+  assert.equal(planned.status, 1, planned.stderr);
+  assert.equal(planned.envelope.outcome, "change-required");
+  assert.deepEqual(planned.envelope.plan.issues, []);
+  const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
+  assert.equal(applied.status, 0, applied.stderr);
+  assert.equal(applied.envelope.plan.outcome, "current");
+  const checked = invoke(root, ["check"]);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.equal(checked.envelope.outcome, "current");
+});
+
+test("frozen fleet authority rejects historical metadata perturbation", async () => {
+  const catalog = await loadPackageConsumerAssetCatalog();
+  const prior = fleetBundle(catalog, "docs-2026-08-18-rc2");
+  const perturbed = {
+    ...prior,
+    cohort: {
+      ...prior.cohort,
+      recordDigest: `sha256:${"f".repeat(64)}`
+    }
+  };
+  assert.throws(
+    () => assertFleetAuthority(perturbed, prior.cohort.cohortId),
+    { code: "ERR_ASSERTION" }
+  );
 });

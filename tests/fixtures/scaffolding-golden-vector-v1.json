@@ -195,6 +195,10 @@
         "types": "./dist/mutation/index.d.ts",
         "import": "./dist/mutation/index.js"
       },
+      "./mutation/qualification": {
+        "types": "./dist/mutation/qualification/index.d.ts",
+        "import": "./dist/mutation/qualification/index.js"
+      },
       "./scaffolding": {
         "types": "./dist/scaffolding/index.d.ts",
         "import": "./dist/scaffolding/index.js"

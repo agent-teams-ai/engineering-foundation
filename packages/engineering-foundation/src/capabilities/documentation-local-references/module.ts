@@ -1,5 +1,5 @@
 import {
-  CapabilityInputError,
+  capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
@@ -40,25 +40,11 @@ export function createDocumentationLocalReferencesCapability(): CapabilityDefini
           )
         });
       } catch (error) {
-        if (error instanceof CapabilityInputError) {
-          return capabilityReport({
-            capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-            capabilityId: CAPABILITY_ID,
-            outcome:
-              error.problem.code === "EXECUTION_CANCELLED" ? "cancelled" : "invalid-input",
-            problem: error.problem
-          });
-        }
-        return capabilityReport({
+        return capabilityFailureReport({
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
           capabilityId: CAPABILITY_ID,
-          outcome: "failed",
-          problem: {
-            code: "CAPABILITY_EXECUTION_FAILED",
-            message: "Documentation local references capability execution failed.",
-            phase: "documentation-local-references-execution",
-            retryable: false
-          }
+          error,
+          phase: "documentation-local-references-execution"
         });
       }
     }

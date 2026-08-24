@@ -23,7 +23,7 @@ function fixture() {
       ],
     },
     coverageManifest: {
-      schemaVersion: 2,
+      schemaVersion: 3,
       tool: { name: "c8", version: "12.0.0" },
       processBootstrap: "scripts/coverage-process-bootstrap.mjs",
       include: ["packages/example/dist/**/*.js"],
@@ -31,6 +31,7 @@ function fixture() {
       additionalTestsByShard: { 1: [], 2: [], 3: [], 4: [] },
       legacyTests: ["tests/a.test.mjs"],
       thresholds: { branches: 1, functions: 1, lines: 1 },
+      evidenceThresholds: { branches: 1, functions: 1, lines: 1 },
     },
     testPaths: [
       "tests/a.test.mjs",
@@ -43,10 +44,10 @@ function fixture() {
 
 test("repository test manifests cover every top-level test exactly once", async () => {
   const result = await validateTestManifests();
-  assert.equal(result.testCount, 137);
+  assert.equal(result.testCount, 139);
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
-  assert.equal([...result.shards.values()].flat().length, 122);
-  assert.equal([...result.coverageShards.values()].flat().length, 137);
+  assert.equal([...result.shards.values()].flat().length, 124);
+  assert.equal([...result.coverageShards.values()].flat().length, 139);
 });
 
 test("test manifests fail closed for missing, duplicate, and nonexistent coverage tests", () => {
@@ -79,7 +80,7 @@ test("coverage manifest pins its merger and bounded thresholds", () => {
 
   for (const invalidThreshold of [0, 101, 36.5]) {
     const data = fixture();
-    data.coverageManifest.thresholds.lines = invalidThreshold;
+    data.coverageManifest.evidenceThresholds.lines = invalidThreshold;
     assert.throws(() => validateTestManifestData(data), /integer from 1 through 100/u);
   }
 });

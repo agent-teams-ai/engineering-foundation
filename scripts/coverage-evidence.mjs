@@ -2,7 +2,6 @@ import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants as fileConstants } from "node:fs";
 import {
-  copyFile,
   lstat,
   mkdtemp,
   open,
@@ -13,11 +12,14 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join, relative, resolve as resolvePath, sep } from "node:path";
+import { join, relative, resolve as resolvePath, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
+import { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
+
+export { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
 
 const executeFile = promisify(execFile);
 const shardManifestPath = join(repositoryRoot, "tests", "manifests", "test-shards.v1.json");
@@ -292,7 +294,14 @@ async function rawFileRecords(rawDirectory, expectedTests) {
   if (recordedTests.join("\0") !== [...expectedTests].toSorted().join("\0")) {
     fail("raw coverage test union differs from the shard manifest");
   }
-  return records;
+  return Object.freeze({
+    records: Object.freeze(records),
+    validatedFiles: Object.freeze(
+      readEntries.map(({ bytes, entry }) => Object.freeze({
+        bytes, name: entry.name,
+      })),
+    ),
+  });
 }
 
 export async function writeShardEvidence({ directory, headSha, shardId }) {
@@ -311,7 +320,7 @@ export async function writeShardEvidence({ directory, headSha, shardId }) {
     testManifestDigest: protocol.testManifestDigest,
     toolVersion: protocol.toolVersion,
   });
-  const rawFiles = await rawFileRecords(join(directory, "raw"), tests);
+  const { records: rawFiles } = await rawFileRecords(join(directory, "raw"), tests);
   const evidenceWithoutDigest = {
     schemaVersion: 1,
     identity,
@@ -392,11 +401,11 @@ async function validateArtifactDirectory({ artifactDirectory, identity, shardId,
   );
   const evidence = JSON.parse(evidenceBytes.toString("utf8"));
   validateEvidenceShape(evidence, { identity, shardId, tests });
-  const actualRawFiles = await rawFileRecords(join(artifactDirectory, "raw"), tests);
-  if (canonicalJson(actualRawFiles) !== canonicalJson(evidence.rawFiles)) {
+  const actualRaw = await rawFileRecords(join(artifactDirectory, "raw"), tests);
+  if (canonicalJson(actualRaw.records) !== canonicalJson(evidence.rawFiles)) {
     fail(`shard ${shardId} raw files differ from the sidecar`);
   }
-  return { artifactDirectory, evidence };
+  return { artifactDirectory, evidence, validatedFiles: actualRaw.validatedFiles };
 }
 
 export async function validateCoverageEvidenceSet({ headSha, inputDirectory }) {
@@ -457,12 +466,7 @@ export async function mergeCoverageEvidence({ headSha, inputDirectory }) {
   const validated = await validateCoverageEvidenceSet({ headSha, inputDirectory });
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "foundation-coverage-evidence-"));
   try {
-    for (const { artifactDirectory, evidence } of validated.artifacts) {
-      for (const record of evidence.rawFiles) {
-        const targetName = `${evidence.shard.id}-${basename(record.path)}`;
-        await copyFile(join(artifactDirectory, ...record.path.split("/")), join(temporaryDirectory, targetName));
-      }
-    }
+    await materializeValidatedRawCoverage(validated, temporaryDirectory);
     const c8Arguments = [
       "exec",
       "c8",
@@ -473,9 +477,9 @@ export async function mergeCoverageEvidence({ headSha, inputDirectory }) {
       "--all",
       "--merge-async",
       "--check-coverage",
-      `--lines=${validated.protocol.config.thresholds.lines}`,
-      `--branches=${validated.protocol.config.thresholds.branches}`,
-      `--functions=${validated.protocol.config.thresholds.functions}`,
+      `--lines=${validated.protocol.config.evidenceThresholds.lines}`,
+      `--branches=${validated.protocol.config.evidenceThresholds.branches}`,
+      `--functions=${validated.protocol.config.evidenceThresholds.functions}`,
       ...validated.protocol.config.include.flatMap((pattern) => ["--include", pattern]),
       ...validated.protocol.config.exclude.flatMap((pattern) => ["--exclude", pattern]),
     ];

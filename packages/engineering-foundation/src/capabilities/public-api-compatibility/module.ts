@@ -1,5 +1,5 @@
 import {
-  CapabilityInputError,
+  capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
@@ -74,27 +74,11 @@ export function createPublicApiCompatibilityCapability(): CapabilityDefinition {
           )
         });
       } catch (error) {
-        if (error instanceof CapabilityInputError) {
-          return capabilityReport({
-            capabilityId: CAPABILITY_ID,
-            capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-            outcome:
-              error.problem.code === "EXECUTION_CANCELLED"
-                ? "cancelled"
-                : "invalid-input",
-            problem: error.problem
-          });
-        }
-        return capabilityReport({
+        return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          outcome: "failed",
-          problem: {
-            code: "CAPABILITY_EXECUTION_FAILED",
-            message: "Public API compatibility capability execution failed.",
-            phase: "public-api-compatibility-execution",
-            retryable: false
-          }
+          error,
+          phase: "public-api-compatibility-execution"
         });
       }
     }

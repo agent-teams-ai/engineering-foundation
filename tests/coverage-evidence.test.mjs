@@ -21,6 +21,7 @@ import {
   canonicalJson,
   createEvidenceIdentity,
   currentHeadSha,
+  materializeValidatedRawCoverage,
   sha256,
   parseCoverageEvidenceArguments,
   readBoundedRegularFile,
@@ -187,6 +188,31 @@ test("coverage evidence rejects raw bytes changed after sidecar creation", async
   );
 });
 
+test("coverage merger uses retained validated bytes after a source file is replaced", async (context) => {
+  const root = await evidenceSet();
+  const merged = await mkdtemp(join(tmpdir(), "foundation-coverage-merge-test-"));
+  context.after(() => Promise.all([
+    rm(root, { force: true, recursive: true }),
+    rm(merged, { force: true, recursive: true }),
+  ]));
+  const rawPath = join(
+    root,
+    `coverage-evidence-${headSha}-shard-1`,
+    "raw",
+    "coverage-1-1-0.json",
+  );
+  const validatedBytes = await readFile(rawPath);
+  const validated = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
+
+  await materializeValidatedRawCoverage(validated, merged, async ({ phase }) => {
+    assert.equal(phase, "after-validation");
+    await writeFile(rawPath, "hostile replacement");
+  });
+
+  assert.deepEqual(await readFile(join(merged, "1-coverage-1-1-0.json")), validatedBytes);
+  assert.equal(await readFile(rawPath, "utf8"), "hostile replacement");
+});
+
 test("coverage evidence rejects an oversized sidecar before parsing", async (context) => {
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));
@@ -299,11 +325,11 @@ test("coverage shard arguments enforce one isolated shard and repository contain
   );
 });
 
-test("coverage additions extend Linux evidence without changing the cross-platform shards", () => {
+test("coverage keeps cross-platform shards complete and adds Linux-only docs evidence", () => {
   const ids = ["1", "2", "3", "4"];
   const crossPlatformTests = selectTestShardPaths(testManifest, ids, false);
   const coverageTests = selectTestShardPaths(testManifest, ids, true);
-  assert.equal(crossPlatformTests.length, 122);
+  assert.equal(crossPlatformTests.length, 124);
   assert.equal(
     crossPlatformTests.some((path) => path.startsWith("packages/docs-protocol/tests/")),
     false,

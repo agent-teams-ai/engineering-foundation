@@ -157,7 +157,7 @@ function isSbomEvidence(
 ): boolean {
   return (
     workflow.path === policy.sbomWorkflow &&
-    workflow.unconditionalTriggers.includes("pull_request") &&
+    workflow.pullRequestCodeChangesCovered &&
     !job.conditional &&
     !job.nonBlocking &&
     !step.conditional &&

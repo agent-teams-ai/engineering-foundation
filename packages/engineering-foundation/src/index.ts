@@ -6,7 +6,9 @@ export {
 export type { FoundationPackageSelfCheck } from "./package-self-check.js";
 export { FoundationError } from "./errors.js";
 export type { FoundationErrorCode } from "./errors.js";
+/** @deprecated Import `@agent-teams/engineering-foundation/local-mode` directly. */
 export * as localMode from "./local-mode/index.js";
+/** @deprecated Import `@agent-teams/engineering-foundation/mutation` directly. */
 export * as mutation from "./mutation/index.js";
 export { inspectFoundationTransactionAwareMode } from "./local-mode/inspection.js";
 export type {

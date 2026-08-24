@@ -28,6 +28,7 @@
         "tests/known-file-transaction-node.test.mjs",
         "tests/document-parent-materialization-v2.test.mjs",
         "tests/package-boundary.test.mjs",
+        "tests/repository-mutation-qualification-api.test.mjs",
         "tests/public-api-bootstrap.test.mjs",
         "tests/public-api-prerelease-promotion.test.mjs",
         "tests/pull-request-template.test.mjs",
@@ -145,7 +146,8 @@
         "tests/quality-gate-runner.test.mjs",
         "tests/repository-mutation-owned-temporary-cleanup.test.mjs",
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
-        "tests/test-manifests.test.mjs"
+        "tests/test-manifests.test.mjs",
+        "tests/unexpected-failure-diagnostics.test.mjs"
       ]
     }
   ]

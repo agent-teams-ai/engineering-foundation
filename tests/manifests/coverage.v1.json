@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "tool": {
     "name": "c8",
     "version": "12.0.0"
@@ -82,5 +82,10 @@
     "lines": 36,
     "branches": 67,
     "functions": 42
+  },
+  "evidenceThresholds": {
+    "lines": 70,
+    "branches": 77,
+    "functions": 78
   }
 }

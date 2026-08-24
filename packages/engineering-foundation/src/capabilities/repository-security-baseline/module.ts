@@ -1,5 +1,5 @@
 import {
-  CapabilityInputError,
+  capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
@@ -42,24 +42,11 @@ export function createRepositorySecurityBaselineCapability(): CapabilityDefiniti
           outcome: diagnostics.some(({ severity }) => severity === "error") ? "violations" : "passed"
         });
       } catch (error) {
-        if (error instanceof CapabilityInputError) {
-          return capabilityReport({
-            capabilityId: CAPABILITY_ID,
-            capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-            outcome: error.problem.code === "EXECUTION_CANCELLED" ? "cancelled" : "invalid-input",
-            problem: error.problem
-          });
-        }
-        return capabilityReport({
+        return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          outcome: "failed",
-          problem: {
-            code: "CAPABILITY_EXECUTION_FAILED",
-            message: "Repository security baseline capability execution failed.",
-            phase: "repository-security-execution",
-            retryable: false
-          }
+          error,
+          phase: "repository-security-execution"
         });
       }
     }

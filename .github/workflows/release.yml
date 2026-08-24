@@ -181,7 +181,6 @@ jobs:
           set -euo pipefail
 
           ci_contexts=(check windows-check macos-qualification)
-          release_gate_context=ReviewGate
           head_sha="${EXPECTED_RELEASE_HEAD_SHA}"
           status_finalized=0
 
@@ -206,7 +205,6 @@ jobs:
               for context in "${ci_contexts[@]}"; do
                 post_status "${context}" error "Release PR attestation failed" "${RELEASE_RUN_URL}"
               done
-              post_status "${release_gate_context}" error "Release PR attestation failed closed" "${RELEASE_RUN_URL}"
             fi
             exit "${exit_code}"
           }
@@ -217,7 +215,6 @@ jobs:
             for context in "${ci_contexts[@]}"; do
               post_status "${context}" failure "${description}" "${RELEASE_RUN_URL}"
             done
-            post_status "${release_gate_context}" failure "${description}" "${RELEASE_RUN_URL}"
             exit 1
           }
 
@@ -242,7 +239,6 @@ jobs:
           for context in "${ci_contexts[@]}"; do
             post_status "${context}" pending "Release PR ${context}: dispatched" "${RELEASE_RUN_URL}"
           done
-          post_status "${release_gate_context}" pending "Validating generated release evidence" "${RELEASE_RUN_URL}"
 
           git fetch --no-tags origin \
             "${PROCESSED_MAIN_SHA}" "${current_main_sha}" "${base_sha}" "${head_sha}"
@@ -394,7 +390,6 @@ jobs:
             for context in "${ci_contexts[@]}"; do
               post_status "${context}" error "Release PR ${context}: CI timeout" "${RELEASE_RUN_URL}"
             done
-            post_status "${release_gate_context}" error "Release PR CI timed out" "${RELEASE_RUN_URL}"
             echo "Timed out waiting for release pull request CI." >&2
             exit 1
           fi
@@ -432,7 +427,6 @@ jobs:
                 "Release PR ${ci_contexts[index]}: ${conclusions[index]}" \
                 "${target_urls[index]}"
             done
-            post_status "${release_gate_context}" failure "Generated release CI failed" "${RELEASE_RUN_URL}"
             exit 1
           fi
 
@@ -522,5 +516,3 @@ jobs:
               "Release PR ${ci_contexts[index]}: ${conclusions[index]}" \
               "${target_urls[index]}"
           done
-          post_status "${release_gate_context}" success \
-            "Generated release evidence and exact-head CI passed" "${RELEASE_RUN_URL}"

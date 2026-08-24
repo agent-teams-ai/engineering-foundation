@@ -47,6 +47,9 @@ function ciWorkflow(preReviewStep = "", options = {}) {
     "name: CI",
     "on:",
     "  pull_request:",
+    ...(options.pullRequestTypes === undefined
+      ? []
+      : [`    types: [${options.pullRequestTypes.join(", ")}]`]),
     "permissions:",
     "  contents: read",
     "jobs:",
@@ -209,6 +212,34 @@ test("allows repository code after a non-conditional Dependency Review prerequis
     assert.equal(result.status, 0);
     assert.equal(report.outcome, "passed");
   });
+});
+
+test("accepts an activity filter that covers every pull-request code change", async () => {
+  await withConsumer(
+    { pullRequestTypes: ["opened", "synchronize", "reopened", "ready_for_review"] },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 0);
+      assert.equal(report.outcome, "passed");
+    },
+  );
+});
+
+test("rejects an activity filter that omits pull-request synchronization", async () => {
+  await withConsumer(
+    { pullRequestTypes: ["opened", "reopened", "ready_for_review"] },
+    async (consumerRoot) => {
+      const { result, report } = runCheck(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.deepEqual(
+        report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+        [
+          "repository.security-baseline.dependency-review-missing",
+          "repository.security-baseline.sbom-missing",
+        ],
+      );
+    },
+  );
 });
 
 test("does not report an ordering bypass for exact explicit success", async () => {

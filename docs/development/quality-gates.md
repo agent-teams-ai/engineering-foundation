@@ -19,9 +19,26 @@ weakening the merge gate.
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
 | Merge-ready | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
-| Coverage | `pnpm test:coverage` | Blocking native Node coverage qualification with line, branch, and function thresholds |
-| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Exact-head raw V8 evidence qualification from the four isolated Linux test shards |
+| Coverage | `pnpm test:coverage` | Local native Node coverage qualification with line, branch, and function thresholds |
+| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI qualification of exact-head raw V8 evidence from the four isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
+
+Foundation's self-dogfood lifecycle is explicit and ordered:
+
+1. `pnpm foundation:bootstrap` builds current workspace source with the pinned
+   compiler and package manager, without invoking the Foundation CLI.
+2. `pnpm foundation:dogfood` runs the freshly built Foundation CLI against this
+   repository. Existing CI jobs may use `foundation:check:built` only after their
+   preceding build step succeeds.
+3. `pnpm foundation:qualification` first repeats that source dogfood, then checks
+   packed and hermetic-registry artifacts and finally runs the pinned published-
+   version compatibility oracle. Published versions never govern current-source
+   checking.
+
+The private root may link Foundation with `workspace:*` for tool resolution. The
+published Foundation manifest cannot depend on itself, Foundation source cannot
+depend on Docs Protocol, and no bootstrap package or published dependency cycle
+is part of this lifecycle.
 
 `pnpm check` is the deterministic repository and package conformance layer. It
 does not claim networked, hosted, or external-tool qualification. `pnpm verify`
@@ -29,36 +46,34 @@ is the single local command matching the union of Linux merge lanes: workflow
 security, the deterministic check, Buf, hermetic registry installation, published-version
 compatibility, dead-code analysis, and parser parity.
 
-The blocking native Node coverage lane remains in place while partitioned
-coverage parity is qualified. In parallel, each existing Linux test shard writes
-raw V8 coverage without rerunning its tests. Its sidecar binds the full Git SHA,
-exact Node and c8 versions, coverage-config digest, test-manifest digest, shard
-identity, test list, and every raw-file digest. The advisory aggregator accepts
-exactly one artifact for each of shards 1 through 4, rejects missing, unexpected,
-mixed, duplicate-claim, or modified evidence, merges once, and applies the same
-line, branch, and function floors. `c8` is used only for merge/report because the
-Node test runner can emit raw V8 JSON but cannot consume coverage from completed
-processes. The candidate intentionally measures all matching production files;
-its provider and measured universe are not yet declared numerically equivalent
-to Node's executed-module report. Promotion therefore requires observed CI
-parity, not merely one passing candidate threshold result.
+Partitioned c8 coverage is the blocking Linux CI coverage authority. Each
+existing Linux test shard writes raw V8 coverage without rerunning its tests. Its
+sidecar binds the full Git SHA, exact Node and c8 versions, coverage-config
+digest, test-manifest digest, shard identity, test list, and every raw-file
+digest. The aggregator accepts exactly one artifact for each of shards 1 through
+4, rejects missing, unexpected, mixed, duplicate-claim, or modified evidence,
+retains the exact bounded bytes it validated, merges once, and applies the
+separate c8 floors of 70% lines, 77% branches, and 78% functions. The promoted
+floors are below the observed exact-head CI result of 71.88%, 78.97%, and 79.86%
+respectively. `c8` is used only for merge/report because the Node test runner can
+emit raw V8 JSON but cannot consume coverage from completed processes.
 
 The evidence merger owns `c8` as a pinned CLI-only dependency, so Knip excludes
 that dependency from import-based usage detection. Its process-tree fixture is
 an explicit Knip entry because Node launches it directly rather than importing
 it from the test module.
 
-The shard's test result remains blocking. Candidate directory setup, sidecar
-finalization, artifact upload, and aggregation are advisory, so a collector-only
-failure cannot replace a passing required test result with a merge blocker. Raw
-instrumentation still shares the test process; use the kill switch if its runtime
-overhead threatens a required shard timeout.
+The shard's test result, all four artifact uploads, evidence aggregation, and the
+stable `linux-coverage` context are fail-closed. An evidence setup or sidecar
+finalization failure may preserve the original shard test result, but the
+required upload or merger then fails. Raw instrumentation still shares each
+shard's test process and its timeout.
 
-Set the repository variable `FOUNDATION_PARTITIONED_COVERAGE=off` to stop raw
-collection and skip the advisory aggregator. This is a rollback switch, not a
-coverage bypass: `linux-coverage` remains a required prerequisite of `check`.
-After measured parity is accepted, promotion or retirement of the legacy lane
-requires a separate reviewed change.
+The former standalone native Node CI lane and the partitioned-coverage kill
+switch are removed. Native Node coverage remains available locally through
+`pnpm test:coverage` and remains part of `pnpm check` and `pnpm verify`; its
+thresholds stay separate because Node and c8 calculate the measured universe
+differently.
 
 Required CI executes the same evidence as independent jobs. Linux uses four
 checked-in weighted test shards; Windows combines the same manifest into two
@@ -75,10 +90,29 @@ failed required CheckRuns behind. For generated release pull requests, the
 attester prefers the single exact attempt-1 PR run and dispatches a second suite
 only when no such run appears during its bounded selection window.
 
+Draft pull-request pushes create no heavy CI or CodeQL work. The cheap,
+unconditional security lane still runs pinned Dependency Review and emits the
+repository SBOM for every pull-request update. A separate draft-only lane runs
+`check:changed`, which routes the exact Git delta through lint/typecheck and
+escalates control-file changes to `check:fast`. Every executable heavy job
+depends directly on the security lane and additionally requires a non-draft
+pull request. `ready_for_review` is an explicit CodeQL and CI trigger, so the
+full CI graph starts when an unchanged draft
+becomes ready without another push. Every synchronization of a ready pull
+request takes the same fail-closed path; there is no elapsed-time admission,
+artifact reuse from another SHA, or weaker ready-update route.
+
+Repository protection requires the stable exact-head contexts `CodeQL`,
+`analyze`, `check`, `windows-check`, and `macos-qualification`. Independent
+hosted-review evidence belongs in pull-request comments; it is not converted
+into a workflow-authored or self-attested status check. `ReviewGate` is retired.
+
 `tests/manifests/test-shards.v1.json` owns the cross-platform shards.
 `tests/manifests/coverage.v1.json` pins their coverage-only additions, the
-merger, production include/exclude boundaries, current thresholds, and the
-legacy blocking test selection. Together they are the closed inventory of
+merger, production include/exclude boundaries, c8 evidence thresholds, and the
+separate legacy Node coverage thresholds and test selection. The two threshold
+authorities remain explicit because Node and c8 do not calculate every metric
+identically. Together the manifests are the closed inventory of
 repository and Docs Protocol test files. `pnpm test:manifests:check` rejects missing, extra,
 duplicate, nested, non-portable, or symlinked test entries and malformed
 coverage configuration. Add or rename a test and update the shard manifest in

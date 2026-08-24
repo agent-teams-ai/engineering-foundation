@@ -346,6 +346,7 @@ boundaries:
       - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
+      - packages/engineering-foundation/src/unexpected-failure.ts
       - packages/engineering-foundation/src/unique-registry.ts
     allow:
       boundaries: []
@@ -360,6 +361,7 @@ boundaries:
       - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
+      - packages/engineering-foundation/src/unexpected-failure.ts
       - packages/engineering-foundation/src/unique-registry.ts
   - id: foundation.cancellation
     roots:
@@ -511,7 +513,6 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
@@ -519,6 +520,15 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
   - id: foundation.known-file-transaction.composition
     roots:
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-cleanup.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-executor.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-observation.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-retirement.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-state.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
@@ -553,6 +563,18 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/mutation/index.ts
+  - id: foundation.mutation.qualification
+    roots:
+      - packages/engineering-foundation/src/mutation/qualification
+    allow:
+      boundaries:
+        - foundation.known-file-transaction.composition
+        - foundation.process-execution
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/mutation/qualification/index.ts
   - id: foundation.transaction-coordination.application
     roots:
       - packages/engineering-foundation/src/transaction-coordination/application

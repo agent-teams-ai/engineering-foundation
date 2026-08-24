@@ -80,8 +80,12 @@ export type {
   DocumentCreatedDirectoryEvidenceV2,
   DocumentParentMaterializationInspectionV2,
   DocumentParentMaterializationJournalV2,
-  DocumentParentMaterializationPlanV2
 } from "./application/model/document-parent-materialization.js";
+/**
+ * @deprecated Qualification-only low-level planner model. Import from
+ * `@agent-teams/engineering-foundation/document-authoring/qualification`.
+ */
+export type { DocumentParentMaterializationPlanV2 } from "./application/model/document-parent-materialization.js";
 export type {
   DocumentCommitObservation,
   DocumentReceipt,

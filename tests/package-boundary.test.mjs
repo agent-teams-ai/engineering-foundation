@@ -92,6 +92,14 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
   assert.deepEqual(reverseDependencyReferences(foundation, workspace), []);
   assert.equal(docsProtocol.dependencies?.[foundationName], "workspace:*");
   assert.match(foundation.version, exactVersion);
+  for (const section of dependencySections) {
+    assert.equal(
+      foundation[section]?.[foundationName],
+      undefined,
+      `published Foundation cannot depend on itself through ${section}`,
+    );
+  }
+  assert.equal(workspace.devDependencies?.[foundationName], "workspace:*");
   assert.equal(
     docsProtocol.dependencies[foundationName] === "workspace:*" ? foundation.version : docsProtocol.dependencies[foundationName],
     foundation.version,
@@ -110,6 +118,29 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
       );
     }
   }
+});
+
+test("Foundation self-dogfood lifecycle is build-gated and source-owned", async () => {
+  const workspace = await json("package.json");
+  assert.equal(workspace.scripts["foundation:bootstrap"], "pnpm build");
+  assert.equal(
+    workspace.scripts["foundation:dogfood"],
+    "pnpm foundation:bootstrap && pnpm foundation:check:built",
+  );
+  assert.equal(
+    workspace.scripts["foundation:qualification"],
+    "pnpm foundation:dogfood && pnpm package:check:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e",
+  );
+  assert.equal(workspace.scripts["foundation:check"], "pnpm foundation:dogfood");
+  assert.equal(
+    workspace.scripts["foundation:check:built"],
+    "node packages/engineering-foundation/dist/cli.js check --consumer .",
+  );
+  assert.doesNotMatch(
+    workspace.scripts["foundation:check:built"],
+    /(?:pnpm|npmjs\.org|published)/u,
+    "current-source dogfood must execute the freshly built CLI directly",
+  );
 });
 
 test("reverse dependency guard rejects alternate manifest and pnpm injection paths", () => {

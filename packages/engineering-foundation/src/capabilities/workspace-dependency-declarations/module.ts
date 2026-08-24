@@ -1,5 +1,5 @@
 import {
-  CapabilityInputError,
+  capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
@@ -38,25 +38,11 @@ export function createWorkspaceDependencyDeclarationsCapability(): CapabilityDef
           diagnostics: evaluateWorkspaceDependencies(snapshot, config.policy)
         });
       } catch (error) {
-        if (error instanceof CapabilityInputError) {
-          const cancelled = error.problem.code === "EXECUTION_CANCELLED";
-          return capabilityReport({
-            capabilityId: CAPABILITY_ID,
-            capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-            outcome: cancelled ? "cancelled" : "invalid-input",
-            problem: error.problem
-          });
-        }
-        return capabilityReport({
+        return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          outcome: "failed",
-          problem: {
-            code: "CAPABILITY_EXECUTION_FAILED",
-            message: "Capability execution failed.",
-            phase: "capability-execution",
-            retryable: false
-          }
+          error,
+          phase: "capability-execution"
         });
       }
     }

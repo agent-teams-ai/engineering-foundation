@@ -53,6 +53,7 @@ export interface WorkflowEvidence {
   readonly path: string;
   readonly triggers: readonly string[];
   readonly unconditionalTriggers: readonly string[];
+  readonly pullRequestCodeChangesCovered: boolean;
   readonly permissions?: Readonly<Record<string, WorkflowPermission>> | "read-all" | "write-all";
   readonly jobs: readonly WorkflowJobEvidence[];
 }

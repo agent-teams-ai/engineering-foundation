@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
   push:
     branches:
@@ -17,6 +18,7 @@ concurrency:
 jobs:
   dependency-review:
     name: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -310,7 +312,10 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 1,2
+      # Successful runs 32652672062, 32654047694, and 32654516277 measured the
+      # former 1+2 lane at 431/414/424s versus 240/246/236s for 3+4. Pairing
+      # opposite shards separates the two longest observed Windows suites.
+      - run: pnpm test:shard:built -- --shards 1,4
 
   windows-test-b:
     name: windows-test-b
@@ -326,7 +331,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 3,4
+      - run: pnpm test:shard:built -- --shards 2,3
 
   windows-package:
     name: windows-package

@@ -21,6 +21,16 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(coverage.steps.every((step) => step["continue-on-error"] === undefined), true);
   assert.ok(ci.jobs.check.needs.includes("linux-coverage"));
   assert.equal(JSON.stringify(ci).includes("FOUNDATION_PARTITIONED_COVERAGE"), false);
+  assert.deepEqual(ci.on.pull_request.types, [
+    "opened",
+    "synchronize",
+    "reopened",
+    "ready_for_review",
+  ]);
+  assert.equal(
+    ci.jobs["dependency-review"].if,
+    "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}",
+  );
   assert.deepEqual(coverage.needs, [
     "dependency-review",
     "linux-test-1",

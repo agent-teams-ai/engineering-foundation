@@ -90,6 +90,15 @@ failed required CheckRuns behind. For generated release pull requests, the
 attester prefers the single exact attempt-1 PR run and dispatches a second suite
 only when no such run appears during its bounded selection window.
 
+Draft pull-request pushes create no heavy CI or CodeQL work: Dependency Review
+is the direct lifecycle prerequisite for the CI graph, and both it and CodeQL
+run only when the event is not a pull request or the pull request is ready.
+`ready_for_review` is an explicit trigger for both workflows, so converting an
+unchanged draft starts fresh exact-head required checks without another push.
+Every synchronization of a ready pull request takes the same fail-closed path;
+there is no elapsed-time admission, artifact reuse from another SHA, or weaker
+ready-update route.
+
 `tests/manifests/test-shards.v1.json` owns the cross-platform shards.
 `tests/manifests/coverage.v1.json` pins their coverage-only additions, the
 merger, production include/exclude boundaries, c8 evidence thresholds, and the

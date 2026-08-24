@@ -265,6 +265,19 @@ test("release CI selection reuses only one exact attempt-1 pull request run", ()
 
 test("CI concurrency isolates pull request checks from attester dispatches", async () => {
   const ci = await workflow("ci.yml");
+  const codeql = await workflow("codeql.yml");
+  const requiredLifecycleEvents = [
+    "opened",
+    "synchronize",
+    "reopened",
+    "ready_for_review",
+  ];
+  const readyPullRequestCondition =
+    "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}";
+  assert.deepEqual(ci.on.pull_request.types, requiredLifecycleEvents);
+  assert.deepEqual(codeql.on.pull_request.types, requiredLifecycleEvents);
+  assert.equal(ci.jobs["dependency-review"].if, readyPullRequestCondition);
+  assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
   assert.equal(
     ci.concurrency.group,
     "foundation-ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}",
@@ -549,9 +562,15 @@ test("release publishing requires real Buf and hermetic registry qualification",
     ci.jobs["windows-published"].steps.at(-1).run,
     "pnpm published-compatibility:e2e",
   );
-  assert.match(
-    ci.jobs["windows-test-b"].steps.at(-1).run,
-    /--shards 3,4/u,
+  const windowsTestA = ci.jobs["windows-test-a"];
+  const windowsTestB = ci.jobs["windows-test-b"];
+  assert.deepEqual(
+    [windowsTestA.name, windowsTestA.steps.at(-1).run],
+    ["windows-test-a", "pnpm test:shard:built -- --shards 1,4"],
+  );
+  assert.deepEqual(
+    [windowsTestB.name, windowsTestB.steps.at(-1).run],
+    ["windows-test-b", "pnpm test:shard:built -- --shards 2,3"],
   );
   assert.deepEqual(ci.jobs.check.needs, [
     "dependency-review",

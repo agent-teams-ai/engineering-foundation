@@ -262,12 +262,7 @@ function projectPublicTransactionStatus(
     status.state === "pending" &&
     status.operationKind === "known-file-transaction"
   ) {
-    return {
-      state: "manual-recovery-required",
-      reason: "recovery-handler-unavailable",
-      operationKind: "known-file-transaction",
-      diagnostics: status.diagnostics
-    };
+    return status;
   }
   if (
     status.state === "pending" &&

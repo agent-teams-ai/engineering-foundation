@@ -137,6 +137,27 @@ snapshots:
   return root;
 }
 
+test("consumer JSON mode survives bounded argv failures without accepting aliases", () => {
+  const cliPath = join(import.meta.dirname, "..", "dist", "cli.js");
+  const invoke = (args) => spawnSync(process.execPath, [cliPath, "consumer", ...args], {
+    encoding: "utf8",
+    env: { ...process.env, NO_PROXY: "*" },
+  });
+  for (const args of [
+    ["check", "--consumer", "--json"],
+    ["check", "x".repeat(4097), "--json"],
+    ["check", ...Array.from({ length: 31 }, (_value, index) => `arg-${index}`), "--json"],
+  ]) {
+    const result = invoke(args);
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(JSON.parse(result.stdout).issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
+  }
+
+  const ambiguous = invoke(["check", "--json=true"]);
+  assert.equal(ambiguous.status, 2, ambiguous.stderr);
+  assert.match(ambiguous.stdout, /^consumer\.check: blocked\n/u);
+});
+
 test("plans, applies, verifies, and repeats the full consumer lifecycle offline", async () => {
   const root = await sandbox();
   const protectedPaths = [

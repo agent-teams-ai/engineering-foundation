@@ -134,6 +134,10 @@ function assertBoundedArgv(argv: readonly string[]): void {
   }
 }
 
+function requestsJsonOutput(argv: readonly string[]): boolean {
+  return argv.some((value) => value === "--json");
+}
+
 export function consumerIntegrationHelp(): string {
   return `Usage: agent-teams-docs consumer <command> [options]
 
@@ -154,12 +158,11 @@ Options:
 // oxlint-disable-next-line complexity
 export async function runConsumerIntegrationCli(argv: readonly string[]): Promise<number> {
   let command = "";
-  let jsonRequested = false;
+  const jsonRequested = requestsJsonOutput(argv);
   let execution: ConsumerIntegrationExecutionV1;
   try {
     assertBoundedArgv(argv);
     command = argv[0] ?? "";
-    jsonRequested = argv.includes("--json");
     if (command === "help" || command === "--help" || argv[1] === "--help") {
       const helpArgs = new Arguments(argv.slice(1));
       if (argv[1] === "--help") {helpArgs.flag("--help");}

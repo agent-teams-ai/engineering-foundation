@@ -9,6 +9,7 @@ import type {
   FoundationTransactionLease
 } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
 import type { InternalFoundationTransactionStatus } from "../../../transaction-coordination/application/model/internal-transaction-status.js";
+import { releaseFoundationTransactionLeaseSafely } from "../../../transaction-coordination/application/release-foundation-transaction-lease.js";
 
 interface FoundationCoordinator {
   inspect(): Promise<InternalFoundationTransactionStatus>;
@@ -64,43 +65,6 @@ function toDocumentStatus(
     : { state: "manual-recovery-required", reason: manualReason(status) };
 }
 
-function combinedReleaseFailure(
-  inspectionError: unknown,
-  releaseError: unknown
-): Error {
-  return new Error(
-    "Document transaction inspection and barrier retention both failed.",
-    {
-      cause: new AggregateError(
-        [inspectionError, releaseError],
-        "Transaction evidence inspection and operation-lock release failed."
-      )
-    }
-  );
-}
-
-async function releaseSafely(options: {
-  readonly coordinator: FoundationCoordinator;
-  readonly lease: FoundationTransactionLease;
-  readonly retainRequested: boolean;
-}): Promise<void> {
-  let status: InternalFoundationTransactionStatus;
-  try {
-    status = await options.coordinator.inspect();
-  } catch (inspectionError) {
-    try {
-      await options.lease.release({ retainTransactionBarrier: true });
-    } catch (releaseError) {
-      throw combinedReleaseFailure(inspectionError, releaseError);
-    }
-    throw inspectionError;
-  }
-  await options.lease.release({
-    retainTransactionBarrier:
-      options.retainRequested || status.state !== "idle"
-  });
-}
-
 export class NodeDocumentTransactionCoordinator
   implements DocumentTransactionCoordinator {
   readonly #coordinator: FoundationCoordinator;
@@ -129,11 +93,11 @@ export class NodeDocumentTransactionCoordinator
         if (!held) {
           return;
         }
-        await releaseSafely({
-          coordinator: this.#coordinator,
+        await releaseFoundationTransactionLeaseSafely({
           lease,
-          retainRequested:
-            releaseOptions?.retainTransactionBarrier === true
+          inspectRetainTransactionBarrier: async () =>
+            releaseOptions?.retainTransactionBarrier === true ||
+            (await this.#coordinator.inspect()).state !== "idle"
         });
         held = false;
       }

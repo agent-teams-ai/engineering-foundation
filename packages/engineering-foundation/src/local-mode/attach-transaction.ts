@@ -24,6 +24,7 @@ import {
   writeLinkState
 } from "./local-state-store.js";
 import { createNodeFoundationTransactionCoordinator } from "../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { releaseFoundationTransactionLeaseSafely } from "../transaction-coordination/application/release-foundation-transaction-lease.js";
 import {
   pathEntryExists,
   resolveTargetPackageRoot,
@@ -361,8 +362,10 @@ export async function attachFoundation(
     );
     return await commitAttach(input, preflight);
   } finally {
-    await lease.release({
-      retainTransactionBarrier: (await coordinator.inspect()).state !== "idle"
+    await releaseFoundationTransactionLeaseSafely({
+      lease,
+      inspectRetainTransactionBarrier: async () =>
+        (await coordinator.inspect()).state !== "idle"
     });
   }
 }

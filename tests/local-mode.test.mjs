@@ -28,6 +28,7 @@ import {
 } from "../packages/engineering-foundation/dist/mutation/index.js";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
+const strictDirectoryDurabilityTest = process.platform === "win32" ? test.skip : test;
 const REGISTRY_INTEGRITY =
   "sha512-bIIjRzA6EHhga2N0sRQ1R5zZSnP3YJ9q8JcD1QmQf3uVn3f2r6q1aXJf0Hb2U5QG6QH0xBvM1nHqN9vQ9w==";
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -445,7 +446,7 @@ test("status JSON remains one parseable object when transaction recovery is requ
   }
 });
 
-test("status preserves the exact known-file recovery route", async () => {
+strictDirectoryDurabilityTest("status preserves the exact known-file recovery route", async () => {
   const fixture = await createFixture();
   try {
     const plan = compileKnownFileTransactionPlan({

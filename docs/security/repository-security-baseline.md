@@ -33,6 +33,10 @@ capability decision.
   reusable workflow has a same-workflow pinned Dependency Review job before
   that execution; the primary CI gate is an unconditional prerequisite for
   both Linux and Windows install jobs;
+- blocking Dependency Review and SBOM evidence covers every pull-request code
+  change. An activity filter is accepted only when it has no path or branch
+  filters and includes `opened`, `synchronize`, and `reopened`; additional
+  lifecycle events such as `ready_for_review` are allowed;
 - the required Linux `check` aggregate includes a direct Dependency Review
   prerequisite and the `linux-static` prerequisite runs Anchore SBOM without
   job/step conditions or `continue-on-error`;

@@ -96,8 +96,8 @@ repository SBOM for every pull-request update. A separate draft-only lane runs
 `check:changed`, which routes the exact Git delta through lint/typecheck and
 escalates control-file changes to `check:fast`. Every executable heavy job
 depends directly on the security lane and additionally requires a non-draft
-pull request. `ready_for_review` is an explicit CodeQL trigger, while the
-ordinary pull-request trigger starts the full CI graph when an unchanged draft
+pull request. `ready_for_review` is an explicit CodeQL and CI trigger, so the
+full CI graph starts when an unchanged draft
 becomes ready without another push. Every synchronization of a ready pull
 request takes the same fail-closed path; there is no elapsed-time admission,
 artifact reuse from another SHA, or weaker ready-update route.

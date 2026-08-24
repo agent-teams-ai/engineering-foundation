@@ -26,7 +26,12 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(JSON.stringify(ci).includes("FOUNDATION_PARTITIONED_COVERAGE"), false);
   const readyPullRequestCondition =
     "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}";
-  assert.equal(ci.on.pull_request, null);
+  assert.deepEqual(ci.on.pull_request.types, [
+    "opened",
+    "synchronize",
+    "reopened",
+    "ready_for_review",
+  ]);
   assert.deepEqual(codeql.on.pull_request.types, [
     "opened",
     "synchronize",

@@ -81,6 +81,41 @@ function unconditionalTriggers(value: unknown): readonly string[] {
   );
 }
 
+const PULL_REQUEST_CODE_CHANGE_TYPES = Object.freeze([
+  "opened",
+  "reopened",
+  "synchronize"
+]);
+
+function pullRequestCodeChangesCovered(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value === "pull_request";
+  }
+  if (Array.isArray(value)) {
+    return value.includes("pull_request");
+  }
+  const input = requireRecord(value, "workflow.on");
+  const configuration = input["pull_request"];
+  if (configuration === null) {
+    return true;
+  }
+  if (typeof configuration !== "object" || Array.isArray(configuration)) {
+    return false;
+  }
+  const pullRequest = requireRecord(configuration, "workflow.on.pull_request");
+  const keys = Object.keys(pullRequest);
+  if (keys.length === 0) {
+    return true;
+  }
+  const types = pullRequest["types"];
+  return (
+    keys.length === 1 &&
+    Array.isArray(types) &&
+    types.every((entry) => typeof entry === "string") &&
+    PULL_REQUEST_CODE_CHANGE_TYPES.every((required) => types.includes(required))
+  );
+}
+
 function requiredString(value: unknown, field: string): string {
   if (typeof value !== "string" || value.length === 0) {
     repositorySecurityInputError(
@@ -223,6 +258,7 @@ export function parseWorkflow(path: string, source: string): WorkflowEvidence {
     path,
     triggers: triggers(input["on"]),
     unconditionalTriggers: unconditionalTriggers(input["on"]),
+    pullRequestCodeChangesCovered: pullRequestCodeChangesCovered(input["on"]),
     ...(workflowPermissions === undefined ? {} : { permissions: workflowPermissions }),
     jobs: Object.freeze(jobs.toSorted((left, right) => compareBinaryStrings(left.id, right.id)))
   });

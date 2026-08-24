@@ -23,7 +23,7 @@ function workflowMatchesToolRollout(
   workflow: RepositorySecurityEvidence["workflows"][number],
   rollout: ToolEvidenceRollout
 ): boolean {
-  return rollout !== "blocking" || workflow.unconditionalTriggers.includes("pull_request");
+  return rollout !== "blocking" || workflow.pullRequestCodeChangesCovered;
 }
 
 function jobInvokes(

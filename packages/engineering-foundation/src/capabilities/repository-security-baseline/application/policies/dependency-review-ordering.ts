@@ -75,7 +75,7 @@ export function isDependencyReviewEvidence(
 ): boolean {
   return (
     workflow.path === policy.dependencyReview.workflowPath &&
-    workflow.unconditionalTriggers.includes("pull_request") &&
+    workflow.pullRequestCodeChangesCovered &&
     hasDependencyReviewSemantics(policy, job, step)
   );
 }

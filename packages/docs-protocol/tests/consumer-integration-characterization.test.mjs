@@ -21,6 +21,10 @@ const shapes = JSON.parse(await readFile(
   join(import.meta.dirname, "fixtures", "current-consumer-shapes.v1.json"),
   "utf8"
 ));
+const fleetAuthorities = JSON.parse(await readFile(
+  join(import.meta.dirname, "fixtures", "fleet-cohort-authorities.v1.json"),
+  "utf8"
+));
 
 const absent = { state: "absent" };
 const INTEGRITY = `sha512-${"A".repeat(86)}==`;
@@ -118,6 +122,25 @@ function invoke(root, args) {
   return { status: result.status, stderr: result.stderr, envelope: JSON.parse(result.stdout) };
 }
 
+function assertFleetAuthority(bundle, cohortId) {
+  const expected = fleetAuthorities.cohorts.find(({ cohort }) => cohort.cohortId === cohortId);
+  assert.ok(expected, `frozen fleet authority for ${cohortId}`);
+  assert.deepEqual({
+    cohort: bundle.cohort,
+    agentsRouteDigest: bundle.agentsRouteDigest,
+    docsScriptsDigest: bundle.docsScriptsDigest,
+    callerWorkflowDigest: digestBytes(bundle.callerWorkflow),
+    skillDigest: digestBytes(bundle.skill)
+  }, expected);
+}
+
+function fleetBundle(catalog, cohortId) {
+  const bundle = catalog.directTargetBundles.find(({ cohort }) => cohort.cohortId === cohortId);
+  assert.ok(bundle, `fleet bundle for ${cohortId}`);
+  assertFleetAuthority(bundle, cohortId);
+  return bundle;
+}
+
 for (const shape of shapes.fixtures) {
   test(`characterizes and migrates ${shape.repository.nameWithOwner} without repo-specific compiler code`, async () => {
     const desired = {
@@ -194,10 +217,7 @@ for (const shape of shapes.fixtures) {
 test("migrates the exact fleet rc2 bundle to a successor Cohort", async () => {
   const shape = shapes.fixtures[0];
   const catalog = await loadPackageConsumerAssetCatalog();
-  const prior = catalog.directTargetBundles.find(({ cohort: { cohortId } }) =>
-    cohortId === "docs-2026-08-18-rc2"
-  );
-  assert.ok(prior);
+  const prior = fleetBundle(catalog, "docs-2026-08-18-rc2");
   assert.deepEqual(catalog.currentSourceExecutors, []);
   const targetCohort = {
     ...cohort(),
@@ -328,10 +348,7 @@ test("migrates the exact fleet rc3 bundle to a fix-forward stable Cohort", async
 test("migrates the exact stable1 bundle to a successor without fabricating rollback", async () => {
   const shape = shapes.fixtures[0];
   const catalog = await loadPackageConsumerAssetCatalog();
-  const prior = catalog.directTargetBundles.find(({ cohort: { cohortId } }) =>
-    cohortId === "docs-2026-08-23-stable1"
-  );
-  assert.ok(prior);
+  const prior = fleetBundle(catalog, "docs-2026-08-23-stable1");
   assert.deepEqual(catalog.currentSourceExecutors, []);
   const targetCohort = {
     ...cohort(),
@@ -392,4 +409,20 @@ test("migrates the exact stable1 bundle to a successor without fabricating rollb
   const checked = invoke(root, ["check"]);
   assert.equal(checked.status, 0, checked.stderr);
   assert.equal(checked.envelope.outcome, "current");
+});
+
+test("frozen fleet authority rejects historical metadata perturbation", async () => {
+  const catalog = await loadPackageConsumerAssetCatalog();
+  const prior = fleetBundle(catalog, "docs-2026-08-18-rc2");
+  const perturbed = {
+    ...prior,
+    cohort: {
+      ...prior.cohort,
+      recordDigest: `sha256:${"f".repeat(64)}`
+    }
+  };
+  assert.throws(
+    () => assertFleetAuthority(perturbed, prior.cohort.cohortId),
+    { code: "ERR_ASSERTION" }
+  );
 });

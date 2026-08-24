@@ -1,5 +1,5 @@
 import {
-  CapabilityInputError,
+  capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
@@ -61,24 +61,11 @@ export function createExecutableSpecificationsCapability(): CapabilityDefinition
           )
         });
       } catch (error) {
-        if (error instanceof CapabilityInputError) {
-          return capabilityReport({
-            capabilityId: CAPABILITY_ID,
-            capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-            outcome: error.problem.code === "EXECUTION_CANCELLED" ? "cancelled" : "invalid-input",
-            problem: error.problem
-          });
-        }
-        return capabilityReport({
+        return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          outcome: "failed",
-          problem: {
-            code: "CAPABILITY_EXECUTION_FAILED",
-            message: "Executable specifications capability execution failed.",
-            phase: "executable-specification-execution",
-            retryable: false
-          }
+          error,
+          phase: "executable-specification-execution"
         });
       }
     }

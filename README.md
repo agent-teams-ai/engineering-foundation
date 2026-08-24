@@ -55,6 +55,7 @@ pnpm check
 pnpm verify
 pnpm package:check
 pnpm quality:gate:fast
+pnpm foundation:qualification
 ```
 
 Consumers use:
@@ -89,6 +90,9 @@ for the complete CLI and JSON contract.
 
 `foundation:check` emits one deterministic aggregate report and enforces every
 declared capability. See [consumer adoption](docs/development/consumer-adoption.md).
+This repository makes its source lifecycle explicit as `foundation:bootstrap`,
+`foundation:dogfood`, and `foundation:qualification`; see
+[quality gates](docs/development/quality-gates.md#feedback-layers).
 The optional `repository.agent-workflow` capability keeps `AGENTS.md` canonical
 across coding agents and routes `check:changed` through the shared Foundation
 implementation; required CI still runs the complete `verify` evidence as

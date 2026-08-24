@@ -23,6 +23,23 @@ weakening the merge gate.
 | Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Exact-head raw V8 evidence qualification from the four isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
 
+Foundation's self-dogfood lifecycle is explicit and ordered:
+
+1. `pnpm foundation:bootstrap` builds current workspace source with the pinned
+   compiler and package manager, without invoking the Foundation CLI.
+2. `pnpm foundation:dogfood` runs the freshly built Foundation CLI against this
+   repository. Existing CI jobs may use `foundation:check:built` only after their
+   preceding build step succeeds.
+3. `pnpm foundation:qualification` first repeats that source dogfood, then checks
+   packed and hermetic-registry artifacts and finally runs the pinned published-
+   version compatibility oracle. Published versions never govern current-source
+   checking.
+
+The private root may link Foundation with `workspace:*` for tool resolution. The
+published Foundation manifest cannot depend on itself, Foundation source cannot
+depend on Docs Protocol, and no bootstrap package or published dependency cycle
+is part of this lifecycle.
+
 `pnpm check` is the deterministic repository and package conformance layer. It
 does not claim networked, hosted, or external-tool qualification. `pnpm verify`
 is the single local command matching the union of Linux merge lanes: workflow

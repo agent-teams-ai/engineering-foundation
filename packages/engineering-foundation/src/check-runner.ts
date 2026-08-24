@@ -1,6 +1,8 @@
 import {
   CapabilityInputError,
-  foundationReport
+  foundationReport,
+  readCancellationProblem,
+  readCapabilityInputProblem
 } from "./capability-runtime.js";
 import type {
   FoundationCheckCoverage,
@@ -8,6 +10,7 @@ import type {
 } from "./check-contract.js";
 import { CAPABILITY_REGISTRY } from "./composition/capability-registry.js";
 import { loadFoundationConfig } from "./foundation-config.js";
+import { classifyUnexpectedFailure } from "./unexpected-failure.js";
 
 export interface FoundationCheckInvocation {
   readonly consumerRoot: string;
@@ -21,25 +24,30 @@ function rootProblemReport(
   coverage: FoundationCheckCoverage,
   error: unknown
 ): FoundationCheckReport {
-  if (error instanceof CapabilityInputError) {
-    const cancelled = error.problem.code === "EXECUTION_CANCELLED";
+  const inputProblem = readCapabilityInputProblem(error);
+  if (inputProblem !== undefined) {
+    const cancelled = inputProblem.code === "EXECUTION_CANCELLED";
     return foundationReport({
       foundationVersion,
       coverage,
       outcome: cancelled ? "cancelled" : "invalid-input",
-      problem: error.problem
+      problem: inputProblem
+    });
+  }
+  const cancellationProblem = readCancellationProblem(error, "foundation-check");
+  if (cancellationProblem !== undefined) {
+    return foundationReport({
+      foundationVersion,
+      coverage,
+      outcome: "cancelled",
+      problem: cancellationProblem
     });
   }
   return foundationReport({
     foundationVersion,
     coverage,
     outcome: "failed",
-    problem: {
-      code: "FOUNDATION_CHECK_FAILED",
-      message: "Foundation check failed before capability execution.",
-      phase: "foundation-check",
-      retryable: false
-    }
+    problem: classifyUnexpectedFailure(error, "foundation-check")
   });
 }
 

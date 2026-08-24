@@ -346,6 +346,7 @@ boundaries:
       - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
+      - packages/engineering-foundation/src/unexpected-failure.ts
       - packages/engineering-foundation/src/unique-registry.ts
     allow:
       boundaries: []
@@ -360,6 +361,7 @@ boundaries:
       - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
+      - packages/engineering-foundation/src/unexpected-failure.ts
       - packages/engineering-foundation/src/unique-registry.ts
   - id: foundation.cancellation
     roots:
@@ -553,6 +555,18 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/mutation/index.ts
+  - id: foundation.mutation.qualification
+    roots:
+      - packages/engineering-foundation/src/mutation/qualification
+    allow:
+      boundaries:
+        - foundation.known-file-transaction.composition
+        - foundation.process-execution
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/mutation/qualification/index.ts
   - id: foundation.transaction-coordination.application
     roots:
       - packages/engineering-foundation/src/transaction-coordination/application

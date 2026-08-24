@@ -1,5 +1,6 @@
 import {
   CapabilityInputError,
+  capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
@@ -165,25 +166,11 @@ export function createArchitectureDecisionGovernanceCapability(): CapabilityDefi
           )
         });
       } catch (error) {
-        if (error instanceof CapabilityInputError) {
-          return capabilityReport({
-            capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-            capabilityId: CAPABILITY_ID,
-            outcome:
-              error.problem.code === "EXECUTION_CANCELLED" ? "cancelled" : "invalid-input",
-            problem: error.problem
-          });
-        }
-        return capabilityReport({
+        return capabilityFailureReport({
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
           capabilityId: CAPABILITY_ID,
-          outcome: "failed",
-          problem: {
-            code: "CAPABILITY_EXECUTION_FAILED",
-            message: "Architecture decision governance capability execution failed.",
-            phase: "architecture-decision-governance-execution",
-            retryable: false
-          }
+          error,
+          phase: "architecture-decision-governance-execution"
         });
       }
     }

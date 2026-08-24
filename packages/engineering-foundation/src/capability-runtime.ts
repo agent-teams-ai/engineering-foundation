@@ -9,6 +9,10 @@ import type {
 } from "./check-contract.js";
 import { compareBinaryStrings } from "./binary-string-comparator.js";
 import { FOUNDATION_REPORT_SCHEMA_VERSION } from "./check-contract.js";
+import {
+  classifyUnexpectedFailure,
+  isProcessCancellationFailure
+} from "./unexpected-failure.js";
 
 const OUTCOME_PRECEDENCE: Readonly<Record<FoundationOutcome, number>> = {
   passed: 0,
@@ -26,6 +30,49 @@ export class CapabilityInputError extends Error {
     this.name = "CapabilityInputError";
     this.problem = problem;
   }
+}
+
+export function readCapabilityInputProblem(error: unknown): FoundationProblem | undefined {
+  try {
+    if (!(error instanceof CapabilityInputError)) {
+      return undefined;
+    }
+    const problem = error.problem as unknown as Record<string, unknown>;
+    if (
+      typeof problem.code !== "string" ||
+      problem.code.length === 0 ||
+      typeof problem.message !== "string" ||
+      problem.message.length === 0 ||
+      problem.message.length > 1000 ||
+      typeof problem.phase !== "string" ||
+      problem.phase.length === 0 ||
+      typeof problem.retryable !== "boolean"
+    ) {
+      return undefined;
+    }
+    return {
+      code: problem.code,
+      message: problem.message,
+      phase: problem.phase,
+      retryable: problem.retryable
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+export function readCancellationProblem(
+  error: unknown,
+  phase: string
+): FoundationProblem | undefined {
+  return isProcessCancellationFailure(error)
+    ? {
+        code: "EXECUTION_CANCELLED",
+        message: "Capability execution was cancelled.",
+        phase,
+        retryable: false
+      }
+    : undefined;
 }
 
 export interface CapabilityInvocation {
@@ -90,6 +137,41 @@ export function capabilityReport(input: {
     summary: summarizeDiagnostics(diagnostics),
     diagnostics,
     ...(input.problem === undefined ? {} : { problem: input.problem })
+  };
+}
+
+export function capabilityFailureReport(input: {
+  readonly capabilityId: string;
+  readonly capabilityConfigSchemaVersion: number;
+  readonly error: unknown;
+  readonly phase: string;
+}): CapabilityReport {
+  const inputProblem = readCapabilityInputProblem(input.error);
+  if (inputProblem !== undefined) {
+    return capabilityReport({
+      capabilityId: input.capabilityId,
+      capabilityConfigSchemaVersion: input.capabilityConfigSchemaVersion,
+      outcome:
+        inputProblem.code === "EXECUTION_CANCELLED" ? "cancelled" : "invalid-input",
+      problem: inputProblem
+    });
+  }
+  const cancellationProblem = readCancellationProblem(input.error, input.phase);
+  if (cancellationProblem !== undefined) {
+    return capabilityReport({
+      capabilityId: input.capabilityId,
+      capabilityConfigSchemaVersion: input.capabilityConfigSchemaVersion,
+      outcome: "cancelled",
+      problem: cancellationProblem
+    });
+  }
+  return {
+    capabilityId: input.capabilityId,
+    capabilityConfigSchemaVersion: input.capabilityConfigSchemaVersion,
+    diagnostics: [],
+    outcome: "failed",
+    problem: classifyUnexpectedFailure(input.error, input.phase),
+    summary: emptySummary()
   };
 }
 

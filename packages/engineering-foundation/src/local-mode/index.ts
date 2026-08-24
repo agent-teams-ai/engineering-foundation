@@ -4,6 +4,11 @@ export {
   inspectFoundationRegistryProvenance,
   isExactVersion
 } from "./inspection.js";
+/**
+ * @deprecated Qualification-only concrete adapter. Import from
+ * `@agent-teams/engineering-foundation/mutation/qualification` and keep
+ * production integrations on the ProcessRunner port.
+ */
 export { NodeProcessRunner } from "./process-runner.js";
 export { FoundationLocalModeService } from "./service.js";
 export type { FoundationLocalModeServiceOptions } from "./service.js";

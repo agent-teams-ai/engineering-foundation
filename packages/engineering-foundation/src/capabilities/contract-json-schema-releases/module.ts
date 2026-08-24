@@ -1,5 +1,5 @@
 import {
-  CapabilityInputError,
+  capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
@@ -66,24 +66,11 @@ export function createJsonSchemaReleaseCapability(
           diagnostics: result.diagnostics
         });
       } catch (error) {
-        if (error instanceof CapabilityInputError) {
-          return capabilityReport({
-            capabilityId: CAPABILITY_ID,
-            capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-            outcome: error.problem.code === "EXECUTION_CANCELLED" ? "cancelled" : "invalid-input",
-            problem: error.problem
-          });
-        }
-        return capabilityReport({
+        return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          outcome: "failed",
-          problem: {
-            code: "CAPABILITY_EXECUTION_FAILED",
-            message: "JSON Schema release capability execution failed.",
-            phase: "json-schema-release-execution",
-            retryable: false
-          }
+          error,
+          phase: "json-schema-release-execution"
         });
       }
     }

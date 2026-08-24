@@ -33,6 +33,7 @@ No proposed decisions.
 - [ADR-0032: Qualified Runtime and Source-Owned Cohort Transitions](0032-qualified-runtime-and-source-owned-cohort-transitions.md)
 - [ADR-0033: Freeze the Legacy Foundation Docs CLI](0033-freeze-legacy-foundation-docs-cli.md)
 - [ADR-0034: Fix-Forward Stable Cohort Admission](0034-fix-forward-stable-cohort-admission.md)
+- [ADR-0035: Evidence-Gated Foundation Boundary Evolution](0035-evidence-gated-foundation-boundary-evolution.md)
 
 ## Superseded
 

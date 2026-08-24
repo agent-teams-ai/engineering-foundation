@@ -14,7 +14,7 @@ export interface KnownFileApplyState {
   envelope: KnownFileTransactionEnvelopeV1;
 }
 
-export function replaceKnownFileOperation(
+function replaceKnownFileOperation(
   journal: KnownFileTransactionJournalV1,
   index: number,
   replacement: KnownFileTransactionJournalOperationV1

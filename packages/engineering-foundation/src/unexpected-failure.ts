@@ -1,6 +1,6 @@
 import { FoundationError } from "./errors.js";
 
-export type UnexpectedFailureCauseKind =
+type UnexpectedFailureCauseKind =
   | "filesystem"
   | "parser"
   | "process"

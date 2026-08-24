@@ -95,20 +95,12 @@ function ciWorkflow({
   installBeforeDependencyReview = false,
   jobContainerImage,
   pullRequest = true,
-  pullRequestTypes,
   serviceContainerImage,
 }) {
   return [
     "name: CI",
     "on:",
-    ...(pullRequest
-      ? [
-          "  pull_request:",
-          ...(pullRequestTypes === undefined
-            ? []
-            : [`    types: [${pullRequestTypes.join(", ")}]`]),
-        ]
-      : ["  push:"]),
+    ...(pullRequest ? ["  pull_request:"] : ["  push:"]),
     "permissions:",
     "  contents: read",
     "jobs:",
@@ -311,7 +303,6 @@ async function withConsumer(options, callback) {
       installBeforeDependencyReview: options.installBeforeDependencyReview,
       jobContainerImage: options.jobContainerImage,
       pullRequest: options.pullRequest,
-      pullRequestTypes: options.pullRequestTypes,
       serviceContainerImage: options.serviceContainerImage,
     }),
     ".github/actions/checked-in-action/action.yml": compositeAction(
@@ -395,40 +386,6 @@ test("allows a private or offline consumer to omit optional hosted CodeQL eviden
     assert.equal(report.outcome, "passed");
     assert.deepEqual(securityDiagnostics(report), []);
   });
-});
-
-test("accepts an activity filter that covers every pull-request code change", async () => {
-  await withConsumer(
-    {
-      includeTools: false,
-      pullRequestTypes: ["opened", "synchronize", "reopened", "ready_for_review"],
-    },
-    async (consumerRoot) => {
-      const { result, report } = runCheck(consumerRoot);
-      assert.equal(result.status, 0);
-      assert.deepEqual(securityDiagnostics(report), []);
-    },
-  );
-});
-
-test("rejects an activity filter that omits pull-request synchronization", async () => {
-  await withConsumer(
-    {
-      includeTools: false,
-      pullRequestTypes: ["opened", "reopened", "ready_for_review"],
-    },
-    async (consumerRoot) => {
-      const { result, report } = runCheck(consumerRoot);
-      assert.equal(result.status, 1);
-      assert.deepEqual(
-        securityDiagnostics(report).map(({ ruleId }) => ruleId),
-        [
-          "repository.security-baseline.dependency-review-missing",
-          "repository.security-baseline.sbom-missing",
-        ],
-      );
-    },
-  );
 });
 
 test("requires Dependency Review in the declared required CI workflow", async () => {

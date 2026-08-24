@@ -19,8 +19,8 @@ weakening the merge gate.
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
 | Merge-ready | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
-| Coverage | `pnpm test:coverage` | Blocking native Node coverage qualification with line, branch, and function thresholds |
-| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Exact-head raw V8 evidence qualification from the four isolated Linux test shards |
+| Coverage | `pnpm test:coverage` | Local native Node coverage qualification with line, branch, and function thresholds |
+| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI qualification of exact-head raw V8 evidence from the four isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
 
 Foundation's self-dogfood lifecycle is explicit and ordered:
@@ -46,36 +46,34 @@ is the single local command matching the union of Linux merge lanes: workflow
 security, the deterministic check, Buf, hermetic registry installation, published-version
 compatibility, dead-code analysis, and parser parity.
 
-The blocking native Node coverage lane remains in place while partitioned
-coverage parity is qualified. In parallel, each existing Linux test shard writes
-raw V8 coverage without rerunning its tests. Its sidecar binds the full Git SHA,
-exact Node and c8 versions, coverage-config digest, test-manifest digest, shard
-identity, test list, and every raw-file digest. The advisory aggregator accepts
-exactly one artifact for each of shards 1 through 4, rejects missing, unexpected,
-mixed, duplicate-claim, or modified evidence, merges once, and applies the same
-line, branch, and function floors. `c8` is used only for merge/report because the
-Node test runner can emit raw V8 JSON but cannot consume coverage from completed
-processes. The candidate intentionally measures all matching production files;
-its provider and measured universe are not yet declared numerically equivalent
-to Node's executed-module report. Promotion therefore requires observed CI
-parity, not merely one passing candidate threshold result.
+Partitioned c8 coverage is the blocking Linux CI coverage authority. Each
+existing Linux test shard writes raw V8 coverage without rerunning its tests. Its
+sidecar binds the full Git SHA, exact Node and c8 versions, coverage-config
+digest, test-manifest digest, shard identity, test list, and every raw-file
+digest. The aggregator accepts exactly one artifact for each of shards 1 through
+4, rejects missing, unexpected, mixed, duplicate-claim, or modified evidence,
+retains the exact bounded bytes it validated, merges once, and applies the
+separate c8 floors of 70% lines, 77% branches, and 78% functions. The promoted
+floors are below the observed exact-head CI result of 71.88%, 78.97%, and 79.86%
+respectively. `c8` is used only for merge/report because the Node test runner can
+emit raw V8 JSON but cannot consume coverage from completed processes.
 
 The evidence merger owns `c8` as a pinned CLI-only dependency, so Knip excludes
 that dependency from import-based usage detection. Its process-tree fixture is
 an explicit Knip entry because Node launches it directly rather than importing
 it from the test module.
 
-The shard's test result remains blocking. Candidate directory setup, sidecar
-finalization, artifact upload, and aggregation are advisory, so a collector-only
-failure cannot replace a passing required test result with a merge blocker. Raw
-instrumentation still shares the test process; use the kill switch if its runtime
-overhead threatens a required shard timeout.
+The shard's test result, all four artifact uploads, evidence aggregation, and the
+stable `linux-coverage` context are fail-closed. An evidence setup or sidecar
+finalization failure may preserve the original shard test result, but the
+required upload or merger then fails. Raw instrumentation still shares each
+shard's test process and its timeout.
 
-Set the repository variable `FOUNDATION_PARTITIONED_COVERAGE=off` to stop raw
-collection and skip the advisory aggregator. This is a rollback switch, not a
-coverage bypass: `linux-coverage` remains a required prerequisite of `check`.
-After measured parity is accepted, promotion or retirement of the legacy lane
-requires a separate reviewed change.
+The former standalone native Node CI lane and the partitioned-coverage kill
+switch are removed. Native Node coverage remains available locally through
+`pnpm test:coverage` and remains part of `pnpm check` and `pnpm verify`; its
+thresholds stay separate because Node and c8 calculate the measured universe
+differently.
 
 Required CI executes the same evidence as independent jobs. Linux uses four
 checked-in weighted test shards; Windows combines the same manifest into two

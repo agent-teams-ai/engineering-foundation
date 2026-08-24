@@ -90,14 +90,15 @@ failed required CheckRuns behind. For generated release pull requests, the
 attester prefers the single exact attempt-1 PR run and dispatches a second suite
 only when no such run appears during its bounded selection window.
 
-Draft pull-request pushes create no heavy CI or CodeQL work: Dependency Review
-is the direct lifecycle prerequisite for the CI graph, and both it and CodeQL
-run only when the event is not a pull request or the pull request is ready.
-`ready_for_review` is an explicit trigger for both workflows, so converting an
-unchanged draft starts fresh exact-head required checks without another push.
-Every synchronization of a ready pull request takes the same fail-closed path;
-there is no elapsed-time admission, artifact reuse from another SHA, or weaker
-ready-update route.
+Draft pull-request pushes create no heavy CI or CodeQL work. The cheap,
+unconditional security lane still runs pinned Dependency Review and emits the
+repository SBOM for every pull-request update; every executable heavy job
+depends directly on that lane and additionally requires a non-draft pull
+request. `ready_for_review` is an explicit CodeQL trigger, while the ordinary
+pull-request trigger starts the full CI graph when an unchanged draft becomes
+ready without another push. Every synchronization of a ready pull request takes
+the same fail-closed path; there is no elapsed-time admission, artifact reuse
+from another SHA, or weaker ready-update route.
 
 Repository protection requires the stable exact-head contexts `CodeQL`,
 `analyze`, `check`, `windows-check`, and `macos-qualification`. Independent

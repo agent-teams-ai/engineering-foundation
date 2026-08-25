@@ -599,6 +599,7 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-retirement.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-state.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
       - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts

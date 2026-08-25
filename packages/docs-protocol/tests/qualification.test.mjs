@@ -69,6 +69,23 @@ test("qualification awaits an early crash-child exit before cleaning its inputs"
   }
 });
 
+test("qualification cleans its inputs after a crash-child spawn error", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-crash-spawn-error-"));
+  const originalExecPath = process.execPath;
+  try {
+    process.execPath = join(temporary, "missing-node-executable");
+    await assert.rejects(
+      crashAtDurablePublishing(temporary, {}),
+      (error) => error?.code === "ENOENT",
+    );
+    await assert.rejects(access(join(temporary, ".qualification-crash-plan.json")), (error) => error?.code === "ENOENT");
+    await assert.rejects(access(join(temporary, ".qualification-crash-worker.mjs")), (error) => error?.code === "ENOENT");
+  } finally {
+    process.execPath = originalExecPath;
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
 const requiresStrictDirectoryDurability = process.platform === "win32" ? test.skip : test;
 
 requiresStrictDirectoryDurability("recovery uses persisted transaction authority after both mutable profiles are corrupted", async () => {

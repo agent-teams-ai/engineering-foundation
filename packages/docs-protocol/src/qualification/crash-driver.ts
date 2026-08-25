@@ -29,8 +29,13 @@ export async function crashAtDurablePublishing(
   let stdout = "";
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk: string) => { stderr += chunk; });
-  const exited = new Promise<{ readonly code: number | null; readonly signal: NodeJS.Signals | null }>((resolve) => {
-    child.once("exit", (code, exitSignal) => { resolve({ code, signal: exitSignal }); });
+  const terminated = new Promise<{ readonly code: number | null; readonly signal: NodeJS.Signals | null }>((resolve) => {
+    const settle = (code: number | null, exitSignal: NodeJS.Signals | null) => {
+      resolve({ code, signal: exitSignal });
+    };
+    child.once("error", () => { settle(child.exitCode, child.signalCode); });
+    child.once("exit", settle);
+    child.once("close", settle);
   });
   const abort = () => { child.kill("SIGKILL"); };
   signal?.addEventListener("abort", abort, { once: true });
@@ -71,7 +76,7 @@ export async function crashAtDurablePublishing(
     });
     signal?.throwIfAborted();
     if (!child.kill("SIGKILL")) {throw new Error("Qualification could not terminate its disposable crash driver.");}
-    const termination = await exited;
+    const termination = await terminated;
     if (termination.signal !== "SIGKILL") {
       throw new Error(`Qualification crash driver did not terminate through SIGKILL: ${termination.code}/${termination.signal}.`);
     }
@@ -79,7 +84,7 @@ export async function crashAtDurablePublishing(
     signal?.removeEventListener("abort", abort);
     if (child.exitCode === null && child.signalCode === null) {
       child.kill("SIGKILL");
-      await exited;
+      await terminated;
     }
     await rm(workerPath, { force: true });
     await rm(planPath, { force: true });

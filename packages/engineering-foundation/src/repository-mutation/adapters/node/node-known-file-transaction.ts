@@ -32,6 +32,7 @@ import {
 } from "./node-known-file-transaction-filesystem.js";
 import { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
 import { inspectKnownFileTransactionBarrier } from "./node-known-file-transaction-inspection.js";
+import { releaseKnownFileTransactionLease } from "./node-known-file-transaction-lease-release.js";
 
 export { KnownFileTransactionError } from "./node-known-file-transaction-filesystem.js";
 export type { KnownFileTransactionFaultInjector, KnownFileTransactionFaultPoint };
@@ -134,6 +135,7 @@ export async function applyKnownFileTransaction(options: {
   const lease = await coordinator.acquire({ requestedMutation: "known-file-transaction" });
   let retainBarrier = false;
   let store: NodeKnownFileTransactionJournalStore | undefined;
+  let primaryFailure: { readonly reason: unknown } | undefined;
   try {
     await options.faultInjector?.({ phase: "after-barrier-acquired" });
     const journal = await observeInitialKnownFileJournal(root, options.plan);
@@ -168,9 +170,15 @@ export async function applyKnownFileTransaction(options: {
     return result;
   } catch (error) {
     retainBarrier = await refreshBarrierRetention(store);
+    primaryFailure = { reason: error };
     throw error;
   } finally {
-    await lease.release({ retainTransactionBarrier: retainBarrier });
+    await releaseKnownFileTransactionLease({
+      jointFailureMessage: "Known-file apply and transaction lease release both failed.",
+      lease,
+      ...(primaryFailure === undefined ? {} : { primaryFailure }),
+      retainTransactionBarrier: retainBarrier
+    });
   }
 }
 

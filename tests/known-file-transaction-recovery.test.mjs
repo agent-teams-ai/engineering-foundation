@@ -43,6 +43,75 @@ for (const [checkpoint, expectedContent, expectedOutcome] of [
   });
 }
 
+posixTest("recovery preserves ordered provenance when recovery and release both fail", async (context) => {
+  const root = await fixture(context);
+  await assert.rejects(applyKnownFileTransaction({
+    consumerRoot: root,
+    plan: replacementPlan(),
+    faultInjector(point) {
+      if (point.phase === "after-operation-published") {throw new Error("apply crash");}
+    },
+  }), /apply crash/u);
+  const primaryFailure = new Error("recovery primary failure");
+  await assert.rejects(recoverKnownFileTransaction({
+    consumerRoot: root,
+    async faultInjector(point) {
+      if (point.phase !== "after-destination-retired") {return;}
+      await writeFile(
+        join(root, ".agent-teams-local", "foundation-operation.lock"),
+        "invalid release evidence\n",
+        "utf8",
+      );
+      throw primaryFailure;
+    },
+  }), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.message, "Known-file recovery and transaction lease release both failed.");
+    assert.equal(error.errors[0], primaryFailure);
+    assert.equal(error.errors[1]?.code, "LOCAL_STATE_INVALID");
+    assert.equal(error.cause, primaryFailure);
+    return true;
+  });
+  assert.ok(await stat(join(
+    root,
+    ".agent-teams-local",
+    "scaffolding-transaction.json",
+  )));
+});
+
+posixTest("failed recovery release surfaces without pruning recovery state", async (context) => {
+  const root = await fixture(context);
+  await assert.rejects(applyKnownFileTransaction({
+    consumerRoot: root,
+    plan: replacementPlan(),
+    faultInjector(point) {
+      if (point.phase === "after-operation-published") {throw new Error("apply crash");}
+    },
+  }), /apply crash/u);
+  const state = join(root, ".agent-teams-local");
+  await assert.rejects(recoverKnownFileTransaction({
+    consumerRoot: root,
+    async faultInjector(point) {
+      if (point.phase === "after-rollback-linked") {
+        await writeFile(
+          join(state, "foundation-operation.lock"),
+          "invalid release evidence\n",
+          "utf8",
+        );
+      }
+    },
+  }), (error) => error?.code === "LOCAL_STATE_INVALID");
+  assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "old\n");
+  await assert.rejects(
+    stat(join(state, "scaffolding-transaction.json")),
+    (error) => error?.code === "ENOENT",
+  );
+  assert.equal(
+    await readFile(join(state, "foundation-operation.lock"), "utf8"),
+    "invalid release evidence\n",
+  );
+});
+
 posixTest("rollback verifies already-satisfied guards before returning a receipt", async (context) => {
   const root = await fixture(context);
   await writeFile(join(root, "managed", "new.txt"), "created\n", { mode: 0o644 });

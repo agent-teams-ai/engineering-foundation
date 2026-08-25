@@ -14,6 +14,7 @@ import {
   canonicalKnownFileRoot,
   KnownFileTransactionError
 } from "./node-known-file-transaction-filesystem.js";
+import { releaseKnownFileTransactionLease } from "./node-known-file-transaction-lease-release.js";
 
 export type { KnownFileRecoveryFaultInjector } from "./node-known-file-recovery-executor.js";
 
@@ -34,6 +35,7 @@ export async function recoverKnownFileTransaction(options: {
     allowRecoveryOf: "known-file-transaction"
   });
   let retainBarrier = true;
+  let primaryFailure: { readonly reason: unknown } | undefined;
   try {
     const evidence = await observeKnownFileRecoveryEvidence(root);
     const transition = classifyKnownFileRecoveryTransition({
@@ -54,8 +56,16 @@ export async function recoverKnownFileTransaction(options: {
       : await executeApplyingKnownFileRollback(execution);
     retainBarrier = false;
     return result;
+  } catch (error) {
+    primaryFailure = { reason: error };
+    throw error;
   } finally {
-    await lease.release({ retainTransactionBarrier: retainBarrier });
+    await releaseKnownFileTransactionLease({
+      jointFailureMessage: "Known-file recovery and transaction lease release both failed.",
+      lease,
+      ...(primaryFailure === undefined ? {} : { primaryFailure }),
+      retainTransactionBarrier: retainBarrier
+    });
     if (!retainBarrier) {await pruneFoundationStateDirectory(root);}
   }
 }

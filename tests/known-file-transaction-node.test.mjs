@@ -3,6 +3,7 @@ import { link, mkdir, open, readFile, readdir, rename, stat, symlink, unlink, wr
 import { join } from "node:path";
 
 import { applyKnownFileTransaction, compileKnownFileTransactionPlan, inspectKnownFileTransactionBarrier, recoverKnownFileTransaction } from "../packages/engineering-foundation/dist/mutation/index.js";
+import { releaseKnownFileTransactionLease } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-known-file-transaction-lease-release.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import { fixture, killAtCheckpoint, plan, posixTest, replacementPlan, temporaryDirectory, windowsTest } from "./support/known-file-transaction-node-fixtures.mjs";
 
@@ -121,6 +122,107 @@ for (const code of ["EACCES", "ENOSPC"]) {
     assert.equal(applied.outcome, "applied");
   });
 }
+
+async function observePromise(promise) {
+  return promise.then(
+    (value) => ({ state: "fulfilled", value }),
+    (reason) => ({ reason, state: "rejected" }),
+  );
+}
+
+posixTest("lease release preserves arbitrary single and joint failures", async (context) => {
+  const releaseObject = { outcome: "release" };
+  for (const fixture of [
+    {
+      name: "successful release remains fulfilled",
+      release: { state: "fulfilled" },
+    },
+    {
+      expectedReason: undefined,
+      name: "undefined release failure remains the exact rejection",
+      release: { reason: undefined, state: "rejected" },
+    },
+    {
+      aggregate: ["primary", releaseObject],
+      name: "non-Error double failure has ordered provenance",
+      primaryFailure: { reason: "primary" },
+      release: { reason: releaseObject, state: "rejected" },
+    },
+    {
+      aggregate: [undefined, undefined],
+      name: "undefined double failure remains explicitly diagnosable",
+      primaryFailure: { reason: undefined },
+      release: { reason: undefined, state: "rejected" },
+    },
+  ]) {
+    await context.test(fixture.name, async () => {
+      let releaseCalls = 0;
+      let releaseOptions;
+      const observed = await observePromise(releaseKnownFileTransactionLease({
+        jointFailureMessage: "operation and release failed",
+        lease: {
+          status: { diagnostics: [], state: "idle" },
+          async release(options) {
+            releaseCalls += 1;
+            releaseOptions = options;
+            if (fixture.release.state === "rejected") {throw fixture.release.reason;}
+          },
+        },
+        ...(fixture.primaryFailure === undefined ? {} : {
+          primaryFailure: fixture.primaryFailure,
+        }),
+        retainTransactionBarrier: true,
+      }));
+      assert.equal(releaseCalls, 1);
+      assert.deepEqual(releaseOptions, { retainTransactionBarrier: true });
+      if (fixture.aggregate === undefined) {
+        assert.equal(observed.state, fixture.release.state);
+        if (observed.state === "rejected") {
+          assert.equal(observed.reason, fixture.expectedReason);
+        }
+        return;
+      }
+      assert.equal(observed.state, "rejected");
+      assert.ok(observed.reason instanceof AggregateError);
+      assert.equal(observed.reason.errors[0], fixture.aggregate[0]);
+      assert.equal(observed.reason.errors[1], fixture.aggregate[1]);
+      assert.equal(Object.hasOwn(observed.reason, "cause"), true);
+      assert.equal(observed.reason.cause, fixture.aggregate[0]);
+    });
+  }
+});
+
+posixTest("apply preserves ordered provenance when mutation and release both fail", async (context) => {
+  const root = await fixture(context);
+  const originalCause = new Error("apply primary cause");
+  const primaryFailure = new Error("apply primary failure", { cause: originalCause });
+  await assert.rejects(applyKnownFileTransaction({
+    consumerRoot: root,
+    plan: replacementPlan(),
+    async faultInjector(point) {
+      if (point.phase !== "after-journal-created") {return;}
+      await writeFile(
+        join(root, ".agent-teams-local", "foundation-operation.lock"),
+        "invalid release evidence\n",
+        "utf8",
+      );
+      throw primaryFailure;
+    },
+  }), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.message, "Known-file apply and transaction lease release both failed.");
+    assert.equal(error.errors[0], primaryFailure);
+    assert.equal(error.errors[1]?.code, "LOCAL_STATE_INVALID");
+    assert.equal(error.cause, primaryFailure);
+    assert.equal(primaryFailure.cause, originalCause);
+    return true;
+  });
+  assert.ok(await stat(join(
+    root,
+    ".agent-teams-local",
+    "scaffolding-transaction.json",
+  )));
+});
 
 windowsTest("fails closed before known-file mutation on Windows", async (context) => {
   const root = await fixture(context);

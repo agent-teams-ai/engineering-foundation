@@ -167,13 +167,35 @@ function isAuthorityInputError(error: unknown, code: string | undefined): boolea
     ));
 }
 
-function errorExecution(command: DocsCommand, error: unknown): DocsExecution<Readonly<Record<string, never>>> {
+type MachineFailureKind = "authority" | "cancelled" | "filesystem" | "internal" | "process" | "validation";
+
+function machineFailureKind(error: unknown, cancelled: boolean, inputInvalid: boolean, authorityInvalid: boolean): MachineFailureKind {
+  if (cancelled) {return "cancelled";}
+  if (authorityInvalid) {return "authority";}
+  if (inputInvalid || error instanceof SyntaxError || error instanceof TypeError) {return "validation";}
+  const code = errorCode(error);
+  if (code?.startsWith("PROCESS_") === true || (error instanceof Error && /process|spawn/u.test(error.name))) {return "process";}
+  if (code !== undefined && /^(?:EACCES|EEXIST|EISDIR|ELOOP|EMFILE|ENAMETOOLONG|ENOENT|ENOSPC|ENOTDIR|EPERM|EROFS)$/u.test(code)) {return "filesystem";}
+  return "internal";
+}
+
+function machineErrorMessage(outcome: "cancelled" | "execution-failure" | "invalid-input", authorityInvalid: boolean): string {
+  if (outcome === "cancelled") {return "Documentation command was cancelled.";}
+  if (outcome === "invalid-input") {
+    return authorityInvalid ? "Documentation authority is invalid." : "Documentation command input is invalid.";
+  }
+  return "Documentation command failed.";
+}
+
+export function docsCliErrorExecution(command: DocsCommand, error: unknown, machine: boolean): DocsExecution<Readonly<Record<string, never>>> {
   const code = errorCode(error);
   const cancelled = error instanceof Error && error.name === "AbortError";
   const inputInvalid = isInputError(error, code);
   const outcome = cancelled ? "cancelled" as const : inputInvalid ? "invalid-input" as const : "execution-failure" as const;
-  const phase = cancelled ? "apply" as const : inputInvalid && isAuthorityInputError(error, code) ? "authority" as const : inputInvalid ? "input" as const : "apply" as const;
-  const ruleId = cancelled ? "docs.cli.cancelled" : inputInvalid ? "docs.cli.invalid-input" : "docs.cli.execution-failure";
+  const authorityInvalid = inputInvalid && isAuthorityInputError(error, code);
+  const phase = cancelled ? "apply" as const : authorityInvalid ? "authority" as const : inputInvalid ? "input" as const : "apply" as const;
+  const baseRuleId = cancelled ? "docs.cli.cancelled" : inputInvalid ? "docs.cli.invalid-input" : "docs.cli.execution-failure";
+  const failureKind = machineFailureKind(error, cancelled, inputInvalid, authorityInvalid);
   return {
     exitCode: cancelled ? 130 : inputInvalid ? 2 : 3,
     envelope: {
@@ -182,11 +204,13 @@ function errorExecution(command: DocsCommand, error: unknown): DocsExecution<Rea
       command,
       outcome,
       diagnostics: [{
-        ruleId,
+        ruleId: machine ? `${baseRuleId}.${failureKind}` : baseRuleId,
         severity: "error",
         phase,
         subject: command,
-        message: error instanceof Error ? error.message : "Unknown command failure."
+        message: machine
+          ? machineErrorMessage(outcome, authorityInvalid)
+          : error instanceof Error ? error.message : "Unknown command failure.",
       }],
       result: Object.freeze({})
     }
@@ -373,14 +397,14 @@ function helpText(command?: string): string {
   return "Usage: agent-teams-docs <info|find|new|doctor|recover|check|consumer> [options]\nRun 'agent-teams-docs consumer --help' for maintainer integration commands.\n";
 }
 
-async function validatedMachineExecution(
+export async function validatedMachineExecution(
   id: DocsCommand,
   execution: DocsExecution<unknown>
 ): Promise<DocsExecution<unknown>> {
   try {
     await assertDocsCommandEnvelopeSchema(execution.envelope);
     return execution;
-  } catch (error) {
+  } catch {
     const fallback: DocsExecution<Readonly<Record<string, never>>> = {
       exitCode: 3,
       envelope: {
@@ -389,11 +413,11 @@ async function validatedMachineExecution(
         command: id,
         outcome: "execution-failure",
         diagnostics: [{
-          ruleId: "docs.cli.invalid-output",
+          ruleId: "docs.cli.invalid-output.internal",
           severity: "error",
           phase: "apply",
           subject: id,
-          message: error instanceof Error ? error.message : "Command output violates its published schema."
+          message: "Documentation command produced invalid output."
         }],
         result: Object.freeze({})
       }
@@ -403,7 +427,16 @@ async function validatedMachineExecution(
   }
 }
 
-export async function runDocsCli(argv: readonly string[]): Promise<number> {
+export function runDocsCli(argv: readonly string[]): Promise<number>;
+export async function runDocsCli(
+  argv: readonly string[],
+  protocolFactory: () => DocsProtocol = () => new DocsProtocol({
+    adoption: new NodeDocsAdoptionInspector(),
+    anchors: new NodeCodeAnchorMatcher(),
+    foundation: new NodeFoundationDocsPort(),
+    profiles: new NodeDocsProfileReader()
+  })
+): Promise<number> {
   const normalizedArgv = argv[0] === "--" ? argv.slice(1) : argv;
   if (normalizedArgv[0] === "consumer") {
     if (normalizedArgv.length === 2 && normalizedArgv[1] === "--help") {
@@ -428,11 +461,11 @@ export async function runDocsCli(argv: readonly string[]): Promise<number> {
   let json = normalizedArgv.includes("--json");
   let execution: DocsExecution<unknown>;
   try {
-    const dispatched = await dispatch(new DocsProtocol({ adoption: new NodeDocsAdoptionInspector(), anchors: new NodeCodeAnchorMatcher(), foundation: new NodeFoundationDocsPort(), profiles: new NodeDocsProfileReader() }), command ?? "", normalizedArgv.slice(1), controller.signal);
+    const dispatched = await dispatch(protocolFactory(), command ?? "", normalizedArgv.slice(1), controller.signal);
     execution = dispatched.execution;
     json = dispatched.json;
   } catch (error) {
-    execution = errorExecution(id, error);
+    execution = docsCliErrorExecution(id, error, json);
   } finally {
     process.off("SIGINT", cancel);
     process.off("SIGTERM", cancel);

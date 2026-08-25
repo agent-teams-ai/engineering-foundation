@@ -122,6 +122,7 @@
         "tests/capability-public-api-namespace.test.mjs",
         "tests/capability.test.mjs",
         "tests/changeset-coverage.test.mjs",
+        "tests/ci-shadow-classifier.test.mjs",
         "tests/ci-feedback-signals.test.mjs",
         "tests/cli.test.mjs",
         "tests/coverage-evidence.test.mjs",
@@ -148,6 +149,7 @@
         "tests/quality-gate-runner.test.mjs",
         "tests/repository-mutation-owned-temporary-cleanup.test.mjs",
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
+        "tests/scorecard-workflow.test.mjs",
         "tests/test-manifests.test.mjs",
         "tests/unexpected-failure-diagnostics.test.mjs"
       ]

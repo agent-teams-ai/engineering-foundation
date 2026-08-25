@@ -83,6 +83,15 @@ and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, o
 missing prerequisite fails the required context. Every executable pull request
 job depends directly on Dependency Review.
 
+The CI workflow also records a conservative shadow classification for future
+feedback experiments. It has no place in any job's `needs` or `if` expression
+and its effective plan is always `full`; ready pull requests and merge-queue
+groups therefore run the unchanged complete cross-platform graph. Unknown
+events, malformed paths, source, tests, workflows, authority, package-manager
+state, and other sensitive changes classify as full. A `ci:full` label is the
+explicit full-plan escape hatch. A docs-only result is observation data, not
+permission to omit a required lane.
+
 CI concurrency is separated by event type and pull request or ref identity.
 Normal updates still cancel stale runs for the same pull request, while an
 exact-head release-attester dispatch cannot cancel the pull request run and leave

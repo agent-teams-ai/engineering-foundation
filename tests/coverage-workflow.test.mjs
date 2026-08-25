@@ -46,7 +46,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(ci.jobs["draft-fast"].steps.at(-1).run, "pnpm check:changed");
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
   for (const [jobId, job] of Object.entries(ci.jobs)) {
-    if (jobId === "dependency-review") {
+    if (jobId === "dependency-review" || jobId === "shadow-classifier") {
       continue;
     }
     const needs = Array.isArray(job.needs) ? job.needs : [job.needs];

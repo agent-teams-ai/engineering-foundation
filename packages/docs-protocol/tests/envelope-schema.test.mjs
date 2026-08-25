@@ -67,6 +67,7 @@ test("CLI classifies invalid Foundation authority as input and missing runtime r
       assert.equal(error.code, 2);
       assert.equal(envelope.outcome, "invalid-input");
       assert.equal(envelope.diagnostics[0].phase, "authority");
+      assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.invalid-input.authority");
       assertValidEnvelope(envelope);
       return true;
     });
@@ -74,7 +75,7 @@ test("CLI classifies invalid Foundation authority as input and missing runtime r
       const envelope = JSON.parse(error.stdout);
       assert.equal(error.code, 3);
       assert.equal(envelope.outcome, "execution-failure");
-      assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.execution-failure");
+      assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.execution-failure.filesystem");
       assertValidEnvelope(envelope);
       return true;
     });
@@ -105,7 +106,7 @@ requiresSignals("SIGTERM cancellation emits one valid JSON envelope with exit 13
     assert.equal(lines.length, 1);
     const envelope = JSON.parse(lines[0]);
     assert.equal(envelope.outcome, "cancelled");
-    assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.cancelled");
+    assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.cancelled.cancelled");
     assertValidEnvelope(envelope);
   } finally {
     if (child.exitCode === null) {child.kill("SIGKILL");}

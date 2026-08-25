@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { cp, lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rename, rm, symlink, writeFile, type FileHandle } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -15,6 +14,7 @@ import { NodeFoundationDocsPort } from "../adapters/foundation-docs-port.js";
 import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { normalizeCodeAnchors, normalizeDocumentIds } from "../domain/document-semantics.js";
 import type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
+import { crashAtDurablePublishing } from "./crash-driver.js";
 
 export type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
 
@@ -123,58 +123,6 @@ async function fileSnapshot(root: string): Promise<ReadonlyMap<string, string>> 
       : `sha256:${createHash("sha256").update(await readFile(join(root, entry.path))).digest("hex")}`);
   }
   return result;
-}
-
-async function crashAtDurablePublishing(consumerRoot: string, plan: unknown): Promise<void> {
-  const planPath = join(consumerRoot, ".qualification-crash-plan.json");
-  const workerPath = join(consumerRoot, ".qualification-crash-worker.mjs");
-  await writeFile(planPath, `${JSON.stringify(plan)}\n`, "utf8");
-  await writeFile(workerPath, [
-    'import { readFile } from "node:fs/promises";',
-    'import { runDocumentAuthoringCrashQualification } from "@agent-teams/engineering-foundation/document-authoring/qualification";',
-    "const [consumerRoot, planPath] = process.argv.slice(2);",
-    'const plan = JSON.parse(await readFile(planPath, "utf8"));',
-    'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-publishing-journal-durable" });',
-    ""
-  ].join("\n"), "utf8");
-  const child = spawn(process.execPath, [workerPath, consumerRoot, planPath], {
-    cwd: consumerRoot,
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-  let stderr = "";
-  let stdout = "";
-  child.stderr.setEncoding("utf8");
-  child.stderr.on("data", (chunk: string) => { stderr += chunk; });
-  const exited = new Promise<{ readonly code: number | null; readonly signal: NodeJS.Signals | null }>((resolve) => {
-    child.once("exit", (code, signal) => { resolve({ code, signal }); });
-  });
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const deadline = setTimeout(() => { reject(new Error(`Qualification crash driver did not reach durable PUBLISHING: ${stderr}`)); }, 30_000);
-      child.stdout.setEncoding("utf8");
-      child.stdout.on("data", (chunk: string) => {
-        stdout += chunk;
-        if (stdout.includes('{"schemaVersion":1,"event":"document-authoring-qualification-crash-point","crashPoint":"after-publishing-journal-durable"}\n')) {
-          clearTimeout(deadline);
-          resolve();
-        }
-      });
-      child.once("error", (error) => { clearTimeout(deadline); reject(error); });
-      child.once("exit", (code, signal) => {
-        clearTimeout(deadline);
-        reject(new Error(`Qualification crash driver exited before checkpoint: ${code}/${signal}: ${stderr}`));
-      });
-    });
-    if (!child.kill("SIGKILL")) {throw new Error("Qualification could not terminate its disposable crash driver.");}
-    const termination = await exited;
-    if (termination.signal !== "SIGKILL") {
-      throw new Error(`Qualification crash driver did not terminate through SIGKILL: ${termination.code}/${termination.signal}.`);
-    }
-  } finally {
-    if (child.exitCode === null && child.signalCode === null) {child.kill("SIGKILL");}
-    await rm(workerPath, { force: true });
-    await rm(planPath, { force: true });
-  }
 }
 
 function changedPaths(before: ReadonlyMap<string, string>, after: ReadonlyMap<string, string>): readonly string[] {
@@ -377,6 +325,10 @@ function qualificationMetadata(
   };
 }
 
+function signalOption(signal: AbortSignal | undefined): { readonly signal?: AbortSignal } {
+  return signal === undefined ? {} : { signal };
+}
+
 async function interruptAndRecover(input: {
   readonly base: Omit<DocsNewRequest, "apply">;
   readonly consumerRoot: string;
@@ -397,7 +349,7 @@ async function interruptAndRecover(input: {
   const profile = await new NodeDocsProfileReader().read({
     consumerRoot: input.consumerRoot,
     profilePath: input.profilePath,
-    ...(input.base.signal === undefined ? {} : { signal: input.base.signal })
+    ...signalOption(input.base.signal)
   });
   const blockedBy = normalizeDocumentIds(input.base.blockedBy ?? [], "blocked_by");
   const related = normalizeDocumentIds([...(input.base.related ?? []), ...blockedBy], "related");
@@ -413,13 +365,17 @@ async function interruptAndRecover(input: {
       ...(related.length === 0 ? {} : { related }),
       ...(Object.keys(additionalMetadata).length === 0 ? {} : { additionalMetadata })
     },
-    ...(input.base.signal === undefined ? {} : { signal: input.base.signal })
+    ...signalOption(input.base.signal)
   });
   if (crashPlan.destination !== input.previewResult.documentPath || crashPlan.planDigest !== input.previewResult.planDigest) {
     throw new Error("Qualification crash Plan differs from the unified Docs Protocol preview.");
   }
-  await crashAtDurablePublishing(input.consumerRoot, crashPlan);
-  const interruptedDoctor = await input.protocol.doctor({ consumerRoot: input.consumerRoot, profilePath: input.profilePath });
+  await crashAtDurablePublishing(input.consumerRoot, crashPlan, input.base.signal);
+  const interruptedDoctor = await input.protocol.doctor({
+    consumerRoot: input.consumerRoot,
+    profilePath: input.profilePath,
+    ...signalOption(input.base.signal)
+  });
   if (interruptedDoctor.exitCode !== 1 || interruptedDoctor.envelope.outcome !== "recovery-required" ||
     interruptedDoctor.envelope.result.transaction.state !== "recoverable") {
     throw new Error("Qualification doctor did not observe its genuine interrupted transaction.");
@@ -427,7 +383,7 @@ async function interruptAndRecover(input: {
   const recovered = await input.protocol.recover({
     consumerRoot: input.consumerRoot,
     profilePath: input.profilePath,
-    ...(input.base.signal === undefined ? {} : { signal: input.base.signal })
+    ...signalOption(input.base.signal)
   });
   requireSuccess("recover", recovered);
   if (recovered.envelope.result.transactionState !== "recovered" || recovered.envelope.result.writeState !== "committed" ||
@@ -456,7 +412,7 @@ export async function runDocsProtocolQualification(request: DocsProtocolQualific
     await cp(sourceRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });
     await bootstrapQualificationInstallation(consumerRoot);
     const protocol = createProtocol();
-    const info = await protocol.info({ consumerRoot, profilePath });
+    const info = await protocol.info({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     requireSuccess("info", info);
     const find = await protocol.find({ consumerRoot, profilePath, query: request.scenario.find.query, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     requireSuccess("find", find);
@@ -501,9 +457,9 @@ export async function runDocsProtocolQualification(request: DocsProtocolQualific
       throw new Error("Missing-parent qualification recovery did not truthfully report retained Plan v2 materialization.");
     }
     await applyReachability(consumerRoot, appliedResult.reachability);
-    const check = await protocol.check({ consumerRoot, profilePath });
+    const check = await protocol.check({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     if (check.exitCode !== 0) {throw new Error(`Docs Protocol qualification check failed: ${JSON.stringify(check.envelope)}.`);}
-    const doctor = await protocol.doctor({ consumerRoot, profilePath });
+    const doctor = await protocol.doctor({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     requireSuccess("doctor", doctor);
     if (await snapshot(sourceRoot) !== before) {
       throw new Error("Qualification modified its source fixture.");

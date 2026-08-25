@@ -63,6 +63,15 @@ independently with the minimum job-level `security-events: write` permission.
 Normal capability execution only validates repository state and optional
 deterministic tool evidence; it never invokes these tools itself.
 
+OpenSSF Scorecard runs as a separate advisory workflow on a weekly schedule or
+manual dispatch. It is not a required status and never changes the pull-request
+CI plan. The official Scorecard and SARIF actions are pinned to reviewed full
+commit SHAs. The job has only `contents: read` and `security-events: write`, does
+not publish results through OIDC, and uploads SARIF directly to code scanning.
+It has no pull-request, `pull_request_target`, or `workflow_run` trigger and does
+not download or retain artifacts, so privileged execution cannot consume fork
+artifacts.
+
 The offline capability cannot fetch and recursively attest remote reusable
 workflow internals. Producer-owned qualification is required before claiming
 that a remote trust root also pins every transitive action. Empty

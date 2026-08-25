@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, lstat, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, cp, lstat, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -12,6 +12,7 @@ import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspec
 import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
 import { NodeFoundationDocsPort } from "../dist/adapters/foundation-docs-port.js";
 import { runDocsProtocolQualification } from "../dist/qualification/index.js";
+import { crashAtDurablePublishing } from "../dist/qualification/crash-driver.js";
 
 const fixtureRoot = new URL("./fixtures/qualification", import.meta.url).pathname;
 
@@ -34,6 +35,55 @@ test("shared qualification runner mutates only its owned disposable copy", async
   assert.equal(receipt.projectId, "docs-protocol-qualification");
   assert.equal(receipt.appliedDocumentPath, "docs/decisions/generated/0001-qualification-decision.md");
   assert.deepEqual(receipt.checks, ["info", "find", "preview", "crash", "doctor", "recover", "receipt", "parent", "apply", "index", "check", "source-unchanged"]);
+});
+
+test("qualification crash child honors pre-cancellation without materializing inputs", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-cancelled-crash-"));
+  try {
+    await assert.rejects(
+      crashAtDurablePublishing(temporary, {}, AbortSignal.abort()),
+      (error) => error?.name === "AbortError",
+    );
+    await assert.rejects(access(join(temporary, ".qualification-crash-plan.json")), (error) => error?.code === "ENOENT");
+    await assert.rejects(access(join(temporary, ".qualification-crash-worker.mjs")), (error) => error?.code === "ENOENT");
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+test("qualification awaits an early crash-child exit before cleaning its inputs", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-early-crash-exit-"));
+  const scope = join(temporary, "node_modules", "@agent-teams");
+  try {
+    await mkdir(scope, { recursive: true });
+    await symlink(
+      new URL("../../engineering-foundation", import.meta.url).pathname,
+      join(scope, "engineering-foundation"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    await assert.rejects(crashAtDurablePublishing(temporary, {}), /exited before checkpoint/u);
+    await assert.rejects(access(join(temporary, ".qualification-crash-plan.json")), (error) => error?.code === "ENOENT");
+    await assert.rejects(access(join(temporary, ".qualification-crash-worker.mjs")), (error) => error?.code === "ENOENT");
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+test("qualification cleans its inputs after a crash-child spawn error", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-crash-spawn-error-"));
+  const originalExecPath = process.execPath;
+  try {
+    process.execPath = join(temporary, "missing-node-executable");
+    await assert.rejects(
+      crashAtDurablePublishing(temporary, {}),
+      (error) => error?.code === "ENOENT",
+    );
+    await assert.rejects(access(join(temporary, ".qualification-crash-plan.json")), (error) => error?.code === "ENOENT");
+    await assert.rejects(access(join(temporary, ".qualification-crash-worker.mjs")), (error) => error?.code === "ENOENT");
+  } finally {
+    process.execPath = originalExecPath;
+    await rm(temporary, { recursive: true, force: true });
+  }
 });
 
 const requiresStrictDirectoryDurability = process.platform === "win32" ? test.skip : test;

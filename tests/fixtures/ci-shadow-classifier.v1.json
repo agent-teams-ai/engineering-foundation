@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    { "name": "docs-only-pr-is-observation-only", "input": { "event": "pull_request", "files": ["docs/release.md"], "labels": [] }, "candidate": "reduced", "reason": "docs-only-shadow" },
+    { "name": "merge-queue-is-always-full", "input": { "event": "merge_group", "files": ["docs/release.md"], "labels": [] }, "candidate": "full", "reason": "merge-queue" },
+    { "name": "workflow-is-sensitive", "input": { "event": "pull_request", "files": [".github/workflows/ci.yml"], "labels": [] }, "candidate": "full", "reason": "sensitive-change" },
+    { "name": "source-is-sensitive", "input": { "event": "pull_request", "files": ["packages/docs-protocol/src/cli.ts"], "labels": [] }, "candidate": "full", "reason": "sensitive-change" },
+    { "name": "force-full-label-is-an-escape-hatch", "input": { "event": "pull_request", "files": ["docs/release.md"], "labels": ["ci:full"] }, "candidate": "full", "reason": "escape-hatch" },
+    { "name": "unknown-event-fails-full", "input": { "event": "repository_dispatch", "files": ["docs/release.md"], "labels": [] }, "candidate": "full", "reason": "unknown-event" },
+    { "name": "hostile-path-fails-full", "input": { "event": "pull_request", "files": ["../README.md"], "labels": [] }, "candidate": "full", "reason": "unknown-input" }
+  ]
+}

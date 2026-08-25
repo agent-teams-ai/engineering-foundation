@@ -37,6 +37,10 @@ allowedUses:
     transitiveUses: []
   - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3
     transitiveUses: []
+  - uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+    transitiveUses: []
+  - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc
+    transitiveUses: []
   - uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9
     transitiveUses: []
   - uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030
@@ -86,6 +90,11 @@ privilegedJobs:
       contents: read
       pull-requests: read
       statuses: write
+  - workflowPath: .github/workflows/scorecard.yml
+    jobId: scorecard
+    permissions:
+      contents: read
+      security-events: write
 publishablePackageManifests:
   - packages/engineering-foundation/package.json
   - packages/docs-protocol/package.json

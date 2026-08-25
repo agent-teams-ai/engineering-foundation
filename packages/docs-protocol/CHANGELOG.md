@@ -1,5 +1,11 @@
 # @agent-teams/docs-protocol
 
+## 0.1.4
+
+### Patch Changes
+
+- [#199](https://github.com/agent-teams-ai/engineering-foundation/pull/199) [`662e765`](https://github.com/agent-teams-ai/engineering-foundation/commit/662e765668b49d6cde0aadcb214922cabc03ab05) Thanks [@777genius](https://github.com/777genius)! - Bundle the qualified stable2 Cohort and its managed caller asset so current consumers can safely plan and recover a direct fix-forward upgrade.
+
 ## 0.1.3
 
 ### Patch Changes

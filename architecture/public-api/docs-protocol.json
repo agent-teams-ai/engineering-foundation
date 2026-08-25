@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol",
-  "packageVersion": "0.1.3",
+  "packageVersion": "0.1.4",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {

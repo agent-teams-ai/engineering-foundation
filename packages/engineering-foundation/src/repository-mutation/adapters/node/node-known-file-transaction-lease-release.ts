@@ -12,18 +12,21 @@ export async function releaseKnownFileTransactionLease(options: {
   readonly primaryFailure?: { readonly reason: unknown };
   readonly retainTransactionBarrier: boolean;
 }): Promise<void> {
+  let releaseFailure: { readonly reason: unknown } | undefined;
   try {
     await options.lease.release({
       retainTransactionBarrier: options.retainTransactionBarrier
     });
-  } catch (releaseFailure) {
-    if (options.primaryFailure !== undefined) {
-      throw new AggregateError(
-        [options.primaryFailure.reason, releaseFailure],
-        options.jointFailureMessage,
-        { cause: options.primaryFailure.reason }
-      );
-    }
-    throw releaseFailure;
+  } catch (error) {
+    releaseFailure = { reason: error };
   }
+  if (releaseFailure === undefined) {return;}
+  if (options.primaryFailure !== undefined) {
+    throw new AggregateError(
+      [options.primaryFailure.reason, releaseFailure.reason],
+      options.jointFailureMessage,
+      { cause: options.primaryFailure.reason }
+    );
+  }
+  return Promise.reject(releaseFailure.reason);
 }

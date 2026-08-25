@@ -132,7 +132,7 @@ async function observePromise(promise) {
 
 posixTest("lease release preserves arbitrary single and joint failures", async (context) => {
   const releaseObject = { outcome: "release" };
-  for (const fixture of [
+  for (const scenario of [
     {
       name: "successful release remains fulfilled",
       release: { state: "fulfilled" },
@@ -155,7 +155,7 @@ posixTest("lease release preserves arbitrary single and joint failures", async (
       release: { reason: undefined, state: "rejected" },
     },
   ]) {
-    await context.test(fixture.name, async () => {
+    await context.test(scenario.name, async () => {
       let releaseCalls = 0;
       let releaseOptions;
       const observed = await observePromise(releaseKnownFileTransactionLease({
@@ -165,29 +165,29 @@ posixTest("lease release preserves arbitrary single and joint failures", async (
           async release(options) {
             releaseCalls += 1;
             releaseOptions = options;
-            if (fixture.release.state === "rejected") {throw fixture.release.reason;}
+            if (scenario.release.state === "rejected") {throw scenario.release.reason;}
           },
         },
-        ...(fixture.primaryFailure === undefined ? {} : {
-          primaryFailure: fixture.primaryFailure,
+        ...(scenario.primaryFailure === undefined ? {} : {
+          primaryFailure: scenario.primaryFailure,
         }),
         retainTransactionBarrier: true,
       }));
       assert.equal(releaseCalls, 1);
       assert.deepEqual(releaseOptions, { retainTransactionBarrier: true });
-      if (fixture.aggregate === undefined) {
-        assert.equal(observed.state, fixture.release.state);
+      if (scenario.aggregate === undefined) {
+        assert.equal(observed.state, scenario.release.state);
         if (observed.state === "rejected") {
-          assert.equal(observed.reason, fixture.expectedReason);
+          assert.equal(observed.reason, scenario.expectedReason);
         }
         return;
       }
       assert.equal(observed.state, "rejected");
       assert.ok(observed.reason instanceof AggregateError);
-      assert.equal(observed.reason.errors[0], fixture.aggregate[0]);
-      assert.equal(observed.reason.errors[1], fixture.aggregate[1]);
+      assert.equal(observed.reason.errors[0], scenario.aggregate[0]);
+      assert.equal(observed.reason.errors[1], scenario.aggregate[1]);
       assert.equal(Object.hasOwn(observed.reason, "cause"), true);
-      assert.equal(observed.reason.cause, fixture.aggregate[0]);
+      assert.equal(observed.reason.cause, scenario.aggregate[0]);
     });
   }
 });

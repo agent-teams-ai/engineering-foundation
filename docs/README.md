@@ -32,6 +32,7 @@ not repeat their rules.
 | Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Implemented and dogfooded; consumer adoption remains opt-in |
 | DeepSeek Harness tooling comparison | [Strict comparison](research/deepseek-harness-tooling-comparison.md) | Revalidated; selected adaptations adopted |
 | Agent architecture standard | [Design study](research/agent-architecture-standard-design.md) | Proposed research; naming and scope not accepted by ADR |
+| Agent architecture standard delivery | [Implementation plan](research/agent-architecture-standard-implementation-plan.md) | Proposed final plan; independent review pending |
 | Foundation architecture readiness | [Independent audit](research/foundation-architecture-audit-2026-08-23.md) | Revalidated at 8.8/10; remaining migrations governed by ADR-0035 |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |

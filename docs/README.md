@@ -33,6 +33,7 @@ not repeat their rules.
 | DeepSeek Harness tooling comparison | [Strict comparison](research/deepseek-harness-tooling-comparison.md) | Revalidated; selected adaptations adopted |
 | Agent architecture standard | [Design study](research/agent-architecture-standard-design.md) | Proposed research; naming and scope not accepted by ADR |
 | Agent architecture standard delivery | [Implementation plan](research/agent-architecture-standard-implementation-plan.md) | Independently reviewed final proposal; owner decision checkpoints pending |
+| Agent architecture standard decisions | [Product decision brief](research/agent-architecture-standard-product-decisions.md) | Advisory options and independent reviewer synthesis; no owner decisions accepted |
 | Foundation architecture readiness | [Independent audit](research/foundation-architecture-audit-2026-08-23.md) | Revalidated at 8.8/10; remaining migrations governed by ADR-0035 |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |

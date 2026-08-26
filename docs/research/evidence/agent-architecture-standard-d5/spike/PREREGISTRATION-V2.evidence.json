@@ -1,0 +1,14 @@
+{
+  "recordType": "d5-remediation-preregistration",
+  "recordedAt": "2026-08-26T00:00:00Z",
+  "baseCommit": "f925196",
+  "immutableInputs": {
+    "PREREGISTRATION.md": "sha256:33067dbc191b9c97349472bb110c806795047b95735c94b8a5d7669a73f45849",
+    "EVIDENCE.md": "sha256:f06898450db8d0b6d9669e33154cb668932cfa5195e63a5e15daadc5e306ebf1"
+  },
+  "preregistration": {
+    "path": "spike/PREREGISTRATION-V2.md",
+    "sha256": "d1a6db2d7eb7e79faae431d0407e3d1f87dcb0c0cdd6a392909523764a19f92b"
+  },
+  "implementationStarted": false
+}

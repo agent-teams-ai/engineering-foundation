@@ -1,0 +1,48 @@
+{
+  "status": "done",
+  "changedFiles": [
+    ".git-data/objects/15/9a5a08d97f79337cd1590a37acd02495607b14",
+    ".git-data/objects/33/96d963d8eec7685de9f272b7d877d2d1eddc6d",
+    ".git-data/objects/3d/99dea637a638671b5d31a57f2db31dbcee5192",
+    ".git-data/objects/44/b4d2987a3594e8fa4017a8ca0b145a87383072",
+    ".git-data/objects/60/d1fd809cf604faec8d0e7ad95f6334bfaf5630",
+    ".git-data/objects/6c/a9a128c0669d69ca896f426dd55ce205f5245a",
+    ".git-data/objects/74/5dadae4a95a471aabb2be678849c9bf57a9e27",
+    ".git-data/objects/74/6357792ac564b26fe2a3e95faf7d427e81bbf2",
+    ".git-data/objects/7e/62f34985f890792fbd0bc9a77bc818ad30f8b5",
+    ".git-data/objects/a5/ce02dda847436ad670e7a6ab6d3326c592fce5",
+    ".git-data/objects/af/86d34c2e3a66bf52b8e42d6fec4592fb4d27e9",
+    ".git-data/objects/b1/d517018aa408e1695503a29112e38c8356a1f1",
+    ".git-data/objects/c5/fecccc46149b7d39dfc9f8aca07415376f06ad",
+    ".git-data/objects/d1/51834ca399b17db0843fe8c30e7760cffafb38",
+    ".git-data/objects/f8/d1a150853de75a5844936c5c87590aac35e604",
+    ".git-data/objects/f9/251966c5a5004d26416170a9f45bbe47761860",
+    "spike/EVIDENCE.md",
+    "spike/fixtures/scenarios.json",
+    "spike/package.json",
+    "spike/PREREGISTRATION.md",
+    "spike/README.md",
+    "spike/src/measure.js",
+    "spike/src/operations.js",
+    "spike/src/workflow.js",
+    "spike/test/spike.test.js"
+  ],
+  "evidence": [
+    "safe_execution_status:completed",
+    "output_summary:Implemented and committed the bounded D5 spike.\n\n- Verdict: retain all three operations; 4 of 6 representative adversarial scenarios provided distinct pre-overlay actions, exceeding the threshold of 2.\n- Focused tests: 7/7 passed.\n- Prototype: [spike/README.md](/home/aasv0-research-hub-20260826-r1/spike/README.md)\n- Evidence report: [spike/EVIDENCE.md](/home/aasv0-research-hub-20260826-r1/spike/EVIDENCE.md)\n- Preregistration: [spike/PREREGISTRATION.md](/home/aasv0-research-hub-20260826-r1/spike/PREREGISTRATION.md)\n- Commit: `f925196 feat: add D5 operations spike evidence`\n\nThe `.git-data` arrangement was preserved. No network or push was used. The pre-existing untracked runtime result JSON remains untouched. Goal runtime: approximately 5m 15s.",
+    "attempt_count:1",
+    "workspace_changed_files_unavailable",
+    "handoff_artifact_materialization_failed:handoff_artifact_materialization_failed",
+    "patch_preserve_unavailable"
+  ],
+  "blockers": [],
+  "nextAction": "review_completed",
+  "schemaVersion": 1,
+  "provider": "codex",
+  "runId": "aasv0-operations-spike-20260826-r3",
+  "taskId": "aasv0-operations-spike-20260826-r3",
+  "details": {
+    "handoffArtifactError": "handoff_artifact_materialization_failed"
+  },
+  "updatedAt": "2026-08-26T20:03:23.332Z"
+}

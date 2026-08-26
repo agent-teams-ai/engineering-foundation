@@ -17,7 +17,7 @@
     "buf-qualification:e2e:built": "node scripts/buf-qualification-e2e.mjs",
     "check": "pnpm lint && pnpm typecheck && pnpm foundation:check:built && pnpm release-owned-files:check && pnpm architecture:patterns && pnpm architecture:patterns:test && pnpm nx:graph:check && pnpm test:built && pnpm test:coverage:built && pnpm package:check:built",
     "verify": "pnpm security:workflows && pnpm check && pnpm buf-qualification:e2e:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e && pnpm dead-code:check && pnpm parser-spike:check",
-    "check:changed": "pnpm build && agent-teams-foundation agent-workflow changed --consumer .",
+    "check:changed": "pnpm build && node packages/engineering-foundation/dist/cli.js agent-workflow changed --consumer .",
     "check:fast": "pnpm test:manifests:check && pnpm lint:fast && pnpm typecheck",
     "changeset": "changeset",
     "changeset:coverage": "node scripts/check-changeset-coverage.mjs",

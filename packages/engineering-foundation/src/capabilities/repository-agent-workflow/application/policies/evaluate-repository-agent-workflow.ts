@@ -151,11 +151,14 @@ function validateCommands(
     }
   }
   const changedCommand = evidence.packageScripts[policy.scripts.changed];
+  const installedRunner =
+    /^(?:pnpm\s+build\s*&&\s*)?agent-teams-foundation\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
+  const selfDogfoodRunner =
+    /^pnpm\s+build\s*&&\s*node\s+packages\/engineering-foundation\/dist\/cli\.js\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
   if (
     changedCommand !== undefined &&
-    !/^(?:pnpm\s+build\s*&&\s*)?agent-teams-foundation\s+agent-workflow\s+changed\s+--consumer\s+\.$/u.test(
-      changedCommand.trim()
-    )
+    !installedRunner.test(changedCommand.trim()) &&
+    !selfDogfoodRunner.test(changedCommand.trim())
   ) {
     diagnostics.push(
       diagnostic({
@@ -163,8 +166,7 @@ function validateCommands(
         subject: `package-script:${policy.scripts.changed}`,
         message: "The changed-file script bypasses the shared Foundation runner.",
         path: "package.json",
-        remediation:
-          "Set the script exactly to: agent-teams-foundation agent-workflow changed --consumer ."
+        remediation: "Route the script to the installed CLI or Foundation's exact built self-dogfood entrypoint."
       })
     );
   }

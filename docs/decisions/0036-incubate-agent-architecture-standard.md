@@ -36,9 +36,13 @@ large speculative core before consumer evidence exists.
    public 0.x schema identifier or conformance claim, normative artifacts and an
    independently governed conformance authority move to the dedicated neutral
    repository. Foundation never owns normative semantics.
-3. Authority is claim-specific: schemas own wire shape, registries own
-   identifiers, prose owns semantics, and vectors own exact observable examples.
-   Generated TypeScript is derived and never normative.
+3. Authority is claim-specific. The serialization profile and normative prose
+   own lexical byte admissibility and canonicalization. Schemas own the decoded
+   JSON structure, registries own identifiers, and prose owns semantic
+   algorithms that schemas cannot express. Vectors are testable projections of
+   those authorities and cannot introduce or override a rule. Generated
+   TypeScript is derived and never normative. Any conflict blocks release until
+   the owning authority and all projections agree.
 4. Identity uses RFC 8785 over a documented strict I-JSON subset, SHA-256,
    artifact-specific domain separation, exact length framing, and an
    independently authored oracle. Identity rules cannot be inferred from the

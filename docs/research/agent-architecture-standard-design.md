@@ -51,7 +51,7 @@ reference implementation, not the source of normative meaning.
 ```text
 language-neutral specification and schemas
   <- pure codecs, canonicalization, identities, and result invariants
-  <- independently versioned operation and evaluator profiles
+  <- public overlay profile plus replaceable internal analyzer profiles
   <- Node/filesystem/CLI adapters and Foundation capabilities
   <- agent integrations and consumer-owned architecture policy
 ```
@@ -75,6 +75,13 @@ The stable kernel should define:
 - namespaced optional and required extensions;
 - declared budgets, cancellation, deadlines, and resource-limit outcomes;
 - black-box conformance manifests and language-neutral fixtures.
+
+Normative authority is claim-specific. The serialization profile and normative
+prose own lexical byte admissibility and canonicalization; schemas own the
+decoded JSON structure; registries own identifiers; and prose owns semantic
+algorithms that schemas cannot express. Vectors and generated bindings are
+projections of those authorities, never an independent source of rules. Any
+conflict blocks release until the owning authority and every projection agree.
 
 Protocol state, analysis conclusions, and faults are separate concepts. A
 malformed request or provider failure is a problem; it is not an architecture
@@ -283,8 +290,10 @@ generated types, fixtures, and prose.
 | Option | Scope | Confidence | Reliability | Complexity | Estimated change |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Contract kernel | Schemas, canonicalization, identities, result semantics, vectors, minimal CLI | 6/10 | 8/10 | 3/10 | 10,000-16,000 lines including tests |
-| Thin standard with complete vertical slice | Kernel, three profiles, useful local workflow, Node reference, diagnostics, conformance | 9/10 | 8/10 | 6/10 | 20,000-30,000 lines including tests |
-| Hardened core | Vertical slice plus hostile-input corpus, fuzzing, independent oracles, provenance, cross-platform hardening | 9/10 | 9/10 | 7/10 | 30,000-44,000 lines including tests |
+| First overlay proof | Narrow disposable or private overlay workflow used to test the contract; not a complete release | 8/10 | 6/10 | 4/10 | 8,000-15,000 lines including tests |
+| Complete overlay-first 0.x slice | Kernel, snapshot, one public overlay profile, internal analyzers, local workflow, Node reference, diagnostics, conformance | 9/10 | 8/10 | 6/10 | 16,000-27,000 lines including tests |
+| Broader three-profile design (superseded by D5) | Independently public classification, relation evaluation, and overlay profiles | 6/10 | 6/10 | 8/10 | 20,000-30,000 lines including tests |
+| Hardened core | Overlay-first slice plus hostile-input corpus, fuzzing, independent oracles, provenance, cross-platform hardening, Foundation adoption, and evals | 9/10 | 9/10 | 7/10 | 28,000-45,000 cumulative lines before v1 |
 
 The recommended delivery path is not one giant release. Build the complete
 vertical slice as a 0.x reference, run it in shadow mode, and promote only the
@@ -307,9 +316,10 @@ silent incomplete coverage across supported platforms.
 
 ### Analysis and overlay
 
-Implement the initial profiles, evidence validation, atomic virtual overlay,
-prospective snapshot, property tests, and an adversarial corpus. Keep every hard
-gate in shadow mode until false-block and escape rates are measured.
+Implement the single public overlay profile, its replaceable internal analysis
+ports, evidence validation, atomic virtual overlay, prospective snapshot,
+property tests, and an adversarial corpus. Keep every hard gate in shadow mode
+until false-block and escape rates are measured.
 
 ### Release candidate
 

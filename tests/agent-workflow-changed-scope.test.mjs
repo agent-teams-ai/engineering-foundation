@@ -240,6 +240,25 @@ test("reports broken adapters, undocumented commands, and missing scripts", asyn
   });
 });
 
+test("accepts Foundation's exact built self-dogfood changed runner", async () => {
+  await withAgentWorkflowFixture(async (consumerRoot) => {
+    const manifestPath = join(consumerRoot, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.scripts["check:changed"] =
+      "pnpm build && node packages/engineering-foundation/dist/cli.js agent-workflow changed --consumer .";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      report.capabilities[0].diagnostics.some(
+        ({ ruleId }) => ruleId === "repository.agent-workflow.changed-runner-invalid",
+      ),
+      false,
+    );
+  });
+});
+
 test("rejects instruction adapters that are symbolic links", async () => {
   if (process.platform === "win32") {
     return;

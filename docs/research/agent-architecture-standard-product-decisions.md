@@ -52,7 +52,7 @@ follow in Section 4 so future changes retain the original reasoning.
 | --- | --- | --- | --- |
 | D0 | Use the full Agent Architecture Standard name publicly; keep protocol as a component, not a second promoted brand yet | Medium before publication, low after ecosystem adoption | Before PR0 public names |
 | D1 | Incubate privately in Foundation, but move normative standard and independent conformance authority to a neutral repository before public 0.x | Medium before publication, low afterward | Before public schemas or conformance claims |
-| D2 | Use an authority matrix: schemas own wire shape, registries own IDs, prose owns semantics, vectors own observable examples; generated TypeScript owns nothing normative | Low after publication | Before schemas or codecs |
+| D2 | Use an authority matrix: serialization profile/prose own lexical bytes and canonicalization, schemas own decoded structure, registries own IDs, prose owns semantic algorithms, and vectors are projections; generated TypeScript owns nothing normative | Low after publication | Before schemas or codecs |
 | D3 | Exact RFC 8785 over a documented I-JSON subset with domain-separated SHA-256 identities | Very low | Before any persistent digest |
 | D4 | Define portable-bounded and hardened snapshot profiles; implement portable first and reserve hard gates for a matching threat profile | Low | Before filesystem adapters |
 | D5 | Publish `validate-overlay@1` first; keep classification and relation evaluation internal or experimental until their contracts independently pass the admission gate | Medium in 0.x | Before operation schemas |
@@ -173,10 +173,12 @@ public authority before any public schema or conformance identity is published.
 **In plain language:** when prose, schemas, generated types, registries, and test
 vectors disagree, tools and implementers need one deterministic answer.
 
-**Option A, preferred:** use a typed authority matrix. JSON Schemas own wire
-shape, registries own identifiers, normative prose owns semantics that schemas
-cannot express, and golden vectors own exact observable examples. Generate
-TypeScript from those artifacts and fail CI on drift.
+**Option A, preferred:** use a typed authority matrix. The serialization profile
+and normative prose own lexical byte admissibility and canonicalization. JSON
+Schemas own decoded structure, registries own identifiers, and normative prose
+owns semantic algorithms that schemas cannot express. Golden vectors are
+testable projections and cannot introduce or override a rule. Generate
+TypeScript from those artifacts and fail CI on drift or authority conflict.
 
 🎯 10/10 🛡️ 9/10 🧠 6/10, approximately 1,200-2,500 lines.
 
@@ -204,7 +206,8 @@ schemas from them.
 - Risk: makes a language-neutral standard depend on Node implementation detail.
 
 **Accepted decision:** choose A and require an executable normative traceability
-matrix. Decide before PR1 schemas and code generation.
+matrix. An authority conflict blocks release until the owning artifact and every
+projection agree. Decide before PR1 schemas and code generation.
 
 ### D3. How do independent tools compute the same identity?
 

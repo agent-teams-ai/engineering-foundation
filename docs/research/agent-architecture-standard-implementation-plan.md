@@ -49,9 +49,9 @@ open isolated worktree
   -> describe supported standard and profiles
   -> capture an immutable repository snapshot
   -> inspect effective architecture policy and observation coverage
-  -> classify explicit planned subjects
-  -> evaluate explicit planned relations
-  -> validate an exact virtual overlay
+  -> propose an exact virtual overlay
+  -> run replaceable internal analyzers as overlay evidence
+  -> invoke the public validate-overlay operation
   -> apply the change through the normal repository workflow
   -> run affected engineering checks
   -> rebase or integrate
@@ -104,7 +104,7 @@ their irreversible artifacts are published.
 | --- | --- | --- | --- |
 | D0 | Public naming | AAS umbrella with AAP as its protocol component | Public package and schema names |
 | D1 | Initial repository home | Private Foundation incubation is allowed; move normative standard and independently governed conformance authority to a neutral repository before public 0.x identifiers or claims | Public package and schema scaffolding |
-| D2 | Normative artifact authority | Checked-in schemas, registries, prose, and golden vectors; generated TypeScript is derived | Core implementation |
+| D2 | Normative artifact authority | Serialization profile and prose own lexical bytes/canonicalization; schemas own decoded structure; registries own IDs; prose owns semantic algorithms; vectors are non-authoritative projections; generated TypeScript is derived | Core implementation |
 | D3 | Canonical JSON profile | Exact RFC 8785 conformance over a defined I-JSON subset, SHA-256, domain-separated identities | Snapshot and evidence identities |
 | D4 | Mandatory secure snapshot profile | Root-relative paths, no symlink following, bounded capture, no execution or network | Node discovery implementation |
 | D5 | Initial operation profile | Publish `validate-overlay@1`; keep classification and relation evaluation internal or experimental pending separate admission evidence | Vertical slice |
@@ -153,9 +153,8 @@ engineering-foundation repository/
     src/kernel/           only shared protocol and identity value objects
     src/features/
       snapshot-capture/   contracts, use cases, ports, and Node adapters
-      classify-subjects/  contracts, use cases, ports, and profile adapters
-      evaluate-relations/ contracts, use cases, ports, and profile adapters
       validate-overlay/   contracts, use cases, ports, and virtual adapters
+      internal-analysis/  replaceable analyzer ports; no public operation IDs
     src/adapters/cli/      machine-first local command adapter
     src/composition/      explicit Node composition root
   engineering-foundation/
@@ -230,6 +229,13 @@ an old-reader/new-writer matrix, new-reader/old-writer matrix, unknown extension
 and no-common-version cases.
 
 ### 6.2 Envelope families
+
+Authority is resolved before decoding or conformance claims: the normative
+serialization profile and prose own lexical byte admissibility and
+canonicalization, schemas own decoded structure, registries own identifiers,
+and prose owns semantic algorithms. Vectors and generated bindings are
+non-authoritative projections. A conflict is a release blocker; an
+implementation cannot select whichever artifact matches its behavior.
 
 Define separate closed core schemas for:
 
@@ -433,7 +439,7 @@ phase may run in parallel in isolated worktrees with non-overlapping ownership.
 | A. Specification and registries | Normative artifacts and compatibility | Security corpus, documentation examples |
 | B. Canonicalization and identities | Pure reference implementation | CLI shell after public interfaces freeze |
 | C. Secure Node snapshot | Filesystem ports and adapters | Operation-profile schema work |
-| D. Operation profiles | Classification, relation evaluation, overlay | Snapshot adapter after snapshot contract freezes |
+| D. Overlay operation | Public overlay contract plus replaceable internal analyzer ports | Snapshot adapter after snapshot contract freezes |
 | E. Conformance and security | Independent runner and hostile corpus | Reference implementation; no shared oracle code |
 | F. Agent UX and Foundation adoption | CLI, diagnostics, capability adapter | Evals after stable JSON output exists |
 | G. Consumer adoption and evals | Sandbox fixtures, real opt-in consumers, metrics | Release qualification |
@@ -884,8 +890,9 @@ cannot merely test its own mistakes.
 
 1. Build a black-box conformance runner that uses only `describe` and `invoke`
    provider boundaries.
-2. Define claimable profiles: core data/canonicalization, snapshot, operations,
-   overlay, and full vertical slice.
+2. Define claimable profiles: core data/canonicalization, snapshot,
+   `validate-overlay@1`, and the full overlay-first vertical slice. Internal
+   classification and relation analyzers are not independently claimable.
 3. Build an independently authored canonicalization oracle and exact-byte
    vectors.
 4. Add hostile JSON, path, filesystem, evidence, extension, overlay, and budget
@@ -1540,9 +1547,17 @@ The second verification pass checked corrected commit
 delivery returned PASS with no P0/P1 findings. Protocol and security found four
 small contract inconsistencies; commit
 `363f0ab96ea706be6eccbb169c0f9f83d42eb292` corrected them. Targeted rechecks
-then returned protocol PASS 4/4 and security PASS with P0=0/P1=0. No semantic
-plan content changed after that reviewed commit; the final follow-up only records
-this evidence.
+then returned protocol PASS 4/4 and security PASS with P0=0/P1=0. Later product
+decisions and the D5 spike intentionally changed the plan, so that earlier PASS
+does not cover the current overlay-first revision.
+
+Hosted review `foundation-pr201-review-20260826-r1` evaluated commit
+`44a34de41af292a55ceed8946ae9ae272fe0dc90` and returned P0=0, P1=3, P2=1. Its
+accepted findings required complete overlay-first propagation, claim-specific
+byte authority, immutable D5 provenance, and an exact self-dogfood command that
+the workflow validator also accepts. Those findings are remediation evidence,
+not approval of the revised head; a new exact-head independent review is
+required before merge.
 
 | Reviewer lens | Status | Accepted findings | Rejected findings |
 | --- | --- | --- | --- |

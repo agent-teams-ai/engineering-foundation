@@ -1,6 +1,7 @@
 # Agent architecture standard design study
 
-Status: Proposed research; not implemented and not accepted by ADR
+Status: Research record; direction accepted by ADR-0036, implementation remains
+in progress
 
 Date: 2026-08-26
 
@@ -16,7 +17,7 @@ should be able to discover the applicable architecture contract, evaluate a
 planned change against an exact repository state, understand incomplete
 evidence, and prove that the integrated result still satisfies the contract.
 
-## Naming decision under review
+## Accepted naming direction
 
 The recommended naming system is:
 
@@ -24,8 +25,8 @@ The recommended naming system is:
   conformance requirements, profiles, and evidence rules;
 - **Agent Architecture Protocol (AAP)** only for request, response,
   negotiation, and future transport bindings;
-- **Agent Architecture Project** as a neutral working governance name until a
-  real independent governance body exists.
+- the dedicated Agent Architecture Standard repository as the authority home,
+  without claiming an independent foundation or standards body.
 
 The distinction is intentional: the standard defines what results mean, while
 the protocol defines how implementations exchange them. Public identifiers must
@@ -33,12 +34,13 @@ use the full `agent-architecture-*` form rather than bare `aas` or `aap` names.
 The AAS acronym has a serious standards-sector collision with Asset
 Administration Shell, while AAP has broad non-software collisions and can be
 confused with A2A, ACP, or MCP. Live package, domain, trademark, and standards
-catalog checks remain mandatory before a public name is accepted.
+catalog checks remain mandatory before public branding. The GitHub repository
+and scoped/unscoped npm package names were available when D0 was accepted; this
+is namespace evidence, not legal trademark clearance.
 
-An alternative is to use Agent Architecture Protocol as the single public name
+The rejected alternative was to use Agent Architecture Protocol as the single public name
 and describe it as an open standard. That is simpler, but it inaccurately makes
-the static model and conformance semantics sound like a wire protocol. No public
-rename or branding decision is accepted by this research document.
+the static model and conformance semantics sound like a wire protocol.
 
 ## Recommended boundary
 
@@ -350,19 +352,20 @@ profile or adapter is extracted only after two real consumers demonstrate the
 same semantics, parity fixtures exist, and the duplicate consumer code is
 removed.
 
-## Open decisions
+## Accepted decisions and remaining evidence gates
 
-This research intentionally does not decide:
+ADR-0036 and the product decision record resolve the original architecture
+choices:
 
-1. Whether the public umbrella name is AAS with AAP as the wire component, or a
-   single AAP brand described as an open standard.
-2. Whether the standalone specification starts in this repository or a new
-   neutral repository before its first public release.
-3. The exact package scope, domain, governance home, or conformance mark.
-4. Which architecture vocabulary profile becomes the first real consumer-backed
-   profile.
-5. Which measured thresholds graduate from shadow evidence to required merge
-   gates.
+1. Agent Architecture Standard is the public umbrella; AAP is a technical
+   component.
+2. Foundation may incubate privately, while the dedicated standard repository
+   owns normative artifacts and conformance authority before public 0.x claims.
+3. v0.x standardizes closed effective policy, not a module/preset compiler.
+4. Public candidates use a non-`latest` RC channel before separately qualified
+   numeric 0.x artifacts.
 
-Each decision requires its own evidence and, when consequential, an ADR. This
-study reserves safe seams but does not authorize speculative platform work.
+Evidence still decides the retained D5 operation surface, the first real
+consumer-backed vocabulary profile, rule-specific promotion thresholds, and the
+people assigned to independent conformance and release roles. This study
+reserves safe seams but does not authorize speculative platform work.

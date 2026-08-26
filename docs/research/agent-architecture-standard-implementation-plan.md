@@ -1,7 +1,7 @@
 # Agent Architecture Standard implementation plan
 
-Status: Independently reviewed final proposal; implementation has not started
-and the plan awaits acceptance of the decision checkpoints
+Status: Accepted implementation direction; Phase 0 is active and D5 operation
+breadth remains gated by its bounded spike
 
 Date: 2026-08-26
 
@@ -21,7 +21,7 @@ language-neutral. Node and TypeScript provide the first reference
 implementation. Engineering Foundation provides explicit opt-in integration,
 dogfoods the result, and never becomes the source of normative semantics.
 
-The proposed naming system uses working labels until D0 is explicitly accepted:
+The accepted naming system is:
 
 - **Agent Architecture Standard (AAS)**: the semantic model, profiles,
   evidence rules, compatibility rules, and conformance requirements;
@@ -30,13 +30,14 @@ The proposed naming system uses working labels until D0 is explicitly accepted:
 - full `agent-architecture-*` identifiers in packages, repositories, schemas,
   commands, and search titles; never bare `aas` or `aap` identifiers.
 
-The complete 0.x vertical slice is expected to add approximately **22,000-33,000
+The complete 0.x vertical slice is expected to add approximately **18,000-29,000
 handwritten production and test lines**. The hardened core, Foundation adapter,
-and evaluation harness may bring the cumulative total to **34,000-54,000
+and evaluation harness may bring the cumulative total to **30,000-47,000
 handwritten lines across repositories** before v1.0. Section 8 owns the single
 non-overlapping accounting basis; generated files, normative prose, fixtures,
 and consumer changes are reported separately rather than blended into one LOC
-claim.
+claim. D6 removes approximately **2,500-4,500 lines** from the first slice and
+**4,000-7,000 lines** cumulatively by not standardizing a module/preset compiler.
 
 ## 2. Success definition
 
@@ -94,19 +95,24 @@ Implementation must not silently decide the following questions. Each checkpoint
 ends in an accepted ADR or an explicit owner decision before dependent code is
 merged.
 
+[ADR-0036](../decisions/0036-incubate-agent-architecture-standard.md) records the
+accepted product boundary and gates. Identity, security, trust, registry,
+conformance, and release details receive focused neutral-repository ADRs before
+their irreversible artifacts are published.
+
 | ID | Decision | Recommended choice | Blocks |
 | --- | --- | --- | --- |
 | D0 | Public naming | AAS umbrella with AAP as its protocol component | Public package and schema names |
-| D1 | Initial repository home | Foundation monorepo with standalone package boundaries; reconsider a neutral repository before v1 | Package scaffolding |
+| D1 | Initial repository home | Private Foundation incubation is allowed; move normative standard and independently governed conformance authority to a neutral repository before public 0.x identifiers or claims | Public package and schema scaffolding |
 | D2 | Normative artifact authority | Checked-in schemas, registries, prose, and golden vectors; generated TypeScript is derived | Core implementation |
 | D3 | Canonical JSON profile | Exact RFC 8785 conformance over a defined I-JSON subset, SHA-256, domain-separated identities | Snapshot and evidence identities |
 | D4 | Mandatory secure snapshot profile | Root-relative paths, no symlink following, bounded capture, no execution or network | Node discovery implementation |
 | D5 | Initial operation profiles | `classify-subjects@1`, `evaluate-relations@1`, `validate-overlay@1` | Vertical slice |
-| D6 | Policy composition | Small immutable modules compile to one effective policy with provenance; adoption presets only select modules and defaults | Operation profiles and UX |
+| D6 | Policy composition | v0.x standardizes only a closed immutable effective policy, digest, provenance, and binding; generators and presets remain non-normative Foundation conveniences | Operation profiles and UX |
 | D7 | First consumer profiles | Consumer-owned Foundation, Orchestrator, and Platform bindings; no shared architecture preset until semantic parity exists | Adoption |
-| D8 | Enforcement graduation | A versioned rule-promotion record governs `shadow -> advisory -> limited-required -> required` | Required consumer CI |
-| D9 | Public stable-release policy | Stable 0.x packages only after exact tarball qualification; an accepted release ADR must replace the repository's current public RC-wave procedure before omitting `-rc` versions | Publication |
-| D10 | Publication DAG and self-host bootstrap | `standard -> reference -> Foundation -> Docs Protocol`; conformance depends only on the standard | Package scaffolding and dogfood |
+| D8 | Enforcement graduation | A versioned rule-promotion record governs `shadow -> advisory -> required`; rollout scope/cohort/path/rule is orthogonal | Required consumer CI |
+| D9 | Public prerelease policy | Publish immutable `-rc.N` artifacts under a non-`latest` tag, gather exact-artifact evidence, then publish a separately qualified numeric 0.x | Publication |
+| D10 | Publication DAG and self-host bootstrap | Dependency and publication DAGs are separate: standard feeds reference and independent conformance; reference feeds Foundation, then Docs Protocol; a cohort manifest closes publication | Package scaffolding and dogfood |
 | D11 | OSS publication authority | Approve license, contribution policy, conduct/security policies, maintainers, release authority, normative change process, namespace ownership, version support, and neutral-repository migration trigger | First public 0.x cohort |
 
 Every checkpoint row is backed by a decision record with `owner`, `approver`,
@@ -115,20 +121,20 @@ The Foundation maintainer prepares evidence; the product owner approves scope,
 public naming, publication, enforcement, and governance decisions. PR 0 may
 record the decisions but cannot assume them while creating public identifiers.
 
-The plan assumes the recommended choices. D1 blocks public schema identifiers
-and the first public package, not only directory scaffolding. D9 preserves the
-user-selected no-public-`-rc` policy but does not silently contradict the current
-release procedure: publication waits for the explicit release ADR and updated
-Changesets qualification. A changed decision requires updating
-the affected phases before implementation continues.
+These choices are accepted. D1 blocks public schema identifiers, conformance
+claims, and the first public package until the neutral authority exists, not
+private incubation work. D9 uses the repository's established RC capability but
+requires a non-`latest` tag and a separately qualified numeric release. A changed
+decision requires updating the affected ADR and phases before implementation
+continues.
 
 ## 5. Target repository and package structure
 
-Keep the work in the Engineering Foundation monorepo initially, but make the
-standard independently consumable:
+Incubate privately in Engineering Foundation only until the normative contract
+is coherent. Before public 0.x identifiers or claims, use these authority homes:
 
 ```text
-packages/
+neutral agent-architecture-standard repository/
   agent-architecture-standard/
     spec/                 normative prose
     schemas/              normative JSON Schema 2020-12 documents
@@ -136,6 +142,13 @@ packages/
     vectors/              exact-byte positive and negative conformance data
     generated/            derived language bindings; never authoritative
     scripts/              deterministic validation and generation only
+  agent-architecture-conformance/
+    src/runner/           black-box provider runner
+    src/oracles/          independently implemented identity checks
+    security-corpus/      hostile repository and overlay fixtures
+    reports/              schema for portable conformance evidence
+
+engineering-foundation repository/
   agent-architecture-reference/
     src/kernel/           only shared protocol and identity value objects
     src/features/
@@ -145,11 +158,6 @@ packages/
       validate-overlay/   contracts, use cases, ports, and virtual adapters
     src/adapters/cli/      machine-first local command adapter
     src/composition/      explicit Node composition root
-  agent-architecture-conformance/
-    src/runner/           black-box provider runner
-    src/oracles/          independently implemented identity checks
-    security-corpus/      hostile repository and overlay fixtures
-    reports/              schema for portable conformance evidence
   engineering-foundation/
     src/capabilities/<provisional-agent-contract-id>/
                           opt-in Foundation adapter and diagnostics
@@ -288,11 +296,19 @@ Keep distinct identities for:
 - integrated-state validation receipt.
 
 Identity-bearing JSON conforms exactly to the selected RFC 8785 and I-JSON
-subset. It uses safe signed integers; larger quantities are canonical decimal
-strings. Non-path strings receive no Unicode normalization. Portable paths use
-their own versioned algorithm and reject rather than silently normalize an input.
-Duplicate keys, lone surrogates, invalid UTF-8, non-finite numbers, negative
-zero, and unsupported number spellings fail before identity production.
+subset. JSON numbers are integers in `-(2^53-1)..(2^53-1)`; decimals and larger
+integers are schema-constrained canonical strings. Non-path strings receive no
+Unicode normalization. Portable paths use their own versioned algorithm and
+reject rather than silently normalize an input. Duplicate keys, lone surrogates,
+invalid UTF-8, non-finite numbers, negative zero, and unsupported number
+spellings fail before identity production.
+
+The identity pipeline is fixed: enforce byte and structural limits, parse UTF-8
+while detecting duplicate names, apply the AAS I-JSON profile, validate schemas
+and registry references, produce RFC 8785 bytes, then hash a length-delimited
+artifact-specific preimage. Every artifact kind uses a distinct ASCII domain tag
+and `uint64be` canonical-byte length before the bytes. Digests render only as
+`sha-256:` plus 64 lowercase hexadecimal characters.
 Absolute paths, timestamps, inode numbers, user IDs, environment values, and
 machine-local roots never affect portable identities.
 
@@ -327,39 +343,39 @@ configuration secrets, and provider prose. Detailed root-relative paths are
 treated as sensitive local metadata; redacted exports are derived artifacts
 bound to the original result digest.
 
-### 6.6 Policy modules, bindings, and effective configuration
+### 6.6 Effective policy and consumer binding
 
-Projects configure architecture through small immutable data modules rather than
-one universal preset or a generic merge language:
+The normative v0.x boundary accepts one closed, immutable effective policy. The
+policy contains its exact rules, vocabulary/profile references, bounded
+parameters, governed exceptions, provenance entries, schema version, and
+content digest. It does not import, inherit, merge, or execute another document.
 
-- a **vocabulary module** names consumer concepts;
-- an **evaluator module** owns typed relation or structural semantics;
-- a **policy module** selects rules, severity, and bounded parameters;
-- an **adoption preset** selects a reviewed set of modules and defaults but
-  creates no new rule semantics;
-- a **consumer binding** applies exact module IDs and digests to an explicit
-  scope and enforcement mode.
+A consumer binding applies an exact policy digest to explicit named scopes,
+budgets, and one semantic mode: `shadow | advisory | required`. Limited rollout
+is represented separately by cohort, repository path, and rule selectors; it is
+not a fourth enforcement mode. Installing or upgrading a package never changes
+an existing binding.
 
-The closed binding schema supports multiple named scopes, exact profile and
-policy digests, budgets, `shadow | advisory | limited-required | required` mode,
-and governed exceptions with rule ID, bounded scope, owner, reason, and expiry.
-Repository documents can select only statically registered identifiers. They
-cannot contain module specifiers, commands, arguments, environment lookups,
-dynamic imports, package paths, executable callbacks, URLs, or arbitrary code.
+Foundation may offer opt-in generators and small composable presets that produce
+a reviewable effective policy. Those helpers are non-normative: their output is
+validated and digested exactly like hand-authored policy, and no consumer or
+conformance implementation must reproduce their composition algorithm. A helper
+becomes shared only after two real consumers have identical semantics, parity
+fixtures exist, and extraction deletes the duplicated consumer code.
 
-Composition compiles an acyclic list of exact modules into one immutable
-effective policy. There is no generic deep merge or implicit array replacement.
-Duplicate definitions and overlapping bindings fail closed unless an explicit,
-schema-owned override names the exact rule/field and expected prior module
-digest. The compiler emits flattened modules, layer order, winning and
-overridden values, conflicts, exceptions, source provenance, and an effective
-policy digest. `inspect` and every result expose the selected binding and digest;
-`explain` can show why a value won.
+Repository documents cannot contain module specifiers, commands, arguments,
+environment lookups, dynamic imports, package paths, executable callbacks, URLs,
+or arbitrary code. `inspect` and every result expose policy, binding, scope, and
+provenance; `explain` reports the effective rule without inventing a normative
+composition history.
 
-Installing a package or a newer preset never changes an existing binding.
-Consumers opt into a new exact module or preset version in a reviewed change.
-A shared module enters Foundation only after two real consumers demonstrate the
-same semantics, parity fixtures exist, and superseded consumer code is removed.
+The policy semantics define deterministic rule ordering, duplicate handling,
+allow/deny precedence, the default decision, unknown or unsupported identifiers,
+missing context, type mismatch, validity boundaries, overlapping-binding
+selection, and the distinction between `invalid`, `indeterminate`, and a decided
+deny. Provenance proves derivation and integrity, never authorization. Required
+mode accepts a binding only when its trust policy, validity, revocation, and
+rollback checks succeed.
 
 ### 6.7 Profile manifests and normative budgets
 
@@ -389,6 +405,23 @@ overflow, sparse files, repeated references, diagnostic amplification, and
 cancellation receive negative vectors. Deterministic counters are
 identity-bearing; elapsed deadlines and external cancellation are reported
 separately and cannot yield partial success.
+
+### 6.8 Enforcement and agent diagnostics
+
+`shadow` evaluates and records but never affects the invoked action. `advisory`
+returns a recommendation and records any identified consumer override.
+`required` proceeds only on a valid authoritative allow; deny, indeterminate,
+verification failure, expiry, revocation, and timeout block the action. A rollout
+selector chooses where a binding applies but cannot change these meanings. Mode
+changes create a new authorized binding, and downgrade from `required` is an
+audited security-sensitive operation.
+
+Diagnostics are a stable agent protocol, not formatted prose. Each contains a
+namespaced code, phase, severity, RFC 6901 location, applicable subject/relation
+or registry ID, bounded sanitized parameters, related locations, and an optional
+remediation ID. Human text is non-normative and never identity-bearing. Results
+use deterministic ordering and hard count/size limits, and they never echo
+secrets or unrestricted hostile repository text.
 
 ## 7. Workstreams
 
@@ -693,9 +726,8 @@ universal ontology or Rule DSL.
 7. Produce stable diagnostic codes and machine-actionable remediation data.
 8. Bind every resolution to the exact operation, profile, snapshot, policy,
    analyzer, and overlay identities.
-9. Implement the effective-policy compiler from Section 6.6 with exact module
-   manifests, ambiguity rejection, override provenance, and deterministic
-   effective-policy identity.
+9. Validate the closed effective policy and binding from Section 6.6, including
+   deterministic identity, provenance, scope, exceptions, and inert input.
 
 ## Risks and edge cases
 
@@ -706,8 +738,8 @@ universal ontology or Rule DSL.
 - stale base or precondition accepted partially;
 - generic confidence values without defined scale;
 - evaluators advertised as substitutable without shared fixtures.
-- preset/module cycles, ambiguous scoped bindings, expired exceptions, and
-  overrides that do not match the expected prior digest.
+- ambiguous scoped bindings, expired exceptions, and policy digests that do not
+  match the exact closed document.
 
 ## Tests and verification
 
@@ -718,9 +750,9 @@ universal ontology or Rule DSL.
 - mutation and property testing for virtual overlay application;
 - diagnostic stability and bounded-message tests;
 - conformance fixtures authored separately from production code.
-- effective-policy golden fixtures covering composition order, conflicts,
-  provenance, explicit overrides, upgrades, downgrades, and no activation after
-  package-only changes;
+- effective-policy golden fixtures covering digest/provenance validation,
+  malformed or duplicate rules, exceptions, upgrades, downgrades, and no
+  activation after package-only changes;
 - hostile inert-config fixtures for module/package paths, commands, `file:` and
   HTTP URLs, YAML tags/aliases, prototype keys, environment interpolation,
   symlinked profile paths, and unknown static identifiers.
@@ -738,7 +770,8 @@ reference implementation quirks.
 - a stale or partially observed input cannot produce an exact pass;
 - profile behavior is implementable from public documents and fixtures.
 
-Approximate change: **4,000-6,000 lines including tests**.
+Approximate change: **2,800-4,500 lines including tests**, subject to the D5
+spike retaining all three operation profiles.
 
 # Phase 5 - Deliver machine-first CLI and agent UX
 
@@ -911,7 +944,7 @@ Foundation or automatically activating consumer policy.
 2. Add one feature-owned capability slice with its own contract, application,
    adapters, fixtures, schema, and diagnostics.
 3. Accept the closed consumer-binding schema from Section 6.6: multiple named
-   scopes, exact profile/module/policy digests, budgets, enforcement mode,
+   scopes, exact profile/policy digests, budgets, enforcement mode,
    governed expiring exceptions, and optional baseline evidence.
 4. Translate Foundation configuration into public standard documents.
 5. Invoke the reference provider only through the public boundary.
@@ -986,17 +1019,17 @@ Approximate change: **2,000-3,500 lines including tests**.
 
 ## Summary
 
-Create the exact published pins required for real consumer adoption. This is a
-stable-numbered but explicitly experimental 0.x cohort, not the hardened v1
-candidate and not a public prerelease suffix.
+Create exact public candidate pins required for realistic consumer adoption.
+This is a public prerelease cohort under a non-`latest` tag, not a stable release
+and not the hardened v1 candidate.
 
 ## Detailed implementation steps
 
 1. Accept D9-D11 and extend the existing ordered publisher for the new package
    graph.
-2. Keep candidate tarballs private. Run a generated release PR through complete
-   exact-head CI and inspect its immutable packed artifacts.
-3. Publish only numeric experimental 0.x versions in topological order:
+2. Run a generated release PR through complete exact-head CI, inspect immutable
+   packed artifacts, and publish `-rc.N` versions only under the prerelease tag.
+3. Publish the public RC cohort in topological order:
    `standard -> reference -> Foundation -> Docs Protocol`, with conformance
    independently versioned after the standard and before any external claim.
 4. Preserve the existing paired Foundation/Docs release invariant unless D10's
@@ -1004,12 +1037,19 @@ candidate and not a public prerelease suffix.
 5. Produce SRI, provenance, SBOM, package inventory, exact dependency pins,
    registry-install evidence, and an external Qualified Cohort record.
 6. Prove install, upgrade, downgrade, public API, and rollback against disposable
-   consumers before admitting Orchestrator or Platform.
-7. Record every cohort member and digest in one immutable release manifest.
+   consumers, then Orchestrator in advisory mode. Never test destructive agent
+   flows on a real consumer repository.
+7. Record every RC cohort member and digest in one immutable release manifest.
+   The manifest may name intended coordinates but never depends on a coordinate
+   that exists only after publication. A separate post-publication receipt proves
+   that each registry coordinate resolves to the approved digest.
+8. After the RC cohort satisfies all qualification and adoption stop conditions,
+   build the numeric 0.x candidate, qualify its exact final bytes, and publish
+   those same bytes; do not retag the RC as `latest` or reuse its version.
 
 ## Risks and edge cases
 
-- publishing before D9 updates the current RC-capable Changesets workflow;
+- publishing an RC to `latest` or treating a mutable dist-tag as qualification;
 - Foundation/Docs version skew;
 - conformance package accidentally depending on reference implementation;
 - unpublished workspace links leaking into consumer PRs;
@@ -1025,15 +1065,17 @@ candidate and not a public prerelease suffix.
 
 ## Rollback
 
-Do not admit consumers until the entire cohort is qualified. After publication,
-fix forward with a new stable numeric version and let consumers remain on the
-last-known-good exact pin.
+Do not admit consumers until the entire RC cohort is internally consistent.
+After publication, fix forward with a new RC; consumers remain on the
+last-known-good exact pin. A numeric 0.x is published only by a separate
+qualified release decision.
 
 ## Acceptance criteria
 
-- every real consumer can install exact public versions without local links;
+- every real consumer can install exact public RC versions without local links;
 - all published members have one qualified cohort manifest;
-- the release procedure, package DAG, and no-public-`-rc` rule agree;
+- the release procedure, package DAG, and non-`latest` prerelease rule agree;
+- the numeric 0.x qualification cannot accidentally promote an RC by retagging;
 - Phase 9 is a hardened successor release, not the first consumable release.
 
 Approximate change: **1,500-2,500 handwritten lines plus release evidence**.
@@ -1117,8 +1159,8 @@ blocks, confidence intervals, incidents, owner/approver, rollout cohort, prior
 mode, rollback operation, trigger thresholds, and response SLA. D8 separately
 accepts the rule-specific escape ceiling and requires the upper confidence bound
 to remain below the false-block ceiling. Promotion follows
-`shadow -> advisory -> limited-required -> required`, with post-promotion
-monitoring and deterministic per-rule fallback.
+`shadow -> advisory -> required`, with rollout scope represented independently
+and with post-promotion monitoring plus deterministic per-rule fallback.
 
 ## Rollback
 
@@ -1162,9 +1204,10 @@ the v1 evidence boundary.
 6. Rebalance CI using measured critical-path data. Keep coverage parallel to
    primary tests, shard independent suites, and isolate Windows filesystem tests.
 7. Verify that the accepted D9 procedure used for the experimental cohort remains
-   authoritative, keep hardened candidate tarballs private, and publish only the
-   next stable numeric version after qualification. Never unpublish, overwrite,
-   or repair an immutable version through an ad hoc dist-tag change.
+   authoritative. Publish hardened candidates as new immutable RC versions under
+   the prerelease tag, then publish only the next separately qualified numeric
+   version. Never unpublish, overwrite, retag an RC as stable, or repair an
+   immutable version through an ad hoc dist-tag change.
 8. Promote individual consumer rules only through a valid
    `RulePromotionRecord@1` that passes D8.
 9. Document migrations, known limitations, deprecation windows, and rollback.
@@ -1245,44 +1288,40 @@ and release evidence**, excluding any separately admitted feature.
 
 ## 8. Pull request sequence
 
-Each PR owns one coherent evidence boundary. Independent oracle/security work
-has different ownership from production code. Target approximately 1,500-3,500
-handwritten lines per review PR; generated output and large fixture corpora are
-reported separately.
+Each PR owns one coherent evidence boundary. To reduce repeated CI and review
+latency, prefer approximately 3,000-7,000 handwritten lines in a small number of
+vertical PRs. Independent oracle/security lanes keep different authorship and
+checks but may be integrated into the same PR after their boundaries are frozen.
+Generated output and large fixture corpora are reported separately.
 
 ```text
-PR0 decisions, naming, governance, threat model
-  -> PR1 normative schemas, registries, manifests, and vectors
-     |-> PR2A production identity/result kernel
-     `-> PR2B independent oracle and runner skeleton
-  -> PR3A secure snapshot adapter
-     `-> PR3B independently owned hostile filesystem/path corpus
-  -> PR4A classify/evaluate profiles and effective-policy compiler
-     `-> PR4B atomic overlay profile
-  -> PR5 machine-first CLI, workflow, freshness, and explain UX
-  -> PR6 black-box conformance integration and seeded bad providers
-  -> PR7 Foundation adapter, clean bootstrap, dogfood, and dual-run parity
-  -> PR8 publisher migration and qualified experimental cohort
+PR0 accepted decisions, incubation ADR, neutral governance, and threat model
+  -> PR1 neutral normative schemas, registries, manifests, vectors, and
+         independent conformance skeleton
+  -> PR2 reference identity/result kernel, portable snapshot adapter,
+         independent oracle, and hostile corpus
+  -> PR3 retained operation profiles, atomic overlay, machine-first CLI,
+         and black-box conformance integration
+  -> PR4 Foundation adapter, clean bootstrap, dogfood, dual-run parity,
+         and publisher migration
+  -> generated RC release PR and qualified public prerelease cohort
      |-> PR-C1 Orchestrator advisory adoption
-     `-> PR-C2 Platform advisory adoption
+     `-> PR-C2 Platform advisory adoption when its profile is ready
   -> evaluation report and ConsumerAdoptionRecord updates
-  -> PR9 hardened successor release
+  -> PR5 separately qualified numeric 0.x and hardened successor
   -> PR-P* separate per-rule enforcement-promotion PRs
 ```
 
 | PR | Blocking evidence | Approximate handwritten change |
 | --- | --- | ---: |
-| PR0 | D0-D11 decisions and accepted ADRs; no public identifiers assumed before merge | 1,200-2,000 lines of prose |
-| PR1 | PR0; normative authority and reproducible generation | 1,500-2,500 lines |
-| PR2A / PR2B | PR1; separate ownership and no shared production canonicalizer | 2,000-3,500 lines each |
-| PR3A / PR3B | PR2A/PR2B; exact attacker model and hostile corpus ownership | 2,000-3,500 lines each |
-| PR4A / PR4B | PR2A and PR3A; immutable profile manifests | 2,000-3,500 lines each |
-| PR5 | PR4; stable JSON, workflow, freshness, pagination, decision traces | 2,000-3,500 lines |
-| PR6 | PR2B, PR3B, PR5; black-box and cross-version evidence | 2,000-3,500 lines |
-| PR7 | PR6, D6-D7/D10; bootstrap, dogfood, normalized dual-run parity | 2,500-4,000 lines |
-| PR8 | PR7, D9-D11; generated release PR and Qualified Cohort | 1,500-2,500 lines |
+| PR0 | D0-D11 decisions and accepted ADR; private neutral boundary exists | 1,200-2,500 lines of prose/governance |
+| PR1 | PR0; normative authority, reproducible generation, and conformance dependency scan | 3,000-6,000 lines |
+| PR2 | PR1; separate production/oracle lanes, exact attacker model, and hostile corpus ownership | 4,000-7,000 lines |
+| PR3 | PR2; D5 evidence, immutable profiles, stable JSON/diagnostics, and black-box conformance | 4,000-7,000 lines |
+| PR4 | PR3, D6-D7/D10; bootstrap, dogfood, normalized dual-run parity, and publisher readiness | 3,000-6,000 lines |
+| RC release PR | PR4, D9-D11; exact public RC artifacts and Qualified Cohort | 1,500-2,500 lines plus evidence |
 | PR-C1 / PR-C2 | Exact published cohort; repository-local activation and rollback | 1,000-2,500 lines each |
-| PR9 / PR-P* | Accepted eval and promotion records | Scope-specific; never combined across consumers/rules |
+| PR5 / PR-P* | Accepted eval, numeric 0.x qualification, and promotion records | Release is cohesive; rule promotions remain consumer/rule-specific |
 
 The Foundation release PR remains separate from consumer adoption, evaluation,
 and enforcement promotion. This prevents an adoption or statistical problem
@@ -1297,12 +1336,12 @@ include those artifacts and therefore must not be summed as implementation LOC.
 
 | Non-overlapping delivery category | Handwritten implementation |
 | --- | ---: |
-| Complete 0.x standard/reference/conformance/CLI vertical slice | 22,000-33,000 lines |
+| Complete 0.x standard/reference/conformance/CLI vertical slice | 18,000-29,000 lines |
 | Additional hostile-input, provenance, and cross-platform hardening | 3,000-5,000 lines |
 | Foundation adapter and dogfood | 2,000-4,000 lines |
 | Consumer adoption and agent-eval harnesses | 5,000-8,000 lines |
 | Release, migration, and promotion automation | 2,000-4,000 lines |
-| **Hardened cumulative total across repositories** | **34,000-54,000 lines** |
+| **Hardened cumulative total across repositories** | **30,000-47,000 lines** |
 
 Separately expected: 3,000-5,000 lines of normative prose/ADRs, 5,000-10,000
 lines of checked-in vectors and hostile fixtures, and 2,000-6,000 generated lines.
@@ -1449,7 +1488,7 @@ version pairs, exact evidence artifact, promotion state, and rollback drill.
 | Extensions | Unknown optional/critical, location, disposition, identity, collision, and size vectors | Disable or replace extension without changing core identities |
 | Canonicalization and identities | Independent exact-byte oracles and every identity-input mutation | Block release, restore prior implementation, retain old identity decoder |
 | Profile substitution | Full profile corpus, seeded bad providers, cross-provider evidence | Withdraw conformance claim and select replacement digest |
-| Policy composition and bindings | Effective-policy provenance, conflict, override, exception, upgrade, and downgrade fixtures | Remove binding or pin exact prior module/preset |
+| Effective policy and bindings | Exact policy identity, provenance, malformed/duplicate rule, exception, scope, upgrade, and downgrade fixtures | Remove binding or pin the exact prior effective policy |
 | Consumer adoption | Activation/non-activation, CI wiring, integration receipt, and `ConsumerAdoptionRecord@1` | Repository-local capability removal or approved mode transition |
 | Rule promotion | `RulePromotionRecord@1`, confidence bounds, incidents, and post-promotion monitoring | Per-rule advisory fallback for availability or fail-closed security disablement |
 | Historical receipts and publication | Old-receipt verification, packed upgrade/downgrade, profile withdrawal, and trusted issuer evidence | Pin known-good package, publish affected-version guidance, never rewrite artifacts |

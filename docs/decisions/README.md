@@ -34,6 +34,7 @@ No proposed decisions.
 - [ADR-0033: Freeze the Legacy Foundation Docs CLI](0033-freeze-legacy-foundation-docs-cli.md)
 - [ADR-0034: Fix-Forward Stable Cohort Admission](0034-fix-forward-stable-cohort-admission.md)
 - [ADR-0035: Evidence-Gated Foundation Boundary Evolution](0035-evidence-gated-foundation-boundary-evolution.md)
+- [ADR-0036: Incubate the Agent Architecture Standard](0036-incubate-agent-architecture-standard.md)
 
 ## Superseded
 

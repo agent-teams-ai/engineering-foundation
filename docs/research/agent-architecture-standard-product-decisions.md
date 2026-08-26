@@ -1,6 +1,7 @@
 # Agent Architecture Standard product decision brief
 
-Status: Decision support only; no option in this document is accepted
+Status: Accepted product decisions; D5 operation breadth remains gated by its
+bounded spike
 
 Date: 2026-08-26
 
@@ -8,13 +9,15 @@ Related documents:
 
 - [Design study](agent-architecture-standard-design.md)
 - [Implementation plan](agent-architecture-standard-implementation-plan.md)
+- [Accepted incubation ADR](../decisions/0036-incubate-agent-architecture-standard.md)
 
 ## 1. Purpose
 
 This brief translates implementation-plan checkpoints D0-D11 into product
 choices. It separates decisions that create public commitments from decisions
-that can be revised after the first working evidence. The product owner still
-owns every final choice.
+that can be revised after the first working evidence. The product owner accepted
+D0-D11 on 2026-08-26; D5 deliberately accepts a spike gate rather than
+pre-approving all three operation profiles.
 
 Five independent hosted reviewers assessed every question from different
 positions: open-source product strategy, standards architecture, security and
@@ -41,8 +44,8 @@ Score legend:
 
 ## 3. Decision summary
 
-The table is a recommendation set, not an accepted decision set. Detailed
-trade-offs and reviewer votes follow in Section 4.
+The table is the accepted decision set. Detailed trade-offs and reviewer votes
+follow in Section 4 so future changes retain the original reasoning.
 
 | ID | Preferred direction | Reversibility | Decision deadline |
 | --- | --- | --- | --- |
@@ -55,7 +58,7 @@ trade-offs and reviewer votes follow in Section 4.
 | D6 | Standardize only closed effective policy, digest, and provenance in v0.x; keep composition and presets outside the normative runtime | High | Before consumer configuration |
 | D7 | Dogfood in Foundation, prove one separate consumer, then add Platform or an external design partner from evidence | High while advisory | Before each consumer PR |
 | D8 | Use shadow, advisory, and required as semantic states; model limited rollout as separate scope and implement blocking only after evidence | High per rule | State model before bindings; blocking later |
-| D9 | Owner choice remains open: reviewers favor public prereleases, while qualified numeric 0.x remains safe if candidates stay private | Medium before first release | Before publication automation |
+| D9 | Publish public `-rc.N` artifacts under a non-`latest` tag, collect exact-artifact evidence, then publish a separately qualified numeric 0.x | Medium before first release | Before publication automation |
 | D10 | Separate package-dependency and qualification/publication DAGs; conformance stays independent and the cohort manifest closes publication | Low | Before package scaffolding and publisher migration |
 | D11 | Establish lightweight explicit governance and separated normative/release authority before public 0.x; defer a formal standards body | Medium | Before the first public cohort |
 
@@ -72,13 +75,13 @@ trade-offs and reviewer votes follow in Section 4.
 | D6 | 4/5 standardize only effective policy in v0.x | Normative module composition is the clearest removable overengineering |
 | D7 | 5/5 keep architecture semantics consumer-owned; 4/5 reduce the first cohort | Reuse operational safety early, semantic presets only after parity evidence |
 | D8 | 3/5 retain four promotion states; 1/5 prefers three states plus scope; 1/5 implements advisory first | The synthesis favors orthogonal scope despite the narrow vote majority |
-| D9 | 4/5 favor a public prerelease channel | This conflicts with the owner's earlier no-RC preference and remains an explicit owner choice |
+| D9 | 4/5 favor a public prerelease channel | The owner accepted the majority path: public RC evidence first, numeric 0.x only after separate qualification |
 | D10 | 5/5 separate dependency and qualification/publication DAGs | Conformance is a sibling of reference and must remain black-box independent |
 | D11 | 5/5 require explicit lightweight authority before public 0.x | No reviewer recommends a formal standards body now |
 
 The strongest robust choices are D2, D3, D6, D10, and the minimum part of D11.
-D5, D8, and D9 contain real product trade-offs and should not be hidden behind a
-single architecture approval.
+D5 and D8 retain evidence-dependent implementation choices. D9 is resolved in
+favor of the public prerelease channel.
 
 ## 4. Product questions and options
 
@@ -119,7 +122,7 @@ standard” only as a description.
 - Strength: stronger searchability and namespace ownership.
 - Risk: the brand does not explain the product and delays delivery.
 
-**Owner decision:** choose A unless collision and trademark research rejects the
+**Accepted decision:** choose A unless collision and trademark research rejects the
 full name. AAP can become a public sub-brand when a real cross-product transport
 or protocol ecosystem exists. Decide before PR0 creates public identifiers.
 
@@ -161,7 +164,7 @@ conformance, and all release machinery.
 - Risk: duplicates infrastructure and governance before the product contract is
   proven, while still not creating independent maintainers by itself.
 
-**Owner decision:** choose A. Decide the incubation location now and the durable
+**Accepted decision:** choose A. Decide the incubation location now and the durable
 public authority before any public schema or conformance identity is published.
 
 ### D2. Which files define the truth of the standard?
@@ -199,7 +202,7 @@ schemas from them.
 - Strength: convenient for the first implementation.
 - Risk: makes a language-neutral standard depend on Node implementation detail.
 
-**Owner decision:** choose A and require an executable normative traceability
+**Accepted decision:** choose A and require an executable normative traceability
 matrix. Decide before PR1 schemas and code generation.
 
 ### D3. How do independent tools compute the same identity?
@@ -235,7 +238,7 @@ JSON for user-facing envelopes.
 - Strength: strong binary canonicalization model.
 - Risk: two encodings complicate debugging and the initial ecosystem.
 
-**Owner decision:** choose A and treat its vectors as release-blocking. Decide
+**Accepted decision:** choose A and treat its vectors as release-blocking. Decide
 before any snapshot, policy, request, or receipt digest is implemented.
 
 ### D4. What security guarantee must every snapshot provider meet?
@@ -277,7 +280,7 @@ change as a declarative overlay.
 - Risk: worsens local agent UX and cannot naturally represent every dirty
   worktree or generated artifact.
 
-**Owner decision:** choose A, implement only the bounded profile in the first
+**Accepted decision:** choose A, implement only the bounded profile in the first
 slice, and keep it shadow or advisory until its threat model matches the gate.
 Decide before snapshot schemas and the Node discovery adapter.
 
@@ -320,7 +323,7 @@ classification entirely consumer-owned.
 - Strength: a balanced surface with explicit dependency decisions.
 - Risk: consumers may reimplement classification inconsistently.
 
-**Owner decision:** reviewers favor A by 3/5, but the dissent is materially about
+**Accepted decision:** reviewers favor A by 3/5, but the dissent is materially about
 delivery size rather than correctness. Run a bounded schema and CLI spike: keep
 A if standalone classify/evaluate materially improve pre-change agent decisions;
 fall back to B if the composed overlay workflow produces the same evidence with
@@ -364,7 +367,7 @@ deep-merge configuration now.
 - Risk: creates a programming platform before real rule semantics and security
   boundaries are proven.
 
-**Owner decision:** choose A. Admit B only after two consumers need to exchange
+**Accepted decision:** choose A. Admit B only after two consumers need to exchange
 the same composition semantics, not merely similar rule names. Decide before
 binding and effective-policy schemas are implemented.
 
@@ -408,7 +411,7 @@ other internal consumers.
 - Strength: best evidence that the contract is not Foundation-specific.
 - Risk: partner recruitment and support can slow early technical iteration.
 
-**Owner decision:** choose A, approve every binding separately, and require an
+**Accepted decision:** choose A, approve every binding separately, and require an
 external or structurally independent consumer before claiming ecosystem-level
 generality. Share operational safety defaults early; share architecture meaning
 only after parity evidence. The exact profile can wait until its adoption PR.
@@ -451,7 +454,7 @@ cross configured thresholds.
 - Risk: measurements, repository changes, or biased samples silently change
   merge policy without owner review.
 
-**Owner decision:** choose A unless implementation proves that scope cannot be
+**Accepted decision:** choose A unless implementation proves that scope cannot be
 represented independently. Threshold values and required-mode code remain open
 until preregistered adoption evidence exists; the record schema and rollback
 contract come first.
@@ -459,10 +462,10 @@ contract come first.
 ### D9. How should experimental releases be published?
 
 **In plain language:** consumers need exact installable artifacts and upgrade or
-downgrade proof. The product owner also prefers clear numeric 0.x versions over
-public release-candidate suffixes.
+downgrade proof. A public candidate channel makes that evidence realistic
+without prematurely moving the stable `latest` tag.
 
-**Option A, owner-preferred no-RC path:** qualify exact packed tarballs and their
+**Option A, rejected no-RC path:** qualify exact packed tarballs and their
 consumer canaries before publishing a numeric 0.x cohort. Keep candidates
 unpublished or private; call the result a “qualified experimental 0.x,” not a
 stable product guarantee. Publish once and fix forward with a new version.
@@ -475,15 +478,15 @@ stable product guarantee. Publish once and fix forward with a new version.
   replacing the current RC-wave process.
 - Reversibility: medium before the first public cohort and low afterward.
 
-**Option B, independent-review majority:** publish `-rc.N` or beta artifacts on
+**Option B, accepted:** publish `-rc.N` or beta artifacts on
 a non-`latest` prerelease tag, gather external installation evidence, then
 publish a separately qualified numeric 0.x.
 
 🎯 9/10 🛡️ 9/10 🧠 6/10, approximately 1,500-3,500 lines.
 
 - Strength: conventional public prerelease feedback.
-- Risk: conflicts with the owner's desired product UX and increases visible
-  version churn.
+- Risk: increases visible version churn; mitigate it with one immutable
+  candidate per evidence cohort and fix-forward publication only.
 
 **Option C:** let consumers use commit SHAs or private registry snapshots until
 v1, then publish a stable package.
@@ -494,12 +497,11 @@ v1, then publish a stable package.
 - Risk: prevents realistic public packaging, provenance, upgrade, downgrade,
   and ecosystem adoption evidence.
 
-**Owner decision:** this remains intentionally unresolved. Reviewers prefer B
-because it exposes experimental maturity and enables public pre-release testing;
-the owner's no-RC preference is still safely implementable as A only with
-private exact-artifact qualification, explicit experimental wording, and
-fix-forward releases. Decide before publication automation, not before kernel
-implementation.
+**Accepted decision:** choose B. Publish immutable `-rc.N` artifacts only under
+a non-`latest` tag, bind external installation and upgrade/downgrade evidence to
+their exact bytes, and publish a separately qualified numeric 0.x afterward.
+Never promote an unqualified RC to `latest`, rewrite it, or repair it through a
+mutable tag; failures are fixed forward with a new RC.
 
 ### D10. How does Foundation use the standard without circular self-dependency?
 
@@ -538,7 +540,7 @@ cycles organizationally impossible.
 - Risk: high release and contribution overhead before the package boundaries
   are proven.
 
-**Owner decision:** choose A. Decide package direction with D1 before manifests;
+**Accepted decision:** choose A. Decide package direction with D1 before manifests;
 the exact Foundation and Docs publication cohort can wait until publisher
 migration.
 
@@ -580,7 +582,7 @@ non-code coordination.
 - Risk: governance precedes users and can freeze the product before evidence
   exists.
 
-**Owner decision:** choose A, name real people and credentials behind each role,
+**Accepted decision:** choose A, name real people and credentials behind each role,
 and define triggers for broader maintainership or neutral stewardship. Decide
 the minimum before public 0.x; formal organization and certification can wait.
 
@@ -610,21 +612,21 @@ architecture. The decisive product test is whether agents using the first slice
 produce fewer architecture escapes and less rework than agents using the current
 Foundation checker and repository documentation.
 
-## 6. Recommended owner decision packet
+## 6. Accepted owner decision packet
 
-Approve or amend the decisions in three packets rather than one large vote:
+The owner accepted the following three packets on 2026-08-26:
 
 1. **Public contract packet:** D0-D4 and D10. These choices are expensive to
    reverse and unblock the specification and package boundaries.
 2. **First-product packet:** D5 and D6. Use a bounded prototype to settle D5;
    accept the simpler effective-policy boundary in D6 before building config.
-3. **Publication and adoption packet:** D7-D9 and D11. Approve consumer ownership
-   and promotion structure early, but defer exact bindings, thresholds, and the
-   RC/no-RC publication choice until their evidence boundary.
+3. **Publication and adoption packet:** D7-D9 and D11. Consumer ownership and
+   promotion structure are accepted. Exact bindings and thresholds remain
+   evidence-owned; D9 selects a public non-`latest` RC channel.
 
-No implementation should interpret this brief as owner acceptance. Accepted
-outcomes belong in ADRs or explicit decision records referenced by the
-implementation plan.
+Implementation may treat this brief as the owner decision record for sequencing.
+Irreversible wire, security, authority, and publication contracts still require
+the focused ADRs named by the implementation plan before their code merges.
 
 ## 7. Independent review record
 

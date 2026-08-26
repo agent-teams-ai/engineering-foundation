@@ -115,12 +115,19 @@ Evaluation profiles may additionally define `pass`, `fail`, and
 `not-applicable` verdicts inside a `decided` resolution. A provider or protocol
 fault never masquerades as one of those verdicts.
 
-## Initial operation profiles
+## Initial analysis boundaries
+
+Only exact overlay validation is a public operation in the first slice. Subject
+classification and relation evaluation remain replaceable internal analysis
+boundaries. Their candidate contracts are documented so overlay evidence stays
+structured, but their identifiers are not published or claimed conformant until
+a future admission packet proves independent, non-overlapping value.
 
 ### Subject classification
 
-`classify-subjects@1` accepts explicit subject references and a named vocabulary
-profile. It returns classification assertions under that profile. Subjects are
+The candidate `classify-subjects@1` contract accepts explicit subject references
+and a named vocabulary profile. It returns classification assertions under that
+profile. Subjects are
 opaque, snapshot-scoped references rather than filesystem paths pretending to
 be universal domain identities.
 
@@ -130,10 +137,10 @@ define and test them.
 
 ### Planned relation evaluation
 
-`evaluate-relations@1` accepts relation candidates and a named evaluator
-profile. Existing, declared, inferred, and planned relations are different
-states. Planned relations carry a plan and overlay identity and never appear as
-observed repository facts.
+The candidate `evaluate-relations@1` contract accepts relation candidates and a
+named evaluator profile. Existing, declared, inferred, and planned relations are
+different states. Planned relations carry a plan and overlay identity and never
+appear as observed repository facts.
 
 Adding a relation vocabulary or evaluator profile must not require a protocol
 major release.
@@ -159,8 +166,8 @@ repository-native flow is:
 open worktree
   -> discover applicable capabilities and profiles
   -> inspect snapshot, scope, freshness, and coverage
-  -> propose subjects, relations, and an exact overlay
-  -> evaluate the planned relations
+  -> propose an exact overlay with explicit subjects and relations
+  -> run internal classification and relation analysis as overlay evidence
   -> validate the overlay
   -> write the change
   -> run affected checks

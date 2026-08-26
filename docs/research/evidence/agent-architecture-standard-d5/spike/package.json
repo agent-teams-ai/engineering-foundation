@@ -1,0 +1,10 @@
+{
+  "name": "aas-d5-operations-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "measure": "node src/measure.js",
+    "probe": "node probe/adversarial-probe.js"
+  }
+}

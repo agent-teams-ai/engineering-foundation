@@ -31,6 +31,10 @@ not repeat their rules.
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
 | Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Implemented and dogfooded; consumer adoption remains opt-in |
 | DeepSeek Harness tooling comparison | [Strict comparison](research/deepseek-harness-tooling-comparison.md) | Revalidated; selected adaptations adopted |
+| Agent architecture standard | [Design study](research/agent-architecture-standard-design.md) | Incubation direction accepted by ADR-0036; normative authority moves to the dedicated repository |
+| Agent architecture standard delivery | [Implementation plan](research/agent-architecture-standard-implementation-plan.md) | Accepted overlay-first vertical plan; irreversible contracts remain gated by neutral ADRs and conformance |
+| Agent architecture standard decisions | [Product decision brief](research/agent-architecture-standard-product-decisions.md) | D0-D11 accepted; D5 resolved overlay-first and D9 selects public non-latest RCs |
+| Agent architecture standard D5 evidence | [Operation spike](research/agent-architecture-standard-operation-spike.md) | Complete; independent adversarial review rejected three initial public operations |
 | Foundation architecture readiness | [Independent audit](research/foundation-architecture-audit-2026-08-23.md) | Revalidated at 8.8/10; remaining migrations governed by ADR-0035 |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |

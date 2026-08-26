@@ -1,0 +1,120 @@
+[
+  {
+    "id": "unknown-subject",
+    "representative": true,
+    "planId": "plan-unknown",
+    "snapshot": { "id": "snap-unknown", "paths": ["src/domain/order.js"], "coverage": { "files": "complete", "relations": "complete" } },
+    "policy": {
+      "classificationRules": [{ "prefix": "src/domain/", "kind": "domain" }, { "prefix": "src/api/", "kind": "interface" }],
+      "allowedRelations": [{ "from": "domain", "to": "interface", "type": "imports" }]
+    },
+    "subjects": [{ "id": "mystery", "path": "src/misc/mystery.js", "state": "planned" }],
+    "relations": [],
+    "overlay": {
+      "baseSnapshotId": "snap-unknown",
+      "operations": [{ "kind": "add", "path": "src/misc/mystery.js", "contentDigest": "content:mystery" }],
+      "plannedSubjects": [{ "id": "trusted-lie", "path": "src/domain/fake.js", "state": "planned" }]
+    },
+    "expected": { "actionableGain": true, "overlayResolution": "decided", "overlayVerdict": "fail", "overlayReason": "prospective-policy-failure" }
+  },
+  {
+    "id": "planned-vs-observed-relation",
+    "representative": true,
+    "planId": "plan-relations",
+    "snapshot": { "id": "snap-relations", "paths": ["src/api/http.js", "src/domain/order.js"], "coverage": { "files": "complete", "relations": "complete" } },
+    "policy": {
+      "classificationRules": [{ "prefix": "src/domain/", "kind": "domain" }, { "prefix": "src/api/", "kind": "interface" }],
+      "allowedRelations": [{ "from": "domain", "to": "interface", "type": "imports" }]
+    },
+    "subjects": [{ "id": "api", "path": "src/api/http.js" }, { "id": "order", "path": "src/domain/order.js" }],
+    "relations": [
+      { "id": "observed-ok", "source": "order", "target": "api", "type": "imports", "state": "observed" },
+      { "id": "planned-bad", "source": "api", "target": "order", "type": "imports", "state": "planned" }
+    ],
+    "overlay": {
+      "baseSnapshotId": "snap-relations",
+      "operations": [{ "kind": "add", "path": "src/api/new-http.js", "contentDigest": "content:new-http" }],
+      "relationChanges": [{ "kind": "add", "id": "planned-bad", "sourcePath": "src/api/http.js", "targetPath": "src/domain/order.js", "type": "imports" }],
+      "plannedRelations": [{ "id": "trusted-lie", "source": "order", "target": "api", "type": "imports", "state": "planned" }]
+    },
+    "expected": { "actionableGain": true, "overlayResolution": "decided", "overlayVerdict": "fail", "overlayReason": "prospective-policy-failure" }
+  },
+  {
+    "id": "mixed-outcomes",
+    "representative": true,
+    "planId": "plan-mixed",
+    "snapshot": { "id": "snap-mixed", "paths": ["src/api/http.js", "src/domain/order.js"], "coverage": { "files": "complete", "relations": "complete" } },
+    "policy": {
+      "classificationRules": [{ "prefix": "src/domain/", "kind": "domain" }, { "prefix": "src/api/", "kind": "interface" }],
+      "allowedRelations": [{ "from": "domain", "to": "interface", "type": "imports" }]
+    },
+    "subjects": [{ "id": "api", "path": "src/api/http.js" }, { "id": "order", "path": "src/domain/order.js" }, { "id": "unknown", "path": "vendor/odd.js" }],
+    "relations": [
+      { "id": "allowed", "source": "order", "target": "api", "type": "imports", "state": "planned" },
+      { "id": "missing-endpoint", "source": "api", "target": "unknown", "type": "imports", "state": "planned" }
+    ],
+    "overlay": {
+      "baseSnapshotId": "snap-mixed",
+      "operations": [{ "kind": "add", "path": "vendor/odd.js", "contentDigest": "content:odd" }],
+      "relationChanges": [{ "kind": "add", "id": "allowed", "sourcePath": "src/domain/order.js", "targetPath": "src/api/http.js", "type": "imports" }, { "kind": "add", "id": "missing-endpoint", "sourcePath": "src/api/http.js", "targetPath": "vendor/odd.js", "type": "imports" }]
+    },
+    "expected": { "actionableGain": true, "overlayResolution": "decided", "overlayVerdict": "fail", "overlayReason": "prospective-policy-failure" }
+  },
+  {
+    "id": "stale-base",
+    "representative": true,
+    "snapshot": { "id": "snap-current", "paths": ["src/domain/order.js"], "coverage": { "files": "complete", "relations": "complete" } },
+    "policy": {
+      "classificationRules": [{ "prefix": "src/domain/", "kind": "domain" }],
+      "allowedRelations": []
+    },
+    "subjects": [{ "id": "order", "path": "src/domain/order.js" }],
+    "relations": [],
+    "overlay": { "baseSnapshotId": "snap-old", "operations": [{ "kind": "replace", "path": "src/domain/order.js" }] },
+    "expected": { "actionableGain": false, "overlayResolution": "stale", "overlayVerdict": null, "overlayReason": "stale-base" }
+  },
+  {
+    "id": "delete-rename-case-ambiguity",
+    "representative": true,
+    "snapshot": { "id": "snap-case", "paths": ["src/Foo.js"], "coverage": { "files": "complete", "relations": "complete" } },
+    "policy": { "classificationRules": [], "allowedRelations": [] },
+    "subjects": [],
+    "relations": [],
+    "overlay": {
+      "baseSnapshotId": "snap-case",
+      "operations": [{ "kind": "delete", "path": "src/Foo.js" }, { "kind": "add", "path": "src/foo.js" }]
+    },
+    "expected": { "actionableGain": false, "overlayResolution": "decided", "overlayVerdict": "fail", "overlayReason": "case-collision" }
+  },
+  {
+    "id": "incomplete-observation",
+    "representative": true,
+    "snapshot": { "id": "snap-partial", "paths": ["src/api/http.js", "src/domain/order.js"], "coverage": { "files": "complete", "relations": "incomplete" } },
+    "policy": {
+      "classificationRules": [{ "prefix": "src/domain/", "kind": "domain" }, { "prefix": "src/api/", "kind": "interface" }],
+      "allowedRelations": [{ "from": "domain", "to": "interface", "type": "imports" }]
+    },
+    "subjects": [{ "id": "api", "path": "src/api/http.js" }, { "id": "order", "path": "src/domain/order.js" }],
+    "relations": [{ "id": "negative-query", "source": "order", "target": "api", "type": "imports", "state": "observed", "assertion": "not-observed" }],
+    "overlay": { "baseSnapshotId": "snap-partial", "operations": [] },
+    "expected": { "actionableGain": true, "overlayResolution": "indeterminate", "overlayVerdict": null, "overlayReason": "observation-incomplete" }
+  },
+  {
+    "id": "clean-control",
+    "representative": false,
+    "planId": "plan-clean",
+    "snapshot": { "id": "snap-clean", "paths": ["src/api/http.js", "src/domain/order.js"], "coverage": { "files": "complete", "relations": "complete" } },
+    "policy": {
+      "classificationRules": [{ "prefix": "src/domain/", "kind": "domain" }, { "prefix": "src/api/", "kind": "interface" }],
+      "allowedRelations": [{ "from": "domain", "to": "interface", "type": "imports" }]
+    },
+    "subjects": [{ "id": "api", "path": "src/api/http.js" }, { "id": "order", "path": "src/domain/order.js" }],
+    "relations": [{ "id": "clean-relation", "source": "order", "target": "api", "type": "imports", "state": "planned" }],
+    "overlay": {
+      "baseSnapshotId": "snap-clean",
+      "operations": [{ "kind": "add", "path": "src/domain/invoice.js", "contentDigest": "content:invoice" }],
+      "relationChanges": [{ "kind": "add", "id": "clean-relation", "sourcePath": "src/domain/invoice.js", "targetPath": "src/api/http.js", "type": "imports" }]
+    },
+    "expected": { "actionableGain": false, "overlayResolution": "decided", "overlayVerdict": "pass", "overlayReason": "exact-overlay-valid" }
+  }
+]

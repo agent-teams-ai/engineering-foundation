@@ -1,0 +1,128 @@
+---
+id: ADR-0036
+status: accepted
+supersedes: []
+superseded_by: []
+---
+
+# ADR-0036: Incubate the Agent Architecture Standard
+
+Status: Accepted
+
+Date: 2026-08-26
+
+Decision owner: Product owner
+
+## Context
+
+Coding agents need a deterministic, machine-first way to inspect declared
+architecture, evaluate a planned change, validate an exact virtual overlay, and
+produce evidence bound to the integrated repository state. Foundation can prove
+that workflow quickly, but it must not become the permanent authority for an
+open language-neutral standard or its conformance claims.
+
+The product study and five independent reviews identified two opposite risks:
+a weak document-only convention would not constrain agents, while a universal
+rule DSL, module compiler, plugin runtime, or preset platform would create a
+large speculative core before consumer evidence exists.
+
+## Decision
+
+1. The public product name is **Agent Architecture Standard**. Agent
+   Architecture Protocol is an independently versioned technical component, not
+   a second promoted brand. Public identifiers use the full
+   `agent-architecture-*` namespace.
+2. Foundation may incubate research and reference code privately. Before any
+   public 0.x schema identifier or conformance claim, normative artifacts and an
+   independently governed conformance authority move to the dedicated neutral
+   repository. Foundation never owns normative semantics.
+3. Authority is claim-specific. The serialization profile and normative prose
+   own lexical byte admissibility and canonicalization. Schemas own the decoded
+   JSON structure, registries own identifiers, and prose owns semantic
+   algorithms that schemas cannot express. Vectors are testable projections of
+   those authorities and cannot introduce or override a rule. Generated
+   TypeScript is derived and never normative. Any conflict blocks release until
+   the owning authority and all projections agree.
+4. Identity uses RFC 8785 over a documented strict I-JSON subset, SHA-256,
+   artifact-specific domain separation, exact length framing, and an
+   independently authored oracle. Identity rules cannot be inferred from the
+   TypeScript implementation.
+5. The first security claim is explicitly `portable-bounded`. It is root
+   relative, bounded, inert, non-executing, and offline. A later hardened profile
+   needs its own threat model and admission evidence; the portable profile cannot
+   silently satisfy a hardened gate.
+6. The bounded D5 spike and independent adversarial review select
+   `validate-overlay@1` as the initial public operation. `classify-subjects@1`
+   and `evaluate-relations@1` remain internal or experimental until a separate
+   admission proof demonstrates narrow, non-overlapping contracts.
+7. Normative v0.x accepts one closed immutable effective policy plus exact
+   digest, provenance, and consumer binding. It does not standardize module or
+   preset composition. Foundation may offer non-normative generators only after
+   their output passes the same closed-policy validation.
+8. Architecture semantics remain consumer-owned. Foundation dogfoods first,
+   Orchestrator supplies the first separately owned advisory binding, and later
+   consumers start with their own evidence. Shared semantics require two real
+   consumers, parity fixtures, and deletion of duplicated code.
+9. Enforcement states are `shadow`, `advisory`, and `required`. Cohort, path,
+   repository scope, and rule selection are orthogonal rollout dimensions.
+   Required mode is admitted only by a versioned promotion record and a tested
+   rollback.
+10. Public candidates use immutable `-rc.N` versions under a non-`latest` tag.
+    A numeric 0.x is separately built and qualified; an RC is never silently
+    retagged as stable, overwritten, or repaired in place.
+11. Dependency and publication DAGs are distinct. Standard feeds both reference
+    and conformance; conformance imports no reference production code; reference
+    feeds Foundation and then Docs Protocol. A cohort manifest indexes exact
+    artifacts and evidence but is not evidence by itself.
+12. Before public 0.x, the neutral repository has a license, contribution and
+    conduct policies, SECURITY policy, named maintainers, a public normative
+    change process, namespace/support policy, and separated normative,
+    conformance, and release roles. We do not claim a multi-vendor standards body
+    or organizational neutrality that does not yet exist.
+
+## Release and implementation gates
+
+- The initial public schema surface contains only `validate-overlay@1`; the
+  [spike prototype](../research/agent-architecture-standard-operation-spike.md)
+  is evidence and is not promoted into production unchanged.
+- Normative policy semantics define defaults, precedence, duplicate and unknown
+  handling, deterministic diagnostics, binding selection, validity boundaries,
+  and `invalid` versus `indeterminate` outcomes.
+- The canonicalization profile rejects duplicate names, invalid Unicode,
+  unsupported numeric precision, unknown critical extensions, and inputs above
+  declared limits before accepting an identity.
+- Every normative `MUST` maps to positive or negative vectors.
+- Conformance proves dependency independence and uses expected results that were
+  not generated by the reference provider under test.
+- Release evidence binds source, artifact, schema, registry, prose, vector,
+  toolchain, lockfile, profile, consumer, and result identities as applicable.
+- A post-publication receipt proves each public coordinate resolves to the
+  qualified digest. Partial publication is fixed forward; immutable artifacts
+  are never rewritten.
+- Destructive agent and rollback flows run only in disposable sandbox projects.
+
+## Consequences
+
+- The first slice stays powerful but is smaller by roughly 2,500-4,500 lines;
+  cumulative avoidance of the normative compiler is approximately 4,000-7,000
+  lines.
+- Consumers get deterministic policy and evidence without inheriting a universal
+  ontology or Foundation-specific configuration language.
+- Foundation can dogfood through its public boundary without a release-time
+  self-dependency.
+- Public RCs provide realistic installation evidence while `latest` remains
+  protected.
+- Several focused technical ADRs still belong in the neutral repository before
+  the corresponding irreversible contracts or public claims are released.
+
+## Rejected alternatives
+
+- Keep normative authority permanently in Foundation.
+- Publish all three operations without a bounded value and overlap spike.
+- Standardize modules, presets, override ordering, or a universal Rule DSL in
+  v0.x.
+- Treat limited rollout as a fourth enforcement state.
+- Publish numeric 0.x directly without a public prerelease evidence channel.
+- Present Foundation and Orchestrator as independent conformance authorities.
+- Require a fictional multi-vendor governance body before useful incubation can
+  begin.

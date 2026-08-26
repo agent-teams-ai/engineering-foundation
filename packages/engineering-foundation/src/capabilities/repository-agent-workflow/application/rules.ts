@@ -38,7 +38,7 @@ const rules: readonly RepositoryAgentWorkflowRuleMetadata[] = [
   {
     id: "repository.agent-workflow.changed-runner-invalid",
     rationale: "Changed-file discovery must use the shared Foundation implementation.",
-    remediation: "Route the configured changed script to agent-teams-foundation agent-workflow changed.",
+    remediation: "Route the configured changed script to the installed CLI or Foundation's exact built self-dogfood entrypoint.",
     documentation: DOCUMENTATION
   }
 ];

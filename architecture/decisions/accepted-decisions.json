@@ -176,6 +176,11 @@
       "id": "ADR-0035",
       "path": "docs/decisions/0035-evidence-gated-foundation-boundary-evolution.md",
       "immutableDigest": "sha256:58400e734b2f2fe3c34981d4f1ecd9722acf48ac317bd62596e7ae8ddef11c12"
+    },
+    {
+      "id": "ADR-0036",
+      "path": "docs/decisions/0036-incubate-agent-architecture-standard.md",
+      "immutableDigest": "sha256:1691b5d2e2be0600c2b39d2acc53eac75e4193cbe359bdd311783fc3ae2bad79"
     }
   ]
 }

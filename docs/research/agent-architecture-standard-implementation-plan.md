@@ -205,11 +205,9 @@ Keep these compatibility versions independent:
 
 - standard version;
 - encoding and canonicalization version;
-- protocol envelope version;
+- envelope version;
 - operation profile version;
 - vocabulary and evaluator profile version;
-- envelope version;
-- operation and profile version.
 
 A new operation or vocabulary must not require a standard major release. A
 change to identity-bearing canonicalization, required fields, defaults, or
@@ -251,8 +249,8 @@ includes every understood semantics-affecting extension. No competing
 ### 6.3 Resolution model
 
 An invalid envelope or duplicate/malformed target identifier produces one
-request problem and no result envelope. Once request validation succeeds, every
-unique requested target receives exactly one resolution:
+request problem and no result envelope. Every valid result envelope contains
+exactly one resolution for every unique requested target:
 
 - `decided`;
 - `needs-input`;
@@ -262,11 +260,16 @@ unique requested target receives exactly one resolution:
 
 Evaluation profiles place `pass`, `fail`, or `not-applicable` inside a `decided`
 resolution. Incomplete observation is `indeterminate` with a registered
-`observation-incomplete` reason. Invalid budget declarations and provider-wide
-faults use the problem model; valid per-target execution that exhausts a budget
-returns `indeterminate` with terminal coverage and limit evidence. Cancellation
-semantics state whether the entire request failed before acceptance or which
-accepted targets reached a terminal resolution. Mixed-batch, duplicate-ID,
+`observation-incomplete` reason. Invalid budget declarations use the request
+problem model. After validation, a provider that can return a valid response
+must resolve every target; provider-local inability is `indeterminate`. A crash,
+transport loss, corrupt response, or other invocation-boundary failure produces
+one provider problem and no valid result envelope, so callers never mistake an
+incomplete batch for terminal resolutions. Valid per-target execution that
+exhausts a budget returns `indeterminate` with terminal coverage and limit
+evidence. Cancellation semantics state whether the invocation failed without a
+valid response or every target reached a terminal resolution. Mixed-batch,
+duplicate-ID,
 malformed-target, cancellation, partial-exhaustion, and provider-failure vectors
 are mandatory.
 
@@ -498,6 +501,9 @@ silently redefine it.
    present with stable relative paths.
 8. Add a public manifest mapping standard version to schema, registry, and
    vector digests.
+9. Author the normative identity table and version-negotiation matrix from
+   Section 6 before any identity constructor exists, including historical
+   decoding and profile-withdrawal rules.
 
 ## Risks and edge cases
 
@@ -553,8 +559,9 @@ Foundation dependency.
    transport, caching, and plugin discovery absent.
 9. Write a second test-only canonicalizer or import independently produced
    golden bytes without sharing production identity code.
-10. Implement the normative identity table and version-negotiation matrix from
-    Section 6, including historical decoding and profile withdrawal behavior.
+10. Prove the implementation conforms to the frozen identity table and
+    version-negotiation matrix, including historical decoding and profile
+    withdrawal behavior.
 
 ## Risks and edge cases
 
@@ -1154,10 +1161,10 @@ the v1 evidence boundary.
    promote only deterministic resource ceilings to hard gates.
 6. Rebalance CI using measured critical-path data. Keep coverage parallel to
    primary tests, shard independent suites, and isolate Windows filesystem tests.
-7. Before the first public package, accept D9's release ADR, update the current
-   Changesets RC-wave procedure, and prove that candidate tarballs can remain
-   private while stable `0.x.0` packages alone are public. Never unpublish,
-   overwrite, or repair an immutable version through an ad hoc dist-tag change.
+7. Verify that the accepted D9 procedure used for the experimental cohort remains
+   authoritative, keep hardened candidate tarballs private, and publish only the
+   next stable numeric version after qualification. Never unpublish, overwrite,
+   or repair an immutable version through an ad hoc dist-tag change.
 8. Promote individual consumer rules only through a valid
    `RulePromotionRecord@1` that passes D8.
 9. Document migrations, known limitations, deprecation windows, and rollback.

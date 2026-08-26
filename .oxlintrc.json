@@ -7,7 +7,8 @@
   ],
   "ignorePatterns": [
     "**/dist/**",
-    "**/node_modules/**"
+    "**/node_modules/**",
+    "docs/research/evidence/agent-architecture-standard-d5/spike/**"
   ],
   "overrides": [
     {

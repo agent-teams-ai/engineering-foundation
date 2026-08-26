@@ -365,7 +365,8 @@ choices:
 4. Public candidates use a non-`latest` RC channel before separately qualified
    numeric 0.x artifacts.
 
-Evidence still decides the retained D5 operation surface, the first real
-consumer-backed vocabulary profile, rule-specific promotion thresholds, and the
-people assigned to independent conformance and release roles. This study
-reserves safe seams but does not authorize speculative platform work.
+The preregistered D5 spike and independent adversarial review select an overlay-
+first public surface. Evidence still decides the first real consumer-backed
+vocabulary profile, rule-specific promotion thresholds, and the people assigned
+to independent conformance and release roles. This study reserves safe seams but
+does not authorize speculative platform work.

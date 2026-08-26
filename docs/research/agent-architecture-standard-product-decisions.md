@@ -1,7 +1,7 @@
 # Agent Architecture Standard product decision brief
 
-Status: Accepted product decisions; D5 operation breadth remains gated by its
-bounded spike
+Status: Accepted product decisions; D5 is resolved overlay-first by its bounded
+spike and independent adversarial review
 
 Date: 2026-08-26
 
@@ -10,14 +10,15 @@ Related documents:
 - [Design study](agent-architecture-standard-design.md)
 - [Implementation plan](agent-architecture-standard-implementation-plan.md)
 - [Accepted incubation ADR](../decisions/0036-incubate-agent-architecture-standard.md)
+- [D5 operation spike](agent-architecture-standard-operation-spike.md)
 
 ## 1. Purpose
 
 This brief translates implementation-plan checkpoints D0-D11 into product
 choices. It separates decisions that create public commitments from decisions
 that can be revised after the first working evidence. The product owner accepted
-D0-D11 on 2026-08-26; D5 deliberately accepts a spike gate rather than
-pre-approving all three operation profiles.
+D0-D11 on 2026-08-26. The D5 spike subsequently rejected three independently
+claimable public operations for the first slice and selected overlay-first.
 
 Five independent hosted reviewers assessed every question from different
 positions: open-source product strategy, standards architecture, security and
@@ -54,7 +55,7 @@ follow in Section 4 so future changes retain the original reasoning.
 | D2 | Use an authority matrix: schemas own wire shape, registries own IDs, prose owns semantics, vectors own observable examples; generated TypeScript owns nothing normative | Low after publication | Before schemas or codecs |
 | D3 | Exact RFC 8785 over a documented I-JSON subset with domain-separated SHA-256 identities | Very low | Before any persistent digest |
 | D4 | Define portable-bounded and hardened snapshot profiles; implement portable first and reserve hard gates for a matching threat profile | Low | Before filesystem adapters |
-| D5 | Reviewer majority favors three independently claimable operations plus one composed agent workflow; validate the extra surface with a bounded spike | High while experimental | Before operation schemas |
+| D5 | Publish `validate-overlay@1` first; keep classification and relation evaluation internal or experimental until their contracts independently pass the admission gate | Medium in 0.x | Before operation schemas |
 | D6 | Standardize only closed effective policy, digest, and provenance in v0.x; keep composition and presets outside the normative runtime | High | Before consumer configuration |
 | D7 | Dogfood in Foundation, prove one separate consumer, then add Platform or an external design partner from evidence | High while advisory | Before each consumer PR |
 | D8 | Use shadow, advisory, and required as semantic states; model limited rollout as separate scope and implement blocking only after evidence | High per rule | State model before bindings; blocking later |
@@ -71,7 +72,7 @@ follow in Section 4 so future changes retain the original reasoning.
 | D2 | 5/5 choose a claim-specific authority matrix | “All artifacts are normative” is insufficient without conflict ownership |
 | D3 | 5/5 choose RFC 8785, a strict subset, domain tags, and independent vectors | Identity is effectively irreversible and should use an existing standard |
 | D4 | 5/5 require explicitly named security guarantees | Reviewers differ on weaker versus stronger extra profiles, but reject an overclaimed single guarantee |
-| D5 | 3/5 choose all three operations; 2/5 choose overlay-first | This is the main product-surface split and deserves a bounded spike |
+| D5 | 3/5 initially chose all three operations; the preregistered spike and independent adversarial review selected overlay-first | Measured contract overlap and overlay false-passes outweighed the initial vote |
 | D6 | 4/5 standardize only effective policy in v0.x | Normative module composition is the clearest removable overengineering |
 | D7 | 5/5 keep architecture semantics consumer-owned; 4/5 reduce the first cohort | Reuse operational safety early, semantic presets only after parity evidence |
 | D8 | 3/5 retain four promotion states; 1/5 prefers three states plus scope; 1/5 implements advisory first | The synthesis favors orthogonal scope despite the narrow vote majority |
@@ -80,8 +81,8 @@ follow in Section 4 so future changes retain the original reasoning.
 | D11 | 5/5 require explicit lightweight authority before public 0.x | No reviewer recommends a formal standards body now |
 
 The strongest robust choices are D2, D3, D6, D10, and the minimum part of D11.
-D5 and D8 retain evidence-dependent implementation choices. D9 is resolved in
-favor of the public prerelease channel.
+D8 retains evidence-dependent promotion choices. D5 is resolved overlay-first,
+and D9 is resolved in favor of the public prerelease channel.
 
 ## 4. Product questions and options
 
@@ -323,11 +324,15 @@ classification entirely consumer-owned.
 - Strength: a balanced surface with explicit dependency decisions.
 - Risk: consumers may reimplement classification inconsistently.
 
-**Accepted decision:** reviewers favor A by 3/5, but the dissent is materially about
-delivery size rather than correctness. Run a bounded schema and CLI spike: keep
-A if standalone classify/evaluate materially improve pre-change agent decisions;
-fall back to B if the composed overlay workflow produces the same evidence with
-less public surface. Decide before operation schemas become public.
+**Accepted decision:** choose B, overlay-first. The preregistered spike did show
+real pre-overlay utility, but independent adversarial review found identity
+coupling between classification and evaluation, duplicate repair actions, order-
+sensitive prospective identities, and false-pass overlay mutations. Those
+failures violate the admission gate for independently claimable operations.
+`classify-subjects@1` and `evaluate-relations@1` therefore remain internal or
+experimental until a future, separately preregistered proof establishes narrow,
+non-overlapping contracts. The spike is evidence, not production code, and the
+prototype validator's defects must be fixed in the normative implementation.
 
 ### D6. How can projects combine architecture rules without creating a giant preset?
 
@@ -618,8 +623,9 @@ The owner accepted the following three packets on 2026-08-26:
 
 1. **Public contract packet:** D0-D4 and D10. These choices are expensive to
    reverse and unblock the specification and package boundaries.
-2. **First-product packet:** D5 and D6. Use a bounded prototype to settle D5;
-   accept the simpler effective-policy boundary in D6 before building config.
+2. **First-product packet:** D5 and D6. D5 is settled overlay-first by the
+   bounded prototype and independent review; D6 keeps the simpler effective-
+   policy boundary before building config.
 3. **Publication and adoption packet:** D7-D9 and D11. Consumer ownership and
    promotion structure are accepted. Exact bindings and thresholds remain
    evidence-owned; D9 selects a public non-`latest` RC channel.

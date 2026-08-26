@@ -47,10 +47,10 @@ large speculative core before consumer evidence exists.
    relative, bounded, inert, non-executing, and offline. A later hardened profile
    needs its own threat model and admission evidence; the portable profile cannot
    silently satisfy a hardened gate.
-6. A bounded spike decides whether `classify-subjects@1` and
-   `evaluate-relations@1` provide distinct actionable pre-change value in
-   addition to `validate-overlay@1`. An operation that fails the spike is omitted
-   from v0 rather than retained as speculative surface.
+6. The bounded D5 spike and independent adversarial review select
+   `validate-overlay@1` as the initial public operation. `classify-subjects@1`
+   and `evaluate-relations@1` remain internal or experimental until a separate
+   admission proof demonstrates narrow, non-overlapping contracts.
 7. Normative v0.x accepts one closed immutable effective policy plus exact
    digest, provenance, and consumer binding. It does not standardize module or
    preset composition. Foundation may offer non-normative generators only after
@@ -78,7 +78,9 @@ large speculative core before consumer evidence exists.
 
 ## Release and implementation gates
 
-- The D5 spike completes before operation schemas become public.
+- The initial public schema surface contains only `validate-overlay@1`; the
+  [spike prototype](../research/agent-architecture-standard-operation-spike.md)
+  is evidence and is not promoted into production unchanged.
 - Normative policy semantics define defaults, precedence, duplicate and unknown
   handling, deterministic diagnostics, binding selection, validity boundaries,
   and `invalid` versus `indeterminate` outcomes.

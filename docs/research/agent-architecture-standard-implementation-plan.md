@@ -1,7 +1,7 @@
 # Agent Architecture Standard implementation plan
 
-Status: Accepted implementation direction; Phase 0 is active and D5 operation
-breadth remains gated by its bounded spike
+Status: Accepted implementation direction; Phase 0 is active and D5 is resolved
+overlay-first by its bounded spike and independent adversarial review
 
 Date: 2026-08-26
 
@@ -30,9 +30,9 @@ The accepted naming system is:
 - full `agent-architecture-*` identifiers in packages, repositories, schemas,
   commands, and search titles; never bare `aas` or `aap` identifiers.
 
-The complete 0.x vertical slice is expected to add approximately **18,000-29,000
+The complete 0.x vertical slice is expected to add approximately **16,000-27,000
 handwritten production and test lines**. The hardened core, Foundation adapter,
-and evaluation harness may bring the cumulative total to **30,000-47,000
+and evaluation harness may bring the cumulative total to **28,000-45,000
 handwritten lines across repositories** before v1.0. Section 8 owns the single
 non-overlapping accounting basis; generated files, normative prose, fixtures,
 and consumer changes are reported separately rather than blended into one LOC
@@ -107,7 +107,7 @@ their irreversible artifacts are published.
 | D2 | Normative artifact authority | Checked-in schemas, registries, prose, and golden vectors; generated TypeScript is derived | Core implementation |
 | D3 | Canonical JSON profile | Exact RFC 8785 conformance over a defined I-JSON subset, SHA-256, domain-separated identities | Snapshot and evidence identities |
 | D4 | Mandatory secure snapshot profile | Root-relative paths, no symlink following, bounded capture, no execution or network | Node discovery implementation |
-| D5 | Initial operation profiles | `classify-subjects@1`, `evaluate-relations@1`, `validate-overlay@1` | Vertical slice |
+| D5 | Initial operation profile | Publish `validate-overlay@1`; keep classification and relation evaluation internal or experimental pending separate admission evidence | Vertical slice |
 | D6 | Policy composition | v0.x standardizes only a closed immutable effective policy, digest, provenance, and binding; generators and presets remain non-normative Foundation conveniences | Operation profiles and UX |
 | D7 | First consumer profiles | Consumer-owned Foundation, Orchestrator, and Platform bindings; no shared architecture preset until semantic parity exists | Adoption |
 | D8 | Enforcement graduation | A versioned rule-promotion record governs `shadow -> advisory -> required`; rollout scope/cohort/path/rule is orthogonal | Required consumer CI |
@@ -701,7 +701,7 @@ weaker implicit mode.
 
 Approximate change: **3,500-5,000 lines including tests**.
 
-# Phase 4 - Implement the three operation profiles
+# Phase 4 - Implement overlay validation
 
 ## Summary
 
@@ -710,24 +710,24 @@ universal ontology or Rule DSL.
 
 ## Detailed implementation steps
 
-1. Define `classify-subjects@1` schema and semantics for explicit subject
-   references, named vocabulary profiles, evidence, confidence scale, and
-   unknown classifications.
-2. Define `evaluate-relations@1` for explicit role-named relation candidates,
-   evaluator profiles, planned/observed separation, findings, and evidence.
-3. Define `validate-overlay@1` for bounded add/replace/delete operations,
+1. Define `validate-overlay@1` for bounded add/replace/delete operations,
    required base snapshot, per-path preconditions, virtual atomic application,
    prospective snapshot, and reevaluation coverage.
-4. Implement each operation behind its own narrow application port and use case.
-5. Keep vocabulary and evaluator logic in explicit profile modules, not core
+2. Keep classification and relation evaluation as replaceable internal ports
+   used by overlay validation; do not publish their operation identifiers or
+   independent conformance claims in the first slice.
+3. Keep vocabulary and evaluator logic in explicit profile modules, not core
    switches.
-6. Add a small demonstrative neutral profile for conformance; do not label it a
+4. Add a small demonstrative neutral profile for conformance; do not label it a
    universal DDD/Clean/FSD profile.
-7. Produce stable diagnostic codes and machine-actionable remediation data.
-8. Bind every resolution to the exact operation, profile, snapshot, policy,
+5. Produce stable diagnostic codes and machine-actionable remediation data.
+6. Bind every resolution to the exact operation, profile, snapshot, policy,
    analyzer, and overlay identities.
-9. Validate the closed effective policy and binding from Section 6.6, including
+7. Validate the closed effective policy and binding from Section 6.6, including
    deterministic identity, provenance, scope, exceptions, and inert input.
+8. Add regression vectors for every D5 prototype failure: existing rename
+   destination, forbidden operation fields, relation permutation identity,
+   policy-slice isolation, and duplicate remediation causes.
 
 ## Risks and edge cases
 
@@ -737,7 +737,7 @@ universal ontology or Rule DSL.
 - overlay rename/case/line-ending ambiguity;
 - stale base or precondition accepted partially;
 - generic confidence values without defined scale;
-- evaluators advertised as substitutable without shared fixtures.
+- internal analyzers accidentally exposed as stable public contracts;
 - ambiguous scoped bindings, expired exceptions, and policy digests that do not
   match the exact closed document.
 
@@ -759,19 +759,24 @@ universal ontology or Rule DSL.
 
 ## Rollback
 
-Each profile is independently versioned and can remain experimental. Do not
-promote its conformance claim if semantics are ambiguous or fixtures depend on
-reference implementation quirks.
+The overlay profile is independently versioned. Internal classification and
+evaluation ports may evolve without compatibility promises. Do not promote an
+independent operation or conformance claim if semantics remain coupled or its
+fixtures depend on reference implementation quirks.
 
 ## Acceptance criteria
 
-- adding a profile does not modify the core envelope;
+- adding an internal analyzer does not modify the core envelope;
 - exact overlays never write to the target repository;
 - a stale or partially observed input cannot produce an exact pass;
-- profile behavior is implementable from public documents and fixtures.
+- overlay behavior is implementable from public documents and fixtures;
+- exact replacement never overwrites an existing destination, unsupported
+  operation fields fail closed, and equivalent operation permutations preserve
+  prospective state identity.
 
-Approximate change: **2,800-4,500 lines including tests**, subject to the D5
-spike retaining all three operation profiles.
+Approximate change: **1,800-3,200 lines including tests**. Overlay-first removes
+approximately **1,500-3,000 lines** from the first slice once the smaller CLI,
+schemas, fixtures, and public conformance surface are included.
 
 # Phase 5 - Deliver machine-first CLI and agent UX
 
@@ -782,8 +787,10 @@ semantics independent of prompts and transports.
 
 ## Detailed implementation steps
 
-1. Add `describe`, `inspect`, `policy effective`, `classify`, `evaluate`,
-   `overlay validate`, and `explain` commands over the public provider boundary.
+1. Add `describe`, `inspect`, `policy effective`, `overlay validate`, and
+   `explain` commands over the public provider boundary. Classification and
+   relation details may appear as evidence inside overlay results but are not
+   independent public commands in the first slice.
 2. Make stable JSON the primary contract, with uncontaminated stdout,
    deterministic ordering, documented exit codes, and logs on stderr.
 3. Support explicit `--root`, profile, policy, snapshot, overlay, budget, and
@@ -1300,7 +1307,7 @@ PR0 accepted decisions, incubation ADR, neutral governance, and threat model
          independent conformance skeleton
   -> PR2 reference identity/result kernel, portable snapshot adapter,
          independent oracle, and hostile corpus
-  -> PR3 retained operation profiles, atomic overlay, machine-first CLI,
+  -> PR3 retained overlay operation, atomic overlay, machine-first CLI,
          and black-box conformance integration
   -> PR4 Foundation adapter, clean bootstrap, dogfood, dual-run parity,
          and publisher migration
@@ -1317,7 +1324,7 @@ PR0 accepted decisions, incubation ADR, neutral governance, and threat model
 | PR0 | D0-D11 decisions and accepted ADR; private neutral boundary exists | 1,200-2,500 lines of prose/governance |
 | PR1 | PR0; normative authority, reproducible generation, and conformance dependency scan | 3,000-6,000 lines |
 | PR2 | PR1; separate production/oracle lanes, exact attacker model, and hostile corpus ownership | 4,000-7,000 lines |
-| PR3 | PR2; D5 evidence, immutable profiles, stable JSON/diagnostics, and black-box conformance | 4,000-7,000 lines |
+| PR3 | PR2; D5 overlay-first evidence, immutable overlay profile, stable JSON/diagnostics, and black-box conformance | 3,000-5,500 lines |
 | PR4 | PR3, D6-D7/D10; bootstrap, dogfood, normalized dual-run parity, and publisher readiness | 3,000-6,000 lines |
 | RC release PR | PR4, D9-D11; exact public RC artifacts and Qualified Cohort | 1,500-2,500 lines plus evidence |
 | PR-C1 / PR-C2 | Exact published cohort; repository-local activation and rollback | 1,000-2,500 lines each |
@@ -1336,12 +1343,12 @@ include those artifacts and therefore must not be summed as implementation LOC.
 
 | Non-overlapping delivery category | Handwritten implementation |
 | --- | ---: |
-| Complete 0.x standard/reference/conformance/CLI vertical slice | 18,000-29,000 lines |
+| Complete 0.x standard/reference/conformance/CLI vertical slice | 16,000-27,000 lines |
 | Additional hostile-input, provenance, and cross-platform hardening | 3,000-5,000 lines |
 | Foundation adapter and dogfood | 2,000-4,000 lines |
 | Consumer adoption and agent-eval harnesses | 5,000-8,000 lines |
 | Release, migration, and promotion automation | 2,000-4,000 lines |
-| **Hardened cumulative total across repositories** | **30,000-47,000 lines** |
+| **Hardened cumulative total across repositories** | **28,000-45,000 lines** |
 
 Separately expected: 3,000-5,000 lines of normative prose/ADRs, 5,000-10,000
 lines of checked-in vectors and hostile fixtures, and 2,000-6,000 generated lines.
@@ -1541,6 +1548,6 @@ this evidence.
 | --- | --- | --- | --- |
 | Protocol and semantic consistency | Complete; draft rejected, corrected plan accepted for owner decisions | Requested-target reconciliation, budget/fault split, immutable envelope negotiation, normative identity table, extension disposition, profile manifests, independent conformance, traceability, and LOC accounting | A second implementation language remains preferred rather than mandatory for 0.x; dependency and lineage independence are mandatory |
 | Security and hostile repository behavior | Complete; conditional approval after corrections | Honest portable-Node race boundary, strict secure links/paths, inert config authority, prompt/terminal-safe output, trusted CI issuer, aggregate budgets, orthogonal evidence assurance, fail-closed security rollback, and remote deny-by-default | Native `openat2`/sandbox adapters, PKI, remote transport controls, and universal confusable detection remain deferred until their features are admitted |
-| SOLID, Clean Architecture, and DDD boundaries | Complete; revise-before-implementation findings resolved | Feature-owned reference slices, minimal shared kernel, no conformance-to-reference dependency, D10 bootstrap DAG, minimal core registries, normative substitutability, pre-publication D1 authority, and normalized accounting | The three operations are not forced into three separate packages; profile boundaries and import rules provide isolation without package-per-use-case overhead |
+| SOLID, Clean Architecture, and DDD boundaries | Complete; revise-before-implementation findings resolved | Feature-owned reference slices, minimal shared kernel, no conformance-to-reference dependency, D10 bootstrap DAG, minimal core registries, normative substitutability, pre-publication D1 authority, and normalized accounting | The initial public surface is overlay-first; internal classification and evaluation stay behind ports until independently admissible |
 | Agent UX, eval design, and consumer adoption | Complete; draft promotion gate rejected, corrected gate accepted for owner thresholds | `RulePromotionRecord@1`, statistical eval protocol, canonical read-only workflow, mandatory header, stateless pagination, freshness matrix, decision traces, closed composable bindings, adoption records, and skip accounting | The workflow is not a write gateway and cannot replace integration verification; hidden sessions/caches and automatic architecture inference remain out of scope |
-| Delivery sequencing, CI, release, and OSS evolution | Complete; draft release cycle rejected, corrected sequence accepted for owner decisions | Phase 7.5 public cohort, PR0 decisions, independent production/oracle branches, evidence custody key, dual-run authority migration, D11 governance, current hosted CI DAG, and reconciled LOC | Classify/evaluate share one coherent PR and overlay owns another instead of three operation PRs; this preserves reviewability with less process overhead |
+| Delivery sequencing, CI, release, and OSS evolution | Complete; draft release cycle rejected, corrected sequence accepted for owner decisions | Phase 7.5 public cohort, PR0 decisions, independent production/oracle branches, evidence custody key, dual-run authority migration, D11 governance, current hosted CI DAG, and reconciled LOC | Classification/evaluation remain internal to the overlay vertical slice until a future admission packet proves independent public value |

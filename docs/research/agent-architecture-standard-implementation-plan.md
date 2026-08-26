@@ -1559,6 +1559,15 @@ the workflow validator also accepts. Those findings are remediation evidence,
 not approval of the revised head; a new exact-head independent review is
 required before merge.
 
+The immutable D5 bundle is checked in at
+[`docs/research/evidence/agent-architecture-standard-d5/`](evidence/agent-architecture-standard-d5/MANIFEST.md)
+by commit `392d46d58abd28a69fce6af52441b1e28cadcb72`. Its manifest records full Git
+identities, hosted job IDs, chronology, source paths, per-file SHA-256 values,
+reproduction commands, and the non-production claim boundary. It preserves the
+two independent review results verbatim. This closes only the provenance
+finding; the revised PR head still requires a fresh independent exact-head
+review before merge.
+
 | Reviewer lens | Status | Accepted findings | Rejected findings |
 | --- | --- | --- | --- |
 | Protocol and semantic consistency | Complete; draft rejected, corrected plan accepted for owner decisions | Requested-target reconciliation, budget/fault split, immutable envelope negotiation, normative identity table, extension disposition, profile manifests, independent conformance, traceability, and LOC accounting | A second implementation language remains preferred rather than mandatory for 0.x; dependency and lineage independence are mandatory |

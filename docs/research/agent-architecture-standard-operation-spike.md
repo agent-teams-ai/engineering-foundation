@@ -9,6 +9,7 @@ Related documents:
 - [Product decisions](agent-architecture-standard-product-decisions.md)
 - [Implementation plan](agent-architecture-standard-implementation-plan.md)
 - [Incubation ADR](../decisions/0036-incubate-agent-architecture-standard.md)
+- [Immutable spike evidence](evidence/agent-architecture-standard-d5/MANIFEST.md)
 
 ## Decision
 
@@ -31,12 +32,14 @@ Evidence chronology:
 
 | Artifact | Identity |
 | --- | --- |
-| Original research snapshot | `afe5a001` |
+| Original research snapshot | `afe5a0013b60a1d0cb6620f433d641fda48eb86a` |
+| Original preregistered spike | `f9251966c5a5004d26416170a9f45bbe47761860` |
 | Revised preregistration | `ede18414ffe6eb98aebf08e08bb1f4fd8d76efd4` |
-| Remediated implementation | `01d724e` |
-| Evidence appendix | `8edffd5` |
+| Remediated implementation | `01d724e6a051c999591be1597b0716d4046e56d2` |
+| Evidence appendix | `8edffd543912f9fa43838b3e0d2fd3bcbe72a322` |
 | Revised preregistration blob | `45dc3dc4963aab9bcc7c0a184aa75c0994e5b8ae` |
-| Revised preregistration SHA-256 | `d1a6db2...a19f92b` |
+| Revised preregistration SHA-256 | `d1a6db2d7eb7e79faae431d0407e3d1f87dcb0c0cdd6a392909523764a19f92b` |
+| Foundation evidence commit | `392d46d58abd28a69fce6af52441b1e28cadcb72` |
 
 Hosted jobs:
 
@@ -101,3 +104,9 @@ overlay-deduplication cases that exposed these failures.
   admission when an independent probe can still produce a false pass.
 
 This resolves D5 without blocking the useful overlay-first vertical slice.
+The evidence directory preserves both preregistrations, the complete disposable
+prototype, fixtures, producer results, and both independent review results with
+per-file SHA-256 values and reproduction commands. The evidence commit is a
+single child of Foundation commit
+`ca24a48f655a65a74b3882fa2e64930514fc69e7` and changes only the documented
+evidence subtree.

@@ -1489,6 +1489,15 @@ Five independent hosted reviewers read immutable draft commit
 implemented by commit `8e77d4e6023bc9d5502efb70bb3ae33e507cd100`. Findings were applied by semantic
 contract rather than copied mechanically.
 
+The second verification pass checked corrected commit
+`1aeb480faa97636aaae5b56529307eb64b30b30d`. Architecture, agent adoption, and
+delivery returned PASS with no P0/P1 findings. Protocol and security found four
+small contract inconsistencies; commit
+`363f0ab96ea706be6eccbb169c0f9f83d42eb292` corrected them. Targeted rechecks
+then returned protocol PASS 4/4 and security PASS with P0=0/P1=0. No semantic
+plan content changed after that reviewed commit; the final follow-up only records
+this evidence.
+
 | Reviewer lens | Status | Accepted findings | Rejected findings |
 | --- | --- | --- | --- |
 | Protocol and semantic consistency | Complete; draft rejected, corrected plan accepted for owner decisions | Requested-target reconciliation, budget/fault split, immutable envelope negotiation, normative identity table, extension disposition, profile manifests, independent conformance, traceability, and LOC accounting | A second implementation language remains preferred rather than mandatory for 0.x; dependency and lineage independence are mandatory |

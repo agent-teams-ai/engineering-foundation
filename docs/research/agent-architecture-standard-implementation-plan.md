@@ -1,7 +1,7 @@
 # Agent Architecture Standard implementation plan
 
-Status: Proposed final plan; implementation has not started and the plan awaits
-independent review plus acceptance of the decision checkpoints
+Status: Independently reviewed final proposal; implementation has not started
+and the plan awaits acceptance of the decision checkpoints
 
 Date: 2026-08-26
 
@@ -1477,15 +1477,15 @@ universal production guarantee.
 
 ## 15. Review record
 
-This section will be completed after five independent reviews of this exact
-plan. Each accepted finding must identify the changed section. Rejected findings
-must include a brief rationale so that review is auditable rather than silently
-ignored.
+Five independent hosted reviewers read immutable draft commit
+`ef96df4346e69d2ae140150c62bbdde7a74075fd`. Their accepted corrections are
+implemented by commit `8e77d4e6023bc9d5502efb70bb3ae33e507cd100`. Findings were applied by semantic
+contract rather than copied mechanically.
 
 | Reviewer lens | Status | Accepted findings | Rejected findings |
 | --- | --- | --- | --- |
-| Protocol and semantic consistency | Pending | Pending | Pending |
-| Security and hostile repository behavior | Pending | Pending | Pending |
-| SOLID, Clean Architecture, and DDD boundaries | Pending | Pending | Pending |
-| Agent UX, eval design, and consumer adoption | Pending | Pending | Pending |
-| Delivery sequencing, CI, release, and OSS evolution | Pending | Pending | Pending |
+| Protocol and semantic consistency | Complete; draft rejected, corrected plan accepted for owner decisions | Requested-target reconciliation, budget/fault split, immutable envelope negotiation, normative identity table, extension disposition, profile manifests, independent conformance, traceability, and LOC accounting | A second implementation language remains preferred rather than mandatory for 0.x; dependency and lineage independence are mandatory |
+| Security and hostile repository behavior | Complete; conditional approval after corrections | Honest portable-Node race boundary, strict secure links/paths, inert config authority, prompt/terminal-safe output, trusted CI issuer, aggregate budgets, orthogonal evidence assurance, fail-closed security rollback, and remote deny-by-default | Native `openat2`/sandbox adapters, PKI, remote transport controls, and universal confusable detection remain deferred until their features are admitted |
+| SOLID, Clean Architecture, and DDD boundaries | Complete; revise-before-implementation findings resolved | Feature-owned reference slices, minimal shared kernel, no conformance-to-reference dependency, D10 bootstrap DAG, minimal core registries, normative substitutability, pre-publication D1 authority, and normalized accounting | The three operations are not forced into three separate packages; profile boundaries and import rules provide isolation without package-per-use-case overhead |
+| Agent UX, eval design, and consumer adoption | Complete; draft promotion gate rejected, corrected gate accepted for owner thresholds | `RulePromotionRecord@1`, statistical eval protocol, canonical read-only workflow, mandatory header, stateless pagination, freshness matrix, decision traces, closed composable bindings, adoption records, and skip accounting | The workflow is not a write gateway and cannot replace integration verification; hidden sessions/caches and automatic architecture inference remain out of scope |
+| Delivery sequencing, CI, release, and OSS evolution | Complete; draft release cycle rejected, corrected sequence accepted for owner decisions | Phase 7.5 public cohort, PR0 decisions, independent production/oracle branches, evidence custody key, dual-run authority migration, D11 governance, current hosted CI DAG, and reconciled LOC | Classify/evaluate share one coherent PR and overlay owns another instead of three operation PRs; this preserves reviewability with less process overhead |

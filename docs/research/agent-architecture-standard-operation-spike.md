@@ -94,7 +94,8 @@ overlay-deduplication cases that exposed these failures.
 
 - Phase 4 implements one public overlay operation and keeps analyzers behind
   internal ports.
-- The normative overlay vectors must include existing-destination replacement,
+- The conformance overlay vectors must project normative requirements for
+  existing-destination replacement,
   forbidden operation fields, relation permutations, policy-slice isolation,
   and semantic repair deduplication.
 - A future proposal for public classification or relation evaluation needs a

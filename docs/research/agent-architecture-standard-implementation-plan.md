@@ -67,8 +67,9 @@ that runtime behavior is safe.
 
 ## 3. Delivery principles
 
-1. **Specification first.** Language-neutral schemas, normative prose,
-   registries, and conformance vectors define meaning.
+1. **Specification first.** Normative prose, language-neutral schemas, and
+   registries define meaning; conformance vectors project and verify those
+   requirements.
 2. **Reference implementation second.** TypeScript types and Node behavior are
    replaceable implementations of the standard.
 3. **One complete vertical slice.** Do not publish an abstract kernel that has

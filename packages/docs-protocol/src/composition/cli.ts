@@ -10,7 +10,6 @@ import {
   DOCS_PROTOCOL_ID,
   DOCS_PROTOCOL_VERSION,
   type DocsCommand,
-  type DocsCommandEnvelope,
   type DocsExecution,
   type DocsFindQuery
 } from "../domain/model.js";
@@ -19,7 +18,11 @@ import {
   consumerIntegrationHelp,
   runConsumerIntegrationCli
 } from "../consumer-integration/composition/consumer-integration-cli.js";
-import { runDocsProtocolQualificationV2 } from "../qualification/index.js";
+import { Arguments, CliInputError } from "./cli-input.js";
+import { renderDocsHuman } from "./docs-human-renderer.js";
+import { runQualificationCli } from "./qualification-cli.js";
+
+export { renderDocsHuman } from "./docs-human-renderer.js";
 
 interface CommonArguments {
   readonly consumerRoot: string;
@@ -28,70 +31,6 @@ interface CommonArguments {
   readonly signal: AbortSignal;
 }
 
-class CliInputError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "CliInputError";
-  }
-}
-
-class QualificationOutputError extends Error {
-  constructor() {
-    super("Documentation qualification produced invalid output.");
-    this.name = "QualificationOutputError";
-  }
-}
-
-class Arguments {
-  readonly #values: string[];
-  readonly #used = new Set<number>();
-
-  constructor(values: readonly string[]) {
-    const separator = values.indexOf("--");
-    this.#values = separator === -1
-      ? [...values]
-      : [...values.slice(0, separator), ...values.slice(separator + 1)];
-  }
-
-  flag(name: string): boolean {
-    const indexes = this.#values.flatMap((value, index) => value === name ? [index] : []);
-    if (indexes.length > 1) {throw new CliInputError(`${name} may be supplied only once.`);}
-    if (indexes[0] !== undefined) {this.#used.add(indexes[0]);}
-    return indexes.length === 1;
-  }
-
-  one(name: string, required = false): string | undefined {
-    const indexes = this.#values.flatMap((value, index) => value === name ? [index] : []);
-    if (indexes.length > 1) {throw new CliInputError(`${name} may be supplied only once.`);}
-    const index = indexes[0];
-    if (index === undefined) {
-      if (required) {throw new CliInputError(`${name} is required.`);}
-      return undefined;
-    }
-    const value = this.#values[index + 1];
-    if (value === undefined || value.startsWith("--")) {throw new CliInputError(`${name} requires a value.`);}
-    this.#used.add(index);
-    this.#used.add(index + 1);
-    return value;
-  }
-
-  many(name: string): readonly string[] {
-    const results: string[] = [];
-    for (let index = 0; index < this.#values.length; index += 1) {
-      if (this.#values[index] !== name) {continue;}
-      const value = this.#values[index + 1];
-      if (value === undefined || value.startsWith("--")) {throw new CliInputError(`${name} requires a value.`);}
-      this.#used.add(index);
-      this.#used.add(index + 1);
-      results.push(value);
-    }
-    return Object.freeze(results);
-  }
-
-  positionals(): readonly string[] {
-    return Object.freeze(this.#values.filter((_value, index) => !this.#used.has(index)));
-  }
-}
 
 function common(args: Arguments, signal: AbortSignal): CommonArguments {
   return {
@@ -325,88 +264,6 @@ async function dispatch(protocol: DocsProtocol, command: string, values: readonl
   throw new CliInputError("Expected one command: info, find, new, doctor, recover, or check.");
 }
 
-function reachabilitySummary(value: unknown): string {
-  const reachability = value as Record<string, unknown>;
-  return [reachability["kind"], reachability["indexPath"], reachability["reason"]]
-    .filter((entry) => typeof entry === "string")
-    .join(" ");
-}
-
-function display(value: unknown, fallback = "unknown"): string {
-  return typeof value === "string" || typeof value === "number"
-    ? String(value)
-    : fallback;
-}
-
-function renderInfo(result: Record<string, unknown>): readonly string[] {
-  const lines = [`Project: ${display(result["projectId"])}`];
-  lines.push(`Foundation profile: ${JSON.stringify(result["foundationProfile"] ?? {})}`);
-  lines.push(`Authority paths: ${(result["authorityPaths"] as unknown[] | undefined)?.join(",") ?? "unknown"}`);
-  lines.push(`Catalog: ${JSON.stringify(result["catalog"] ?? {})}`);
-  lines.push(`Metadata schema: ${display(result["metadataSchemaPath"])} | sidecar ${JSON.stringify(result["metadataSidecar"] ?? {})}`);
-  lines.push(`Owners: ${(result["ownerIds"] as unknown[] | undefined)?.join(",") ?? "none"}`);
-  for (const value of Array.isArray(result["types"]) ? result["types"] : []) {
-    const type = value as Record<string, unknown>;
-    const identity = type["identity"] as Record<string, unknown>;
-    const placement = type["placement"] as Record<string, unknown>;
-    const template = type["template"] as Record<string, unknown> | undefined;
-    lines.push(`Type ${String(type["type"])} | initial ${String(type["initialStatus"])} | owners ${(type["allowedOwnerIds"] as unknown[]).join(",")} | identity ${display(identity["format"] ?? identity["kind"])} | placement ${display(placement["kind"])} | identityDetails ${JSON.stringify(identity)} | placementDetails ${JSON.stringify(placement)} | template ${display(template?.["path"])} | required ${(type["requiredMetadata"] as unknown[]).join(",")} | reachability ${reachabilitySummary(type["reachability"])}`);
-  }
-  lines.push(`Semantic validators: ${(result["semanticValidatorIds"] as unknown[]).join(",") || "none"}`);
-  return lines;
-}
-
-function renderFind(result: Record<string, unknown>): readonly string[] {
-  const lines = [`Matches: ${display(result["matches"], "0")}`];
-  for (const value of Array.isArray(result["documents"]) ? result["documents"] : []) {
-    const document = value as Record<string, unknown>;
-    lines.push(`${String(document["id"])} | ${String(document["type"])} | ${String(document["status"])} | ${String(document["owner"])} | ${String(document["repositoryPath"])} | ${String(document["title"])}`);
-  }
-  return lines;
-}
-
-export function renderDocsHuman(envelope: DocsCommandEnvelope): string {
-  const result = envelope.result as Record<string, unknown>;
-  const lines = [`${envelope.command}: ${envelope.outcome}`];
-  if (envelope.command === "docs.info") {
-    lines.push(...renderInfo(result));
-  }
-  if (envelope.command === "docs.find") {
-    lines.push(...renderFind(result));
-  }
-  if (envelope.command === "docs.new" && typeof result["documentPath"] === "string") {
-    lines.push(`Document: ${result["documentPath"]}`);
-    const compiled = result["compiled"] as Record<string, unknown> | undefined;
-    if (compiled !== undefined) {
-      const document = compiled["document"] as Record<string, unknown> | undefined;
-      lines.push(`Compiled document:\n${display(document?.["content"], "")}`);
-      lines.push(`Compiled frontmatter:\n${display(compiled["frontmatter"], "")}`);
-      lines.push(`Compiled metadata: ${JSON.stringify(compiled["metadata"] ?? {})}`);
-      lines.push(`Compiled relations: ${JSON.stringify(compiled["relations"] ?? {})}`);
-      lines.push(`Compiled anchors: ${JSON.stringify(compiled["anchors"] ?? [])}`);
-    }
-    const reachability = result["reachability"] as Record<string, unknown> | undefined;
-    const indexable = ["preview", "applied", "already-applied"].includes(display(result["writeState"]));
-    if (indexable && reachability?.["state"] === "manual-required") {lines.push(`Next: add ${String(reachability["markdownLink"])} to ${String(reachability["indexPath"])}`);}
-    if (result["writeState"] === "published-recovery-required") {lines.push("Next: recover the published transaction before editing reachability indexes.");}
-  }
-  if (envelope.command === "docs.doctor") {
-    lines.push(`Project: ${display(result["projectId"])}`);
-    lines.push(`Environment: ${JSON.stringify(result["environment"] ?? {})}`);
-    lines.push(`Transaction: ${JSON.stringify(result["transaction"] ?? {})}`);
-  }
-  if (envelope.command === "docs.check") {
-    lines.push(`Project: ${display(result["projectId"])}`);
-    lines.push(`Catalog: ${String(result["catalogStatus"])} (${String(result["documents"])} documents)`);
-    lines.push(`Adoption: ${result["valid"] === true ? "valid" : "invalid"}`);
-  }
-  if (envelope.command === "docs.recover") {
-    lines.push(`Recovery: ${display(result["transactionState"])} (${display(result["writeState"])})`);
-  }
-  for (const diagnostic of envelope.diagnostics) {lines.push(`${diagnostic.severity.toUpperCase()} ${diagnostic.ruleId}: ${diagnostic.message}`);}
-  return `${lines.join("\n")}\n`;
-}
-
 function helpText(command?: string): string {
   if (command === "new") {
     return "Usage: agent-teams-docs new --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY (--dry-run|--apply) [--slug SLUG] [--destination PATH] [--related ID] [--blocked-by ID] [--code-anchor required:PATTERN|JSON] [--metadata key=JSON]\nRepeat --related, --blocked-by, --code-anchor, and --metadata as needed. Preview returns exact compiled document/frontmatter/metadata/relations/anchors.\n";
@@ -450,77 +307,6 @@ export async function validatedMachineExecution(
     };
     await assertDocsCommandEnvelopeSchema(fallback.envelope);
     return fallback;
-  }
-}
-
-async function runQualificationCli(values: readonly string[]): Promise<number> {
-  if (values.length === 1 && values[0] === "--help") {
-    process.stdout.write(helpText("qualify"));
-    return 0;
-  }
-  const controller = new AbortController();
-  const cancel = () => { controller.abort(new DOMException("Documentation qualification was cancelled.", "AbortError")); };
-  process.once("SIGINT", cancel);
-  process.once("SIGTERM", cancel);
-  let json = values.includes("--json");
-  try {
-    const args = new Arguments(values);
-    json = args.flag("--json");
-    const localDevelopment = args.flag("--local-development");
-    const consumerRoot = args.one("--consumer") ?? ".";
-    const integrationPath = args.one("--integration");
-    if (args.positionals().length !== 0) {throw new CliInputError("qualify accepts no positional arguments.");}
-    const receipt = await runDocsProtocolQualificationV2({ consumerRoot, localDevelopment, signal: controller.signal, ...(integrationPath === undefined ? {} : { integrationPath }) });
-    const execution: DocsExecution<typeof receipt> = {
-      exitCode: 0,
-      envelope: {
-        schemaVersion: 2,
-        protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
-        command: "docs.qualify",
-        outcome: "success",
-        diagnostics: [],
-        result: receipt
-      }
-    };
-    if (json) {
-      try {await assertDocsCommandEnvelopeSchema(execution.envelope);}
-      catch {throw new QualificationOutputError();}
-    }
-    process.stdout.write(json ? `${JSON.stringify(execution.envelope)}\n` : `docs.qualify: success\nProject: ${receipt.projectId}\nScenarios: ${receipt.scenarios.length}\nEvidence: ${receipt.evidenceClass}\n`);
-    return 0;
-  } catch (error) {
-    const message = (error instanceof Error ? error.message : "Qualification failed.").slice(0, 1000);
-    const cancelled = error instanceof Error && error.name === "AbortError";
-    const code = errorCode(error);
-    const invalidOutput = error instanceof QualificationOutputError;
-    const inputInvalid = !invalidOutput && (error instanceof CliInputError || error instanceof SyntaxError || error instanceof TypeError);
-    const operational = code !== undefined && /^(?:EACCES|EISDIR|ELOOP|EMFILE|ENAMETOOLONG|ENOENT|ENOSPC|ENOTDIR|EPERM|EROFS)$/u.test(code);
-    const outcome = cancelled ? "cancelled" as const
-      : inputInvalid ? "invalid-input" as const
-        : operational || invalidOutput ? "execution-failure" as const
-          : "violation" as const;
-    const exitCode = cancelled ? 130 as const : inputInvalid ? 2 as const : operational || invalidOutput ? 3 as const : 1 as const;
-    const ruleId = cancelled ? "docs.qualification.cancelled"
-      : inputInvalid ? "docs.qualification.invalid-input"
-        : operational ? "docs.qualification.execution-failure.filesystem"
-          : invalidOutput ? "docs.qualification.execution-failure.internal"
-          : message.startsWith("DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED")
-            ? "docs.qualification.v1-migration-required"
-            : "docs.qualification.violation";
-    const envelope: DocsCommandEnvelope<Readonly<Record<string, never>>> = {
-      schemaVersion: 2,
-      protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
-      command: "docs.qualify",
-      outcome,
-      diagnostics: [{ ruleId, severity: "error", phase: inputInvalid ? "input" : "authority", subject: "docs.qualify", message }],
-      result: Object.freeze({})
-    };
-    if (json) {await assertDocsCommandEnvelopeSchema(envelope);}
-    process.stdout.write(json ? `${JSON.stringify(envelope)}\n` : `docs.qualify: ${outcome}\n${message}\n`);
-    return exitCode;
-  } finally {
-    process.off("SIGINT", cancel);
-    process.off("SIGTERM", cancel);
   }
 }
 

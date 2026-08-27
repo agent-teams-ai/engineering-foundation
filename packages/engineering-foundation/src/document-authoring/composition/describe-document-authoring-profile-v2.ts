@@ -216,11 +216,7 @@ function projectDescription(
             `Profile v${profile.schemaVersion} artifact type does not declare authoring owners: ${artifactType.type}.`
           );
         }
-        return describeType(
-          artifactType as unknown as Record<string, unknown>,
-          allowedOwnerIds,
-          requiredMetadata
-        );
+        return describeType(artifactType, allowedOwnerIds, requiredMetadata);
       })
       .toSorted((left, right) => compareBinaryStrings(left.type, right.type))
   );

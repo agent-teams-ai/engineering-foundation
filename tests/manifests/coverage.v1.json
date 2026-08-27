@@ -28,6 +28,7 @@
     ],
     "3": [
       "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+      "packages/docs-protocol/tests/docs-protocol-recovery.test.mjs",
       "packages/docs-protocol/tests/docs-protocol.test.mjs",
       "packages/docs-protocol/tests/envelope-schema.test.mjs",
       "packages/docs-protocol/tests/profile-policy.test.mjs"
@@ -48,6 +49,7 @@
     "packages/docs-protocol/tests/consumer-integration-plan.test.mjs",
     "packages/docs-protocol/tests/consumer-runtime-closure.test.mjs",
     "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+    "packages/docs-protocol/tests/docs-protocol-recovery.test.mjs",
     "packages/docs-protocol/tests/docs-protocol.test.mjs",
     "packages/docs-protocol/tests/envelope-schema.test.mjs",
     "packages/docs-protocol/tests/profile-policy.test.mjs",

@@ -103,8 +103,8 @@ export async function isQualificationEvidenceExcludedPath(
     ? isQualificationSourceCopyExcludedPath(repositoryPath, entryKind)
     : isQualificationMutationObservationExcludedPath(repositoryPath, entryKind);
   if (staticallyExcluded) {return true;}
-  const basename = repositoryPath.split("/").at(-1);
-  return (basename === "target" || basename === ".cache") &&
+  const leafName = repositoryPath.split("/").at(-1);
+  return (leafName === "target" || leafName === ".cache") &&
     await hasStableCacheDirectoryTag(root, repositoryPath);
 }
 

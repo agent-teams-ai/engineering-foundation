@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.19.0",
+  "packageVersion": "0.20.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -1399,6 +1399,34 @@
           "signature": "export interface DescribeDocumentAuthoringProfileV2Request"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!DescribeDocumentAuthoringProfileV3Request#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DescribeDocumentAuthoringProfileV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DescribeDocumentAuthoringProfileV3Request#profilePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DescribeDocumentAuthoringProfileV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profilePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DescribeDocumentAuthoringProfileV3Request#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DescribeDocumentAuthoringProfileV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DescribeDocumentAuthoringProfileV3Request:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DescribeDocumentAuthoringProfileV3Request"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!DocumentAuthoringProfileDescriptionV2#authority:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!DocumentAuthoringProfileDescriptionV2:interface",
@@ -1467,6 +1495,13 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export interface DocumentAuthoringProfileDescriptionV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DocumentAuthoringProfileDescriptionV3:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentAuthoringProfileDescriptionV3 = Omit<DocumentAuthoringProfileDescriptionV2, \"profileSchemaVersion\" | \"schemaVersion\"> & {\n    readonly profileSchemaVersion: 3;\n    readonly schemaVersion: 3;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!DocumentAuthoringTypeDescriptionV2#allowedOwnerIds:member",
@@ -3091,6 +3126,13 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function describeDocumentAuthoringProfileV2(request: DescribeDocumentAuthoringProfileV2Request): Promise<DocumentAuthoringProfileDescriptionV2>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!describeDocumentAuthoringProfileV3:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function describeDocumentAuthoringProfileV3(request: DescribeDocumentAuthoringProfileV3Request): Promise<DocumentAuthoringProfileDescriptionV3>;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!findDocumentationDocuments:function(1)",

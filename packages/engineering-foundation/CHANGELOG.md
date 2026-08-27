@@ -1,5 +1,15 @@
 # @agent-teams/engineering-foundation
 
+## 0.20.0
+
+### Minor Changes
+
+- [#203](https://github.com/agent-teams-ai/engineering-foundation/pull/203) [`b6151f7`](https://github.com/agent-teams-ai/engineering-foundation/commit/b6151f7f7f8118817318ba8c060659e84c7e7a7f) Thanks [@777genius](https://github.com/777genius)! - Add the data-only Docs Protocol qualification v2 suite, complete authoring previews, fixed-index readiness, and reusable local owner sets while preserving v1 migration routes.
+
+### Patch Changes
+
+- [#201](https://github.com/agent-teams-ai/engineering-foundation/pull/201) [`58a3766`](https://github.com/agent-teams-ai/engineering-foundation/commit/58a37663e84f1225ca4866b71c61ae88a783c8a6) Thanks [@777genius](https://github.com/777genius)! - Fix the repository agent workflow changed-scope script to invoke the built Foundation CLI reliably from a source checkout.
+
 ## 0.19.0
 
 ### Minor Changes

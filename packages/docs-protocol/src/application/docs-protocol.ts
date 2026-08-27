@@ -24,6 +24,7 @@ import { DocsProfileError, projectReachability } from "../domain/profile-policy.
 import { assertDocumentMetadata, normalizeCodeAnchors, normalizeDocumentId, normalizeDocumentIds } from "../domain/document-semantics.js";
 import { planAuthorityStable } from "./authority-handshake.js";
 import { boundedDiagnostics, completeDocsNewApply, inspectCorpusSemantics, inspectRecapturedAnchors, mergeDiagnostics } from "./docs-new-completion.js";
+import { compiledDocument } from "./compiled-document.js";
 
 const BINARY = (left: string, right: string): number => Buffer.compare(Buffer.from(left), Buffer.from(right));
 const GOVERNED_METADATA = new Set(["id", "type", "status", "owner", "summary", "related", "title", "slug", "destination"]);
@@ -35,7 +36,7 @@ function withSignal(signal: AbortSignal | undefined): Readonly<{ signal?: AbortS
 
 function envelope<Result>(command: DocsCommand, outcome: DocsCommandOutcome, result: Result, diagnostics: readonly DocsDiagnostic[] = []): DocsCommandEnvelope<Result> {
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     protocol: Object.freeze({ id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION }),
     command,
     outcome,
@@ -219,6 +220,10 @@ export class DocsProtocol {
       protocol: profile.protocol,
       foundationProfile: profile.foundationProfile,
       agentWorkflow: profile.agentWorkflow,
+      authority: description.authority,
+      authorityPaths: description.authorityPaths,
+      catalog: description.catalog,
+      semanticDigest: description.semanticDigest,
       metadataSchemaPath: description.metadataSchemaPath,
       metadataSidecar: description.metadataSidecar,
       ownerIds: description.ownerIds,
@@ -344,8 +349,15 @@ export class DocsProtocol {
     validateNewRelations({ blockedBy: relations.blockedBy, catalog: catalogAfterPlan, documentId: request.intent.id, initialStatus: typeAfterPlan.initialStatus, related: relations.related });
     const heading = typeAfterPlan.heading.kind === "id-colon-title" ? `${request.intent.id}: ${request.intent.title}` : request.intent.title;
     const reachability = projectReachability(typeAfterPlan, plan.destination, heading);
+    const compiled = compiledDocument(plan, {
+      anchors: codeAnchors,
+      blockedBy: relations.blockedBy,
+      initialStatus: typeAfterPlan.initialStatus,
+      ...(additionalMetadata === undefined ? {} : { metadata: additionalMetadata }),
+      related: relations.related
+    });
     if (!request.apply) {
-      return execution("docs.new", "success", Object.freeze({ kind: "new" as const, reservation: "none" as const, writeState: "preview" as const, documentPath: plan.destination, planDigest: plan.planDigest, reachability }), anchorDiagnostics);
+      return execution("docs.new", "success", Object.freeze({ kind: "new" as const, reservation: "none" as const, writeState: "preview" as const, documentPath: plan.destination, planDigest: plan.planDigest, compiled, reachability }), anchorDiagnostics);
     }
     // This is the last cooperative authority check before Apply. A malicious
     // same-OS-user can still race the following syscall; portable Node has no
@@ -372,6 +384,7 @@ export class DocsProtocol {
       writeState: documentWriteState(receipt),
       documentPath: plan.destination,
       planDigest: plan.planDigest,
+      compiled,
       receiptDigest: receipt.receiptDigest,
       receiptOutcome: receipt.outcome,
       receipt: receiptEvidence(receipt)

@@ -7,7 +7,8 @@
     "docs:find": "agent-teams-docs find --consumer . --profile architecture/foundation/docs-protocol.yaml",
     "docs:info": "agent-teams-docs info --consumer . --profile architecture/foundation/docs-protocol.yaml",
     "docs:new": "agent-teams-docs new --consumer . --profile architecture/foundation/docs-protocol.yaml",
-    "docs:recover": "agent-teams-docs recover --consumer . --profile architecture/foundation/docs-protocol.yaml"
+    "docs:recover": "agent-teams-docs recover --consumer . --profile architecture/foundation/docs-protocol.yaml",
+    "docs:protocol:check": "pnpm docs:check"
   },
   "devDependencies": {
     "@agent-teams/docs-protocol": "0.0.0"

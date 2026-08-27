@@ -117,6 +117,40 @@ test("v2 loader uses direct schema validation and preserves v1 compatibility", a
   }
 });
 
+test("v3 resolves one versioned local owner set without changing v2 authority", async () => {
+  const root = await mkdtemp(join(tmpdir(), "document-profile-v3-owner-sets-"));
+  try {
+    const profile = profileV2();
+    profile.schemaVersion = 3;
+    profile.authoring.ownerSets = {
+      schemaVersion: 1,
+      sets: { "architecture-docs": ["architecture", "platform/runtime"] },
+    };
+    delete profile.authoring.artifactTypes[0].allowedOwnerIds;
+    profile.authoring.artifactTypes[0].ownerSetId = "architecture-docs";
+    await assertSchema("document-authoring-profile/v3", profile, "profile-v3-test");
+    await writeFile(join(root, "profile.json"), `${JSON.stringify(profile)}\n`);
+    const planning = await new NodeDocumentPlanningProfileReader().read({
+      consumerRoot: root,
+      path: "profile.json",
+    });
+    assert.equal(planning.schemaVersion, 3);
+    assert.deepEqual(planning.artifactTypes[0].allowedOwnerIds, [
+      "architecture",
+      "platform/runtime",
+    ]);
+
+    profile.authoring.artifactTypes[0].ownerSetId = "missing";
+    await writeFile(join(root, "profile.json"), `${JSON.stringify(profile)}\n`);
+    await assert.rejects(
+      new NodeDocumentPlanningProfileReader().read({ consumerRoot: root, path: "profile.json" }),
+      /unknown ownerSetId/u,
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 test("planning rejects an owner outside the selected v2 artifact allowlist", async () => {
   let resolved = false;
   const intent = {

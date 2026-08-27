@@ -19,6 +19,7 @@ import {
   consumerIntegrationHelp,
   runConsumerIntegrationCli
 } from "../consumer-integration/composition/consumer-integration-cli.js";
+import { runDocsProtocolQualificationV2 } from "../qualification/index.js";
 
 interface CommonArguments {
   readonly consumerRoot: string;
@@ -31,6 +32,13 @@ class CliInputError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "CliInputError";
+  }
+}
+
+class QualificationOutputError extends Error {
+  constructor() {
+    super("Documentation qualification produced invalid output.");
+    this.name = "QualificationOutputError";
   }
 }
 
@@ -199,7 +207,7 @@ export function docsCliErrorExecution(command: DocsCommand, error: unknown, mach
   return {
     exitCode: cancelled ? 130 : inputInvalid ? 2 : 3,
     envelope: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
       command,
       outcome,
@@ -332,11 +340,17 @@ function display(value: unknown, fallback = "unknown"): string {
 
 function renderInfo(result: Record<string, unknown>): readonly string[] {
   const lines = [`Project: ${display(result["projectId"])}`];
+  lines.push(`Foundation profile: ${JSON.stringify(result["foundationProfile"] ?? {})}`);
+  lines.push(`Authority paths: ${(result["authorityPaths"] as unknown[] | undefined)?.join(",") ?? "unknown"}`);
+  lines.push(`Catalog: ${JSON.stringify(result["catalog"] ?? {})}`);
+  lines.push(`Metadata schema: ${display(result["metadataSchemaPath"])} | sidecar ${JSON.stringify(result["metadataSidecar"] ?? {})}`);
+  lines.push(`Owners: ${(result["ownerIds"] as unknown[] | undefined)?.join(",") ?? "none"}`);
   for (const value of Array.isArray(result["types"]) ? result["types"] : []) {
     const type = value as Record<string, unknown>;
     const identity = type["identity"] as Record<string, unknown>;
     const placement = type["placement"] as Record<string, unknown>;
-    lines.push(`Type ${String(type["type"])} | initial ${String(type["initialStatus"])} | owners ${(type["allowedOwnerIds"] as unknown[]).join(",")} | identity ${String(identity["format"])} | placement ${String(placement["kind"])} | required ${(type["requiredMetadata"] as unknown[]).join(",")} | reachability ${reachabilitySummary(type["reachability"])}`);
+    const template = type["template"] as Record<string, unknown> | undefined;
+    lines.push(`Type ${String(type["type"])} | initial ${String(type["initialStatus"])} | owners ${(type["allowedOwnerIds"] as unknown[]).join(",")} | identity ${display(identity["format"] ?? identity["kind"])} | placement ${display(placement["kind"])} | identityDetails ${JSON.stringify(identity)} | placementDetails ${JSON.stringify(placement)} | template ${display(template?.["path"])} | required ${(type["requiredMetadata"] as unknown[]).join(",")} | reachability ${reachabilitySummary(type["reachability"])}`);
   }
   lines.push(`Semantic validators: ${(result["semanticValidatorIds"] as unknown[]).join(",") || "none"}`);
   return lines;
@@ -362,6 +376,15 @@ export function renderDocsHuman(envelope: DocsCommandEnvelope): string {
   }
   if (envelope.command === "docs.new" && typeof result["documentPath"] === "string") {
     lines.push(`Document: ${result["documentPath"]}`);
+    const compiled = result["compiled"] as Record<string, unknown> | undefined;
+    if (compiled !== undefined) {
+      const document = compiled["document"] as Record<string, unknown> | undefined;
+      lines.push(`Compiled document:\n${display(document?.["content"], "")}`);
+      lines.push(`Compiled frontmatter:\n${display(compiled["frontmatter"], "")}`);
+      lines.push(`Compiled metadata: ${JSON.stringify(compiled["metadata"] ?? {})}`);
+      lines.push(`Compiled relations: ${JSON.stringify(compiled["relations"] ?? {})}`);
+      lines.push(`Compiled anchors: ${JSON.stringify(compiled["anchors"] ?? [])}`);
+    }
     const reachability = result["reachability"] as Record<string, unknown> | undefined;
     const indexable = ["preview", "applied", "already-applied"].includes(display(result["writeState"]));
     if (indexable && reachability?.["state"] === "manual-required") {lines.push(`Next: add ${String(reachability["markdownLink"])} to ${String(reachability["indexPath"])}`);}
@@ -386,7 +409,7 @@ export function renderDocsHuman(envelope: DocsCommandEnvelope): string {
 
 function helpText(command?: string): string {
   if (command === "new") {
-    return "Usage: agent-teams-docs new --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY (--dry-run|--apply) [--related ID] [--blocked-by ID] [--code-anchor required:PATTERN] [--metadata key=JSON]\n";
+    return "Usage: agent-teams-docs new --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY (--dry-run|--apply) [--slug SLUG] [--destination PATH] [--related ID] [--blocked-by ID] [--code-anchor required:PATTERN|JSON] [--metadata key=JSON]\nRepeat --related, --blocked-by, --code-anchor, and --metadata as needed. Preview returns exact compiled document/frontmatter/metadata/relations/anchors.\n";
   }
   if (command === "find") {
     return "Usage: agent-teams-docs find [TEXT|--text TEXT] [--id ID] [--type TYPE] [--status STATUS] [--owner OWNER] [--related ID] [--blocked-by ID]\n";
@@ -394,7 +417,10 @@ function helpText(command?: string): string {
   if (["info", "doctor", "recover", "check"].includes(command ?? "")) {
     return `Usage: agent-teams-docs ${command} [--consumer PATH] [--profile PATH] [--json]\n`;
   }
-  return "Usage: agent-teams-docs <info|find|new|doctor|recover|check|consumer> [options]\nRun 'agent-teams-docs consumer --help' for maintainer integration commands.\n";
+  if (command === "qualify") {
+    return "Usage: agent-teams-docs qualify [--consumer PATH] [--integration PATH] [--local-development] [--json]\nRuns only the package-owned suite in an owned disposable copy; the declared consumer gate is never executed. --local-development overlays the current package canonical Skill only in that copy and emits evidence that is not cohort-admissible.\n";
+  }
+  return "Usage: agent-teams-docs <info|find|new|doctor|recover|check|qualify|consumer> [options]\nRun 'agent-teams-docs consumer --help' for maintainer integration commands.\n";
 }
 
 export async function validatedMachineExecution(
@@ -408,7 +434,7 @@ export async function validatedMachineExecution(
     const fallback: DocsExecution<Readonly<Record<string, never>>> = {
       exitCode: 3,
       envelope: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
         command: id,
         outcome: "execution-failure",
@@ -424,6 +450,77 @@ export async function validatedMachineExecution(
     };
     await assertDocsCommandEnvelopeSchema(fallback.envelope);
     return fallback;
+  }
+}
+
+async function runQualificationCli(values: readonly string[]): Promise<number> {
+  if (values.length === 1 && values[0] === "--help") {
+    process.stdout.write(helpText("qualify"));
+    return 0;
+  }
+  const controller = new AbortController();
+  const cancel = () => { controller.abort(new DOMException("Documentation qualification was cancelled.", "AbortError")); };
+  process.once("SIGINT", cancel);
+  process.once("SIGTERM", cancel);
+  let json = values.includes("--json");
+  try {
+    const args = new Arguments(values);
+    json = args.flag("--json");
+    const localDevelopment = args.flag("--local-development");
+    const consumerRoot = args.one("--consumer") ?? ".";
+    const integrationPath = args.one("--integration");
+    if (args.positionals().length !== 0) {throw new CliInputError("qualify accepts no positional arguments.");}
+    const receipt = await runDocsProtocolQualificationV2({ consumerRoot, localDevelopment, signal: controller.signal, ...(integrationPath === undefined ? {} : { integrationPath }) });
+    const execution: DocsExecution<typeof receipt> = {
+      exitCode: 0,
+      envelope: {
+        schemaVersion: 2,
+        protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
+        command: "docs.qualify",
+        outcome: "success",
+        diagnostics: [],
+        result: receipt
+      }
+    };
+    if (json) {
+      try {await assertDocsCommandEnvelopeSchema(execution.envelope);}
+      catch {throw new QualificationOutputError();}
+    }
+    process.stdout.write(json ? `${JSON.stringify(execution.envelope)}\n` : `docs.qualify: success\nProject: ${receipt.projectId}\nScenarios: ${receipt.scenarios.length}\nEvidence: ${receipt.evidenceClass}\n`);
+    return 0;
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : "Qualification failed.").slice(0, 1000);
+    const cancelled = error instanceof Error && error.name === "AbortError";
+    const code = errorCode(error);
+    const invalidOutput = error instanceof QualificationOutputError;
+    const inputInvalid = !invalidOutput && (error instanceof CliInputError || error instanceof SyntaxError || error instanceof TypeError);
+    const operational = code !== undefined && /^(?:EACCES|EISDIR|ELOOP|EMFILE|ENAMETOOLONG|ENOENT|ENOSPC|ENOTDIR|EPERM|EROFS)$/u.test(code);
+    const outcome = cancelled ? "cancelled" as const
+      : inputInvalid ? "invalid-input" as const
+        : operational || invalidOutput ? "execution-failure" as const
+          : "violation" as const;
+    const exitCode = cancelled ? 130 as const : inputInvalid ? 2 as const : operational || invalidOutput ? 3 as const : 1 as const;
+    const ruleId = cancelled ? "docs.qualification.cancelled"
+      : inputInvalid ? "docs.qualification.invalid-input"
+        : operational ? "docs.qualification.execution-failure.filesystem"
+          : invalidOutput ? "docs.qualification.execution-failure.internal"
+          : message.startsWith("DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED")
+            ? "docs.qualification.v1-migration-required"
+            : "docs.qualification.violation";
+    const envelope: DocsCommandEnvelope<Readonly<Record<string, never>>> = {
+      schemaVersion: 2,
+      protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
+      command: "docs.qualify",
+      outcome,
+      diagnostics: [{ ruleId, severity: "error", phase: inputInvalid ? "input" : "authority", subject: "docs.qualify", message }],
+      result: Object.freeze({})
+    };
+    if (json) {await assertDocsCommandEnvelopeSchema(envelope);}
+    process.stdout.write(json ? `${JSON.stringify(envelope)}\n` : `docs.qualify: ${outcome}\n${message}\n`);
+    return exitCode;
+  } finally {
+    process.off("SIGINT", cancel);
+    process.off("SIGTERM", cancel);
   }
 }
 
@@ -444,6 +541,9 @@ export async function runDocsCli(
       return 0;
     }
     return runConsumerIntegrationCli(normalizedArgv.slice(1));
+  }
+  if (normalizedArgv[0] === "qualify") {
+    return runQualificationCli(normalizedArgv.slice(1));
   }
   if (
     (normalizedArgv.length === 1 && (normalizedArgv[0] === "--help" || normalizedArgv[0] === "help")) ||

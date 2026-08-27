@@ -29,6 +29,10 @@ export const BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS: readonly Uint8Array[] = Object.f
       "--type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --apply",
       "--type TYPE --id ID --apply"
     )
+    .replace("- For edits, preserve canonical frontmatter and sidecar ownership; use the repository's governed review flow rather than bypassing the create-only writer.\n", "")
+    .replace("- For accepted authority, record supersession explicitly instead of silently rewriting history.\n", "")
+    .replace("- Finish with the full consumer gate `pnpm docs:protocol:check` after the index is current.", "- Finish with `pnpm docs:check` after the index is current.")
+    .replace("## Rules\n- Never invent", "## Rules\n\n- Never invent")
     .replace("- If dependencies are absent, use only `pnpm install --frozen-lockfile`; never use npx, dlx, or latest tags.\n", ""),
   "utf8")
 ]);

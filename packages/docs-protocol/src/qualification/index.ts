@@ -1,9 +1,10 @@
-import { createHash, randomUUID } from "node:crypto";
-import { constants } from "node:fs";
-import { cp, lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rename, rm, symlink, writeFile, type FileHandle } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, relative, resolve as resolvePath, sep } from "node:path";
+import { dirname, join, relative, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { Ajv2020 } from "ajv/dist/2020.js";
 
 import { planDocumentationDocumentV2 } from "@agent-teams/engineering-foundation/document-authoring";
 
@@ -15,6 +16,35 @@ import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { normalizeCodeAnchors, normalizeDocumentIds } from "../domain/document-semantics.js";
 import type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
 import { crashAtDurablePublishing } from "./crash-driver.js";
+import {
+  applyReachability,
+  changedPaths,
+  fileSnapshot,
+  isQualificationEvidenceExcludedPath,
+  qualificationEvidencePolicy,
+  type QualificationEvidenceEntryKind,
+  type QualificationEvidencePolicy,
+  snapshot
+} from "./filesystem-evidence.js";
+import type {
+  DocsProtocolQualificationContractV2,
+  DocsProtocolQualificationReceiptV2,
+  DocsProtocolQualificationScenarioV2,
+  DocsProtocolQualificationV2Request
+} from "./v2-contract.js";
+import { assertConsumerIntegrationProfileSchema } from "../consumer-integration/adapters/consumer-integration-schema-validator.js";
+import {
+  checkConsumerIntegration,
+  type ConsumerIntegrationDesiredStateV1
+} from "../consumer-integration/index.js";
+
+type ManagedIntegrationCandidate = Omit<ConsumerIntegrationDesiredStateV1, "schemaVersion"> & {
+  readonly schemaVersion: unknown;
+  readonly qualification?: {
+    readonly contractPath: "architecture/foundation/docs-protocol-qualification.json";
+    readonly gateCommand: "pnpm docs:protocol:check";
+  };
+};
 
 export type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
 
@@ -40,38 +70,52 @@ export interface DocsProtocolQualificationReceipt {
   readonly schemaVersion: 1;
 }
 
-interface TreeEntry {
-  readonly kind: "directory" | "file";
-  readonly path: string;
+export type {
+  DocsProtocolQualificationContractV2,
+  DocsProtocolQualificationReceiptV2,
+  DocsProtocolQualificationScenarioV2,
+  DocsProtocolQualificationV2Request
+} from "./v2-contract.js";
+
+const MAX_QUALIFICATION_AUTHORITY_BYTES = 8 * 1024 * 1024;
+
+function digest(value: Uint8Array | string): `sha256:${string}` {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-async function treeEntries(root: string): Promise<readonly TreeEntry[]> {
-  const entries: TreeEntry[] = [];
-  async function visit(directory: string): Promise<void> {
-    const handle = await opendir(directory);
-    for await (const entry of handle) {
-      const absolute = join(directory, entry.name);
-      const repositoryPath = relative(root, absolute).split(sep).join("/");
-      if (repositoryPath === "node_modules") {continue;}
-      if (entry.isSymbolicLink()) {
-        throw new Error(`Qualification fixtures cannot contain symlinks: ${repositoryPath}`);
-      }
-      if (entry.isDirectory()) {
-        entries.push({ kind: "directory", path: repositoryPath });
-        await visit(absolute);
-      } else if (entry.isFile()) {
-        entries.push({ kind: "file", path: repositoryPath });
-      } else {
-        throw new Error(`Qualification fixtures must contain only directories and regular files: ${repositoryPath}`);
-      }
-    }
+async function readContainedBoundedFile(
+  root: string,
+  repositoryPath: string,
+  label: string,
+  maximumBytes = MAX_QUALIFICATION_AUTHORITY_BYTES
+): Promise<{ readonly bytes: Buffer; readonly digest: `sha256:${string}`; readonly path: string }> {
+  if (repositoryPath.startsWith("/") || repositoryPath.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
+    throw new Error(`${label} must be one canonical repository-relative path.`);
   }
-  await visit(root);
-  return Object.freeze(entries.toSorted((left, right) =>
-    Buffer.compare(Buffer.from(`${left.kind}\0${left.path}`), Buffer.from(`${right.kind}\0${right.path}`))));
+  const absolute = resolvePath(root, repositoryPath);
+  const relativePath = relative(root, absolute);
+  if (relativePath === ".." || relativePath.startsWith(`..${sep}`)) {
+    throw new Error(`${label} escapes the consumer root.`);
+  }
+  const metadata = await lstat(absolute);
+  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maximumBytes) {
+    throw new Error(`${label} must be one bounded regular file.`);
+  }
+  const physical = await realpath(absolute);
+  if (physical !== absolute) {
+    throw new Error(`${label} must not traverse a symlink.`);
+  }
+  const bytes = await readFile(physical);
+  if (bytes.byteLength !== metadata.size || bytes.byteLength > maximumBytes) {
+    throw new Error(`${label} changed during its bounded read.`);
+  }
+  return Object.freeze({ bytes, digest: digest(bytes), path: repositoryPath });
 }
 
-async function bootstrapQualificationInstallation(consumerRoot: string): Promise<void> {
+async function bootstrapQualificationInstallation(consumerRoot: string, rewriteManifest: boolean): Promise<{
+  readonly docsVersion: string;
+  readonly foundationVersion: string;
+}> {
   const docsManifestPath = fileURLToPath(new URL("../../package.json", import.meta.url));
   const foundationManifestPath = fileURLToPath(import.meta.resolve("@agent-teams/engineering-foundation/package.json"));
   const [docsManifest, foundationManifest, consumerManifest] = await Promise.all([
@@ -79,13 +123,18 @@ async function bootstrapQualificationInstallation(consumerRoot: string): Promise
     readFile(foundationManifestPath, "utf8").then((source) => JSON.parse(source) as { readonly version: string }),
     readFile(join(consumerRoot, "package.json"), "utf8").then((source) => JSON.parse(source) as Record<string, unknown>)
   ]);
-  await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify({
-    ...consumerManifest,
-    devDependencies: {
-      "@agent-teams/docs-protocol": docsManifest.version,
-      "@agent-teams/engineering-foundation": foundationManifest.version
-    }
-  }, null, 2)}\n`, "utf8");
+  if (rewriteManifest) {
+    await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify({
+      ...consumerManifest,
+      devDependencies: {
+        ...((typeof consumerManifest["devDependencies"] === "object" && consumerManifest["devDependencies"] !== null)
+          ? consumerManifest["devDependencies"] as Record<string, unknown>
+          : {}),
+        "@agent-teams/docs-protocol": docsManifest.version,
+        "@agent-teams/engineering-foundation": foundationManifest.version
+      }
+    }, null, 2)}\n`, "utf8");
+  }
   const scope = join(consumerRoot, "node_modules", "@agent-teams");
   await mkdir(scope, { recursive: true });
   await Promise.all([
@@ -97,49 +146,19 @@ async function bootstrapQualificationInstallation(consumerRoot: string): Promise
     kind: "agent-teams-document-authoring-qualification-fixture",
     consumerRoot: await realpath(consumerRoot)
   })}\n`, "utf8");
+  return Object.freeze({ docsVersion: docsManifest.version, foundationVersion: foundationManifest.version });
 }
 
-async function snapshot(root: string): Promise<string> {
-  const hash = createHash("sha256");
-  for (const entry of await treeEntries(root)) {
-    hash.update(entry.kind);
-    hash.update("\0");
-    hash.update(entry.path);
-    hash.update("\0");
-    if (entry.kind === "file") {
-      hash.update(await readFile(join(root, entry.path)));
-      hash.update("\0");
-    }
-  }
-  return `sha256:${hash.digest("hex")}`;
-}
-
-async function fileSnapshot(root: string): Promise<ReadonlyMap<string, string>> {
-  const result = new Map<string, string>();
-  for (const entry of await treeEntries(root)) {
-    const key = `${entry.kind}:${entry.path}`;
-    result.set(key, entry.kind === "directory"
-      ? "directory"
-      : `sha256:${createHash("sha256").update(await readFile(join(root, entry.path))).digest("hex")}`);
-  }
-  return result;
-}
-
-function changedPaths(before: ReadonlyMap<string, string>, after: ReadonlyMap<string, string>): readonly string[] {
-  return Object.freeze([...new Set([...before.keys(), ...after.keys()])]
-    .filter((path) => before.get(path) !== after.get(path))
-    .toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))));
-}
-
-function requireSuccess(label: string, execution: { readonly exitCode: number }): void {
+function requireSuccess(label: string, execution: { readonly envelope?: unknown; readonly exitCode: number }): void {
   if (execution.exitCode !== 0) {
-    throw new Error(`Docs Protocol qualification ${label} failed with exit code ${execution.exitCode}.`);
+    throw new Error(`Docs Protocol qualification ${label} failed with exit code ${execution.exitCode}: ${JSON.stringify(execution.envelope ?? {})}.`);
   }
 }
 
 function documentResult(execution: { readonly envelope: { readonly result: unknown }; readonly exitCode: number }): {
   readonly documentPath: string;
   readonly planDigest: string;
+  readonly compiled?: { readonly document?: { readonly content?: string; readonly digest?: string } };
   readonly receiptDigest?: string;
   readonly reachability: unknown;
 } {
@@ -151,6 +170,7 @@ function documentResult(execution: { readonly envelope: { readonly result: unkno
   return {
     documentPath: result["documentPath"],
     planDigest: result["planDigest"],
+    ...((typeof result["compiled"] === "object" && result["compiled"] !== null) ? { compiled: result["compiled"] } : {}),
     ...(typeof result["receiptDigest"] === "string" ? { receiptDigest: result["receiptDigest"] } : {}),
     reachability: result["reachability"]
   };
@@ -175,67 +195,6 @@ async function parentState(root: string, documentPath: string): Promise<"directo
   }
 }
 
-const MAX_REACHABILITY_INDEX_BYTES = 8 * 1024 * 1024;
-
-function sameFileObservation(
-  left: { readonly dev: bigint; readonly ino: bigint; readonly mtimeNs: bigint; readonly size: bigint },
-  right: { readonly dev: bigint; readonly ino: bigint; readonly mtimeNs: bigint; readonly size: bigint }
-): boolean {
-  return left.dev === right.dev && left.ino === right.ino && left.mtimeNs === right.mtimeNs && left.size === right.size;
-}
-
-async function readAtMost(handle: FileHandle, maximumBytes: number): Promise<Buffer | undefined> {
-  const chunks: Buffer[] = [];
-  let total = 0;
-  while (total <= maximumBytes) {
-    const remaining = maximumBytes + 1 - total;
-    const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
-    const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, null);
-    if (bytesRead === 0) {return Buffer.concat(chunks, total);}
-    chunks.push(chunk.subarray(0, bytesRead));
-    total += bytesRead;
-  }
-  return undefined;
-}
-
-async function verifyCurrentRegularFile(path: string, expected: { readonly dev: bigint; readonly ino: bigint }): Promise<void> {
-  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
-  const handle = await open(path, constants.O_RDONLY | noFollow);
-  try {
-    const metadata = await handle.stat({ bigint: true });
-    if (!metadata.isFile() || metadata.dev !== expected.dev || metadata.ino !== expected.ino) {
-      throw new Error("Qualification reachability index identity changed before atomic publication.");
-    }
-  } finally {
-    await handle.close();
-  }
-}
-
-async function verifyPublishedFile(path: string, expected: Buffer): Promise<void> {
-  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
-  const handle = await open(path, constants.O_RDONLY | noFollow);
-  try {
-    const before = await handle.stat({ bigint: true });
-    const bytes = await readAtMost(handle, MAX_REACHABILITY_INDEX_BYTES);
-    const after = await handle.stat({ bigint: true });
-    if (!before.isFile() || bytes === undefined || !sameFileObservation(before, after) || !bytes.equals(expected)) {
-      throw new Error("Qualification reachability index atomic publication could not be verified.");
-    }
-  } finally {
-    await handle.close();
-  }
-}
-
-async function syncDirectory(path: string): Promise<void> {
-  try {
-    const handle = await open(path, "r");
-    try {await handle.sync();} finally {await handle.close();}
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (process.platform !== "win32" || !["EACCES", "EINVAL", "EISDIR", "EPERM"].includes(code ?? "")) {throw error;}
-  }
-}
-
 function createProtocol(): DocsProtocol {
   return new DocsProtocol({
     adoption: new NodeDocsAdoptionInspector(),
@@ -243,72 +202,6 @@ function createProtocol(): DocsProtocol {
     foundation: new NodeFoundationDocsPort(),
     profiles: new NodeDocsProfileReader()
   });
-}
-
-async function applyReachability(root: string, reachability: unknown): Promise<void> {
-  const action = reachability as Record<string, unknown>;
-  if (action["state"] === "not-required") {
-    return;
-  }
-  if (action["state"] !== "manual-required" || typeof action["indexPath"] !== "string" || typeof action["markdownLink"] !== "string") {
-    throw new Error("Qualification apply did not emit one explicit reachability action.");
-  }
-  const indexPath = resolvePath(root, action["indexPath"]);
-  const physicalRoot = await realpath(root);
-  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
-  const nonBlocking = process.platform === "win32" ? 0 : constants.O_NONBLOCK;
-  const sourceHandle = await open(indexPath, constants.O_RDONLY | noFollow | nonBlocking);
-  let source: string;
-  let identity: { readonly dev: bigint; readonly ino: bigint };
-  let mode: number;
-  try {
-    const before = await sourceHandle.stat({ bigint: true });
-    if (!before.isFile() || before.size > BigInt(MAX_REACHABILITY_INDEX_BYTES)) {
-      throw new Error("Qualification reachability index is not a bounded regular file.");
-    }
-    const physicalIndex = await realpath(indexPath);
-    const pathFromRoot = relative(physicalRoot, physicalIndex);
-    if (pathFromRoot === ".." || pathFromRoot.startsWith(`..${sep}`) || physicalIndex !== indexPath) {
-      throw new Error("Qualification reachability index is not a contained regular file without symlinks.");
-    }
-    await verifyCurrentRegularFile(physicalIndex, before);
-    const bytes = await readAtMost(sourceHandle, MAX_REACHABILITY_INDEX_BYTES);
-    const after = await sourceHandle.stat({ bigint: true });
-    if (bytes === undefined || !sameFileObservation(before, after) || after.size !== BigInt(bytes.byteLength)) {
-      throw new Error("Qualification reachability index changed during its bounded read.");
-    }
-    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    identity = { dev: after.dev, ino: after.ino };
-    mode = Number(after.mode & 0o777n);
-  } finally {
-    await sourceHandle.close();
-  }
-
-  const next = Buffer.from(`${source.replace(/\n?$/u, "\n")}- ${action["markdownLink"]}\n`);
-  if (next.byteLength > MAX_REACHABILITY_INDEX_BYTES) {
-    throw new Error("Qualification reachability index update exceeds its bounded size.");
-  }
-  const parent = dirname(indexPath);
-  const temporary = join(parent, `.${basename(indexPath)}.docs-protocol-${randomUUID()}.tmp`);
-  let temporaryExists = false;
-  try {
-    const temporaryHandle = await open(temporary, "wx", mode);
-    temporaryExists = true;
-    try {
-      await temporaryHandle.writeFile(next);
-      await temporaryHandle.chmod(mode);
-      await temporaryHandle.sync();
-    } finally {
-      await temporaryHandle.close();
-    }
-    await verifyCurrentRegularFile(indexPath, identity);
-    await rename(temporary, indexPath);
-    temporaryExists = false;
-    await verifyPublishedFile(indexPath, next);
-    await syncDirectory(parent);
-  } finally {
-    if (temporaryExists) {await rm(temporary, { force: true });}
-  }
 }
 
 function qualificationMetadata(
@@ -410,7 +303,7 @@ export async function runDocsProtocolQualification(request: DocsProtocolQualific
   try {
     request.signal?.throwIfAborted();
     await cp(sourceRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });
-    await bootstrapQualificationInstallation(consumerRoot);
+    await bootstrapQualificationInstallation(consumerRoot, true);
     const protocol = createProtocol();
     const info = await protocol.info({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     requireSuccess("info", info);
@@ -469,6 +362,282 @@ export async function runDocsProtocolQualification(request: DocsProtocolQualific
       checks: Object.freeze(["info", "find", "preview", "crash", "doctor", "recover", "receipt", "parent", "apply", "index", "check", "source-unchanged"] as const),
       projectId: info.envelope.result.projectId,
       schemaVersion: 1
+    });
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {return `[${value.map(canonicalJson).join(",")}]`;}
+  if (value !== null && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>).toSorted(([left], [right]) =>
+      Buffer.compare(Buffer.from(left), Buffer.from(right)))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function readQualificationContractV2(root: string, path: string): Promise<{
+  readonly contract: DocsProtocolQualificationContractV2;
+  readonly evidence: { readonly path: string; readonly digest: `sha256:${string}` };
+}> {
+  const source = await readContainedBoundedFile(root, path, "Qualification contract");
+  const value = JSON.parse(source.bytes.toString("utf8")) as { readonly schemaVersion?: unknown };
+  if (value.schemaVersion === 1) {
+    throw new Error("DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED: replace fixtureRoot/tests/pins/paths/gate with schemaVersion 2 scenarios; managed integration owns package and route authority.");
+  }
+  const schema = JSON.parse(await readFile(new URL("../../schemas/docs-protocol-qualification/v2.schema.json", import.meta.url), "utf8")) as object;
+  const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
+  if (!validate(value)) {
+    const details = (validate.errors ?? []).slice(0, 8).map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`).join("; ");
+    throw new TypeError(`docs-protocol-qualification/v2 validation failed: ${details}`);
+  }
+  return Object.freeze({
+    contract: value as DocsProtocolQualificationContractV2,
+    evidence: Object.freeze({ path: source.path, digest: source.digest })
+  });
+}
+
+async function copyDisposableConsumer(
+  sourceRoot: string,
+  consumerRoot: string,
+  policy: QualificationEvidencePolicy
+): Promise<void> {
+  await cp(sourceRoot, consumerRoot, {
+    recursive: true,
+    errorOnExist: true,
+    force: false,
+    dereference: false,
+    async filter(source) {
+      const repositoryPath = relative(sourceRoot, source).split(sep).join("/");
+      if (repositoryPath === "") {return true;}
+      const metadata = await lstat(source);
+      const entryKind: QualificationEvidenceEntryKind = metadata.isDirectory() ? "directory"
+        : metadata.isFile() ? "file"
+          : metadata.isSymbolicLink() ? "symbolic-link"
+            : "other";
+      return !await isQualificationEvidenceExcludedPath(
+        sourceRoot,
+        repositoryPath,
+        policy,
+        "source",
+        entryKind
+      );
+    }
+  });
+}
+
+async function overlayLocalDevelopmentSkill(consumerRoot: string, skillPath: string, enabled: boolean): Promise<void> {
+  if (!enabled) {return;}
+  // This overlay is intentionally limited to the package-owned canonical Skill
+  // and happens only after the consumer has been copied into an owned temp root.
+  // Profile projection and every document operation still use the consumer's
+  // declared managed integration contract.
+  const target = join(consumerRoot, skillPath);
+  const targetMetadata = await lstat(target);
+  if (!targetMetadata.isFile() || targetMetadata.isSymbolicLink()) {
+    throw new Error("Local-development qualification Skill target must be a regular file.");
+  }
+  const canonicalSkill = await readFile(new URL("../../skills/docs/SKILL.md", import.meta.url));
+  await writeFile(target, canonicalSkill);
+}
+
+function scenarioRequest(
+  scenario: DocsProtocolQualificationScenarioV2,
+  consumerRoot: string,
+  profilePath: string,
+  signal?: AbortSignal
+): Omit<DocsNewRequest, "apply"> {
+  return {
+    consumerRoot,
+    profilePath,
+    intent: {
+      type: scenario.type,
+      id: scenario.intent.id,
+      title: scenario.intent.title,
+      owner: scenario.intent.owner,
+      summary: scenario.intent.summary,
+      ...(scenario.intent.slug === undefined ? {} : { slug: scenario.intent.slug }),
+      ...(scenario.intent.destination === undefined ? {} : { destination: scenario.intent.destination })
+    },
+    ...(scenario.intent.related === undefined ? {} : { related: scenario.intent.related }),
+    ...(scenario.intent.blockedBy === undefined ? {} : { blockedBy: scenario.intent.blockedBy }),
+    ...(scenario.intent.codeAnchors === undefined ? {} : { codeAnchors: scenario.intent.codeAnchors }),
+    ...(scenario.intent.metadata === undefined ? {} : { additionalMetadata: scenario.intent.metadata }),
+    ...(signal === undefined ? {} : { signal })
+  };
+}
+
+function assertExpectedScenario(
+  scenario: DocsProtocolQualificationScenarioV2,
+  result: ReturnType<typeof documentResult> & { readonly compiled?: { readonly document?: { readonly content?: string; readonly digest?: string } } }
+): void {
+  if (result.documentPath !== scenario.expected.documentPath) {
+    throw new Error(`Qualification scenario ${scenario.id} path mismatch: ${result.documentPath}.`);
+  }
+  if (canonicalJson(result.reachability) !== canonicalJson(scenario.expected.reachability)) {
+    throw new Error(`Qualification scenario ${scenario.id} reachability mismatch.`);
+  }
+  if (scenario.expected.goldenDigest !== undefined && result.compiled?.document?.digest !== scenario.expected.goldenDigest) {
+    throw new Error(`Qualification scenario ${scenario.id} golden digest mismatch.`);
+  }
+}
+
+function assertScenarioCoverage(contract: DocsProtocolQualificationContractV2, declaredTypes: readonly string[]): void {
+  const scenarioTypes = contract.scenarios.map(({ type }) => type);
+  if (new Set(contract.scenarios.map(({ id }) => id)).size !== contract.scenarios.length ||
+    new Set(scenarioTypes).size !== scenarioTypes.length || canonicalJson(scenarioTypes.toSorted()) !== canonicalJson(declaredTypes.toSorted())) {
+    throw new Error(`Qualification scenarios must cover every authorable type exactly once; expected ${declaredTypes.join(", ")}.`);
+  }
+}
+
+export async function runDocsProtocolQualificationV2(
+  request: DocsProtocolQualificationV2Request
+): Promise<DocsProtocolQualificationReceiptV2> {
+  const sourceRoot = await realpath(resolvePath(request.consumerRoot));
+  const integrationPath = request.integrationPath ?? "architecture/foundation/docs-consumer-integration.json";
+  const integrationFile = await readContainedBoundedFile(sourceRoot, integrationPath, "Managed integration profile");
+  const integration = JSON.parse(integrationFile.bytes.toString("utf8")) as ManagedIntegrationCandidate;
+  await assertConsumerIntegrationProfileSchema(integration);
+  if (integration.schemaVersion !== 2 || integration.qualification === undefined) {
+    throw new Error("DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED: managed integration schemaVersion 2 with qualification authority is required.");
+  }
+  const evidencePolicy = qualificationEvidencePolicy(integration.governedDocsRoots ?? []);
+  const before = await snapshot(sourceRoot, evidencePolicy) as `sha256:${string}`;
+  const qualification = await readQualificationContractV2(sourceRoot, integration.qualification.contractPath);
+  const contract = qualification.contract;
+  if (request.localDevelopment !== true) {
+    const managed = await checkConsumerIntegration({
+      consumerRoot: sourceRoot,
+      integrationProfilePath: integrationPath
+    });
+    if (managed.outcome !== "current") {
+      throw new Error(`Released-cohort qualification requires a current exact managed integration: ${JSON.stringify(managed.issues)}.`);
+    }
+  }
+  const temporary = await realpath(await mkdtemp(join(tmpdir(), "atd-q2-")));
+  const consumerRoot = join(temporary, "consumer");
+  try {
+    request.signal?.throwIfAborted();
+    await copyDisposableConsumer(sourceRoot, consumerRoot, evidencePolicy);
+    const executingPackages = await bootstrapQualificationInstallation(consumerRoot, request.localDevelopment === true);
+    await overlayLocalDevelopmentSkill(consumerRoot, integration.skillPath, request.localDevelopment === true);
+    const manifest = JSON.parse(await readFile(join(consumerRoot, "package.json"), "utf8")) as { readonly scripts?: Readonly<Record<string, unknown>> };
+    if (typeof manifest.scripts?.["docs:protocol:check"] !== "string") {
+      throw new Error(`Managed qualification gate ${integration.qualification.gateCommand} must resolve to a package script; it is never executed by qualification.`);
+    }
+    const protocol = createProtocol();
+    const base = { consumerRoot, profilePath: integration.profilePath, ...signalOption(request.signal) };
+    const info = await protocol.info(base);
+    requireSuccess("info", info);
+    const infoResult = info.envelope.result;
+    const declaredTypes = infoResult.types.map(({ type }) => type);
+    assertScenarioCoverage(contract, declaredTypes);
+    requireSuccess("find", await protocol.find({ ...base, query: {} }));
+    requireSuccess("check", await protocol.check(base));
+    const initialDoctor = await protocol.doctor(base);
+    requireSuccess("doctor", initialDoctor);
+    const idleRecovery = await protocol.recover(base);
+    requireSuccess("recover", idleRecovery);
+    if (idleRecovery.envelope.result.transactionState !== "no-pending-transaction") {
+      throw new Error("Qualification recover did not prove the initial idle state.");
+    }
+    // New authoring remains one-file canonical frontmatter. A declared sidecar
+    // is qualified separately through the suite-wide info/find/check catalog
+    // roundtrip and is never a writer destination.
+    const receipts: { id: string; type: string; documentPath: string; outputDigest: string }[] = [];
+    for (const [index, scenario] of contract.scenarios.entries()) {
+      const scenarioBase = scenarioRequest(scenario, consumerRoot, integration.profilePath, request.signal);
+      const beforePreview = await fileSnapshot(consumerRoot, evidencePolicy);
+      const preview = await protocol.newDocument({ ...scenarioBase, apply: false });
+      const previewResult = documentResult(preview) as ReturnType<typeof documentResult> & { readonly compiled: { readonly document: { readonly content: string; readonly digest: string } } };
+      if (changedPaths(beforePreview, await fileSnapshot(consumerRoot, evidencePolicy)).length !== 0) {
+        throw new Error(`Qualification scenario ${scenario.id} preview mutated the disposable consumer.`);
+      }
+      assertExpectedScenario(scenario, previewResult);
+      if (scenario.expected.goldenFile !== undefined) {
+        const golden = await readContainedBoundedFile(
+          consumerRoot,
+          scenario.expected.goldenFile,
+          `Qualification scenario ${scenario.id} golden file`
+        );
+        if (golden.bytes.toString("utf8") !== previewResult.compiled.document.content) {throw new Error(`Qualification scenario ${scenario.id} golden file mismatch.`);}
+      }
+      if (index === 0) {
+        await interruptAndRecover({ base: scenarioBase, consumerRoot, previewResult, profilePath: integration.profilePath, protocol });
+      } else {
+        const applied = await protocol.newDocument({ ...scenarioBase, apply: true });
+        const appliedResult = documentResult(applied) as typeof previewResult;
+        if (appliedResult.planDigest !== previewResult.planDigest || appliedResult.compiled.document.content !== previewResult.compiled.document.content) {
+          throw new Error(`Qualification scenario ${scenario.id} preview/apply parity mismatch.`);
+        }
+      }
+      const actual = await readFile(join(consumerRoot, previewResult.documentPath), "utf8");
+      if (actual !== previewResult.compiled.document.content) {throw new Error(`Qualification scenario ${scenario.id} materialized bytes differ from preview.`);}
+      await applyReachability(consumerRoot, previewResult.reachability);
+      requireSuccess(`check after ${scenario.id}`, await protocol.check(base));
+      receipts.push({ id: scenario.id, type: scenario.type, documentPath: previewResult.documentPath, outputDigest: previewResult.compiled.document.digest });
+    }
+    requireSuccess("doctor", await protocol.doctor(base));
+    requireSuccess("recover", await protocol.recover(base));
+    if (await snapshot(sourceRoot, evidencePolicy) !== before) {throw new Error("Qualification modified its source consumer.");}
+    const [profileEvidence, skillEvidence, packageManifestEvidence, lockfileEvidence, executingModule] = await Promise.all([
+      readContainedBoundedFile(consumerRoot, integration.profilePath, "Docs Protocol profile"),
+      readContainedBoundedFile(consumerRoot, integration.skillPath, "Documentation Skill"),
+      readContainedBoundedFile(consumerRoot, "package.json", "Package manifest"),
+      readContainedBoundedFile(consumerRoot, "pnpm-lock.yaml", "pnpm lockfile", 64 * 1024 * 1024),
+      readFile(fileURLToPath(import.meta.url))
+    ]);
+    const environment = initialDoctor.envelope.result.environment as {
+      readonly installedFoundationBuildIdentity: `sha256:${string}`;
+      readonly installedFoundationVersion: string;
+    };
+    if (request.localDevelopment !== true && (
+      executingPackages.docsVersion !== integration.cohort.packages.docsProtocol.version ||
+      executingPackages.foundationVersion !== integration.cohort.packages.engineeringFoundation.version ||
+      environment.installedFoundationVersion !== integration.cohort.packages.engineeringFoundation.version
+    )) {
+      throw new Error("Released-cohort qualification execution identity does not match the exact cohort package versions.");
+    }
+    const hasGolden = contract.scenarios.some(({ expected }) =>
+      expected.goldenFile !== undefined || expected.goldenDigest !== undefined);
+    const body = Object.freeze({
+      schemaVersion: 2,
+      cohortAdmissible: request.localDevelopment !== true,
+      evidenceClass: request.localDevelopment === true ? "local-development" : "released-cohort",
+      projectId: infoResult.projectId,
+      scenarios: Object.freeze(receipts.map((receipt) => Object.freeze(receipt))),
+      checks: Object.freeze([
+        "info", "find", "check", "doctor", "recover", "preview", "apply", "path", "reachability",
+        ...(hasGolden ? ["golden" as const] : []),
+        "source-unchanged"
+      ] as const),
+      derived: Object.freeze({
+        contractPath: integration.qualification.contractPath,
+        gateCommand: integration.qualification.gateCommand,
+        packageVersions: Object.freeze({ docsProtocol: integration.cohort.packages.docsProtocol.version, engineeringFoundation: integration.cohort.packages.engineeringFoundation.version }),
+        profilePath: integration.profilePath
+      }),
+      evidence: Object.freeze({
+        sourceDigest: before,
+        integration: Object.freeze({ path: integrationPath, digest: integrationFile.digest }),
+        contract: qualification.evidence,
+        profile: Object.freeze({ path: profileEvidence.path, digest: profileEvidence.digest }),
+        skill: Object.freeze({ path: skillEvidence.path, digest: skillEvidence.digest }),
+        packageManifestDigest: packageManifestEvidence.digest,
+        lockfileDigest: lockfileEvidence.digest,
+        executingDocsProtocol: Object.freeze({ version: executingPackages.docsVersion, buildDigest: digest(executingModule) }),
+        executingFoundation: Object.freeze({
+          version: environment.installedFoundationVersion,
+          buildIdentity: environment.installedFoundationBuildIdentity
+        }),
+        cohort: Object.freeze({ ...integration.cohort })
+      })
+    });
+    return Object.freeze({
+      ...body,
+      receiptDigest: digest(canonicalJson(body))
     });
   } finally {
     await rm(temporary, { recursive: true, force: true });

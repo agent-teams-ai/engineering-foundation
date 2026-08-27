@@ -24,9 +24,14 @@ export interface ValidatedDocumentAuthoringProfileV2
     readonly artifactTypes: readonly (
       ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number] & {
         readonly allowedOwnerIds?: readonly string[];
+        readonly ownerSetId?: string;
       }
     )[];
     readonly mode: "create-only";
+    readonly ownerSets?: {
+      readonly schemaVersion: 1;
+      readonly sets: Readonly<Record<string, readonly string[]>>;
+    };
   };
   readonly catalog: ValidatedDocumentAuthoringProfile["catalog"] & {
     readonly metadataSidecar?: {
@@ -34,7 +39,28 @@ export interface ValidatedDocumentAuthoringProfileV2
       readonly path: string;
     };
   };
-  readonly schemaVersion: 1 | 2;
+  readonly schemaVersion: 1 | 2 | 3;
+}
+
+export function resolvedArtifactOwnerIds(
+  profile: ValidatedDocumentAuthoringProfileV2,
+  artifactType: ValidatedDocumentAuthoringProfileV2["authoring"]["artifactTypes"][number]
+): readonly string[] | undefined {
+  if (artifactType.allowedOwnerIds !== undefined) {
+    return Object.freeze([...artifactType.allowedOwnerIds]);
+  }
+  if (profile.schemaVersion === 1) {
+    return undefined;
+  }
+  if (profile.schemaVersion === 2) {
+    throw new TypeError(`Profile v2 artifact type ${artifactType.type} must declare allowedOwnerIds.`);
+  }
+  const setId = artifactType.ownerSetId;
+  const ids = setId === undefined ? undefined : profile.authoring.ownerSets?.sets[setId];
+  if (ids === undefined) {
+    throw new TypeError(`Profile v3 artifact type ${artifactType.type} references an unknown ownerSetId.`);
+  }
+  return Object.freeze([...ids]);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -90,12 +116,12 @@ export async function loadValidatedDocumentAuthoringProfileV2(request: {
   let input: unknown;
   try {
     input = parseStrictYamlSource(file.source, "document-authoring-profile");
-    if (!isRecord(input) || (input["schemaVersion"] !== 1 && input["schemaVersion"] !== 2)) {
-      throw new TypeError("Document authoring profile schemaVersion must equal 1 or 2.");
+    if (!isRecord(input) || ![1, 2, 3].includes(input["schemaVersion"] as number)) {
+      throw new TypeError("Document authoring profile schemaVersion must equal 1, 2, or 3.");
     }
-    if (input["schemaVersion"] === 2) {
+    if (input["schemaVersion"] === 2 || input["schemaVersion"] === 3) {
       await assertSchema(
-        "document-authoring-profile/v2",
+        input["schemaVersion"] === 3 ? "document-authoring-profile/v3" : "document-authoring-profile/v2",
         input,
         "document-authoring-profile"
       );

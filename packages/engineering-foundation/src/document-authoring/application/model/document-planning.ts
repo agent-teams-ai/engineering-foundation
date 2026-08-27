@@ -116,7 +116,7 @@ export interface DocumentPlanningProfileSnapshot {
     readonly path: string;
   };
   readonly projectId: string;
-  readonly schemaVersion?: 1 | 2;
+  readonly schemaVersion?: 1 | 2 | 3;
 }
 
 export interface DocumentTemplateSnapshot {

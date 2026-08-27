@@ -236,7 +236,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "docs-protocol.application": {
       roots: ["packages/docs-protocol/src/application"],
       boundaries: ["docs-protocol.domain"],
-      packages: [foundationName],
+      packages: [foundationName, "yaml"],
       builtins: [],
       entrypoints: ["packages/docs-protocol/src/application/docs-protocol.ts"],
     },
@@ -264,6 +264,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
         "docs-protocol.application",
         "docs-protocol.consumer-integration.composition",
         "docs-protocol.domain",
+        "docs-protocol.qualification",
       ],
       packages: [foundationName],
       builtins: [],
@@ -277,9 +278,12 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       boundaries: [
         "docs-protocol.adapters",
         "docs-protocol.application",
+        "docs-protocol.consumer-integration.adapters",
+        "docs-protocol.consumer-integration.composition",
+        "docs-protocol.consumer-integration.domain",
         "docs-protocol.domain",
       ],
-      packages: [foundationName],
+      packages: [foundationName, "ajv"],
       builtins: [
         "node:child_process",
         "node:crypto",

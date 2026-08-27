@@ -33,12 +33,12 @@ function inspectSkill(source: string): readonly string[] {
     /pnpm docs:new.*--dry-run/u,
     /pnpm docs:new.*--apply/u,
     /(?=.*manual)(?=.*reported)(?=.*index)(?=.*link)/iu,
-    /pnpm docs:check/u
+    /pnpm docs:protocol:check/u
   ];
   let previous = -1;
   for (const marker of evidence) {
     const matches = lines.flatMap((line, index) => marker.test(line) ? [index] : []);
-    if (matches.length !== 1 || matches[0]! <= previous) {diagnostics.push("Skill must contain unique ordered find, dry-run preview, apply, manual reported index/link, and check evidence."); break;}
+    if (matches.length !== 1 || matches[0]! <= previous) {diagnostics.push("Skill must contain unique ordered find, dry-run preview, apply, manual reported index/link, and full protocol check evidence."); break;}
     previous = matches[0]!;
   }
   return diagnostics;

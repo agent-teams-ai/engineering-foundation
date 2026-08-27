@@ -172,7 +172,7 @@ for (const shape of shapes.fixtures) {
     const first = planConsumerIntegration({ desired, snapshot });
     const replay = planConsumerIntegration({ desired, snapshot });
     assert.deepEqual(replay, first);
-    assert.equal(first.outcome, "change-required");
+    assert.equal(first.outcome, "change-required", JSON.stringify(first.issues));
     assert.deepEqual(first.issues, []);
     assert.deepEqual(
       first.assets.filter(({ action }) => action !== "none").map(({ id, action }) => [id, action]),

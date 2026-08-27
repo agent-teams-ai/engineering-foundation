@@ -57,13 +57,16 @@ export class NodeFoundationDocsPort implements FoundationDocsPort {
     });
     return Object.freeze({
       authority: description.authority,
-      authorityPaths: Object.freeze([
+      catalog: description.catalog,
+      authorityPaths: Object.freeze([...new Set([
         description.authorityPaths.profile,
         description.authorityPaths.metadataSchema,
         description.authorityPaths.ownerCatalog,
         ...(description.authorityPaths.metadataSidecar === undefined ? [] : [description.authorityPaths.metadataSidecar]),
-        ...description.types.map(({ template }) => template.path)
-      ].toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))),
+        ...description.types.map(({ template }) => template.path),
+        ...description.types.flatMap(({ reachability }) =>
+          reachability.kind === "manual-fixed-index" ? [reachability.indexPath] : [])
+      ])].toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))),
       metadataSchemaPath: description.authorityPaths.metadataSchema,
       metadataSidecar: description.authorityPaths.metadataSidecar === undefined
         ? Object.freeze({ kind: "none" as const })

@@ -64,7 +64,7 @@ function validatorIds(value: unknown): readonly string[] {
 export function parseDocsProtocolProfile(value: unknown): DocsProtocolProfile {
   const candidate = record(value, "profile");
   exactKeys(candidate, ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "semanticValidatorIds"], "profile");
-  if (candidate["schemaVersion"] !== 1) {throw new DocsProfileError("profile.schemaVersion must be 1.");}
+  if (candidate["schemaVersion"] !== 1 && candidate["schemaVersion"] !== 2) {throw new DocsProfileError("profile.schemaVersion must be 1 or 2.");}
   const protocol = record(candidate["protocol"], "profile.protocol");
   exactKeys(protocol, ["id", "version"], "profile.protocol");
   if (protocol["id"] !== DOCS_PROTOCOL_ID || protocol["version"] !== DOCS_PROTOCOL_VERSION) {
@@ -72,18 +72,20 @@ export function parseDocsProtocolProfile(value: unknown): DocsProtocolProfile {
   }
   const foundationProfile = record(candidate["foundationProfile"], "profile.foundationProfile");
   exactKeys(foundationProfile, ["metadataSidecarPolicy", "path", "schemaVersion"], "profile.foundationProfile");
-  if (foundationProfile["schemaVersion"] !== 2 || foundationProfile["metadataSidecarPolicy"] !== "foundation-profile-v2-strict-merge") {
-    throw new DocsProfileError("profile.foundationProfile must route to Foundation profile v2 strict sidecar merge.");
+  const profileV2 = candidate["schemaVersion"] === 1 && foundationProfile["schemaVersion"] === 2 && foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v2-strict-merge";
+  const profileV3 = candidate["schemaVersion"] === 2 && foundationProfile["schemaVersion"] === 3 && foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v3-strict-merge";
+  if (!profileV2 && !profileV3) {
+    throw new DocsProfileError("profile.foundationProfile must match its versioned Foundation profile route.");
   }
   const workflow = record(candidate["agentWorkflow"], "profile.agentWorkflow");
   exactKeys(workflow, ["skillPath"], "profile.agentWorkflow");
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: candidate["schemaVersion"],
     protocol: Object.freeze({ id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION }),
     foundationProfile: Object.freeze({
-      metadataSidecarPolicy: "foundation-profile-v2-strict-merge",
+      metadataSidecarPolicy: foundationProfile["metadataSidecarPolicy"] as DocsProtocolProfile["foundationProfile"]["metadataSidecarPolicy"],
       path: repositoryPath(foundationProfile["path"], "profile.foundationProfile.path"),
-      schemaVersion: 2
+      schemaVersion: foundationProfile["schemaVersion"] as 2 | 3
     }),
     agentWorkflow: Object.freeze({ skillPath: repositoryPath(workflow["skillPath"], "profile.agentWorkflow.skillPath") }),
     semanticValidatorIds: validatorIds(candidate["semanticValidatorIds"])

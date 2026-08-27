@@ -3,6 +3,7 @@ import { assertNotCancelled } from "../../cancellation.js";
 import { NodeDocumentMetadataSidecarReader } from "../adapters/node/node-document-metadata-sidecar-reader.js";
 import {
   loadValidatedDocumentAuthoringProfileV2,
+  resolvedArtifactOwnerIds,
   type ValidatedDocumentAuthoringProfileV2
 } from "../adapters/node/load-validated-document-authoring-profile-v2.js";
 import { NodeMetadataInstanceValidator } from "../adapters/node/node-metadata-instance-validator.js";
@@ -79,11 +80,12 @@ function freezeReachability(value: unknown): DocumentReachabilityStrategyV2 {
 
 function describeType(
   artifactType: Record<string, unknown>,
+  allowedOwnerIds: readonly string[],
   requiredMetadata: readonly string[]
 ): DocumentAuthoringTypeDescriptionV2 {
   return Object.freeze({
     allowedOwnerIds: Object.freeze(
-      [...(artifactType["allowedOwnerIds"] as string[])].toSorted(
+      [...allowedOwnerIds].toSorted(
         compareBinaryStrings
       )
     ),
@@ -137,10 +139,10 @@ async function loadDescriptionAuthority(
     path: request.profilePath,
     ...(request.signal === undefined ? {} : { signal: request.signal })
   });
-  if (profile.schemaVersion !== 2) {
+  if (profile.schemaVersion !== 2 && profile.schemaVersion !== 3) {
     throw new DocumentCatalogError(
       "DOCUMENT_CATALOG_INPUT_INVALID",
-      "Document authoring profile description v2 requires a profile with schemaVersion 2."
+      "Document authoring profile description requires schemaVersion 2 or 3."
     );
   }
   const [ownerCatalog, metadata, sidecar, templateEvidenceByPath] =
@@ -184,7 +186,13 @@ function projectDescription(
   );
   const ownerSet = new Set(ownerIds);
   for (const artifactType of profile.authoring.artifactTypes) {
-    const allowedOwnerIds = artifactType.allowedOwnerIds ?? [];
+    const allowedOwnerIds = resolvedArtifactOwnerIds(profile, artifactType);
+    if (allowedOwnerIds === undefined) {
+      throw new DocumentCatalogError(
+        "DOCUMENT_CATALOG_INPUT_INVALID",
+        `Profile v${profile.schemaVersion} artifact type does not declare authoring owners: ${artifactType.type}.`
+      );
+    }
     if (allowedOwnerIds.some((owner) => !ownerSet.has(owner))) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
@@ -200,12 +208,20 @@ function projectDescription(
   );
   const types = Object.freeze(
     profile.authoring.artifactTypes
-      .map((artifactType) =>
-        describeType(
+      .map((artifactType) => {
+        const allowedOwnerIds = resolvedArtifactOwnerIds(profile, artifactType);
+        if (allowedOwnerIds === undefined) {
+          throw new DocumentCatalogError(
+            "DOCUMENT_CATALOG_INPUT_INVALID",
+            `Profile v${profile.schemaVersion} artifact type does not declare authoring owners: ${artifactType.type}.`
+          );
+        }
+        return describeType(
           artifactType as unknown as Record<string, unknown>,
+          allowedOwnerIds,
           requiredMetadata
-        )
-      )
+        );
+      })
       .toSorted((left, right) => compareBinaryStrings(left.type, right.type))
   );
   const templates = Object.freeze(
@@ -268,7 +284,7 @@ function projectDescription(
       )
     }),
     ownerIds,
-    profileSchemaVersion: 2,
+    profileSchemaVersion: profile.schemaVersion as 2 | 3,
     projectId: profile.projectId,
     schemaVersion: 2,
     types

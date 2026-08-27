@@ -43,6 +43,7 @@ function descriptor(overrides = {}) {
 }
 
 function plan(intent) {
+  const content = "---\nid: ADR-0083\ntype: adr\nstatus: proposed\nowner: architecture/tooling\nsummary: Defines tenant isolation.\n---\n# ADR-0083: Tenant isolation\n";
   return {
     schemaVersion: 2,
     protocolVersion: 2,
@@ -62,7 +63,12 @@ function plan(intent) {
     expectedParent: { path: "docs/decisions", state: "directory", ancestry: "real-directories" },
     parentMaterialization: { policy: "create-missing-real-directories", missingDirectories: [] },
     destinationPrecondition: { state: "absent" },
-    output: {},
+    output: {
+      contentBase64: Buffer.from(content, "utf8").toString("base64"),
+      digest: `sha256:${"8".repeat(64)}`,
+      mediaType: "text/markdown; charset=utf-8",
+      size: Buffer.byteLength(content)
+    },
     requiredAdapterCapabilities: ["create-directories-no-replace/v1", "create-file-no-replace/v1"],
     diagnostics: [],
     planDigest: `sha256:${"3".repeat(64)}`

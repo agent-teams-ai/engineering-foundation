@@ -54,7 +54,7 @@ export interface DocumentAuthoringProfileDescriptionV2 {
   };
   readonly ownerIds: readonly string[];
   readonly projectId: string;
-  readonly profileSchemaVersion: 2;
+  readonly profileSchemaVersion: 2 | 3;
   readonly schemaVersion: 2;
   readonly semanticDigest: DocumentAuthorityDigest;
   readonly types: readonly DocumentAuthoringTypeDescriptionV2[];

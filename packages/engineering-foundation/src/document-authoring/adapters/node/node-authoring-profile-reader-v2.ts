@@ -5,7 +5,7 @@ import type {
 } from "../../application/ports/authoring-profile-reader.js";
 import { DocumentCatalogError } from "../../document-catalog-error.js";
 import { InvalidDocumentAuthoringProfileError } from "./load-validated-document-authoring-profile.js";
-import { loadValidatedDocumentAuthoringProfileV2 } from "./load-validated-document-authoring-profile-v2.js";
+import { loadValidatedDocumentAuthoringProfileV2, resolvedArtifactOwnerIds } from "./load-validated-document-authoring-profile-v2.js";
 
 function freezeCollection(collection: CatalogCollection): CatalogCollection {
   return collection.kind === "markdown-tree"
@@ -25,7 +25,7 @@ export class NodeAuthoringProfileReaderV2 implements AuthoringProfileReader {
         artifactOwnerIds: Object.freeze(
           profile.authoring.artifactTypes.map((artifactType) => {
             return Object.freeze({
-              ids: Object.freeze([...(artifactType.allowedOwnerIds ?? [])]),
+              ids: Object.freeze([...(resolvedArtifactOwnerIds(profile, artifactType) ?? [])]),
               type: artifactType.type
             });
           })

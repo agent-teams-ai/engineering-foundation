@@ -28,7 +28,7 @@ export interface CatalogProfileSnapshot {
     readonly path: string;
   };
   readonly projectId: string;
-  readonly schemaVersion?: 1 | 2;
+  readonly schemaVersion?: 1 | 2 | 3;
   readonly templatePaths?: readonly string[];
 }
 

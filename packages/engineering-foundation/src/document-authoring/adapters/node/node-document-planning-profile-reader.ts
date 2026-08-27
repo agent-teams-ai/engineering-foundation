@@ -13,6 +13,7 @@ import {
 } from "./load-validated-document-authoring-profile.js";
 import {
   loadValidatedDocumentAuthoringProfileV2,
+  resolvedArtifactOwnerIds,
   type ValidatedDocumentAuthoringProfileV2
 } from "./load-validated-document-authoring-profile-v2.js";
 
@@ -41,13 +42,15 @@ function freezePlacement(placement: DocumentPlacementStrategy): DocumentPlacemen
 }
 
 function freezeArtifactType(
-  artifactType: ValidatedDocumentAuthoringProfileV2["authoring"]["artifactTypes"][number]
+  artifactType: ValidatedDocumentAuthoringProfileV2["authoring"]["artifactTypes"][number],
+  profile: ValidatedDocumentAuthoringProfileV2
 ): DocumentArtifactType {
+  const allowedOwnerIds = resolvedArtifactOwnerIds(profile, artifactType);
   return Object.freeze({
     ...artifactType,
-    ...(artifactType.allowedOwnerIds === undefined
+    ...(allowedOwnerIds === undefined
       ? {}
-      : { allowedOwnerIds: Object.freeze([...artifactType.allowedOwnerIds]) }),
+      : { allowedOwnerIds: Object.freeze([...allowedOwnerIds]) }),
     heading: Object.freeze({ ...artifactType.heading }),
     identity: freezeIdentity(artifactType.identity),
     placement: freezePlacement(artifactType.placement),
@@ -87,7 +90,7 @@ implements DocumentPlanningProfileReader {
       );
       return Object.freeze({
         artifactTypes: Object.freeze(
-          profile.authoring.artifactTypes.map(freezeArtifactType)
+          profile.authoring.artifactTypes.map((artifactType) => freezeArtifactType(artifactType, profile))
         ),
         collections: Object.freeze(
           profile.catalog.collections.map(freezeCollection)

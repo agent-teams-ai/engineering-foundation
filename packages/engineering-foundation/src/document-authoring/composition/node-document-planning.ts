@@ -67,7 +67,7 @@ export async function planNodeDocumentationDocument(
         path: input.profilePath,
         ...(input.signal === undefined ? {} : { signal: input.signal })
       });
-      return profile.schemaVersion === 2
+      return profile.schemaVersion === 2 || profile.schemaVersion === 3
         ? catalogV2.execute(input)
         : catalogV1.execute(input);
     }

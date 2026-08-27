@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 2,
+  "repository": { "provider": "github", "id": "1", "nameWithOwner": "agent-teams-ai/docs-protocol-qualification-fixture" },
+  "integrationRoot": ".",
+  "packageManager": "pnpm",
+  "profilePath": "architecture/foundation/docs-protocol.yaml",
+  "skillPath": ".agents/skills/docs-authoring/SKILL.md",
+  "callerWorkflowPath": ".github/workflows/docs-protocol.yml",
+  "managedStatePath": "architecture/foundation/docs-protocol-managed-state.json",
+  "governedDocsRoots": ["docs"],
+  "qualification": {
+    "contractPath": "architecture/foundation/docs-protocol-qualification.json",
+    "gateCommand": "pnpm docs:protocol:check"
+  },
+  "cohort": {
+    "schemaVersion": 1,
+    "cohortId": "docs-qualification-v2-fixture",
+    "channel": "stable",
+    "recordDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "qualificationEventDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "eligibleAfter": "2026-08-27T00:00:00Z",
+    "upgradeFrom": [],
+    "rollbackTo": [],
+    "packages": {
+      "docsProtocol": { "version": "0.1.4", "integrity": "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==" },
+      "engineeringFoundation": { "version": "0.19.0", "integrity": "sha512-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB==" }
+    },
+    "workflow": {
+      "repository": "agent-teams-ai/.github",
+      "path": ".github/workflows/docs-protocol-check.yml",
+      "revision": "1111111111111111111111111111111111111111",
+      "blobSha": "2222222222222222222222222222222222222222"
+    },
+    "assets": {
+      "skillDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "callerWorkflowDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "assetCatalogDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "transitionCatalogDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    },
+    "schemas": { "consumerIntegration": 1, "managedState": 1, "docsProtocol": 1 },
+    "runtime": {
+      "node": ">=24.18.0 <25",
+      "pnpm": ">=11.17.0 <12",
+      "runtimeClosureDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    }
+  }
+}

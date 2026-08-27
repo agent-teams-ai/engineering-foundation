@@ -19,7 +19,7 @@ export async function loadV2ProfileDescription(
     readonly signal?: AbortSignal;
   }
 ): Promise<DocumentAuthoringProfileDescriptionV2 | undefined> {
-  if (profile.schemaVersion !== 2) {
+  if (profile.schemaVersion !== 2 && profile.schemaVersion !== 3) {
     return undefined;
   }
   const description = await reader?.describe(request);

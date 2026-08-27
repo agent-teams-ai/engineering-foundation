@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-qualification/v2",
+  "title": "Docs Protocol consumer qualification v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scenarios"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "scenarios": {
+      "type": "array", "minItems": 1, "maxItems": 32,
+      "items": { "$ref": "#/$defs/scenario" }
+    }
+  },
+  "$defs": {
+    "lowerId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "opaqueId": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "repositoryPath": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$" },
+    "jsonValue": {
+      "oneOf": [
+        { "type": "boolean" }, { "type": "null" }, { "type": "number" }, { "type": "string" },
+        { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/jsonValue" } },
+        { "type": "object", "maxProperties": 256, "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+      ]
+    },
+    "anchor": {
+      "type": "object", "additionalProperties": false, "required": ["enforcement", "pattern"],
+      "properties": { "enforcement": { "enum": ["advisory", "required"] }, "pattern": { "type": "string", "minLength": 1, "maxLength": 1000 } }
+    },
+    "intent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "owner", "summary"],
+      "properties": {
+        "id": { "$ref": "#/$defs/opaqueId" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "owner": { "$ref": "#/$defs/opaqueId" },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "slug": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "destination": { "$ref": "#/$defs/repositoryPath" },
+        "related": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "$ref": "#/$defs/opaqueId" } },
+        "blockedBy": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "$ref": "#/$defs/opaqueId" } },
+        "codeAnchors": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/anchor" } },
+        "metadata": { "type": "object", "maxProperties": 256, "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+      }
+    },
+    "reachability": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["state", "indexPath", "markdownLink"], "properties": { "state": { "const": "manual-required" }, "indexPath": { "$ref": "#/$defs/repositoryPath" }, "markdownLink": { "type": "string", "minLength": 1, "maxLength": 1024 } } },
+        { "type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": { "state": { "const": "not-required" }, "reason": { "type": "string", "minLength": 1, "maxLength": 500 } } }
+      ]
+    },
+    "expected": {
+      "type": "object", "additionalProperties": false,
+      "required": ["documentPath", "metadataStorage", "reachability"],
+      "properties": {
+        "documentPath": { "$ref": "#/$defs/repositoryPath" },
+        "metadataStorage": { "const": "frontmatter" },
+        "reachability": { "$ref": "#/$defs/reachability" },
+        "goldenFile": { "$ref": "#/$defs/repositoryPath" },
+        "goldenDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "oneOf": [
+        { "not": { "anyOf": [{ "required": ["goldenFile"], "properties": { "goldenFile": true } }, { "required": ["goldenDigest"], "properties": { "goldenDigest": true } }] } },
+        { "required": ["goldenFile"], "properties": { "goldenFile": true }, "not": { "required": ["goldenDigest"], "properties": { "goldenDigest": true } } },
+        { "required": ["goldenDigest"], "properties": { "goldenDigest": true }, "not": { "required": ["goldenFile"], "properties": { "goldenFile": true } } }
+      ]
+    },
+    "scenario": {
+      "type": "object", "additionalProperties": false, "required": ["id", "type", "intent", "expected"],
+      "properties": {
+        "id": { "$ref": "#/$defs/lowerId" },
+        "type": { "$ref": "#/$defs/lowerId" },
+        "intent": { "$ref": "#/$defs/intent" },
+        "expected": { "$ref": "#/$defs/expected" }
+      }
+    }
+  }
+}

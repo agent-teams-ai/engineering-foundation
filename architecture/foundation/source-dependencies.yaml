@@ -28,6 +28,7 @@ boundaries:
         - docs-protocol.domain
       packages:
         - "@agent-teams/engineering-foundation"
+        - yaml
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -68,6 +69,7 @@ boundaries:
         - docs-protocol.application
         - docs-protocol.consumer-integration.composition
         - docs-protocol.domain
+        - docs-protocol.qualification
       packages:
         - "@agent-teams/engineering-foundation"
       builtins: []
@@ -82,9 +84,13 @@ boundaries:
       boundaries:
         - docs-protocol.adapters
         - docs-protocol.application
+        - docs-protocol.consumer-integration.adapters
+        - docs-protocol.consumer-integration.composition
+        - docs-protocol.consumer-integration.domain
         - docs-protocol.domain
       packages:
         - "@agent-teams/engineering-foundation"
+        - ajv
       builtins:
         - node:child_process
         - node:crypto

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, cp, lstat, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -12,6 +12,7 @@ import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspec
 import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
 import { NodeFoundationDocsPort } from "../dist/adapters/foundation-docs-port.js";
 import { runDocsProtocolQualification, runDocsProtocolQualificationV2 } from "../dist/qualification/index.js";
+import { overlayLocalDevelopmentSkill } from "../dist/qualification/qualification-v2-runner.js";
 import { crashAtDurablePublishing } from "../dist/qualification/crash-driver.js";
 import {
   fileSnapshot,
@@ -62,6 +63,26 @@ test("v2 qualification derives managed authority and marks local evidence non-ad
   assert.deepEqual(receipt.scenarios.map(({ type }) => type), ["adr"]);
   assert.equal(receipt.derived.contractPath, "architecture/foundation/docs-protocol-qualification.json");
   assert.equal(receipt.derived.gateCommand, "pnpm docs:protocol:check");
+});
+
+test("v2 local-development Skill overlay rejects a symlink without touching its target", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-skill-overlay-"));
+  const outside = join(temporary, "outside-skill.md");
+  const sentinel = "outside must remain unchanged\n";
+  try {
+    const skillDirectory = join(temporary, ".agents", "skills", "docs-authoring");
+    const skill = join(skillDirectory, "SKILL.md");
+    await mkdir(skillDirectory, { recursive: true });
+    await writeFile(outside, sentinel);
+    await symlink(outside, skill, "file");
+    await assert.rejects(
+      overlayLocalDevelopmentSkill(temporary, ".agents/skills/docs-authoring/SKILL.md", true),
+      /Local-development qualification Skill target must be one stable, non-hardlinked regular file/u
+    );
+    assert.equal(await readFile(outside, "utf8"), sentinel);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
 });
 
 test("v2 qualification excludes transient cache and build output from evidence", async () => {

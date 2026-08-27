@@ -1,4 +1,5 @@
-import { cp, lstat, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { cp, lstat, mkdtemp, open, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -100,15 +101,34 @@ async function copyDisposableConsumer(
   });
 }
 
-async function overlayLocalDevelopmentSkill(consumerRoot: string, skillPath: string, enabled: boolean): Promise<void> {
+export async function overlayLocalDevelopmentSkill(consumerRoot: string, skillPath: string, enabled: boolean): Promise<void> {
   if (!enabled) {return;}
   const target = join(consumerRoot, skillPath);
-  const targetMetadata = await lstat(target);
-  if (!targetMetadata.isFile() || targetMetadata.isSymbolicLink()) {
-    throw new Error("Local-development qualification Skill target must be a regular file.");
-  }
   const canonicalSkill = await readFile(new URL("../../skills/docs/SKILL.md", import.meta.url));
-  await writeFile(target, canonicalSkill);
+  let handle;
+  try {
+    handle = await open(target, constants.O_WRONLY |
+      (process.platform === "win32" ? 0 : constants.O_NOFOLLOW));
+    const [opened, named] = await Promise.all([
+      handle.stat({ bigint: true }),
+      lstat(target, { bigint: true })
+    ]);
+    if (!opened.isFile() || opened.nlink !== 1n || !named.isFile() || named.isSymbolicLink() ||
+      opened.dev !== named.dev || opened.ino !== named.ino || opened.birthtimeNs !== named.birthtimeNs) {
+      throw new Error("unsafe Skill target");
+    }
+    await handle.truncate(0);
+    await handle.writeFile(canonicalSkill);
+    const written = await handle.stat({ bigint: true });
+    if (!written.isFile() || written.nlink !== 1n || written.dev !== opened.dev || written.ino !== opened.ino ||
+      written.birthtimeNs !== opened.birthtimeNs || written.size !== BigInt(canonicalSkill.byteLength)) {
+      throw new Error("unstable Skill target");
+    }
+  } catch (cause) {
+    throw new Error("Local-development qualification Skill target must be one stable, non-hardlinked regular file.", { cause });
+  } finally {
+    await handle?.close();
+  }
 }
 
 function scenarioRequest(

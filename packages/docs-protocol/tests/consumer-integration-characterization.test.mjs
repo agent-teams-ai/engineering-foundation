@@ -415,14 +415,18 @@ test("migrates the exact stable1 bundle to a successor without fabricating rollb
   assert.equal(checked.envelope.outcome, "current");
 });
 
-test("migrates the exact stable2 bundle to a fix-forward successor", async () => {
+for (const [priorCohortId, targetCohortId] of [
+  ["docs-2026-08-24-stable2", "docs-2026-08-26-stable3"],
+  ["docs-2026-08-25-stable3", "docs-2026-08-29-stable4"]
+]) {
+test(`migrates the exact ${priorCohortId} bundle to a fix-forward successor`, async () => {
   const shape = shapes.fixtures[0];
   const catalog = await loadPackageConsumerAssetCatalog();
-  const prior = fleetBundle(catalog, "docs-2026-08-24-stable2");
+  const prior = fleetBundle(catalog, priorCohortId);
   assert.deepEqual(catalog.currentSourceExecutors, []);
   const targetCohort = {
     ...cohort(),
-    cohortId: "docs-2026-08-26-stable3",
+    cohortId: targetCohortId,
     channel: "stable",
     upgradeFrom: [prior.cohort.cohortId],
     rollbackTo: []
@@ -447,7 +451,7 @@ test("migrates the exact stable2 bundle to a fix-forward successor", async () =>
     agentsRouteDigest: prior.agentsRouteDigest,
     docsScriptsDigest: prior.docsScriptsDigest
   });
-  const root = await mkdtemp(join(tmpdir(), "docs-consumer-stable2-successor-e2e-"));
+  const root = await mkdtemp(join(tmpdir(), `docs-consumer-${priorCohortId}-successor-e2e-`));
   assert.equal(spawnSync("git", ["init", "-q", root]).status, 0);
   await Promise.all([
     mkdir(join(root, "architecture", "foundation"), { recursive: true }),
@@ -478,6 +482,7 @@ test("migrates the exact stable2 bundle to a fix-forward successor", async () =>
   assert.equal(checked.status, 0, checked.stderr);
   assert.equal(checked.envelope.outcome, "current");
 });
+}
 
 test("frozen fleet authority rejects historical metadata perturbation", async () => {
   const catalog = await loadPackageConsumerAssetCatalog();

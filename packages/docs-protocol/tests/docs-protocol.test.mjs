@@ -77,7 +77,7 @@ function plan(intent) {
 
 function harness(options = {}) {
   const calls = { apply: 0, buildCatalog: 0, describe: 0, find: 0, plan: [] };
-  const defaultDescription = { authority: { templates: [] }, projectId: "fixture-project", profileSchemaVersion: 2, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
+  const defaultDescription = { authority: { templates: [] }, catalog: { collections: [], excludedPrefixes: [] }, projectId: "fixture-project", profileSchemaVersion: 2, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
   const defaultCatalog = { projectId: "fixture-project", status: "complete", diagnostics: [], documents: [
     { ...descriptor({ id: "ADR-0001", repositoryPath: "docs/decisions/0001-first.md" }), metadata: {} },
     { ...descriptor({ id: "OD-001", type: "open-decision", status: "open", repositoryPath: "docs/open-decisions/OD-001.md" }), metadata: {} }
@@ -159,6 +159,28 @@ test("new preview is non-mutating and preserves unified metadata vocabulary", as
     indexPath: "docs/decisions/README.md",
     markdownLink: "[ADR-0083: Tenant isolation](0083-tenant-isolation.md)"
   });
+});
+
+test("v1 presenters strip rich evidence while v2 routes preserve it", async () => {
+  const legacy = harness().protocol;
+  const rich = harness().protocol;
+  const request = {
+    apply: false, consumerRoot: ".", profilePath: "docs/docs-protocol.json",
+    intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." }
+  };
+  const [legacyInfo, legacyNew, richInfo, richNew] = await Promise.all([
+    legacy.info(request), legacy.newDocument(request), rich.infoV2(request), rich.newDocumentV2(request)
+  ]);
+
+  assert.equal(legacyInfo.envelope.schemaVersion, 1);
+  assert.deepEqual(["authority", "authorityPaths", "catalog"].map((key) => Object.hasOwn(legacyInfo.envelope.result, key)), [false, false, false]);
+  assert.equal(Object.hasOwn(legacyNew.envelope.result, "compiled"), false);
+  assert.equal(richInfo.envelope.schemaVersion, 2);
+  assert.deepEqual(["authority", "authorityPaths", "catalog"].map((key) => Object.hasOwn(richInfo.envelope.result, key)), [true, true, true]);
+  assert.deepEqual(richInfo.envelope.result.authority, { templates: [] });
+  assert.deepEqual(richInfo.envelope.result.catalog, { collections: [], excludedPrefixes: [] });
+  assert.equal(richNew.envelope.schemaVersion, 2);
+  assert.equal(richNew.envelope.result.compiled.document.content.includes("# ADR-0083: Tenant isolation"), true);
 });
 
 test("new omits semantically empty optional metadata identically for preview and apply", async () => {

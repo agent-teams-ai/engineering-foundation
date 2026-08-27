@@ -32,7 +32,10 @@ import {
   type PlanDocumentationDocumentRequestContract
 } from "../application/use-cases/plan-documentation-document.js";
 import { DocumentPlanningError } from "../document-planning-error.js";
-import { describeDocumentAuthoringProfileV2 } from "./describe-document-authoring-profile-v2.js";
+import {
+  describeDocumentAuthoringProfileV2,
+  describeDocumentAuthoringProfileV3
+} from "./describe-document-authoring-profile-v2.js";
 
 function planningPolicyFailure(error: DocumentPlanningPolicyError): never {
   const code = error.problem === "catalog-incomplete"
@@ -95,7 +98,8 @@ export async function planNodeDocumentationDocument(
     },
     profile: profileReader,
     profileDescription: {
-      describe: describeDocumentAuthoringProfileV2
+      describeV2: describeDocumentAuthoringProfileV2,
+      describeV3: describeDocumentAuthoringProfileV3
     },
     renderer: new YamlCanonicalDocumentRenderer(),
     state: new NodeDocumentPlanningStateReader(),

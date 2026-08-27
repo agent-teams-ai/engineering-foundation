@@ -230,6 +230,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       entrypoints: [
         "packages/docs-protocol/src/domain/document-semantics.ts",
         "packages/docs-protocol/src/domain/model.ts",
+        "packages/docs-protocol/src/domain/model-v2.ts",
         "packages/docs-protocol/src/domain/profile-policy.ts",
       ],
     },
@@ -473,6 +474,7 @@ test("Docs Protocol consumer integration retains its golden internal dependency 
       ],
       packages: [], builtins: [],
       entrypoints: [
+        "packages/docs-protocol/src/consumer-integration/composition/canonical-docs-skill-v2.ts",
         "packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts",
         "packages/docs-protocol/src/consumer-integration/index.ts",
       ],

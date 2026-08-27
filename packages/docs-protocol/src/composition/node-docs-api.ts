@@ -5,6 +5,7 @@ import { NodeFoundationDocsPort } from "../adapters/foundation-docs-port.js";
 import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { assertDocsCommandEnvelopeSchema } from "../adapters/docs-command-envelope-schema-validator.js";
 import type { DocsExecution, DocsFindQuery, DocsNewRequest, DocsNewResult } from "../domain/model.js";
+import type { DocsExecutionV2, DocsNewResultV2 } from "../domain/model-v2.js";
 
 function nodeProtocol(): DocsProtocol {
   return new DocsProtocol({
@@ -52,4 +53,31 @@ export function docsRecover(input: DocsConsumerRequest & { readonly signal?: Abo
 
 export function docsCheck(input: DocsConsumerRequest) {
   return verified(nodeProtocol().check(input));
+}
+
+export function docsInfoV2(input: DocsConsumerRequest) {
+  return verified(nodeProtocol().infoV2(input));
+}
+
+export function docsFindV2(input: DocsConsumerRequest & {
+  readonly query: DocsFindQuery;
+  readonly signal?: AbortSignal;
+}) {
+  return verified(nodeProtocol().findV2(input));
+}
+
+export function docsNewV2(input: DocsNewRequest): Promise<DocsExecutionV2<DocsNewResultV2>> {
+  return verified(nodeProtocol().newDocumentV2(input));
+}
+
+export function docsDoctorV2(input: DocsConsumerRequest) {
+  return verified(nodeProtocol().doctorV2(input));
+}
+
+export function docsRecoverV2(input: DocsConsumerRequest & { readonly signal?: AbortSignal }) {
+  return verified(nodeProtocol().recoverV2(input));
+}
+
+export function docsCheckV2(input: DocsConsumerRequest) {
+  return verified(nodeProtocol().checkV2(input));
 }

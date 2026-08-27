@@ -7,6 +7,7 @@ import {
   type DocsTypeProfile,
   type ReachabilityAction
 } from "./model.js";
+import type { DocsProtocolProfileV2 } from "./model-v2.js";
 
 const LOWER_ID = /^[a-z0-9][a-z0-9._/-]*$/u;
 const REPOSITORY_PATH = /^(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9._@-]+(?:\/[A-Za-z0-9._@-]+)*$/u;
@@ -61,7 +62,7 @@ function validatorIds(value: unknown): readonly string[] {
   return Object.freeze(entries.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))));
 }
 
-export function parseDocsProtocolProfile(value: unknown): DocsProtocolProfile {
+export function parseDocsProtocolProfile(value: unknown): DocsProtocolProfile | DocsProtocolProfileV2 {
   const candidate = record(value, "profile");
   exactKeys(candidate, ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "semanticValidatorIds"], "profile");
   if (candidate["schemaVersion"] !== 1 && candidate["schemaVersion"] !== 2) {throw new DocsProfileError("profile.schemaVersion must be 1 or 2.");}
@@ -79,17 +80,23 @@ export function parseDocsProtocolProfile(value: unknown): DocsProtocolProfile {
   }
   const workflow = record(candidate["agentWorkflow"], "profile.agentWorkflow");
   exactKeys(workflow, ["skillPath"], "profile.agentWorkflow");
-  return Object.freeze({
-    schemaVersion: candidate["schemaVersion"],
+  const shared = {
     protocol: Object.freeze({ id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION }),
-    foundationProfile: Object.freeze({
-      metadataSidecarPolicy: foundationProfile["metadataSidecarPolicy"] as DocsProtocolProfile["foundationProfile"]["metadataSidecarPolicy"],
-      path: repositoryPath(foundationProfile["path"], "profile.foundationProfile.path"),
-      schemaVersion: foundationProfile["schemaVersion"] as 2 | 3
-    }),
     agentWorkflow: Object.freeze({ skillPath: repositoryPath(workflow["skillPath"], "profile.agentWorkflow.skillPath") }),
     semanticValidatorIds: validatorIds(candidate["semanticValidatorIds"])
-  });
+  };
+  const path = repositoryPath(foundationProfile["path"], "profile.foundationProfile.path");
+  return profileV2
+    ? Object.freeze({
+        ...shared,
+        schemaVersion: 1 as const,
+        foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v2-strict-merge" as const, path, schemaVersion: 2 as const })
+      })
+    : Object.freeze({
+        ...shared,
+        schemaVersion: 2 as const,
+        foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v3-strict-merge" as const, path, schemaVersion: 3 as const })
+      });
 }
 
 function markdownLabel(value: string): string {

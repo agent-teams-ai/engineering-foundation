@@ -4,13 +4,15 @@ import { NodeDocumentMetadataSidecarReader } from "../adapters/node/node-documen
 import {
   loadValidatedDocumentAuthoringProfileV2,
   resolvedArtifactOwnerIds,
-  type ValidatedDocumentAuthoringProfileV2
+  type ValidatedDocumentAuthoringProfileV2,
+  type ValidatedDocumentAuthoringProfileV3
 } from "../adapters/node/load-validated-document-authoring-profile-v2.js";
 import { NodeMetadataInstanceValidator } from "../adapters/node/node-metadata-instance-validator.js";
 import { NodeOwnerMembershipReader } from "../adapters/node/node-owner-membership-reader.js";
 import { readDocumentAuthorityFile } from "../adapters/node/read-document-authority-file.js";
 import type {
   DocumentAuthoringProfileDescriptionV2,
+  DocumentAuthoringProfileDescriptionV3,
   DocumentAuthoringTypeDescriptionV2,
   DocumentReachabilityStrategyV2
 } from "../application/model/document-authoring-profile-description.js";
@@ -19,7 +21,10 @@ import type {
   DocumentIdentityStrategy,
   DocumentPlacementStrategy
 } from "../application/model/document-planning.js";
-import { documentAuthoringProfileSemanticDigest } from "../application/policies/document-authoring-semantic-digests.js";
+import {
+  documentAuthoringProfileSemanticDigest,
+  documentAuthoringProfileSemanticDigestV3
+} from "../application/policies/document-authoring-semantic-digests.js";
 import type { MetadataSchemaSnapshot } from "../application/ports/metadata-instance-validator.js";
 import type { OwnerMembershipSnapshot } from "../application/ports/owner-membership-reader.js";
 import { DocumentCatalogError } from "../document-catalog-error.js";
@@ -39,10 +44,24 @@ export interface DescribeDocumentAuthoringProfileV2Request {
   readonly signal?: AbortSignal;
 }
 
+export interface DescribeDocumentAuthoringProfileV3Request {
+  readonly consumerRoot: string;
+  readonly profilePath: string;
+  readonly signal?: AbortSignal;
+}
+
+type DescriptionRequest =
+  | DescribeDocumentAuthoringProfileV2Request
+  | DescribeDocumentAuthoringProfileV3Request;
+
+type ValidatedDescriptionProfile =
+  | ValidatedDocumentAuthoringProfileV2
+  | ValidatedDocumentAuthoringProfileV3;
+
 interface LoadedDescriptionAuthority {
   readonly metadata: MetadataSchemaSnapshot;
   readonly ownerCatalog: OwnerMembershipSnapshot;
-  readonly profile: ValidatedDocumentAuthoringProfileV2;
+  readonly profile: ValidatedDescriptionProfile;
   readonly profileEvidence: DocumentAuthorityEvidence;
   readonly sidecarEvidence?: DocumentAuthorityEvidence;
   readonly templateEvidenceByPath: ReadonlyMap<string, DocumentAuthorityEvidence>;
@@ -112,8 +131,8 @@ function describeType(
 }
 
 async function loadTemplateEvidence(
-  request: DescribeDocumentAuthoringProfileV2Request,
-  profile: ValidatedDocumentAuthoringProfileV2
+  request: DescriptionRequest,
+  profile: ValidatedDescriptionProfile
 ): Promise<ReadonlyMap<string, DocumentAuthorityEvidence>> {
   const paths = [...new Set(
     profile.authoring.artifactTypes.map((artifactType) => artifactType.template.path)
@@ -132,17 +151,18 @@ async function loadTemplateEvidence(
 }
 
 async function loadDescriptionAuthority(
-  request: DescribeDocumentAuthoringProfileV2Request
+  request: DescriptionRequest,
+  expectedVersion: 2 | 3
 ): Promise<LoadedDescriptionAuthority> {
   const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2({
     consumerRoot: request.consumerRoot,
     path: request.profilePath,
     ...(request.signal === undefined ? {} : { signal: request.signal })
   });
-  if (profile.schemaVersion !== 2 && profile.schemaVersion !== 3) {
+  if (profile.schemaVersion !== expectedVersion) {
     throw new DocumentCatalogError(
       "DOCUMENT_CATALOG_INPUT_INVALID",
-      "Document authoring profile description requires schemaVersion 2 or 3."
+      `Document authoring profile description v${expectedVersion} requires schemaVersion ${expectedVersion}.`
     );
   }
   const [ownerCatalog, metadata, sidecar, templateEvidenceByPath] =
@@ -179,7 +199,7 @@ async function loadDescriptionAuthority(
 
 function projectDescription(
   authority: LoadedDescriptionAuthority
-): DocumentAuthoringProfileDescriptionV2 {
+): DocumentAuthoringProfileDescriptionV2 | DocumentAuthoringProfileDescriptionV3 {
   const { metadata, ownerCatalog, profile, profileEvidence } = authority;
   const ownerIds = Object.freeze(
     [...ownerCatalog.ids].toSorted(compareBinaryStrings)
@@ -196,7 +216,7 @@ function projectDescription(
     if (allowedOwnerIds.some((owner) => !ownerSet.has(owner))) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        `Profile v2 artifact type contains an owner absent from the owner catalog: ${artifactType.type}.`
+        `Profile v${profile.schemaVersion} artifact type contains an owner absent from the owner catalog: ${artifactType.type}.`
       );
     }
   }
@@ -232,10 +252,7 @@ function projectDescription(
       return Object.freeze({ evidence, type: type.type });
     })
   );
-  const withoutDigest: Omit<
-    DocumentAuthoringProfileDescriptionV2,
-    "semanticDigest"
-  > = Object.freeze({
+  const common = Object.freeze({
     authority: Object.freeze({
       metadataSchema: metadata.evidence,
       ...(authority.sidecarEvidence === undefined
@@ -280,22 +297,47 @@ function projectDescription(
       )
     }),
     ownerIds,
-    profileSchemaVersion: profile.schemaVersion as 2 | 3,
     projectId: profile.projectId,
-    schemaVersion: 2,
     types
+  });
+  if (profile.schemaVersion === 2) {
+    const withoutDigest: Omit<
+      DocumentAuthoringProfileDescriptionV2,
+      "semanticDigest"
+    > = Object.freeze({
+      ...common,
+      profileSchemaVersion: 2,
+      schemaVersion: 2
+    });
+    return Object.freeze({
+      ...withoutDigest,
+      semanticDigest: documentAuthoringProfileSemanticDigest(withoutDigest)
+    });
+  }
+  const withoutDigest: Omit<
+    DocumentAuthoringProfileDescriptionV3,
+    "semanticDigest"
+  > = Object.freeze({
+    ...common,
+    profileSchemaVersion: 3,
+    schemaVersion: 3
   });
   return Object.freeze({
     ...withoutDigest,
-    semanticDigest: documentAuthoringProfileSemanticDigest(withoutDigest)
+    semanticDigest: documentAuthoringProfileSemanticDigestV3(withoutDigest)
   });
 }
 
-export async function describeDocumentAuthoringProfileV2(
-  request: DescribeDocumentAuthoringProfileV2Request
-): Promise<DocumentAuthoringProfileDescriptionV2> {
-  const before = projectDescription(await loadDescriptionAuthority(request));
-  const after = projectDescription(await loadDescriptionAuthority(request));
+async function describeDocumentAuthoringProfile(
+  request: DescriptionRequest,
+  version: 2 | 3
+): Promise<DocumentAuthoringProfileDescriptionV2 | DocumentAuthoringProfileDescriptionV3> {
+  const before = projectDescription(
+    await loadDescriptionAuthority(request, version)
+  );
+  const after = projectDescription(
+    await loadDescriptionAuthority(request, version)
+  );
   if (before.semanticDigest !== after.semanticDigest) {
     throw new DocumentCatalogError(
       "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
@@ -303,4 +345,24 @@ export async function describeDocumentAuthoringProfileV2(
     );
   }
   return after;
+}
+
+export async function describeDocumentAuthoringProfileV2(
+  request: DescribeDocumentAuthoringProfileV2Request
+): Promise<DocumentAuthoringProfileDescriptionV2> {
+  const description = await describeDocumentAuthoringProfile(request, 2);
+  if (description.profileSchemaVersion !== 2) {
+    throw new TypeError("Document authoring profile v2 projection is inconsistent.");
+  }
+  return description;
+}
+
+export async function describeDocumentAuthoringProfileV3(
+  request: DescribeDocumentAuthoringProfileV3Request
+): Promise<DocumentAuthoringProfileDescriptionV3> {
+  const description = await describeDocumentAuthoringProfile(request, 3);
+  if (description.profileSchemaVersion !== 3) {
+    throw new TypeError("Document authoring profile v3 projection is inconsistent.");
+  }
+  return description;
 }

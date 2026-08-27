@@ -5,9 +5,9 @@ import type {
   DocsCodeAnchor,
   DocsCommandOutcome,
   DocsDiagnostic,
-  FoundationDocsPort,
   ReachabilityAction
 } from "../domain/model.js";
+import type { FoundationDocsPortV2 } from "../domain/model-v2.js";
 import { normalizeCodeAnchors, normalizeDocumentIds } from "../domain/document-semantics.js";
 import { DocsProfileError } from "../domain/profile-policy.js";
 import { catalogMatchesExpectedPostimage } from "./authority-handshake.js";
@@ -77,7 +77,7 @@ function semanticDiagnostic(subject: string, message: string): DocsDiagnostic {
   return { ruleId: "docs.metadata.common-semantics", severity: "error", phase: "authority", subject, message };
 }
 
-type CatalogDocument = Awaited<ReturnType<FoundationDocsPort["buildCatalog"]>>["documents"][number];
+type CatalogDocument = Awaited<ReturnType<FoundationDocsPortV2["buildCatalog"]>>["documents"][number];
 
 function inspectDocumentSemantics(document: CatalogDocument, byId: ReadonlyMap<string, CatalogDocument>): readonly DocsCodeAnchor[] {
   const related = normalizeDocumentIds(metadataStrings(document.metadata["related"], `${document.id}.related`), `${document.id}.related`);
@@ -106,7 +106,7 @@ function inspectDocumentSemantics(document: CatalogDocument, byId: ReadonlyMap<s
 
 export async function inspectCorpusSemantics(input: {
   readonly anchors: CodeAnchorMatcher;
-  readonly catalog: Awaited<ReturnType<FoundationDocsPort["buildCatalog"]>>;
+  readonly catalog: Awaited<ReturnType<FoundationDocsPortV2["buildCatalog"]>>;
   readonly consumerRoot: string;
   readonly signal?: AbortSignal;
 }): Promise<readonly DocsDiagnostic[]> {
@@ -157,9 +157,9 @@ export async function completeDocsNewApply(input: {
   readonly codeAnchors: readonly DocsCodeAnchor[];
   readonly consumerRoot: string;
   readonly diagnostics: readonly DocsDiagnostic[];
-  readonly foundation: FoundationDocsPort;
+  readonly foundation: FoundationDocsPortV2;
   readonly outcome: DocsCommandOutcome;
-  readonly plan: Awaited<ReturnType<FoundationDocsPort["plan"]>>;
+  readonly plan: Awaited<ReturnType<FoundationDocsPortV2["plan"]>>;
   readonly profilePath: string;
   readonly reachability: ReachabilityAction;
   readonly receipt: DocumentReceiptContract;
@@ -217,7 +217,7 @@ export async function completeDocsNewApply(input: {
       writeState: "published-recovery-required"
     };
   }
-  let catalog: Awaited<ReturnType<FoundationDocsPort["buildCatalog"]>>;
+  let catalog: Awaited<ReturnType<FoundationDocsPortV2["buildCatalog"]>>;
   try {
     catalog = await input.foundation.buildCatalog({
       consumerRoot: input.consumerRoot,

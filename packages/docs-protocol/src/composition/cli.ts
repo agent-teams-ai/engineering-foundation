@@ -9,20 +9,19 @@ import { assertDocsCommandEnvelopeSchema } from "../adapters/docs-command-envelo
 import {
   DOCS_PROTOCOL_ID,
   DOCS_PROTOCOL_VERSION,
-  type DocsCommand,
-  type DocsExecution,
   type DocsFindQuery
 } from "../domain/model.js";
+import type { DocsCommandV2, DocsExecutionV2 } from "../domain/model-v2.js";
 import { DocsProfileError } from "../domain/profile-policy.js";
 import {
   consumerIntegrationHelp,
   runConsumerIntegrationCli
 } from "../consumer-integration/composition/consumer-integration-cli.js";
 import { Arguments, CliInputError } from "./cli-input.js";
-import { renderDocsHuman } from "./docs-human-renderer.js";
+import { renderDocsHumanV2 } from "./docs-human-renderer.js";
 import { runQualificationCli } from "./qualification-cli.js";
 
-export { renderDocsHuman } from "./docs-human-renderer.js";
+export { renderDocsHuman, renderDocsHumanV2 } from "./docs-human-renderer.js";
 
 interface CommonArguments {
   readonly consumerRoot: string;
@@ -134,7 +133,7 @@ function machineErrorMessage(outcome: "cancelled" | "execution-failure" | "inval
   return "Documentation command failed.";
 }
 
-export function docsCliErrorExecution(command: DocsCommand, error: unknown, machine: boolean): DocsExecution<Readonly<Record<string, never>>> {
+export function docsCliErrorExecution(command: DocsCommandV2, error: unknown, machine: boolean): DocsExecutionV2<Readonly<Record<string, never>>> {
   const code = errorCode(error);
   const cancelled = error instanceof Error && error.name === "AbortError";
   const inputInvalid = isInputError(error, code);
@@ -164,7 +163,7 @@ export function docsCliErrorExecution(command: DocsCommand, error: unknown, mach
   };
 }
 
-function commandId(value: string | undefined): DocsCommand {
+function commandId(value: string | undefined): DocsCommandV2 {
   switch (value) {
     case "check": return "docs.check";
     case "doctor": return "docs.doctor";
@@ -199,7 +198,7 @@ async function dispatchFind(protocol: DocsProtocol, args: Arguments, options: Co
     ...(related === undefined ? {} : { related }),
     ...(blockedBy === undefined ? {} : { blockedBy })
   };
-  return { execution: await protocol.find({ ...options, query }), json: options.json };
+  return { execution: await protocol.findV2({ ...options, query }), json: options.json };
 }
 
 async function dispatchNew(protocol: DocsProtocol, args: Arguments, options: CommonArguments) {
@@ -223,7 +222,7 @@ async function dispatchNew(protocol: DocsProtocol, args: Arguments, options: Com
     throw new CliInputError("Unknown docs:new arguments.");
   }
   return {
-    execution: await protocol.newDocument({
+    execution: await protocol.newDocumentV2({
       ...options,
       apply,
       intent: { type, id, title, owner, summary, ...(slug === undefined ? {} : { slug }), ...(destination === undefined ? {} : { destination }) },
@@ -236,12 +235,12 @@ async function dispatchNew(protocol: DocsProtocol, args: Arguments, options: Com
   };
 }
 
-async function dispatch(protocol: DocsProtocol, command: string, values: readonly string[], signal: AbortSignal): Promise<{ readonly execution: DocsExecution<unknown>; readonly json: boolean }> {
+async function dispatch(protocol: DocsProtocol, command: string, values: readonly string[], signal: AbortSignal): Promise<{ readonly execution: DocsExecutionV2<unknown>; readonly json: boolean }> {
   const args = new Arguments(values);
   const options = common(args, signal);
   if (command === "info") {
     if (args.positionals().length !== 0) {throw new CliInputError("docs:info accepts no positional arguments.");}
-    return { execution: await protocol.info(options), json: options.json };
+    return { execution: await protocol.infoV2(options), json: options.json };
   }
   if (command === "find") {
     return dispatchFind(protocol, args, options);
@@ -251,15 +250,15 @@ async function dispatch(protocol: DocsProtocol, command: string, values: readonl
   }
   if (command === "doctor") {
     if (args.positionals().length !== 0) {throw new CliInputError("docs:doctor accepts no positional arguments.");}
-    return { execution: await protocol.doctor(options), json: options.json };
+    return { execution: await protocol.doctorV2(options), json: options.json };
   }
   if (command === "recover") {
     if (args.positionals().length !== 0) {throw new CliInputError("docs:recover accepts no positional arguments.");}
-    return { execution: await protocol.recover(options), json: options.json };
+    return { execution: await protocol.recoverV2(options), json: options.json };
   }
   if (command === "check") {
     if (args.positionals().length !== 0) {throw new CliInputError("docs:check accepts no positional arguments.");}
-    return { execution: await protocol.check(options), json: options.json };
+    return { execution: await protocol.checkV2(options), json: options.json };
   }
   throw new CliInputError("Expected one command: info, find, new, doctor, recover, or check.");
 }
@@ -281,14 +280,14 @@ function helpText(command?: string): string {
 }
 
 export async function validatedMachineExecution(
-  id: DocsCommand,
-  execution: DocsExecution<unknown>
-): Promise<DocsExecution<unknown>> {
+  id: DocsCommandV2,
+  execution: DocsExecutionV2<unknown>
+): Promise<DocsExecutionV2<unknown>> {
   try {
     await assertDocsCommandEnvelopeSchema(execution.envelope);
     return execution;
   } catch {
-    const fallback: DocsExecution<Readonly<Record<string, never>>> = {
+    const fallback: DocsExecutionV2<Readonly<Record<string, never>>> = {
       exitCode: 3,
       envelope: {
         schemaVersion: 2,
@@ -345,7 +344,7 @@ export async function runDocsCli(
   process.once("SIGINT", cancel);
   process.once("SIGTERM", cancel);
   let json = normalizedArgv.includes("--json");
-  let execution: DocsExecution<unknown>;
+  let execution: DocsExecutionV2<unknown>;
   try {
     const dispatched = await dispatch(protocolFactory(), command ?? "", normalizedArgv.slice(1), controller.signal);
     execution = dispatched.execution;
@@ -359,6 +358,6 @@ export async function runDocsCli(
   if (json) {
     execution = await validatedMachineExecution(id, execution);
   }
-  process.stdout.write(json ? `${JSON.stringify(execution.envelope)}\n` : renderDocsHuman(execution.envelope));
+  process.stdout.write(json ? `${JSON.stringify(execution.envelope)}\n` : renderDocsHumanV2(execution.envelope));
   return execution.exitCode;
 }

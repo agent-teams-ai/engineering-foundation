@@ -182,7 +182,7 @@ export async function interruptAndRecover(input: {
     throw new Error("Qualification crash Plan differs from the unified Docs Protocol preview.");
   }
   await crashAtDurablePublishing(input.consumerRoot, crashPlan, input.base.signal);
-  const interruptedDoctor = await input.protocol.doctor({
+  const interruptedDoctor = await input.protocol.doctorV2({
     consumerRoot: input.consumerRoot,
     profilePath: input.profilePath,
     ...signalOption(input.base.signal)
@@ -191,7 +191,7 @@ export async function interruptAndRecover(input: {
     interruptedDoctor.envelope.result.transaction.state !== "recoverable") {
     throw new Error("Qualification doctor did not observe its genuine interrupted transaction.");
   }
-  const recovered = await input.protocol.recover({
+  const recovered = await input.protocol.recoverV2({
     consumerRoot: input.consumerRoot,
     profilePath: input.profilePath,
     ...signalOption(input.base.signal)

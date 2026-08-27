@@ -26,7 +26,8 @@ import {
   recoverNodeDocumentationTransaction
 } from "./composition/node-document-writing.js";
 import {
-  describeDocumentAuthoringProfileV2
+  describeDocumentAuthoringProfileV2,
+  describeDocumentAuthoringProfileV3
 } from "./composition/describe-document-authoring-profile-v2.js";
 import { inspectDocumentAuthoringEnvironmentV1 } from "./composition/inspect-document-authoring-environment-v1.js";
 
@@ -55,6 +56,7 @@ export type {
 } from "./application/model/document-find.js";
 export type {
   DocumentAuthoringProfileDescriptionV2,
+  DocumentAuthoringProfileDescriptionV3,
   DocumentAuthoringTypeDescriptionV2,
   DocumentReachabilityStrategyV2
 } from "./application/model/document-authoring-profile-description.js";
@@ -107,7 +109,10 @@ export type { RecoverDocumentTransactionRequest } from "./application/use-cases/
 export type { DocumentTransactionRequest } from "./application/use-cases/document-transaction-continuation.js";
 export type { BuildDocumentationCatalogRequest } from "./application/use-cases/build-documentation-catalog.js";
 export type { FindDocumentsRequest } from "./application/use-cases/find-documents.js";
-export type { DescribeDocumentAuthoringProfileV2Request } from "./composition/describe-document-authoring-profile-v2.js";
+export type {
+  DescribeDocumentAuthoringProfileV2Request,
+  DescribeDocumentAuthoringProfileV3Request
+} from "./composition/describe-document-authoring-profile-v2.js";
 export type { InspectDocumentAuthoringEnvironmentV1Request } from "./composition/inspect-document-authoring-environment-v1.js";
 export type { DocumentEnvironmentInspection } from "./application/ports/document-environment-inspector.js";
 export type {
@@ -125,6 +130,7 @@ export {
   inspectDocumentTransactionV2
 } from "./composition/inspect-document-transaction.js";
 export { describeDocumentAuthoringProfileV2 };
+export { describeDocumentAuthoringProfileV3 };
 export { inspectDocumentAuthoringEnvironmentV1 };
 export {
   planDocumentParentMaterializationV2

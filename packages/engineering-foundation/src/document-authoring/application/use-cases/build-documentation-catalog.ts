@@ -200,7 +200,7 @@ async function loadCatalogAuthority(
     if (unknownOwner !== undefined) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        `Profile v2 artifact type ${artifact.type} allows an owner absent from the owner catalog: ${unknownOwner}.`
+        `Profile v${profile.schemaVersion ?? 2} artifact type ${artifact.type} allows an owner absent from the owner catalog: ${unknownOwner}.`
       );
     }
   }

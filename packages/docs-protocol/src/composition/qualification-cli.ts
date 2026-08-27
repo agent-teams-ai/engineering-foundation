@@ -1,11 +1,10 @@
 import { assertDocsCommandEnvelopeSchema } from "../adapters/docs-command-envelope-schema-validator.js";
 import {
   DOCS_PROTOCOL_ID,
-  DOCS_PROTOCOL_VERSION,
-  type DocsCommandEnvelope,
-  type DocsExecution
+  DOCS_PROTOCOL_VERSION
 } from "../domain/model.js";
-import { runDocsProtocolQualificationV2 } from "../qualification/index.js";
+import type { DocsCommandEnvelopeV2, DocsExecutionV2 } from "../domain/model-v2.js";
+import { runDocsProtocolQualificationV2, type DocsProtocolQualificationReceiptV2 } from "../qualification/index.js";
 import { Arguments, CliInputError } from "./cli-input.js";
 
 class QualificationOutputError extends Error {
@@ -16,7 +15,7 @@ class QualificationOutputError extends Error {
 }
 
 interface QualificationFailure {
-  readonly envelope: DocsCommandEnvelope<Readonly<Record<string, never>>>;
+  readonly envelope: DocsCommandEnvelopeV2<Readonly<Record<string, never>>>;
   readonly exitCode: 1 | 2 | 3 | 130;
   readonly message: string;
 }
@@ -68,7 +67,7 @@ function qualificationHelpText(): string {
   return "Usage: agent-teams-docs qualify [--consumer PATH] [--integration PATH] [--local-development] [--json]\nRuns only the package-owned suite in an owned disposable copy; the declared consumer gate is never executed. --local-development overlays the current package canonical Skill only in that copy and emits evidence that is not cohort-admissible.\n";
 }
 
-async function qualificationSuccess(args: Arguments, signal: AbortSignal): Promise<DocsExecution<unknown>> {
+async function qualificationSuccess(args: Arguments, signal: AbortSignal): Promise<DocsExecutionV2<DocsProtocolQualificationReceiptV2>> {
   const localDevelopment = args.flag("--local-development");
   const consumerRoot = args.one("--consumer") ?? ".";
   const integrationPath = args.one("--integration");
@@ -87,9 +86,9 @@ async function qualificationSuccess(args: Arguments, signal: AbortSignal): Promi
   };
 }
 
-function renderQualificationSuccess(execution: DocsExecution<unknown>, json: boolean): string {
+function renderQualificationSuccess(execution: DocsExecutionV2<DocsProtocolQualificationReceiptV2>, json: boolean): string {
   if (json) {return `${JSON.stringify(execution.envelope)}\n`;}
-  const receipt = execution.envelope.result as { readonly evidenceClass: string; readonly projectId: string; readonly scenarios: readonly unknown[] };
+  const receipt = execution.envelope.result;
   return `docs.qualify: success\nProject: ${receipt.projectId}\nScenarios: ${receipt.scenarios.length}\nEvidence: ${receipt.evidenceClass}\n`;
 }
 

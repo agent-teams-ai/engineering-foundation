@@ -5,7 +5,11 @@ import type {
 } from "../../application/ports/authoring-profile-reader.js";
 import { DocumentCatalogError } from "../../document-catalog-error.js";
 import { InvalidDocumentAuthoringProfileError } from "./load-validated-document-authoring-profile.js";
-import { loadValidatedDocumentAuthoringProfileV2, resolvedArtifactOwnerIds } from "./load-validated-document-authoring-profile-v2.js";
+import {
+  loadValidatedDocumentAuthoringProfileV2,
+  resolvedArtifactOwnerIds,
+  resolvedProfileMetadataSidecar
+} from "./load-validated-document-authoring-profile-v2.js";
 
 function freezeCollection(collection: CatalogCollection): CatalogCollection {
   return collection.kind === "markdown-tree"
@@ -21,6 +25,7 @@ export class NodeAuthoringProfileReaderV2 implements AuthoringProfileReader {
   }): Promise<CatalogProfileSnapshot> {
     try {
       const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2(request);
+      const metadataSidecar = resolvedProfileMetadataSidecar(profile);
       return Object.freeze({
         artifactOwnerIds: Object.freeze(
           profile.authoring.artifactTypes.map((artifactType) => {
@@ -34,9 +39,9 @@ export class NodeAuthoringProfileReaderV2 implements AuthoringProfileReader {
         evidence,
         excludedPrefixes: Object.freeze([...(profile.catalog.excludedPrefixes ?? [])]),
         metadataSchemaPath: profile.catalog.metadataSchemaPath,
-        ...(profile.catalog.metadataSidecar === undefined
+        ...(metadataSidecar === undefined
           ? {}
-          : { metadataSidecar: Object.freeze({ ...profile.catalog.metadataSidecar }) }),
+          : { metadataSidecar: Object.freeze({ ...metadataSidecar }) }),
         ownerCatalog: Object.freeze({ ...profile.catalog.ownerCatalog }),
         projectId: profile.projectId,
         schemaVersion: profile.schemaVersion,

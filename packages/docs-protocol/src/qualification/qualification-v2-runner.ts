@@ -188,7 +188,7 @@ async function qualifyScenarios(input: {
   for (const [index, scenario] of input.contract.scenarios.entries()) {
     const scenarioBase = scenarioRequest(scenario, input.base.consumerRoot, input.base.profilePath, input.base.signal);
     const beforePreview = await fileSnapshot(input.base.consumerRoot, input.evidencePolicy);
-    const preview = await input.protocol.newDocument({ ...scenarioBase, apply: false });
+    const preview = await input.protocol.newDocumentV2({ ...scenarioBase, apply: false });
     const previewResult = documentResult(preview) as CompiledDocumentResult;
     if (changedPaths(beforePreview, await fileSnapshot(input.base.consumerRoot, input.evidencePolicy)).length !== 0) {
       throw new Error(`Qualification scenario ${scenario.id} preview mutated the disposable consumer.`);
@@ -209,7 +209,7 @@ async function qualifyScenarios(input: {
         protocol: input.protocol
       });
     } else {
-      const applied = await input.protocol.newDocument({ ...scenarioBase, apply: true });
+      const applied = await input.protocol.newDocumentV2({ ...scenarioBase, apply: true });
       const appliedResult = documentResult(applied) as CompiledDocumentResult;
       if (appliedResult.planDigest !== previewResult.planDigest || appliedResult.compiled.document.content !== previewResult.compiled.document.content) {
         throw new Error(`Qualification scenario ${scenario.id} preview/apply parity mismatch.`);
@@ -220,7 +220,7 @@ async function qualifyScenarios(input: {
       throw new Error(`Qualification scenario ${scenario.id} materialized bytes differ from preview.`);
     }
     await applyReachability(input.base.consumerRoot, previewResult.reachability);
-    requireSuccess(`check after ${scenario.id}`, await input.protocol.check(input.base));
+    requireSuccess(`check after ${scenario.id}`, await input.protocol.checkV2(input.base));
     receipts.push({
       id: scenario.id,
       type: scenario.type,
@@ -288,22 +288,22 @@ export async function runDocsProtocolQualificationV2(
     }
     const protocol = createProtocol();
     const base = { consumerRoot, profilePath: qualifiedIntegration.profilePath, ...signalOption(request.signal) };
-    const info = await protocol.info(base);
+    const info = await protocol.infoV2(base);
     requireSuccess("info", info);
     const infoResult = info.envelope.result;
     assertScenarioCoverage(qualification.contract, infoResult.types.map(({ type }) => type));
-    requireSuccess("find", await protocol.find({ ...base, query: {} }));
-    requireSuccess("check", await protocol.check(base));
-    const initialDoctor = await protocol.doctor(base);
+    requireSuccess("find", await protocol.findV2({ ...base, query: {} }));
+    requireSuccess("check", await protocol.checkV2(base));
+    const initialDoctor = await protocol.doctorV2(base);
     requireSuccess("doctor", initialDoctor);
-    const idleRecovery = await protocol.recover(base);
+    const idleRecovery = await protocol.recoverV2(base);
     requireSuccess("recover", idleRecovery);
     if (idleRecovery.envelope.result.transactionState !== "no-pending-transaction") {
       throw new Error("Qualification recover did not prove the initial idle state.");
     }
     const receipts = await qualifyScenarios({ base, contract: qualification.contract, evidencePolicy, protocol });
-    requireSuccess("doctor", await protocol.doctor(base));
-    requireSuccess("recover", await protocol.recover(base));
+    requireSuccess("doctor", await protocol.doctorV2(base));
+    requireSuccess("recover", await protocol.recoverV2(base));
     if (await snapshot(sourceRoot, evidencePolicy) !== before) {
       throw new Error("Qualification modified its source consumer.");
     }

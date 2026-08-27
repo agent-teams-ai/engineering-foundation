@@ -3,10 +3,7 @@ import type {
   DocumentIntent,
   DocumentJsonValue,
   DocumentMetadataObject,
-  DocumentPlanV2,
-  DocumentReceiptContract,
-  DocumentTransactionInspectionV2,
-  DocumentationCatalogSnapshotV2
+  DocumentReceiptContract
 } from "@agent-teams/engineering-foundation/document-authoring";
 
 export const DOCS_PROTOCOL_ID = "agent-teams.docs-protocol" as const;
@@ -18,7 +15,6 @@ export type DocsCommand =
   | "docs.find"
   | "docs.info"
   | "docs.new"
-  | "docs.qualify"
   | "docs.recover";
 
 export type DocsCommandOutcome =
@@ -40,7 +36,7 @@ export interface DocsDiagnostic {
 }
 
 export interface DocsCommandEnvelope<Result = unknown> {
-  readonly schemaVersion: 1 | 2;
+  readonly schemaVersion: 1;
   readonly protocol: {
     readonly id: typeof DOCS_PROTOCOL_ID;
     readonly version: typeof DOCS_PROTOCOL_VERSION;
@@ -83,45 +79,20 @@ export interface DocsTypeProfile {
 }
 
 export interface DocsProtocolProfile {
-  readonly schemaVersion: 1 | 2;
+  readonly schemaVersion: 1;
   readonly protocol: {
     readonly id: typeof DOCS_PROTOCOL_ID;
     readonly version: typeof DOCS_PROTOCOL_VERSION;
   };
   readonly foundationProfile: {
-    readonly metadataSidecarPolicy: "foundation-profile-v2-strict-merge" | "foundation-profile-v3-strict-merge";
+    readonly metadataSidecarPolicy: "foundation-profile-v2-strict-merge";
     readonly path: string;
-    readonly schemaVersion: 2 | 3;
+    readonly schemaVersion: 2;
   };
   readonly agentWorkflow: {
     readonly skillPath: string;
   };
   readonly semanticValidatorIds: readonly string[];
-}
-
-export interface FoundationDocsDescription {
-  readonly authority: {
-    readonly metadataSchema: { readonly digest: string; readonly path: string; readonly size: number };
-    readonly metadataSidecar?: { readonly digest: string; readonly path: string; readonly size: number };
-    readonly ownerCatalog: { readonly digest: string; readonly path: string; readonly size: number };
-    readonly profile: { readonly digest: string; readonly path: string; readonly size: number };
-    readonly templates: readonly {
-      readonly evidence: { readonly digest: string; readonly path: string; readonly size: number };
-      readonly type: string;
-    }[];
-  };
-  readonly projectId: string;
-  readonly catalog: {
-    readonly collections: readonly unknown[];
-    readonly excludedPrefixes: readonly string[];
-  };
-  readonly profileSchemaVersion: 2 | 3;
-  readonly semanticDigest: string;
-  readonly metadataSchemaPath: string;
-  readonly metadataSidecar: { readonly kind: "none" } | { readonly kind: "path-metadata-map"; readonly path: string };
-  readonly ownerIds: readonly string[];
-  readonly types: readonly DocsTypeProfile[];
-  readonly authorityPaths: readonly string[];
 }
 
 export interface DocsAdoptionInspector {
@@ -166,23 +137,6 @@ export interface DocsCodeAnchor {
   readonly pattern: string;
 }
 
-export interface DocsCompiledDocumentV1 {
-  readonly schemaVersion: 1;
-  readonly document: {
-    readonly content: string;
-    readonly digest: `sha256:${string}`;
-    readonly mediaType: "text/markdown; charset=utf-8";
-    readonly size: number;
-  };
-  readonly frontmatter: string;
-  readonly metadata: Readonly<Record<string, DocumentJsonValue>>;
-  readonly relations: {
-    readonly blockedBy: readonly string[];
-    readonly related: readonly string[];
-  };
-  readonly anchors: readonly DocsCodeAnchor[];
-}
-
 export type DocsNewResult =
   | Readonly<{
       kind: "new";
@@ -201,7 +155,6 @@ export type DocsNewResult =
       writeState: "blocked";
     }>
   | Readonly<{
-      compiled: DocsCompiledDocumentV1;
       documentPath: string;
       kind: "new";
       planDigest: `sha256:${string}`;
@@ -210,7 +163,6 @@ export type DocsNewResult =
       writeState: "preview";
     }>
   | Readonly<{
-      compiled: DocsCompiledDocumentV1;
       documentPath: string;
       kind: "new";
       planDigest: `sha256:${string}`;
@@ -247,59 +199,4 @@ export interface ReachabilityAction {
   readonly indexPath?: string;
   readonly markdownLink?: string;
   readonly reason?: string;
-}
-
-export interface FoundationDocsPort {
-  inspectEnvironment(input: {
-    readonly consumerRoot: string;
-    readonly signal?: AbortSignal;
-  }): Promise<{
-    readonly installedFoundationVersion: string;
-    readonly installedFoundationBuildIdentity: string;
-    readonly filesystem: {
-      readonly basis: "platform-contract";
-      readonly strictDirectoryDurability: "platform-supported" | "platform-unsupported";
-    };
-  }>;
-  describe(input: {
-    readonly consumerRoot: string;
-    readonly profilePath: string;
-    readonly signal?: AbortSignal;
-  }): Promise<FoundationDocsDescription>;
-  buildCatalog(input: {
-    readonly consumerRoot: string;
-    readonly profilePath: string;
-    readonly signal?: AbortSignal;
-  }): Promise<DocumentationCatalogSnapshotV2>;
-  find(input: {
-    readonly consumerRoot: string;
-    readonly profilePath: string;
-    readonly query: DocsFindQuery;
-    readonly signal?: AbortSignal;
-  }): Promise<readonly DocsFindDocument[]>;
-  inspect(consumerRoot: string): Promise<DocumentTransactionInspectionV2>;
-  plan(input: {
-    readonly consumerRoot: string;
-    readonly profilePath: string;
-    readonly intent: DocumentIntent;
-    readonly parentPolicy: "create-missing-real-directories";
-    readonly signal?: AbortSignal;
-  }): Promise<DocumentPlanV2>;
-  apply(input: {
-    readonly consumerRoot: string;
-    readonly plan: DocumentPlanV2;
-    readonly signal?: AbortSignal;
-  }): Promise<DocumentReceiptContract>;
-  recover(input: {
-    readonly consumerRoot: string;
-    readonly signal?: AbortSignal;
-  }): Promise<DocumentReceiptContract>;
-}
-
-export interface DocsProfileReader {
-  read(input: {
-    readonly consumerRoot: string;
-    readonly profilePath: string;
-    readonly signal?: AbortSignal;
-  }): Promise<DocsProtocolProfile>;
 }

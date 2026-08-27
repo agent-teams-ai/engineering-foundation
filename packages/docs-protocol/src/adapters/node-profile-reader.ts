@@ -3,7 +3,7 @@ import { lstat, open, realpath, type FileHandle } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
-import type { DocsProfileReader } from "../domain/model.js";
+import type { DocsProfileReaderV2 } from "../domain/model-v2.js";
 import { DocsProfileError, parseDocsProtocolProfile } from "../domain/profile-policy.js";
 import { assertDocsProtocolProfileSchema } from "./docs-profile-schema-validator.js";
 
@@ -89,7 +89,7 @@ function parseProfileSource(bytes: Buffer): unknown {
   return document.toJS({ maxAliasCount: 0 }) as unknown;
 }
 
-export class NodeDocsProfileReader implements DocsProfileReader {
+export class NodeDocsProfileReader implements DocsProfileReaderV2 {
   async read(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }) {
     const value = parseProfileSource(await readProfileBytes(input));
     await assertDocsProtocolProfileSchema(value);

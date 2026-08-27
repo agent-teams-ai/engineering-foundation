@@ -4,7 +4,10 @@ import {
   sha256Json,
   type CanonicalJsonValue
 } from "../../../canonical-json.js";
-import type { DocumentAuthoringProfileDescriptionV2 } from "../model/document-authoring-profile-description.js";
+import type {
+  DocumentAuthoringProfileDescriptionV2,
+  DocumentAuthoringProfileDescriptionV3
+} from "../model/document-authoring-profile-description.js";
 import type {
   DocumentAuthorityDigest,
   DocumentDescriptorV2,
@@ -33,8 +36,11 @@ function canonicalSortKey(value: unknown): string {
   return canonicalJson(value as CanonicalJsonValue);
 }
 
-export function documentAuthoringProfileSemanticDigest(
-  description: Omit<DocumentAuthoringProfileDescriptionV2, "semanticDigest">
+function profileSemanticDigest(
+  description:
+    | Omit<DocumentAuthoringProfileDescriptionV2, "semanticDigest">
+    | Omit<DocumentAuthoringProfileDescriptionV3, "semanticDigest">,
+  version: 2 | 3
 ): DocumentAuthorityDigest {
   const authority = {
     ...description.authority,
@@ -62,9 +68,21 @@ export function documentAuthoringProfileSemanticDigest(
     )
   };
   return domainDigest(
-    `${DOMAIN_PREFIX}/profile-semantic-projection/v2`,
+    `${DOMAIN_PREFIX}/profile-semantic-projection/v${version}`,
     payload as unknown as CanonicalJsonValue
   );
+}
+
+export function documentAuthoringProfileSemanticDigest(
+  description: Omit<DocumentAuthoringProfileDescriptionV2, "semanticDigest">
+): DocumentAuthorityDigest {
+  return profileSemanticDigest(description, 2);
+}
+
+export function documentAuthoringProfileSemanticDigestV3(
+  description: Omit<DocumentAuthoringProfileDescriptionV3, "semanticDigest">
+): DocumentAuthorityDigest {
+  return profileSemanticDigest(description, 3);
 }
 
 export interface DocumentationCatalogSemanticDigestInput {

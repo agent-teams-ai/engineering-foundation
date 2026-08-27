@@ -8,19 +8,23 @@ import type {
 import {
   GENERATED_CALLER_WORKFLOW_TEMPLATE,
   GENERATED_DOCS_SKILL,
+  GENERATED_DOCS_SKILL_V2,
   GENERATED_TRANSITION_CATALOG
 } from "../../generated/canonical-assets.js";
 
 const CATALOG_SOURCE = Object.freeze({
-  skill: GENERATED_DOCS_SKILL,
+  skill: GENERATED_DOCS_SKILL_V2,
   callerWorkflowTemplate: GENERATED_CALLER_WORKFLOW_TEMPLATE
 });
+const LEGACY_CATALOG_SOURCE = Object.freeze({ skill: GENERATED_DOCS_SKILL });
 
-export const CANONICAL_DOCS_SKILL = CATALOG_SOURCE.skill;
+export const CANONICAL_DOCS_SKILL = LEGACY_CATALOG_SOURCE.skill;
+export const CANONICAL_DOCS_SKILL_V2 = CATALOG_SOURCE.skill;
 export const CANONICAL_CALLER_WORKFLOW_TEMPLATE = CATALOG_SOURCE.callerWorkflowTemplate;
 
 export const BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS: readonly Uint8Array[] = Object.freeze([
-  Buffer.from(CANONICAL_DOCS_SKILL
+  Buffer.from(CANONICAL_DOCS_SKILL, "utf8"),
+  Buffer.from(CANONICAL_DOCS_SKILL_V2
     .replace(
       "--type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --dry-run",
       "--type TYPE --id ID --dry-run"
@@ -229,7 +233,7 @@ export function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortBindi
   readonly assetCatalogDigest: ConsumerIntegrationDigest;
   readonly transitionCatalogDigest: ConsumerIntegrationDigest;
 } {
-  const skillDigest = digestBytes(Buffer.from(CANONICAL_DOCS_SKILL, "utf8"));
+  const skillDigest = digestBytes(Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8"));
   const callerWorkflowDigest = digestBytes(Buffer.from(canonicalCallerWorkflow(cohort), "utf8"));
   const assetCatalogDigest = digestBytes(Buffer.from(CANONICAL_ASSET_CATALOG, "utf8"));
   return Object.freeze({

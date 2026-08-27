@@ -12,6 +12,7 @@ import {
   requireSuccess
 } from "./qualification-runtime.js";
 
+export type { DocumentJsonValue } from "@agent-teams/engineering-foundation/document-authoring";
 export type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
 export { runDocsProtocolQualificationV2 } from "./qualification-v2-runner.js";
 export type {
@@ -73,9 +74,9 @@ export async function runDocsProtocolQualification(request: DocsProtocolQualific
     await cp(sourceRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });
     await bootstrapQualificationInstallation(consumerRoot, true);
     const protocol = createProtocol();
-    const info = await protocol.info({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
+    const info = await protocol.infoV2({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     requireSuccess("info", info);
-    const find = await protocol.find({ consumerRoot, profilePath, query: request.scenario.find.query, ...(request.signal === undefined ? {} : { signal: request.signal }) });
+    const find = await protocol.findV2({ consumerRoot, profilePath, query: request.scenario.find.query, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     requireSuccess("find", find);
     const ids = find.envelope.result.documents.map(({ id }) => id);
     if (JSON.stringify(ids) !== JSON.stringify(request.scenario.find.expectedIds)) {
@@ -83,7 +84,7 @@ export async function runDocsProtocolQualification(request: DocsProtocolQualific
     }
     const base = { ...request.scenario.newDocument, consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) };
     const beforePreview = await fileSnapshot(consumerRoot);
-    const preview = await protocol.newDocument({ ...base, apply: false });
+    const preview = await protocol.newDocumentV2({ ...base, apply: false });
     requireSuccess("preview", preview);
     if (changedPaths(beforePreview, await fileSnapshot(consumerRoot)).length !== 0) {
       throw new Error("Preview mutated its owned disposable consumer.");
@@ -113,9 +114,9 @@ export async function runDocsProtocolQualification(request: DocsProtocolQualific
       throw new Error("Missing-parent qualification recovery did not truthfully report retained Plan v2 materialization.");
     }
     await applyReachability(consumerRoot, appliedResult.reachability);
-    const check = await protocol.check({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
+    const check = await protocol.checkV2({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     if (check.exitCode !== 0) {throw new Error(`Docs Protocol qualification check failed: ${JSON.stringify(check.envelope)}.`);}
-    const doctor = await protocol.doctor({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
+    const doctor = await protocol.doctorV2({ consumerRoot, profilePath, ...(request.signal === undefined ? {} : { signal: request.signal }) });
     requireSuccess("doctor", doctor);
     if (await snapshot(sourceRoot) !== before) {
       throw new Error("Qualification modified its source fixture.");

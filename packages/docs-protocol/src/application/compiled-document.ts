@@ -1,11 +1,12 @@
 import type { DocumentJsonValue } from "@agent-teams/engineering-foundation/document-authoring";
 import { parseDocument } from "yaml";
 
-import type { DocsCodeAnchor, DocsCompiledDocumentV1, FoundationDocsPort } from "../domain/model.js";
+import type { DocsCodeAnchor } from "../domain/model.js";
+import type { DocsCompiledDocumentV1, FoundationDocsPortV2 } from "../domain/model-v2.js";
 import { DocsProfileError } from "../domain/profile-policy.js";
 
 export function compiledDocument(
-  plan: Awaited<ReturnType<FoundationDocsPort["plan"]>>,
+  plan: Awaited<ReturnType<FoundationDocsPortV2["plan"]>>,
   input: {
     readonly anchors: readonly DocsCodeAnchor[];
     readonly blockedBy: readonly string[];

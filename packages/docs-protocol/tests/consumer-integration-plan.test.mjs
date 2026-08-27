@@ -18,6 +18,7 @@ import { loadPackageConsumerAssetCatalog } from "../dist/consumer-integration/ad
 import {
   CANONICAL_ASSET_CATALOG,
   CANONICAL_CALLER_WORKFLOW_TEMPLATE,
+  CANONICAL_DOCS_SKILL_V2,
   CANONICAL_TRANSITION_CATALOG,
   canonicalConsumerIntegrationJson
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
@@ -114,7 +115,7 @@ function snapshot() {
     lockfile: file("lockfile\n"),
     packageManifest: file(manifest()),
     agents: file("# Agents\n\nUse [.agents/skills/docs-authoring/SKILL.md](.agents/skills/docs-authoring/SKILL.md) for documentation.\n"),
-    skill: file(CANONICAL_DOCS_SKILL),
+    skill: file(CANONICAL_DOCS_SKILL_V2),
     callerWorkflow: file(canonicalCallerWorkflow(target)),
     managedState: absent
   };
@@ -146,24 +147,24 @@ test("plans only the legacy route migration and generated managed state", () => 
 
 test("recognizes the qualified bootstrap caller without trusting arbitrary old bytes", () => {
   const current = snapshot();
-  current.callerWorkflow = {
-    state: "file",
-    bytes: BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS[0],
-    mode: 0o644
-  };
+  current.callerWorkflow = { state: "file", bytes: BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS[0], mode: 0o644 };
   const plan = planConsumerIntegration({ desired: desired(), snapshot: current });
-  assert.equal(
-    plan.assets.find(({ id }) => id === "caller-workflow").action,
-    "replace"
-  );
+  assert.equal(plan.assets.find(({ id }) => id === "caller-workflow").action, "replace");
   assert.equal(plan.outcome, "change-required");
+});
+
+test("upgrades the exact published v1 Skill without managed-state authority", () => {
+  const current = snapshot();
+  current.skill = file(CANONICAL_DOCS_SKILL);
+  const plan = planConsumerIntegration({ desired: desired(), snapshot: current });
+  assert.deepEqual([current.managedState.state, plan.outcome, plan.issues,
+    plan.assets.find(({ id }) => id === "skill").action, plan.assets.find(({ id }) => id === "managed-state").action],
+  ["absent", "change-required", [], "replace", "create"]);
 });
 
 test("recognizes the exact bootstrap caller on a renamed safe default branch", () => {
   const current = snapshot();
-  current.callerWorkflow = file(Buffer.from(
-    BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS[0]
-  ).toString("utf8").replace("- main", "- trunk"));
+  current.callerWorkflow = file(Buffer.from(BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS[0]).toString("utf8").replace("- main", "- trunk"));
   const plan = planConsumerIntegration({ desired: desired(), snapshot: current });
   assert.equal(plan.assets.find(({ id }) => id === "caller-workflow").action, "replace");
   assert.equal(plan.outcome, "change-required");
@@ -235,12 +236,12 @@ test("creates an absent root AGENTS.md with only the canonical route", () => {
 });
 
 test("canonical Skill contains executable identical preview and apply arguments", () => {
-  assert.match(CANONICAL_DOCS_SKILL, /--title TITLE --owner OWNER --summary SUMMARY --dry-run/u);
-  assert.match(CANONICAL_DOCS_SKILL, /--title TITLE --owner OWNER --summary SUMMARY --apply/u);
-  assert.match(CANONICAL_DOCS_SKILL, /pnpm install --frozen-lockfile/u);
-  assert.match(CANONICAL_DOCS_SKILL, /never use npx, dlx, or latest tags/u);
-  assert.ok(CANONICAL_DOCS_SKILL.split("\n").length >= 20);
-  assert.ok(CANONICAL_DOCS_SKILL.split("\n").length <= 30);
+  assert.match(CANONICAL_DOCS_SKILL_V2, /--title TITLE --owner OWNER --summary SUMMARY --dry-run/u);
+  assert.match(CANONICAL_DOCS_SKILL_V2, /--title TITLE --owner OWNER --summary SUMMARY --apply/u);
+  assert.match(CANONICAL_DOCS_SKILL_V2, /pnpm install --frozen-lockfile/u);
+  assert.match(CANONICAL_DOCS_SKILL_V2, /never use npx, dlx, or latest tags/u);
+  assert.ok(CANONICAL_DOCS_SKILL_V2.split("\n").length >= 20);
+  assert.ok(CANONICAL_DOCS_SKILL_V2.split("\n").length <= 30);
 });
 
 test("package-owned asset sources exactly match compiler constants and split catalog authority", async () => {
@@ -251,7 +252,8 @@ test("package-owned asset sources exactly match compiler constants and split cat
     readFile(join(packageRoot, "assets", "catalog.json"), "utf8"),
     readFile(join(packageRoot, "assets", "transition-catalog.json"), "utf8")
   ]);
-  assert.equal(skill, CANONICAL_DOCS_SKILL);
+  assert.equal(skill, CANONICAL_DOCS_SKILL_V2);
+  assert.equal(digest(Buffer.from(CANONICAL_DOCS_SKILL, "utf8")), "sha256:7b31cd257532247f64c55a014dc926c601e4d742176cfb8513b6b0d8ab48213e");
   assert.equal(workflow, CANONICAL_CALLER_WORKFLOW_TEMPLATE);
   assert.equal(catalogSource, CANONICAL_ASSET_CATALOG);
   assert.equal(transitionCatalogSource, CANONICAL_TRANSITION_CATALOG);
@@ -407,7 +409,7 @@ test("permits only catalog-proven explicit rc-to-stable upgrade and rollback edg
   };
   const rollbackEntry = Object.freeze({
     cohort: rollbackDesired.cohort,
-    skill: Buffer.from(CANONICAL_DOCS_SKILL, "utf8"),
+    skill: Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8"),
     callerWorkflow: Buffer.from(canonicalCallerWorkflow(rollbackDesired.cohort), "utf8"),
     agentsRouteDigest: digest(Buffer.from(canonicalManagedRoute(sourceDesired.skillPath), "utf8")),
     docsScriptsDigest: canonicalDocsScriptsDigest(sourceDesired.profilePath)
@@ -425,7 +427,7 @@ test("permits only catalog-proven explicit rc-to-stable upgrade and rollback edg
   }
   const entry = Object.freeze({
     cohort: sourceDesired.cohort,
-    skill: Buffer.from(CANONICAL_DOCS_SKILL, "utf8"),
+    skill: Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8"),
     callerWorkflow: Buffer.from(canonicalCallerWorkflow(sourceDesired.cohort), "utf8"),
     agentsRouteDigest: digest(Buffer.from(canonicalManagedRoute(sourceDesired.skillPath), "utf8")),
     docsScriptsDigest: canonicalDocsScriptsDigest(sourceDesired.profilePath)

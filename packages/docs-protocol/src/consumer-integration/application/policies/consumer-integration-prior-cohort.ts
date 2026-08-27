@@ -5,7 +5,7 @@ import type {
   ConsumerIntegrationSnapshot
 } from "../../domain/model.js";
 import {
-  CANONICAL_DOCS_SKILL,
+  CANONICAL_DOCS_SKILL_V2,
   canonicalCallerWorkflow,
   canonicalConsumerIntegrationJson,
   canonicalDocsScripts,
@@ -144,7 +144,7 @@ export function trustedPriorCohort(
       "utf8"
     )) || `${canonicalConsumerIntegrationJson(record)}\n` !== stateSource) {return undefined;}
     const recordedDesired = desiredAtRecordedRepository(desired, record);
-    const currentSkill = Buffer.from(CANONICAL_DOCS_SKILL, "utf8");
+    const currentSkill = Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
     const currentCaller = Buffer.from(canonicalCallerWorkflow(desired.cohort), "utf8");
     const currentRouteDigest = digestBytes(Buffer.from(canonicalManagedRoute(desired.skillPath), "utf8"));
     const currentScriptsDigest = canonicalDocsScriptsDigest(desired.profilePath);

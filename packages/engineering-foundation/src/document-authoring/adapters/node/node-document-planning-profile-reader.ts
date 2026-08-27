@@ -14,7 +14,8 @@ import {
 import {
   loadValidatedDocumentAuthoringProfileV2,
   resolvedArtifactOwnerIds,
-  type ValidatedDocumentAuthoringProfileV2
+  resolvedProfileMetadataSidecar,
+  type ValidatedDocumentAuthoringProfileVersioned
 } from "./load-validated-document-authoring-profile-v2.js";
 
 function freezeIdentity(identity: DocumentIdentityStrategy): DocumentIdentityStrategy {
@@ -42,8 +43,8 @@ function freezePlacement(placement: DocumentPlacementStrategy): DocumentPlacemen
 }
 
 function freezeArtifactType(
-  artifactType: ValidatedDocumentAuthoringProfileV2["authoring"]["artifactTypes"][number],
-  profile: ValidatedDocumentAuthoringProfileV2
+  artifactType: ValidatedDocumentAuthoringProfileVersioned["authoring"]["artifactTypes"][number],
+  profile: ValidatedDocumentAuthoringProfileVersioned
 ): DocumentArtifactType {
   const allowedOwnerIds = resolvedArtifactOwnerIds(profile, artifactType);
   return Object.freeze({
@@ -88,6 +89,7 @@ implements DocumentPlanningProfileReader {
       const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2(
         request
       );
+      const metadataSidecar = resolvedProfileMetadataSidecar(profile);
       return Object.freeze({
         artifactTypes: Object.freeze(
           profile.authoring.artifactTypes.map((artifactType) => freezeArtifactType(artifactType, profile))
@@ -100,9 +102,9 @@ implements DocumentPlanningProfileReader {
           ...(profile.catalog.excludedPrefixes ?? [])
         ]),
         metadataSchemaPath: profile.catalog.metadataSchemaPath,
-        ...(profile.catalog.metadataSidecar === undefined
+        ...(metadataSidecar === undefined
           ? {}
-          : { metadataSidecar: Object.freeze({ ...profile.catalog.metadataSidecar }) }),
+          : { metadataSidecar: Object.freeze({ ...metadataSidecar }) }),
         ownerCatalog: Object.freeze({ ...profile.catalog.ownerCatalog }),
         projectId: profile.projectId,
         schemaVersion: profile.schemaVersion

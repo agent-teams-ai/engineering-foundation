@@ -19,7 +19,7 @@ import {
   BUNDLED_KNOWN_PRIOR_COHORTS,
   BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS,
   BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS,
-  CANONICAL_DOCS_SKILL,
+  CANONICAL_DOCS_SKILL_V2,
   canonicalCallerWorkflow,
   canonicalConsumerIntegrationJson,
   canonicalDocsScriptsDigest,
@@ -292,7 +292,7 @@ function planFullAssets(input: {
   readonly targetCatalogDigest: ConsumerIntegrationDigest;
   readonly targetTransitionCatalogDigest: ConsumerIntegrationDigest;
 }): readonly FullAssetResult[] {
-  const skillBytes = input.targetBundle?.skill ?? Buffer.from(CANONICAL_DOCS_SKILL, "utf8");
+  const skillBytes = input.targetBundle?.skill ?? Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
   const callerBytes = input.targetBundle?.callerWorkflow ??
     Buffer.from(canonicalCallerWorkflow(input.desired.cohort), "utf8");
   const routeBytes = Buffer.from(canonicalManagedRoute(input.desired.skillPath), "utf8");

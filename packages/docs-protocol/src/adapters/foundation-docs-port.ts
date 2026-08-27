@@ -2,6 +2,7 @@ import {
   applyDocumentationPlanV2,
   buildDocumentationCatalogV2,
   describeDocumentAuthoringProfileV2,
+  describeDocumentAuthoringProfileV3,
   findDocumentationDocumentsV2,
   inspectDocumentTransactionV2,
   inspectDocumentAuthoringEnvironmentV1,
@@ -13,9 +14,8 @@ import {
 
 import type {
   DocsFindDocument,
-  FoundationDocsDescription,
-  FoundationDocsPort
 } from "../domain/model.js";
+import type { FoundationDocsDescriptionV2, FoundationDocsPortV2 } from "../domain/model-v2.js";
 import { DocsProfileError } from "../domain/profile-policy.js";
 import { normalizeDocumentIds } from "../domain/document-semantics.js";
 
@@ -41,20 +41,23 @@ function signalOption(signal: AbortSignal | undefined): { readonly signal?: Abor
   return signal === undefined ? {} : { signal };
 }
 
-export class NodeFoundationDocsPort implements FoundationDocsPort {
-  inspectEnvironment(input: Parameters<FoundationDocsPort["inspectEnvironment"]>[0]) {
+export class NodeFoundationDocsPort implements FoundationDocsPortV2 {
+  inspectEnvironment(input: Parameters<FoundationDocsPortV2["inspectEnvironment"]>[0]) {
     return inspectDocumentAuthoringEnvironmentV1({
       consumerRoot: input.consumerRoot,
       ...signalOption(input.signal)
     });
   }
 
-  async describe(input: Parameters<FoundationDocsPort["describe"]>[0]): Promise<FoundationDocsDescription> {
-    const description = await describeDocumentAuthoringProfileV2({
+  async describe(input: Parameters<FoundationDocsPortV2["describe"]>[0]): Promise<FoundationDocsDescriptionV2> {
+    const request = {
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
       ...signalOption(input.signal)
-    });
+    };
+    const description = input.profileSchemaVersion === 2
+      ? await describeDocumentAuthoringProfileV2(request)
+      : await describeDocumentAuthoringProfileV3(request);
     return Object.freeze({
       authority: description.authority,
       catalog: description.catalog,
@@ -79,7 +82,7 @@ export class NodeFoundationDocsPort implements FoundationDocsPort {
     });
   }
 
-  async buildCatalog(input: Parameters<FoundationDocsPort["buildCatalog"]>[0]) {
+  async buildCatalog(input: Parameters<FoundationDocsPortV2["buildCatalog"]>[0]) {
     return buildDocumentationCatalogV2({
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
@@ -87,7 +90,7 @@ export class NodeFoundationDocsPort implements FoundationDocsPort {
     });
   }
 
-  async find(input: Parameters<FoundationDocsPort["find"]>[0]): Promise<readonly DocsFindDocument[]> {
+  async find(input: Parameters<FoundationDocsPortV2["find"]>[0]): Promise<readonly DocsFindDocument[]> {
     const base = await findDocumentationDocumentsV2({
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
@@ -109,7 +112,7 @@ export class NodeFoundationDocsPort implements FoundationDocsPort {
     return inspectDocumentTransactionV2(consumerRoot);
   }
 
-  plan(input: Parameters<FoundationDocsPort["plan"]>[0]) {
+  plan(input: Parameters<FoundationDocsPortV2["plan"]>[0]) {
     return planDocumentationDocumentV2({
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
@@ -119,7 +122,7 @@ export class NodeFoundationDocsPort implements FoundationDocsPort {
     });
   }
 
-  apply(input: Parameters<FoundationDocsPort["apply"]>[0]) {
+  apply(input: Parameters<FoundationDocsPortV2["apply"]>[0]) {
     return applyDocumentationPlanV2({
       consumerRoot: input.consumerRoot,
       plan: input.plan,
@@ -127,7 +130,7 @@ export class NodeFoundationDocsPort implements FoundationDocsPort {
     });
   }
 
-  recover(input: Parameters<FoundationDocsPort["recover"]>[0]) {
+  recover(input: Parameters<FoundationDocsPortV2["recover"]>[0]) {
     return recoverDocumentationTransactionV2({
       consumerRoot: input.consumerRoot,
       ...signalOption(input.signal)

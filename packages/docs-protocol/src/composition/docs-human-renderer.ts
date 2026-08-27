@@ -1,4 +1,7 @@
 import type { DocsCommandEnvelope } from "../domain/model.js";
+import type { DocsCommandEnvelopeV2 } from "../domain/model-v2.js";
+
+type RenderableEnvelope = DocsCommandEnvelope | DocsCommandEnvelopeV2;
 
 function reachabilitySummary(value: unknown): string {
   const reachability = value as Record<string, unknown>;
@@ -59,7 +62,7 @@ function renderNew(result: Record<string, unknown>): readonly string[] {
   return lines;
 }
 
-function renderCommandResult(envelope: DocsCommandEnvelope, result: Record<string, unknown>): readonly string[] {
+function renderCommandResult(envelope: RenderableEnvelope, result: Record<string, unknown>): readonly string[] {
   switch (envelope.command) {
     case "docs.info": return renderInfo(result);
     case "docs.find": return renderFind(result);
@@ -80,6 +83,14 @@ function renderCommandResult(envelope: DocsCommandEnvelope, result: Record<strin
 }
 
 export function renderDocsHuman(envelope: DocsCommandEnvelope): string {
+  return render(envelope);
+}
+
+export function renderDocsHumanV2(envelope: DocsCommandEnvelopeV2): string {
+  return render(envelope);
+}
+
+function render(envelope: RenderableEnvelope): string {
   const result = envelope.result as Record<string, unknown>;
   const lines = [`${envelope.command}: ${envelope.outcome}`, ...renderCommandResult(envelope, result)];
   for (const diagnostic of envelope.diagnostics) {lines.push(`${diagnostic.severity.toUpperCase()} ${diagnostic.ruleId}: ${diagnostic.message}`);}

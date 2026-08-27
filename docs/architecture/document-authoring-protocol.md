@@ -60,6 +60,15 @@ consumer code or treats a profile as an extension language.
 
 The metadata schema answers which final document is valid. The authoring profile
 answers which initial document may be created. They are intentionally separate.
+
+Profile v3 may define local named owner sets once under
+`authoring.ownerSets: {schemaVersion: 1, sets: {...}}`. Each artifact type then
+selects exactly one `ownerSetId`, or keeps an explicit `allowedOwnerIds` list.
+The forms are mutually exclusive, every referenced set must exist, and every
+effective member must still exist in the owner catalog. There is no implicit
+catalog-wide set: adding an owner cannot silently expand authoring authority.
+Owner-set resolution does not centralize metadata schemas, templates, or domain
+meaning.
 Foundation does not infer creation defaults from arbitrary JSON Schema.
 
 ## Read-only catalog

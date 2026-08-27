@@ -1,10 +1,10 @@
 import type { DocumentPlanV2 } from "@agent-teams/engineering-foundation/document-authoring";
 
-import type { FoundationDocsPort } from "../domain/model.js";
+import type { FoundationDocsPortV2 } from "../domain/model-v2.js";
 
-type Catalog = Awaited<ReturnType<FoundationDocsPort["buildCatalog"]>>;
-type Description = Awaited<ReturnType<FoundationDocsPort["describe"]>>;
-type Plan = Awaited<ReturnType<FoundationDocsPort["plan"]>>;
+type Catalog = Awaited<ReturnType<FoundationDocsPortV2["buildCatalog"]>>;
+type Description = Awaited<ReturnType<FoundationDocsPortV2["describe"]>>;
+type Plan = Awaited<ReturnType<FoundationDocsPortV2["plan"]>>;
 
 function isPlanV2(plan: Plan): plan is DocumentPlanV2 {
   return plan.schemaVersion === 2;

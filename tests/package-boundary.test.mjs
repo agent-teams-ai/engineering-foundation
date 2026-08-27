@@ -230,13 +230,14 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       entrypoints: [
         "packages/docs-protocol/src/domain/document-semantics.ts",
         "packages/docs-protocol/src/domain/model.ts",
+        "packages/docs-protocol/src/domain/model-v2.ts",
         "packages/docs-protocol/src/domain/profile-policy.ts",
       ],
     },
     "docs-protocol.application": {
       roots: ["packages/docs-protocol/src/application"],
       boundaries: ["docs-protocol.domain"],
-      packages: [foundationName],
+      packages: [foundationName, "yaml"],
       builtins: [],
       entrypoints: ["packages/docs-protocol/src/application/docs-protocol.ts"],
     },
@@ -264,6 +265,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
         "docs-protocol.application",
         "docs-protocol.consumer-integration.composition",
         "docs-protocol.domain",
+        "docs-protocol.qualification",
       ],
       packages: [foundationName],
       builtins: [],
@@ -277,9 +279,12 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       boundaries: [
         "docs-protocol.adapters",
         "docs-protocol.application",
+        "docs-protocol.consumer-integration.adapters",
+        "docs-protocol.consumer-integration.composition",
+        "docs-protocol.consumer-integration.domain",
         "docs-protocol.domain",
       ],
-      packages: [foundationName],
+      packages: [foundationName, "ajv"],
       builtins: [
         "node:child_process",
         "node:crypto",
@@ -469,6 +474,7 @@ test("Docs Protocol consumer integration retains its golden internal dependency 
       ],
       packages: [], builtins: [],
       entrypoints: [
+        "packages/docs-protocol/src/consumer-integration/composition/canonical-docs-skill-v2.ts",
         "packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts",
         "packages/docs-protocol/src/consumer-integration/index.ts",
       ],

@@ -9,16 +9,19 @@ import { assertDocsCommandEnvelopeSchema } from "../adapters/docs-command-envelo
 import {
   DOCS_PROTOCOL_ID,
   DOCS_PROTOCOL_VERSION,
-  type DocsCommand,
-  type DocsCommandEnvelope,
-  type DocsExecution,
   type DocsFindQuery
 } from "../domain/model.js";
+import type { DocsCommandV2, DocsExecutionV2 } from "../domain/model-v2.js";
 import { DocsProfileError } from "../domain/profile-policy.js";
 import {
   consumerIntegrationHelp,
   runConsumerIntegrationCli
 } from "../consumer-integration/composition/consumer-integration-cli.js";
+import { Arguments, CliInputError } from "./cli-input.js";
+import { renderDocsHumanV2 } from "./docs-human-renderer.js";
+import { runQualificationCli } from "./qualification-cli.js";
+
+export { renderDocsHuman, renderDocsHumanV2 } from "./docs-human-renderer.js";
 
 interface CommonArguments {
   readonly consumerRoot: string;
@@ -27,63 +30,6 @@ interface CommonArguments {
   readonly signal: AbortSignal;
 }
 
-class CliInputError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "CliInputError";
-  }
-}
-
-class Arguments {
-  readonly #values: string[];
-  readonly #used = new Set<number>();
-
-  constructor(values: readonly string[]) {
-    const separator = values.indexOf("--");
-    this.#values = separator === -1
-      ? [...values]
-      : [...values.slice(0, separator), ...values.slice(separator + 1)];
-  }
-
-  flag(name: string): boolean {
-    const indexes = this.#values.flatMap((value, index) => value === name ? [index] : []);
-    if (indexes.length > 1) {throw new CliInputError(`${name} may be supplied only once.`);}
-    if (indexes[0] !== undefined) {this.#used.add(indexes[0]);}
-    return indexes.length === 1;
-  }
-
-  one(name: string, required = false): string | undefined {
-    const indexes = this.#values.flatMap((value, index) => value === name ? [index] : []);
-    if (indexes.length > 1) {throw new CliInputError(`${name} may be supplied only once.`);}
-    const index = indexes[0];
-    if (index === undefined) {
-      if (required) {throw new CliInputError(`${name} is required.`);}
-      return undefined;
-    }
-    const value = this.#values[index + 1];
-    if (value === undefined || value.startsWith("--")) {throw new CliInputError(`${name} requires a value.`);}
-    this.#used.add(index);
-    this.#used.add(index + 1);
-    return value;
-  }
-
-  many(name: string): readonly string[] {
-    const results: string[] = [];
-    for (let index = 0; index < this.#values.length; index += 1) {
-      if (this.#values[index] !== name) {continue;}
-      const value = this.#values[index + 1];
-      if (value === undefined || value.startsWith("--")) {throw new CliInputError(`${name} requires a value.`);}
-      this.#used.add(index);
-      this.#used.add(index + 1);
-      results.push(value);
-    }
-    return Object.freeze(results);
-  }
-
-  positionals(): readonly string[] {
-    return Object.freeze(this.#values.filter((_value, index) => !this.#used.has(index)));
-  }
-}
 
 function common(args: Arguments, signal: AbortSignal): CommonArguments {
   return {
@@ -187,7 +133,7 @@ function machineErrorMessage(outcome: "cancelled" | "execution-failure" | "inval
   return "Documentation command failed.";
 }
 
-export function docsCliErrorExecution(command: DocsCommand, error: unknown, machine: boolean): DocsExecution<Readonly<Record<string, never>>> {
+export function docsCliErrorExecution(command: DocsCommandV2, error: unknown, machine: boolean): DocsExecutionV2<Readonly<Record<string, never>>> {
   const code = errorCode(error);
   const cancelled = error instanceof Error && error.name === "AbortError";
   const inputInvalid = isInputError(error, code);
@@ -199,7 +145,7 @@ export function docsCliErrorExecution(command: DocsCommand, error: unknown, mach
   return {
     exitCode: cancelled ? 130 : inputInvalid ? 2 : 3,
     envelope: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
       command,
       outcome,
@@ -217,7 +163,7 @@ export function docsCliErrorExecution(command: DocsCommand, error: unknown, mach
   };
 }
 
-function commandId(value: string | undefined): DocsCommand {
+function commandId(value: string | undefined): DocsCommandV2 {
   switch (value) {
     case "check": return "docs.check";
     case "doctor": return "docs.doctor";
@@ -252,7 +198,7 @@ async function dispatchFind(protocol: DocsProtocol, args: Arguments, options: Co
     ...(related === undefined ? {} : { related }),
     ...(blockedBy === undefined ? {} : { blockedBy })
   };
-  return { execution: await protocol.find({ ...options, query }), json: options.json };
+  return { execution: await protocol.findV2({ ...options, query }), json: options.json };
 }
 
 async function dispatchNew(protocol: DocsProtocol, args: Arguments, options: CommonArguments) {
@@ -276,7 +222,7 @@ async function dispatchNew(protocol: DocsProtocol, args: Arguments, options: Com
     throw new CliInputError("Unknown docs:new arguments.");
   }
   return {
-    execution: await protocol.newDocument({
+    execution: await protocol.newDocumentV2({
       ...options,
       apply,
       intent: { type, id, title, owner, summary, ...(slug === undefined ? {} : { slug }), ...(destination === undefined ? {} : { destination }) },
@@ -289,12 +235,12 @@ async function dispatchNew(protocol: DocsProtocol, args: Arguments, options: Com
   };
 }
 
-async function dispatch(protocol: DocsProtocol, command: string, values: readonly string[], signal: AbortSignal): Promise<{ readonly execution: DocsExecution<unknown>; readonly json: boolean }> {
+async function dispatch(protocol: DocsProtocol, command: string, values: readonly string[], signal: AbortSignal): Promise<{ readonly execution: DocsExecutionV2<unknown>; readonly json: boolean }> {
   const args = new Arguments(values);
   const options = common(args, signal);
   if (command === "info") {
     if (args.positionals().length !== 0) {throw new CliInputError("docs:info accepts no positional arguments.");}
-    return { execution: await protocol.info(options), json: options.json };
+    return { execution: await protocol.infoV2(options), json: options.json };
   }
   if (command === "find") {
     return dispatchFind(protocol, args, options);
@@ -304,89 +250,22 @@ async function dispatch(protocol: DocsProtocol, command: string, values: readonl
   }
   if (command === "doctor") {
     if (args.positionals().length !== 0) {throw new CliInputError("docs:doctor accepts no positional arguments.");}
-    return { execution: await protocol.doctor(options), json: options.json };
+    return { execution: await protocol.doctorV2(options), json: options.json };
   }
   if (command === "recover") {
     if (args.positionals().length !== 0) {throw new CliInputError("docs:recover accepts no positional arguments.");}
-    return { execution: await protocol.recover(options), json: options.json };
+    return { execution: await protocol.recoverV2(options), json: options.json };
   }
   if (command === "check") {
     if (args.positionals().length !== 0) {throw new CliInputError("docs:check accepts no positional arguments.");}
-    return { execution: await protocol.check(options), json: options.json };
+    return { execution: await protocol.checkV2(options), json: options.json };
   }
   throw new CliInputError("Expected one command: info, find, new, doctor, recover, or check.");
 }
 
-function reachabilitySummary(value: unknown): string {
-  const reachability = value as Record<string, unknown>;
-  return [reachability["kind"], reachability["indexPath"], reachability["reason"]]
-    .filter((entry) => typeof entry === "string")
-    .join(" ");
-}
-
-function display(value: unknown, fallback = "unknown"): string {
-  return typeof value === "string" || typeof value === "number"
-    ? String(value)
-    : fallback;
-}
-
-function renderInfo(result: Record<string, unknown>): readonly string[] {
-  const lines = [`Project: ${display(result["projectId"])}`];
-  for (const value of Array.isArray(result["types"]) ? result["types"] : []) {
-    const type = value as Record<string, unknown>;
-    const identity = type["identity"] as Record<string, unknown>;
-    const placement = type["placement"] as Record<string, unknown>;
-    lines.push(`Type ${String(type["type"])} | initial ${String(type["initialStatus"])} | owners ${(type["allowedOwnerIds"] as unknown[]).join(",")} | identity ${String(identity["format"])} | placement ${String(placement["kind"])} | required ${(type["requiredMetadata"] as unknown[]).join(",")} | reachability ${reachabilitySummary(type["reachability"])}`);
-  }
-  lines.push(`Semantic validators: ${(result["semanticValidatorIds"] as unknown[]).join(",") || "none"}`);
-  return lines;
-}
-
-function renderFind(result: Record<string, unknown>): readonly string[] {
-  const lines = [`Matches: ${display(result["matches"], "0")}`];
-  for (const value of Array.isArray(result["documents"]) ? result["documents"] : []) {
-    const document = value as Record<string, unknown>;
-    lines.push(`${String(document["id"])} | ${String(document["type"])} | ${String(document["status"])} | ${String(document["owner"])} | ${String(document["repositoryPath"])} | ${String(document["title"])}`);
-  }
-  return lines;
-}
-
-export function renderDocsHuman(envelope: DocsCommandEnvelope): string {
-  const result = envelope.result as Record<string, unknown>;
-  const lines = [`${envelope.command}: ${envelope.outcome}`];
-  if (envelope.command === "docs.info") {
-    lines.push(...renderInfo(result));
-  }
-  if (envelope.command === "docs.find") {
-    lines.push(...renderFind(result));
-  }
-  if (envelope.command === "docs.new" && typeof result["documentPath"] === "string") {
-    lines.push(`Document: ${result["documentPath"]}`);
-    const reachability = result["reachability"] as Record<string, unknown> | undefined;
-    const indexable = ["preview", "applied", "already-applied"].includes(display(result["writeState"]));
-    if (indexable && reachability?.["state"] === "manual-required") {lines.push(`Next: add ${String(reachability["markdownLink"])} to ${String(reachability["indexPath"])}`);}
-    if (result["writeState"] === "published-recovery-required") {lines.push("Next: recover the published transaction before editing reachability indexes.");}
-  }
-  if (envelope.command === "docs.doctor") {
-    lines.push(`Project: ${display(result["projectId"])}`);
-    lines.push(`Environment: ${JSON.stringify(result["environment"] ?? {})}`);
-    lines.push(`Transaction: ${JSON.stringify(result["transaction"] ?? {})}`);
-  }
-  if (envelope.command === "docs.check") {
-    lines.push(`Project: ${display(result["projectId"])}`);
-    lines.push(`Catalog: ${String(result["catalogStatus"])} (${String(result["documents"])} documents)`);
-    lines.push(`Adoption: ${result["valid"] === true ? "valid" : "invalid"}`);
-  }
-  if (envelope.command === "docs.recover") {
-    lines.push(`Recovery: ${display(result["transactionState"])} (${display(result["writeState"])})`);
-  }
-  for (const diagnostic of envelope.diagnostics) {lines.push(`${diagnostic.severity.toUpperCase()} ${diagnostic.ruleId}: ${diagnostic.message}`);}
-  return `${lines.join("\n")}\n`;
-}
-
 function helpText(command?: string): string {
   if (command === "new") {
-    return "Usage: agent-teams-docs new --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY (--dry-run|--apply) [--related ID] [--blocked-by ID] [--code-anchor required:PATTERN] [--metadata key=JSON]\n";
+    return "Usage: agent-teams-docs new --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY (--dry-run|--apply) [--slug SLUG] [--destination PATH] [--related ID] [--blocked-by ID] [--code-anchor required:PATTERN|JSON] [--metadata key=JSON]\nRepeat --related, --blocked-by, --code-anchor, and --metadata as needed. Preview returns exact compiled document/frontmatter/metadata/relations/anchors.\n";
   }
   if (command === "find") {
     return "Usage: agent-teams-docs find [TEXT|--text TEXT] [--id ID] [--type TYPE] [--status STATUS] [--owner OWNER] [--related ID] [--blocked-by ID]\n";
@@ -394,21 +273,24 @@ function helpText(command?: string): string {
   if (["info", "doctor", "recover", "check"].includes(command ?? "")) {
     return `Usage: agent-teams-docs ${command} [--consumer PATH] [--profile PATH] [--json]\n`;
   }
-  return "Usage: agent-teams-docs <info|find|new|doctor|recover|check|consumer> [options]\nRun 'agent-teams-docs consumer --help' for maintainer integration commands.\n";
+  if (command === "qualify") {
+    return "Usage: agent-teams-docs qualify [--consumer PATH] [--integration PATH] [--local-development] [--json]\nRuns only the package-owned suite in an owned disposable copy; the declared consumer gate is never executed. --local-development overlays the current package canonical Skill only in that copy and emits evidence that is not cohort-admissible.\n";
+  }
+  return "Usage: agent-teams-docs <info|find|new|doctor|recover|check|qualify|consumer> [options]\nRun 'agent-teams-docs consumer --help' for maintainer integration commands.\n";
 }
 
 export async function validatedMachineExecution(
-  id: DocsCommand,
-  execution: DocsExecution<unknown>
-): Promise<DocsExecution<unknown>> {
+  id: DocsCommandV2,
+  execution: DocsExecutionV2<unknown>
+): Promise<DocsExecutionV2<unknown>> {
   try {
     await assertDocsCommandEnvelopeSchema(execution.envelope);
     return execution;
   } catch {
-    const fallback: DocsExecution<Readonly<Record<string, never>>> = {
+    const fallback: DocsExecutionV2<Readonly<Record<string, never>>> = {
       exitCode: 3,
       envelope: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
         command: id,
         outcome: "execution-failure",
@@ -445,6 +327,9 @@ export async function runDocsCli(
     }
     return runConsumerIntegrationCli(normalizedArgv.slice(1));
   }
+  if (normalizedArgv[0] === "qualify") {
+    return runQualificationCli(normalizedArgv.slice(1));
+  }
   if (
     (normalizedArgv.length === 1 && (normalizedArgv[0] === "--help" || normalizedArgv[0] === "help")) ||
     (normalizedArgv.length === 2 && normalizedArgv[1] === "--help")
@@ -459,7 +344,7 @@ export async function runDocsCli(
   process.once("SIGINT", cancel);
   process.once("SIGTERM", cancel);
   let json = normalizedArgv.includes("--json");
-  let execution: DocsExecution<unknown>;
+  let execution: DocsExecutionV2<unknown>;
   try {
     const dispatched = await dispatch(protocolFactory(), command ?? "", normalizedArgv.slice(1), controller.signal);
     execution = dispatched.execution;
@@ -473,6 +358,6 @@ export async function runDocsCli(
   if (json) {
     execution = await validatedMachineExecution(id, execution);
   }
-  process.stdout.write(json ? `${JSON.stringify(execution.envelope)}\n` : renderDocsHuman(execution.envelope));
+  process.stdout.write(json ? `${JSON.stringify(execution.envelope)}\n` : renderDocsHumanV2(execution.envelope));
   return execution.exitCode;
 }

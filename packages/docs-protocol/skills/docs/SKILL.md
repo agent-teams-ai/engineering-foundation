@@ -16,10 +16,11 @@ Protocol: `agent-teams.docs-protocol/v1`.
 - Review the exact destination, metadata, relations, anchors, and diagnostics.
 - Apply with `pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --apply` after review.
 - Manually update the reported index/link exactly when reachability requires it.
-- Finish with `pnpm docs:check` after the index is current.
+- For edits, preserve canonical frontmatter and sidecar ownership; use the repository's governed review flow rather than bypassing the create-only writer.
+- For accepted authority, record supersession explicitly instead of silently rewriting history.
+- Finish with the full consumer gate `pnpm docs:protocol:check` after the index is current.
 
 ## Rules
-
 - Never invent owners, types, statuses, paths, or metadata outside `docs:info`.
 - If dependencies are absent, use only `pnpm install --frozen-lockfile`; never use npx, dlx, or latest tags.
 - Keep preview and apply inputs identical.

@@ -61,12 +61,12 @@ v1 vocabulary. Repeat `--code-anchor` with one strict JSON value. Repeat
 
 ## Profile routing
 
-The protocol profile routes to a Foundation authoring profile v2. Foundation
+The protocol profile routes to a Foundation authoring profile v2 or v3. Foundation
 alone loads inline frontmatter and any declared metadata sidecar, performs the
 strict path-to-full-metadata merge, validates the final instance, and exposes a
 bounded inert metadata projection. Docs Protocol never reparses documents.
 
-The referenced Foundation profile v2 is the only authority for authorable
+The referenced Foundation profile is the only authority for authorable
 types, identity, placement, heading, owners, required metadata, and explicit
 reachability. `not-required` requires a human-readable reason; omission is
 invalid. The Docs Protocol profile contains only routing, protocol identity,
@@ -119,3 +119,52 @@ temporary directory, then proves info, deterministic find, preview/apply parity,
 explicit reachability, check, doctor, and recovery end to end. It rejects fixture
 symlinks, verifies that the source tree did not change, and removes only the
 temporary directory it created.
+
+Qualification v2 replaces consumer-owned test code with one strict data file.
+The managed integration profile uses `schemaVersion: 2` and declares only the
+fixed qualification contract path and external governance gate. The contract
+contains exactly one scenario for every authorable type:
+
+```json
+{
+  "schemaVersion": 2,
+  "scenarios": [{
+    "id": "adr",
+    "type": "adr",
+    "intent": {
+      "id": "ADR-9001",
+      "title": "Qualification",
+      "owner": "architecture/tooling",
+      "summary": "Proves the disposable authoring roundtrip."
+    },
+    "expected": {
+      "documentPath": "docs/decisions/9001-qualification.md",
+      "metadataStorage": "frontmatter",
+      "reachability": {
+        "state": "manual-required",
+        "indexPath": "docs/decisions/README.md",
+        "markdownLink": "[ADR-9001: Qualification](9001-qualification.md)"
+      }
+    }
+  }]
+}
+```
+
+Run `agent-teams-docs qualify --consumer . --json`. The package derives pins,
+profile and contract paths, and the declared gate from managed integration. It
+never executes that gate or other consumer code. It copies the consumer into an
+owned temporary directory while excluding `.git`, `node_modules`, and
+`.agent-teams-local`, then runs package-owned info/find/check/doctor/recover and
+per-scenario preview/apply/golden checks. The single-file writer always emits
+canonical frontmatter. A configured metadata sidecar remains read-only catalog
+authority and is qualified by the suite-wide strict merge roundtrip.
+
+V1 `runDocsProtocolQualification` remains available during migration. Invoking
+the v2 CLI with v1 managed or qualification authority returns
+`DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED`; move pins, paths, and the gate to the
+managed integration profile and retain only scenario data in the v2 contract.
+For pre-release testing, `--local-development` overlays the current package's
+canonical managed Skill only inside the disposable copy. Its receipt has
+`evidenceClass: "local-development"` and `cohortAdmissible: false`; governance
+and released-cohort rollout must reject that evidence. The default remains
+strict released-cohort qualification.

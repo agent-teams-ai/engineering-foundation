@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "scenarios": [
+    {
+      "id": "adr",
+      "type": "adr",
+      "intent": {
+        "id": "ADR-0001",
+        "title": "Qualification decision",
+        "owner": "architecture/tooling",
+        "summary": "Proves the shared disposable qualification workflow."
+      },
+      "expected": {
+        "documentPath": "docs/decisions/generated/0001-qualification-decision.md",
+        "metadataStorage": "frontmatter",
+        "reachability": {
+          "state": "manual-required",
+          "indexPath": "docs/decisions/README.md",
+          "markdownLink": "[ADR-0001: Qualification decision](generated/0001-qualification-decision.md)"
+        }
+      }
+    }
+  ]
+}

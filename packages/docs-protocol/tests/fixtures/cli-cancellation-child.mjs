@@ -6,7 +6,7 @@ const baseline = {
 };
 
 const protocol = {
-  async info({ signal }) {
+  async infoV2({ signal }) {
     if (!(signal instanceof AbortSignal)) {
       throw new Error("Docs CLI did not pass an AbortSignal.");
     }

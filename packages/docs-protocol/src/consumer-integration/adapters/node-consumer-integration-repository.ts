@@ -375,11 +375,20 @@ export async function readConsumerIntegrationInput(options: {
   let desired: ConsumerIntegrationDesiredStateV1;
   let lockfile: ConsumerIntegrationFileObservation;
   try {
-    desired = parseJsonRecord(
+    const parsed = parseJsonRecord(
       Buffer.from(profile.bytes).toString("utf8")
-    ) as unknown as ConsumerIntegrationDesiredStateV1;
-    rejectPrototypeKeys(desired);
-    await assertConsumerIntegrationProfileSchema(desired);
+    ) as unknown as Omit<ConsumerIntegrationDesiredStateV1, "schemaVersion"> & {
+      readonly schemaVersion: 1 | 2;
+      readonly qualification?: unknown;
+    };
+    rejectPrototypeKeys(parsed);
+    await assertConsumerIntegrationProfileSchema(parsed);
+    if (parsed.schemaVersion === 2) {
+      const { qualification: _qualification, ...v1 } = parsed;
+      desired = { ...v1, schemaVersion: 1 };
+    } else {
+      desired = parsed as ConsumerIntegrationDesiredStateV1;
+    }
     assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
     lockfile = await assertQualifiedLockfile(root, desired);

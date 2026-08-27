@@ -217,6 +217,7 @@
     "schemas/contract-protobuf-evolution/v1.schema.json",
     "schemas/document-authoring-profile/v1.schema.json",
     "schemas/document-authoring-profile/v2.schema.json",
+    "schemas/document-authoring-profile/v3.schema.json",
     "schemas/document-command-envelope/v1.schema.json",
     "schemas/document-command-envelope/v2.schema.json",
     "schemas/document-intent/v1.schema.json",

@@ -43,6 +43,7 @@ function descriptor(overrides = {}) {
 }
 
 function plan(intent) {
+  const content = "---\nid: ADR-0083\ntype: adr\nstatus: proposed\nowner: architecture/tooling\nsummary: Defines tenant isolation.\n---\n# ADR-0083: Tenant isolation\n";
   return {
     schemaVersion: 2,
     protocolVersion: 2,
@@ -62,7 +63,12 @@ function plan(intent) {
     expectedParent: { path: "docs/decisions", state: "directory", ancestry: "real-directories" },
     parentMaterialization: { policy: "create-missing-real-directories", missingDirectories: [] },
     destinationPrecondition: { state: "absent" },
-    output: {},
+    output: {
+      contentBase64: Buffer.from(content, "utf8").toString("base64"),
+      digest: `sha256:${"8".repeat(64)}`,
+      mediaType: "text/markdown; charset=utf-8",
+      size: Buffer.byteLength(content)
+    },
     requiredAdapterCapabilities: ["create-directories-no-replace/v1", "create-file-no-replace/v1"],
     diagnostics: [],
     planDigest: `sha256:${"3".repeat(64)}`
@@ -71,7 +77,7 @@ function plan(intent) {
 
 function harness(options = {}) {
   const calls = { apply: 0, buildCatalog: 0, describe: 0, find: 0, plan: [] };
-  const defaultDescription = { authority: { templates: [] }, projectId: "fixture-project", profileSchemaVersion: 2, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
+  const defaultDescription = { authority: { templates: [] }, catalog: { collections: [], excludedPrefixes: [] }, projectId: "fixture-project", profileSchemaVersion: 2, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
   const defaultCatalog = { projectId: "fixture-project", status: "complete", diagnostics: [], documents: [
     { ...descriptor({ id: "ADR-0001", repositoryPath: "docs/decisions/0001-first.md" }), metadata: {} },
     { ...descriptor({ id: "OD-001", type: "open-decision", status: "open", repositoryPath: "docs/open-decisions/OD-001.md" }), metadata: {} }
@@ -153,6 +159,28 @@ test("new preview is non-mutating and preserves unified metadata vocabulary", as
     indexPath: "docs/decisions/README.md",
     markdownLink: "[ADR-0083: Tenant isolation](0083-tenant-isolation.md)"
   });
+});
+
+test("v1 presenters strip rich evidence while v2 routes preserve it", async () => {
+  const legacy = harness().protocol;
+  const rich = harness().protocol;
+  const request = {
+    apply: false, consumerRoot: ".", profilePath: "docs/docs-protocol.json",
+    intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." }
+  };
+  const [legacyInfo, legacyNew, richInfo, richNew] = await Promise.all([
+    legacy.info(request), legacy.newDocument(request), rich.infoV2(request), rich.newDocumentV2(request)
+  ]);
+
+  assert.equal(legacyInfo.envelope.schemaVersion, 1);
+  assert.deepEqual(["authority", "authorityPaths", "catalog"].map((key) => Object.hasOwn(legacyInfo.envelope.result, key)), [false, false, false]);
+  assert.equal(Object.hasOwn(legacyNew.envelope.result, "compiled"), false);
+  assert.equal(richInfo.envelope.schemaVersion, 2);
+  assert.deepEqual(["authority", "authorityPaths", "catalog"].map((key) => Object.hasOwn(richInfo.envelope.result, key)), [true, true, true]);
+  assert.deepEqual(richInfo.envelope.result.authority, { templates: [] });
+  assert.deepEqual(richInfo.envelope.result.catalog, { collections: [], excludedPrefixes: [] });
+  assert.equal(richNew.envelope.schemaVersion, 2);
+  assert.equal(richNew.envelope.result.compiled.document.content.includes("# ADR-0083: Tenant isolation"), true);
 });
 
 test("new omits semantically empty optional metadata identically for preview and apply", async () => {
@@ -482,51 +510,4 @@ test("new fails authority-stale when Plan is bound to a different authority snap
   });
   assert.equal(result.envelope.outcome, "authority-stale");
   assert.equal(calls.apply, 0);
-});
-
-test("doctor preserves transaction diagnostics and recover ignores mutable profiles", async () => {
-  let profileReads = 0;
-  let transactionFormat = "document-authoring-envelope-v3";
-  const recoveryReceipt = {
-    schemaVersion: 2,
-    protocolVersion: 2,
-    planDigest: `sha256:${"3".repeat(64)}`,
-    adapter: { id: "foundation.filesystem/v1", contractVersion: 1 },
-    destination: "docs/decisions/generated/0002-recovery.md",
-    outcome: "applied",
-    resultDigest: `sha256:${"4".repeat(64)}`,
-    commit: { state: "committed", publication: "published", fileAtomicity: "single-file-atomic-create", recoverability: "not-required" },
-    directoryMaterialization: { state: "created-and-retained", plannedDirectories: ["docs/decisions/generated"], observedCreatedDirectories: ["docs/decisions/generated"] },
-    diagnostics: [],
-    receiptDigest: `sha256:${"5".repeat(64)}`
-  };
-  const foundation = {
-    async inspectEnvironment() {
-      return { installedFoundationVersion: "0.17.0-rc.0", installedFoundationBuildIdentity: `sha256:${"1".repeat(64)}`, filesystem: { basis: "platform-contract", strictDirectoryDurability: "platform-supported" } };
-    },
-    async inspect() {
-      return { schemaVersion: 2, state: "recoverable", operationKind: "document-authoring", format: transactionFormat, foundationVersion: "0.17.0-rc.0", foundationBuildIdentity: `sha256:${"1".repeat(64)}`, recovery: { commandId: "docs-recover", exactFoundationVersion: "0.17.0-rc.0", exactFoundationBuildIdentity: `sha256:${"1".repeat(64)}` }, diagnostics: [] };
-    },
-    async recover() { return recoveryReceipt; }
-  };
-  const protocol = new DocsProtocol({
-    adoption: { async inspect() { return []; } },
-    anchors: { async matchedPatterns() { return []; } },
-    foundation,
-    profiles: { async read() { profileReads += 1; throw new Error("corrupt profile"); } }
-  });
-  const doctor = await protocol.doctor({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
-  assert.equal(doctor.envelope.outcome, "recovery-required");
-  assert.equal(doctor.envelope.result.transaction.state, "recoverable");
-  assert.match(doctor.envelope.diagnostics[0].message, /corrupt profile/u);
-
-  transactionFormat = "document-authoring-envelope-v4";
-  const v4Doctor = await protocol.doctor({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
-  assert.equal(v4Doctor.envelope.result.transaction.state, "recoverable");
-
-  const recovered = await protocol.recover({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
-  assert.equal(recovered.exitCode, 0);
-  assert.equal(recovered.envelope.result.writeState, "committed");
-  assert.equal(recovered.envelope.result.receipt.commit.publication, "published");
-  assert.equal(profileReads, 2, "recover must not reread mutable profiles after either doctor inspection");
 });

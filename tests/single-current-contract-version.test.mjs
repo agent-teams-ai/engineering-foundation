@@ -15,6 +15,8 @@ const transactionEnvelopeV5Path =
   "schemas/foundation-transaction-envelope/v5.schema.json";
 const documentAuthoringProfileV2Path =
   "schemas/document-authoring-profile/v2.schema.json";
+const documentAuthoringProfileV3Path =
+  "schemas/document-authoring-profile/v3.schema.json";
 const documentCommandEnvelopeV2Path =
   "schemas/document-command-envelope/v2.schema.json";
 const documentParentMaterializationV2Path =
@@ -23,6 +25,7 @@ const documentPlanV2Path = "schemas/document-plan/v2.schema.json";
 const documentReceiptV2Path = "schemas/document-receipt/v2.schema.json";
 const acceptedNonV1SchemaPaths = [
   documentAuthoringProfileV2Path,
+  documentAuthoringProfileV3Path,
   documentCommandEnvelopeV2Path,
   documentParentMaterializationV2Path,
   documentPlanV2Path,
@@ -104,8 +107,9 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
     const relativePath = relative(packageRoot, path).replaceAll("\\", "/");
     if (acceptedNonV1SchemaPaths.includes(relativePath) &&
       !acceptedTransactionEnvelopePaths.includes(relativePath)) {
-      assert.equal(schema.$id.endsWith("/v2"), true);
-      assert.equal(schema.properties.schemaVersion.const, 2);
+      const acceptedVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
+      assert.equal(schema.$id.endsWith(`/v${acceptedVersion}`), true);
+      assert.equal(schema.properties.schemaVersion.const, acceptedVersion);
       continue;
     }
     if (acceptedTransactionEnvelopePaths.includes(relativePath)) {
@@ -143,8 +147,9 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
   const versionedContractLiterals =
     /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
   const acceptedVersionedSourceLiterals = {
+    "src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts": [2, 3, 2],
     "src/document-authoring/adapters/node/node-document-parent-materializer.ts": [2],
-    "src/document-authoring/application/model/document-authoring-profile-description.ts": [2],
+    "src/document-authoring/application/model/document-authoring-profile-description.ts": [2, 3],
     "src/document-authoring/application/model/document-command.ts": [2],
     "src/document-authoring/application/model/document-parent-materialization.ts": [2],
     "src/document-authoring/application/model/document-planning.ts": [2, 2],
@@ -165,7 +170,7 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
     "src/document-authoring/application/use-cases/document-transaction-receipts.ts": [2, 2],
     "src/document-authoring/application/use-cases/recapture-directory-receipt-evidence.ts": [2],
     "src/document-authoring/application/use-cases/recover-document-transaction.ts": [2, 2],
-    "src/document-authoring/composition/describe-document-authoring-profile-v2.ts": [2],
+    "src/document-authoring/composition/describe-document-authoring-profile-v2.ts": [2, 3],
     "src/document-authoring/composition/inspect-document-transaction.ts": [2, 2, 2, 2],
     "src/repository-mutation/application/model/known-file-transaction-journal.ts": [5],
     "src/repository-mutation/application/policies/known-file-transaction-envelope.ts": [5],

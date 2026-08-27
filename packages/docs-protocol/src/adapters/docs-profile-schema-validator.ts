@@ -5,21 +5,25 @@ import addFormats from "ajv-formats";
 
 import { DocsProfileError } from "../domain/profile-policy.js";
 
-let validatorPromise: Promise<ValidateFunction> | undefined;
+const validatorPromises = new Map<number, Promise<ValidateFunction>>();
 
-async function validator(): Promise<ValidateFunction> {
-  validatorPromise ??= (async () => {
-    const schemaUrl = new URL("../../schemas/docs-protocol-profile/v1.schema.json", import.meta.url);
+async function validator(version: 1 | 2): Promise<ValidateFunction> {
+  const existing = validatorPromises.get(version);
+  if (existing !== undefined) {return existing;}
+  const loading = (async () => {
+    const schemaUrl = new URL(`../../schemas/docs-protocol-profile/v${version}.schema.json`, import.meta.url);
     const schema = JSON.parse(await readFile(schemaUrl, "utf8")) as object;
     const ajv = new Ajv2020({ allErrors: true, strict: true });
     addFormats.default(ajv);
     return ajv.compile(schema);
   })();
-  return validatorPromise;
+  validatorPromises.set(version, loading);
+  return loading;
 }
 
 export async function assertDocsProtocolProfileSchema(value: unknown): Promise<void> {
-  const validate = await validator();
+  const version = typeof value === "object" && value !== null && "schemaVersion" in value && (value as { schemaVersion?: unknown }).schemaVersion === 2 ? 2 : 1;
+  const validate = await validator(version);
   if (validate(value)) {
     return;
   }
@@ -28,5 +32,5 @@ export async function assertDocsProtocolProfileSchema(value: unknown): Promise<v
     .map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`)
     .join("; ")
     .slice(0, 1000);
-  throw new DocsProfileError(`Profile does not match docs-protocol-profile/v1: ${problems}`);
+  throw new DocsProfileError(`Profile does not match docs-protocol-profile/v${version}: ${problems}`);
 }

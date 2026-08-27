@@ -30,6 +30,7 @@ const SCHEMA_DEPENDENCIES: Partial<
   Readonly<Record<FoundationSchemaCatalogId, readonly FoundationSchemaCatalogId[]>>
 > = {
   "document-authoring-profile/v2": ["document-authoring-profile/v1"],
+  "document-authoring-profile/v3": ["document-authoring-profile/v1"],
   "document-plan/v1": ["document-intent/v1"],
   "document-plan/v2": ["document-intent/v1", "document-plan/v1"],
   "document-receipt/v2": ["document-receipt/v1"],

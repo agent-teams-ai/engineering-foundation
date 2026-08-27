@@ -191,10 +191,10 @@ async function prepareDocsProtocolFixture(input) {
   );
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   await writeFile(join(input.consumerRoot, foundationProfilePath), [
-    "schemaVersion: 2", "projectId: pack-consumer", "catalog:", "  metadataSchemaPath: docs/metadata.schema.json", "  ownerCatalog: {path: docs/owners.yaml, contract: foundation.owner-map/v1}", "  collections:", "    - {kind: markdown-tree, root: docs/catalog}", "  excludedPrefixes: [docs/template.md]", "authoring:", "  mode: create-only", "  artifactTypes:", "    - type: adr", "      initialStatus: proposed", "      identity: {kind: explicit, format: adr-four-digits}", "      placement: {kind: collection, directory: docs/catalog, filename: numeric-id-slug}", "      template: {kind: fenced-markdown-body, path: docs/template.md}", "      heading: {kind: id-colon-title}", "      reachability: {kind: manual-fixed-index, indexPath: docs/catalog/README.md}", "      allowedOwnerIds: [architecture]", ""
+    "schemaVersion: 3", "projectId: pack-consumer", "catalog:", "  metadataSchemaPath: docs/metadata.schema.json", "  ownerCatalog: {path: docs/owners.yaml, contract: foundation.owner-map/v1}", "  collections:", "    - {kind: markdown-tree, root: docs/catalog}", "  excludedPrefixes: [docs/template.md]", "authoring:", "  mode: create-only", "  artifactTypes:", "    - type: adr", "      initialStatus: proposed", "      identity: {kind: explicit, format: adr-four-digits}", "      placement: {kind: collection, directory: docs/catalog, filename: numeric-id-slug}", "      template: {kind: fenced-markdown-body, path: docs/template.md}", "      heading: {kind: id-colon-title}", "      reachability: {kind: manual-fixed-index, indexPath: docs/catalog/README.md}", "      allowedOwnerIds: [architecture]", ""
   ].join("\n"), "utf8");
   await writeFile(join(input.consumerRoot, profilePath), [
-    "schemaVersion: 1", "protocol: {id: agent-teams.docs-protocol, version: 1}", "foundationProfile:", `  path: ${foundationProfilePath}`, "  schemaVersion: 2", "  metadataSidecarPolicy: foundation-profile-v2-strict-merge", "agentWorkflow: {skillPath: .agents/skills/docs-authoring/SKILL.md}", "semanticValidatorIds: []", ""
+    "schemaVersion: 2", "protocol: {id: agent-teams.docs-protocol, version: 1}", "foundationProfile:", `  path: ${foundationProfilePath}`, "  schemaVersion: 3", "  metadataSidecarPolicy: foundation-profile-v3-strict-merge", "agentWorkflow: {skillPath: .agents/skills/docs-authoring/SKILL.md}", "semanticValidatorIds: []", ""
   ].join("\n"), "utf8");
   const metadataSchemaPath = join(input.consumerRoot, "docs", "metadata.schema.json");
   const metadataSchema = JSON.parse(await readFile(metadataSchemaPath, "utf8"));
@@ -206,9 +206,14 @@ async function prepareDocsProtocolFixture(input) {
   };
   await writeFile(metadataSchemaPath, `${JSON.stringify(metadataSchema, null, 2)}\n`, "utf8");
   await mkdir(join(input.consumerRoot, ".agents", "skills", "docs-authoring"), { recursive: true });
-  await writeFile(join(input.consumerRoot, ".agents", "skills", "docs-authoring", "SKILL.md"), [
-    "# Docs authoring", "", "Use agent-teams.docs-protocol/v1 through repository scripts.", "", "1. Read the documentation profile before writing.", "2. Search the existing catalog first.", "3. Run pnpm docs:find with a focused query.", "4. Reuse or relate existing documentation when possible.", "5. Select a declared type and owner.", "6. Supply required metadata and relations.", "7. Preview the exact planned change.", "8. Run pnpm docs:new -- --dry-run with all arguments.", "9. Review destination, metadata, and diagnostics.", "10. Resolve required blockers and anchor errors.", "11. Apply the reviewed plan.", "12. Run pnpm docs:new -- --apply with the same arguments.", "13. Do not hand-edit transaction evidence.", "14. If a manual index link is reported, add that link to the reported index.", "15. Preserve the exact reported link text.", "16. Validate the resulting corpus.", "17. Run pnpm docs:check.", "18. Use pnpm docs:doctor when recovery is unclear.", "19. Use pnpm docs:recover for the reported transaction only.", "20. Keep generated metadata deterministic.", ""
-  ].join("\n"), "utf8");
+  const installedDocsSkill = await readFile(join(
+    input.consumerRoot,
+    "node_modules", "@agent-teams", "docs-protocol", "skills", "docs", "SKILL.md"
+  ));
+  await writeFile(
+    join(input.consumerRoot, ".agents", "skills", "docs-authoring", "SKILL.md"),
+    installedDocsSkill
+  );
   await writeFile(join(input.consumerRoot, "AGENTS.md"),
     "Use [.agents/skills/docs-authoring/SKILL.md](.agents/skills/docs-authoring/SKILL.md) for documentation.\n", "utf8");
   await writeFile(join(input.consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json"), `${JSON.stringify({

@@ -200,7 +200,7 @@ async function loadCatalogAuthority(
     if (unknownOwner !== undefined) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        `Profile v2 artifact type ${artifact.type} allows an owner absent from the owner catalog: ${unknownOwner}.`
+        `Profile v${profile.schemaVersion ?? 2} artifact type ${artifact.type} allows an owner absent from the owner catalog: ${unknownOwner}.`
       );
     }
   }
@@ -471,10 +471,10 @@ export class BuildDocumentationCatalogV2
       ...(this.#sidecar === undefined ? {} : { sidecar: this.#sidecar })
     };
     const authority = await loadCatalogAuthority(dependencies, request);
-    if (authority.profile.schemaVersion !== 2) {
+    if (authority.profile.schemaVersion !== 2 && authority.profile.schemaVersion !== 3) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        "Documentation Catalog v2 requires document authoring profile schemaVersion 2."
+        "Documentation Catalog v2 requires document authoring profile schemaVersion 2 or 3."
       );
     }
     const [first, second] = await observeCatalogTwice(

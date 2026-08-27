@@ -23,7 +23,7 @@ export interface ValidatedDocumentAuthoringProfileV2
   readonly authoring: {
     readonly artifactTypes: readonly (
       ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number] & {
-        readonly allowedOwnerIds?: readonly string[];
+        readonly allowedOwnerIds: readonly string[];
       }
     )[];
     readonly mode: "create-only";
@@ -34,7 +34,84 @@ export interface ValidatedDocumentAuthoringProfileV2
       readonly path: string;
     };
   };
-  readonly schemaVersion: 1 | 2;
+  readonly schemaVersion: 2;
+}
+
+export interface ValidatedDocumentAuthoringProfileV3
+  extends Omit<
+    ValidatedDocumentAuthoringProfile,
+    "authoring" | "catalog" | "schemaVersion"
+  > {
+  readonly authoring: {
+    readonly artifactTypes: readonly (
+      ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number] & (
+        | {
+            readonly allowedOwnerIds: readonly string[];
+            readonly ownerSetId?: never;
+          }
+        | {
+            readonly allowedOwnerIds?: never;
+            readonly ownerSetId: string;
+          }
+      )
+    )[];
+    readonly mode: "create-only";
+    readonly ownerSets?: {
+      readonly schemaVersion: 1;
+      readonly sets: Readonly<Record<string, readonly string[]>>;
+    };
+  };
+  readonly catalog: ValidatedDocumentAuthoringProfile["catalog"] & {
+    readonly metadataSidecar?: {
+      readonly kind: "path-metadata-map";
+      readonly path: string;
+    };
+  };
+  readonly schemaVersion: 3;
+}
+
+export type ValidatedDocumentAuthoringProfileVersioned =
+  | ValidatedDocumentAuthoringProfile
+  | ValidatedDocumentAuthoringProfileV2
+  | ValidatedDocumentAuthoringProfileV3;
+
+export function resolvedArtifactOwnerIds(
+  profile: ValidatedDocumentAuthoringProfileVersioned,
+  artifactType: ValidatedDocumentAuthoringProfileVersioned["authoring"]["artifactTypes"][number]
+): readonly string[] | undefined {
+  if (profile.schemaVersion === 1) {
+    return undefined;
+  }
+  if (profile.schemaVersion === 2) {
+    const artifact = profile.authoring.artifactTypes.find(
+      (candidate) => candidate.type === artifactType.type
+    );
+    if (artifact === undefined) {
+      throw new TypeError(`Profile v2 artifact type ${artifactType.type} must declare allowedOwnerIds.`);
+    }
+    return Object.freeze([...artifact.allowedOwnerIds]);
+  }
+  const artifact = profile.authoring.artifactTypes.find(
+    (candidate) => candidate.type === artifactType.type
+  );
+  if (artifact?.allowedOwnerIds !== undefined) {
+    return Object.freeze([...artifact.allowedOwnerIds]);
+  }
+  const ids = artifact === undefined
+    ? undefined
+    : profile.authoring.ownerSets?.sets[artifact.ownerSetId];
+  if (ids === undefined) {
+    throw new TypeError(`Profile v3 artifact type ${artifactType.type} references an unknown ownerSetId.`);
+  }
+  return Object.freeze([...ids]);
+}
+
+export function resolvedProfileMetadataSidecar(
+  profile: ValidatedDocumentAuthoringProfileVersioned
+): ValidatedDocumentAuthoringProfileV2["catalog"]["metadataSidecar"] {
+  return profile.schemaVersion === 1
+    ? undefined
+    : profile.catalog.metadataSidecar;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -48,14 +125,17 @@ function invalidProfile(error: unknown): never {
   throw new InvalidDocumentAuthoringProfileError(message, { cause: error });
 }
 
-function assertV2CanonicalStrings(input: Record<string, unknown>): void {
+function assertVersionedCanonicalStrings(
+  input: Record<string, unknown>,
+  schemaVersion: 2 | 3
+): void {
   const authoring = input["authoring"];
   if (!isRecord(authoring) || !Array.isArray(authoring["artifactTypes"])) {
-    throw new TypeError("Profile v2 authoring.artifactTypes must be an array.");
+    throw new TypeError(`Profile v${schemaVersion} authoring.artifactTypes must be an array.`);
   }
   for (const artifactType of authoring["artifactTypes"]) {
     if (!isRecord(artifactType) || !isRecord(artifactType["reachability"])) {
-      throw new TypeError("Profile v2 requires reachability for every artifact type.");
+      throw new TypeError(`Profile v${schemaVersion} requires reachability for every artifact type.`);
     }
     const reachability = artifactType["reachability"];
     if (reachability["kind"] !== "not-required") {
@@ -67,7 +147,7 @@ function assertV2CanonicalStrings(input: Record<string, unknown>): void {
       reason.normalize("NFC") !== reason
     ) {
       throw new TypeError(
-        "Profile v2 not-required reachability requires one bounded canonical reason."
+        `Profile v${schemaVersion} not-required reachability requires one bounded canonical reason.`
       );
     }
   }
@@ -79,7 +159,7 @@ export async function loadValidatedDocumentAuthoringProfileV2(request: {
   readonly signal?: AbortSignal;
 }): Promise<{
   readonly evidence: Awaited<ReturnType<typeof readDocumentAuthorityFile>>["evidence"];
-  readonly profile: ValidatedDocumentAuthoringProfileV2;
+  readonly profile: ValidatedDocumentAuthoringProfileVersioned;
 }> {
   assertNotCancelled(request.signal);
   const file = await readDocumentAuthorityFile({
@@ -90,16 +170,17 @@ export async function loadValidatedDocumentAuthoringProfileV2(request: {
   let input: unknown;
   try {
     input = parseStrictYamlSource(file.source, "document-authoring-profile");
-    if (!isRecord(input) || (input["schemaVersion"] !== 1 && input["schemaVersion"] !== 2)) {
-      throw new TypeError("Document authoring profile schemaVersion must equal 1 or 2.");
+    if (!isRecord(input) || ![1, 2, 3].includes(input["schemaVersion"] as number)) {
+      throw new TypeError("Document authoring profile schemaVersion must equal 1, 2, or 3.");
     }
-    if (input["schemaVersion"] === 2) {
+    const schemaVersion = input["schemaVersion"];
+    if (schemaVersion === 2 || schemaVersion === 3) {
       await assertSchema(
-        "document-authoring-profile/v2",
+        schemaVersion === 3 ? "document-authoring-profile/v3" : "document-authoring-profile/v2",
         input,
         "document-authoring-profile"
       );
-      assertV2CanonicalStrings(input);
+      assertVersionedCanonicalStrings(input, schemaVersion);
     } else {
       await assertSchema(
         "document-authoring-profile/v1",
@@ -121,6 +202,6 @@ export async function loadValidatedDocumentAuthoringProfileV2(request: {
   }
   return Object.freeze({
     evidence: file.evidence,
-    profile: input as unknown as ValidatedDocumentAuthoringProfileV2
+    profile: input as unknown as ValidatedDocumentAuthoringProfileVersioned
   });
 }

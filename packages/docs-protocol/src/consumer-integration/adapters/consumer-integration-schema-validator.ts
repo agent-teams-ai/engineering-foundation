@@ -5,7 +5,7 @@ import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 const validators = new Map<string, Promise<ValidateFunction>>();
 
 async function validator(
-  id: "docs-consumer-integration-execution" | "docs-consumer-integration-profile"
+  id: "docs-consumer-integration-execution" | "docs-consumer-integration-profile" | "docs-consumer-integration-profile-v2"
 ): Promise<ValidateFunction> {
   const existing = validators.get(id);
   if (existing !== undefined) {return existing;}
@@ -25,7 +25,9 @@ async function validator(
       ajv.addSchema(JSON.parse(plan) as object);
       ajv.addSchema(JSON.parse(mutationReceipt) as object);
     }
-    const schemaUrl = new URL(`../../../schemas/${id}/v1.schema.json`, import.meta.url);
+    const schemaUrl = new URL(id === "docs-consumer-integration-profile-v2"
+      ? "../../../schemas/docs-consumer-integration-profile/v2.schema.json"
+      : `../../../schemas/${id}/v1.schema.json`, import.meta.url);
     return ajv.compile(JSON.parse(await readFile(schemaUrl, "utf8")) as object);
   })();
   validators.set(id, loading);
@@ -33,7 +35,7 @@ async function validator(
 }
 
 async function assertSchema(
-  id: "docs-consumer-integration-execution" | "docs-consumer-integration-profile",
+  id: "docs-consumer-integration-execution" | "docs-consumer-integration-profile" | "docs-consumer-integration-profile-v2",
   value: unknown
 ): Promise<void> {
   const validate = await validator(id);
@@ -43,11 +45,14 @@ async function assertSchema(
     .map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`)
     .join("; ")
     .slice(0, 1000);
-  throw new TypeError(`${id}/v1 validation failed: ${problems}`);
+  throw new TypeError(`${id}${id.endsWith("-v2") ? "" : "/v1"} validation failed: ${problems}`);
 }
 
 export function assertConsumerIntegrationProfileSchema(value: unknown): Promise<void> {
-  return assertSchema("docs-consumer-integration-profile", value);
+  const version = typeof value === "object" && value !== null && "schemaVersion" in value
+    ? (value as { readonly schemaVersion?: unknown }).schemaVersion
+    : undefined;
+  return assertSchema(version === 2 ? "docs-consumer-integration-profile-v2" : "docs-consumer-integration-profile", value);
 }
 
 export function assertConsumerIntegrationExecutionSchema(value: unknown): Promise<void> {

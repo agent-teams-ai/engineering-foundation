@@ -54,12 +54,17 @@ const docsProtocolRequiredArtifacts = [
   "dist/qualification/index.d.ts",
   "dist/qualification/index.js",
   "schemas/docs-protocol-command-envelope/v1.schema.json",
+  "schemas/docs-protocol-command-envelope/v2.schema.json",
   "schemas/docs-protocol-profile/v1.schema.json",
+  "schemas/docs-protocol-profile/v2.schema.json",
   "schemas/docs-protocol/v1.schema.json",
   "schemas/docs-consumer-integration-execution/v1.schema.json",
   "schemas/docs-consumer-integration-plan/v1.schema.json",
   "schemas/docs-consumer-integration-profile/v1.schema.json",
+  "schemas/docs-consumer-integration-profile/v2.schema.json",
   "schemas/docs-consumer-managed-state/v1.schema.json",
+  "schemas/docs-protocol-qualification/v2.schema.json",
+  "schemas/docs-protocol-qualification-receipt/v2.schema.json",
   "schemas/qualified-docs-cohort/v1.schema.json",
   "skills/docs/SKILL.md",
   ...historicalBundlePaths(docsProtocolTransitionCatalog),
@@ -234,7 +239,7 @@ async function createRollbackFixturePackage(docsArtifact, foundationArtifact) {
       blobSha: "2".repeat(40)
     },
     assets: {
-      skillDigest: sha256(Buffer.from(api.CANONICAL_DOCS_SKILL)),
+      skillDigest: sha256(Buffer.from(api.CANONICAL_DOCS_SKILL_V2)),
       callerWorkflowDigest: `sha256:${"0".repeat(64)}`,
       assetCatalogDigest: `sha256:${"0".repeat(64)}`,
       transitionCatalogDigest: `sha256:${"0".repeat(64)}`

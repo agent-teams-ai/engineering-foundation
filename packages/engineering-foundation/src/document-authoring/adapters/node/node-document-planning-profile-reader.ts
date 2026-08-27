@@ -13,7 +13,9 @@ import {
 } from "./load-validated-document-authoring-profile.js";
 import {
   loadValidatedDocumentAuthoringProfileV2,
-  type ValidatedDocumentAuthoringProfileV2
+  resolvedArtifactOwnerIds,
+  resolvedProfileMetadataSidecar,
+  type ValidatedDocumentAuthoringProfileVersioned
 } from "./load-validated-document-authoring-profile-v2.js";
 
 function freezeIdentity(identity: DocumentIdentityStrategy): DocumentIdentityStrategy {
@@ -41,13 +43,15 @@ function freezePlacement(placement: DocumentPlacementStrategy): DocumentPlacemen
 }
 
 function freezeArtifactType(
-  artifactType: ValidatedDocumentAuthoringProfileV2["authoring"]["artifactTypes"][number]
+  artifactType: ValidatedDocumentAuthoringProfileVersioned["authoring"]["artifactTypes"][number],
+  profile: ValidatedDocumentAuthoringProfileVersioned
 ): DocumentArtifactType {
+  const allowedOwnerIds = resolvedArtifactOwnerIds(profile, artifactType);
   return Object.freeze({
     ...artifactType,
-    ...(artifactType.allowedOwnerIds === undefined
+    ...(allowedOwnerIds === undefined
       ? {}
-      : { allowedOwnerIds: Object.freeze([...artifactType.allowedOwnerIds]) }),
+      : { allowedOwnerIds: Object.freeze([...allowedOwnerIds]) }),
     heading: Object.freeze({ ...artifactType.heading }),
     identity: freezeIdentity(artifactType.identity),
     placement: freezePlacement(artifactType.placement),
@@ -85,9 +89,10 @@ implements DocumentPlanningProfileReader {
       const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2(
         request
       );
+      const metadataSidecar = resolvedProfileMetadataSidecar(profile);
       return Object.freeze({
         artifactTypes: Object.freeze(
-          profile.authoring.artifactTypes.map(freezeArtifactType)
+          profile.authoring.artifactTypes.map((artifactType) => freezeArtifactType(artifactType, profile))
         ),
         collections: Object.freeze(
           profile.catalog.collections.map(freezeCollection)
@@ -97,9 +102,9 @@ implements DocumentPlanningProfileReader {
           ...(profile.catalog.excludedPrefixes ?? [])
         ]),
         metadataSchemaPath: profile.catalog.metadataSchemaPath,
-        ...(profile.catalog.metadataSidecar === undefined
+        ...(metadataSidecar === undefined
           ? {}
-          : { metadataSidecar: Object.freeze({ ...profile.catalog.metadataSidecar }) }),
+          : { metadataSidecar: Object.freeze({ ...metadataSidecar }) }),
         ownerCatalog: Object.freeze({ ...profile.catalog.ownerCatalog }),
         projectId: profile.projectId,
         schemaVersion: profile.schemaVersion

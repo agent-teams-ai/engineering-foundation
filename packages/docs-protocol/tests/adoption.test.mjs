@@ -26,7 +26,7 @@ Protocol: \`agent-teams.docs-protocol/v1\`.
 - Preview with \`pnpm docs:new -- --type TYPE --id ID --dry-run\`.
 - Apply with \`pnpm docs:new -- --type TYPE --id ID --apply\` after review.
 - Manually update the reported index/link when reachability requires it.
-- Finish with \`pnpm docs:check\` after the index is current.
+- Finish with the full gate \`pnpm docs:protocol:check\` after the index is current.
 
 ## Rules
 

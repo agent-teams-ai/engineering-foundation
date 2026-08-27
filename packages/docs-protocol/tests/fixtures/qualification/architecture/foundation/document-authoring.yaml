@@ -1,4 +1,4 @@
-schemaVersion: 2
+schemaVersion: 3
 projectId: docs-protocol-qualification
 catalog:
   metadataSchemaPath: docs/metadata.schema.json
@@ -8,6 +8,10 @@ catalog:
   excludedPrefixes: [docs/templates]
 authoring:
   mode: create-only
+  ownerSets:
+    schemaVersion: 1
+    sets:
+      architecture-docs: [architecture/tooling]
   artifactTypes:
     - type: adr
       initialStatus: proposed
@@ -16,4 +20,4 @@ authoring:
       template: {kind: fenced-markdown-body, path: docs/templates/adr.md}
       heading: {kind: id-colon-title}
       reachability: {kind: manual-fixed-index, indexPath: docs/decisions/README.md}
-      allowedOwnerIds: [architecture/tooling]
+      ownerSetId: architecture-docs

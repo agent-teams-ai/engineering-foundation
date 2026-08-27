@@ -16,10 +16,50 @@ const cli = new URL("../dist/cli.js", import.meta.url);
 const fixture = new URL("./fixtures/qualification", import.meta.url).pathname;
 const schema = JSON.parse(await readFile(new URL("../schemas/docs-protocol-command-envelope/v1.schema.json", import.meta.url), "utf8"));
 const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
+const schemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-command-envelope/v2.schema.json", import.meta.url), "utf8"));
+const qualificationReceiptSchemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"));
+const consumerIntegrationSchemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8"));
+const ajvV2 = new Ajv2020({ allErrors: true, strict: true });
+ajvV2.addSchema(consumerIntegrationSchemaV2);
+ajvV2.addSchema(qualificationReceiptSchemaV2);
+const validateV2 = ajvV2.compile(schemaV2);
 
 function assertValidEnvelope(value) {
-  assert.equal(validate(value), true, JSON.stringify(validate.errors, null, 2));
+  const selected = value.schemaVersion === 2 ? validateV2 : validate;
+  assert.equal(selected(value), true, JSON.stringify(selected.errors, null, 2));
 }
+
+test("published v1 info envelope remains backward compatible", () => {
+  assertValidEnvelope({
+    schemaVersion: 1,
+    protocol: { id: "agent-teams.docs-protocol", version: 1 },
+    command: "docs.info",
+    outcome: "success",
+    diagnostics: [],
+    result: {
+      kind: "info",
+      projectId: "legacy",
+      protocol: { id: "agent-teams.docs-protocol", version: 1 },
+      foundationProfile: { path: "architecture/foundation/document-authoring.yaml", schemaVersion: 2, metadataSidecarPolicy: "foundation-profile-v2-strict-merge" },
+      agentWorkflow: { skillPath: ".agents/skills/docs-authoring/SKILL.md" },
+      metadataSchemaPath: "docs/metadata.schema.json",
+      metadataSidecar: { kind: "none" },
+      ownerIds: [],
+      types: [{
+        type: "adr",
+        initialStatus: "proposed",
+        allowedOwnerIds: ["architecture/tooling"],
+        identity: { kind: "explicit", format: "adr-four-digits" },
+        heading: { kind: "id-colon-title" },
+        placement: { kind: "collection", directory: "docs/decisions", filename: "numeric-id-slug" },
+        template: { kind: "fenced-markdown-body", path: "docs/templates/adr.md" },
+        requiredMetadata: ["id", "type", "status", "owner", "summary"],
+        reachability: { kind: "manual-fixed-index", indexPath: "docs/decisions/README.md" }
+      }],
+      semanticValidatorIds: []
+    }
+  });
+});
 
 const profile = parseDocsProtocolProfile({
   schemaVersion: 1,
@@ -41,6 +81,41 @@ test("schema accepts emitted success and stable zero-match envelopes", async () 
   const envelope = JSON.parse(empty.stdout);
   assert.equal(envelope.result.matches, 0);
   assertValidEnvelope(envelope);
+});
+
+test("qualify --json emits the v2 command envelope with an extractable closed receipt", async () => {
+  const success = await execute(process.execPath, [cli.pathname, "qualify", "--consumer", fixture, "--local-development", "--json"]);
+  const envelope = JSON.parse(success.stdout);
+  assert.equal(envelope.command, "docs.qualify");
+  assert.equal(envelope.outcome, "success");
+  assert.match(envelope.result.receiptDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(qualificationReceiptSchemaV2.additionalProperties, false);
+  assertValidEnvelope(envelope);
+
+  const localClaimingAdmissible = structuredClone(envelope);
+  localClaimingAdmissible.result.cohortAdmissible = true;
+  assert.equal(validateV2(localClaimingAdmissible), false);
+
+  const emptyCohort = structuredClone(envelope);
+  emptyCohort.result.evidence.cohort = {};
+  assert.equal(validateV2(emptyCohort), false);
+
+  const missingSourceUnchanged = structuredClone(envelope);
+  missingSourceUnchanged.result.checks = missingSourceUnchanged.result.checks.filter((check) => check !== "source-unchanged");
+  assert.equal(validateV2(missingSourceUnchanged), false);
+
+  await assert.rejects(
+    execute(process.execPath, [cli.pathname, "qualify", "--json", "--json"]),
+    (error) => {
+      const failure = JSON.parse(error.stdout);
+      assert.equal(error.code, 2);
+      assert.equal(failure.command, "docs.qualify");
+      assert.equal(failure.outcome, "invalid-input");
+      assert.deepEqual(failure.result, {});
+      assertValidEnvelope(failure);
+      return true;
+    }
+  );
 });
 
 test("schema accepts the emitted invalid-input envelope", async () => {
@@ -173,6 +248,16 @@ test("schema is closed against accidental result expansion", () => {
 test("find envelope capacity matches the Foundation 10k catalog hard cap", () => {
   assert.equal(schema.$defs.findResult.properties.matches.maximum, 10_000);
   assert.equal(schema.$defs.findResult.properties.documents.maxItems, 10_000);
+});
+
+test("v2 authority evidence capacity covers 32 types without becoming unbounded", async () => {
+  const emitted = await execute(process.execPath, [cli.pathname, "info", "--consumer", fixture, "--json"]);
+  const envelope = JSON.parse(emitted.stdout);
+  envelope.result.authorityPaths = Array.from({ length: 68 }, (_value, index) => `docs/authority/path-${index}.md`);
+  assert.equal(schemaV2.$defs.infoResult.properties.authorityPaths.maxItems, 96);
+  assertValidEnvelope(envelope);
+  envelope.result.authorityPaths = Array.from({ length: 97 }, (_value, index) => `docs/authority/path-${index}.md`);
+  assert.equal(validateV2(envelope), false);
 });
 
 test("find envelope accepts Foundation-projected metadata beyond old 256/key-length caps", () => {

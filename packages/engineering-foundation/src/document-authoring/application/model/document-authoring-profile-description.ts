@@ -59,3 +59,11 @@ export interface DocumentAuthoringProfileDescriptionV2 {
   readonly semanticDigest: DocumentAuthorityDigest;
   readonly types: readonly DocumentAuthoringTypeDescriptionV2[];
 }
+
+export type DocumentAuthoringProfileDescriptionV3 = Omit<
+  DocumentAuthoringProfileDescriptionV2,
+  "profileSchemaVersion" | "schemaVersion"
+> & {
+  readonly profileSchemaVersion: 3;
+  readonly schemaVersion: 3;
+};

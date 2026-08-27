@@ -19,6 +19,6 @@ Use agent-teams.docs-protocol/v1 through the repository scripts.
 15. If the result reports a manual index link, add that link to the reported index.
 16. Preserve the exact link text and repository-relative destination.
 17. Validate the resulting documentation corpus.
-18. Run `pnpm docs:check`.
+18. Run `pnpm docs:protocol:check`.
 19. Use `pnpm docs:doctor` when authority or recovery is unclear.
 20. Use `pnpm docs:recover` only for the reported pending transaction.

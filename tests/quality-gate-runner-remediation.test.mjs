@@ -5,6 +5,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { Ajv2020 } from "ajv/dist/2020.js";
+
 import { createQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
 import { PackageScriptCancellationError } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
@@ -28,7 +30,12 @@ function policy() {
   };
 }
 
-test("SIGINT and SIGTERM provenance survives configuration, catalog, and execution phases", async () => {
+test("cancellation emits canonical setup errors and preserves execution failure precedence", async () => {
+  const commandErrorSchema = JSON.parse(await readFile(new URL(
+    "../packages/engineering-foundation/schemas/foundation-command-error/v1.schema.json",
+    import.meta.url,
+  ), "utf8"));
+  const validateCommandError = new Ajv2020({ strict: true }).compile(commandErrorSchema);
   const phases = ["configuration", "catalog", "execution"];
   const cancellations = [
     { cancellation: "interrupt", exitCode: 130 },
@@ -91,57 +98,71 @@ test("SIGINT and SIGTERM provenance survives configuration, catalog, and executi
       if (phase === "execution") {
         assert.equal(JSON.parse(completed.stdout).outcome, "cancelled");
       } else {
-        assert.equal(completed.stdout, "");
+        const envelope = JSON.parse(completed.stdout);
+        assert.equal(
+          validateCommandError(envelope),
+          true,
+          JSON.stringify(validateCommandError.errors),
+        );
+        assert.deepEqual(envelope, {
+          schemaVersion: 1,
+          outcome: "cancelled",
+          error: {
+            code: "EXECUTION_CANCELLED",
+            message: "Quality gate execution was cancelled.",
+            retryable: false,
+          },
+        });
+        assert.equal(completed.stdout, `${JSON.stringify(envelope)}\n`);
       }
     }
   }
+  {
+    const cancellationSource = createControlledQgrCancellationSource();
+    let reportStarted;
+    const started = new Promise((resolve) => { reportStarted = resolve; });
+    const command = createQualityGateCommand({
+      cancellationSource,
+      catalogReader: {
+        async read() {
+          return { scripts: { slow: "node slow.cjs" } };
+        },
+      },
+      clock: { nowMs: () => 0 },
+      executor: {
+        run({ signal }) {
+          reportStarted();
+          return new Promise((_resolve, reject) => {
+            signal.addEventListener("abort", () => {
+              reject(new Error("Managed process containment failed; wrapper remained alive."));
+            }, { once: true });
+          });
+        },
+      },
+      async policyLoader() {
+        return policy();
+      },
+    });
+    const captured = startCapturedQgrCommand(() => command({
+      configPath: "architecture/foundation/quality-gates.yaml",
+      consumerRoot: "/fixture",
+      environment: {},
+      format: "json",
+      profileId: "verify",
+    }));
+    await started;
+    cancellationSource.cancel("terminate");
+    const completed = await captured.result;
+    const report = JSON.parse(completed.stdout);
+    assert.equal(completed.exitCode, 1);
+    assert.equal(report.outcome, "failed");
+    assert.equal(report.tasks[0].outcome, "failed");
+    assert.equal(report.tasks[0].exitCode, null);
+    assert.match(report.tasks[0].failureTail, /wrapper remained alive\.$/u);
+  }
 });
 
-test("containment failure after cancellation remains failed with a non-cancellation exit", async () => {
-  const cancellationSource = createControlledQgrCancellationSource();
-  let reportStarted;
-  const started = new Promise((resolve) => { reportStarted = resolve; });
-  const command = createQualityGateCommand({
-    cancellationSource,
-    catalogReader: {
-      async read() {
-        return { scripts: { slow: "node slow.cjs" } };
-      },
-    },
-    clock: { nowMs: () => 0 },
-    executor: {
-      run({ signal }) {
-        reportStarted();
-        return new Promise((_resolve, reject) => {
-          signal.addEventListener("abort", () => {
-            reject(new Error("Managed process containment failed; wrapper remained alive."));
-          }, { once: true });
-        });
-      },
-    },
-    async policyLoader() {
-      return policy();
-    },
-  });
-  const captured = startCapturedQgrCommand(() => command({
-    configPath: "architecture/foundation/quality-gates.yaml",
-    consumerRoot: "/fixture",
-    environment: {},
-    format: "json",
-    profileId: "verify",
-  }));
-  await started;
-  cancellationSource.cancel("terminate");
-  const completed = await captured.result;
-  const report = JSON.parse(completed.stdout);
-  assert.equal(completed.exitCode, 1);
-  assert.equal(report.outcome, "failed");
-  assert.equal(report.tasks[0].outcome, "failed");
-  assert.equal(report.tasks[0].exitCode, null);
-  assert.match(report.tasks[0].failureTail, /wrapper remained alive\.$/u);
-});
-
-test("late cancellation before report completion overrides a passing task", async () => {
+test("late cancellation retains an already observed passing task", async () => {
   const controller = new AbortController();
   const report = await runQualityGateProfile({
     consumerRoot: "/fixture",
@@ -157,9 +178,9 @@ test("late cancellation before report completion overrides a passing task", asyn
   assert.equal(report.outcome, "cancelled");
   assert.deepEqual(report.tasks[0], {
     id: "slow",
-    outcome: "cancelled",
+    outcome: "passed",
     durationMs: 0,
-    exitCode: null,
+    exitCode: 0,
     signal: null,
     failureTail: "",
   });
@@ -204,14 +225,24 @@ test("POSIX watchdog kills a stubborn descendant tree before fixture root cleanu
   let descendantPid;
   let execution;
   try {
+    const descendantFixture = join(root, "stubborn-descendant.cjs");
+    await writeFile(descendantFixture, `process.on("SIGTERM", () => {});
+if (process.send === undefined) throw new Error("Detached descendant IPC is unavailable.");
+process.send("ready");
+setInterval(() => {}, 60000);
+`, "utf8");
     await writeFile(fixture, `const { spawn } = require("node:child_process");
 const { writeFileSync } = require("node:fs");
-const child = spawn(process.execPath, ["--eval", "process.on('SIGTERM', () => {}); setInterval(() => {}, 60000)"], {
-  detached: true,
-  stdio: "inherit"
-});
-writeFileSync(${JSON.stringify(pidPath)}, JSON.stringify({ pid: child.pid }) + "\\n", { flag: "wx" });
 process.on("SIGTERM", () => {});
+const child = spawn(process.execPath, [${JSON.stringify(descendantFixture)}], {
+  detached: true,
+  stdio: ["ignore", "inherit", "inherit", "ipc"]
+});
+child.once("message", (message) => {
+  if (message !== "ready") throw new Error("Unexpected detached descendant readiness message.");
+  writeFileSync(${JSON.stringify(pidPath)}, JSON.stringify({ pid: child.pid }) + "\\n", { flag: "wx" });
+  child.disconnect();
+});
 setInterval(() => {}, 60000);
 `, "utf8");
     execution = startBoundedCli(fixture, [], {

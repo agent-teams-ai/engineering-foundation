@@ -88,6 +88,9 @@ SIGINT and SIGTERM stop new scheduling and cancel active process-containment
 boundaries. POSIX uses process groups and Windows uses the existing Job Object
 adapter. The same portable containment limitation documented for local mode
 applies when an adversarial descendant deliberately escapes its process group.
+SIGINT exits 130 and SIGTERM exits 143. If containment itself fails while
+cancelling an active task, the task and aggregate report remain failed and the
+failure exit code takes precedence over the cancellation exit code.
 
 The repository lifecycle qualification runs in cross-platform test shard 3 and
 is intentionally not duplicated in the fast macOS qualification lane. It
@@ -117,7 +120,12 @@ outcome, monotonic duration, declaration-ordered tasks, task outcome, duration,
 exact observed exit code and signal, and at most the final 8192 characters of
 combined failure output. Unsafe terminal control characters are escaped before
 the evidence is retained or rendered. Successful task output is not retained.
-Text is a rendering of the same report.
+Text is a rendering of the same report. A task whose exit 0 was already observed
+remains `passed` with exit code 0 when cancellation is observed immediately
+afterward, while the aggregate run remains `cancelled`. Cancellation during
+configuration or script-catalog loading emits one canonical
+`foundation-command-error/v1` cancellation envelope in JSON mode because no run
+report exists yet.
 
 Canonical QGR JSON is execution evidence, not standalone provenance. A consumer
 that retains it must wrap it in external evidence binding the consumer identity,
@@ -126,9 +134,10 @@ the current report schema.
 
 The command returns 0 on success, the first declaration-ordered failed task's
 non-zero exit code, 124 for a timeout when no earlier failed task determines the
-result, 130 for SIGINT, and 143 for SIGTERM. Invalid input uses the Foundation
-CLI's stable exit code 2. Independent tasks continue after another task fails;
-only `needs` edges block downstream work.
+result, 130 for SIGINT, and 143 for SIGTERM. A task or containment failure takes
+precedence over cancellation. Invalid input uses the Foundation CLI's stable
+exit code 2. Independent tasks continue after another task fails; only `needs`
+edges block downstream work.
 
 ## Adoption contract
 

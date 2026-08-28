@@ -1,4 +1,5 @@
 import { CapabilityInputError } from "../../capability-runtime.js";
+import { foundationCommandFailure } from "../../command-error.js";
 import type { QualityGateRunReport } from "./application/model/quality-gate-report.js";
 import type { MonotonicClock } from "./application/ports/monotonic-clock.js";
 import type { QualityGateOperatorCancellationSource } from "./application/ports/operator-cancellation-source.js";
@@ -82,6 +83,22 @@ function cancelledExitCode(
   return undefined;
 }
 
+function completeSetupCancellation(
+  input: QualityGateCommandInput,
+  exitCode: number
+): void {
+  if (input.format === "json") {
+    const failure = foundationCommandFailure(new CapabilityInputError({
+      code: "EXECUTION_CANCELLED",
+      message: "Quality gate execution was cancelled.",
+      phase: "quality-gate-runner-command",
+      retryable: false
+    }));
+    process.stdout.write(`${JSON.stringify(failure.envelope)}\n`);
+  }
+  process.exitCode = exitCode;
+}
+
 export function createQualityGateCommand(
   dependencies: QualityGateCommandDependencies
 ): QualityGateCommand {
@@ -107,7 +124,7 @@ export function createQualityGateCommand(
       );
       const configurationCancellationExitCode = observedCancellationExitCode();
       if (configurationCancellationExitCode !== undefined) {
-        process.exitCode = configurationCancellationExitCode;
+        completeSetupCancellation(input, configurationCancellationExitCode);
         return;
       }
       const profile = policy.profiles.find(({ id }) => id === input.profileId);
@@ -123,7 +140,7 @@ export function createQualityGateCommand(
       );
       const catalogCancellationExitCode = observedCancellationExitCode();
       if (catalogCancellationExitCode !== undefined) {
-        process.exitCode = catalogCancellationExitCode;
+        completeSetupCancellation(input, catalogCancellationExitCode);
         return;
       }
       const diagnostics = evaluateQualityGateScripts(policy, catalog);
@@ -157,7 +174,7 @@ export function createQualityGateCommand(
     } catch (error) {
       const exitCode = observedCancellationExitCode();
       if (exitCode !== undefined) {
-        process.exitCode = exitCode;
+        completeSetupCancellation(input, exitCode);
         return;
       }
       throw error;

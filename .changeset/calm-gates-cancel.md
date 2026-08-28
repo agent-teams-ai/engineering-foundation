@@ -2,5 +2,8 @@
 "@agent-teams/engineering-foundation": patch
 ---
 
-Keep quality-gate deadline and cross-platform cancellation wiring internally
-qualifiable while preserving the public CLI behavior.
+Emit one canonical JSON error envelope when SIGINT or SIGTERM cancels quality-gate
+configuration or catalog loading, with exit codes 130 and 143 respectively.
+Retain an already observed successful task as passed with exit code 0 while the
+aggregate run is cancelled, and keep task or containment failures authoritative
+over cancellation.

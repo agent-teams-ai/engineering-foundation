@@ -62,17 +62,14 @@ async function executeTask(input: {
       ...(input.signal === undefined ? {} : { signal: input.signal })
     });
     const durationMs = elapsed(clock, startedAt);
-    const cancelledAfterExit = result.exitCode === 0 && input.signal?.aborted === true;
     return Object.freeze({
       id: input.task.id,
-      outcome: cancelledAfterExit
-        ? "cancelled"
-        : result.exitCode === 0 ? "passed" : "failed",
+      outcome: result.exitCode === 0 ? "passed" : "failed",
       durationMs,
-      exitCode: cancelledAfterExit ? null : result.exitCode,
-      signal: cancelledAfterExit ? null : result.signal,
+      exitCode: result.exitCode,
+      signal: result.signal,
       failureTail:
-        cancelledAfterExit || result.exitCode === 0
+        result.exitCode === 0
           ? ""
           : failureTail(result.stdout, result.stderr)
     });

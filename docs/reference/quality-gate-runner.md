@@ -30,6 +30,11 @@ agent-teams-foundation gate run fast --consumer . --format json
 `foundation check` validates the declaration, graph, script existence, and
 recursion policy. It never executes a package script.
 
+If `gate run` rejects invalid input, agents recover by running
+`agent-teams-foundation check quality.gate-runner --consumer .` for the static
+diagnostic and remediation guidance before correcting the declaration or
+consumer-owned scripts.
+
 ## Configuration
 
 ```yaml
@@ -83,6 +88,11 @@ combined failure output. Unsafe terminal control characters are escaped before
 the evidence is retained or rendered. Successful task output is not retained.
 Text is a rendering of the same report.
 
+Canonical QGR JSON is execution evidence, not standalone provenance. A consumer
+that retains it must wrap it in external evidence binding the consumer identity,
+repository revision, and configuration digest. Those bindings remain outside
+the current report schema.
+
 The command returns 0 on success, the first declaration-ordered failed task's
 non-zero exit code, 124 for a timeout when no earlier failed task determines the
 result, 130 for SIGINT, and 143 for SIGTERM. Invalid input uses the Foundation
@@ -102,8 +112,8 @@ Foundation release is available from the registry. Its adoption change must:
    cancellation behavior in an isolated test consumer;
 5. add the selected profile command to consumer CI without removing independent
    required security, release, or full-suite gates;
-6. retain the versioned JSON report as evidence when machine consumption is
-   required.
+6. retain the versioned JSON report inside a consumer, repository-revision, and
+   configuration-digest evidence envelope when machine consumption is required.
 
 Foundation does not infer profiles, edit consumer scripts, activate the
 capability during upgrade, or claim that static validation proves scripts passed.

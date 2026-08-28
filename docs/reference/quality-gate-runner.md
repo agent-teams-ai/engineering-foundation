@@ -30,10 +30,17 @@ agent-teams-foundation gate run fast --consumer . --format json
 `foundation check` validates the declaration, graph, script existence, and
 recursion policy. It never executes a package script.
 
-If `gate run` rejects invalid input, agents recover by running
-`agent-teams-foundation check quality.gate-runner --consumer .` for the static
-diagnostic and remediation guidance before correcting the declaration or
-consumer-owned scripts.
+For declaration, graph, script-existence, or statically recognized recursion
+failures, run `agent-teams-foundation check quality.gate-runner --consumer .`
+and correct the reported declaration or consumer-owned script. The check is
+static; it cannot diagnose an execution-only failure.
+
+For `QUALITY_GATE_PROFILE_UNKNOWN`, select a profile ID declared in
+`architecture/foundation/quality-gates.yaml` (or deliberately add the missing
+profile) and rerun `gate run` with that ID. For active
+`QUALITY_GATE_RECURSION`, stop the nested `gate run`, remove that launch from the
+executing wrapper or package script, and rerun only the outer profile. Neither
+case requires a static check before applying its direct correction.
 
 ## Configuration
 

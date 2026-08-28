@@ -7,16 +7,21 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-import { createQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
-import { PackageScriptCancellationError } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js";
+import {
+  createNodeQualityGateCancellationSource,
+  createQualityGateCommand,
+} from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
+import { CapabilityInputError } from "../packages/engineering-foundation/dist/capability-runtime.js";
+import { parseArguments } from "../packages/engineering-foundation/dist/cli-arguments.js";
+import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
+import { createQualityGateCliCommand } from "../packages/engineering-foundation/dist/quality-gate-cli-command.js";
 import {
   cleanupSyntheticFixture,
   createControlledQgrCancellationSource,
   createSyntheticFixtureBoundaries,
   createSyntheticFixtureBoundary,
   startBoundedCli,
-  startCapturedQgrCommand,
 } from "./support/quality-gate-runner-lifecycle.mjs";
 
 function policy() {
@@ -30,136 +35,188 @@ function policy() {
   };
 }
 
-test("cancellation emits canonical setup errors and preserves execution failure precedence", async () => {
+function startCapturedEntrypoint(start) {
+  const previousExitCode = process.exitCode;
+  const previousStderrWrite = process.stderr.write;
+  const previousStdoutWrite = process.stdout.write;
+  let stderr = "";
+  let stdout = "";
+  process.exitCode = undefined;
+  process.stderr.write = function captureStderr(chunk, ...arguments_) {
+    if (typeof chunk !== "string") {
+      return previousStderrWrite.call(this, chunk, ...arguments_);
+    }
+    stderr += chunk;
+    return true;
+  };
+  process.stdout.write = function captureStdout(chunk, ...arguments_) {
+    if (typeof chunk !== "string") {
+      return previousStdoutWrite.call(this, chunk, ...arguments_);
+    }
+    stdout += chunk;
+    return true;
+  };
+  const result = Promise.resolve()
+    .then(start)
+    .then((value) => ({ exitCode: process.exitCode, stderr, stdout, value }))
+    .finally(() => {
+      process.stderr.write = previousStderrWrite;
+      process.stdout.write = previousStdoutWrite;
+      process.exitCode = previousExitCode;
+    });
+  return { result };
+}
+
+function cancelledDuringSetup(signal) {
+  return new Promise((_resolve, reject) => {
+    const cancel = () => {
+      reject(new CapabilityInputError({
+        code: "EXECUTION_CANCELLED",
+        message: "Quality gate execution was cancelled.",
+        phase: "foundation-config",
+        retryable: false,
+      }));
+    };
+    if (signal.aborted) {
+      cancel();
+      return;
+    }
+    signal.addEventListener("abort", cancel, { once: true });
+  });
+}
+
+test("entrypoint retains config-load SIGTERM through canonical JSON and concise text projection", async () => {
   const commandErrorSchema = JSON.parse(await readFile(new URL(
     "../packages/engineering-foundation/schemas/foundation-command-error/v1.schema.json",
     import.meta.url,
   ), "utf8"));
   const validateCommandError = new Ajv2020({ strict: true }).compile(commandErrorSchema);
-  const phases = ["configuration", "catalog", "execution"];
-  const cancellations = [
-    { cancellation: "interrupt", exitCode: 130 },
-    { cancellation: "terminate", exitCode: 143 },
-  ];
-  for (const phase of phases) {
-    for (const { cancellation, exitCode } of cancellations) {
-      const cancellationSource = createControlledQgrCancellationSource();
-      let reportStarted;
-      const started = new Promise((resolve) => { reportStarted = resolve; });
-      const waitForCancellation = (signal) => new Promise((_resolve, reject) => {
-        signal.addEventListener("abort", () => {
-          reject(new Error(`${phase} cancelled`));
-        }, { once: true });
-      });
-      const command = createQualityGateCommand({
-        cancellationSource,
-        catalogReader: {
-          async read(_consumerRoot, signal) {
-            if (phase === "catalog") {
-              reportStarted();
-              await waitForCancellation(signal);
-            }
-            return { scripts: { slow: "node slow.cjs" } };
-          },
-        },
-        clock: { nowMs: () => 0 },
-        executor: {
-          async run({ signal }) {
-            if (phase === "execution") {
-              reportStarted();
-              try {
-                await waitForCancellation(signal);
-              } catch (error) {
-                throw new PackageScriptCancellationError({ cause: error });
-              }
-            }
-            return { exitCode: 0, signal: null, stderr: "", stdout: "" };
-          },
-        },
-        async policyLoader(_consumerRoot, _configPath, signal) {
-          if (phase === "configuration") {
-            reportStarted();
-            await waitForCancellation(signal);
-          }
-          return policy();
-        },
-      });
-      const captured = startCapturedQgrCommand(() => command({
-        configPath: "architecture/foundation/quality-gates.yaml",
-        consumerRoot: "/fixture",
-        environment: {},
-        format: "json",
-        profileId: "verify",
-      }));
-      await started;
-      cancellationSource.cancel(cancellation);
-      const completed = await captured.result;
-      assert.equal(completed.exitCode, exitCode, `${phase} ${cancellation}`);
-      if (phase === "execution") {
-        assert.equal(JSON.parse(completed.stdout).outcome, "cancelled");
-      } else {
-        const envelope = JSON.parse(completed.stdout);
-        assert.equal(
-          validateCommandError(envelope),
-          true,
-          JSON.stringify(validateCommandError.errors),
-        );
-        assert.deepEqual(envelope, {
-          schemaVersion: 1,
-          outcome: "cancelled",
-          error: {
-            code: "EXECUTION_CANCELLED",
-            message: "Quality gate execution was cancelled.",
-            retryable: false,
-          },
-        });
-        assert.equal(completed.stdout, `${JSON.stringify(envelope)}\n`);
-      }
-    }
-  }
-  {
-    const cancellationSource = createControlledQgrCancellationSource();
-    let reportStarted;
-    const started = new Promise((resolve) => { reportStarted = resolve; });
-    const command = createQualityGateCommand({
-      cancellationSource,
-      catalogReader: {
-        async read() {
-          return { scripts: { slow: "node slow.cjs" } };
-        },
+  const baseline = {
+    SIGINT: process.listenerCount("SIGINT"),
+    SIGTERM: process.listenerCount("SIGTERM"),
+  };
+  for (const format of ["json", "text"]) {
+    let configLoadStarted;
+    let observedSignal;
+    const started = new Promise((resolve) => { configLoadStarted = resolve; });
+    const entrypoint = createQualityGateCliCommand({
+      cancellationSource: createNodeQualityGateCancellationSource(),
+      commandFactory() {
+        throw new Error("QGR command must not start after configuration cancellation.");
       },
-      clock: { nowMs: () => 0 },
-      executor: {
-        run({ signal }) {
-          reportStarted();
-          return new Promise((_resolve, reject) => {
-            signal.addEventListener("abort", () => {
-              reject(new Error("Managed process containment failed; wrapper remained alive."));
-            }, { once: true });
-          });
-        },
-      },
-      async policyLoader() {
-        return policy();
+      async foundationConfigLoader(_consumerRoot, signal) {
+        observedSignal = signal;
+        configLoadStarted();
+        assert.equal(process.listenerCount("SIGINT"), baseline.SIGINT + 1);
+        assert.equal(process.listenerCount("SIGTERM"), baseline.SIGTERM + 1);
+        await cancelledDuringSetup(signal);
       },
     });
-    const captured = startCapturedQgrCommand(() => command({
-      configPath: "architecture/foundation/quality-gates.yaml",
-      consumerRoot: "/fixture",
-      environment: {},
-      format: "json",
-      profileId: "verify",
-    }));
+    const parsed = parseArguments([
+      "gate", "run", "verify", "--consumer", "/fixture", "--format", format,
+    ]);
+    const captured = startCapturedEntrypoint(() => entrypoint(parsed, {}));
     await started;
-    cancellationSource.cancel("terminate");
+    process.emit("SIGTERM");
+    process.emit("SIGINT");
     const completed = await captured.result;
-    const report = JSON.parse(completed.stdout);
-    assert.equal(completed.exitCode, 1);
-    assert.equal(report.outcome, "failed");
-    assert.equal(report.tasks[0].outcome, "failed");
-    assert.equal(report.tasks[0].exitCode, null);
-    assert.match(report.tasks[0].failureTail, /wrapper remained alive\.$/u);
+
+    assert.equal(completed.value, true);
+    assert.equal(completed.exitCode, 143);
+    assert.equal(observedSignal.aborted, true);
+    assert.equal(observedSignal.reason, "terminate");
+    if (format === "json") {
+      const envelope = JSON.parse(completed.stdout);
+      assert.equal(
+        validateCommandError(envelope),
+        true,
+        JSON.stringify(validateCommandError.errors),
+      );
+      assert.deepEqual(envelope, {
+        schemaVersion: 1,
+        outcome: "cancelled",
+        error: {
+          code: "EXECUTION_CANCELLED",
+          message: "Quality gate execution was cancelled.",
+          retryable: false,
+        },
+      });
+      assert.equal(completed.stdout, `${JSON.stringify(envelope)}\n`);
+      assert.equal(completed.stderr, "");
+    } else {
+      assert.equal(completed.stdout, "");
+      assert.equal(completed.stderr, "Quality gate execution was cancelled.\n");
+    }
+    assert.equal(process.listenerCount("SIGINT"), baseline.SIGINT);
+    assert.equal(process.listenerCount("SIGTERM"), baseline.SIGTERM);
   }
+});
+
+test("entrypoint keeps an observed output-limit failure above concurrent cancellation", async () => {
+  const cancellationSource = createControlledQgrCancellationSource();
+  let configSignal;
+  let executionStarted;
+  const started = new Promise((resolve) => { executionStarted = resolve; });
+  const command = createQualityGateCommand({
+    catalogReader: {
+      async read(_consumerRoot, signal) {
+        assert.equal(signal, configSignal);
+        return { scripts: { slow: "node slow.cjs" } };
+      },
+    },
+    clock: { nowMs: () => 0 },
+    executor: {
+      async run({ signal }) {
+        assert.equal(signal, configSignal);
+        executionStarted();
+        await new Promise((resolve) => {
+          signal.addEventListener("abort", resolve, { once: true });
+        });
+        throw new FoundationError(
+          "PROCESS_FAILED",
+          "Managed process exceeded the stdout output limit of 1048576 bytes.",
+        );
+      },
+    },
+    async policyLoader(_consumerRoot, _configPath, signal) {
+      assert.equal(signal, configSignal);
+      return policy();
+    },
+  });
+  const entrypoint = createQualityGateCliCommand({
+    cancellationSource,
+    commandFactory: () => command,
+    async foundationConfigLoader(_consumerRoot, signal) {
+      configSignal = signal;
+      return {
+        declaredCapabilities: [{
+          configPath: "architecture/foundation/quality-gates.yaml",
+          id: "quality.gate-runner",
+        }],
+        projectId: "fixture",
+      };
+    },
+  });
+  const parsed = parseArguments([
+    "gate", "run", "verify", "--consumer", "/fixture", "--format", "json",
+  ]);
+  const captured = startCapturedEntrypoint(() => entrypoint(parsed, {}));
+  await started;
+  cancellationSource.cancel("terminate");
+  const completed = await captured.result;
+  const report = JSON.parse(completed.stdout);
+
+  assert.equal(completed.value, true);
+  assert.equal(completed.exitCode, 1);
+  assert.equal(completed.stderr, "");
+  assert.equal(report.outcome, "failed");
+  assert.equal(report.tasks[0].outcome, "failed");
+  assert.equal(report.tasks[0].exitCode, null);
+  assert.match(report.tasks[0].failureTail, /stdout output limit/u);
+  assert.throws(
+    () => cancellationSource.cancel("interrupt"),
+    /without an active subscriber/u,
+  );
 });
 
 test("late cancellation retains an already observed passing task", async () => {

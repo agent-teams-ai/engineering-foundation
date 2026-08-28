@@ -105,6 +105,26 @@ function terminalReport(
   });
 }
 
+function profileOutcome(
+  tasks: readonly QualityGateTaskReport[],
+  signal: AbortSignal | undefined
+): QualityGateRunReport["outcome"] {
+  if (tasks.some(({ outcome }) =>
+    outcome === "failed" || outcome === "timed-out"
+  )) {
+    return "failed";
+  }
+  if (
+    signal?.aborted === true ||
+    tasks.some(({ outcome }) => outcome === "cancelled")
+  ) {
+    return "cancelled";
+  }
+  return tasks.every(({ outcome }) => outcome === "passed")
+    ? "passed"
+    : "failed";
+}
+
 export async function runQualityGateProfile(input: {
   readonly consumerRoot: string;
   readonly profile: QualityGateProfile;
@@ -132,23 +152,10 @@ export async function runQualityGateProfile(input: {
     input.profile.tasks.map((task) => reports.get(task.id) as QualityGateTaskReport)
   );
   const durationMs = elapsed(clock, startedAt);
-  const failed = tasks.some(({ outcome }) =>
-    outcome === "failed" || outcome === "timed-out"
-  );
-  const cancelled = !failed && (
-    input.signal?.aborted === true ||
-    tasks.some(({ outcome }) => outcome === "cancelled")
-  );
   return Object.freeze({
     reportSchemaVersion: 1,
     profileId: input.profile.id,
-    outcome: failed
-      ? "failed"
-      : cancelled
-        ? "cancelled"
-        : tasks.every(({ outcome }) => outcome === "passed")
-        ? "passed"
-        : "failed",
+    outcome: profileOutcome(tasks, input.signal),
     durationMs,
     tasks
   });

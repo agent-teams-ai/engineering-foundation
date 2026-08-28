@@ -88,14 +88,20 @@ SIGINT and SIGTERM stop new scheduling and cancel active process-containment
 boundaries. POSIX uses process groups and Windows uses the existing Job Object
 adapter. The same portable containment limitation documented for local mode
 applies when an adversarial descendant deliberately escapes its process group.
-SIGINT exits 130 and SIGTERM exits 143. If containment itself fails while
-cancelling an active task, the task and aggregate report remain failed and the
-failure exit code takes precedence over the cancellation exit code.
+The CLI subscribes once before loading `foundation.config.yaml`, retains the
+first SIGINT or SIGTERM until the command finishes, and passes the same
+`AbortSignal` through Foundation configuration, QGR policy and script-catalog
+loading, and task execution. SIGINT exits 130 and SIGTERM exits 143. If a real
+task, output-limit, or containment failure is observed while cancellation is in
+progress, the task and aggregate report remain failed and the failure exit code
+takes precedence over the cancellation exit code.
 
-The repository lifecycle qualification runs in cross-platform test shard 3 and
-is intentionally not duplicated in the fast macOS qualification lane. It
-observes cooperating, harness-owned fixture roles. Its fixture server assigns a
-distinct one-use credential to each declared role; a registration presents that
+The repository lifecycle qualification runs in cross-platform test shard 3.
+The required macOS qualification lane also runs the focused QGR lifecycle suite
+after building, so Darwin proves the same entrypoint cancellation and POSIX
+containment behavior rather than relying on Linux evidence. The suite observes
+cooperating, harness-owned fixture roles. Its fixture server assigns a distinct
+one-use credential to each declared role; a registration presents that
 credential and the server, not the client, resolves the role. A deterministic
 port test proves that the configured `timeoutMs` crosses the command, use-case,
 pnpm adapter, and managed-process
@@ -123,9 +129,11 @@ the evidence is retained or rendered. Successful task output is not retained.
 Text is a rendering of the same report. A task whose exit 0 was already observed
 remains `passed` with exit code 0 when cancellation is observed immediately
 afterward, while the aggregate run remains `cancelled`. Cancellation during
-configuration or script-catalog loading emits one canonical
-`foundation-command-error/v1` cancellation envelope in JSON mode because no run
-report exists yet.
+Foundation configuration, QGR policy, or script-catalog loading emits one
+canonical `foundation-command-error/v1` cancellation envelope in JSON mode
+because no run report exists yet. Text mode writes one concise cancellation
+message instead. A non-cancellation setup failure observed after a signal is not
+reclassified as cancellation.
 
 Canonical QGR JSON is execution evidence, not standalone provenance. A consumer
 that retains it must wrap it in external evidence binding the consumer identity,

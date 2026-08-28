@@ -117,8 +117,10 @@ hosted-review evidence belongs in pull-request comments; it is not converted
 into a workflow-authored or self-attested status check. `ReviewGate` is retired.
 
 `tests/manifests/test-shards.v1.json` owns the cross-platform shards.
-QGR synthetic and real-pnpm lifecycle qualification is assigned to shard 3;
-the intentionally fast macOS qualification lane does not duplicate it.
+QGR synthetic and real-pnpm lifecycle qualification is assigned to shard 3.
+The required macOS qualification lane deliberately reruns the focused QGR
+lifecycle command after its Darwin build, including entrypoint cancellation and
+POSIX containment evidence; it does not rerun the complete shard.
 `tests/manifests/coverage.v1.json` pins their coverage-only additions, the
 merger, production include/exclude boundaries, c8 evidence thresholds, and the
 separate legacy Node coverage thresholds and test selection. The two threshold

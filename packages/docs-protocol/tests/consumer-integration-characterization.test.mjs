@@ -417,7 +417,8 @@ test("migrates the exact stable1 bundle to a successor without fabricating rollb
 
 for (const { priorCohortId, targetCohortId, profileSchemaVersion } of [
   { priorCohortId: "docs-2026-08-24-stable2", targetCohortId: "docs-2026-08-26-stable3", profileSchemaVersion: 1 },
-  { priorCohortId: "docs-2026-08-25-stable3", targetCohortId: "docs-2026-08-29-stable4", profileSchemaVersion: 2 }
+  { priorCohortId: "docs-2026-08-25-stable3", targetCohortId: "docs-2026-08-29-stable4", profileSchemaVersion: 2 },
+  { priorCohortId: "docs-2026-08-28-stable8", targetCohortId: "docs-2026-08-29-stable9", profileSchemaVersion: 2 }
 ]) {
 test(`migrates the exact ${priorCohortId} bundle to a fix-forward successor`, async () => {
   const shape = shapes.fixtures[0];

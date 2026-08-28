@@ -203,6 +203,56 @@
       "docsScriptsDigest": "sha256:7a502ddeda5e3d0296b712b5c07e0905a9b7a8fcd374d37db8a02cb026a37881",
       "callerWorkflowDigest": "sha256:d697c5c7c9bcfccfc006fcf7e4d4cc8e7c629f9689781b9b0b50f30d82bc019e",
       "skillDigest": "sha256:7b31cd257532247f64c55a014dc926c601e4d742176cfb8513b6b0d8ab48213e"
+    },
+    {
+      "cohort": {
+        "schemaVersion": 1,
+        "cohortId": "docs-2026-08-28-stable8",
+        "channel": "stable",
+        "recordDigest": "sha256:e1ad7395b51d7b912db2181d263104067c712fc0cd13bac91aa5dccbc2590cc4",
+        "qualificationEventDigest": "sha256:bc24797129f6fedd4d252f20deebf9762da1093ff7a5dea137c32cb52d12e471",
+        "eligibleAfter": "2026-08-28T23:40:55Z",
+        "upgradeFrom": [
+          "docs-2026-08-25-stable3"
+        ],
+        "rollbackTo": [],
+        "packages": {
+          "docsProtocol": {
+            "version": "0.2.0",
+            "integrity": "sha512-KtmILYJTQf91wU643UMRh5QuO2Jnbn5f/kBD6e3agUIWv0KpuxHqEyZZPLsp0jiTA1WV4TBJa4EyFDT0Ju1/KQ=="
+          },
+          "engineeringFoundation": {
+            "version": "0.20.0",
+            "integrity": "sha512-YGyNyfpxyElMUALIho+pi+xM9XHXWWEV5hBBEzcysaCO1Dgz5/3GuUjQ6fQM2sCjfPo7Pd6OoFJOSKiHaqe5ZA=="
+          }
+        },
+        "workflow": {
+          "repository": "agent-teams-ai/.github",
+          "path": ".github/workflows/docs-protocol-check.yml",
+          "revision": "07d49409cb51f6124ad17673860b812a9d7b5f5b",
+          "blobSha": "efb9327218d89b6959ee38fa09b0e68f1ce5fe22"
+        },
+        "assets": {
+          "skillDigest": "sha256:641265ef9ecff59c16482fdae1bc8fc56002b5a4a1ee34b102438d0ca08a86a3",
+          "callerWorkflowDigest": "sha256:7907195753506e4b0f0e89eb3f6e495bacbd79e9b9913c9f60fc4a07dffb22e5",
+          "assetCatalogDigest": "sha256:74cdec4a7982588c53660e9b432fc12daa7adc7a930d147a5b0e46888e210f19",
+          "transitionCatalogDigest": "sha256:7f8df2679785c9495a73c99362987e5d2ae63e120f4bf76801b2ad72d3b66ed4"
+        },
+        "schemas": {
+          "consumerIntegration": 1,
+          "managedState": 1,
+          "docsProtocol": 1
+        },
+        "runtime": {
+          "node": ">=24.18.0 <25",
+          "pnpm": ">=11.17.0 <12",
+          "runtimeClosureDigest": "sha256:ed129c55d58c16fd38978598c49ee1716af0f2db90d7242553d39078073cc620"
+        }
+      },
+      "skillDigest": "sha256:641265ef9ecff59c16482fdae1bc8fc56002b5a4a1ee34b102438d0ca08a86a3",
+      "callerWorkflowDigest": "sha256:7907195753506e4b0f0e89eb3f6e495bacbd79e9b9913c9f60fc4a07dffb22e5",
+      "agentsRouteDigest": "sha256:08ca6c0782dbc36ace6359c8fe36807810f9668d999c7d9e8ead6bf281d9bf30",
+      "docsScriptsDigest": "sha256:7a502ddeda5e3d0296b712b5c07e0905a9b7a8fcd374d37db8a02cb026a37881"
     }
   ]
 }

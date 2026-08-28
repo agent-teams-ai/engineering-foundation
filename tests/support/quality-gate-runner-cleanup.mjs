@@ -3,6 +3,7 @@ import { rm } from "node:fs/promises";
 import {
   spawnNodeManagedProcess,
   terminateNodeManagedProcess,
+  terminatePosixProcessGroup,
 } from "../../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 
 const TEST_HARNESS_WATCHDOG_MS = 120_000;
@@ -148,12 +149,31 @@ async function terminateRetainedChild(
   shutdownGraceMs,
   createDeadline,
   terminateTree,
+  managedProcessGroups,
 ) {
+  const terminations = [];
   if (terminateTree === undefined) {
-    await terminateDirectChild(command, completed, shutdownGraceMs, createDeadline);
-    return;
+    terminations.push(terminateDirectChild(
+      command,
+      completed,
+      shutdownGraceMs,
+      createDeadline,
+    ));
+  } else {
+    terminations.push(terminateTree(command));
   }
-  await terminateTree(command);
+  if (process.platform !== "win32") {
+    terminations.push(...[...managedProcessGroups].map((processGroupId) => (
+      terminatePosixProcessGroup(processGroupId)
+    )));
+  }
+  const outcomes = await Promise.allSettled(terminations);
+  const failures = outcomes
+    .filter(({ status }) => status === "rejected")
+    .map(({ reason }) => normalizeError(reason, "Managed process group cleanup failed."));
+  if (failures.length > 0) {
+    throw new AggregateError(failures, "Managed process containment cleanup failed.");
+  }
   if (!await waitForClose(
     completed,
     "Retained CLI close after tree termination",
@@ -263,6 +283,7 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
   const terminateTree = options.terminateTree ?? (
     options.spawnChild === undefined ? terminateNodeManagedProcess : undefined
   );
+  const managedProcessGroups = new Set();
   const command = spawnChild(process.execPath, [cliPath, ...arguments_], {
     ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
     env: sanitizedChildEnvironment(
@@ -298,6 +319,7 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
           shutdownGraceMs,
           createDeadline,
           terminateTree,
+          managedProcessGroups,
         );
       } catch (error) {
         failures.push(error);
@@ -326,46 +348,67 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
   let watchdogExpired = false;
   let rejectWatchdog;
   const watchdogFailure = new Promise((_resolve, reject) => { rejectWatchdog = reject; });
-  watchdog = setTimeout(() => {
-    watchdogExpired = true;
-    const cleanupFailures = [];
-    const cleanupActions = [
-      startAction(stop),
-      startAction(() => options.fixtureBoundary?.stop()),
-    ];
-    const cleanup = Promise.allSettled(cleanupActions)
-      .then((outcomes) => collectCleanupFailures(outcomes, cleanupFailures));
-    const boundedCleanup = settleWithin(
-      cleanup,
-      "Watchdog containment cleanup",
-      options.cleanupDeadlineMs ?? shutdownGraceMs * 3,
-      createDeadline,
-    ).then((outcome) => {
-      const failure = outcomeFailure(
-        outcome,
+  const armWatchdog = () => {
+    if (watchdog !== undefined || stopPromise !== undefined) {
+      return;
+    }
+    watchdog = setTimeout(() => {
+      watchdogExpired = true;
+      const cleanupFailures = [];
+      const cleanupActions = [
+        startAction(stop),
+        startAction(() => options.fixtureBoundary?.stop()),
+      ];
+      const cleanup = Promise.allSettled(cleanupActions)
+        .then((outcomes) => collectCleanupFailures(outcomes, cleanupFailures));
+      const boundedCleanup = settleWithin(
+        cleanup,
         "Watchdog containment cleanup",
         options.cleanupDeadlineMs ?? shutdownGraceMs * 3,
+        createDeadline,
+      ).then((outcome) => {
+        const failure = outcomeFailure(
+          outcome,
+          "Watchdog containment cleanup",
+          options.cleanupDeadlineMs ?? shutdownGraceMs * 3,
+        );
+        if (failure !== undefined) {
+          cleanupFailures.push(failure);
+        }
+        return cleanupFailures;
+      });
+      const error = new Error(
+        `Test-harness watchdog expired after ${watchdogMs}ms; ` +
+        "QGR task timeout semantics were not changed.",
       );
-      if (failure !== undefined) {
-        cleanupFailures.push(failure);
-      }
-      return cleanupFailures;
-    });
-    const error = new Error(
-      `Test-harness watchdog expired after ${watchdogMs}ms; ` +
-      "QGR task timeout semantics were not changed.",
-    );
-    Object.defineProperties(error, {
-      cleanup: { enumerable: false, value: boundedCleanup },
-      cleanupFailures: { enumerable: true, value: cleanupFailures },
-    });
-    rejectWatchdog(error);
-  }, watchdogMs);
+      Object.defineProperties(error, {
+        cleanup: { enumerable: false, value: boundedCleanup },
+        cleanupFailures: { enumerable: true, value: cleanupFailures },
+      });
+      rejectWatchdog(error);
+    }, watchdogMs);
+  };
   const result = Promise.race([
     completed.then((value) => watchdogExpired ? watchdogFailure : value),
     watchdogFailure,
   ]).finally(() => { clearTimeout(watchdog); });
-  return { command, result, stop };
+  if (options.deferWatchdogUntilReady !== true) {
+    armWatchdog();
+  }
+  return {
+    armWatchdog,
+    command,
+    manageProcessGroup(processGroupId) {
+      if (!Number.isSafeInteger(processGroupId) || processGroupId <= 0) {
+        throw new TypeError("A managed process group ID must be a positive safe integer.");
+      }
+      if (process.platform !== "win32" && processGroupId !== command.pid) {
+        managedProcessGroups.add(processGroupId);
+      }
+    },
+    result,
+    stop,
+  };
 }
 
 export async function removeFixtureRoot(root) {
@@ -404,6 +447,12 @@ export async function cleanupSyntheticFixture({
     label: "Owned process cleanup",
     stageDeadlineMs,
   });
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures,
+      "Synthetic QGR fixture cleanup stopped before fixture deletion because process containment failed.",
+    );
+  }
   await runCleanupStage({
     actionDeadlineMs,
     actions: roots.map((root, index) => ({

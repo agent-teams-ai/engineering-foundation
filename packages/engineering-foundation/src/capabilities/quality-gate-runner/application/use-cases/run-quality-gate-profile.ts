@@ -8,6 +8,7 @@ import type {
 } from "../model/quality-gate-report.js";
 import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import {
+  PackageScriptCancellationError,
   PackageScriptTimeoutError,
   type PackageScriptExecutor
 } from "../ports/package-script-executor.js";
@@ -60,17 +61,23 @@ async function executeTask(input: {
         : { timeoutMs: input.task.timeoutMs }),
       ...(input.signal === undefined ? {} : { signal: input.signal })
     });
+    const durationMs = elapsed(clock, startedAt);
+    const cancelledAfterExit = result.exitCode === 0 && input.signal?.aborted === true;
     return Object.freeze({
       id: input.task.id,
-      outcome: result.exitCode === 0 ? "passed" : "failed",
-      durationMs: elapsed(clock, startedAt),
-      exitCode: result.exitCode,
-      signal: result.signal,
+      outcome: cancelledAfterExit
+        ? "cancelled"
+        : result.exitCode === 0 ? "passed" : "failed",
+      durationMs,
+      exitCode: cancelledAfterExit ? null : result.exitCode,
+      signal: cancelledAfterExit ? null : result.signal,
       failureTail:
-        result.exitCode === 0 ? "" : failureTail(result.stdout, result.stderr)
+        cancelledAfterExit || result.exitCode === 0
+          ? ""
+          : failureTail(result.stdout, result.stderr)
     });
   } catch (error) {
-    const cancelled = input.signal?.aborted === true;
+    const cancelled = error instanceof PackageScriptCancellationError;
     const timedOut = error instanceof PackageScriptTimeoutError;
     return Object.freeze({
       id: input.task.id,
@@ -127,15 +134,25 @@ export async function runQualityGateProfile(input: {
   const tasks = Object.freeze(
     input.profile.tasks.map((task) => reports.get(task.id) as QualityGateTaskReport)
   );
+  const durationMs = elapsed(clock, startedAt);
+  const failed = tasks.some(({ outcome }) =>
+    outcome === "failed" || outcome === "timed-out"
+  );
+  const cancelled = !failed && (
+    input.signal?.aborted === true ||
+    tasks.some(({ outcome }) => outcome === "cancelled")
+  );
   return Object.freeze({
     reportSchemaVersion: 1,
     profileId: input.profile.id,
-    outcome: tasks.some(({ outcome }) => outcome === "cancelled")
-      ? "cancelled"
-      : tasks.every(({ outcome }) => outcome === "passed")
+    outcome: failed
+      ? "failed"
+      : cancelled
+        ? "cancelled"
+        : tasks.every(({ outcome }) => outcome === "passed")
         ? "passed"
         : "failed",
-    durationMs: elapsed(clock, startedAt),
+    durationMs,
     tasks
   });
 }

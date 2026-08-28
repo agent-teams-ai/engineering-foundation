@@ -333,6 +333,7 @@ profiles:
     execution = startCli([
       "gate", "run", "verify", "--consumer", root, "--format", "json",
     ], {
+      deferWatchdogUntilReady: true,
       env: {
         ...process.env,
         npm_execpath: fixturePnpm,
@@ -415,6 +416,7 @@ process.exit(code ?? 1);
     execution = startCli([
       "gate", "run", "verify", "--consumer", root, "--format", "json",
     ], {
+      deferWatchdogUntilReady: true,
       env: {
         ...process.env,
         GATE_CLI: cliPath,
@@ -471,6 +473,7 @@ profiles:
     execution = startCli([
       "gate", "run", "verify", "--consumer", root, "--format", "json",
     ], {
+      deferWatchdogUntilReady: true,
       env: {
         ...process.env,
         npm_execpath: fixturePnpm,
@@ -521,6 +524,7 @@ test("SIGTERM closes both simultaneous task-specific managed boundaries", {
     execution = startCli([
       "gate", "run", "verify", "--consumer", root, "--format", "json",
     ], {
+      deferWatchdogUntilReady: true,
       env: { ...process.env, npm_execpath: managed.fixturePnpm },
     });
     await Promise.all(fixture.tasks.map(({ effectPath, roles }, index) => (

@@ -6,6 +6,8 @@ import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { createQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
+import { PackageScriptCancellationError } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js";
+import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
 import {
   cleanupSyntheticFixture,
   createControlledQgrCancellationSource,
@@ -58,7 +60,11 @@ test("SIGINT and SIGTERM provenance survives configuration, catalog, and executi
           async run({ signal }) {
             if (phase === "execution") {
               reportStarted();
-              await waitForCancellation(signal);
+              try {
+                await waitForCancellation(signal);
+              } catch (error) {
+                throw new PackageScriptCancellationError({ cause: error });
+              }
             }
             return { exitCode: 0, signal: null, stderr: "", stdout: "" };
           },
@@ -89,6 +95,74 @@ test("SIGINT and SIGTERM provenance survives configuration, catalog, and executi
       }
     }
   }
+});
+
+test("containment failure after cancellation remains failed with a non-cancellation exit", async () => {
+  const cancellationSource = createControlledQgrCancellationSource();
+  let reportStarted;
+  const started = new Promise((resolve) => { reportStarted = resolve; });
+  const command = createQualityGateCommand({
+    cancellationSource,
+    catalogReader: {
+      async read() {
+        return { scripts: { slow: "node slow.cjs" } };
+      },
+    },
+    clock: { nowMs: () => 0 },
+    executor: {
+      run({ signal }) {
+        reportStarted();
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => {
+            reject(new Error("Managed process containment failed; wrapper remained alive."));
+          }, { once: true });
+        });
+      },
+    },
+    async policyLoader() {
+      return policy();
+    },
+  });
+  const captured = startCapturedQgrCommand(() => command({
+    configPath: "architecture/foundation/quality-gates.yaml",
+    consumerRoot: "/fixture",
+    environment: {},
+    format: "json",
+    profileId: "verify",
+  }));
+  await started;
+  cancellationSource.cancel("terminate");
+  const completed = await captured.result;
+  const report = JSON.parse(completed.stdout);
+  assert.equal(completed.exitCode, 1);
+  assert.equal(report.outcome, "failed");
+  assert.equal(report.tasks[0].outcome, "failed");
+  assert.equal(report.tasks[0].exitCode, null);
+  assert.match(report.tasks[0].failureTail, /wrapper remained alive\.$/u);
+});
+
+test("late cancellation before report completion overrides a passing task", async () => {
+  const controller = new AbortController();
+  const report = await runQualityGateProfile({
+    consumerRoot: "/fixture",
+    profile: policy().profiles[0],
+    signal: controller.signal,
+  }, {
+    async run() {
+      controller.abort("late cancellation");
+      return { exitCode: 0, signal: null, stderr: "", stdout: "" };
+    },
+  }, { nowMs: () => 1 });
+
+  assert.equal(report.outcome, "cancelled");
+  assert.deepEqual(report.tasks[0], {
+    id: "slow",
+    outcome: "cancelled",
+    durationMs: 0,
+    exitCode: null,
+    signal: null,
+    failureTail: "",
+  });
 });
 
 test("partial concurrent-boundary setup closes every created server before rethrowing", async () => {
@@ -133,6 +207,7 @@ test("POSIX watchdog kills a stubborn descendant tree before fixture root cleanu
     await writeFile(fixture, `const { spawn } = require("node:child_process");
 const { writeFileSync } = require("node:fs");
 const child = spawn(process.execPath, ["--eval", "process.on('SIGTERM', () => {}); setInterval(() => {}, 60000)"], {
+  detached: true,
   stdio: "inherit"
 });
 writeFileSync(${JSON.stringify(pidPath)}, JSON.stringify({ pid: child.pid }) + "\\n", { flag: "wx" });
@@ -141,6 +216,7 @@ setInterval(() => {}, 60000);
 `, "utf8");
     execution = startBoundedCli(fixture, [], {
       cleanupDeadlineMs: 5_000,
+      deferWatchdogUntilReady: true,
       shutdownGraceMs: 2_000,
       watchdogMs: 1_000,
     });
@@ -160,21 +236,23 @@ setInterval(() => {}, 60000);
       }
     }
     assert.equal(Number.isSafeInteger(descendantPid), true);
+    execution.manageProcessGroup(descendantPid);
+    execution.armWatchdog();
     const { error: watchdogError, result } = await completion;
     assert.equal(result, undefined, "stubborn fixture should reach the watchdog");
     assert.match(watchdogError.message, /watchdog expired/u);
     assert.deepEqual(await watchdogError.cleanup, []);
+    execution = undefined;
     assert.throws(
-      () => process.kill(descendantPid, 0),
+      () => process.kill(-descendantPid, 0),
       (error) => error?.code === "ESRCH",
     );
-    await cleanupSyntheticFixture({ executions: [execution], roots: [root] });
-    execution = undefined;
+    await cleanupSyntheticFixture({ roots: [root] });
     await assert.rejects(readFile(root, "utf8"), (error) => error?.code === "ENOENT");
   } finally {
     if (descendantPid !== undefined) {
       try {
-        process.kill(descendantPid, "SIGKILL");
+        process.kill(-descendantPid, "SIGKILL");
       } catch {
         // The contained descendant already exited.
       }
@@ -191,6 +269,7 @@ test("Windows watchdog contract retains Job Object ownership and awaits descenda
   ]);
   assert.match(cleanupSource, /spawnNodeManagedProcess/u);
   assert.match(cleanupSource, /terminateNodeManagedProcess/u);
+  assert.match(cleanupSource, /terminatePosixProcessGroup/u);
   assert.match(nodeAdapterSource, /return spawnWindowsManagedProcess\(request\)/u);
   assert.match(nodeAdapterSource, /Windows Job Object wrapper did not exit after forced shutdown/u);
   assert.match(windowsAdapterSource, /JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/u);

@@ -2,12 +2,16 @@ import { lstat, realpath } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
 import { FoundationError } from "../../../../../errors.js";
-import { executeManagedProcess } from "../../../../../process-execution/node-process-runner.js";
+import {
+  executeManagedProcess,
+  ProcessCancellationError
+} from "../../../../../process-execution/node-process-runner.js";
 import type {
   ManagedProcessResult,
   ProcessRequest
 } from "../../../../../process-execution/types.js";
 import {
+  PackageScriptCancellationError,
   PackageScriptTimeoutError,
   type PackageScriptExecutor
 } from "../../../application/ports/package-script-executor.js";
@@ -124,6 +128,9 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
         exitCode: result.signal === null ? result.exitCode : null
       };
     } catch (error) {
+      if (error instanceof ProcessCancellationError) {
+        throw new PackageScriptCancellationError({ cause: error });
+      }
       if (
         input.timeoutMs !== undefined &&
         error instanceof FoundationError &&

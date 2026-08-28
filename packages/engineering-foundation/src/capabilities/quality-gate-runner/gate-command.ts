@@ -32,6 +32,9 @@ function exitCodeForQualityGateRun(
   report: QualityGateRunReport,
   cancellation?: "interrupt" | "terminate"
 ): number {
+  if (cancellation !== undefined && report.outcome !== "failed") {
+    return cancellation === "terminate" ? 143 : 130;
+  }
   if (report.outcome === "passed") {
     return 0;
   }

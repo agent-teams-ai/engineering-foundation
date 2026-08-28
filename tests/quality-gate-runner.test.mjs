@@ -10,7 +10,7 @@ import test from "node:test";
 import { assert as assertProperty, integer, property } from "fast-check";
 
 import { runQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
-import { PackageScriptTimeoutError } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js";
+import { PackageScriptCancellationError, PackageScriptTimeoutError } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js";
 import { FilesystemPackageScriptCatalogReader } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import {
@@ -26,6 +26,7 @@ import {
   createGenerationAwareChangeSignal,
   createSyntheticFixtureBoundary,
   observeFixtureEffect,
+  removeFixtureRoot,
   startBoundedCli,
   startCapturedQgrCommand,
 } from "./support/quality-gate-runner-lifecycle.mjs";
@@ -262,7 +263,9 @@ test("classifies timeout and cancellation without starting dependent tasks", asy
     signal: controller.signal,
   }, {
     run: ({ signal }) => new Promise((_resolve, reject) => {
-      signal.addEventListener("abort", () => reject(new Error("cancelled")), { once: true });
+      signal.addEventListener("abort", () => {
+        reject(new PackageScriptCancellationError());
+      }, { once: true });
     }),
   }, { nowMs: () => 1 });
   controller.abort();
@@ -466,7 +469,7 @@ test("change signals retain a notification between predicate evaluation and wait
   assert.equal(await changed.wait(observedGeneration), observedGeneration + 1);
 });
 
-test("central cleanup starts owned roles together, bounds a stuck child, and still removes roots", async () => {
+test("central cleanup bounds owned roles and preserves roots when containment fails", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-cleanup-"));
   const marker = join(root, "exists-before-cleanup");
   const order = [];
@@ -490,7 +493,8 @@ test("central cleanup starts owned roles together, bounds a stuck child, and sti
       return true;
     },
   );
-  await assert.rejects(readFile(marker, "utf8"), (error) => error?.code === "ENOENT");
+  assert.equal(await readFile(marker, "utf8"), "fixture");
+  await removeFixtureRoot(root);
 });
 
 test("failed real-pnpm setup is stopped before transfer and rethrows original evidence", async () => {

@@ -113,17 +113,22 @@ async function waitForExit(
   return exited;
 }
 
-function signalPosixProcessTree(
-  child: ReturnType<typeof spawn>,
+function isMissingProcessGroupError(error: unknown): boolean {
+  return error instanceof Error &&
+    "code" in error &&
+    error.code === "ESRCH";
+}
+
+function signalPosixProcessGroup(
+  processGroupId: number,
   signal: NodeJS.Signals
 ): void {
-  if (child.pid === undefined) {
-    return;
-  }
   try {
-    process.kill(-child.pid, signal);
-  } catch {
-    child.kill(signal);
+    process.kill(-processGroupId, signal);
+  } catch (error) {
+    if (!isMissingProcessGroupError(error)) {
+      throw error;
+    }
   }
 }
 
@@ -132,11 +137,7 @@ function isPosixProcessGroupRunning(pid: number): boolean {
     process.kill(-pid, 0);
     return true;
   } catch (error) {
-    return !(
-      error instanceof Error &&
-      "code" in error &&
-      error.code === "ESRCH"
-    );
+    return !isMissingProcessGroupError(error);
   }
 }
 
@@ -166,6 +167,24 @@ async function terminateWindowsProcessTree(
   }
 }
 
+export async function terminatePosixProcessGroup(
+  processGroupId: number
+): Promise<void> {
+  if (!Number.isSafeInteger(processGroupId) || processGroupId <= 0) {
+    throw new TypeError("A POSIX process group ID must be a positive safe integer.");
+  }
+  signalPosixProcessGroup(processGroupId, "SIGTERM");
+  if (await waitForPosixProcessGroupExit(processGroupId)) {
+    return;
+  }
+  signalPosixProcessGroup(processGroupId, "SIGKILL");
+  if (!await waitForPosixProcessGroupExit(processGroupId)) {
+    throw new Error(
+      `POSIX process group ${String(processGroupId)} did not exit after forced shutdown.`
+    );
+  }
+}
+
 export async function terminateNodeManagedProcess(
   child: ReturnType<typeof spawn>
 ): Promise<void> {
@@ -176,15 +195,7 @@ export async function terminateNodeManagedProcess(
     await terminateWindowsProcessTree(child);
     return;
   }
-  const processGroupId = child.pid;
-  signalPosixProcessTree(child, "SIGTERM");
-  if (await waitForPosixProcessGroupExit(processGroupId)) {
-    return;
-  }
-  signalPosixProcessTree(child, "SIGKILL");
-  if (!await waitForPosixProcessGroupExit(processGroupId)) {
-    throw new Error("POSIX process group did not exit after forced shutdown.");
-  }
+  await terminatePosixProcessGroup(child.pid);
 }
 
 async function waitForCloseWithinCleanupDeadline(

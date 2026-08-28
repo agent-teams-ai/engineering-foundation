@@ -149,7 +149,9 @@ export async function waitForFixtureEffect(
     }, readinessDeadlineMs);
   });
   try {
-    return await Promise.race([observation.result, commandClosed, deadline]);
+    const readiness = await Promise.race([observation.result, commandClosed, deadline]);
+    execution.armWatchdog?.();
+    return readiness;
   } finally {
     clearTimeout(deadlineTimer);
     observation.close();

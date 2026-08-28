@@ -4,7 +4,6 @@ import {
   lstat,
   mkdir,
   mkdtemp,
-  readFile,
   readdir,
   realpath,
   readlink,
@@ -261,14 +260,14 @@ async function repositoryInventory(root: string): Promise<Map<string, InventoryE
           `Disposable consumer contains unsupported filesystem evidence: ${path}.`
         );
       }
-      const metadata = await lstat(absolute);
-      if (metadata.size > MAXIMUM_INVENTORY_FILE_BYTES) {
-        throw new ConsumerIntegrationNodeError(
-          "DOCS_CONSUMER_UPGRADE_REPOSITORY_TOO_LARGE",
-          `Disposable consumer file exceeds the inventory limit: ${path}.`
-        );
-      }
-      totalBytes += metadata.size;
+      const observation = await readStableConsumerFile(
+        root,
+        path,
+        MAXIMUM_INVENTORY_FILE_BYTES,
+        true
+      );
+      if (observation.state !== "file") {throw new Error("unreachable");}
+      totalBytes += observation.bytes.byteLength;
       if (totalBytes > MAXIMUM_INVENTORY_BYTES) {
         throw new ConsumerIntegrationNodeError(
           "DOCS_CONSUMER_UPGRADE_REPOSITORY_TOO_LARGE",
@@ -277,7 +276,7 @@ async function repositoryInventory(root: string): Promise<Map<string, InventoryE
       }
       output.set(path, {
         kind: "file",
-        digest: createHash("sha256").update(await readFile(absolute)).digest("hex")
+        digest: createHash("sha256").update(observation.bytes).digest("hex")
       });
     }
   }

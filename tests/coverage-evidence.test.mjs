@@ -337,7 +337,7 @@ test("coverage keeps cross-platform shards complete and adds Linux-only docs evi
   assert.equal(coverageTests.length, testManifest.testCount);
   assert.equal(
     coverageTests.filter((path) => path.startsWith("packages/docs-protocol/tests/")).length,
-    16,
+    18,
   );
 });
 

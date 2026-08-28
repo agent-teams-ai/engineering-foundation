@@ -24,6 +24,8 @@
       "packages/docs-protocol/tests/consumer-integration-characterization.test.mjs",
       "packages/docs-protocol/tests/consumer-integration-e2e.test.mjs",
       "packages/docs-protocol/tests/consumer-integration-plan.test.mjs",
+      "packages/docs-protocol/tests/consumer-upgrade-authority.test.mjs",
+      "packages/docs-protocol/tests/consumer-upgrade.test.mjs",
       "packages/docs-protocol/tests/consumer-runtime-closure.test.mjs"
     ],
     "3": [
@@ -47,6 +49,8 @@
     "packages/docs-protocol/tests/consumer-integration-characterization.test.mjs",
     "packages/docs-protocol/tests/consumer-integration-e2e.test.mjs",
     "packages/docs-protocol/tests/consumer-integration-plan.test.mjs",
+    "packages/docs-protocol/tests/consumer-upgrade-authority.test.mjs",
+    "packages/docs-protocol/tests/consumer-upgrade.test.mjs",
     "packages/docs-protocol/tests/consumer-runtime-closure.test.mjs",
     "packages/docs-protocol/tests/docs-new-completion.test.mjs",
     "packages/docs-protocol/tests/docs-protocol-recovery.test.mjs",

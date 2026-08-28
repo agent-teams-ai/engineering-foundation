@@ -87,10 +87,24 @@ namespace and the committed
 
 ```bash
 agent-teams-docs consumer check --json
+agent-teams-docs consumer upgrade --to docs-YYYY-MM-DD-N --json
 agent-teams-docs consumer plan --to docs-YYYY-MM-DD-N --json
 agent-teams-docs consumer apply --expect sha256:EXACT_PLAN_DIGEST --json
 agent-teams-docs consumer recover --json
 ```
+
+`upgrade` is the normal Cohort migration. It resolves current protected
+`.github` authority, projects the Cohort and two exact package pins, generates
+the lockfile with pnpm in a disposable Git copy, and proves the installed target
+CLI before Foundation publishes the closed postimage set. The real activation
+is a frozen offline install plus read-only check; a failure restores the exact
+source files and package set.
+
+The command requires a clean Git HEAD, an idle Foundation transaction, and a
+source Cohort that already passes `consumer check`. It preserves consumer-owned
+profile fields and arbitrary manifest/workspace content. `eligibleAfter` is
+evidence, not a local wait gate. `--authority-revision` may assert freshness but
+must equal current protected main.
 
 `check` and `plan` are write-free and offline. `apply` recompiles the Plan,
 requires its exact digest, and delegates all writes to Foundation's recoverable
@@ -102,13 +116,11 @@ Other package managers and mixed lockfiles fail closed. Windows supports check
 and plan; apply and recovery refuse until strict directory durability has a
 separate qualification.
 
-Before changing package pins or the lockfile, run the currently installed
-`agent-teams-docs consumer check --json`. If it reports recovery, run the
-current build's `consumer recover --json` first. Only after the old transaction
-is clear may the reviewed branch update the exact Cohort profile, package pins,
-and lockfile, install with `pnpm install --frozen-lockfile`, and use the newly
-installed CLI for `consumer plan` and `consumer apply`. Replacing the installed
-build while its journal is active is unsupported and must fail the upgrade.
+If source check reports recovery, run the current build's
+`consumer recover --json` first. Replacing the installed build while its journal
+is active remains unsupported and fails the upgrade. The lower-level
+`plan`/`apply` path remains available for diagnosis and managed-asset repair;
+it is no longer a prerequisite for Cohort authority, pins, or lockfile updates.
 
 ## Consumer qualification
 

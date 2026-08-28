@@ -17,9 +17,13 @@ export {
   applyConsumerIntegration,
   checkConsumerIntegration,
   planNodeConsumerIntegration,
-  recoverConsumerIntegration
+  recoverConsumerIntegration,
+  upgradeConsumerIntegration
 } from "./composition/node-consumer-integration.js";
 export type { ConsumerIntegrationExecutionV1 } from "./composition/node-consumer-integration.js";
+export type {
+  ConsumerUpgradeExecutionV1
+} from "./application/model/consumer-upgrade-execution.js";
 export {
   ConsumerIntegrationNodeError,
   readConsumerIntegrationInput
@@ -33,6 +37,7 @@ export type {
   ConsumerIntegrationIssue,
   ConsumerIntegrationPlanV1,
   ConsumerIntegrationSnapshot,
+  ConsumerUpgradeAuthorityV1,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortV1
 } from "./domain/model.js";

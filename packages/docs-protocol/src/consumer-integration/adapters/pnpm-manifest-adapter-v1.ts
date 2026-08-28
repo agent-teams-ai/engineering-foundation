@@ -28,7 +28,9 @@ function issue(subject: string, code: string, message: string): ConsumerIntegrat
 
 function rejectPrototypeKeys(value: unknown, path = "package.json"): void {
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => rejectPrototypeKeys(entry, `${path}[${index}]`));
+    value.forEach((entry, index) => {
+      rejectPrototypeKeys(entry, `${path}[${index}]`);
+    });
     return;
   }
   if (typeof value !== "object" || value === null) {
@@ -118,6 +120,43 @@ function cohortDependencyIssues(
     }
   }
   return issues;
+}
+
+export function projectPnpmManifestCohortPinsV1(input: {
+  readonly bytes: Uint8Array;
+  readonly cohort: QualifiedDocsCohortBindingV1;
+}): Uint8Array {
+  const { manifest, source } = parseManifest(input.bytes);
+  const issues = manifestShapeIssues(manifest);
+  const dependencies = recordField(manifest, "dependencies");
+  const optionalDependencies = recordField(manifest, "optionalDependencies");
+  const peerDependencies = recordField(manifest, "peerDependencies");
+  for (const packageName of [DOCS_PACKAGE, FOUNDATION_PACKAGE]) {
+    for (const [field, declarations] of [
+      ["dependencies", dependencies],
+      ["optionalDependencies", optionalDependencies],
+      ["peerDependencies", peerDependencies]
+    ] as const) {
+      if (declarations[packageName] !== undefined) {
+        issues.push(issue(
+          `package.json#${field}`,
+          "DOCS_CONSUMER_NON_DEV_DEPENDENCY",
+          `${packageName} may be declared only in root devDependencies.`
+        ));
+      }
+    }
+  }
+  if (issues.length > 0) {
+    throw new TypeError(issues.map(({ message }) => message).join(" "));
+  }
+  let postimage = source;
+  for (const [packageName, version] of [
+    [DOCS_PACKAGE, input.cohort.packages.docsProtocol.version],
+    [FOUNDATION_PACKAGE, input.cohort.packages.engineeringFoundation.version]
+  ] as const) {
+    postimage = applyField(postimage, ["devDependencies", packageName], version);
+  }
+  return Buffer.from(postimage, "utf8");
 }
 
 export function planPnpmManifestV1(input: {

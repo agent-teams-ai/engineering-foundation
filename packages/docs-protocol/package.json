@@ -31,6 +31,7 @@
     "schemas/docs-consumer-integration-plan/v1.schema.json",
     "schemas/docs-consumer-integration-profile/v1.schema.json",
     "schemas/docs-consumer-integration-profile/v2.schema.json",
+    "schemas/docs-consumer-upgrade-execution/v1.schema.json",
     "schemas/docs-protocol-qualification/v2.schema.json",
     "schemas/docs-protocol-qualification-receipt/v2.schema.json",
     "schemas/docs-consumer-managed-state/v1.schema.json",

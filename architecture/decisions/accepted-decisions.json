@@ -181,6 +181,16 @@
       "id": "ADR-0036",
       "path": "docs/decisions/0036-incubate-agent-architecture-standard.md",
       "immutableDigest": "sha256:1691b5d2e2be0600c2b39d2acc53eac75e4193cbe359bdd311783fc3ae2bad79"
+    },
+    {
+      "id": "ADR-0037",
+      "path": "docs/decisions/0037-one-command-qualified-cohort-upgrades.md",
+      "immutableDigest": "sha256:aab2ee44425e689c6d7b0f28ff0f94b241dad16084eb81ee52012cb017ddefe6"
+    },
+    {
+      "id": "ADR-0038",
+      "path": "docs/decisions/0038-approve-docs-consumer-upgrade-api.md",
+      "immutableDigest": "sha256:e80fb4d9b9eac36b5565267994bae0678bfbdbd79af8e6c8c113107f4b23ffe9"
     }
   ]
 }

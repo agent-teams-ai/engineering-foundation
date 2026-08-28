@@ -437,12 +437,15 @@ test("Docs Protocol consumer integration retains its golden internal dependency 
       builtins: ["node:crypto"],
       entrypoints: [
         "packages/docs-protocol/src/consumer-integration/application/model/consumer-integration-execution.ts",
+        "packages/docs-protocol/src/consumer-integration/application/model/consumer-upgrade-execution.ts",
         "packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-assets.ts",
         "packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-desired-state.ts",
         "packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts",
         "packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-planners.ts",
+        "packages/docs-protocol/src/consumer-integration/application/ports/consumer-upgrade.ts",
         "packages/docs-protocol/src/consumer-integration/application/use-cases/plan-consumer-integration.ts",
         "packages/docs-protocol/src/consumer-integration/application/use-cases/run-consumer-integration.ts",
+        "packages/docs-protocol/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts",
       ],
     },
     "docs-protocol.consumer-integration.adapters": {
@@ -452,12 +455,16 @@ test("Docs Protocol consumer integration retains its golden internal dependency 
         "docs-protocol.consumer-integration.domain",
       ],
       packages: [foundationName, "ajv", "ajv-formats", "jsonc-parser", "yaml"],
-      builtins: ["node:child_process", "node:crypto", "node:fs", "node:fs/promises", "node:path"],
+      builtins: [
+        "node:child_process", "node:crypto", "node:fs", "node:fs/promises", "node:os", "node:path",
+      ],
       entrypoints: [
         "packages/docs-protocol/src/consumer-integration/adapters/agents-route-adapter-v1.ts",
         "packages/docs-protocol/src/consumer-integration/adapters/consumer-integration-schema-validator.ts",
         "packages/docs-protocol/src/consumer-integration/adapters/foundation-known-file-transaction.ts",
+        "packages/docs-protocol/src/consumer-integration/adapters/github-cohort-authority-reader.ts",
         "packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
+        "packages/docs-protocol/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts",
         "packages/docs-protocol/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
         "packages/docs-protocol/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts",
       ],

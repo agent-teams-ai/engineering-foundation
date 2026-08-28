@@ -1,6 +1,5 @@
-import { constants } from "node:fs";
-import { lstat, open, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
+import { realpath } from "node:fs/promises";
+import { dirname } from "node:path";
 import { execFile } from "node:child_process";
 import type {
   ConsumerIntegrationDesiredStateV1,
@@ -18,12 +17,16 @@ import {
   scanConsumerRepositoryTopology,
   type ConsumerRepositoryTopology
 } from "./bounded-repository-topology.js";
-
-const MAXIMUM_PROFILE_BYTES = 256 * 1024;
-const MAXIMUM_MANIFEST_BYTES = 1024 * 1024;
-const MAXIMUM_MANAGED_ASSET_BYTES = 8 * 1024 * 1024;
-const MAXIMUM_LOCKFILE_BYTES = 32 * 1024 * 1024;
-const INTEGRATION_PROFILE_PATH = "architecture/foundation/docs-consumer-integration.json";
+import {
+  canonicalConsumerRoot,
+  INTEGRATION_PROFILE_PATH,
+  MAXIMUM_LOCKFILE_BYTES,
+  MAXIMUM_MANAGED_ASSET_BYTES,
+  MAXIMUM_MANIFEST_BYTES,
+  MAXIMUM_PROFILE_BYTES,
+  readStableConsumerFile,
+  sameConsumerFileObservation
+} from "./node-consumer-repository-files.js";
 
 function executeGit(root: string, args: readonly string[], maximumBytes: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -39,45 +42,6 @@ function executeGit(root: string, args: readonly string[], maximumBytes: number)
 }
 
 export { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
-
-function errorCode(error: unknown): string | undefined {
-  return error instanceof Error && "code" in error
-    ? (error as NodeJS.ErrnoException).code
-    : undefined;
-}
-
-function contained(root: string, repositoryPath: string): string {
-  const absolute = resolvePath(root, repositoryPath);
-  const relation = relative(root, absolute);
-  if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_PATH_ESCAPE",
-      `Consumer integration path escapes the repository root: ${repositoryPath}.`
-    );
-  }
-  return absolute;
-}
-
-async function canonicalRoot(consumerRoot: string): Promise<string> {
-  const requested = resolvePath(consumerRoot);
-  let metadata;
-  try {
-    metadata = await lstat(requested);
-  } catch (error) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_ROOT_INVALID",
-      "Consumer root is unavailable or is not a real directory.",
-      { cause: error }
-    );
-  }
-  if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_ROOT_INVALID",
-      "Consumer root must be one real directory."
-    );
-  }
-  return realpath(requested);
-}
 
 function assertSingleIntegrationTopology(topology: ConsumerRepositoryTopology): void {
   if (topology.lockfiles.length !== 1 || topology.lockfiles[0] !== "pnpm-lock.yaml") {
@@ -147,61 +111,6 @@ function assertNestedAgentsAuthority(
   }
 }
 
-async function readStableFile(
-  root: string,
-  repositoryPath: string,
-  maximumBytes: number,
-  required: boolean
-): Promise<ConsumerIntegrationFileObservation> {
-  const path = contained(root, repositoryPath);
-  let handle;
-  try {
-    handle = await open(
-      path,
-      constants.O_RDONLY |
-        (process.platform === "win32" ? 0 : constants.O_NOFOLLOW)
-    );
-  } catch (error) {
-    if (!required && errorCode(error) === "ENOENT") {
-      return { state: "absent" };
-    }
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_INPUT_MISSING",
-      `Required consumer integration input is unavailable: ${repositoryPath}.`,
-      { cause: error }
-    );
-  }
-  try {
-    const before = await handle.stat({ bigint: true });
-    if (!before.isFile() || before.nlink > 1n || before.size > BigInt(maximumBytes)) {
-      throw new ConsumerIntegrationNodeError(
-        "DOCS_CONSUMER_INPUT_INVALID",
-        `Consumer integration input must be one bounded, non-hardlinked regular file: ${repositoryPath}.`
-      );
-    }
-    const bytes = await handle.readFile();
-    const [after, pathState, canonical] = await Promise.all([
-      handle.stat({ bigint: true }),
-      lstat(path, { bigint: true }),
-      realpath(path)
-    ]);
-    if (pathState.isSymbolicLink() || canonical !== path ||
-      before.dev !== after.dev || before.ino !== after.ino ||
-      before.birthtimeNs !== after.birthtimeNs || before.ctimeNs !== after.ctimeNs ||
-      before.mtimeNs !== after.mtimeNs || before.size !== after.size ||
-      pathState.dev !== after.dev || pathState.ino !== after.ino ||
-      bytes.byteLength !== Number(after.size)) {
-      throw new ConsumerIntegrationNodeError(
-        "DOCS_CONSUMER_INPUT_UNSTABLE",
-        `Consumer integration input changed during observation: ${repositoryPath}.`
-      );
-    }
-    return { state: "file", bytes, mode: Number(after.mode) & 0o777 };
-  } finally {
-    await handle.close();
-  }
-}
-
 function rejectPrototypeKeys(value: unknown, path = "integration profile"): void {
   if (Array.isArray(value)) {
     value.forEach((entry, index) => {
@@ -247,7 +156,7 @@ async function assertQualifiedPnpmRoot(root: string): Promise<void> {
       "V1 check and plan require Node >=24.18.0 <25."
     );
   }
-  const manifestObservation = await readStableFile(
+  const manifestObservation = await readStableConsumerFile(
     root,
     "package.json",
     MAXIMUM_MANIFEST_BYTES,
@@ -274,7 +183,7 @@ async function assertQualifiedPnpmRoot(root: string): Promise<void> {
       "V1 requires one exact root packageManager declaration within >=11.17.0 <12."
     );
   }
-  const nodeVersion = await readStableFile(root, ".node-version", 128, true);
+  const nodeVersion = await readStableConsumerFile(root, ".node-version", 128, true);
   if (nodeVersion.state !== "file" ||
     !/^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(Buffer.from(nodeVersion.bytes).toString("utf8"))) {
     throw new ConsumerIntegrationNodeError(
@@ -282,24 +191,15 @@ async function assertQualifiedPnpmRoot(root: string): Promise<void> {
       ".node-version must pin one exact Node version within >=24.18.0 <25."
     );
   }
-  await readStableFile(root, "pnpm-lock.yaml", MAXIMUM_LOCKFILE_BYTES, true);
+  await readStableConsumerFile(root, "pnpm-lock.yaml", MAXIMUM_LOCKFILE_BYTES, true);
   for (const path of ["package-lock.json", "yarn.lock", "bun.lock", "bun.lockb"]) {
-    if ((await readStableFile(root, path, 1024, false)).state !== "absent") {
+    if ((await readStableConsumerFile(root, path, 1024, false)).state !== "absent") {
       throw new ConsumerIntegrationNodeError(
         "DOCS_CONSUMER_UNSUPPORTED_PACKAGE_MANAGER",
         `Multiple or unsupported package-manager evidence is present: ${path}.`
       );
     }
   }
-}
-
-function sameObservation(
-  left: ConsumerIntegrationFileObservation,
-  right: ConsumerIntegrationFileObservation
-): boolean {
-  return left.state === right.state && (left.state === "absent" ||
-    (right.state === "file" && left.mode === right.mode &&
-      Buffer.from(left.bytes).equals(Buffer.from(right.bytes))));
 }
 
 async function assertSnapshotStillStable(input: {
@@ -317,10 +217,10 @@ async function assertSnapshotStillStable(input: {
     ["managedState", input.desired.managedStatePath, MAXIMUM_MANAGED_ASSET_BYTES, false]
   ] as const;
   const reread = await Promise.all(paths.map(([, path, maximum, required]) =>
-    readStableFile(input.root, path, maximum, required)
+    readStableConsumerFile(input.root, path, maximum, required)
   ));
   const unstable = paths.find(([key], index) =>
-    !sameObservation(input.snapshot[key], reread[index]!)
+    !sameConsumerFileObservation(input.snapshot[key], reread[index]!)
   );
   if (unstable !== undefined) {
     throw new ConsumerIntegrationNodeError(
@@ -334,7 +234,7 @@ async function assertQualifiedLockfile(
   root: string,
   desired: ConsumerIntegrationDesiredStateV1
 ): Promise<ConsumerIntegrationFileObservation> {
-  const observation = await readStableFile(
+  const observation = await readStableConsumerFile(
     root,
     "pnpm-lock.yaml",
     MAXIMUM_LOCKFILE_BYTES,
@@ -353,7 +253,7 @@ export async function readConsumerIntegrationInput(options: {
   readonly root: string;
   readonly snapshot: ConsumerIntegrationSnapshot;
 }> {
-  const root = await canonicalRoot(options.consumerRoot);
+  const root = await canonicalConsumerRoot(options.consumerRoot);
   await assertGitRepositoryRoot(root);
   const topology = await scanConsumerRepositoryTopology(root);
   assertSingleIntegrationTopology(topology);
@@ -365,7 +265,7 @@ export async function readConsumerIntegrationInput(options: {
       `V1 requires the integration profile at ${INTEGRATION_PROFILE_PATH}.`
     );
   }
-  const profile = await readStableFile(
+  const profile = await readStableConsumerFile(
     root,
     profilePath,
     MAXIMUM_PROFILE_BYTES,
@@ -401,11 +301,11 @@ export async function readConsumerIntegrationInput(options: {
     );
   }
   const [packageManifest, agents, skill, callerWorkflow, managedState] = await Promise.all([
-    readStableFile(root, "package.json", MAXIMUM_MANIFEST_BYTES, true),
-    readStableFile(root, "AGENTS.md", MAXIMUM_MANAGED_ASSET_BYTES, false),
-    readStableFile(root, desired.skillPath, MAXIMUM_MANAGED_ASSET_BYTES, false),
-    readStableFile(root, desired.callerWorkflowPath, MAXIMUM_MANAGED_ASSET_BYTES, false),
-    readStableFile(root, desired.managedStatePath, MAXIMUM_MANAGED_ASSET_BYTES, false)
+    readStableConsumerFile(root, "package.json", MAXIMUM_MANIFEST_BYTES, true),
+    readStableConsumerFile(root, "AGENTS.md", MAXIMUM_MANAGED_ASSET_BYTES, false),
+    readStableConsumerFile(root, desired.skillPath, MAXIMUM_MANAGED_ASSET_BYTES, false),
+    readStableConsumerFile(root, desired.callerWorkflowPath, MAXIMUM_MANAGED_ASSET_BYTES, false),
+    readStableConsumerFile(root, desired.managedStatePath, MAXIMUM_MANAGED_ASSET_BYTES, false)
   ]);
   const snapshot = {
     integrationProfile: profile,

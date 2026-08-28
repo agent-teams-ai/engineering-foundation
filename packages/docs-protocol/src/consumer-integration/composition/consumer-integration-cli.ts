@@ -3,9 +3,16 @@ import {
   checkConsumerIntegration,
   planNodeConsumerIntegration,
   recoverConsumerIntegration,
+  upgradeConsumerIntegration,
   type ConsumerIntegrationExecutionV1
 } from "./node-consumer-integration.js";
-import { assertConsumerIntegrationExecutionSchema } from "../adapters/consumer-integration-schema-validator.js";
+import {
+  assertConsumerIntegrationExecutionSchema,
+  assertConsumerUpgradeExecutionSchema
+} from "../adapters/consumer-integration-schema-validator.js";
+import type {
+  ConsumerUpgradeExecutionV1
+} from "../application/model/consumer-upgrade-execution.js";
 
 class ConsumerCliInputError extends Error {
   readonly code = "DOCS_CONSUMER_CLI_INVALID";
@@ -13,6 +20,7 @@ class ConsumerCliInputError extends Error {
 
 const COHORT_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
+const GIT_SHA = /^(?!0{40}$)[0-9a-f]{40}$/u;
 const MAXIMUM_ARGUMENT_LENGTH = 4096;
 const MAXIMUM_ARGUMENTS = 32;
 
@@ -59,25 +67,35 @@ class Arguments {
   }
 }
 
-function failure(command: string, error: unknown): ConsumerIntegrationExecutionV1 {
+type ConsumerExecution = ConsumerIntegrationExecutionV1 | ConsumerUpgradeExecutionV1;
+
+function failure(command: string, error: unknown): ConsumerExecution {
   const candidateCode = typeof error === "object" && error !== null && "code" in error &&
     typeof error.code === "string" ? error.code : "DOCS_CONSUMER_EXECUTION_FAILURE";
   const code = /^(?:DOCS_|KNOWN_)[A-Z0-9_]{1,122}$/u.test(candidateCode)
     ? candidateCode
     : "DOCS_CONSUMER_EXECUTION_FAILURE";
+  const rawMessage = error instanceof Error ? error.message : "Consumer integration failed.";
+  let safeMessage = "";
+  for (const character of rawMessage
+    .replace(/(?:[A-Za-z]:\\|\/(?:Users|home|tmp|private|var|Volumes)\/)[^\s'"`]+/gu, "<local-path>")) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    safeMessage += (codePoint < 32 && ![9, 10, 13].includes(codePoint)) || codePoint === 127
+      ? "?"
+      : character;
+  }
+  safeMessage = safeMessage.slice(0, 4096);
+  if (command === "upgrade") {
+    return {
+      schemaVersion: 1,
+      command: "consumer.upgrade",
+      outcome: "blocked",
+      issues: [{ code, severity: "error", subject: command, message: safeMessage }]
+    };
+  }
   const commandId = ["apply", "check", "plan", "recover"].includes(command)
     ? `consumer.${command}` as ConsumerIntegrationExecutionV1["command"]
     : "consumer.check";
-  const rawMessage = error instanceof Error ? error.message : "Consumer integration failed.";
-  const safeMessage = [...rawMessage
-    .replace(/(?:[A-Za-z]:\\|\/(?:Users|home|tmp|private|var|Volumes)\/)[^\s'"`]+/gu, "<local-path>")
-  ].map((character) => {
-    const codePoint = character.codePointAt(0) ?? 0;
-    return (codePoint < 32 && ![9, 10, 13].includes(codePoint)) || codePoint === 127
-      ? "?"
-      : character;
-  }).join("")
-    .slice(0, 4096);
   return {
     schemaVersion: 1,
     command: commandId,
@@ -91,9 +109,9 @@ function failure(command: string, error: unknown): ConsumerIntegrationExecutionV
   };
 }
 
-function human(execution: ConsumerIntegrationExecutionV1): string {
+function human(execution: ConsumerExecution): string {
   const lines = [`${execution.command}: ${execution.outcome}`];
-  if (execution.plan !== undefined) {
+  if (execution.command !== "consumer.upgrade" && execution.plan !== undefined) {
     lines.push(`Cohort: ${execution.plan.cohortId}`);
     lines.push(`Plan: ${execution.plan.planDigest}`);
     for (const asset of execution.plan.assets) {
@@ -118,8 +136,8 @@ function human(execution: ConsumerIntegrationExecutionV1): string {
   return `${lines.join("\n")}\n`;
 }
 
-function exitCode(execution: ConsumerIntegrationExecutionV1): number {
-  if (["applied", "current", "recovered"].includes(execution.outcome)) {return 0;}
+function exitCode(execution: ConsumerExecution): number {
+  if (["applied", "current", "recovered", "upgraded"].includes(execution.outcome)) {return 0;}
   if (execution.outcome === "change-required") {return 1;}
   const codes = new Set(execution.issues.map(({ code }) => code));
   if (codes.has("DOCS_CONSUMER_CLI_INVALID")) {return 2;}
@@ -145,11 +163,13 @@ Commands:
   check                         Verify the selected Cohort without writing
   plan --to COHORT              Print a deterministic, write-free semantic plan
   apply --expect SHA256         Rebuild and apply the reviewed plan through Foundation
+  upgrade --to COHORT           Project authority, pins, lockfile, and assets in one command
   recover                       Recover the Foundation transaction (profile not read)
 
 Options:
   --consumer PATH               Git repository root (default: .)
   --integration-profile PATH    V1 fixed integration profile path
+  --authority-revision SHA      Optional exact protected .github revision
   --json                        Emit one bounded versioned JSON envelope
   --help                        Show this help
 `;
@@ -159,7 +179,7 @@ Options:
 export async function runConsumerIntegrationCli(argv: readonly string[]): Promise<number> {
   let command = "";
   const jsonRequested = requestsJsonOutput(argv);
-  let execution: ConsumerIntegrationExecutionV1;
+  let execution: ConsumerExecution;
   try {
     assertBoundedArgv(argv);
     command = argv[0] ?? "";
@@ -198,6 +218,22 @@ export async function runConsumerIntegrationCli(argv: readonly string[]): Promis
         expect,
         ...(integrationProfilePath === undefined ? {} : { integrationProfilePath })
       });
+    } else if (command === "upgrade") {
+      if (integrationProfilePath !== undefined) {
+        throw new ConsumerCliInputError("consumer upgrade uses the fixed integration profile path.");
+      }
+      const to = args.one("--to", true)!;
+      if (!COHORT_ID.test(to)) {throw new ConsumerCliInputError("--to must be one exact Cohort ID.");}
+      const authorityRevision = args.one("--authority-revision");
+      if (authorityRevision !== undefined && !GIT_SHA.test(authorityRevision)) {
+        throw new ConsumerCliInputError("--authority-revision must be one nonzero lowercase Git SHA.");
+      }
+      args.assertConsumed();
+      execution = await upgradeConsumerIntegration({
+        consumerRoot,
+        to,
+        ...(authorityRevision === undefined ? {} : { authorityRevision })
+      });
     } else if (command === "recover") {
       if (integrationProfilePath !== undefined) {
         throw new ConsumerCliInputError("consumer recover does not read an integration profile.");
@@ -205,13 +241,17 @@ export async function runConsumerIntegrationCli(argv: readonly string[]): Promis
       args.assertConsumed();
       execution = await recoverConsumerIntegration({ consumerRoot });
     } else {
-      throw new ConsumerCliInputError("Expected consumer command: check, plan, apply, or recover.");
+      throw new ConsumerCliInputError("Expected consumer command: check, plan, apply, upgrade, or recover.");
     }
   } catch (error) {
     execution = failure(command || "check", error);
   }
   try {
-    await assertConsumerIntegrationExecutionSchema(execution);
+    if (execution.command === "consumer.upgrade") {
+      await assertConsumerUpgradeExecutionSchema(execution);
+    } else {
+      await assertConsumerIntegrationExecutionSchema(execution);
+    }
   } catch (error) {
     execution = failure(command || "check", error);
   }

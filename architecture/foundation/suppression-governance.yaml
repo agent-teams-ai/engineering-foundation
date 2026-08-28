@@ -27,11 +27,11 @@ waivers:
     decisionRef: ADR-0032
   - id: DOCS-CONSUMER-CLI-ROUTER-COMPLEXITY
     path: packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts
-    line: 158
+    line: 178
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers
-    reason: The bounded CLI router keeps the four fixed V1 command envelopes and their error mapping together.
+    reason: The bounded CLI router keeps the five fixed V1 command envelopes and their error mapping together.
     createdOn: 2026-08-23
     expiresOn: 2026-11-21
     decisionRef: ADR-0031

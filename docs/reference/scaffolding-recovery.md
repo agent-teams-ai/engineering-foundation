@@ -19,12 +19,16 @@ const scope: ScaffoldRecoveryScope = {
 const receipt = await recoverFilesystemScaffold(consumerRoot, scope);
 ```
 
-The scope has exactly four string properties. IDs use the existing scaffolding
-authority-ID syntax. Paths use the existing portable repository-relative syntax;
-absolute paths, backslashes, empty or dot segments, and unknown properties are
-invalid. Foundation compares strings exactly without host normalization or case
-folding. It snapshots and freezes a valid scope synchronously, so later caller
-mutation cannot retarget recovery.
+The v1 scope is immutable: it has exactly the four string properties shown
+above, and their meaning and validation cannot be narrowed without a new
+contract version. IDs use the published scaffolding authority-ID syntax. Paths
+match the published v1 repository-path regex exactly:
+`^(?!.*(?:^|/)\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$`.
+Foundation does not add host-specific restrictions; for example, a matching
+Windows device-name segment or trailing dot remains schema-valid. It compares
+strings exactly without host normalization or case folding. It snapshots and
+freezes a valid scope synchronously, so later caller mutation cannot retarget
+recovery.
 
 An idle repository returns `undefined`. Malformed scope input reports
 `SCAFFOLD_INPUT_INVALID`. A valid scope that does not match the prepared journal

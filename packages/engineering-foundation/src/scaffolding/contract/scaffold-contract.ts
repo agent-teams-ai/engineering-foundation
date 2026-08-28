@@ -1,10 +1,14 @@
 import type {
+  AuthorityScaffoldRecoveryScope,
   ConfiguredDefinition,
   DefinitionRef,
   JsonObject,
   RepositoryPath,
   Sha256Digest
 } from "./types.js";
+
+/** Public name for the single inward-owned v1 recovery scope contract. */
+export type ScaffoldRecoveryScope = AuthorityScaffoldRecoveryScope;
 
 export interface ScaffoldAuthorityVerifier {
   readonly id: "foundation.markdown-yaml-owner";
@@ -44,14 +48,6 @@ export interface ScaffoldIntent {
   readonly targetRef: string;
   readonly recipeParameters?: JsonObject;
   readonly facets?: readonly ConfiguredDefinition[];
-}
-
-/** The exact consumer-owned descriptors that authorize one recovery attempt. */
-export interface ScaffoldRecoveryScope {
-  readonly projectId: string;
-  readonly configPath: RepositoryPath;
-  readonly targetCatalogPath: RepositoryPath;
-  readonly compositionId: string;
 }
 
 export interface ScaffoldOwnerDocumentBinding {

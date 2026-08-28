@@ -24,6 +24,9 @@ import {
 import {
   sha256Json,
 } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
+import {
+  SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
+} from "../packages/engineering-foundation/dist/scaffolding/kernel/recovery-scope.js";
 
 const fixtureRoot = fileURLToPath(new URL(
   "fixtures/scaffolding-authority-consumer/",
@@ -31,6 +34,33 @@ const fixtureRoot = fileURLToPath(new URL(
 ));
 const scopeMismatchMessage =
   "Scaffolding recovery scope does not match the prepared journal; the journal and outputs were preserved.";
+
+test("recovery path validation stays identical to the published v1 schemas", async () => {
+  const schemaDirectory = fileURLToPath(new URL(
+    "../packages/engineering-foundation/schemas/",
+    import.meta.url,
+  ));
+  const configSchema = JSON.parse(await readFile(
+    join(schemaDirectory, "scaffolding-config/v1.schema.json"),
+    "utf8",
+  ));
+  const planSchema = JSON.parse(await readFile(
+    join(schemaDirectory, "scaffold-plan/v1.schema.json"),
+    "utf8",
+  ));
+  assert.equal(
+    SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
+    "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$",
+  );
+  assert.equal(
+    configSchema.$defs.repositoryPath.pattern,
+    SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
+  );
+  assert.equal(
+    planSchema.$defs.repositoryPath.pattern,
+    SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
+  );
+});
 
 async function withConsumer(run) {
   const root = await mkdtemp(join(tmpdir(), "scaffold-recovery-scope-"));
@@ -213,7 +243,8 @@ test("keeps one-argument recovery behavior and exact scoped recovery replay", as
   });
   await withConsumer(async (root, plan) => {
     await writePreparedJournal(root, plan);
-    const scope = recoveryScope(plan);
+    const storedJournal = JSON.parse(await readFile(journalPath(root), "utf8"));
+    const scope = recoveryScope(storedJournal.plan);
     const recovered = await recoverFilesystemScaffold(root, scope);
     assert.equal(recovered?.outcome, "failed-recovered");
     assert.equal(await recoverFilesystemScaffold(root, scope), undefined);
@@ -307,7 +338,7 @@ test("rejects closed-shape, ID, and descriptor violations", async () => {
   });
 });
 
-test("reuses the scaffolding path policy with recovery portability bounds", async (context) => {
+test("matches the published v1 repository-path regex exactly", async (context) => {
   const rejectedPaths = [
     ["absolute", "configPath", "/absolute/config.yaml"],
     ["drive absolute", "configPath", "C:\\absolute\\config.yaml"],
@@ -315,22 +346,19 @@ test("reuses the scaffolding path policy with recovery portability bounds", asyn
     ["empty segment", "configPath", "architecture//config.yaml"],
     ["parent traversal", "targetCatalogPath", "architecture/../catalog.yaml"],
     ["current-directory traversal", "targetCatalogPath", "architecture/./catalog.yaml"],
-    ["reserved device", "configPath", "architecture/CON"],
-    ["mixed-case reserved device extension", "configPath", "architecture/cOn.yaml"],
-    ["reserved numbered device extension", "targetCatalogPath", "architecture/LpT9.catalog"],
-    ["trailing dot", "targetCatalogPath", "architecture/catalog.yaml."],
     ["trailing space", "targetCatalogPath", "architecture/catalog.yaml "],
-    ["over-limit UTF-8 segment", "configPath", `architecture/${"é".repeat(128)}`],
-    [
-      "over-limit UTF-8 path",
-      "configPath",
-      `${"é".repeat(127)}/${"é".repeat(127)}/abc`,
-    ],
+    ["Unicode", "configPath", "architecture/café.yaml"],
+    ["colon", "targetCatalogPath", "architecture/catalog:fixture.yaml"],
+    ["question mark", "targetCatalogPath", "architecture/catalog?.yaml"],
+    ["over-limit path", "configPath", `a/${"b".repeat(511)}`],
   ];
   const acceptedPaths = [
     ["normalized nested path", "configPath", "architecture/foundation/scaffolding.yaml"],
-    ["published Unicode segment", "configPath", "architecture/café.yaml"],
-    ["published punctuation", "targetCatalogPath", "architecture/catalog:fixture?.yaml"],
+    ["Windows reserved name", "configPath", "architecture/CON"],
+    ["mixed-case reserved name", "configPath", "architecture/cOn.yaml"],
+    ["reserved numbered name", "targetCatalogPath", "architecture/LpT9.catalog"],
+    ["trailing dot", "targetCatalogPath", "architecture/catalog.yaml."],
+    ["512-character path", "configPath", `a/${"b".repeat(510)}`],
   ];
 
   await withConsumer(async (root, plan) => {
@@ -345,7 +373,7 @@ test("reuses the scaffolding path policy with recovery portability bounds", asyn
             assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID");
             assert.equal(
               error.message,
-              `Scaffolding recovery scope ${field} must be a portable repository-relative path.`,
+              `Scaffolding recovery scope ${field} must satisfy the published v1 repository path contract.`,
             );
             return true;
           },

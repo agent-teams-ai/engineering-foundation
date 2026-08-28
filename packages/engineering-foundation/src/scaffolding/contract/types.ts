@@ -10,6 +10,7 @@ export type JsonObject = { readonly [key: string]: JsonValue };
 export type Sha256Digest = `sha256:${string}`;
 export type RepositoryPath = string;
 
+/** The immutable inward contract that may bind a v1 recovery attempt. */
 export interface AuthorityScaffoldRecoveryScope {
   readonly projectId: string;
   readonly configPath: RepositoryPath;

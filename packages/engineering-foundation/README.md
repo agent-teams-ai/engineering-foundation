@@ -167,9 +167,10 @@ agent-teams-foundation scaffold-recover --consumer /repo --json
 
 Programmatic callers may bind mutation to expected consumer descriptors with
 `recoverFilesystemScaffold(consumerRoot, { projectId, configPath,
-targetCatalogPath, compositionId })`. Foundation snapshots the closed value and
-requires exact portable-string agreement with the stored journal before reading
-authority or continuing recovery. The one-argument API and CLI are unchanged;
+targetCatalogPath, compositionId })`. Foundation snapshots the immutable v1
+value, validates paths against the published v1 schema exactly, and requires
+exact string agreement with the stored journal before reading authority or
+continuing recovery. The one-argument API and CLI are unchanged;
 `inspectFoundationTransactionAwareMode` remains the read-only advisory preflight.
 
 The current built-in Composition is a testing-only conformance fixture. Product

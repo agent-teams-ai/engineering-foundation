@@ -50,16 +50,18 @@ filesystem adapter never deletes output after publication begins: journal state,
 process-local observation, and matching bytes cannot prove that a path was not
 replaced by another writer.
 
-The programmatic recovery API also accepts an optional closed
+The programmatic recovery API also accepts an optional closed, immutable v1
 `ScaffoldRecoveryScope`. Foundation snapshots and validates its exact project,
 configuration path, target-catalog path, and Composition ID before asynchronous
 work. After canonical-root resolution and cooperative lease acquisition, the
 Node adapter compares those portable strings with the single stored journal
 record that it continues. A mismatch retains the transaction barrier and occurs
 before authority reads, output classification, journal replacement, or
-publication. The one-argument API and `scaffold-recover` CLI retain their
-existing behavior; the overload adds caller-to-journal binding without changing
-the journal or Plan protocols.
+publication. Its repository paths use the published v1 schema regex exactly;
+host-specific restrictions cannot silently narrow this stable contract. The
+one-argument API and `scaffold-recover` CLI retain their existing behavior; the
+overload adds caller-to-journal binding without changing the journal or Plan
+protocols.
 
 ## Goals
 

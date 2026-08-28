@@ -158,12 +158,6 @@ if (legacyRecovered?.outcome !== "failed-recovered") process.exit(7);
 await validateScaffoldReceipt(legacyRecovered, legacyRecoveryPlan);
 if ((await recoverFilesystemScaffold(legacyRecoveryRoot)) !== undefined) process.exit(8);
 const recoveryPlan = await planScaffoldFromFile({ consumerRoot: scopedRecoveryRoot, intentPath: "intents/create-fixture.yaml" });
-const recoveryScope = {
-  projectId: recoveryPlan.projectId,
-  configPath: recoveryPlan.authority.configPath,
-  targetCatalogPath: recoveryPlan.authority.targetCatalogPath,
-  compositionId: recoveryPlan.intent.compositionId
-};
 const journalPath = join(scopedRecoveryRoot, ".agent-teams-local", "scaffolding-transaction.json");
 await mkdir(join(scopedRecoveryRoot, ".agent-teams-local"), { recursive: true });
 await writeFile(journalPath, \`\${JSON.stringify({
@@ -172,6 +166,13 @@ await writeFile(journalPath, \`\${JSON.stringify({
   plan: recoveryPlan,
   operations: recoveryPlan.operations.map((operation) => ({ operationId: operation.id, path: operation.path, state: "pending" }))
 }, null, 2)}\\n\`);
+const storedRecoveryJournal = JSON.parse(await readFile(journalPath, "utf8"));
+const recoveryScope = {
+  projectId: storedRecoveryJournal.plan.projectId,
+  configPath: storedRecoveryJournal.plan.authority.configPath,
+  targetCatalogPath: storedRecoveryJournal.plan.authority.targetCatalogPath,
+  compositionId: storedRecoveryJournal.plan.intent.compositionId
+};
 const recovered = await recoverFilesystemScaffold(scopedRecoveryRoot, recoveryScope);
 if (recovered?.outcome !== "failed-recovered") process.exit(9);
 await validateScaffoldReceipt(recovered, recoveryPlan);

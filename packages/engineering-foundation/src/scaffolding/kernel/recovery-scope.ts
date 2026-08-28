@@ -2,7 +2,6 @@ import type {
   AuthorityScaffoldPlan,
   AuthorityScaffoldRecoveryScope
 } from "../contract/types.js";
-import { legacyScaffoldingRepositoryPathProblem } from "../application/policies/legacy-scaffolding-repository-path.js";
 import { ScaffoldError } from "../scaffold-error.js";
 
 const recoveryScopeKeys = Object.freeze([
@@ -13,7 +12,12 @@ const recoveryScopeKeys = Object.freeze([
 ] as const);
 const recoveryScopeKeySet = new Set<PropertyKey>(recoveryScopeKeys);
 const authorityIdPattern = /^[a-z0-9][a-z0-9._/-]*$/u;
-const textEncoder = new TextEncoder();
+export const SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN =
+  "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$";
+const repositoryPathPattern = new RegExp(
+  SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
+  "u"
+);
 
 function invalidScope(message: string, cause?: unknown): never {
   throw new ScaffoldError(
@@ -74,18 +78,9 @@ function assertRepositoryPath(
   value: string,
   key: "configPath" | "targetCatalogPath"
 ): void {
-  const segments = value.split("/");
-  if (
-    legacyScaffoldingRepositoryPathProblem(value) !== undefined ||
-    textEncoder.encode(value).byteLength > 512 ||
-    segments.some(
-      (segment) =>
-        segment.endsWith(" ") ||
-        textEncoder.encode(segment).byteLength > 255
-    )
-  ) {
+  if (value.length > 512 || !repositoryPathPattern.test(value)) {
     invalidScope(
-      `Scaffolding recovery scope ${key} must be a portable repository-relative path.`
+      `Scaffolding recovery scope ${key} must satisfy the published v1 repository path contract.`
     );
   }
 }

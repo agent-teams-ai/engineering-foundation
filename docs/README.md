@@ -18,7 +18,7 @@ not repeat their rules.
 | Repository security | [Repository security baseline](security/repository-security-baseline.md) | Accepted and implemented for publishing repositories |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
 | Scaffolding compiler | [Scaffolding compiler protocol](architecture/scaffolding-compiler-protocol.md) | Kernel and generic Node TypeScript library recipe implemented; Nx deferred |
-| Scaffolding recovery | [Scoped recovery API](reference/scaffolding-recovery.md) | Descriptor-stable overload implemented; one-argument API and CLI retained |
+| Scaffolding recovery | [Scoped recovery API](reference/scaffolding-recovery.md) | Immutable v1 scoped overload implemented; one-argument API and CLI retained |
 | Document authoring | [Document authoring protocol](architecture/document-authoring-protocol.md) | Catalog, Plan compiler, create-only writer, doctor, and exact-version recovery released in Docs Protocol 0.1.2 |
 | Unified documentation UX | [ADR-0026](decisions/0026-retain-only-document-directory-materialization.md#carried-forward-adr-0025-decisions) | Stable Docs Protocol cohort adopted by current consumers; legacy compatibility retirement remains evidence-gated |
 | Managed consumer upgrades | [Managed Docs Protocol consumer integration](architecture/managed-docs-consumer-integration.md) | Qualified Cohort authority, pins, lockfile, assets, activation, and rollback are one staged command |

@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import {
-  copyFile,
   mkdir,
   mkdtemp,
-  readFile,
-  realpath,
-  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -28,11 +24,7 @@ function startCli(arguments_, options = {}) {
   return startBoundedCli(cliPath, arguments_, options);
 }
 
-async function writeFixturePnpm(
-  root,
-  packageManagerRoles = {},
-  taskBoundaryEnvironments = {},
-) {
+async function writeFixturePnpm(root, taskAuthorities = {}) {
   await writeFixtureBoundaryClient(root);
   const entrypoint = join(root, "fixture-pnpm.cjs");
   await writeFile(entrypoint, `const { spawn } = require("node:child_process");
@@ -46,13 +38,13 @@ if (process.argv.length !== 4 || process.argv[2] !== "run") {
   throw new Error("Unexpected fixture pnpm arguments: " + JSON.stringify(process.argv.slice(2)));
 }
 const scriptId = process.argv[3];
-const packageManagerRoles = ${JSON.stringify(packageManagerRoles)};
-const taskBoundaryEnvironments = ${JSON.stringify(taskBoundaryEnvironments)};
-if (taskBoundaryEnvironments[scriptId] !== undefined) {
-  Object.assign(process.env, taskBoundaryEnvironments[scriptId]);
+const taskAuthorities = ${JSON.stringify(taskAuthorities)};
+const authority = taskAuthorities[scriptId];
+if (authority?.packageManager !== undefined) {
+  Object.assign(process.env, authority.packageManager);
 }
 let task;
-await connect(packageManagerRoles[scriptId] ?? "package-manager", async () => {
+await connect(async () => {
   if (task === undefined || task.exitCode !== null || task.signalCode !== null) return;
   task.kill("SIGTERM");
   const closed = await Promise.race([once(task, "close").then(() => true), delay(1000, false)]);
@@ -65,6 +57,7 @@ if (match === null) {
   throw new Error("Fixture pnpm accepts only a single local Node script.");
 }
 task = spawn(process.execPath, [match[1]], {
+  env: authority?.task === undefined ? process.env : { ...process.env, ...authority.task },
   stdio: "inherit"
 });
 const [code] = await once(task, "exit");
@@ -78,14 +71,14 @@ process.exit(code ?? 1);
 }
 
 async function writeNeverEndingTaskFixture(root, filename, effectPath, {
-  descendantRole = "descendant",
-  parentRole = "parent",
+  descendantEnvironment,
   readinessRoles = ["package-manager", "parent", "descendant"],
+  releaseOnCommand = false,
 } = {}) {
   await writeFixtureBoundaryClient(root);
   const descendantSource = `const { connect } = require("./fixture-boundary-client.cjs");
 void (async () => {
-  await connect(${JSON.stringify(descendantRole)});
+  await connect();
   process.send?.("ready");
   setInterval(() => {}, 60000);
 })().catch((error) => { throw error; });
@@ -98,19 +91,25 @@ const { connect } = require("./fixture-boundary-client.cjs");
 
 void (async () => {
 let descendant;
-await connect(${JSON.stringify(parentRole)}, async () => {
+const stopDescendant = async () => {
   if (descendant === undefined || descendant.exitCode !== null || descendant.signalCode !== null) return;
   descendant.kill("SIGTERM");
   const closed = await Promise.race([once(descendant, "close").then(() => true), delay(1000, false)]);
   if (!closed && descendant.exitCode === null && descendant.signalCode === null) descendant.kill("SIGKILL");
   if (!closed) await once(descendant, "close");
+};
+await connect(stopDescendant, async () => {
+  if (!${JSON.stringify(releaseOnCommand)}) throw new Error("Fixture role was not releasable.");
+  await stopDescendant();
+  process.exit(0);
 });
 descendant = spawn(process.execPath, ["--eval", ${JSON.stringify(descendantSource)}], {
+  env: { ...process.env, ...${JSON.stringify(descendantEnvironment)} },
   stdio: ["ignore", "ignore", "ignore", "ipc"]
 });
 await once(descendant, "message");
 writeFileSync(${JSON.stringify(effectPath)}, JSON.stringify({
-  nonce: process.env.QGR_FIXTURE_NONCE,
+  evidenceId: process.env.QGR_FIXTURE_BOUNDARY_ID,
   roles: ${JSON.stringify(readinessRoles)}
 }) + "\\n", { flag: "wx" });
 setInterval(() => {}, 60000);
@@ -121,7 +120,7 @@ setInterval(() => {}, 60000);
 function parseOwnedReadiness(boundary, roles) {
   return (source) => {
     const record = JSON.parse(source);
-    assert.deepEqual(record, { nonce: boundary.nonce, roles });
+    assert.deepEqual(record, { evidenceId: boundary.evidenceId, roles });
     return record;
   };
 }
@@ -144,7 +143,10 @@ capabilities:
   await writeFile(join(root, "architecture", "foundation", "quality-gates.yaml"), profileSource, "utf8");
 }
 
-async function writeConcurrentManagedTaskFixture(root, timeoutMs) {
+async function writeConcurrentManagedTaskFixture(root, {
+  releaseSecond = false,
+  timeoutMsA,
+} = {}) {
   const tasks = [
     {
       descendantRole: "descendant-a",
@@ -160,13 +162,14 @@ async function writeConcurrentManagedTaskFixture(root, timeoutMs) {
       filename: "concurrent-b.cjs",
       packageManagerRole: "package-manager-b",
       parentRole: "parent-b",
+      releaseOnCommand: releaseSecond,
       scriptId: "slow-b",
     },
   ].map((task) => ({
     ...task,
     roles: [task.packageManagerRole, task.parentRole, task.descendantRole],
   }));
-  const timeoutSource = timeoutMs === undefined ? "" : `\n        timeoutMs: ${timeoutMs}`;
+  const timeoutSource = timeoutMsA === undefined ? "" : `\n        timeoutMs: ${timeoutMsA}`;
   await writeConsumer(root, `schemaVersion: 1
 packageManager: pnpm
 profiles:
@@ -174,15 +177,8 @@ profiles:
     concurrency: 2
     tasks:
       - id: slow-a${timeoutSource}
-      - id: slow-b${timeoutSource}
+      - id: slow-b
 `, Object.fromEntries(tasks.map(({ filename, scriptId }) => [scriptId, `node ${filename}`])));
-  for (const task of tasks) {
-    await writeNeverEndingTaskFixture(root, task.filename, task.effectPath, {
-      descendantRole: task.descendantRole,
-      parentRole: task.parentRole,
-      readinessRoles: task.roles,
-    });
-  }
   return {
     tasks,
   };
@@ -190,119 +186,24 @@ profiles:
 
 async function createConcurrentTaskBoundaries(root, tasks) {
   const boundaries = await Promise.all(tasks.map(({ roles }) => (
-    createSyntheticFixtureBoundary({ expectedRoles: roles })
+    createSyntheticFixtureBoundary({ expectedRoles: roles, shutdownGraceMs: 20_000 })
   )));
-  const fixturePnpm = await writeFixturePnpm(
-    root,
-    Object.fromEntries(tasks.map(({ packageManagerRole, scriptId }) => [scriptId, packageManagerRole])),
-    Object.fromEntries(tasks.map(({ scriptId }, index) => [scriptId, boundaries[index].environment])),
-  );
+  for (const [index, task] of tasks.entries()) {
+    await writeNeverEndingTaskFixture(root, task.filename, task.effectPath, {
+      descendantEnvironment: boundaries[index].environmentFor(task.descendantRole),
+      readinessRoles: task.roles,
+      releaseOnCommand: task.releaseOnCommand,
+    });
+  }
+  const fixturePnpm = await writeFixturePnpm(root, Object.fromEntries(
+    tasks.map(({ packageManagerRole, parentRole, scriptId }, index) => [scriptId, {
+      packageManager: boundaries[index].environmentFor(packageManagerRole),
+      task: boundaries[index].environmentFor(parentRole),
+    }]),
+  ));
   return { boundaries, fixturePnpm };
 }
 
-test("CLI runs a bounded synthetic consumer through the installed pnpm", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-real-pnpm-"));
-  const marker = join(root, ".real-pnpm-smoke.json");
-  let boundary;
-  let execution;
-  let setupExecution;
-  try {
-    assert.equal(
-      typeof process.env.npm_execpath,
-      "string",
-      "Run this test through the installed pnpm so npm_execpath identifies the real entrypoint.",
-    );
-    const installedVersion = /^pnpm\/(?<version>\d+\.\d+\.\d+)\b/u.exec(
-      process.env.npm_config_user_agent ?? "",
-    )?.groups?.version;
-    assert.notEqual(installedVersion, undefined, "Installed pnpm did not report its exact version.");
-    const installedPnpmEntrypoint = await realpath(process.env.npm_execpath);
-    assert.match(installedPnpmEntrypoint, /\.(?:c|m)?js$/u);
-    const nodeOnlyPath = join(root, "node-only-path");
-    await mkdir(nodeOnlyPath);
-    const nodeEntrypoint = join(nodeOnlyPath, process.platform === "win32" ? "node.exe" : "node");
-    if (process.platform === "win32") {
-      await copyFile(process.execPath, nodeEntrypoint);
-    } else {
-      await symlink(process.execPath, nodeEntrypoint);
-      await symlink("/bin/sh", join(nodeOnlyPath, "sh"));
-    }
-    await writeConsumer(root, `schemaVersion: 1
-packageManager: pnpm
-profiles:
-  - id: verify
-    concurrency: 1
-    tasks:
-      - id: smoke
-        timeoutMs: 30000
-`, {
-      smoke: "node real-pnpm-smoke.cjs",
-    }, installedVersion);
-    const fixtureStore = join(root, ".pnpm-store");
-    setupExecution = startBoundedCli(installedPnpmEntrypoint, [
-      "install", "--frozen-lockfile=false", "--ignore-scripts", "--store-dir", fixtureStore,
-    ], {
-      cwd: root,
-      env: { ...process.env, npm_config_store_dir: fixtureStore },
-    });
-    const setupResult = await setupExecution.result;
-    assert.equal(setupResult.status, 0, JSON.stringify(setupResult));
-    boundary = await createSyntheticFixtureBoundary({ expectedRoles: ["real-pnpm-task"] });
-    await writeFixtureBoundaryClient(root);
-    await writeFile(join(root, "real-pnpm-smoke.cjs"), `const { realpathSync, writeFileSync } = require("node:fs");
-const { connect } = require("./fixture-boundary-client.cjs");
-void (async () => {
-  if (process.env.npm_lifecycle_event !== "smoke") {
-    throw new Error("Installed pnpm did not set npm_lifecycle_event=smoke.");
-  }
-  const canonicalNpmExecPath = realpathSync(process.env.npm_execpath);
-  if (canonicalNpmExecPath !== ${JSON.stringify(installedPnpmEntrypoint)}) {
-    throw new Error("Installed pnpm child npm_execpath was not the expected canonical entrypoint.");
-  }
-  await connect("real-pnpm-task");
-  writeFileSync(${JSON.stringify(marker)}, JSON.stringify({
-    invocation: 1,
-    lifecycleEvent: process.env.npm_lifecycle_event,
-    nonce: process.env.QGR_FIXTURE_NONCE,
-    npmExecPath: canonicalNpmExecPath,
-    packageManager: "pnpm"
-  }) + "\\n", { flag: "wx" });
-  process.exit(0);
-})().catch((error) => { throw error; });
-`, "utf8");
-    const childEnvironment = {
-      ...process.env,
-      PATH: nodeOnlyPath,
-      npm_config_store_dir: fixtureStore,
-      npm_execpath: installedPnpmEntrypoint,
-    };
-    delete childEnvironment.PNPM_HOME;
-    execution = startCli([
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], {
-      env: childEnvironment,
-      fixtureBoundary: boundary,
-    });
-    const result = await execution.result;
-    assert.equal(result.status, 0, JSON.stringify(result));
-    assert.equal(JSON.parse(result.stdout).outcome, "passed");
-    await boundary.waitForRoles();
-    await boundary.assertStopped();
-    assert.deepEqual(JSON.parse(await readFile(marker, "utf8")), {
-      invocation: 1,
-      lifecycleEvent: "smoke",
-      nonce: boundary.nonce,
-      npmExecPath: installedPnpmEntrypoint,
-      packageManager: "pnpm",
-    });
-  } finally {
-    await cleanupSyntheticFixture({
-      boundaries: [boundary],
-      executions: [setupExecution, execution],
-      roots: [root],
-    });
-  }
-});
 test("CLI preserves a failing script exit code and emits versioned JSON evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-cli-"));
   let execution;
@@ -430,8 +331,15 @@ profiles:
 `, {
       slow: "node timeout-fixture.cjs",
     });
-    await writeNeverEndingTaskFixture(root, "timeout-fixture.cjs", effectPath);
-    const fixturePnpm = await writeFixturePnpm(root);
+    await writeNeverEndingTaskFixture(root, "timeout-fixture.cjs", effectPath, {
+      descendantEnvironment: boundary.environmentFor("descendant"),
+    });
+    const fixturePnpm = await writeFixturePnpm(root, {
+      slow: {
+        packageManager: boundary.environmentFor("package-manager"),
+        task: boundary.environmentFor("parent"),
+      },
+    });
     execution = startCli([
       "gate", "run", "verify", "--consumer", root, "--format", "json",
     ], {
@@ -456,12 +364,15 @@ profiles:
   }
 });
 
-test("concurrency two times out both simultaneous task-specific managed boundaries", async () => {
+test("one timed-out task leaves its controlled sibling active until independently released", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-concurrent-timeout-"));
   let boundaries = [];
   let execution;
   try {
-    const fixture = await writeConcurrentManagedTaskFixture(root, 10_000);
+    const fixture = await writeConcurrentManagedTaskFixture(root, {
+      releaseSecond: true,
+      timeoutMsA: 10_000,
+    });
     const managed = await createConcurrentTaskBoundaries(
       root,
       fixture.tasks,
@@ -477,13 +388,22 @@ test("concurrency two times out both simultaneous task-specific managed boundari
     )));
     await Promise.all(boundaries.map((boundary) => boundary.waitForRoles()));
     await Promise.all(boundaries.map((boundary) => boundary.assertActive()));
-    const result = await execution.result;
+    let cliCompleted = false;
+    const completion = execution.result.then((result) => {
+      cliCompleted = true;
+      return result;
+    });
+    await boundaries[0].assertStopped();
+    assert.equal(cliCompleted, false, "task A's roles must close before final CLI completion");
+    await boundaries[1].assertActive();
+    await boundaries[1].release("parent-b");
+    const result = await completion;
     assert.equal(result.status, 124, JSON.stringify(result));
     const report = JSON.parse(result.stdout);
     assert.equal(report.outcome, "failed");
     assert.deepEqual(
       report.tasks.map(({ id, outcome }) => [id, outcome]),
-      [["slow-a", "timed-out"], ["slow-b", "timed-out"]],
+      [["slow-a", "timed-out"], ["slow-b", "passed"]],
     );
     await Promise.all(boundaries.map((boundary) => boundary.assertStopped()));
   } finally {
@@ -495,7 +415,7 @@ test("concurrency two times out both simultaneous task-specific managed boundari
   }
 });
 
-test("readiness failure cleans up and awaits the nonce-owned fixture boundary", async () => {
+test("readiness failure cleans up and awaits the credential-owned fixture boundary", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-readiness-failure-"));
   const effectPath = join(root, ".invalid-readiness.json");
   const roles = ["package-manager", "parent", "descendant"];
@@ -514,8 +434,15 @@ profiles:
 `, {
       slow: "node readiness-failure-fixture.cjs",
     });
-    await writeNeverEndingTaskFixture(root, "readiness-failure-fixture.cjs", effectPath);
-    const fixturePnpm = await writeFixturePnpm(root);
+    await writeNeverEndingTaskFixture(root, "readiness-failure-fixture.cjs", effectPath, {
+      descendantEnvironment: boundary.environmentFor("descendant"),
+    });
+    const fixturePnpm = await writeFixturePnpm(root, {
+      slow: {
+        packageManager: boundary.environmentFor("package-manager"),
+        task: boundary.environmentFor("parent"),
+      },
+    });
     execution = startCli([
       "gate", "run", "verify", "--consumer", root, "--format", "json",
     ], {
@@ -528,9 +455,13 @@ profiles:
     await assert.rejects(
       waitForFixtureEffect(effectPath, execution, (source) => {
         const record = JSON.parse(source);
-        assert.equal(record.nonce, "intentionally-not-owned", "readiness nonce mismatch");
+        assert.equal(
+          record.evidenceId,
+          "intentionally-not-owned",
+          "readiness evidence ID mismatch",
+        );
       }),
-      /readiness nonce mismatch/u,
+      /readiness evidence ID mismatch/u,
     );
     await boundary.waitForRoles();
     await execution.stop();
@@ -570,7 +501,7 @@ const { connect } = require("./fixture-boundary-client.cjs");
 
 void (async () => {
 let nested;
-await connect("recursion", async () => {
+await connect(async () => {
   if (nested === undefined || nested.exitCode !== null || nested.signalCode !== null) return;
   nested.kill("SIGTERM");
   const closed = await Promise.race([once(nested, "close").then(() => true), delay(1000, false)]);
@@ -578,7 +509,7 @@ await connect("recursion", async () => {
   if (!closed) await once(nested, "close");
 });
 writeFileSync(${JSON.stringify(effectPath)}, JSON.stringify({
-  nonce: process.env.QGR_FIXTURE_NONCE,
+  evidenceId: process.env.QGR_FIXTURE_BOUNDARY_ID,
   roles: ["package-manager", "recursion"]
 }) + "\\n", { flag: "wx" });
 nested = spawn(process.execPath, [
@@ -588,7 +519,12 @@ const [code] = await once(nested, "exit");
 process.exit(code ?? 1);
 })().catch((error) => { throw error; });
 `, "utf8");
-    const fixturePnpm = await writeFixturePnpm(root);
+    const fixturePnpm = await writeFixturePnpm(root, {
+      dynamic: {
+        packageManager: boundary.environmentFor("package-manager"),
+        task: boundary.environmentFor("recursion"),
+      },
+    });
     execution = startCli([
       "gate", "run", "verify", "--consumer", root, "--format", "json",
     ], {
@@ -636,8 +572,15 @@ profiles:
 `, {
       slow: "node cancellation-fixture.cjs",
     });
-    await writeNeverEndingTaskFixture(root, "cancellation-fixture.cjs", effectPath);
-    const fixturePnpm = await writeFixturePnpm(root);
+    await writeNeverEndingTaskFixture(root, "cancellation-fixture.cjs", effectPath, {
+      descendantEnvironment: boundary.environmentFor("descendant"),
+    });
+    const fixturePnpm = await writeFixturePnpm(root, {
+      slow: {
+        packageManager: boundary.environmentFor("package-manager"),
+        task: boundary.environmentFor("parent"),
+      },
+    });
     execution = startCli([
       "gate", "run", "verify", "--consumer", root, "--format", "json",
     ], {

@@ -89,6 +89,21 @@ boundaries. POSIX uses process groups and Windows uses the existing Job Object
 adapter. The same portable containment limitation documented for local mode
 applies when an adversarial descendant deliberately escapes its process group.
 
+The repository lifecycle qualification observes cooperating, harness-owned
+fixture roles. Its fixture server assigns a distinct one-use credential to each
+declared role; a registration presents that credential and the server, not the
+client, resolves the role. Timeout and POSIX cancellation qualifications run
+live parent and descendant roles through the installed pnpm process boundary
+and require every role connection to close before final CLI completion.
+
+This is exact evidence for the owned fixture model, not hostile-process
+authentication. The credentials prevent one inherited fixture bearer from
+selecting arbitrary roles, but they do not attest an operating-system process
+identity, PID ancestry, or resistance to a hostile process that can read or
+modify the fixture's files, arguments, memory, or inherited environment. The
+production containment boundary and its documented escaped-descendant
+limitation remain the security boundary; fixture sockets are test evidence only.
+
 JSON is the canonical `quality-gate-run-report/v1` evidence. It records profile
 outcome, monotonic duration, declaration-ordered tasks, task outcome, duration,
 exact observed exit code and signal, and at most the final 8192 characters of

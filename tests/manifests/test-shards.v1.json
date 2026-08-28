@@ -147,6 +147,7 @@
         "tests/public-api-export-coverage.test.mjs",
         "tests/public-api-promotion.test.mjs",
         "tests/quality-gate-runner-lifecycle.test.mjs",
+        "tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs",
         "tests/quality-gate-runner.test.mjs",
         "tests/repository-mutation-owned-temporary-cleanup.test.mjs",
         "tests/scaffolding-owned-cleanup-residue.test.mjs",

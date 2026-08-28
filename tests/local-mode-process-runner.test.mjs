@@ -228,6 +228,90 @@ test(
   }
 );
 
+test("Windows cancellation protocol proves containment across Job assignment", async () => {
+  const [nodeAdapterSource, windowsAdapterSource] = await Promise.all([
+    readFile(join(
+      process.cwd(),
+      "packages/engineering-foundation/src/process-execution/node-process-runner.ts"
+    ), "utf8"),
+    readFile(join(
+      process.cwd(),
+      "packages/engineering-foundation/src/process-execution/windows-managed-process.ts"
+    ), "utf8")
+  ]);
+
+  const createProcess = windowsAdapterSource.indexOf("if (!CreateProcess(");
+  const preAssignmentCancellation = windowsAdapterSource.indexOf(
+    "if (File.Exists(cancellationPath))",
+    createProcess
+  );
+  const terminateSuspendedProcess = windowsAdapterSource.indexOf(
+    "TerminateProcessAndWait(process.hProcess);",
+    preAssignmentCancellation
+  );
+  const confirmPreAssignmentContainment = windowsAdapterSource.indexOf(
+    "ConfirmContainment(confirmationPath);",
+    terminateSuspendedProcess
+  );
+  const assignProcess = windowsAdapterSource.indexOf(
+    "if (!AssignProcessToJobObject(job, process.hProcess))",
+    confirmPreAssignmentContainment
+  );
+  assert.ok(createProcess >= 0);
+  assert.ok(createProcess < preAssignmentCancellation);
+  assert.ok(preAssignmentCancellation < terminateSuspendedProcess);
+  assert.ok(terminateSuspendedProcess < confirmPreAssignmentContainment);
+  assert.ok(confirmPreAssignmentContainment < assignProcess);
+
+  const suspendedTermination = windowsAdapterSource.slice(
+    windowsAdapterSource.indexOf("private static void TerminateProcessAndWait"),
+    windowsAdapterSource.indexOf("private static uint ActiveProcessCount")
+  );
+  assert.match(suspendedTermination, /TerminateProcess\(process, 1\)/u);
+  assert.match(suspendedTermination, /WaitForSingleObject\(process, 5000\)/u);
+
+  const assignedCancellation = windowsAdapterSource.indexOf(
+    "if (CancelAssignedIfRequested(cancellationPath, confirmationPath, job))",
+    windowsAdapterSource.indexOf("assigned = true;")
+  );
+  const assignedCancellationHelper = windowsAdapterSource.indexOf(
+    "private static bool CancelAssignedIfRequested"
+  );
+  const terminateAssignedJob = windowsAdapterSource.indexOf(
+    "TerminateAssignedJobAndWait(job);",
+    assignedCancellationHelper
+  );
+  const confirmAssignedContainment = windowsAdapterSource.indexOf(
+    "ConfirmContainment(confirmationPath);",
+    assignedCancellationHelper
+  );
+  assert.ok(assignedCancellation >= 0);
+  assert.ok(assignedCancellationHelper < terminateAssignedJob);
+  assert.ok(terminateAssignedJob < confirmAssignedContainment);
+
+  const assignedJobTermination = windowsAdapterSource.slice(
+    windowsAdapterSource.indexOf("private static void TerminateAssignedJobAndWait"),
+    windowsAdapterSource.indexOf("public static int Run(")
+  );
+  assert.match(assignedJobTermination, /TerminateJobObject\(job, 1\)/u);
+  assert.match(assignedJobTermination, /while \(ActiveProcessCount\(job\) > 0\)/u);
+
+  const requestTermination = nodeAdapterSource.indexOf(
+    "await requestWindowsManagedProcessTermination(child);"
+  );
+  const forceWrapperExit = nodeAdapterSource.indexOf(
+    'child.kill("SIGKILL");',
+    requestTermination
+  );
+  assert.ok(requestTermination >= 0);
+  assert.ok(requestTermination < forceWrapperExit);
+  assert.match(nodeAdapterSource, /await waitForWindowsManagedProcessContainment\(child\)/u);
+  assert.match(windowsAdapterSource, /File\.Move\(temporaryPath, confirmationPath\)/u);
+  assert.match(windowsAdapterSource, /confirmation !== "CONTAINED"/u);
+  assert.match(windowsAdapterSource, /writeFile\(control\.cancellationPath, "CANCEL"/u);
+  assert.match(windowsAdapterSource, /Windows Job Object wrapper exited before it confirmed process containment/u);
+});
+
 test("rejects output beyond the bounded capture limit", { timeout: TEST_TIMEOUT_MS }, async () => {
   const runner = new NodeProcessRunner();
   await assert.rejects(

@@ -3,7 +3,11 @@ import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { FoundationError } from "../errors.js";
-import { spawnWindowsManagedProcess } from "./windows-managed-process.js";
+import {
+  requestWindowsManagedProcessTermination,
+  spawnWindowsManagedProcess,
+  waitForWindowsManagedProcessContainment
+} from "./windows-managed-process.js";
 import type {
   ManagedProcessResult,
   ProcessRequest,
@@ -156,11 +160,18 @@ async function waitForPosixProcessGroupExit(pid: number): Promise<boolean> {
 async function terminateWindowsProcessTree(
   child: ReturnType<typeof spawn>
 ): Promise<void> {
+  // The wrapper owns both the suspended pre-assignment handle and the assigned
+  // Job Object. It confirms the applicable containment boundary is empty before
+  // the outer process may treat wrapper exit as safe.
+  await requestWindowsManagedProcessTermination(child);
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
-  // The retained process handle targets the exact PowerShell wrapper. Closing
-  // that wrapper closes its strict Job Object and terminates every descendant.
+  if (await waitForExit(child, TERMINATION_GRACE_MS)) {
+    return;
+  }
+  // Containment is already confirmed, so forcing a stuck wrapper cannot orphan
+  // the suspended host or any assigned Job Object descendant.
   child.kill("SIGKILL");
   if (!await waitForExit(child, TERMINATION_GRACE_MS)) {
     throw new Error("Windows Job Object wrapper did not exit after forced shutdown.");
@@ -235,9 +246,11 @@ export function spawnNodeManagedProcess(
 async function cleanUpAfterNormalExit(
   child: ReturnType<typeof spawn>
 ): Promise<void> {
-  if (process.platform !== "win32") {
-    await terminateNodeManagedProcess(child);
+  if (process.platform === "win32") {
+    await waitForWindowsManagedProcessContainment(child);
+    return;
   }
+  await terminateNodeManagedProcess(child);
 }
 
 function decodeProcessOutput(

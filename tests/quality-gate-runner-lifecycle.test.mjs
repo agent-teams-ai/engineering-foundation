@@ -11,6 +11,7 @@ import test from "node:test";
 
 import {
   cleanupSyntheticFixture,
+  createSyntheticFixtureBoundaries,
   createSyntheticFixtureBoundary,
   startBoundedCli,
   waitForFixtureEffect,
@@ -175,9 +176,10 @@ profiles:
 }
 
 async function createConcurrentTaskBoundaries(root, tasks) {
-  const boundaries = await Promise.all(tasks.map(({ roles }) => (
-    createSyntheticFixtureBoundary({ expectedRoles: roles, shutdownGraceMs: 20_000 })
-  )));
+  const boundaries = await createSyntheticFixtureBoundaries(tasks.map(({ roles }) => ({
+    expectedRoles: roles,
+    shutdownGraceMs: 20_000,
+  })));
   for (const [index, task] of tasks.entries()) {
     await writeNeverEndingTaskFixture(root, task.filename, task.effectPath, {
       descendantEnvironment: boundaries[index].environmentFor(task.descendantRole),

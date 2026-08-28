@@ -20,6 +20,11 @@ interface ManagedProcessRequest extends ProcessRequest {
   readonly strictUtf8?: boolean;
 }
 
+export interface NodeManagedProcessRequest extends ProcessRequest {
+  /** Exact inherited environment for a private Node process-adapter boundary. */
+  readonly environment?: NodeJS.ProcessEnv;
+}
+
 function describeRequest(request: ProcessRequest): string {
   return `${request.command} ${request.args.join(" ")}`;
 }
@@ -156,10 +161,14 @@ async function terminateWindowsProcessTree(
   // The retained process handle targets the exact PowerShell wrapper. Closing
   // that wrapper closes its strict Job Object and terminates every descendant.
   child.kill("SIGKILL");
-  await waitForExit(child, TERMINATION_GRACE_MS);
+  if (!await waitForExit(child, TERMINATION_GRACE_MS)) {
+    throw new Error("Windows Job Object wrapper did not exit after forced shutdown.");
+  }
 }
 
-async function terminateProcessTree(child: ReturnType<typeof spawn>): Promise<void> {
+export async function terminateNodeManagedProcess(
+  child: ReturnType<typeof spawn>
+): Promise<void> {
   if (child.pid === undefined) {
     return;
   }
@@ -173,7 +182,9 @@ async function terminateProcessTree(child: ReturnType<typeof spawn>): Promise<vo
     return;
   }
   signalPosixProcessTree(child, "SIGKILL");
-  await waitForPosixProcessGroupExit(processGroupId);
+  if (!await waitForPosixProcessGroupExit(processGroupId)) {
+    throw new Error("POSIX process group did not exit after forced shutdown.");
+  }
 }
 
 async function waitForCloseWithinCleanupDeadline(
@@ -194,13 +205,16 @@ async function waitForCloseWithinCleanupDeadline(
   }
 }
 
-function spawnManagedProcess(request: ProcessRequest): ReturnType<typeof spawn> {
+export function spawnNodeManagedProcess(
+  request: NodeManagedProcessRequest
+): ReturnType<typeof spawn> {
   if (process.platform === "win32") {
     return spawnWindowsManagedProcess(request);
   }
   return spawn(request.command, [...request.args], {
     cwd: request.cwd,
     detached: true,
+    ...(request.environment === undefined ? {} : { env: request.environment }),
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true
@@ -211,7 +225,7 @@ async function cleanUpAfterNormalExit(
   child: ReturnType<typeof spawn>
 ): Promise<void> {
   if (process.platform !== "win32") {
-    await terminateProcessTree(child);
+    await terminateNodeManagedProcess(child);
   }
 }
 
@@ -246,7 +260,7 @@ export async function executeManagedProcess(
     return await new Promise((resolve, reject) => {
       let child: ReturnType<typeof spawn>;
       try {
-        child = spawnManagedProcess(request);
+        child = spawnNodeManagedProcess(request);
       } catch (error) {
         reject(processFailure(request, "could not be started.", error));
         return;
@@ -282,7 +296,7 @@ export async function executeManagedProcess(
         terminating = true;
         void (async () => {
           try {
-            await terminateProcessTree(child);
+            await terminateNodeManagedProcess(child);
             await waitForCloseWithinCleanupDeadline(closed);
             finish(failure);
           } catch (error) {

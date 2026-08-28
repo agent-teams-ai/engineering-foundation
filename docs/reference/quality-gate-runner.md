@@ -89,11 +89,13 @@ boundaries. POSIX uses process groups and Windows uses the existing Job Object
 adapter. The same portable containment limitation documented for local mode
 applies when an adversarial descendant deliberately escapes its process group.
 
-The repository lifecycle qualification observes cooperating, harness-owned
-fixture roles. Its fixture server assigns a distinct one-use credential to each
-declared role; a registration presents that credential and the server, not the
-client, resolves the role. A deterministic port test proves that the configured
-`timeoutMs` crosses the command, use-case, pnpm adapter, and managed-process
+The repository lifecycle qualification runs in cross-platform test shard 3 and
+is intentionally not duplicated in the fast macOS qualification lane. It
+observes cooperating, harness-owned fixture roles. Its fixture server assigns a
+distinct one-use credential to each declared role; a registration presents that
+credential and the server, not the client, resolves the role. A deterministic
+port test proves that the configured `timeoutMs` crosses the command, use-case,
+pnpm adapter, and managed-process
 request unchanged; controlled application evidence proves timeout classification
 and concurrent-sibling isolation without a wall-clock gate. One cross-platform
 cancellation qualification waits for authenticated readiness, then drives the

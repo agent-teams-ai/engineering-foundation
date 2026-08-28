@@ -363,8 +363,8 @@ jobs:
       # Successful runs 32652672062, 32654047694, and 32654516277 measured the
       # former 1+2 lane at 431/414/424s versus 240/246/236s for 3+4. Pairing
       # opposite shards separates the two longest observed Windows suites. The
-      # QGR lifecycle files stay in shard 3, opposite shard 1, and are not run
-      # again in the macOS qualification lane.
+      # QGR synthetic and real-pnpm lifecycle qualification stays in shard 3,
+      # opposite shard 1, and is intentionally not duplicated on macOS.
       - run: pnpm test:shard:built -- --shards 1,4
 
   windows-test-b:

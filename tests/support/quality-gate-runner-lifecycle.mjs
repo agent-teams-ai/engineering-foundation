@@ -418,6 +418,63 @@ export async function createSyntheticFixtureBoundary({
   }
 
   let stopPromise;
+  const closeBoundary = (requireExactConsumption) => {
+    stopPromise ??= (async () => {
+      stopping = true;
+      server.close((error) => {
+        serverCloseError = error;
+        serverClosed = true;
+        changed.notify();
+      });
+      const authenticatedSockets = new Set(
+        [...connections.values()].map(({ socket }) => socket),
+      );
+      for (const [socket, state] of sockets) {
+        if (!state.authenticated || !authenticatedSockets.has(socket)) {
+          state.boundaryDestroyed = true;
+          socket.destroy();
+        }
+      }
+      const stop = `${JSON.stringify({ boundaryId, command: "stop" })}\n`;
+      for (const { closed, socket } of connections.values()) {
+        if (!closed) {
+          socket.write(stop);
+        }
+      }
+      const cleanupFailures = [];
+      try {
+        await waitUntil(
+          () => serverClosed && [...connections.values()].every(({ closed }) => closed),
+          changed,
+          shutdownGraceMs,
+          "the authenticated sockets and synthetic fixture server to close",
+          destroyRetainedSockets,
+        );
+      } catch (error) {
+        cleanupFailures.push(error);
+      } finally {
+        if (cleanupFailures.length > 0) {
+          destroyRetainedSockets();
+        }
+      }
+      if (serverCloseError !== undefined) {
+        cleanupFailures.push(serverCloseError);
+      }
+      cleanupFailures.push(...failures);
+      if (requireExactConsumption) {
+        cleanupFailures.push(...exactConsumptionFailures(declaredRoles, registrationCounts));
+      }
+      if (cleanupFailures.length > 0) {
+        throw new AggregateError(
+          cleanupFailures,
+          `Synthetic fixture boundary shutdown failed: ${cleanupFailures
+            .map((error) => String(error?.message ?? error))
+            .join("; ")}`,
+        );
+      }
+    })();
+    return stopPromise;
+  };
   const environment = Object.freeze({
     QGR_FIXTURE_BOUNDARY_ID: boundaryId,
     QGR_FIXTURE_HOST: "127.0.0.1",
@@ -435,6 +492,9 @@ export async function createSyntheticFixtureBoundary({
         QGR_FIXTURE_CREDENTIAL: roleCredentials.get(role),
         QGR_FIXTURE_ROLE: role,
       });
+    },
+    isServerListening() {
+      return server.listening;
     },
     async assertActive() {
       assertHealthy();
@@ -465,6 +525,9 @@ export async function createSyntheticFixtureBoundary({
       );
       await this.assertExactConsumption();
     },
+    async abortSetup() {
+      await closeBoundary(false);
+    },
     async release(role) {
       assertHealthy();
       if (!declaredRoles.has(role)) {
@@ -477,61 +540,7 @@ export async function createSyntheticFixtureBoundary({
       record.socket.write(`${JSON.stringify({ boundaryId, command: "release", role })}\n`);
     },
     async stop() {
-      stopPromise ??= (async () => {
-        stopping = true;
-        server.close((error) => {
-          serverCloseError = error;
-          serverClosed = true;
-          changed.notify();
-        });
-        const authenticatedSockets = new Set(
-          [...connections.values()].map(({ socket }) => socket),
-        );
-        for (const [socket, state] of sockets) {
-          if (!state.authenticated || !authenticatedSockets.has(socket)) {
-            state.boundaryDestroyed = true;
-            socket.destroy();
-          }
-        }
-        const stop = `${JSON.stringify({ boundaryId, command: "stop" })}\n`;
-        for (const { closed, socket } of connections.values()) {
-          if (!closed) {
-            socket.write(stop);
-          }
-        }
-        const cleanupFailures = [];
-        try {
-          await waitUntil(
-            () => serverClosed && [...connections.values()].every(({ closed }) => closed),
-            changed,
-            shutdownGraceMs,
-            "the authenticated sockets and synthetic fixture server to close",
-            destroyRetainedSockets,
-          );
-        } catch (error) {
-          cleanupFailures.push(error);
-        } finally {
-          if (cleanupFailures.length > 0) {
-            destroyRetainedSockets();
-          }
-        }
-        if (serverCloseError !== undefined) {
-          cleanupFailures.push(serverCloseError);
-        }
-        cleanupFailures.push(
-          ...failures,
-          ...exactConsumptionFailures(declaredRoles, registrationCounts),
-        );
-        if (cleanupFailures.length > 0) {
-          throw new AggregateError(
-            cleanupFailures,
-            `Synthetic fixture boundary shutdown failed: ${cleanupFailures
-              .map((error) => String(error?.message ?? error))
-              .join("; ")}`,
-          );
-        }
-      })();
-      return await stopPromise;
+      await closeBoundary(true);
     },
     async waitForRoles() {
       await waitUntil(
@@ -546,6 +555,36 @@ export async function createSyntheticFixtureBoundary({
       await this.assertExactConsumption();
     },
   };
+}
+
+export async function createSyntheticFixtureBoundaries(
+  boundaryOptions,
+  { createBoundary = createSyntheticFixtureBoundary } = {},
+) {
+  const setupOutcomes = await Promise.allSettled(
+    boundaryOptions.map((options) => createBoundary(options)),
+  );
+  const boundaries = setupOutcomes
+    .filter(({ status }) => status === "fulfilled")
+    .map(({ value }) => value);
+  const setupFailure = setupOutcomes.find(({ status }) => status === "rejected");
+  if (setupFailure === undefined) {
+    return boundaries;
+  }
+  const cleanupOutcomes = await Promise.allSettled(boundaries.map((boundary) => (
+    typeof boundary.abortSetup === "function" ? boundary.abortSetup() : boundary.stop()
+  )));
+  const cleanupFailures = cleanupOutcomes
+    .filter(({ status }) => status === "rejected")
+    .map(({ reason }) => reason);
+  const error = setupFailure.reason;
+  if (error instanceof Error && Object.isExtensible(error)) {
+    Object.defineProperty(error, "setupCleanupFailures", {
+      enumerable: true,
+      value: Object.freeze(cleanupFailures),
+    });
+  }
+  throw error;
 }
 
 export async function writeFixtureBoundaryClient(root) {

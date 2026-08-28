@@ -5,6 +5,7 @@ export interface WindowsManagedProcessRequest {
   readonly command: string;
   readonly args: readonly string[];
   readonly cwd: string;
+  readonly environment?: NodeJS.ProcessEnv;
 }
 
 const PROCESS_HOST_PATH = fileURLToPath(
@@ -396,6 +397,7 @@ export function spawnWindowsManagedProcess(
     ],
     {
       cwd: request.cwd,
+      ...(request.environment === undefined ? {} : { env: request.environment }),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true
     }

@@ -492,8 +492,8 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   assert.equal(ci.jobs["macos-qualification"].needs, "dependency-review");
   const macosSteps = ci.jobs["macos-qualification"].steps;
   assert.equal(
-    macosSteps.find(({ name }) => name === "Qualify QGR synthetic lifecycle")?.run,
-    "pnpm test:qgr:lifecycle:built",
+    macosSteps.some(({ run }) => run === "pnpm test:qgr:lifecycle:built"),
+    false,
   );
   const macosMutationQualification = macosSteps.find(
     ({ name }) => name === "Qualify repository mutation, scaffolding, and durable document writing",

@@ -24,6 +24,38 @@ import {
 
 const roles = ["parent", "descendant"];
 const noOp = () => {};
+const fixtureEnvironmentPattern = /^QGR_FIXTURE_/iu;
+
+function fixtureEnvironmentSnapshot(environment = process.env) {
+  return new Map(
+    Object.entries(environment).filter(([key]) => fixtureEnvironmentPattern.test(key)),
+  );
+}
+
+function restoreFixtureEnvironment(environment, snapshot) {
+  for (const key of Object.keys(environment)) {
+    if (fixtureEnvironmentPattern.test(key)) {
+      delete environment[key];
+    }
+  }
+  for (const [key, value] of snapshot) {
+    environment[key] = value;
+  }
+}
+
+function installOneUseFixtureAuthority(environment, authority) {
+  const snapshot = fixtureEnvironmentSnapshot(environment);
+  restoreFixtureEnvironment(environment, new Map());
+  Object.assign(environment, authority);
+  let restored = false;
+  return () => {
+    if (restored) {
+      return;
+    }
+    restored = true;
+    restoreFixtureEnvironment(environment, snapshot);
+  };
+}
 
 async function resolveInstalledPnpm() {
   assert.equal(
@@ -163,6 +195,7 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
   let boundary;
   let execution;
   let restoreEnvironment = noOp;
+  let restoreFixtureAuthority = noOp;
   let installedPnpmEntrypoint;
   let marker;
   let setupExecution;
@@ -183,9 +216,12 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
       PNPM_HOME: undefined,
       npm_config_store_dir: fixtureStore,
       npm_execpath: installedPnpmEntrypoint,
-      ...boundary.environmentFor("parent"),
     };
     restoreEnvironment = overrideEnvironment(environmentOverrides);
+    restoreFixtureAuthority = installOneUseFixtureAuthority(
+      process.env,
+      boundary.environmentFor("parent"),
+    );
     const cancellation = createControlledQgrCancellationSource();
     const captured = startCapturedQgrCommand(() => runQualityGateCommand({
       cancellationSource: cancellation,
@@ -253,7 +289,33 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
         roots: [root],
       });
     } finally {
+      restoreFixtureAuthority();
       restoreEnvironment();
     }
+  }
+});
+
+test("real-pnpm fixture authority replaces mixed-case ambient entries and restores them exactly", () => {
+  const original = fixtureEnvironmentSnapshot();
+  try {
+    restoreFixtureEnvironment(process.env, new Map([
+      ["QgR_FiXtUrE_Ambient", "mixed-case-ambient"],
+      ["qgr_fixture_case_variant", "lower-case-ambient"],
+    ]));
+    const ambient = fixtureEnvironmentSnapshot();
+    const authority = {
+      QGR_FIXTURE_BOUNDARY_ID: "one-use-boundary",
+      QGR_FIXTURE_CREDENTIAL: "one-use-credential",
+      QGR_FIXTURE_HOST: "127.0.0.1",
+      QGR_FIXTURE_PORT: "12345",
+      QGR_FIXTURE_ROLE: "parent",
+    };
+    const restore = installOneUseFixtureAuthority(process.env, authority);
+    assert.deepEqual(fixtureEnvironmentSnapshot(), new Map(Object.entries(authority)));
+    process.env.qGr_Fixture_Injected = "must-not-survive";
+    restore();
+    assert.deepEqual(fixtureEnvironmentSnapshot(), ambient);
+  } finally {
+    restoreFixtureEnvironment(process.env, original);
   }
 });

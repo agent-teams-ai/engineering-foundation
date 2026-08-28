@@ -14,6 +14,12 @@ import {
 export const CAPABILITY_ID = "quality.gate-runner" as const;
 export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 
+export type QualityGatePolicyLoader = (
+  consumerRoot: string,
+  configPath: string,
+  signal?: AbortSignal
+) => Promise<QualityGatePolicy>;
+
 function inputError(message: string): never {
   throw new CapabilityInputError({
     code: "QUALITY_GATE_RUNNER_CONFIG_INVALID",

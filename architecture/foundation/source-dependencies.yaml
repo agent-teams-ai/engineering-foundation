@@ -354,6 +354,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/policies/evaluate-quality-gate-scripts.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/policies/validate-quality-gate-graph.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/monotonic-clock.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/operator-cancellation-source.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/package-script-catalog-reader.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/package-script-executor.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/rules.ts
@@ -390,6 +391,7 @@ boundaries:
         - node:perf_hooks
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/report-renderer.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.ts

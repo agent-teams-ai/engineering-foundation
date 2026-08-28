@@ -9,7 +9,6 @@ import test from "node:test";
 
 import { assert as assertProperty, integer, property } from "fast-check";
 
-import { runQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
 import { PackageScriptCancellationError, PackageScriptTimeoutError } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js";
 import { FilesystemPackageScriptCatalogReader } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
@@ -18,7 +17,7 @@ import {
   validateQualityGatePolicy,
 } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/policies/validate-quality-gate-graph.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
-import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
+import { ProcessTimeoutError } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 import {
   awaitQgrSetupBeforeTransfer,
   cleanupSyntheticFixture,
@@ -28,7 +27,7 @@ import {
   observeFixtureEffect,
   removeFixtureRoot,
   startBoundedCli,
-  startCapturedQgrCommand,
+  startInjectedQgrCliCommand,
 } from "./support/quality-gate-runner-lifecycle.mjs";
 
 function policy(tasks, concurrency = 2) {
@@ -317,22 +316,19 @@ profiles:
       {
         async run(request) {
           requests.push(request);
-          throw new FoundationError(
-            "PROCESS_FAILED",
-            `Controlled package script timed out after ${timeoutMs}ms.`,
-          );
+          throw new ProcessTimeoutError(timeoutMs, {
+            requestDescription: "Controlled package script",
+          });
         },
       },
     );
-    const command = startCapturedQgrCommand(() => runQualityGateCommand({
+    const command = startInjectedQgrCliCommand({
       cancellationSource: createControlledQgrCancellationSource(),
-      configPath: "architecture/foundation/quality-gates.yaml",
       consumerRoot: root,
       environment: {},
       executor,
-      format: "json",
-      profileId: "verify",
-    }));
+      projectId: "quality-gate-deadline-wiring",
+    });
     const completed = await command.result;
     assert.equal(completed.exitCode, 124);
     assert.equal(requests.length, 1);

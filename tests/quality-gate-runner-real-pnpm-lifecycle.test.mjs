@@ -9,7 +9,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { runQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import {
   awaitQgrSetupBeforeTransfer,
@@ -17,7 +16,7 @@ import {
   createControlledQgrCancellationSource,
   createSyntheticFixtureBoundary,
   startBoundedCli,
-  startCapturedQgrCommand,
+  startInjectedQgrCliCommand,
   waitForFixtureEffect,
   writeFixtureBoundaryClient,
 } from "./support/quality-gate-runner-lifecycle.mjs";
@@ -223,17 +222,15 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
       boundary.environmentFor("parent"),
     );
     const cancellation = createControlledQgrCancellationSource();
-    const captured = startCapturedQgrCommand(() => runQualityGateCommand({
+    const captured = startInjectedQgrCliCommand({
       cancellationSource: cancellation,
-      configPath: "architecture/foundation/quality-gates.yaml",
       consumerRoot: root,
       environment: process.env,
       executor: new PnpmQualityGateScriptExecutor({
         npmExecPath: installedPnpmEntrypoint,
       }),
-      format: "json",
-      profileId: "verify",
-    }));
+      projectId: "quality-gate-real-pnpm-lifecycle",
+    });
     let commandSettled = false;
     const commandResult = captured.result.then(
       (result) => {

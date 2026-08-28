@@ -5,6 +5,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 
+import { createQualityGateCommand } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
+import { FilesystemPackageScriptCatalogReader } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
+import { performanceMonotonicClock } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/time/performance-monotonic-clock.js";
+import { loadQualityGatePolicy } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/contract/config.js";
+import { parseArguments } from "../../packages/engineering-foundation/dist/cli-arguments.js";
+import { createQualityGateCliCommand } from "../../packages/engineering-foundation/dist/quality-gate-cli-command.js";
+import { startCapturedQgrCommand } from "./quality-gate-runner-cleanup.mjs";
+
 export {
   awaitQgrSetupBeforeTransfer,
   cleanupSyntheticFixture,
@@ -21,6 +29,36 @@ const PRE_AUTHENTICATION_DWELL_MS = 2_000;
 const REGISTRATION_BYTE_LIMIT = 4_096;
 const FIXTURE_ROLE_PATTERN = /^[a-z][a-z0-9-]*$/u;
 const NOOP = () => {};
+
+export function startInjectedQgrCliCommand({
+  cancellationSource,
+  configPath = "architecture/foundation/quality-gates.yaml",
+  consumerRoot,
+  environment,
+  executor,
+  profileId = "verify",
+  projectId,
+}) {
+  const entrypoint = createQualityGateCliCommand({
+    cancellationSource,
+    commandFactory: () => createQualityGateCommand({
+      catalogReader: new FilesystemPackageScriptCatalogReader(),
+      clock: performanceMonotonicClock,
+      executor,
+      policyLoader: loadQualityGatePolicy,
+    }),
+    async foundationConfigLoader() {
+      return {
+        declaredCapabilities: [{ configPath, id: "quality.gate-runner" }],
+        projectId,
+      };
+    },
+  });
+  const parsed = parseArguments([
+    "gate", "run", profileId, "--consumer", consumerRoot, "--format", "json",
+  ]);
+  return startCapturedQgrCommand(() => entrypoint(parsed, environment));
+}
 
 function missingFile(error) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";

@@ -1,5 +1,13 @@
 # @agent-teams/docs-protocol
 
+## 0.3.0
+
+### Minor Changes
+
+- [#205](https://github.com/agent-teams-ai/engineering-foundation/pull/205) [`9a47f0d`](https://github.com/agent-teams-ai/engineering-foundation/commit/9a47f0d7d15e1b3829eb7260b54f59f267cd641d) Thanks [@777genius](https://github.com/777genius)! - Add a protected one-command Qualified Cohort upgrade that stages authority,
+  exact package pins, pnpm lockfile generation, target CLI convergence, atomic
+  publication, offline activation, and exact rollback.
+
 ## 0.2.0
 
 ### Minor Changes

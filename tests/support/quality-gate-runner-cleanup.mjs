@@ -1,5 +1,9 @@
-import { spawn } from "node:child_process";
 import { rm } from "node:fs/promises";
+
+import {
+  spawnNodeManagedProcess,
+  terminateNodeManagedProcess,
+} from "../../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 
 const TEST_HARNESS_WATCHDOG_MS = 120_000;
 const TEST_HARNESS_SHUTDOWN_GRACE_MS = process.platform === "win32" ? 15_000 : 5_000;
@@ -113,7 +117,7 @@ async function waitForClose(completed, label, milliseconds, createDeadline) {
   return true;
 }
 
-async function terminateRetainedChild(command, completed, shutdownGraceMs, createDeadline) {
+async function terminateDirectChild(command, completed, shutdownGraceMs, createDeadline) {
   if (command.exitCode === null && command.signalCode === null) {
     command.kill("SIGTERM");
   }
@@ -135,6 +139,28 @@ async function terminateRetainedChild(command, completed, shutdownGraceMs, creat
     createDeadline,
   )) {
     throw new Error("Retained CLI fixture did not close after forced shutdown.");
+  }
+}
+
+async function terminateRetainedChild(
+  command,
+  completed,
+  shutdownGraceMs,
+  createDeadline,
+  terminateTree,
+) {
+  if (terminateTree === undefined) {
+    await terminateDirectChild(command, completed, shutdownGraceMs, createDeadline);
+    return;
+  }
+  await terminateTree(command);
+  if (!await waitForClose(
+    completed,
+    "Retained CLI close after tree termination",
+    shutdownGraceMs,
+    createDeadline,
+  )) {
+    throw new Error("Retained CLI process tree terminated without closing its streams.");
   }
 }
 
@@ -226,7 +252,17 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
   const shutdownGraceMs = options.shutdownGraceMs ?? TEST_HARNESS_SHUTDOWN_GRACE_MS;
   const watchdogMs = options.watchdogMs ?? TEST_HARNESS_WATCHDOG_MS;
   const createDeadline = options.createDeadline ?? defaultDeadline;
-  const spawnChild = options.spawnChild ?? spawn;
+  const spawnChild = options.spawnChild ?? ((command, args, spawnOptions) => (
+    spawnNodeManagedProcess({
+      command,
+      args,
+      cwd: spawnOptions.cwd ?? process.cwd(),
+      environment: spawnOptions.env,
+    })
+  ));
+  const terminateTree = options.terminateTree ?? (
+    options.spawnChild === undefined ? terminateNodeManagedProcess : undefined
+  );
   const command = spawnChild(process.execPath, [cliPath, ...arguments_], {
     ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
     env: sanitizedChildEnvironment(
@@ -256,7 +292,13 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
       clearTimeout(watchdog);
       const failures = [];
       try {
-        await terminateRetainedChild(command, completed, shutdownGraceMs, createDeadline);
+        await terminateRetainedChild(
+          command,
+          completed,
+          shutdownGraceMs,
+          createDeadline,
+          terminateTree,
+        );
       } catch (error) {
         failures.push(error);
       }

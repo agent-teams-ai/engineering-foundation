@@ -470,6 +470,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
+      - name: Qualify QGR synthetic lifecycle
+        run: pnpm test:qgr:lifecycle:built
       - name: Qualify repository mutation, scaffolding, and durable document writing
         run: >-
           node --test --test-concurrency=1

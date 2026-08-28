@@ -27,7 +27,8 @@ import type {
 } from "../domain/model.js";
 import {
   projectConsumerIntegrationProfileV1,
-  projectPnpmWorkspaceCohortExclusionsV1
+  projectPnpmWorkspaceCohortExclusionsV1,
+  projectPnpmWorkspaceMigrationExclusionsV1
 } from "./consumer-upgrade-file-projectors.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import {
@@ -396,17 +397,26 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
         MAXIMUM_WORKSPACE_BYTES,
         false
       );
+      let targetWorkspace: Uint8Array | undefined;
       if (workspace.state === "file") {
+        targetWorkspace = projectPnpmWorkspaceCohortExclusionsV1({
+          bytes: workspace.bytes,
+          cohort: options.authority.cohort
+        });
         await writeProjectedFile(
           stagedRoot,
           WORKSPACE_PATH,
-          projectPnpmWorkspaceCohortExclusionsV1({
+          projectPnpmWorkspaceMigrationExclusionsV1({
             bytes: workspace.bytes,
-            cohort: options.authority.cohort
+            source: options.current.cohort,
+            target: options.authority.cohort
           })
         );
       }
       await installCohort(stagedRoot, false);
+      if (targetWorkspace !== undefined) {
+        await writeProjectedFile(stagedRoot, WORKSPACE_PATH, targetWorkspace);
+      }
       await applyTargetIntegration(stagedRoot, options.authority.cohort.cohortId);
       const changed = changedInventoryPaths(
         await repositoryInventory(beforeRoot),

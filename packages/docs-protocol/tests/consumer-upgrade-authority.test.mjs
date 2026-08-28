@@ -5,6 +5,9 @@ import {
   assertConsumerUpgradeExecutionSchema
 } from "../dist/consumer-integration/adapters/consumer-integration-schema-validator.js";
 import {
+  projectPnpmWorkspaceMigrationExclusionsV1
+} from "../dist/consumer-integration/adapters/consumer-upgrade-file-projectors.js";
+import {
   GitHubCohortAuthorityReader,
   projectQualifiedCohortAuthority
 } from "../dist/consumer-integration/adapters/github-cohort-authority-reader.js";
@@ -137,4 +140,37 @@ test("rejects duplicate managed package authority", async () => {
     repository: REPOSITORY,
     revision: "8".repeat(40)
   }), (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+});
+
+test("temporarily exempts exact source and target package pins during lock migration", async () => {
+  const { cohort: source } = await sourceCohort();
+  const target = {
+    ...structuredClone(source),
+    packages: {
+      ...structuredClone(source.packages),
+      docsProtocol: { ...source.packages.docsProtocol, version: "9.8.7" }
+    }
+  };
+  const workspace = `packages: []
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@agent-teams/docs-protocol@${source.packages.docsProtocol.version}"
+  - "@agent-teams/engineering-foundation@${source.packages.engineeringFoundation.version}"
+  - "unrelated@1.0.0"
+`;
+  const projected = Buffer.from(projectPnpmWorkspaceMigrationExclusionsV1({
+    bytes: Buffer.from(workspace),
+    source,
+    target
+  })).toString("utf8");
+  assert.match(projected, new RegExp(
+    `@agent-teams/docs-protocol@${source.packages.docsProtocol.version}`,
+    "u"
+  ));
+  assert.match(projected, /@agent-teams\/docs-protocol@9\.8\.7/u);
+  const foundation = `@agent-teams/engineering-foundation@${
+    source.packages.engineeringFoundation.version
+  }`;
+  assert.equal(projected.split(foundation).length - 1, 1);
+  assert.match(projected, /unrelated@1\.0\.0/u);
 });

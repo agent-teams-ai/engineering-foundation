@@ -84,6 +84,29 @@ const profile = JSON.parse(readFileSync(join(
 ), "utf8"));
 const docs = profile.cohort.packages.docsProtocol;
 const foundation = profile.cohort.packages.engineeringFoundation;
+if (process.argv.includes("--no-frozen-lockfile")) {
+  const workspace = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
+  const lockfile = readFileSync(join(root, "pnpm-lock.yaml"), "utf8");
+  const lockSpecifier = (name) => {
+    const marker = "'" + name + "':";
+    const entry = lockfile.indexOf(marker);
+    const specifier = lockfile.indexOf("specifier:", entry);
+    const lineEnd = lockfile.indexOf("\\n", specifier);
+    if (entry < 0 || specifier < 0 || lineEnd < 0) {throw new Error("missing source lock pin");}
+    return lockfile.slice(specifier + "specifier:".length, lineEnd).trim();
+  };
+  for (const [name, targetVersion, sourceVersion] of [
+    ["@agent-teams/docs-protocol", docs.version, lockSpecifier("@agent-teams/docs-protocol")],
+    ["@agent-teams/engineering-foundation", foundation.version,
+      lockSpecifier("@agent-teams/engineering-foundation")]
+  ]) {
+    for (const version of new Set([sourceVersion, targetVersion])) {
+      if (!workspace.includes(name + "@" + version)) {
+        throw new Error("migration workspace omitted " + name + "@" + version);
+      }
+    }
+  }
+}
 writeFileSync(join(root, "pnpm-lock.yaml"), \`lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true

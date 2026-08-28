@@ -127,3 +127,37 @@ export function projectPnpmWorkspaceCohortExclusionsV1(input: {
   }
   return Buffer.from(String(document), "utf8");
 }
+
+/**
+ * Builds the temporary workspace policy used only while pnpm replaces the
+ * source Cohort lock graph with the target graph. The committed projection
+ * remains target-only; this bridge prevents a valid recent source package
+ * from becoming time-dependent during lockfile regeneration.
+ */
+export function projectPnpmWorkspaceMigrationExclusionsV1(input: {
+  readonly bytes: Uint8Array;
+  readonly source: QualifiedDocsCohortBindingV1;
+  readonly target: QualifiedDocsCohortBindingV1;
+}): Uint8Array {
+  const targetBytes = projectPnpmWorkspaceCohortExclusionsV1({
+    bytes: input.bytes,
+    cohort: input.target
+  });
+  const source = decode(targetBytes, "pnpm-workspace.yaml");
+  const document = parseDocument(source, { uniqueKeys: true });
+  if (document.errors.length > 0 || !isMap(document.contents)) {throw new Error("unreachable");}
+  const current = document.get("minimumReleaseAgeExclude", true);
+  const hasAgePolicy = document.has("minimumReleaseAge") ||
+    document.get("minimumReleaseAgeStrict") === true;
+  if (current === undefined && !hasAgePolicy) {return targetBytes;}
+  if (!isSeq(current)) {throw new Error("unreachable");}
+  const existing = new Set(scalarItems(current).map(({ value }) => value));
+  const targetExclusions = exactExclusions(input.target);
+  for (const [packageName, exclusion] of exactExclusions(input.source)) {
+    if (exclusion !== targetExclusions.get(packageName) && !existing.has(exclusion)) {
+      current.add(exclusion);
+      existing.add(exclusion);
+    }
+  }
+  return Buffer.from(String(document), "utf8");
+}

@@ -482,6 +482,7 @@ minimumReleaseAgeExclude:
       workspace,
       new RegExp(`@agent-teams/docs-protocol@${target.packages.docsProtocol.version}`, "u")
     );
+    assert.ok(!workspace.includes(`@agent-teams/docs-protocol@${prior.cohort.packages.docsProtocol.version}`));
     assert.match(workspace, /unrelated@1\.0\.0/u);
     let authorityReads = 0;
     const replay = createConsumerUpgradeUseCase({

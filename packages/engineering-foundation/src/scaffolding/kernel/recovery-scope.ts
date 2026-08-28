@@ -2,6 +2,7 @@ import type {
   AuthorityScaffoldPlan,
   AuthorityScaffoldRecoveryScope
 } from "../contract/types.js";
+import { legacyScaffoldingRepositoryPathProblem } from "../application/policies/legacy-scaffolding-repository-path.js";
 import { ScaffoldError } from "../scaffold-error.js";
 
 const recoveryScopeKeys = Object.freeze([
@@ -12,8 +13,7 @@ const recoveryScopeKeys = Object.freeze([
 ] as const);
 const recoveryScopeKeySet = new Set<PropertyKey>(recoveryScopeKeys);
 const authorityIdPattern = /^[a-z0-9][a-z0-9._/-]*$/u;
-const repositoryPathPattern =
-  /^(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9._@-]+(?:\/[A-Za-z0-9._@-]+)*$/u;
+const textEncoder = new TextEncoder();
 
 function invalidScope(message: string, cause?: unknown): never {
   throw new ScaffoldError(
@@ -74,7 +74,16 @@ function assertRepositoryPath(
   value: string,
   key: "configPath" | "targetCatalogPath"
 ): void {
-  if (value.length > 512 || !repositoryPathPattern.test(value)) {
+  const segments = value.split("/");
+  if (
+    legacyScaffoldingRepositoryPathProblem(value) !== undefined ||
+    textEncoder.encode(value).byteLength > 512 ||
+    segments.some(
+      (segment) =>
+        segment.endsWith(" ") ||
+        textEncoder.encode(segment).byteLength > 255
+    )
+  ) {
     invalidScope(
       `Scaffolding recovery scope ${key} must be a portable repository-relative path.`
     );

@@ -108,9 +108,11 @@ export async function verifyPackedAuthorityScaffolding({
   );
 
   const programmaticRoot = join(fixture.consumerRoot, "programmatic-consumer");
-  const recoveryRoot = join(fixture.consumerRoot, "recovery-consumer");
+  const legacyRecoveryRoot = join(fixture.consumerRoot, "legacy-recovery-consumer");
+  const scopedRecoveryRoot = join(fixture.consumerRoot, "scoped-recovery-consumer");
   await copyScaffoldingFixture(fixtureRoot, programmaticRoot);
-  await copyScaffoldingFixture(fixtureRoot, recoveryRoot);
+  await copyScaffoldingFixture(fixtureRoot, legacyRecoveryRoot);
+  await copyScaffoldingFixture(fixtureRoot, scopedRecoveryRoot);
   await writeFile(
     join(fixture.consumerRoot, "pack-scaffolding-consumer.mjs"),
     `import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -128,7 +130,8 @@ const authorityRoot = join(consumerRoot, "authority-consumer");
 const expectedPlan = JSON.parse(await readFile(join(authorityRoot, "plans", "pack-fixture.json"), "utf8"));
 const receipt = JSON.parse(await readFile(join(authorityRoot, "plans", "pack-receipt.json"), "utf8"));
 const programmaticRoot = join(consumerRoot, "programmatic-consumer");
-const recoveryRoot = join(consumerRoot, "recovery-consumer");
+const legacyRecoveryRoot = join(consumerRoot, "legacy-recovery-consumer");
+const scopedRecoveryRoot = join(consumerRoot, "scoped-recovery-consumer");
 await validateScaffoldReceipt(receipt, expectedPlan);
 const plan = await planScaffoldFromFile({ consumerRoot: programmaticRoot, intentPath: "intents/create-fixture.yaml" });
 if (plan.planDigest !== expectedPlan.planDigest) process.exit(2);
@@ -141,25 +144,38 @@ await validateScaffoldReceipt(applied, plan);
 const repeated = await applyFilesystemScaffold(programmaticRoot, plan);
 if (repeated.outcome !== "already-applied") process.exit(5);
 if ((await recoverFilesystemScaffold(programmaticRoot)) !== undefined) process.exit(6);
-const recoveryPlan = await planScaffoldFromFile({ consumerRoot: recoveryRoot, intentPath: "intents/create-fixture.yaml" });
+const legacyRecoveryPlan = await planScaffoldFromFile({ consumerRoot: legacyRecoveryRoot, intentPath: "intents/create-fixture.yaml" });
+const legacyJournalPath = join(legacyRecoveryRoot, ".agent-teams-local", "scaffolding-transaction.json");
+await mkdir(join(legacyRecoveryRoot, ".agent-teams-local"), { recursive: true });
+await writeFile(legacyJournalPath, \`\${JSON.stringify({
+  schemaVersion: 1,
+  state: "PREPARED",
+  plan: legacyRecoveryPlan,
+  operations: legacyRecoveryPlan.operations.map((operation) => ({ operationId: operation.id, path: operation.path, state: "pending" }))
+}, null, 2)}\\n\`);
+const legacyRecovered = await recoverFilesystemScaffold(legacyRecoveryRoot);
+if (legacyRecovered?.outcome !== "failed-recovered") process.exit(7);
+await validateScaffoldReceipt(legacyRecovered, legacyRecoveryPlan);
+if ((await recoverFilesystemScaffold(legacyRecoveryRoot)) !== undefined) process.exit(8);
+const recoveryPlan = await planScaffoldFromFile({ consumerRoot: scopedRecoveryRoot, intentPath: "intents/create-fixture.yaml" });
 const recoveryScope = {
   projectId: recoveryPlan.projectId,
   configPath: recoveryPlan.authority.configPath,
   targetCatalogPath: recoveryPlan.authority.targetCatalogPath,
   compositionId: recoveryPlan.intent.compositionId
 };
-const journalPath = join(recoveryRoot, ".agent-teams-local", "scaffolding-transaction.json");
-await mkdir(join(recoveryRoot, ".agent-teams-local"), { recursive: true });
+const journalPath = join(scopedRecoveryRoot, ".agent-teams-local", "scaffolding-transaction.json");
+await mkdir(join(scopedRecoveryRoot, ".agent-teams-local"), { recursive: true });
 await writeFile(journalPath, \`\${JSON.stringify({
   schemaVersion: 1,
   state: "PREPARED",
   plan: recoveryPlan,
   operations: recoveryPlan.operations.map((operation) => ({ operationId: operation.id, path: operation.path, state: "pending" }))
 }, null, 2)}\\n\`);
-const recovered = await recoverFilesystemScaffold(recoveryRoot, recoveryScope);
-if (recovered?.outcome !== "failed-recovered") process.exit(7);
+const recovered = await recoverFilesystemScaffold(scopedRecoveryRoot, recoveryScope);
+if (recovered?.outcome !== "failed-recovered") process.exit(9);
 await validateScaffoldReceipt(recovered, recoveryPlan);
-if ((await recoverFilesystemScaffold(recoveryRoot, recoveryScope)) !== undefined) process.exit(8);
+if ((await recoverFilesystemScaffold(scopedRecoveryRoot, recoveryScope)) !== undefined) process.exit(10);
 process.stdout.write(JSON.stringify({ outcome: "passed" }));
 `
   );

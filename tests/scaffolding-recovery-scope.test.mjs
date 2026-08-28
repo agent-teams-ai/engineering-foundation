@@ -271,7 +271,7 @@ test("snapshots the caller scope synchronously before filesystem work", async ()
   });
 });
 
-test("rejects closed-shape, path, ID, and descriptor violations", async () => {
+test("rejects closed-shape, ID, and descriptor violations", async () => {
   await withConsumer(async (root, plan) => {
     const scope = recoveryScope(plan);
     const missing = { ...scope };
@@ -295,10 +295,6 @@ test("rejects closed-shape, path, ID, and descriptor violations", async () => {
       missing,
       { ...scope, projectId: "Bad-Project" },
       { ...scope, compositionId: "Bad-Composition" },
-      { ...scope, configPath: "/absolute/config.yaml" },
-      { ...scope, configPath: "architecture\\config.yaml" },
-      { ...scope, targetCatalogPath: "architecture/../catalog.yaml" },
-      { ...scope, targetCatalogPath: "architecture/./catalog.yaml" },
       accessor,
     ];
     for (const candidate of invalid) {
@@ -308,6 +304,65 @@ test("rejects closed-shape, path, ID, and descriptor violations", async () => {
       );
     }
     assert.equal(getterCalled, false);
+  });
+});
+
+test("reuses the scaffolding path policy with recovery portability bounds", async (context) => {
+  const rejectedPaths = [
+    ["absolute", "configPath", "/absolute/config.yaml"],
+    ["drive absolute", "configPath", "C:\\absolute\\config.yaml"],
+    ["backslash", "configPath", "architecture\\config.yaml"],
+    ["empty segment", "configPath", "architecture//config.yaml"],
+    ["parent traversal", "targetCatalogPath", "architecture/../catalog.yaml"],
+    ["current-directory traversal", "targetCatalogPath", "architecture/./catalog.yaml"],
+    ["reserved device", "configPath", "architecture/CON"],
+    ["mixed-case reserved device extension", "configPath", "architecture/cOn.yaml"],
+    ["reserved numbered device extension", "targetCatalogPath", "architecture/LpT9.catalog"],
+    ["trailing dot", "targetCatalogPath", "architecture/catalog.yaml."],
+    ["trailing space", "targetCatalogPath", "architecture/catalog.yaml "],
+    ["over-limit UTF-8 segment", "configPath", `architecture/${"é".repeat(128)}`],
+    [
+      "over-limit UTF-8 path",
+      "configPath",
+      `${"é".repeat(127)}/${"é".repeat(127)}/abc`,
+    ],
+  ];
+  const acceptedPaths = [
+    ["normalized nested path", "configPath", "architecture/foundation/scaffolding.yaml"],
+    ["published Unicode segment", "configPath", "architecture/café.yaml"],
+    ["published punctuation", "targetCatalogPath", "architecture/catalog:fixture?.yaml"],
+  ];
+
+  await withConsumer(async (root, plan) => {
+    for (const [name, field, path] of rejectedPaths) {
+      await context.test(`rejects ${name}`, async () => {
+        await assert.rejects(
+          recoverFilesystemScaffold(root, {
+            ...recoveryScope(plan),
+            [field]: path,
+          }),
+          (error) => {
+            assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID");
+            assert.equal(
+              error.message,
+              `Scaffolding recovery scope ${field} must be a portable repository-relative path.`,
+            );
+            return true;
+          },
+        );
+      });
+    }
+    for (const [name, field, path] of acceptedPaths) {
+      await context.test(`accepts ${name}`, async () => {
+        assert.equal(
+          await recoverFilesystemScaffold(root, {
+            ...recoveryScope(plan),
+            [field]: path,
+          }),
+          undefined,
+        );
+      });
+    }
   });
 });
 

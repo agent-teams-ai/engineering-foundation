@@ -1,4 +1,6 @@
 import { runQualityGateCommand } from "./capabilities/quality-gate-runner/gate-command.js";
+import { NodeSignalQualityGateCancellationSource } from "./capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.js";
+import { PnpmQualityGateScriptExecutor } from "./capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import type { ParsedArguments } from "./cli-arguments.js";
 import { FoundationError } from "./errors.js";
 import { loadFoundationConfig } from "./foundation-config.js";
@@ -30,7 +32,8 @@ export async function tryRunQualityGateCliCommand(
     profileId,
     format: parsed.format,
     environment,
-    pnpmEnvironment: {
+    cancellationSource: new NodeSignalQualityGateCancellationSource(),
+    executor: new PnpmQualityGateScriptExecutor({
       ...(environment.npm_execpath === undefined
         ? {}
         : { npmExecPath: environment.npm_execpath }),
@@ -40,7 +43,7 @@ export async function tryRunQualityGateCliCommand(
       ...(environment.PATH === undefined
         ? {}
         : { pathValue: environment.PATH })
-    }
+    })
   });
   return true;
 }

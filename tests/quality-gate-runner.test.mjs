@@ -1,13 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import {
-  copyFile,
-  mkdir,
-  mkdtemp,
-  readFile,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
@@ -16,6 +9,7 @@ import test from "node:test";
 
 import { assert as assertProperty, integer, property } from "fast-check";
 
+import { runQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
 import { PackageScriptTimeoutError } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js";
 import { FilesystemPackageScriptCatalogReader } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
@@ -24,12 +18,16 @@ import {
   validateQualityGatePolicy,
 } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/policies/validate-quality-gate-graph.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
+import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
 import {
+  awaitQgrSetupBeforeTransfer,
   cleanupSyntheticFixture,
+  createControlledQgrCancellationSource,
   createGenerationAwareChangeSignal,
   createSyntheticFixtureBoundary,
   observeFixtureEffect,
   startBoundedCli,
+  startCapturedQgrCommand,
 } from "./support/quality-gate-runner-lifecycle.mjs";
 
 function policy(tasks, concurrency = 2) {
@@ -103,10 +101,11 @@ function createControlledDeadlines() {
   const registrations = new Map();
   const waiters = new Map();
   return {
-    create(_milliseconds, label) {
+    create(milliseconds, label) {
       let expireDeadline;
       const record = {
         active: true,
+        milliseconds,
         promise: new Promise((resolve) => { expireDeadline = resolve; }),
         expire: () => { expireDeadline(); },
       };
@@ -122,6 +121,9 @@ function createControlledDeadlines() {
       const record = registrations.get(label);
       assert.equal(record?.active, true, `Expected active controlled deadline ${label}.`);
       record.expire();
+    },
+    milliseconds(label) {
+      return registrations.get(label)?.milliseconds;
     },
     waitFor(label) {
       if (registrations.has(label)) {
@@ -141,6 +143,23 @@ function createNeverClosingChild() {
   command.kill = (signal) => {
     if (signal === "SIGKILL") {
       command.exitCode = 0;
+    }
+    return true;
+  };
+  return command;
+}
+
+function createClosingChild(killSignals) {
+  const command = new EventEmitter();
+  command.exitCode = null;
+  command.signalCode = null;
+  command.stderr = new PassThrough();
+  command.stdout = new PassThrough();
+  command.kill = (signal) => {
+    killSignals.push(signal);
+    if (command.exitCode === null && command.signalCode === null) {
+      command.signalCode = signal;
+      queueMicrotask(() => { command.emit("close", null, signal); });
     }
     return true;
   };
@@ -259,6 +278,123 @@ test("classifies timeout and cancellation without starting dependent tasks", asy
   assert.equal(adapterFailure.tasks[0].failureTail, "unsafe\\u{001b}]52;c;payload\\u{0007}");
 });
 
+test("configured timeout crosses command and pnpm adapter wiring exactly", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-deadline-wiring-"));
+  const timeoutMs = 37_219;
+  try {
+    const configRoot = join(root, "architecture", "foundation");
+    const pnpmEntrypoint = join(root, "controlled-pnpm.cjs");
+    await mkdir(configRoot, { recursive: true });
+    await writeFile(pnpmEntrypoint, "throw new Error('must not execute');\n", "utf8");
+    await writeFile(join(root, "package.json"), `${JSON.stringify({
+      name: "quality-gate-deadline-wiring",
+      private: true,
+      scripts: { slow: "node controlled.cjs" },
+    }, null, 2)}\n`, "utf8");
+    await writeFile(join(configRoot, "quality-gates.yaml"), `schemaVersion: 1
+packageManager: pnpm
+profiles:
+  - id: verify
+    concurrency: 1
+    tasks:
+      - id: slow
+        timeoutMs: ${timeoutMs}
+`, "utf8");
+    const requests = [];
+    const executor = new PnpmQualityGateScriptExecutor(
+      { npmExecPath: pnpmEntrypoint },
+      {
+        async run(request) {
+          requests.push(request);
+          throw new FoundationError(
+            "PROCESS_FAILED",
+            `Controlled package script timed out after ${timeoutMs}ms.`,
+          );
+        },
+      },
+    );
+    const command = startCapturedQgrCommand(() => runQualityGateCommand({
+      cancellationSource: createControlledQgrCancellationSource(),
+      configPath: "architecture/foundation/quality-gates.yaml",
+      consumerRoot: root,
+      environment: {},
+      executor,
+      format: "json",
+      profileId: "verify",
+    }));
+    const completed = await command.result;
+    assert.equal(completed.exitCode, 124);
+    assert.equal(requests.length, 1);
+    assert.deepEqual(
+      {
+        args: requests[0].args,
+        command: requests[0].command,
+        cwd: requests[0].cwd,
+        timeoutMs: requests[0].timeoutMs,
+      },
+      {
+        args: [await realpath(pnpmEntrypoint), "run", "slow"],
+        command: process.execPath,
+        cwd: root,
+        timeoutMs,
+      },
+    );
+    assert.equal(requests[0].signal instanceof AbortSignal, true);
+    const report = JSON.parse(completed.stdout);
+    assert.equal(report.tasks[0].outcome, "timed-out");
+    assert.match(report.tasks[0].failureTail, new RegExp(`${timeoutMs}ms`, "u"));
+  } finally {
+    await cleanupSyntheticFixture({ roots: [root] });
+  }
+});
+
+test("a controlled timeout leaves its concurrent sibling independently active", async () => {
+  const timeoutMs = 8_731;
+  const calls = [];
+  let rejectTimedTask;
+  let resolveSibling;
+  let reportStartedTask;
+  let reportStartedSibling;
+  const startedTask = new Promise((resolve) => { reportStartedTask = resolve; });
+  const startedSibling = new Promise((resolve) => { reportStartedSibling = resolve; });
+  const execution = runQualityGateProfile({
+    consumerRoot: "/fixture",
+    profile: policy([
+      { id: "timed", needs: [], after: [], timeoutMs },
+      { id: "sibling", needs: [], after: [] },
+    ], 2).profiles[0],
+  }, {
+    run(input) {
+      calls.push(input);
+      if (input.scriptId === "timed") {
+        reportStartedTask();
+        return new Promise((_resolve, reject) => { rejectTimedTask = reject; });
+      }
+      reportStartedSibling();
+      return new Promise((resolve) => { resolveSibling = resolve; });
+    },
+  }, { nowMs: () => 1 });
+  let completed = false;
+  const completion = execution.then((report) => {
+    completed = true;
+    return report;
+  });
+  await Promise.all([startedTask, startedSibling]);
+  assert.deepEqual(calls.map(({ scriptId, timeoutMs: observed }) => [scriptId, observed]), [
+    ["timed", timeoutMs],
+    ["sibling", undefined],
+  ]);
+  rejectTimedTask(new PackageScriptTimeoutError(timeoutMs));
+  await Promise.resolve();
+  assert.equal(completed, false, "the independent sibling must keep the profile active");
+  resolveSibling({ exitCode: 0, signal: null, stderr: "", stdout: "" });
+  const report = await completion;
+  assert.deepEqual(report.tasks.map(({ id, outcome }) => [id, outcome]), [
+    ["timed", "timed-out"],
+    ["sibling", "passed"],
+  ]);
+});
+
 test("package catalog cancellation keeps the stable cancelled outcome", async () => {
   const controller = new AbortController();
   controller.abort("test cancellation");
@@ -357,6 +493,33 @@ test("central cleanup starts owned roles together, bounds a stuck child, and sti
   await assert.rejects(readFile(marker, "utf8"), (error) => error?.code === "ENOENT");
 });
 
+test("failed real-pnpm setup is stopped before transfer and rethrows original evidence", async () => {
+  const order = [];
+  const boundedCleanupFailure = new Error("watchdog cleanup evidence");
+  const stopFailure = new Error("bounded setup stop evidence");
+  const original = new Error("original real-pnpm setup failure");
+  original.cleanup = Promise.resolve().then(() => {
+    order.push("watchdog-cleanup");
+    return [boundedCleanupFailure];
+  });
+  const execution = {
+    result: Promise.reject(original),
+    async stop() {
+      order.push("setup-stop");
+      throw stopFailure;
+    },
+  };
+  await assert.rejects(
+    awaitQgrSetupBeforeTransfer(execution),
+    (error) => {
+      assert.equal(error, original);
+      assert.deepEqual(error.setupCleanupFailures, [boundedCleanupFailure, stopFailure]);
+      return true;
+    },
+  );
+  assert.deepEqual(order, ["watchdog-cleanup", "setup-stop"]);
+});
+
 test("bounded CLI stop settles when the child never publishes stream close", async () => {
   const deadlines = createControlledDeadlines();
   const execution = startBoundedCli("unused.cjs", [], {
@@ -378,14 +541,12 @@ test("bounded CLI stop settles when the child never publishes stream close", asy
 });
 
 test("bounded CLI watchdog starts containment before rejection and bounds cleanup", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-watchdog-"));
-  const fixture = join(root, "retained.cjs");
   const deadlines = createControlledDeadlines();
+  const killSignals = [];
   let execution;
   try {
-    await writeFile(fixture, "setInterval(() => {}, 60000);\n", "utf8");
     let cleanupStarted = false;
-    execution = startBoundedCli(fixture, [], {
+    execution = startBoundedCli("unused.cjs", [], {
       cleanupDeadlineMs: 1,
       createDeadline: deadlines.create,
       fixtureBoundary: {
@@ -394,6 +555,7 @@ test("bounded CLI watchdog starts containment before rejection and bounds cleanu
           return new Promise(() => {});
         },
       },
+      spawnChild: () => createClosingChild(killSignals),
       watchdogMs: 25,
     });
     let watchdogError;
@@ -404,14 +566,20 @@ test("bounded CLI watchdog starts containment before rejection and bounds cleanu
       watchdogError = error;
     }
     assert.match(watchdogError.message, /watchdog expired after 25ms/u);
+    assert.deepEqual(
+      killSignals,
+      ["SIGTERM"],
+      "direct CLI containment must attempt SIGTERM before watchdog rejection is visible",
+    );
     assert.equal(cleanupStarted, true, "containment must start before watchdog rejection is visible");
     await deadlines.waitFor("Watchdog containment cleanup");
+    assert.equal(deadlines.milliseconds("Watchdog containment cleanup"), 1);
     deadlines.expire("Watchdog containment cleanup");
     await watchdogError.cleanup;
     assert.equal(watchdogError.cleanupFailures.length, 1);
     assert.match(watchdogError.cleanupFailures[0].message, /cleanup deadline/u);
   } finally {
-    await cleanupSyntheticFixture({ executions: [execution], roots: [root] });
+    await cleanupSyntheticFixture({ executions: [execution] });
   }
 });
 
@@ -421,20 +589,22 @@ test("default child environments remove ambient QGR fixture authority", async ()
   let execution;
   try {
     await writeFile(fixture, `process.stdout.write(JSON.stringify({
-  fixtureKeys: Object.keys(process.env).filter((key) => key.startsWith("QGR_FIXTURE_")).sort(),
+  fixtureKeys: Object.keys(process.env)
+    .filter((key) => key.toUpperCase().startsWith("QGR_FIXTURE_"))
+    .sort(),
   unrelated: process.env.UNRELATED_FIXTURE_VALUE
 }));\n`, "utf8");
     execution = startBoundedCli(fixture, [], {
       env: {
         ...process.env,
         QGR_FIXTURE_HOST: "ambient-host",
-        QGR_FIXTURE_BOUNDARY_ID: "ambient-boundary",
-        QGR_FIXTURE_CREDENTIAL: "ambient-credential",
         QGR_FIXTURE_NONCE: "ambient-nonce",
         QGR_FIXTURE_PORT: "1",
-        QGR_FIXTURE_ROLE: "ambient-role",
         QGR_FIXTURE_UNRECOGNIZED: "ambient-extra",
+        Qgr_Fixture_Boundary_Id: "ambient-boundary",
+        qGr_FiXtUrE_RoLe: "ambient-role",
         qgr_fixture_case_variant: "ambient-case-variant",
+        qgr_fixture_credential: "ambient-credential",
         UNRELATED_FIXTURE_VALUE: "preserved",
       },
     });
@@ -651,7 +821,6 @@ test("resolves pnpm entrypoints from focused environment candidates", async () =
       const result = await new PnpmQualityGateScriptExecutor(environment).run({
         consumerRoot: root,
         scriptId: "probe",
-        timeoutMs: 10_000,
       });
       assert.equal(result.exitCode, 0, `${candidate.name}: ${JSON.stringify(result)}`);
       assert.deepEqual(JSON.parse(await readFile(marker, "utf8")), expected, candidate.name);

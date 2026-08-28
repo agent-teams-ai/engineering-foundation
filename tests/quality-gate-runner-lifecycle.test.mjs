@@ -73,7 +73,6 @@ process.exit(code ?? 1);
 async function writeNeverEndingTaskFixture(root, filename, effectPath, {
   descendantEnvironment,
   readinessRoles = ["package-manager", "parent", "descendant"],
-  releaseOnCommand = false,
 } = {}) {
   await writeFixtureBoundaryClient(root);
   const descendantSource = `const { connect } = require("./fixture-boundary-client.cjs");
@@ -98,11 +97,7 @@ const stopDescendant = async () => {
   if (!closed && descendant.exitCode === null && descendant.signalCode === null) descendant.kill("SIGKILL");
   if (!closed) await once(descendant, "close");
 };
-await connect(stopDescendant, async () => {
-  if (!${JSON.stringify(releaseOnCommand)}) throw new Error("Fixture role was not releasable.");
-  await stopDescendant();
-  process.exit(0);
-});
+await connect(stopDescendant);
 descendant = spawn(process.execPath, ["--eval", ${JSON.stringify(descendantSource)}], {
   env: { ...process.env, ...${JSON.stringify(descendantEnvironment)} },
   stdio: ["ignore", "ignore", "ignore", "ipc"]
@@ -143,10 +138,7 @@ capabilities:
   await writeFile(join(root, "architecture", "foundation", "quality-gates.yaml"), profileSource, "utf8");
 }
 
-async function writeConcurrentManagedTaskFixture(root, {
-  releaseSecond = false,
-  timeoutMsA,
-} = {}) {
+async function writeConcurrentManagedTaskFixture(root) {
   const tasks = [
     {
       descendantRole: "descendant-a",
@@ -162,21 +154,19 @@ async function writeConcurrentManagedTaskFixture(root, {
       filename: "concurrent-b.cjs",
       packageManagerRole: "package-manager-b",
       parentRole: "parent-b",
-      releaseOnCommand: releaseSecond,
       scriptId: "slow-b",
     },
   ].map((task) => ({
     ...task,
     roles: [task.packageManagerRole, task.parentRole, task.descendantRole],
   }));
-  const timeoutSource = timeoutMsA === undefined ? "" : `\n        timeoutMs: ${timeoutMsA}`;
   await writeConsumer(root, `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 2
     tasks:
-      - id: slow-a${timeoutSource}
+      - id: slow-a
       - id: slow-b
 `, Object.fromEntries(tasks.map(({ filename, scriptId }) => [scriptId, `node ${filename}`])));
   return {
@@ -192,7 +182,6 @@ async function createConcurrentTaskBoundaries(root, tasks) {
     await writeNeverEndingTaskFixture(root, task.filename, task.effectPath, {
       descendantEnvironment: boundaries[index].environmentFor(task.descendantRole),
       readinessRoles: task.roles,
-      releaseOnCommand: task.releaseOnCommand,
     });
   }
   const fixturePnpm = await writeFixturePnpm(root, Object.fromEntries(
@@ -312,109 +301,6 @@ ${candidate.source}`, candidate.scripts);
   }
 });
 
-test("CLI enforces a real per-task timeout and returns 124", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-timeout-"));
-  const effectPath = join(root, ".timeout-readiness.json");
-  const roles = ["package-manager", "parent", "descendant"];
-  let boundary;
-  let execution;
-  try {
-    boundary = await createSyntheticFixtureBoundary({ expectedRoles: roles });
-    await writeConsumer(root, `schemaVersion: 1
-packageManager: pnpm
-profiles:
-  - id: verify
-    concurrency: 1
-    tasks:
-      - id: slow
-        timeoutMs: 10000
-`, {
-      slow: "node timeout-fixture.cjs",
-    });
-    await writeNeverEndingTaskFixture(root, "timeout-fixture.cjs", effectPath, {
-      descendantEnvironment: boundary.environmentFor("descendant"),
-    });
-    const fixturePnpm = await writeFixturePnpm(root, {
-      slow: {
-        packageManager: boundary.environmentFor("package-manager"),
-        task: boundary.environmentFor("parent"),
-      },
-    });
-    execution = startCli([
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], {
-      env: {
-        ...process.env,
-        npm_execpath: fixturePnpm,
-      },
-      fixtureBoundary: boundary,
-    });
-    await waitForFixtureEffect(effectPath, execution, parseOwnedReadiness(boundary, roles));
-    await boundary.waitForRoles();
-    const result = await execution.result;
-    assert.equal(result.status, 124, JSON.stringify(result));
-    assert.equal(JSON.parse(result.stdout).tasks[0].outcome, "timed-out");
-    await boundary.assertStopped();
-  } finally {
-    await cleanupSyntheticFixture({
-      boundaries: [boundary],
-      executions: [execution],
-      roots: [root],
-    });
-  }
-});
-
-test("one timed-out task leaves its controlled sibling active until independently released", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-concurrent-timeout-"));
-  let boundaries = [];
-  let execution;
-  try {
-    const fixture = await writeConcurrentManagedTaskFixture(root, {
-      releaseSecond: true,
-      timeoutMsA: 10_000,
-    });
-    const managed = await createConcurrentTaskBoundaries(
-      root,
-      fixture.tasks,
-    );
-    boundaries = managed.boundaries;
-    execution = startCli([
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], {
-      env: { ...process.env, npm_execpath: managed.fixturePnpm },
-    });
-    await Promise.all(fixture.tasks.map(({ effectPath, roles }, index) => (
-      waitForFixtureEffect(effectPath, execution, parseOwnedReadiness(boundaries[index], roles))
-    )));
-    await Promise.all(boundaries.map((boundary) => boundary.waitForRoles()));
-    await Promise.all(boundaries.map((boundary) => boundary.assertActive()));
-    let cliCompleted = false;
-    const completion = execution.result.then((result) => {
-      cliCompleted = true;
-      return result;
-    });
-    await boundaries[0].assertStopped();
-    assert.equal(cliCompleted, false, "task A's roles must close before final CLI completion");
-    await boundaries[1].assertActive();
-    await boundaries[1].release("parent-b");
-    const result = await completion;
-    assert.equal(result.status, 124, JSON.stringify(result));
-    const report = JSON.parse(result.stdout);
-    assert.equal(report.outcome, "failed");
-    assert.deepEqual(
-      report.tasks.map(({ id, outcome }) => [id, outcome]),
-      [["slow-a", "timed-out"], ["slow-b", "passed"]],
-    );
-    await Promise.all(boundaries.map((boundary) => boundary.assertStopped()));
-  } finally {
-    await cleanupSyntheticFixture({
-      boundaries,
-      executions: [execution],
-      roots: [root],
-    });
-  }
-});
-
 test("readiness failure cleans up and awaits the credential-owned fixture boundary", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-readiness-failure-"));
   const effectPath = join(root, ".invalid-readiness.json");
@@ -430,7 +316,6 @@ profiles:
     concurrency: 1
     tasks:
       - id: slow
-        timeoutMs: 90000
 `, {
       slow: "node readiness-failure-fixture.cjs",
     });
@@ -592,8 +477,15 @@ profiles:
     });
     await waitForFixtureEffect(effectPath, execution, parseOwnedReadiness(boundary, roles));
     await boundary.waitForRoles();
+    let cliCompleted = false;
+    const completion = execution.result.then((result) => {
+      cliCompleted = true;
+      return result;
+    });
     assert.equal(execution.command.kill("SIGTERM"), true);
-    const result = await execution.result;
+    await boundary.assertStopped();
+    assert.equal(cliCompleted, false, "owned roles must stop before final CLI completion");
+    const result = await completion;
     assert.deepEqual(
       { code: result.status, signal: result.signal },
       { code: 143, signal: null },
@@ -602,7 +494,6 @@ profiles:
     const report = JSON.parse(result.stdout);
     assert.equal(report.outcome, "cancelled");
     assert.equal(report.tasks[0].outcome, "cancelled");
-    await boundary.assertStopped();
   } finally {
     await cleanupSyntheticFixture({
       boundaries: [boundary],
@@ -635,8 +526,15 @@ test("SIGTERM closes both simultaneous task-specific managed boundaries", {
     )));
     await Promise.all(boundaries.map((boundary) => boundary.waitForRoles()));
     await Promise.all(boundaries.map((boundary) => boundary.assertActive()));
+    let cliCompleted = false;
+    const completion = execution.result.then((result) => {
+      cliCompleted = true;
+      return result;
+    });
     assert.equal(execution.command.kill("SIGTERM"), true);
-    const result = await execution.result;
+    await Promise.all(boundaries.map((boundary) => boundary.assertStopped()));
+    assert.equal(cliCompleted, false, "owned boundaries must stop before final CLI completion");
+    const result = await completion;
     assert.deepEqual(
       { code: result.status, signal: result.signal },
       { code: 143, signal: null },
@@ -648,7 +546,6 @@ test("SIGTERM closes both simultaneous task-specific managed boundaries", {
       report.tasks.map(({ id, outcome }) => [id, outcome]),
       [["slow-a", "cancelled"], ["slow-b", "cancelled"]],
     );
-    await Promise.all(boundaries.map((boundary) => boundary.assertStopped()));
   } finally {
     await cleanupSyntheticFixture({
       boundaries,

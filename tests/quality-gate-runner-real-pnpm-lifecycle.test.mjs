@@ -1,30 +1,31 @@
 import assert from "node:assert/strict";
 import {
-  copyFile,
   mkdir,
   mkdtemp,
   realpath,
-  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
+import { runQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
+import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import {
+  awaitQgrSetupBeforeTransfer,
   cleanupSyntheticFixture,
+  createControlledQgrCancellationSource,
   createSyntheticFixtureBoundary,
   startBoundedCli,
+  startCapturedQgrCommand,
   waitForFixtureEffect,
   writeFixtureBoundaryClient,
 } from "./support/quality-gate-runner-lifecycle.mjs";
 
-const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const cliPath = join(repositoryRoot, "packages", "engineering-foundation", "dist", "cli.js");
 const roles = ["parent", "descendant"];
+const noOp = () => {};
 
-async function resolveInstalledPnpm(root) {
+async function resolveInstalledPnpm() {
   assert.equal(
     typeof process.env.npm_execpath,
     "string",
@@ -36,19 +37,10 @@ async function resolveInstalledPnpm(root) {
   assert.notEqual(version, undefined, "Installed pnpm did not report its exact version.");
   const entrypoint = await realpath(process.env.npm_execpath);
   assert.match(entrypoint, /\.(?:c|m)?js$/u);
-  const nodeOnlyPath = join(root, "node-only-path");
-  await mkdir(nodeOnlyPath);
-  const nodeEntrypoint = join(nodeOnlyPath, process.platform === "win32" ? "node.exe" : "node");
-  if (process.platform === "win32") {
-    await copyFile(process.execPath, nodeEntrypoint);
-  } else {
-    await symlink(process.execPath, nodeEntrypoint);
-    await symlink("/bin/sh", join(nodeOnlyPath, "sh"));
-  }
-  return { entrypoint, nodeOnlyPath, version };
+  return { entrypoint, version };
 }
 
-async function writeConsumer(root, version, timeoutMs) {
+async function writeConsumer(root, version) {
   await mkdir(join(root, "architecture", "foundation"), { recursive: true });
   await writeFile(join(root, "package.json"), `${JSON.stringify({
     name: "quality-gate-real-pnpm-lifecycle-consumer",
@@ -63,14 +55,13 @@ capabilities:
   quality.gate-runner:
     configPath: architecture/foundation/quality-gates.yaml
 `, "utf8");
-  const timeoutSource = timeoutMs === undefined ? "" : `\n        timeoutMs: ${timeoutMs}`;
   await writeFile(join(root, "architecture", "foundation", "quality-gates.yaml"), `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
-      - id: slow${timeoutSource}
+      - id: slow
 `, "utf8");
 }
 
@@ -123,11 +114,10 @@ setInterval(() => {}, 60000);
 `, "utf8");
 }
 
-async function prepareCase(root, boundary, timeoutMs) {
-  const installed = await resolveInstalledPnpm(root);
-  await writeConsumer(root, installed.version, timeoutMs);
+async function prepareCase(root) {
+  const installed = await resolveInstalledPnpm();
+  await writeConsumer(root, installed.version);
   const marker = join(root, ".real-pnpm-readiness.json");
-  await writeManagedTask(root, boundary, marker, installed.entrypoint);
   const fixtureStore = join(root, ".pnpm-store");
   const setupExecution = startBoundedCli(installed.entrypoint, [
     "install", "--frozen-lockfile=false", "--ignore-scripts", "--store-dir", fixtureStore,
@@ -135,58 +125,99 @@ async function prepareCase(root, boundary, timeoutMs) {
     cwd: root,
     env: { ...process.env, npm_config_store_dir: fixtureStore },
   });
-  const setupResult = await setupExecution.result;
-  assert.equal(setupResult.status, 0, JSON.stringify(setupResult));
-  const childEnvironment = {
-    ...process.env,
-    PATH: installed.nodeOnlyPath,
-    npm_config_store_dir: fixtureStore,
-    npm_execpath: installed.entrypoint,
-  };
-  delete childEnvironment.PNPM_HOME;
-  const execution = startBoundedCli(cliPath, [
-    "gate", "run", "verify", "--consumer", root, "--format", "json",
-  ], {
-    env: childEnvironment,
-    fixtureBoundary: boundary,
-    fixtureRole: "parent",
+  await awaitQgrSetupBeforeTransfer(setupExecution, (setupResult) => {
+    assert.equal(setupResult.status, 0, JSON.stringify(setupResult));
   });
   return {
-    execution,
+    fixtureStore,
     installedPnpmEntrypoint: installed.entrypoint,
     marker,
     setupExecution,
   };
 }
 
-async function completeAfterRolesStop(boundary, execution) {
-  let cliCompleted = false;
-  const completion = execution.result.then((result) => {
-    cliCompleted = true;
-    return result;
-  });
-  await boundary.assertStopped();
-  assert.equal(cliCompleted, false, "owned roles must close before final CLI completion");
-  return await completion;
+function overrideEnvironment(overrides) {
+  const previous = new Map(
+    Object.keys(overrides).map((key) => [key, process.env[key]]),
+  );
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+  return () => {
+    for (const [key, value] of previous) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  };
 }
 
-test("real installed pnpm timeout closes live parent and descendant before CLI completion", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-real-pnpm-timeout-"));
+test("controlled QGR cancellation drains the real installed-pnpm process tree", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-real-pnpm-cancel-"));
   let boundary;
   let execution;
+  let restoreEnvironment = noOp;
   let installedPnpmEntrypoint;
   let marker;
   let setupExecution;
   try {
+    let fixtureStore;
+    ({
+      fixtureStore,
+      installedPnpmEntrypoint,
+      marker,
+      setupExecution,
+    } = await prepareCase(root));
     boundary = await createSyntheticFixtureBoundary({
       expectedRoles: roles,
       shutdownGraceMs: 20_000,
     });
-    ({ execution, installedPnpmEntrypoint, marker, setupExecution } = await prepareCase(
-      root,
-      boundary,
-      10_000,
-    ));
+    await writeManagedTask(root, boundary, marker, installedPnpmEntrypoint);
+    const environmentOverrides = {
+      PNPM_HOME: undefined,
+      npm_config_store_dir: fixtureStore,
+      npm_execpath: installedPnpmEntrypoint,
+      ...boundary.environmentFor("parent"),
+    };
+    restoreEnvironment = overrideEnvironment(environmentOverrides);
+    const cancellation = createControlledQgrCancellationSource();
+    const captured = startCapturedQgrCommand(() => runQualityGateCommand({
+      cancellationSource: cancellation,
+      configPath: "architecture/foundation/quality-gates.yaml",
+      consumerRoot: root,
+      environment: process.env,
+      executor: new PnpmQualityGateScriptExecutor({
+        npmExecPath: installedPnpmEntrypoint,
+      }),
+      format: "json",
+      profileId: "verify",
+    }));
+    let commandSettled = false;
+    const commandResult = captured.result.then(
+      (result) => {
+        commandSettled = true;
+        return result;
+      },
+      (error) => {
+        commandSettled = true;
+        throw error;
+      },
+    );
+    execution = {
+      result: commandResult,
+      async stop() {
+        if (!commandSettled) {
+          cancellation.cancel();
+        }
+        await commandResult;
+      },
+    };
     await waitForFixtureEffect(marker, execution, (source) => {
       const readiness = JSON.parse(source);
       assert.deepEqual(readiness, {
@@ -199,63 +230,30 @@ test("real installed pnpm timeout closes live parent and descendant before CLI c
     });
     await boundary.waitForRoles();
     await boundary.assertActive();
-    const result = await completeAfterRolesStop(boundary, execution);
-    assert.equal(result.status, 124, JSON.stringify(result));
-    const report = JSON.parse(result.stdout);
-    assert.equal(report.outcome, "failed");
-    assert.deepEqual(report.tasks.map(({ id, outcome }) => [id, outcome]), [
-      ["slow", "timed-out"],
-    ]);
-  } finally {
-    await cleanupSyntheticFixture({
-      boundaries: [boundary],
-      executions: [setupExecution, execution],
-      roots: [root],
+    let cliCompleted = false;
+    const completion = execution.result.then((result) => {
+      cliCompleted = true;
+      return result;
     });
-  }
-});
-
-test("real installed pnpm POSIX cancellation closes live roles before CLI completion", {
-  skip: process.platform === "win32",
-}, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-real-pnpm-sigterm-"));
-  let boundary;
-  let execution;
-  let installedPnpmEntrypoint;
-  let marker;
-  let setupExecution;
-  try {
-    boundary = await createSyntheticFixtureBoundary({ expectedRoles: roles });
-    ({ execution, installedPnpmEntrypoint, marker, setupExecution } = await prepareCase(
-      root,
-      boundary,
-    ));
-    await waitForFixtureEffect(marker, execution, (source) => {
-      const readiness = JSON.parse(source);
-      assert.deepEqual(readiness, {
-        evidenceId: boundary.evidenceId,
-        lifecycleEvent: "slow",
-        npmExecPath: installedPnpmEntrypoint,
-        roles,
-      });
-      return readiness;
-    });
-    await boundary.waitForRoles();
-    await boundary.assertActive();
-    assert.equal(execution.command.kill("SIGTERM"), true);
-    const result = await completeAfterRolesStop(boundary, execution);
-    assert.deepEqual({ code: result.status, signal: result.signal }, { code: 143, signal: null });
-    assert.equal(result.stderr, "");
-    const report = JSON.parse(result.stdout);
+    cancellation.cancel();
+    await boundary.assertStopped();
+    assert.equal(cliCompleted, false, "owned roles must close before QGR accepts completion");
+    const completed = await completion;
+    assert.equal(completed.exitCode, 130);
+    const report = JSON.parse(completed.stdout);
     assert.equal(report.outcome, "cancelled");
     assert.deepEqual(report.tasks.map(({ id, outcome }) => [id, outcome]), [
       ["slow", "cancelled"],
     ]);
   } finally {
-    await cleanupSyntheticFixture({
-      boundaries: [boundary],
-      executions: [setupExecution, execution],
-      roots: [root],
-    });
+    try {
+      await cleanupSyntheticFixture({
+        boundaries: [boundary],
+        executions: [setupExecution, execution],
+        roots: [root],
+      });
+    } finally {
+      restoreEnvironment();
+    }
   }
 });

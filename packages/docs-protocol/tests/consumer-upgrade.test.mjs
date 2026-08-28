@@ -66,6 +66,17 @@ function restoreEnvironment(name, value) {
   else {process.env[name] = value;}
 }
 
+function useGitHubRepositoryIdentity(repository) {
+  const originalId = process.env.GITHUB_REPOSITORY_ID;
+  const originalName = process.env.GITHUB_REPOSITORY;
+  process.env.GITHUB_REPOSITORY_ID = repository.id;
+  process.env.GITHUB_REPOSITORY = repository.nameWithOwner;
+  return () => {
+    restoreEnvironment("GITHUB_REPOSITORY_ID", originalId);
+    restoreEnvironment("GITHUB_REPOSITORY", originalName);
+  };
+}
+
 function desired(cohort, schemaVersion = 2) {
   return {
     schemaVersion,
@@ -424,6 +435,7 @@ minimumReleaseAgeExclude:
   const originalPath = process.env.PATH;
   const originalDocs = process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE;
   const originalFoundation = process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE;
+  const restoreGitHubIdentity = useGitHubRepositoryIdentity(REPOSITORY);
   process.env.PATH = `${fakeBin}:${originalPath ?? ""}`;
   process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE = packageRoot;
   process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE = foundationRoot;
@@ -490,6 +502,7 @@ minimumReleaseAgeExclude:
     restoreEnvironment("PATH", originalPath);
     restoreEnvironment("DOCS_UPGRADE_TEST_DOCS_PACKAGE", originalDocs);
     restoreEnvironment("DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE", originalFoundation);
+    restoreGitHubIdentity();
     await rm(disposable, { force: true, recursive: true });
   }
 });

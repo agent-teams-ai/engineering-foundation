@@ -110,34 +110,77 @@ function sameIdentity(
   return left.dev === right.dev && left.ino === right.ino;
 }
 
+function sameObservation(
+  left: BigIntStats,
+  right: BigIntStats
+): boolean {
+  return sameIdentity(left, right) &&
+    left.birthtimeNs === right.birthtimeNs &&
+    left.ctimeNs === right.ctimeNs &&
+    left.mtimeNs === right.mtimeNs &&
+    left.nlink === right.nlink &&
+    left.size === right.size;
+}
+
+async function readAtMost(handle: FileHandle): Promise<Buffer | undefined> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  while (total <= MAXIMUM_OBSERVED_FILE_BYTES) {
+    const remaining = MAXIMUM_OBSERVED_FILE_BYTES + 1 - total;
+    const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+    const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, null);
+    if (bytesRead === 0) {return Buffer.concat(chunks, total);}
+    chunks.push(chunk.subarray(0, bytesRead));
+    total += bytesRead;
+  }
+  return undefined;
+}
+
 async function readObservedHandle(
   handle: FileHandle,
-  initial: BigIntStats,
   path: string
 ): Promise<{ readonly bytes: Buffer; readonly mode: number }> {
   const opened = await handle.stat({ bigint: true });
-  if (!opened.isFile() || !sameIdentity(opened, initial)) {
-    throw new TypeError(`Portable bootstrap target changed identity before read: ${path}.`);
+  if (!opened.isFile()) {
+    throw new TypeError(`Portable bootstrap target must be a real regular file: ${path}.`);
   }
   if (opened.nlink !== 1n) {
     throw new TypeError(`Portable bootstrap target must not have multiple hard links: ${path}.`);
   }
-  const bytes = await handle.readFile();
+  if (opened.size > BigInt(MAXIMUM_OBSERVED_FILE_BYTES)) {
+    throw new TypeError(`Portable bootstrap target exceeds the bounded read limit: ${path}.`);
+  }
+  const bytes = await readAtMost(handle);
+  if (bytes === undefined) {
+    throw new TypeError(`Portable bootstrap target exceeds the bounded read limit: ${path}.`);
+  }
   const after = await handle.stat({ bigint: true });
-  if (!sameIdentity(opened, after) || opened.size !== after.size ||
-    opened.mtimeNs !== after.mtimeNs || after.size !== BigInt(bytes.byteLength)) {
+  const physical = await realpath(path).catch(() => null);
+  const pathState = physical === path
+    ? await lstat(path, { bigint: true }).catch(() => null)
+    : null;
+  if (!after.isFile() || after.nlink !== 1n || !sameObservation(opened, after) ||
+    after.size !== BigInt(bytes.byteLength) || pathState === null ||
+    pathState.isSymbolicLink() || !pathState.isFile() || pathState.nlink !== 1n ||
+    !sameObservation(after, pathState)) {
     throw new TypeError(`Portable bootstrap target changed during read: ${path}.`);
   }
-  return { bytes, mode: Number(opened.mode & 0o777n) };
+  return { bytes, mode: Number(after.mode & 0o777n) };
 }
 
 async function canonicalConsumerRoot(consumerRoot: string): Promise<string> {
   const requested = resolve(consumerRoot);
-  const metadata = await lstat(requested);
-  if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
+  const physical = await realpath(requested);
+  const [requestedMetadata, physicalMetadata] = await Promise.all([
+    lstat(requested, { bigint: true }),
+    lstat(physical, { bigint: true })
+  ]);
+  if (requestedMetadata.isSymbolicLink() || !requestedMetadata.isDirectory() ||
+    physicalMetadata.isSymbolicLink() || !physicalMetadata.isDirectory() ||
+    !sameIdentity(requestedMetadata, physicalMetadata)) {
     throw new TypeError("Portable bootstrap consumerRoot must be one real directory, not a symlink.");
   }
-  return realpath(requested);
+  return physical;
 }
 
 async function containedTarget(root: string, repositoryPath: string): Promise<string | undefined> {
@@ -166,30 +209,20 @@ async function containedTarget(root: string, repositoryPath: string): Promise<st
 async function observe(root: string, repositoryPath: string): Promise<{ readonly bytes: Buffer; readonly mode: number } | undefined> {
   const path = await containedTarget(root, repositoryPath);
   if (path === undefined) {return undefined;}
-  let initial: BigIntStats;
-  try {
-    initial = await lstat(path, { bigint: true });
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-      return undefined;
-    }
-    throw error;
-  }
-  if (!initial.isFile() || initial.isSymbolicLink()) {
-    throw new TypeError(`Portable bootstrap target must be a real regular file: ${path}.`);
-  }
-  if (initial.size > BigInt(MAXIMUM_OBSERVED_FILE_BYTES)) {
-    throw new TypeError(`Portable bootstrap target exceeds the bounded read limit: ${path}.`);
-  }
   const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
-  const handle = await open(path, constants.O_RDONLY | noFollow).catch((error: unknown) => {
+  const nonBlocking = process.platform === "win32" ? 0 : constants.O_NONBLOCK;
+  const handle = await open(path, constants.O_RDONLY | noFollow | nonBlocking).catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
     if ((error as NodeJS.ErrnoException).code === "ELOOP") {
-      throw new TypeError(`Portable bootstrap target must not be a symbolic link: ${path}.`);
+      throw new TypeError(`Portable bootstrap target must be a real regular file: ${path}.`);
     }
     throw error;
   });
+  if (handle === null) {return undefined;}
   try {
-    return await readObservedHandle(handle, initial, path);
+    return await readObservedHandle(handle, path);
   } finally {
     await handle.close();
   }

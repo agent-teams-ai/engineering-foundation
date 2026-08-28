@@ -4,6 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { FoundationError } from "../errors.js";
 import {
+  cleanUpWindowsManagedProcessLaunchFailure,
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess,
   waitForWindowsManagedProcessContainment
@@ -422,6 +423,7 @@ export async function executeManagedProcess(
         appendOutput(stderr, chunk, "stderr");
       });
       child.once("error", (error) => {
+        cleanUpWindowsManagedProcessLaunchFailure(child);
         failAfterTermination(processFailure(request, "could not be started.", error));
       });
       child.once("exit", completeAfterExit);

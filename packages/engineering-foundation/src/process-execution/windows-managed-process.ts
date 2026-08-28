@@ -42,39 +42,35 @@ function disposeControl(child: ChildProcess, control: WindowsProcessControl): vo
   rmSync(control.root, { force: true, recursive: true });
 }
 
+function disposeControlAfterWrapperExit(child: ChildProcess, control: WindowsProcessControl): void {
+  const disposeAfterExit = () => disposeControl(child, control);
+  child.once("exit", disposeAfterExit);
+  if (child.exitCode !== null || child.signalCode !== null) {
+    child.removeListener("exit", disposeAfterExit);
+    disposeAfterExit();
+  }
+}
+
 const WINDOWS_JOB_RUNNER = String.raw`
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 Add-Type -TypeDefinition @'
-using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
+using System; using System.ComponentModel; using System.Diagnostics;
+using System.IO; using System.Runtime.InteropServices; using System.Text; using System.Threading;
 
 public static class AgentTeamsFoundationJobRunner
 {
-    private const uint CREATE_SUSPENDED = 0x00000004;
-    private const uint STARTF_USESTDHANDLES = 0x00000100;
-    private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
-    private const int JobObjectBasicAccountingInformation = 1;
-    private const int JobObjectExtendedLimitInformation = 9;
-    private const uint WAIT_OBJECT_0 = 0;
-    private const uint WAIT_TIMEOUT = 0x00000102;
-    private const uint WAIT_FAILED = 0xffffffff;
-    private const int STD_INPUT_HANDLE = -10;
-    private const int STD_OUTPUT_HANDLE = -11;
-    private const int STD_ERROR_HANDLE = -12;
+    private const uint CREATE_SUSPENDED = 0x00000004, STARTF_USESTDHANDLES = 0x00000100,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
+    private const uint WAIT_OBJECT_0 = 0, WAIT_TIMEOUT = 0x00000102, WAIT_FAILED = 0xffffffff;
+    private const int JobObjectBasicAccountingInformation = 1, JobObjectExtendedLimitInformation = 9;
+    private const int STD_INPUT_HANDLE = -10, STD_OUTPUT_HANDLE = -11, STD_ERROR_HANDLE = -12;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct PROCESS_INFORMATION
     {
-        public IntPtr hProcess;
-        public IntPtr hThread;
-        public uint dwProcessId;
-        public uint dwThreadId;
+        public IntPtr hProcess, hThread;
+        public uint dwProcessId, dwThreadId;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -153,13 +149,10 @@ public static class AgentTeamsFoundationJobRunner
     private static extern IntPtr CreateJobObject(IntPtr attributes, string name);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool SetInformationJobObject(
-        IntPtr job, int informationClass, IntPtr information, uint informationLength);
+    private static extern bool SetInformationJobObject(IntPtr job, int informationClass, IntPtr information, uint informationLength);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool QueryInformationJobObject(
-        IntPtr job, int informationClass, IntPtr information,
-        uint informationLength, IntPtr returnLength);
+    private static extern bool QueryInformationJobObject(IntPtr job, int informationClass, IntPtr information, uint informationLength, IntPtr returnLength);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool TerminateJobObject(IntPtr job, uint exitCode);
@@ -168,12 +161,10 @@ public static class AgentTeamsFoundationJobRunner
     private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern bool CreateProcess(
-        string applicationName, StringBuilder commandLine,
-        IntPtr processAttributes, IntPtr threadAttributes,
-        bool inheritHandles, uint creationFlags, IntPtr environment, string currentDirectory,
-        ref STARTUPINFO startupInfo,
-        out PROCESS_INFORMATION processInformation);
+    private static extern bool CreateProcess(string applicationName, StringBuilder commandLine,
+        IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles,
+        uint creationFlags, IntPtr environment, string currentDirectory,
+        ref STARTUPINFO startupInfo, out PROCESS_INFORMATION processInformation);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern uint ResumeThread(IntPtr thread);
@@ -485,6 +476,7 @@ export function spawnWindowsManagedProcess(
     throw error;
   }
   windowsProcessControls.set(child, control);
+  child.once("error", () => cleanUpWindowsManagedProcessLaunchFailure(child));
   const bootstrapInput = child.stdin;
   if (bootstrapInput === null) {
     disposeControl(child, control);
@@ -501,6 +493,14 @@ export function spawnWindowsManagedProcess(
     confirmationPath: control.confirmationPath
   }));
   return child;
+}
+
+/** Releases control artifacts when PowerShell was never launched. */
+export function cleanUpWindowsManagedProcessLaunchFailure(child: ChildProcess): void {
+  const control = windowsProcessControls.get(child);
+  if (child.pid === undefined && control !== undefined) {
+    disposeControl(child, control);
+  }
 }
 
 function controlFor(child: ChildProcess): WindowsProcessControl {
@@ -520,10 +520,14 @@ export async function requestWindowsManagedProcessTermination(
 }
 
 export async function waitForWindowsManagedProcessContainment(
-  child: ChildProcess
+  child: ChildProcess,
+  confirmationTimeoutMs = CONTROL_CONFIRMATION_TIMEOUT_MS
 ): Promise<void> {
+  if (!Number.isSafeInteger(confirmationTimeoutMs) || confirmationTimeoutMs <= 0) {
+    throw new TypeError("The Windows containment timeout must be a positive safe integer.");
+  }
   const control = controlFor(child);
-  const deadline = Date.now() + CONTROL_CONFIRMATION_TIMEOUT_MS;
+  const deadline = Date.now() + confirmationTimeoutMs;
   for (;;) {
     try {
       const confirmation = await readFile(control.confirmationPath, "utf8");
@@ -534,7 +538,7 @@ export async function waitForWindowsManagedProcessContainment(
       return;
     } catch (error) {
       if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
-        disposeControl(child, control);
+        disposeControlAfterWrapperExit(child, control);
         throw error;
       }
     }
@@ -545,8 +549,9 @@ export async function waitForWindowsManagedProcessContainment(
       );
     }
     if (Date.now() >= deadline) {
+      disposeControlAfterWrapperExit(child, control);
       throw new Error(
-        `Windows Job Object wrapper did not confirm containment within ${String(CONTROL_CONFIRMATION_TIMEOUT_MS)} ms.`
+        `Windows Job Object wrapper did not confirm containment within ${String(confirmationTimeoutMs)} ms.`
       );
     }
     await delay(CONTROL_POLL_INTERVAL_MS);

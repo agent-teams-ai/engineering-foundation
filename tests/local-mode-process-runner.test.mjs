@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { once } from "node:events";
+import { readFile, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -9,6 +10,11 @@ import test from "node:test";
 import {
   NodeProcessRunner
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
+import {
+  cleanUpWindowsManagedProcessLaunchFailure,
+  spawnWindowsManagedProcess,
+  waitForWindowsManagedProcessContainment
+} from "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js";
 
 const NEVER_EXITING_PROCESS_PATH = fileURLToPath(
   new URL("./fixtures/never-exiting-process.mjs", import.meta.url)
@@ -22,6 +28,7 @@ const EXIT_TIMEOUT_MS = 3_000;
 const PROCESS_DEADLINE_MS = process.platform === "win32" ? 45_000 : 1_000;
 const CANCELLATION_DEADLINE_MS = process.platform === "win32" ? 45_000 : 5_000;
 const TEST_TIMEOUT_MS = process.platform === "win32" ? 65_000 : 10_000;
+const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
 
 async function removeTestRoot(root) {
   await rm(root, {
@@ -30,6 +37,20 @@ async function removeTestRoot(root) {
     recursive: true,
     retryDelay: 100
   });
+}
+
+async function windowsControlRoots() {
+  return new Set((await readdir(tmpdir(), { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(WINDOWS_CONTROL_ROOT_PREFIX))
+    .map((entry) => entry.name));
+}
+
+async function assertNoNewWindowsControlRoots(previousRoots) {
+  const currentRoots = await windowsControlRoots();
+  assert.deepEqual(
+    [...currentRoots].filter((root) => !previousRoots.has(root)),
+    []
+  );
 }
 
 async function waitForPidFile(path) {
@@ -223,6 +244,143 @@ test(
       await waitForProcessTreeExit(processes);
     } finally {
       forceStop(processes);
+      await removeTestRoot(root);
+    }
+  }
+);
+
+test("cleans Windows control artifacts after synchronous PowerShell launch failure", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-windows-sync-launch-failure-"));
+  const previousControls = await windowsControlRoots();
+  try {
+    assert.throws(
+      () => spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", "process.exit()"],
+        cwd: root,
+        environment: { ...process.env, FOUNDATION_INVALID_ENVIRONMENT: "invalid\0value" }
+      }),
+      (error) => error?.code === "ERR_INVALID_ARG_VALUE"
+    );
+    await assertNoNewWindowsControlRoots(previousControls);
+  } finally {
+    await removeTestRoot(root);
+  }
+});
+
+test("cleans Windows control artifacts idempotently after an asynchronous launch error", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-windows-async-launch-failure-"));
+  const previousControls = await windowsControlRoots();
+  try {
+    const child = spawnWindowsManagedProcess({
+      command: process.execPath,
+      args: ["-e", "process.exit()"],
+      cwd: join(root, "missing-working-directory")
+    });
+    const closed = new Promise((resolve) => {
+      child.once("close", resolve);
+    });
+    const [launchError] = await once(child, "error");
+    assert.equal(launchError.code, "ENOENT");
+    assert.equal(child.pid, undefined);
+
+    cleanUpWindowsManagedProcessLaunchFailure(child);
+    cleanUpWindowsManagedProcessLaunchFailure(child);
+    await closed;
+    await assertNoNewWindowsControlRoots(previousControls);
+  } finally {
+    await removeTestRoot(root);
+  }
+});
+
+test(
+  "NodeProcessRunner cleans Windows controls when PowerShell launch has no pid",
+  { skip: process.platform !== "win32", timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-windows-runner-launch-failure-"));
+    const previousControls = await windowsControlRoots();
+    try {
+      const runner = new NodeProcessRunner();
+      await assert.rejects(
+        runner.run({
+          command: process.execPath,
+          args: ["-e", "process.exit()"],
+          cwd: join(root, "missing-working-directory")
+        }),
+        /could not be started/u
+      );
+      await assertNoNewWindowsControlRoots(previousControls);
+    } finally {
+      await removeTestRoot(root);
+    }
+  }
+);
+
+test(
+  "retains unconfirmed Windows containment evidence until the live wrapper exits",
+  { skip: process.platform !== "win32", timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-windows-containment-timeout-"));
+    const previousControls = await windowsControlRoots();
+    try {
+      const child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => {}, 1000)"],
+        cwd: root
+      });
+      const closed = new Promise((resolve) => {
+        child.once("close", resolve);
+      });
+
+      await assert.rejects(
+        waitForWindowsManagedProcessContainment(child, 1),
+        /did not confirm containment within 1 ms/u
+      );
+      const retainedControls = [...await windowsControlRoots()]
+        .filter((controlRoot) => !previousControls.has(controlRoot));
+      assert.equal(retainedControls.length, 1);
+
+      await closed;
+      await assertNoNewWindowsControlRoots(previousControls);
+    } finally {
+      await removeTestRoot(root);
+    }
+  }
+);
+
+test(
+  "round-trips real Windows argument and working-directory serialization",
+  { skip: process.platform !== "win32", timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows path & ' [雪]-"));
+    const expectedArgs = [
+      "",
+      "plain",
+      "two words",
+      'embedded"quote',
+      "\\",
+      "trailing\\",
+      'slashes\\\\before"quote',
+      "PowerShell $&;|<>(){}[]`^",
+      "雪-😀"
+    ];
+    try {
+      const runner = new NodeProcessRunner();
+      const result = await runner.run({
+        command: process.execPath,
+        args: [
+          "-e",
+          "process.stdout.write(JSON.stringify({ args: process.argv.slice(1), cwd: process.cwd() }))",
+          ...expectedArgs
+        ],
+        cwd: root,
+        timeoutMs: 45_000
+      });
+      assert.deepEqual(JSON.parse(result.stdout), {
+        args: expectedArgs,
+        cwd: root
+      });
+    } finally {
       await removeTestRoot(root);
     }
   }

@@ -877,6 +877,10 @@ boundaries:
       builtins:
         - node:child_process
         - node:events
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
         - node:timers/promises
         - node:url
       runtimeReferences: []

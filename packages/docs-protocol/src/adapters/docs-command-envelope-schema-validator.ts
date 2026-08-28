@@ -2,16 +2,16 @@ import { readFile } from "node:fs/promises";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 
-const validatorPromises = new Map<1 | 2, Promise<ValidateFunction>>();
+const validatorPromises = new Map<1 | 2 | 3, Promise<ValidateFunction>>();
 
-async function validator(version: 1 | 2): Promise<ValidateFunction> {
+async function validator(version: 1 | 2 | 3): Promise<ValidateFunction> {
   const existing = validatorPromises.get(version);
   if (existing !== undefined) {return existing;}
   const loading = (async () => {
     const schemaUrl = new URL(`../../schemas/docs-protocol-command-envelope/v${version}.schema.json`, import.meta.url);
     const schema = JSON.parse(await readFile(schemaUrl, "utf8")) as object;
     const ajv = new Ajv2020({ allErrors: true, strict: true });
-    if (version === 2) {
+    if (version === 2 || version === 3) {
       const [receiptSource, integrationSource] = await Promise.all([
         readFile(new URL("../../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"),
         readFile(new URL("../../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8")
@@ -31,8 +31,8 @@ export async function assertDocsCommandEnvelopeSchema(value: unknown): Promise<v
   const version = typeof value === "object" && value !== null && "schemaVersion" in value
     ? (value as { readonly schemaVersion?: unknown }).schemaVersion
     : undefined;
-  if (version !== 1 && version !== 2) {
-    throw new TypeError("Command output must declare docs-protocol-command-envelope schemaVersion 1 or 2.");
+  if (version !== 1 && version !== 2 && version !== 3) {
+    throw new TypeError("Command output must declare docs-protocol-command-envelope schemaVersion 1, 2, or 3.");
   }
   const validate = await validator(version);
   if (validate(value)) {return;}

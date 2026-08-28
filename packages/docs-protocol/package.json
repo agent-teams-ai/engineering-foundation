@@ -1,12 +1,13 @@
 {
   "name": "@agent-teams/docs-protocol",
   "version": "0.3.2",
-  "description": "Unified deterministic documentation authoring protocol for Agent Teams repositories.",
+  "description": "Deterministic documentation authoring and agent-context protocol for any repository.",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
   "bin": {
-    "agent-teams-docs": "./dist/cli.js"
+    "agent-teams-docs": "./dist/cli.js",
+    "docs-protocol": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -25,8 +26,10 @@
     "schemas/docs-protocol/v1.schema.json",
     "schemas/docs-protocol-profile/v1.schema.json",
     "schemas/docs-protocol-profile/v2.schema.json",
+    "schemas/docs-protocol-profile/v3.schema.json",
     "schemas/docs-protocol-command-envelope/v1.schema.json",
     "schemas/docs-protocol-command-envelope/v2.schema.json",
+    "schemas/docs-protocol-command-envelope/v3.schema.json",
     "schemas/docs-consumer-integration-execution/v1.schema.json",
     "schemas/docs-consumer-integration-plan/v1.schema.json",
     "schemas/docs-consumer-integration-profile/v1.schema.json",
@@ -71,6 +74,7 @@
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
     "jsonc-parser": "catalog:",
+    "minisearch": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {

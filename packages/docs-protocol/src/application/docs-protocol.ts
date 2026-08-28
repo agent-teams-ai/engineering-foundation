@@ -17,18 +17,26 @@ import {
   type DocsCodeAnchor
 } from "../domain/model.js";
 import type {
-  DocsCommandEnvelopeV2,
-  DocsCommandV2,
   DocsExecutionV2,
   DocsNewResultV2,
   DocsProfileReaderV2,
   FoundationDocsPortV2
 } from "../domain/model-v2.js";
+import type {
+  DocsContextRequestV1,
+  DocsContextResultV1,
+  DocsExecutionV3,
+  DocsFindQueryV3,
+  DocsFindResultV3,
+  FoundationDocsPortV3
+} from "../domain/model-v3.js";
 import { DocsProfileError, projectReachability } from "../domain/profile-policy.js";
-import { assertDocumentMetadata, normalizeCodeAnchors, normalizeDocumentId, normalizeDocumentIds } from "../domain/document-semantics.js";
+import { assertDocumentMetadata, normalizeCodeAnchors, normalizeDocumentIds } from "../domain/document-semantics.js";
 import { planAuthorityStable } from "./authority-handshake.js";
-import { boundedDiagnostics, completeDocsNewApply, inspectCorpusSemantics, inspectRecapturedAnchors, mergeDiagnostics } from "./docs-new-completion.js";
+import { completeDocsNewApply, inspectCorpusSemantics, inspectRecapturedAnchors, mergeDiagnostics } from "./docs-new-completion.js";
+import { compatibleProfileV2, execution, executionV3 } from "./docs-execution.js";
 import { compiledDocument } from "./compiled-document.js";
+import { projectCommunityContext, projectCommunityFind, projectLegacyFind } from "../community/context/index.js";
 import { presentCheckV1, presentDoctorV1, presentFindV1, presentInfoV1, presentNewV1, presentRecoverV1 } from "./docs-protocol-v1-presenter.js";
 
 const BINARY = (left: string, right: string): number => Buffer.compare(Buffer.from(left), Buffer.from(right));
@@ -37,26 +45,6 @@ const BLOCKER_STATUSES = new Set(["deferred", "open"]);
 
 function withSignal(signal: AbortSignal | undefined): Readonly<{ signal?: AbortSignal }> {
   return signal === undefined ? Object.freeze({}) : Object.freeze({ signal });
-}
-
-function envelope<Result>(command: DocsCommandV2, outcome: DocsCommandOutcome, result: Result, diagnostics: readonly DocsDiagnostic[] = []): DocsCommandEnvelopeV2<Result> {
-  return Object.freeze({
-    schemaVersion: 2,
-    protocol: Object.freeze({ id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION }),
-    command,
-    outcome,
-    diagnostics: boundedDiagnostics(diagnostics),
-    result
-  });
-}
-
-function execution<Result>(command: DocsCommandV2, outcome: DocsCommandOutcome, result: Result, diagnostics: readonly DocsDiagnostic[] = []): DocsExecutionV2<Result> {
-  const exitCode = outcome === "success" ? 0
-    : outcome === "invalid-input" ? 2
-      : outcome === "execution-failure" ? 3
-        : outcome === "cancelled" ? 130
-          : 1;
-  return Object.freeze({ envelope: envelope(command, outcome, result, diagnostics), exitCode });
 }
 
 function typeOrThrow(types: Awaited<ReturnType<FoundationDocsPortV2["describe"]>>["types"], type: string) {
@@ -206,10 +194,10 @@ function projectTransaction(inspection: Awaited<ReturnType<FoundationDocsPortV2[
 export class DocsProtocol {
   readonly #adoption: DocsAdoptionInspector;
   readonly #anchors: CodeAnchorMatcher;
-  readonly #foundation: FoundationDocsPortV2;
+  readonly #foundation: FoundationDocsPortV3;
   readonly #profiles: DocsProfileReaderV2;
 
-  constructor(input: { readonly adoption: DocsAdoptionInspector; readonly anchors: CodeAnchorMatcher; readonly foundation: FoundationDocsPortV2; readonly profiles: DocsProfileReaderV2 }) {
+  constructor(input: { readonly adoption: DocsAdoptionInspector; readonly anchors: CodeAnchorMatcher; readonly foundation: FoundationDocsPortV3; readonly profiles: DocsProfileReaderV2 }) {
     this.#adoption = input.adoption;
     this.#anchors = input.anchors;
     this.#foundation = input.foundation;
@@ -218,13 +206,14 @@ export class DocsProtocol {
 
   async infoV2(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }) {
     const profile = await this.#profiles.read(input);
+    const compatibleProfile = compatibleProfileV2(profile);
     const description = await this.#foundation.describe({ consumerRoot: input.consumerRoot, profilePath: profile.foundationProfile.path, profileSchemaVersion: profile.foundationProfile.schemaVersion, ...withSignal(input.signal) });
     const result = Object.freeze({
       kind: "info" as const,
       projectId: description.projectId,
-      protocol: profile.protocol,
-      foundationProfile: profile.foundationProfile,
-      agentWorkflow: profile.agentWorkflow,
+      protocol: compatibleProfile.protocol,
+      foundationProfile: compatibleProfile.foundationProfile,
+      agentWorkflow: compatibleProfile.agentWorkflow,
       authority: description.authority,
       authorityPaths: description.authorityPaths,
       catalog: description.catalog,
@@ -233,35 +222,33 @@ export class DocsProtocol {
       metadataSidecar: description.metadataSidecar,
       ownerIds: description.ownerIds,
       types: description.types,
-      semanticValidatorIds: profile.semanticValidatorIds
+      semanticValidatorIds: compatibleProfile.semanticValidatorIds
     });
     return execution("docs.info", "success", result);
   }
 
   async findV2(input: { readonly consumerRoot: string; readonly profilePath: string; readonly query: DocsFindQuery; readonly signal?: AbortSignal }) {
     const profile = await this.#profiles.read(input);
-    const query = Object.freeze({
-      ...input.query,
-      ...(input.query.related === undefined ? {} : { related: normalizeDocumentId(input.query.related, "related") }),
-      ...(input.query.blockedBy === undefined ? {} : { blockedBy: normalizeDocumentId(input.query.blockedBy, "blocked_by") })
-    });
-    await this.#foundation.describe({
-      consumerRoot: input.consumerRoot,
-      profilePath: profile.foundationProfile.path,
-      profileSchemaVersion: profile.foundationProfile.schemaVersion,
-      ...withSignal(input.signal)
-    });
-    const documents = await this.#foundation.find({
-      consumerRoot: input.consumerRoot,
-      profilePath: profile.foundationProfile.path,
-      query,
-      ...withSignal(input.signal)
-    });
-    const matches = documents.filter((document) =>
-      (query.related === undefined || document.related.includes(query.related)) &&
-      (query.blockedBy === undefined || document.blockedBy.includes(query.blockedBy))
-    ).toSorted((left, right) => BINARY(left.id, right.id) || BINARY(left.repositoryPath, right.repositoryPath));
-    return execution("docs.find", "success", Object.freeze({ kind: "find" as const, matches: matches.length, documents: Object.freeze(matches) }));
+    const authority = profile.foundationProfile;
+    await this.#foundation.describe({ consumerRoot: input.consumerRoot, profilePath: authority.path, profileSchemaVersion: authority.schemaVersion, ...withSignal(input.signal) });
+    const projection = await projectLegacyFind({ consumerRoot: input.consumerRoot, foundation: this.#foundation, foundationProfilePath: authority.path, query: input.query, ...withSignal(input.signal) });
+    return execution("docs.find", "success", projection.result, projection.diagnostics);
+  }
+
+  async findV3(input: { readonly consumerRoot: string; readonly profilePath: string; readonly query: DocsFindQueryV3; readonly signal?: AbortSignal }): Promise<DocsExecutionV3<DocsFindResultV3>> {
+    const profile = await this.#profiles.read(input);
+    const authority = profile.foundationProfile;
+    await this.#foundation.describe({ consumerRoot: input.consumerRoot, profilePath: authority.path, profileSchemaVersion: authority.schemaVersion, ...withSignal(input.signal) });
+    const projection = await projectCommunityFind({ consumerRoot: input.consumerRoot, foundation: this.#foundation, foundationProfilePath: authority.path, query: input.query, ...withSignal(input.signal) });
+    return executionV3("docs.find", projection.outcome, projection.result, projection.diagnostics);
+  }
+
+  async contextV1(input: DocsContextRequestV1): Promise<DocsExecutionV3<DocsContextResultV1>> {
+    const profile = await this.#profiles.read(input);
+    const authority = profile.foundationProfile;
+    const catalogBefore = await this.#foundation.buildCatalog({ consumerRoot: input.consumerRoot, profilePath: authority.path, ...withSignal(input.signal) });
+    const projection = await projectCommunityContext({ catalogBefore, foundation: this.#foundation, foundationProfilePath: authority.path, request: input });
+    return executionV3("docs.context", projection.outcome, projection.result, projection.diagnostics);
   }
 
   async newDocumentV2(request: DocsNewRequest): Promise<DocsExecutionV2<DocsNewResultV2>> {
@@ -287,6 +274,7 @@ export class DocsProtocol {
     const type = typeOrThrow(description.types, request.intent.type);
     assertOwnerAllowed(type, request.intent.owner);
     const adoptionDiagnostics = await this.#adoption.inspect({
+      policy: profile.adoptionPolicy,
       authorityPaths: description.authorityPaths,
       consumerRoot: request.consumerRoot,
       profilePath: request.profilePath,
@@ -426,6 +414,7 @@ export class DocsProtocol {
       const description = await this.#foundation.describe({ consumerRoot: input.consumerRoot, profilePath: profile.foundationProfile.path, profileSchemaVersion: profile.foundationProfile.schemaVersion, ...withSignal(input.signal) });
       projectId = description.projectId;
       diagnostics = await this.#adoption.inspect({
+        policy: profile.adoptionPolicy,
         authorityPaths: description.authorityPaths,
         consumerRoot: input.consumerRoot,
         profilePath: input.profilePath,
@@ -475,6 +464,7 @@ export class DocsProtocol {
 
   async checkV2(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }) {
     const profile = await this.#profiles.read(input);
+    const compatibleProfile = compatibleProfileV2(profile);
     const description = await this.#foundation.describe({ consumerRoot: input.consumerRoot, profilePath: profile.foundationProfile.path, profileSchemaVersion: profile.foundationProfile.schemaVersion, ...withSignal(input.signal) });
     const catalog = await this.#foundation.buildCatalog({ consumerRoot: input.consumerRoot, profilePath: profile.foundationProfile.path, ...withSignal(input.signal) });
     input.signal?.throwIfAborted();
@@ -485,6 +475,7 @@ export class DocsProtocol {
       ...withSignal(input.signal)
     });
     const adoptionDiagnostics = await this.#adoption.inspect({
+      policy: profile.adoptionPolicy,
       authorityPaths: description.authorityPaths,
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
@@ -498,7 +489,7 @@ export class DocsProtocol {
       ...(transaction.state === "idle" ? [] : [{ ruleId: "docs.adoption.recovery-state-active", severity: "error" as const, phase: "recovery" as const, subject: "foundation.transaction", message: "Active or preserved Foundation recovery state must be resolved before docs:check succeeds." }])
     ];
     const valid = catalog.status === "complete" && catalog.projectId === description.projectId && !diagnostics.some(({ severity }) => severity === "error");
-    return execution("docs.check", valid ? "success" : "violation", Object.freeze({ kind: "check" as const, projectId: description.projectId, catalogStatus: catalog.status, documents: catalog.documents.length, foundationProfile: profile.foundationProfile, metadataSidecar: description.metadataSidecar, semanticValidatorIds: profile.semanticValidatorIds, valid }), diagnostics);
+    return execution("docs.check", valid ? "success" : "violation", Object.freeze({ kind: "check" as const, projectId: description.projectId, catalogStatus: catalog.status, documents: catalog.documents.length, foundationProfile: compatibleProfile.foundationProfile, metadataSidecar: description.metadataSidecar, semanticValidatorIds: compatibleProfile.semanticValidatorIds, valid }), diagnostics);
   }
 
   async info(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }) {

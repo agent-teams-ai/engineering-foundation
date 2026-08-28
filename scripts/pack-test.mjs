@@ -22,6 +22,7 @@ import {
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
 const docsProtocolRoot = join(repositoryRoot, "packages", "docs-protocol");
+const docsProtocolMcpRoot = join(repositoryRoot, "packages", "docs-protocol-mcp");
 const historicalBundlePath = /^assets\/history\/sha256-[0-9a-f]{64}\/(?:caller\.yml|skill\.md)$/u;
 
 function historicalBundlePaths(catalog) {
@@ -55,8 +56,10 @@ const docsProtocolRequiredArtifacts = [
   "dist/qualification/index.js",
   "schemas/docs-protocol-command-envelope/v1.schema.json",
   "schemas/docs-protocol-command-envelope/v2.schema.json",
+  "schemas/docs-protocol-command-envelope/v3.schema.json",
   "schemas/docs-protocol-profile/v1.schema.json",
   "schemas/docs-protocol-profile/v2.schema.json",
+  "schemas/docs-protocol-profile/v3.schema.json",
   "schemas/docs-protocol/v1.schema.json",
   "schemas/docs-consumer-integration-execution/v1.schema.json",
   "schemas/docs-consumer-integration-plan/v1.schema.json",
@@ -69,6 +72,13 @@ const docsProtocolRequiredArtifacts = [
   "schemas/qualified-docs-cohort/v1.schema.json",
   "skills/docs/SKILL.md",
   ...historicalBundlePaths(docsProtocolTransitionCatalog),
+];
+const docsProtocolMcpRequiredArtifacts = [
+  "CHANGELOG.md",
+  "dist/cli.d.ts",
+  "dist/cli.js",
+  "dist/index.d.ts",
+  "dist/index.js",
 ];
 const temporaryRoot = await mkdtemp(join(tmpdir(), "agent-teams-foundation-pack-"));
 const keepTemporaryRoot = process.env.AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS === "1";
@@ -478,6 +488,16 @@ try {
     supportPackageRoots: [packageRoot],
     temporaryRoot,
   });
+  const docsProtocolMcpArtifact = await packAndInspectArtifact({
+    artifactLabel: "docs-protocol-mcp",
+    packageRoot: docsProtocolMcpRoot,
+    requiredArtifactPaths: docsProtocolMcpRequiredArtifacts,
+    repositoryRoot,
+    runBuild: runCleanPackageBuild,
+    runPnpm,
+    supportPackageRoots: [packageRoot, docsProtocolRoot],
+    temporaryRoot,
+  });
   const rollbackFixtureArtifact = await createRollbackFixturePackage(
     docsProtocolArtifact,
     artifact
@@ -513,7 +533,7 @@ try {
     runPnpm
   });
   process.stdout.write(
-    `Package and local-mode lifecycle verified: ${artifact.archiveName} (${fixture.packedManifest.version}); ${docsProtocolArtifact.archiveName}.\n`
+    `Package and local-mode lifecycle verified: ${artifact.archiveName} (${fixture.packedManifest.version}); ${docsProtocolArtifact.archiveName}; ${docsProtocolMcpArtifact.archiveName}.\n`
   );
   process.stdout.write(
     `Registry-install qualification: ${localRegistryInstallQualification.status}. ${localRegistryInstallQualification.summary}\n`

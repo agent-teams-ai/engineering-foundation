@@ -470,7 +470,7 @@ export function changesetsReleaseOutput(released) {
   if (!released.emitReleaseLines) {
     return "";
   }
-  return [released.foundation, released.docs]
+  return (released.artifacts ?? [released.foundation, released.docs])
     .filter(({ emitReleaseLine }) => emitReleaseLine)
     .map(({ name, version }) => `New tag: ${name}@${version}\n`)
     .join("");

@@ -71,6 +71,36 @@ test("reviewed catalog owns the exact public Docs Protocol bootstrap manifest", 
     provenance: true,
     registry: "https://registry.npmjs.org/",
   });
+  const baseline = JSON.parse(
+    await readFile(new URL("../architecture/public-api/docs-protocol-mcp.json", import.meta.url), "utf8"),
+  );
+  assert.equal(baseline.packageName, "@agent-teams/docs-protocol-mcp");
+  assert.equal(baseline.packageVersion, "0.0.0");
+});
+
+test("reviewed catalog owns the initial public Docs Protocol MCP manifest", async () => {
+  const entries = PUBLISHABLE_PACKAGES.filter(
+    ({ name }) => name === "@agent-teams/docs-protocol-mcp",
+  );
+  assert.deepEqual(entries, [
+    {
+      changelogPath: "packages/docs-protocol-mcp/CHANGELOG.md",
+      manifestPath: "packages/docs-protocol-mcp/package.json",
+      name: "@agent-teams/docs-protocol-mcp",
+      root: "packages/docs-protocol-mcp",
+    },
+  ]);
+  const manifest = JSON.parse(
+    await readFile(new URL("../packages/docs-protocol-mcp/package.json", import.meta.url), "utf8"),
+  );
+  assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
+  assert.equal(manifest.private, undefined);
+  assert.equal(manifest.dependencies["@agent-teams/docs-protocol"], "workspace:*");
+  assert.deepEqual(manifest.publishConfig, {
+    access: "public",
+    provenance: true,
+    registry: "https://registry.npmjs.org/",
+  });
 });
 
 test("release manifest exactly follows the package self-check allowlist", async () => {

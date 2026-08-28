@@ -1,7 +1,8 @@
 import type { DocsCommandEnvelope } from "../domain/model.js";
 import type { DocsCommandEnvelopeV2 } from "../domain/model-v2.js";
+import type { DocsCommandEnvelopeV3 } from "../domain/model-v3.js";
 
-type RenderableEnvelope = DocsCommandEnvelope | DocsCommandEnvelopeV2;
+type RenderableEnvelope = DocsCommandEnvelope | DocsCommandEnvelopeV2 | DocsCommandEnvelopeV3;
 
 function reachabilitySummary(value: unknown): string {
   const reachability = value as Record<string, unknown>;
@@ -30,7 +31,7 @@ function renderInfo(result: Record<string, unknown>): readonly string[] {
     const template = type["template"] as Record<string, unknown> | undefined;
     lines.push(`Type ${String(type["type"])} | initial ${String(type["initialStatus"])} | owners ${(type["allowedOwnerIds"] as unknown[]).join(",")} | identity ${display(identity["format"] ?? identity["kind"])} | placement ${display(placement["kind"])} | identityDetails ${JSON.stringify(identity)} | placementDetails ${JSON.stringify(placement)} | template ${display(template?.["path"])} | required ${(type["requiredMetadata"] as unknown[]).join(",")} | reachability ${reachabilitySummary(type["reachability"])}`);
   }
-  lines.push(`Semantic validators: ${(result["semanticValidatorIds"] as unknown[]).join(",") || "none"}`);
+  lines.push(`Semantic validators: ${(result["semanticValidatorIds"] as unknown[] | undefined)?.join(",") || "none"}`);
   return lines;
 }
 
@@ -65,7 +66,18 @@ function renderNew(result: Record<string, unknown>): readonly string[] {
 function renderCommandResult(envelope: RenderableEnvelope, result: Record<string, unknown>): readonly string[] {
   switch (envelope.command) {
     case "docs.info": return renderInfo(result);
+    case "docs.init": return [
+      `Bootstrap: ${display(result["operation"])} (${display(result["writeState"])})`,
+      ...(typeof result["planDigest"] === "string" ? [`Plan: ${result["planDigest"]}`] : []),
+      ...(Array.isArray(result["files"])
+        ? result["files"].map((value) => {
+            const file = value as Record<string, unknown>;
+            return `${display(file["writeState"])} ${display(file["path"])}`;
+          })
+        : [])
+    ];
     case "docs.find": return renderFind(result);
+    case "docs.context": return typeof result["content"] === "string" ? [result["content"].trimEnd()] : [];
     case "docs.new": return renderNew(result);
     case "docs.doctor": return [
       `Project: ${display(result["projectId"])}`,
@@ -90,8 +102,15 @@ export function renderDocsHumanV2(envelope: DocsCommandEnvelopeV2): string {
   return render(envelope);
 }
 
+export function renderDocsHumanV3(envelope: DocsCommandEnvelopeV3): string {
+  return render(envelope);
+}
+
 function render(envelope: RenderableEnvelope): string {
   const result = envelope.result as Record<string, unknown>;
+  if (envelope.command === "docs.context" && envelope.outcome === "success" && typeof result["content"] === "string") {
+    return result["content"].endsWith("\n") ? result["content"] : `${result["content"]}\n`;
+  }
   const lines = [`${envelope.command}: ${envelope.outcome}`, ...renderCommandResult(envelope, result)];
   for (const diagnostic of envelope.diagnostics) {lines.push(`${diagnostic.severity.toUpperCase()} ${diagnostic.ruleId}: ${diagnostic.message}`);}
   return `${lines.join("\n")}\n`;

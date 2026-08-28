@@ -4,7 +4,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
 import type { DocsProfileReaderV2 } from "../domain/model-v2.js";
-import { DocsProfileError, parseDocsProtocolProfile } from "../domain/profile-policy.js";
+import { DocsProfileError, parseDocsProtocolProfile, validatePortableRepositoryPath } from "../domain/profile-policy.js";
 import { assertDocsProtocolProfileSchema } from "./docs-profile-schema-validator.js";
 
 const MAX_PROFILE_BYTES = 1_048_576;
@@ -16,6 +16,7 @@ function contained(root: string, candidate: string): boolean {
 
 function assertInitialFile(state: Awaited<ReturnType<FileHandle["stat"]>>): void {
   if (!state.isFile() || state.isSymbolicLink()) {throw new DocsProfileError("Profile must be a regular file.");}
+  if (state.nlink !== 1n) {throw new DocsProfileError("Profile must not have hard links.");}
   if (state.size > BigInt(MAX_PROFILE_BYTES)) {throw new DocsProfileError("Profile exceeds 1 MiB.");}
 }
 
@@ -39,7 +40,7 @@ async function readBounded(handle: FileHandle, signal: AbortSignal | undefined):
 }
 
 async function readProfileBytes(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }): Promise<Buffer> {
-  if (isAbsolute(input.profilePath)) {throw new DocsProfileError("Profile path must be repository-relative.");}
+  validatePortableRepositoryPath(input.profilePath, "Profile path");
   const root = await realpath(resolve(input.consumerRoot));
   input.signal?.throwIfAborted();
   const requested = resolve(root, input.profilePath);
@@ -59,10 +60,10 @@ async function readProfileBytes(input: { readonly consumerRoot: string; readonly
     input.signal?.throwIfAborted();
     if (!contained(root, physical) || physical !== requested) {throw new DocsProfileError("Profile path must be a real contained file without symlinks.");}
     const pathState = await lstat(physical, { bigint: true });
-    if (!pathState.isFile() || pathState.isSymbolicLink() || !sameIdentity(pathState, opened)) {throw new DocsProfileError("Profile identity changed before its bounded read.");}
+    if (!pathState.isFile() || pathState.isSymbolicLink() || pathState.nlink !== 1n || !sameIdentity(pathState, opened)) {throw new DocsProfileError("Profile identity changed before its bounded read or has hard links.");}
     const bytes = await readBounded(handle, input.signal);
     const after = await handle.stat({ bigint: true });
-    if (!sameIdentity(after, opened) || after.size !== opened.size || after.mtimeNs !== opened.mtimeNs || after.size !== BigInt(bytes.byteLength)) {throw new DocsProfileError("Profile changed during its bounded read or exceeds 1 MiB.");}
+    if (after.nlink !== 1n || !sameIdentity(after, opened) || after.size !== opened.size || after.mtimeNs !== opened.mtimeNs || after.size !== BigInt(bytes.byteLength)) {throw new DocsProfileError("Profile changed during its bounded read, has hard links, or exceeds 1 MiB.");}
     return bytes;
   } finally {
     await handle.close();

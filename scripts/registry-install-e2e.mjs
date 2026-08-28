@@ -19,6 +19,7 @@ import {
   createPnpmRunner,
   runNpmCommand,
 } from "./pack-test-support.mjs";
+import { verifyRegistryDocsProtocolMcp } from "./registry-docs-protocol-mcp-e2e.mjs";
 import {
   verifyFoundationFeatures,
   verifyInstalledBufQualifierForPackage,
@@ -40,6 +41,7 @@ import {
 } from "./registry-qualification-packages.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
+const DOCS_PROTOCOL_MCP_PACKAGE_NAME = "@agent-teams/docs-protocol-mcp";
 const FOUNDATION_FEATURE_IMPORTS = [
   FOUNDATION_PACKAGE_NAME, `${FOUNDATION_PACKAGE_NAME}/document-authoring`,
   `${FOUNDATION_PACKAGE_NAME}/local-mode`, `${FOUNDATION_PACKAGE_NAME}/scaffolding`,
@@ -412,23 +414,20 @@ async function installConsumer(targets, registryUrl) {
 
 async function verifyConsumer(targets, registryUrl) {
   const { consumerRoot } = await installConsumer(targets, registryUrl);
-
-  const foundationTarget = targets.find(
-    (target) => target.manifest.name === FOUNDATION_PACKAGE_NAME,
-  );
-  if (foundationTarget === undefined) {
-    throw new Error("Foundation target is missing from registry qualification.");
-  }
-  const docsTarget = targets.find(
-    (target) => target.manifest.name === DOCS_PROTOCOL_PACKAGE_NAME,
-  );
-  if (docsTarget === undefined) {
-    throw new Error("Docs Protocol target is missing from registry qualification.");
-  }
+  const requiredTarget = (name) => {
+    const target = targets.find((candidate) => candidate.manifest.name === name);
+    if (target === undefined) {
+      throw new Error(`${name} target is missing from registry qualification.`);
+    }
+    return target;
+  };
+  const foundationTarget = requiredTarget(FOUNDATION_PACKAGE_NAME);
+  const docsTarget = requiredTarget(DOCS_PROTOCOL_PACKAGE_NAME);
+  const mcpTarget = requiredTarget(DOCS_PROTOCOL_MCP_PACKAGE_NAME);
   const lockfile = JSON.parse(
     await readFile(join(consumerRoot, "package-lock.json"), "utf8"),
   );
-  let installedFoundationRoot;
+  const installedRoots = new Map();
   for (const target of targets) {
     const targetRoot = await verifyRegistryPackage({
       consumerRoot,
@@ -437,12 +436,17 @@ async function verifyConsumer(targets, registryUrl) {
       runNpm,
       target,
     });
-    if (target.manifest.name === FOUNDATION_PACKAGE_NAME) {
-      installedFoundationRoot = targetRoot;
-    }
+    installedRoots.set(target.manifest.name, targetRoot);
   }
-  if (installedFoundationRoot === undefined) {
-    throw new Error("Installed Foundation target is missing.");
+  const installedFoundationRoot = installedRoots.get(FOUNDATION_PACKAGE_NAME);
+  const installedDocsRoot = installedRoots.get(DOCS_PROTOCOL_PACKAGE_NAME);
+  const installedMcpRoot = installedRoots.get(DOCS_PROTOCOL_MCP_PACKAGE_NAME);
+  if (
+    installedFoundationRoot === undefined ||
+    installedDocsRoot === undefined ||
+    installedMcpRoot === undefined
+  ) {
+    throw new Error("One or more installed registry qualification targets are missing.");
   }
   await verifyFoundationFeatures({
     consumerRoot,
@@ -452,6 +456,12 @@ async function verifyConsumer(targets, registryUrl) {
     repositoryRoot,
     verifyInstalledBufQualifier,
     version: foundationTarget.manifest.version,
+  });
+  await verifyRegistryDocsProtocolMcp({
+    consumerRoot,
+    installedDocsRoot,
+    installedMcpRoot,
+    mcpVersion: mcpTarget.manifest.version,
   });
   return createHash("sha256")
     .update(await readFile(join(consumerRoot, "package-lock.json")))

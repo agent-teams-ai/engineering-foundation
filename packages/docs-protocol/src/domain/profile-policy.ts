@@ -3,11 +3,13 @@ import { posix } from "node:path";
 import {
   DOCS_PROTOCOL_ID,
   DOCS_PROTOCOL_VERSION,
-  type DocsProtocolProfile,
   type DocsTypeProfile,
   type ReachabilityAction
 } from "./model.js";
-import type { DocsProtocolProfileV2 } from "./model-v2.js";
+import type {
+  DocsProtocolProfileV3,
+  NormalizedDocsProtocolProfile
+} from "./model-v2.js";
 
 const LOWER_ID = /^[a-z0-9][a-z0-9._/-]*$/u;
 const REPOSITORY_PATH = /^(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9._@-]+(?:\/[A-Za-z0-9._@-]+)*$/u;
@@ -41,11 +43,29 @@ function lowerId(value: unknown, subject: string): string {
   return value;
 }
 
-function repositoryPath(value: unknown, subject: string): string {
-  if (typeof value !== "string" || value.length === 0 || value.length > 512 || !REPOSITORY_PATH.test(value)) {
+export function validatePortableRepositoryPath(value: unknown, subject = "Repository path"): string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 512 ||
+    value !== value.normalize("NFC") ||
+    value.startsWith("/") ||
+    value.includes("\\") ||
+    !REPOSITORY_PATH.test(value)
+  ) {
     throw new DocsProfileError(`${subject} is invalid.`);
   }
-  if (Buffer.byteLength(value, "utf8") > 512 || value.split("/").some((segment) => Buffer.byteLength(segment, "utf8") > 255)) {
+  const segments = value.split("/");
+  if (
+    Buffer.byteLength(value, "utf8") > 512 ||
+    segments.some((segment) =>
+      segment.length === 0 ||
+      segment.length > 255 ||
+      Buffer.byteLength(segment, "utf8") > 255 ||
+      segment === "." ||
+      segment === ".."
+    )
+  ) {
     throw new DocsProfileError(`${subject} exceeds portable path limits.`);
   }
   return value;
@@ -62,10 +82,10 @@ function validatorIds(value: unknown): readonly string[] {
   return Object.freeze(entries.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))));
 }
 
-export function parseDocsProtocolProfile(value: unknown): DocsProtocolProfile | DocsProtocolProfileV2 {
+export function parseDocsProtocolProfile(value: unknown): NormalizedDocsProtocolProfile {
   const candidate = record(value, "profile");
   exactKeys(candidate, ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "semanticValidatorIds"], "profile");
-  if (candidate["schemaVersion"] !== 1 && candidate["schemaVersion"] !== 2) {throw new DocsProfileError("profile.schemaVersion must be 1 or 2.");}
+  if (candidate["schemaVersion"] !== 1 && candidate["schemaVersion"] !== 2 && candidate["schemaVersion"] !== 3) {throw new DocsProfileError("profile.schemaVersion must be 1, 2, or 3.");}
   const protocol = record(candidate["protocol"], "profile.protocol");
   exactKeys(protocol, ["id", "version"], "profile.protocol");
   if (protocol["id"] !== DOCS_PROTOCOL_ID || protocol["version"] !== DOCS_PROTOCOL_VERSION) {
@@ -75,28 +95,46 @@ export function parseDocsProtocolProfile(value: unknown): DocsProtocolProfile | 
   exactKeys(foundationProfile, ["metadataSidecarPolicy", "path", "schemaVersion"], "profile.foundationProfile");
   const profileV2 = candidate["schemaVersion"] === 1 && foundationProfile["schemaVersion"] === 2 && foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v2-strict-merge";
   const profileV3 = candidate["schemaVersion"] === 2 && foundationProfile["schemaVersion"] === 3 && foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v3-strict-merge";
-  if (!profileV2 && !profileV3) {
+  const portableV3 = candidate["schemaVersion"] === 3 && foundationProfile["schemaVersion"] === 3 && foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v3-strict-merge";
+  if (!profileV2 && !profileV3 && !portableV3) {
     throw new DocsProfileError("profile.foundationProfile must match its versioned Foundation profile route.");
   }
   const workflow = record(candidate["agentWorkflow"], "profile.agentWorkflow");
-  exactKeys(workflow, ["skillPath"], "profile.agentWorkflow");
+  exactKeys(workflow, portableV3 ? ["adoption", "skillPath"] : ["skillPath"], "profile.agentWorkflow");
+  if (portableV3 && workflow["adoption"] !== "portable-v1") {
+    throw new DocsProfileError("profile.agentWorkflow.adoption must be portable-v1.");
+  }
+  const skillPath = validatePortableRepositoryPath(workflow["skillPath"], "profile.agentWorkflow.skillPath");
   const shared = {
     protocol: Object.freeze({ id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION }),
-    agentWorkflow: Object.freeze({ skillPath: repositoryPath(workflow["skillPath"], "profile.agentWorkflow.skillPath") }),
     semanticValidatorIds: validatorIds(candidate["semanticValidatorIds"])
   };
-  const path = repositoryPath(foundationProfile["path"], "profile.foundationProfile.path");
-  return profileV2
-    ? Object.freeze({
-        ...shared,
-        schemaVersion: 1 as const,
-        foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v2-strict-merge" as const, path, schemaVersion: 2 as const })
-      })
-    : Object.freeze({
-        ...shared,
-        schemaVersion: 2 as const,
-        foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v3-strict-merge" as const, path, schemaVersion: 3 as const })
-      });
+  const path = validatePortableRepositoryPath(foundationProfile["path"], "profile.foundationProfile.path");
+  if (profileV2) {
+    return Object.freeze({
+      ...shared,
+      adoptionPolicy: "agent-teams-managed-v1" as const,
+      agentWorkflow: Object.freeze({ skillPath }),
+      schemaVersion: 1 as const,
+      foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v2-strict-merge" as const, path, schemaVersion: 2 as const })
+    });
+  }
+  if (profileV3) {
+    return Object.freeze({
+      ...shared,
+      adoptionPolicy: "agent-teams-managed-v1" as const,
+      agentWorkflow: Object.freeze({ skillPath }),
+      schemaVersion: 2 as const,
+      foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v3-strict-merge" as const, path, schemaVersion: 3 as const })
+    });
+  }
+  return Object.freeze({
+    ...shared,
+    adoptionPolicy: "portable-v1" as const,
+    agentWorkflow: Object.freeze({ adoption: "portable-v1" as const, skillPath }),
+    schemaVersion: 3 as const,
+    foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v3-strict-merge" as const, path, schemaVersion: 3 as const })
+  }) satisfies DocsProtocolProfileV3 & { readonly adoptionPolicy: "portable-v1" };
 }
 
 function markdownLabel(value: string): string {

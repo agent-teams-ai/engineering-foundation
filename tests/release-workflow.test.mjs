@@ -616,6 +616,22 @@ test("release diff policy validates Changesets prerelease consumption", () => {
     } },
   };
   assert.deepEqual(releasePullRequestContentViolations(withDocsInitialVersion), []);
+  const withMcpInitialVersion = {
+    ...evidence,
+    initialVersionAdditions: ["@agent-teams/docs-protocol-mcp"],
+    headPrereleaseState: { ...evidence.headPrereleaseState, initialVersions: {
+      ...evidence.headPrereleaseState.initialVersions,
+      "@agent-teams/docs-protocol-mcp": "0.0.0",
+    } },
+  };
+  assert.deepEqual(releasePullRequestContentViolations(withMcpInitialVersion), []);
+  assert.match(
+    releasePullRequestContentViolations({
+      ...withMcpInitialVersion,
+      initialVersionAdditions: [],
+    }).join("\n"),
+    /only append consumed Changesets/u,
+  );
   assert.match(
     releasePullRequestContentViolations({
       ...withDocsInitialVersion,

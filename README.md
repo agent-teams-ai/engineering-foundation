@@ -7,12 +7,14 @@ This repository contains reusable development tooling only. Product runtime code
 must not import it. Each consumer remains authoritative for its own domain model,
 package catalog, dependency permissions, security classifications, and ADRs.
 
-The monorepo is structured for two one-way layered packages. The Engineering Foundation
+The monorepo is structured as one-way layered packages. Engineering Foundation
 owns reusable validation and mutation mechanisms. `@agent-teams/docs-protocol`
-depends on Foundation and owns the unified documentation CLI and agent workflow;
-Foundation never depends on Docs Protocol. Consumer-specific document types,
-schemas, owners, templates, reachability, and semantic validators remain strict
-data-only authority in each consumer repository.
+depends on Foundation and owns the repository-native documentation library,
+CLI, portable agent workflow, fuzzy discovery, and bounded context projection.
+The optional `@agent-teams/docs-protocol-mcp` package is a read-only transport
+over that public API. Dependencies never point back toward Foundation, and
+consumer-specific document types, schemas, owners, templates, reachability,
+and semantic validators remain strict data-only authority in each repository.
 
 ## Scope
 
@@ -69,8 +71,24 @@ pnpm foundation:assert-dev-only
 pnpm foundation:assert-registry
 ```
 
-Governed documentation uses the installed Docs Protocol CLI. `owner` and `summary` are
-explicit Intent authority and never receive Foundation defaults:
+Any repository can preview a portable documentation setup without mutation:
+
+```bash
+docs-protocol init --project-id example/widgets \
+  --owner documentation/team --dry-run --json
+```
+
+After applying the reviewed digest, `docs.config.yaml` is discovered
+automatically. Search and bounded context remain disposable projections:
+
+```bash
+docs-protocol find "tenant isolation" --fuzzy
+docs-protocol context "tenant isolation" --fuzzy --max-documents 12
+docs-protocol check
+```
+
+Governed document authoring uses the installed Docs Protocol CLI. `owner` and
+`summary` are explicit Intent authority and never receive Foundation defaults:
 
 ```bash
 agent-teams-docs find "tenant isolation"

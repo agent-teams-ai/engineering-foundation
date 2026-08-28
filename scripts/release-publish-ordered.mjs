@@ -1,9 +1,20 @@
 import { createHash } from "node:crypto";
 
+import {
+  PUBLISHABLE_PACKAGE_DEPENDENCIES,
+  PUBLISHABLE_PACKAGES,
+} from "./publishable-packages.mjs";
+
 export const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
 export const DOCS_PACKAGE = "@agent-teams/docs-protocol";
+export const DOCS_MCP_PACKAGE = "@agent-teams/docs-protocol-mcp";
 export const REGISTRY_OBSERVATION_ATTEMPTS = 73;
 export const REGISTRY_OBSERVATION_RETRY_MILLISECONDS = 5_000;
+
+const RELEASE_GRAPH = Object.freeze(PUBLISHABLE_PACKAGES.map(({ name }) => Object.freeze({
+  name,
+  dependencies: PUBLISHABLE_PACKAGE_DEPENDENCIES[name] ?? Object.freeze([]),
+})));
 
 const delay = (milliseconds) => new Promise((resolve) => {
   setTimeout(resolve, milliseconds);
@@ -132,14 +143,34 @@ async function assertInitialObservation({ artifact, finalTag, published, source 
   fail(`${artifact.name}@${artifact.version} pair preflight is unknown (${reason ?? "invalid state"})`);
 }
 
-function exactFoundationDependency(docs, foundation) {
-  return docs.manifest?.dependencies?.[foundation.name] === foundation.version;
+function exactReleaseDependency(artifact, dependency) {
+  return artifact.manifest?.dependencies?.[dependency.name] === dependency.version;
 }
 
-function assertReleaseWave({ artifacts, authorizePublish, docs, foundation, reconcileRelease, source,
+function assertReleaseWave({ artifacts, authorizePublish, reconcileRelease, source,
   verifySignature }) {
-  if (foundation === undefined || docs === undefined || artifacts.length !== 2) {
-    fail("the release wave must contain exactly Foundation and Docs Protocol");
+  const releaseNames = RELEASE_GRAPH.map(({ name }) => name);
+  const dependencyConfigNames = Object.keys(PUBLISHABLE_PACKAGE_DEPENDENCIES);
+  if (new Set(releaseNames).size !== releaseNames.length ||
+      dependencyConfigNames.length !== releaseNames.length ||
+      dependencyConfigNames.some((name) => !releaseNames.includes(name)) ||
+      RELEASE_GRAPH.some((entry, index) => entry.dependencies.some(
+        (dependency) => releaseNames.indexOf(dependency) < 0 || releaseNames.indexOf(dependency) >= index,
+      ))) {
+    fail("the publishable package dependency graph must be complete, unique, and topologically ordered");
+  }
+  const artifactsByName = new Map(artifacts.map((artifact) => [artifact.name, artifact]));
+  if (artifactsByName.size !== artifacts.length || artifacts.length !== RELEASE_GRAPH.length ||
+      RELEASE_GRAPH.some(({ name }) => !artifactsByName.has(name))) {
+    fail(`the release wave must contain exactly ${RELEASE_GRAPH.map(({ name }) => name).join(", ")}`);
+  }
+  for (const entry of RELEASE_GRAPH) {
+    const artifact = artifactsByName.get(entry.name);
+    for (const dependencyName of entry.dependencies) {
+      if (!exactReleaseDependency(artifact, artifactsByName.get(dependencyName))) {
+        fail(`${artifact.name} must depend on the exact ${dependencyName} release version`);
+      }
+    }
   }
   if (typeof verifySignature !== "function") {
     fail("an npm cryptographic signature verifier is required");
@@ -148,6 +179,7 @@ function assertReleaseWave({ artifacts, authorizePublish, docs, foundation, reco
       typeof source?.isTrustedCommit !== "function") {
     fail("live-main authorization, idempotent release reconciliation and source ancestry verification are required");
   }
+  return artifactsByName;
 }
 
 async function inspectFinalSnapshot({ artifact, finalTag, inspect, provenance, source }) {
@@ -159,6 +191,26 @@ async function inspectFinalSnapshot({ artifact, finalTag, inspect, provenance, s
   await assertVerifiedAuthority(artifact, published, provenance, source);
   assertFinalTag(artifact, published, finalTag);
   return published;
+}
+
+async function observeInitialWave({ artifactsByName, finalTag, inspect, source }) {
+  const initialByName = new Map();
+  for (const entry of RELEASE_GRAPH) {
+    const artifact = artifactsByName.get(entry.name);
+    const initial = await inspect(artifact).catch((error) => ({ status: "unknown", error }));
+    await assertInitialObservation({ artifact, finalTag, published: initial, source });
+    initialByName.set(entry.name, initial);
+  }
+  for (const entry of RELEASE_GRAPH) {
+    if (initialByName.get(entry.name).status !== "present") {
+      continue;
+    }
+    for (const dependencyName of entry.dependencies) {
+      if (initialByName.get(dependencyName).status === "absent") {
+        fail(`${entry.name} exists without its exact ${dependencyName} dependency; quarantine before releasing`);
+      }
+    }
+  }
 }
 
 export async function orderedRelease({
@@ -173,88 +225,79 @@ export async function orderedRelease({
   attempts = REGISTRY_OBSERVATION_ATTEMPTS,
   retryDelayMilliseconds = REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
 }) {
-  const foundation = artifacts.find(({ name }) => name === FOUNDATION_PACKAGE);
-  const docs = artifacts.find(({ name }) => name === DOCS_PACKAGE);
-  assertReleaseWave({
-    artifacts, authorizePublish, docs, foundation, reconcileRelease, source, verifySignature,
+  const artifactsByName = assertReleaseWave({
+    artifacts, authorizePublish, reconcileRelease, source, verifySignature,
   });
-  if (!exactFoundationDependency(docs, foundation)) {
-    fail("packed Docs Protocol manifest must depend on the exact Foundation release version");
-  }
   if (!/^(?:latest|rc)$/u.test(finalTag)) {
     fail("the final npm tag must be exactly latest or rc");
   }
 
-  const foundationBefore = await inspect(foundation).catch(
-    (error) => ({ status: "unknown", error }),
-  );
-  const docsBeforePair = await inspect(docs).catch((error) => ({ status: "unknown", error }));
-  await assertInitialObservation({
-    artifact: foundation, finalTag, published: foundationBefore, source,
-  });
-  await assertInitialObservation({ artifact: docs, finalTag, published: docsBeforePair, source });
-  if (foundationBefore.status === "absent" && docsBeforePair.status === "present") {
-    fail("Docs Protocol exists without its exact Foundation pair; quarantine before releasing");
-  }
+  await observeInitialWave({ artifactsByName, finalTag, inspect, source });
 
-  const foundationPublished = await publishOrReuse({
-    artifact: foundation, attempts, authorizePublish, finalTag, inspect, publish,
-    initial: foundationBefore, retryDelayMilliseconds, source,
-  });
-  const foundationProvenance = await verifySignature(foundation);
-  await assertVerifiedAuthority(foundation, foundationPublished, foundationProvenance, source);
-  const docsBefore = await inspect(docs).catch((error) => ({ status: "unknown", error }));
-  if (docsBefore.status === "present") {
-    await assertReusable(docs, docsBefore, source);
-    if (Date.parse(docsBefore.publishedAt) < Date.parse(foundationPublished.publishedAt)) {
-      fail("Docs Protocol was published before its exact Foundation dependency");
+  const publishedByName = new Map();
+  const provenanceByName = new Map();
+  for (const entry of RELEASE_GRAPH) {
+    const artifact = artifactsByName.get(entry.name);
+    const before = await inspect(artifact).catch((error) => ({ status: "unknown", error }));
+    if (before.status === "unknown") {
+      fail(`${artifact.name}@${artifact.version} preflight result is unknown`);
     }
-  } else if (docsBefore.status === "unknown") {
-    fail(`${docs.name}@${docs.version} preflight result is unknown`);
+    if (before.status === "present") {
+      await assertReusable(artifact, before, source);
+    }
+    const published = before.status === "present"
+      ? before
+      : await publishOrReuse({
+        artifact, attempts, authorizePublish, finalTag, inspect, publish,
+        initial: before, retryDelayMilliseconds, source,
+      });
+    assertFinalTag(artifact, published, finalTag);
+    for (const dependencyName of entry.dependencies) {
+      const dependency = artifactsByName.get(dependencyName);
+      const dependencyPublished = publishedByName.get(dependencyName);
+      if (!exactReleaseDependency({ manifest: published.manifest }, dependency)) {
+        fail(`${artifact.name} tarball manifest does not bind the exact ${dependencyName} version`);
+      }
+      if (Date.parse(dependencyPublished.publishedAt) > Date.parse(published.publishedAt)) {
+        fail(`${artifact.name} was published before its exact ${dependencyName} dependency`);
+      }
+    }
+    const provenance = await verifySignature(artifact);
+    await assertVerifiedAuthority(artifact, published, provenance, source);
+    publishedByName.set(entry.name, published);
+    provenanceByName.set(entry.name, provenance);
   }
-  const docsPublished = docsBefore.status === "present"
-    ? docsBefore
-    : await publishOrReuse({
-      artifact: docs, attempts, authorizePublish, finalTag, inspect, publish,
-      initial: docsBefore, retryDelayMilliseconds, source,
-    });
-  assertFinalTag(docs, docsPublished, finalTag);
-  if (!exactFoundationDependency({ manifest: docsPublished.manifest }, foundation)) {
-    fail("published Docs Protocol tarball manifest does not bind the exact Foundation version");
-  }
-  if (Date.parse(foundationPublished.publishedAt) > Date.parse(docsPublished.publishedAt)) {
-    fail("Foundation published_at must be earlier than or equal to Docs Protocol published_at");
-  }
-  const docsProvenance = await verifySignature(docs);
-  await assertVerifiedAuthority(docs, docsPublished, docsProvenance, source);
 
-  const foundationFinal = await inspectFinalSnapshot({
-    artifact: foundation, finalTag, inspect, provenance: foundationProvenance, source,
-  });
-  const docsFinal = await inspectFinalSnapshot({
-    artifact: docs, finalTag, inspect, provenance: docsProvenance, source,
-  });
-  if (!exactFoundationDependency({ manifest: docsFinal.manifest }, foundation) ||
-      Date.parse(foundationFinal.publishedAt) > Date.parse(docsFinal.publishedAt)) {
-    fail("the final registry snapshot does not preserve the ordered exact package pair");
+  const releasedArtifacts = [];
+  const finalByName = new Map();
+  for (const entry of RELEASE_GRAPH) {
+    const artifact = artifactsByName.get(entry.name);
+    const provenance = provenanceByName.get(entry.name);
+    const final = await inspectFinalSnapshot({
+      artifact, finalTag, inspect, provenance, source,
+    });
+    for (const dependencyName of entry.dependencies) {
+      if (!exactReleaseDependency({ manifest: final.manifest }, artifactsByName.get(dependencyName)) ||
+          Date.parse(finalByName.get(dependencyName).publishedAt) > Date.parse(final.publishedAt)) {
+        fail(`the final registry snapshot does not preserve ${dependencyName} -> ${artifact.name}`);
+      }
+    }
+    finalByName.set(entry.name, final);
+    releasedArtifacts.push({
+      ...artifact, ...final, provenance,
+      emitReleaseLine: provenance.commit === source.commit,
+    });
   }
-  for (const [artifact, provenance] of [
-    [foundation, foundationProvenance], [docs, docsProvenance],
-  ]) {
-    await reconcileRelease(artifact, provenance.commit);
+  for (const artifact of releasedArtifacts) {
+    await reconcileRelease(artifact, artifact.provenance.commit);
   }
+  const byName = new Map(releasedArtifacts.map((artifact) => [artifact.name, artifact]));
   return {
-    docs: {
-      ...docs, ...docsFinal, provenance: docsProvenance,
-      emitReleaseLine: docsProvenance.commit === source.commit,
-    },
-    emitReleaseLines: [foundationProvenance, docsProvenance].some(
-      (provenance) => provenance.commit === source.commit,
-    ),
-    foundation: {
-      ...foundation, ...foundationFinal, provenance: foundationProvenance,
-      emitReleaseLine: foundationProvenance.commit === source.commit,
-    },
+    artifacts: releasedArtifacts,
+    docs: byName.get(DOCS_PACKAGE),
+    docsMcp: byName.get(DOCS_MCP_PACKAGE),
+    emitReleaseLines: releasedArtifacts.some(({ emitReleaseLine }) => emitReleaseLine),
+    foundation: byName.get(FOUNDATION_PACKAGE),
   };
 }
 

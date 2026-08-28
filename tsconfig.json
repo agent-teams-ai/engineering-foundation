@@ -6,6 +6,9 @@
     },
     {
       "path": "./packages/docs-protocol"
+    },
+    {
+      "path": "./packages/docs-protocol-mcp"
     }
   ]
 }

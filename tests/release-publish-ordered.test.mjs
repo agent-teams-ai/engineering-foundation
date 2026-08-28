@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   DOCS_PACKAGE,
+  DOCS_MCP_PACKAGE,
   FOUNDATION_PACKAGE,
   npmPurlName,
   orderedRelease,
@@ -34,6 +35,7 @@ const source = {
 };
 const foundation = artifact(FOUNDATION_PACKAGE, "1.2.3", {});
 const docs = artifact(DOCS_PACKAGE, "2.0.0", { [FOUNDATION_PACKAGE]: foundation.version });
+const docsMcp = artifact(DOCS_MCP_PACKAGE, "0.1.0", { [DOCS_PACKAGE]: docs.version });
 
 function artifact(name, version, dependencies) {
   const manifest = { dependencies, name, version };
@@ -120,7 +122,11 @@ function harness(initial = {}) {
     },
     publish: async (value, tag) => {
       calls.push(`publish:${value.name}:${tag}`);
-      const timestamp = value.name === FOUNDATION_PACKAGE ? "2026-01-01T00:00:00.000Z" : "2026-01-01T00:00:01.000Z";
+      const timestamp = new Map([
+        [FOUNDATION_PACKAGE, "2026-01-01T00:00:00.000Z"],
+        [DOCS_PACKAGE, "2026-01-01T00:00:01.000Z"],
+        [DOCS_MCP_PACKAGE, "2026-01-01T00:00:02.000Z"],
+      ]).get(value.name);
       const published = present(value, timestamp, tag);
       states.set(value.name, published);
     },
@@ -134,7 +140,7 @@ function harness(initial = {}) {
 
 async function run(runtime, overrides = {}) {
   return await orderedRelease({
-    artifacts: [docs, foundation],
+    artifacts: [docsMcp, docs, foundation],
     attempts: 2,
     finalTag: "latest",
     retryDelayMilliseconds: 0,
@@ -158,19 +164,22 @@ test("bounds idempotent GitHub release reconciliation during transient outages",
   );
 });
 
-test("publishes Foundation directly on the final tag and proves it before publishing Docs", async () => {
+test("publishes the exact Foundation, Docs, MCP dependency graph in order", async () => {
   const runtime = harness();
   await run(runtime);
   const foundationPublish = runtime.calls.indexOf(`publish:${FOUNDATION_PACKAGE}:latest`);
   const foundationSignature = runtime.calls.indexOf(`signature:${FOUNDATION_PACKAGE}`);
   const docsPublish = runtime.calls.indexOf(`publish:${DOCS_PACKAGE}:latest`);
   const docsSignature = runtime.calls.indexOf(`signature:${DOCS_PACKAGE}`);
+  const mcpPublish = runtime.calls.indexOf(`publish:${DOCS_MCP_PACKAGE}:latest`);
+  const mcpSignature = runtime.calls.indexOf(`signature:${DOCS_MCP_PACKAGE}`);
   const firstRelease = runtime.calls.indexOf(`release:${FOUNDATION_PACKAGE}`);
   const foundationFinalInspect = runtime.calls.lastIndexOf(`inspect:${FOUNDATION_PACKAGE}`);
   const docsFinalInspect = runtime.calls.lastIndexOf(`inspect:${DOCS_PACKAGE}`);
   assert.ok(foundationPublish >= 0 && foundationPublish < docsPublish);
   assert.ok(foundationPublish < foundationSignature && foundationSignature < docsPublish);
   assert.ok(docsPublish < docsSignature);
+  assert.ok(docsSignature < mcpPublish && mcpPublish < mcpSignature);
   assert.ok(docsSignature < foundationFinalInspect && foundationFinalInspect < docsFinalInspect);
   assert.ok(docsFinalInspect < firstRelease);
   assert.equal(runtime.calls.some((entry) => /^(?:tag|untag):/u.test(entry)), false);
@@ -181,8 +190,10 @@ test("publishes an RC pair directly on rc without moving latest", async () => {
   await run(runtime, { finalTag: "rc" });
   assert.equal(runtime.states.get(FOUNDATION_PACKAGE).distTags.rc, foundation.version);
   assert.equal(runtime.states.get(DOCS_PACKAGE).distTags.rc, docs.version);
+  assert.equal(runtime.states.get(DOCS_MCP_PACKAGE).distTags.rc, docsMcp.version);
   assert.equal(runtime.states.get(FOUNDATION_PACKAGE).distTags.latest, undefined);
   assert.equal(runtime.states.get(DOCS_PACKAGE).distTags.latest, undefined);
+  assert.equal(runtime.states.get(DOCS_MCP_PACKAGE).distTags.latest, undefined);
 });
 
 test("refuses every non-governed npm tag before publication", async () => {
@@ -237,14 +248,18 @@ test("live-main verifier accepts only the exact protected-main commit", () => {
 
 test("emits the exact deterministic lines parsed by the pinned Changesets action", () => {
   const output = changesetsReleaseOutput({
-    docs: { ...docs, emitReleaseLine: true },
+    artifacts: [
+      { ...foundation, emitReleaseLine: true },
+      { ...docs, emitReleaseLine: true },
+      { ...docsMcp, emitReleaseLine: true },
+    ],
     emitReleaseLines: true,
-    foundation: { ...foundation, emitReleaseLine: true },
   });
   assert.equal(
     output,
     `New tag: ${FOUNDATION_PACKAGE}@${foundation.version}\n` +
-      `New tag: ${DOCS_PACKAGE}@${docs.version}\n`,
+      `New tag: ${DOCS_PACKAGE}@${docs.version}\n` +
+      `New tag: ${DOCS_MCP_PACKAGE}@${docsMcp.version}\n`,
   );
   const pinnedChangesetsActionPattern = /New tag:\s+(@[^/]+\/[^@]+|[^/]+)@([^\s]+)/gu;
   assert.deepEqual(
@@ -252,6 +267,7 @@ test("emits the exact deterministic lines parsed by the pinned Changesets action
     [
       { name: FOUNDATION_PACKAGE, version: foundation.version },
       { name: DOCS_PACKAGE, version: docs.version },
+      { name: DOCS_MCP_PACKAGE, version: docsMcp.version },
     ],
   );
 });
@@ -352,7 +368,12 @@ test("ordered publisher contains no npm dist-tag command path", async () => {
 
 test("current release runbook is OIDC-only and contains no retired bootstrap credentials", async () => {
   const releaseDocs = await readFile(new URL("../docs/release.md", import.meta.url), "utf8");
-  assert.match(releaseDocs, /All current Foundation and Docs Protocol releases use npm Trusted Publishing/u);
+  assert.match(
+    releaseDocs,
+    /All current Foundation, Docs Protocol, and Docs Protocol MCP releases use npm Trusted Publishing/u,
+  );
+  assert.match(releaseDocs, /missing downstream suffix\s+of `Foundation -> Docs Protocol -> Docs Protocol MCP`/u);
+  assert.match(releaseDocs, /published package whose required\s+upstream dependency is missing is quarantined/u);
   assert.doesNotMatch(releaseDocs, /2FA|OTP|granular read\/write token|npm login|NPM_TOKEN/iu);
 });
 
@@ -391,7 +412,8 @@ test("later protected main may publish missing Docs against a verified reusable 
     entry.startsWith(`publish:${DOCS_PACKAGE}:latest`)), true);
   assert.equal(
     changesetsReleaseOutput(released),
-    `New tag: ${DOCS_PACKAGE}@${docs.version}\n`,
+    `New tag: ${DOCS_PACKAGE}@${docs.version}\n` +
+      `New tag: ${DOCS_MCP_PACKAGE}@${docsMcp.version}\n`,
   );
 });
 
@@ -428,6 +450,7 @@ test("Docs-only ancestor state is quarantined before any Foundation npm write", 
   assert.deepEqual(runtime.calls, [
     `inspect:${FOUNDATION_PACKAGE}`,
     `inspect:${DOCS_PACKAGE}`,
+    `inspect:${DOCS_MCP_PACKAGE}`,
   ]);
 });
 
@@ -539,10 +562,12 @@ test("retries signature verification without republishing Foundation", async () 
 test("later unrelated main verifies a trusted ancestor release with zero writes and no action output", async () => {
   const foundationState = present(foundation, "2026-01-01T00:00:00.000Z");
   const docsState = present(docs, "2026-01-01T00:00:01.000Z");
+  const mcpState = present(docsMcp, "2026-01-01T00:00:02.000Z");
   foundationState.distTags.latest = foundation.version;
   docsState.distTags.latest = docs.version;
   const runtime = harness({
     [DOCS_PACKAGE]: docsState,
+    [DOCS_MCP_PACKAGE]: mcpState,
     [FOUNDATION_PACKAGE]: foundationState,
   });
   const laterSource = {
@@ -560,12 +585,14 @@ test("later unrelated main verifies a trusted ancestor release with zero writes 
 test("emits only the package released by the current commit when Foundation is an older ancestor", async () => {
   const foundationState = present(foundation, "2026-01-01T00:00:00.000Z");
   const docsState = present(docs, "2026-01-01T00:00:01.000Z");
+  const mcpState = present(docsMcp, "2026-01-01T00:00:02.000Z");
   const currentCommit = "b".repeat(40);
   docsState.provenance.commit = currentCommit;
   foundationState.distTags.latest = foundation.version;
   docsState.distTags.latest = docs.version;
   const runtime = harness({
     [DOCS_PACKAGE]: docsState,
+    [DOCS_MCP_PACKAGE]: mcpState,
     [FOUNDATION_PACKAGE]: foundationState,
   });
   const mixedSource = {
@@ -598,8 +625,8 @@ test("reconciles a partial GitHub release boundary exactly once per package", as
   };
   await assert.rejects(run(runtime), /GitHub release response lost/u);
   await run(runtime);
-  assert.deepEqual(writes, [FOUNDATION_PACKAGE, DOCS_PACKAGE]);
-  assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 2);
+  assert.deepEqual(writes, [FOUNDATION_PACKAGE, DOCS_PACKAGE, DOCS_MCP_PACKAGE]);
+  assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 3);
 });
 
 test("production GitHub reconciliation repairs a lost release response idempotently", async () => {
@@ -734,7 +761,7 @@ test("rejects Docs published before Foundation without reconciling GitHub releas
     [DOCS_PACKAGE]: present(docs, "2026-01-01T00:00:00.000Z"),
     [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:01.000Z"),
   });
-  await assert.rejects(run(runtime), /Docs Protocol was published before/iu);
+  await assert.rejects(run(runtime), /docs-protocol.*published before/iu);
   assert.equal(runtime.calls.some((entry) => entry.startsWith("release:")), false);
 });
 
@@ -748,7 +775,10 @@ test("refuses an existing immutable version when the final tag no longer targets
 
 test("rejects local and published Docs manifests without the exact Foundation dependency", async () => {
   const badDocs = artifact(DOCS_PACKAGE, docs.version, { [FOUNDATION_PACKAGE]: "^1.2.3" });
-  await assert.rejects(run(harness(), { artifacts: [foundation, badDocs] }), /exact Foundation/iu);
+  await assert.rejects(
+    run(harness(), { artifacts: [foundation, badDocs, docsMcp] }),
+    /docs-protocol.*exact.*engineering-foundation/iu,
+  );
 
   const publishedDocs = present(docs, "2026-01-01T00:00:01.000Z");
   publishedDocs.manifest.dependencies[FOUNDATION_PACKAGE] = "^1.2.3";

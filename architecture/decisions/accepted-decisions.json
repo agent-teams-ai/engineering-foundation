@@ -191,6 +191,11 @@
       "id": "ADR-0038",
       "path": "docs/decisions/0038-approve-docs-consumer-upgrade-api.md",
       "immutableDigest": "sha256:e80fb4d9b9eac36b5565267994bae0678bfbdbd79af8e6c8c113107f4b23ffe9"
+    },
+    {
+      "id": "ADR-0039",
+      "path": "docs/decisions/0039-open-source-documentation-protocol.md",
+      "immutableDigest": "sha256:a9f722a6fe4ef46098e35ff4fe3331d05022be5ec039bac0de4bd3369587b9f0"
     }
   ]
 }

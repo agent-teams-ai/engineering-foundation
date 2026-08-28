@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import {
   copyFile,
   mkdir,
@@ -10,7 +11,7 @@ import {
 import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
+import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import { assert as assertProperty, integer, property } from "fast-check";
@@ -82,12 +83,68 @@ async function registerRawFixtureRole(boundary, role) {
   const socket = await openRawFixtureSocket(boundary);
   socket.setEncoding("utf8");
   const acknowledged = readSocketLine(socket);
-  socket.write(`${JSON.stringify({ nonce: boundary.nonce, role })}\n`);
+  const environment = boundary.environmentFor(role);
+  socket.write(`${JSON.stringify({
+    boundaryId: environment.QGR_FIXTURE_BOUNDARY_ID,
+    credential: environment.QGR_FIXTURE_CREDENTIAL,
+  })}\n`);
   assert.equal(
     await acknowledged,
-    `${JSON.stringify({ command: "registered", nonce: boundary.nonce, role })}\n`,
+    `${JSON.stringify({
+      boundaryId: boundary.evidenceId,
+      command: "registered",
+      role,
+    })}\n`,
   );
   return socket;
+}
+
+function createControlledDeadlines() {
+  const registrations = new Map();
+  const waiters = new Map();
+  return {
+    create(_milliseconds, label) {
+      let expireDeadline;
+      const record = {
+        active: true,
+        promise: new Promise((resolve) => { expireDeadline = resolve; }),
+        expire: () => { expireDeadline(); },
+      };
+      registrations.set(label, record);
+      waiters.get(label)?.();
+      waiters.delete(label);
+      return {
+        cancel() { record.active = false; },
+        promise: record.promise,
+      };
+    },
+    expire(label) {
+      const record = registrations.get(label);
+      assert.equal(record?.active, true, `Expected active controlled deadline ${label}.`);
+      record.expire();
+    },
+    waitFor(label) {
+      if (registrations.has(label)) {
+        return Promise.resolve();
+      }
+      return new Promise((resolve) => { waiters.set(label, resolve); });
+    },
+  };
+}
+
+function createNeverClosingChild() {
+  const command = new EventEmitter();
+  command.exitCode = null;
+  command.signalCode = null;
+  command.stderr = new PassThrough();
+  command.stdout = new PassThrough();
+  command.kill = (signal) => {
+    if (signal === "SIGKILL") {
+      command.exitCode = 0;
+    }
+    return true;
+  };
+  return command;
 }
 
 test("rejects duplicate, unknown, self, overlapping, and cyclic dependencies", () => {
@@ -273,46 +330,72 @@ test("change signals retain a notification between predicate evaluation and wait
   assert.equal(await changed.wait(observedGeneration), observedGeneration + 1);
 });
 
-test("central cleanup attempts ordered child, boundary, and fixture-root cleanup", async () => {
+test("central cleanup starts owned roles together, bounds a stuck child, and still removes roots", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-cleanup-"));
   const marker = join(root, "exists-before-cleanup");
   const order = [];
+  const deadlines = createControlledDeadlines();
   await writeFile(marker, "fixture", "utf8");
+  const cleanup = cleanupSyntheticFixture({
+    boundaries: [{ stop() { order.push("boundary"); throw new Error("boundary failed"); } }],
+    createDeadline: deadlines.create,
+    executions: [{ stop() { order.push("child"); return new Promise(() => {}); } }],
+    roots: [root],
+  });
+  assert.deepEqual(order, ["child", "boundary"]);
+  deadlines.expire("CLI child cleanup 1");
   await assert.rejects(
-    cleanupSyntheticFixture({
-      executions: [{ stop() { order.push("child"); throw new Error("child failed"); } }],
-      boundaries: [{ stop() { order.push("boundary"); throw new Error("boundary failed"); } }],
-      roots: [root],
-    }),
+    cleanup,
     (error) => {
       assert.equal(error instanceof AggregateError, true);
       assert.equal(error.errors.length, 2);
+      assert.match(errorEvidence(error), /cleanup deadline/u);
+      assert.match(errorEvidence(error), /boundary failed/u);
       return true;
     },
   );
-  assert.deepEqual(order, ["child", "boundary"]);
   await assert.rejects(readFile(marker, "utf8"), (error) => error?.code === "ENOENT");
 });
 
-test("bounded CLI watchdog rejects at its deadline before cleanup settles", async () => {
+test("bounded CLI stop settles when the child never publishes stream close", async () => {
+  const deadlines = createControlledDeadlines();
+  const execution = startBoundedCli("unused.cjs", [], {
+    createDeadline: deadlines.create,
+    spawnChild: createNeverClosingChild,
+  });
+  const stopping = execution.stop();
+  await deadlines.waitFor("Retained CLI close after SIGTERM");
+  deadlines.expire("Retained CLI close after SIGTERM");
+  await deadlines.waitFor("Retained CLI close after SIGKILL");
+  deadlines.expire("Retained CLI close after SIGKILL");
+  await deadlines.waitFor("Retained CLI final close");
+  deadlines.expire("Retained CLI final close");
+  await assert.rejects(stopping, (error) => {
+    assert.match(errorEvidence(error), /did not close after forced shutdown/u);
+    assert.match(errorEvidence(error), /final close exceeded/u);
+    return true;
+  });
+});
+
+test("bounded CLI watchdog starts containment before rejection and bounds cleanup", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-watchdog-"));
   const fixture = join(root, "retained.cjs");
+  const deadlines = createControlledDeadlines();
   let execution;
   try {
     await writeFile(fixture, "setInterval(() => {}, 60000);\n", "utf8");
-    const cleanupFailure = new Error("delayed boundary cleanup failure");
     let cleanupStarted = false;
     execution = startBoundedCli(fixture, [], {
+      cleanupDeadlineMs: 1,
+      createDeadline: deadlines.create,
       fixtureBoundary: {
-        async stop() {
+        stop() {
           cleanupStarted = true;
-          await delay(100);
-          throw cleanupFailure;
+          return new Promise(() => {});
         },
       },
       watchdogMs: 25,
     });
-    const started = performance.now();
     let watchdogError;
     try {
       await execution.result;
@@ -320,12 +403,13 @@ test("bounded CLI watchdog rejects at its deadline before cleanup settles", asyn
     } catch (error) {
       watchdogError = error;
     }
-    const rejectedAfterMs = performance.now() - started;
     assert.match(watchdogError.message, /watchdog expired after 25ms/u);
-    assert.equal(rejectedAfterMs < 100, true, `watchdog rejected after ${rejectedAfterMs}ms`);
-    assert.equal(cleanupStarted, false, "watchdog rejection must precede cleanup execution");
+    assert.equal(cleanupStarted, true, "containment must start before watchdog rejection is visible");
+    await deadlines.waitFor("Watchdog containment cleanup");
+    deadlines.expire("Watchdog containment cleanup");
     await watchdogError.cleanup;
-    assert.deepEqual(watchdogError.cleanupFailures, [cleanupFailure]);
+    assert.equal(watchdogError.cleanupFailures.length, 1);
+    assert.match(watchdogError.cleanupFailures[0].message, /cleanup deadline/u);
   } finally {
     await cleanupSyntheticFixture({ executions: [execution], roots: [root] });
   }
@@ -344,8 +428,11 @@ test("default child environments remove ambient QGR fixture authority", async ()
       env: {
         ...process.env,
         QGR_FIXTURE_HOST: "ambient-host",
+        QGR_FIXTURE_BOUNDARY_ID: "ambient-boundary",
+        QGR_FIXTURE_CREDENTIAL: "ambient-credential",
         QGR_FIXTURE_NONCE: "ambient-nonce",
         QGR_FIXTURE_PORT: "1",
+        QGR_FIXTURE_ROLE: "ambient-role",
         QGR_FIXTURE_UNRECOGNIZED: "ambient-extra",
         qgr_fixture_case_variant: "ambient-case-variant",
         UNRELATED_FIXTURE_VALUE: "preserved",
@@ -368,11 +455,31 @@ test("synthetic boundary rejects unauthenticated abuse and invalid role consumpt
     },
     {
       expected: /contained trailing data/u,
-      payload: (boundary) => `${JSON.stringify({ nonce: boundary.nonce, role: "owned" })}\nextra`,
+      payload: (boundary) => {
+        const environment = boundary.environmentFor("owned");
+        return `${JSON.stringify({
+          boundaryId: environment.QGR_FIXTURE_BOUNDARY_ID,
+          credential: environment.QGR_FIXTURE_CREDENTIAL,
+        })}\nextra`;
+      },
     },
     {
-      expected: /unexpected role intruder/u,
-      payload: (boundary) => `${JSON.stringify({ nonce: boundary.nonce, role: "intruder" })}\n`,
+      expected: /must not claim a client-selected role/u,
+      payload: (boundary) => {
+        const environment = boundary.environmentFor("owned");
+        return `${JSON.stringify({
+          boundaryId: environment.QGR_FIXTURE_BOUNDARY_ID,
+          credential: environment.QGR_FIXTURE_CREDENTIAL,
+          role: "intruder",
+        })}\n`;
+      },
+    },
+    {
+      expected: /invalid role credential/u,
+      payload: (boundary) => `${JSON.stringify({
+        boundaryId: boundary.evidenceId,
+        credential: "not-server-assigned",
+      })}\n`,
     },
   ];
   for (const candidate of cases) {
@@ -430,11 +537,14 @@ test("synthetic boundary rejects duplicate execution and force-destroys retained
   await firstClosed;
   const duplicate = await openRawFixtureSocket(duplicateBoundary);
   const duplicateClosed = onceSocket(duplicate, "close");
-  duplicate.write(`${JSON.stringify({ nonce: duplicateBoundary.nonce, role: "owned" })}\n`);
+  const duplicateEnvironment = duplicateBoundary.environmentFor("owned");
+  duplicate.write(`${JSON.stringify({
+    boundaryId: duplicateEnvironment.QGR_FIXTURE_BOUNDARY_ID,
+    credential: duplicateEnvironment.QGR_FIXTURE_CREDENTIAL,
+  })}\n`);
   await duplicateClosed;
   await assert.rejects(duplicateBoundary.stop(), (error) => {
-    assert.match(errorEvidence(error), /registered more than once/u);
-    assert.match(errorEvidence(error), /observed 2/u);
+    assert.match(errorEvidence(error), /reused a consumed role credential/u);
     return true;
   });
 
@@ -444,13 +554,11 @@ test("synthetic boundary rejects duplicate execution and force-destroys retained
   });
   const retained = await registerRawFixtureRole(retainedBoundary, "retained");
   const retainedClosed = onceSocket(retained, "close");
-  const started = performance.now();
   await assert.rejects(retainedBoundary.stop(), (error) => {
     assert.match(errorEvidence(error), /Timed out waiting/u);
     return true;
   });
   await retainedClosed;
-  assert.equal(performance.now() - started < 500, true);
 });
 
 test("resolves pnpm entrypoints from focused environment candidates", async () => {

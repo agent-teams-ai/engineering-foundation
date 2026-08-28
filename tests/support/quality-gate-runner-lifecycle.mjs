@@ -1,28 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { watch } from "node:fs";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
-import { spawn } from "node:child_process";
 
-const TEST_HARNESS_WATCHDOG_MS = 120_000;
+export {
+  cleanupSyntheticFixture,
+  removeFixtureRoot,
+  startBoundedCli,
+} from "./quality-gate-runner-cleanup.mjs";
+
 const TEST_HARNESS_READINESS_MS = 60_000;
 const TEST_HARNESS_POLL_MS = 25;
 const TEST_HARNESS_SHUTDOWN_GRACE_MS = process.platform === "win32" ? 15_000 : 5_000;
 const PRE_AUTHENTICATION_DWELL_MS = 2_000;
 const REGISTRATION_BYTE_LIMIT = 4_096;
 const FIXTURE_ROLE_PATTERN = /^[a-z][a-z0-9-]*$/u;
-const FIXTURE_ENVIRONMENT_PATTERN = /^QGR_FIXTURE_/iu;
 const NOOP = () => {};
 
 function missingFile(error) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-function normalizeError(error, message) {
-  return error instanceof Error ? error : new Error(message, { cause: error });
 }
 
 export function observeFixtureEffect({
@@ -241,6 +239,122 @@ function inactiveRoleFailures(declaredRoles, connections) {
     .map((role) => new Error(`Expected fixture role ${role} to be active concurrently.`));
 }
 
+function createFixtureConnectionHandler(context) {
+  return (socket) => {
+    if (context.isStopping()) {
+      context.recordFailure("Synthetic fixture boundary accepted a new socket after stopping began.");
+      socket.destroy();
+      return;
+    }
+    const state = {
+      authenticated: false,
+      boundaryDestroyed: false,
+      failureRecorded: false,
+      source: Buffer.alloc(0),
+      timer: undefined,
+    };
+    context.sockets.set(socket, state);
+    const rejectSocket = (message, cause) => {
+      if (!state.failureRecorded) {
+        state.failureRecorded = true;
+        context.recordFailure(message, cause);
+      }
+      socket.destroy();
+    };
+    socket.on("error", (error) => {
+      if (!state.authenticated && !state.boundaryDestroyed) {
+        rejectSocket("Synthetic fixture boundary socket failed.", error);
+      }
+    });
+    state.timer = setTimeout(() => {
+      if (!state.authenticated && !socket.destroyed) {
+        rejectSocket(
+          `Synthetic fixture registration exceeded ${context.preAuthenticationDwellMs}ms.`,
+        );
+      }
+    }, context.preAuthenticationDwellMs);
+    state.timer.unref?.();
+    socket.on("data", (chunk) => {
+      if (state.authenticated) {
+        if (chunk.length > 0) {
+          rejectSocket("Authenticated fixture socket sent unexpected data.");
+        }
+        return;
+      }
+      if (state.source.length + chunk.length > context.maximumRegistrationBytes) {
+        rejectSocket(
+          `Synthetic fixture registration exceeded ${context.maximumRegistrationBytes} bytes.`,
+        );
+        return;
+      }
+      state.source = Buffer.concat([state.source, chunk]);
+      const newline = state.source.indexOf(0x0a);
+      if (newline === -1) {
+        return;
+      }
+      if (newline !== state.source.length - 1) {
+        rejectSocket("Synthetic fixture registration contained trailing data.");
+        return;
+      }
+      let registration;
+      try {
+        registration = JSON.parse(state.source.subarray(0, newline).toString("utf8"));
+      } catch (error) {
+        rejectSocket("Synthetic fixture registration was not valid JSON.", error);
+        return;
+      }
+      if (registration?.role !== undefined) {
+        rejectSocket("Synthetic fixture registration must not claim a client-selected role.");
+        return;
+      }
+      if (registration?.boundaryId !== context.boundaryId) {
+        rejectSocket("Synthetic fixture registration used an invalid boundary ID.");
+        return;
+      }
+      const credential = registration?.credential;
+      if (typeof credential !== "string") {
+        rejectSocket("Synthetic fixture registration omitted its assigned role credential.");
+        return;
+      }
+      if (context.consumedCredentials.has(credential)) {
+        rejectSocket("Synthetic fixture registration reused a consumed role credential.");
+        return;
+      }
+      const role = context.credentialRoles.get(credential);
+      if (role === undefined) {
+        rejectSocket("Synthetic fixture registration used an invalid role credential.");
+        return;
+      }
+      context.consumedCredentials.add(credential);
+      context.credentialRoles.delete(credential);
+      context.registrationCounts.set(role, (context.registrationCounts.get(role) ?? 0) + 1);
+      state.authenticated = true;
+      clearTimeout(state.timer);
+      const record = { closed: false, socket };
+      context.connections.set(role, record);
+      socket.once("close", () => {
+        record.closed = true;
+        context.changed.notify();
+      });
+      context.changed.notify();
+      socket.write(`${JSON.stringify({
+        boundaryId: context.boundaryId,
+        command: "registered",
+        role,
+      })}\n`);
+    });
+    socket.once("close", () => {
+      clearTimeout(state.timer);
+      context.sockets.delete(socket);
+      if (!state.authenticated && !state.boundaryDestroyed && !state.failureRecorded) {
+        state.failureRecorded = true;
+        context.recordFailure("Synthetic fixture socket closed before authentication.");
+      }
+      context.changed.notify();
+    });
+  };
+}
+
 export async function createSyntheticFixtureBoundary({
   expectedRoles,
   maximumRegistrationBytes = REGISTRATION_BYTE_LIMIT,
@@ -248,7 +362,14 @@ export async function createSyntheticFixtureBoundary({
   shutdownGraceMs = TEST_HARNESS_SHUTDOWN_GRACE_MS,
 } = {}) {
   const declaredRoles = validateExpectedRoles(expectedRoles);
-  const nonce = randomUUID();
+  const boundaryId = randomUUID();
+  const roleCredentials = new Map(
+    [...declaredRoles].map((role) => [role, randomUUID()]),
+  );
+  const credentialRoles = new Map(
+    [...roleCredentials].map(([role, credential]) => [credential, role]),
+  );
+  const consumedCredentials = new Set();
   const changed = createGenerationAwareChangeSignal();
   const connections = new Map();
   const failures = [];
@@ -272,106 +393,19 @@ export async function createSyntheticFixtureBoundary({
       throw new AggregateError([...failures], "Synthetic fixture boundary rejected invalid traffic.");
     }
   };
-  const server = createServer((socket) => {
-    if (stopping) {
-      recordFailure("Synthetic fixture boundary accepted a new socket after stopping began.");
-      socket.destroy();
-      return;
-    }
-    const state = {
-      authenticated: false,
-      boundaryDestroyed: false,
-      failureRecorded: false,
-      source: Buffer.alloc(0),
-      timer: undefined,
-    };
-    sockets.set(socket, state);
-    const rejectSocket = (message, cause) => {
-      if (!state.failureRecorded) {
-        state.failureRecorded = true;
-        recordFailure(message, cause);
-      }
-      socket.destroy();
-    };
-    socket.on("error", (error) => {
-      if (!state.boundaryDestroyed) {
-        rejectSocket("Synthetic fixture boundary socket failed.", error);
-      }
-    });
-    state.timer = setTimeout(() => {
-      if (!state.authenticated && !socket.destroyed) {
-        rejectSocket(
-          `Synthetic fixture registration exceeded ${preAuthenticationDwellMs}ms.`,
-        );
-      }
-    }, preAuthenticationDwellMs);
-    state.timer.unref?.();
-    socket.on("data", (chunk) => {
-      if (state.authenticated) {
-        if (chunk.length > 0) {
-          rejectSocket("Authenticated fixture socket sent unexpected data.");
-        }
-        return;
-      }
-      if (state.source.length + chunk.length > maximumRegistrationBytes) {
-        rejectSocket(`Synthetic fixture registration exceeded ${maximumRegistrationBytes} bytes.`);
-        return;
-      }
-      state.source = Buffer.concat([state.source, chunk]);
-      const newline = state.source.indexOf(0x0a);
-      if (newline === -1) {
-        return;
-      }
-      if (newline !== state.source.length - 1) {
-        rejectSocket("Synthetic fixture registration contained trailing data.");
-        return;
-      }
-      let registration;
-      try {
-        registration = JSON.parse(state.source.subarray(0, newline).toString("utf8"));
-      } catch (error) {
-        rejectSocket("Synthetic fixture registration was not valid JSON.", error);
-        return;
-      }
-      const role = registration?.role;
-      if (registration?.nonce !== nonce) {
-        rejectSocket("Synthetic fixture registration used an invalid nonce.");
-        return;
-      }
-      if (typeof role !== "string" || !FIXTURE_ROLE_PATTERN.test(role)) {
-        rejectSocket("Synthetic fixture registration used an invalid role.");
-        return;
-      }
-      registrationCounts.set(role, (registrationCounts.get(role) ?? 0) + 1);
-      if (!declaredRoles.has(role)) {
-        rejectSocket(`Synthetic fixture registration used unexpected role ${role}.`);
-        return;
-      }
-      if (connections.has(role)) {
-        rejectSocket(`Synthetic fixture role ${role} registered more than once.`);
-        return;
-      }
-      state.authenticated = true;
-      clearTimeout(state.timer);
-      const record = { closed: false, socket };
-      connections.set(role, record);
-      socket.once("close", () => {
-        record.closed = true;
-        changed.notify();
-      });
-      changed.notify();
-      socket.write(`${JSON.stringify({ command: "registered", nonce, role })}\n`);
-    });
-    socket.once("close", () => {
-      clearTimeout(state.timer);
-      sockets.delete(socket);
-      if (!state.authenticated && !state.boundaryDestroyed && !state.failureRecorded) {
-        state.failureRecorded = true;
-        recordFailure("Synthetic fixture socket closed before authentication.");
-      }
-      changed.notify();
-    });
-  });
+  const server = createServer(createFixtureConnectionHandler({
+    boundaryId,
+    changed,
+    connections,
+    consumedCredentials,
+    credentialRoles,
+    isStopping: () => stopping,
+    maximumRegistrationBytes,
+    preAuthenticationDwellMs,
+    recordFailure,
+    registrationCounts,
+    sockets,
+  }));
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();
@@ -382,13 +416,23 @@ export async function createSyntheticFixtureBoundary({
 
   let stopPromise;
   const environment = Object.freeze({
+    QGR_FIXTURE_BOUNDARY_ID: boundaryId,
     QGR_FIXTURE_HOST: "127.0.0.1",
-    QGR_FIXTURE_NONCE: nonce,
     QGR_FIXTURE_PORT: String(address.port),
   });
   return {
     environment,
-    nonce,
+    evidenceId: boundaryId,
+    environmentFor(role) {
+      if (!declaredRoles.has(role)) {
+        throw new TypeError(`Cannot issue authority for undeclared fixture role ${String(role)}.`);
+      }
+      return Object.freeze({
+        ...environment,
+        QGR_FIXTURE_CREDENTIAL: roleCredentials.get(role),
+        QGR_FIXTURE_ROLE: role,
+      });
+    },
     async assertActive() {
       assertHealthy();
       const issues = [
@@ -418,6 +462,17 @@ export async function createSyntheticFixtureBoundary({
       );
       await this.assertExactConsumption();
     },
+    async release(role) {
+      assertHealthy();
+      if (!declaredRoles.has(role)) {
+        throw new TypeError(`Cannot release undeclared fixture role ${String(role)}.`);
+      }
+      const record = connections.get(role);
+      if (record === undefined || record.closed) {
+        throw new Error(`Cannot release inactive fixture role ${role}.`);
+      }
+      record.socket.write(`${JSON.stringify({ boundaryId, command: "release", role })}\n`);
+    },
     async stop() {
       stopPromise ??= (async () => {
         stopping = true;
@@ -435,7 +490,7 @@ export async function createSyntheticFixtureBoundary({
             socket.destroy();
           }
         }
-        const stop = `${JSON.stringify({ command: "stop", nonce })}\n`;
+        const stop = `${JSON.stringify({ boundaryId, command: "stop" })}\n`;
         for (const { closed, socket } of connections.values()) {
           if (!closed) {
             socket.write(stop);
@@ -490,174 +545,26 @@ export async function createSyntheticFixtureBoundary({
   };
 }
 
-function waitForChildClose(command, timeoutMs) {
-  if (command.exitCode !== null || command.signalCode !== null) {
-    return Promise.resolve(true);
-  }
-  return Promise.race([
-    once(command, "close").then(() => true),
-    delay(timeoutMs, false),
-  ]);
-}
-
-async function terminateRetainedChild(command, shutdownGraceMs) {
-  if (command.exitCode !== null || command.signalCode !== null) {
-    return;
-  }
-  command.kill("SIGTERM");
-  if (await waitForChildClose(command, shutdownGraceMs)) {
-    return;
-  }
-  if (command.exitCode === null && command.signalCode === null) {
-    command.kill("SIGKILL");
-  }
-  if (!await waitForChildClose(command, shutdownGraceMs)) {
-    throw new Error("Retained CLI fixture did not close after forced shutdown.");
-  }
-}
-
-function sanitizedChildEnvironment(source, fixtureBoundary) {
-  const environment = {};
-  for (const [key, value] of Object.entries(source)) {
-    if (!FIXTURE_ENVIRONMENT_PATTERN.test(key) && value !== undefined) {
-      environment[key] = value;
-    }
-  }
-  if (fixtureBoundary?.environment !== undefined) {
-    Object.assign(environment, fixtureBoundary.environment);
-  }
-  return environment;
-}
-
-export function startBoundedCli(cliPath, arguments_, options = {}) {
-  const shutdownGraceMs = options.shutdownGraceMs ?? TEST_HARNESS_SHUTDOWN_GRACE_MS;
-  const watchdogMs = options.watchdogMs ?? TEST_HARNESS_WATCHDOG_MS;
-  const command = spawn(process.execPath, [cliPath, ...arguments_], {
-    ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
-    env: sanitizedChildEnvironment(options.env ?? process.env, options.fixtureBoundary),
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  let stderr = "";
-  let stdout = "";
-  command.stderr.setEncoding("utf8");
-  command.stdout.setEncoding("utf8");
-  command.stderr.on("data", (chunk) => { stderr += chunk; });
-  command.stdout.on("data", (chunk) => { stdout += chunk; });
-
-  const completed = new Promise((resolve, reject) => {
-    command.once("error", reject);
-    command.once("close", (status, signal) => {
-      resolve({ signal, status, stderr, stdout });
-    });
-  });
-  let stopPromise;
-  const stop = () => {
-    stopPromise ??= (async () => {
-      const failures = [];
-      try {
-        try {
-          await terminateRetainedChild(command, shutdownGraceMs);
-        } catch (error) {
-          failures.push(error);
-        }
-      } finally {
-        try {
-          await completed;
-        } catch (error) {
-          failures.push(error);
-        }
-      }
-      if (failures.length > 0) {
-        throw new AggregateError(failures, "Synthetic CLI child cleanup failed.");
-      }
-    })();
-    return stopPromise;
-  };
-
-  let watchdogExpired = false;
-  let rejectWatchdog;
-  const watchdogFailure = new Promise((_resolve, reject) => { rejectWatchdog = reject; });
-  const watchdog = setTimeout(() => {
-    watchdogExpired = true;
-    const cleanupFailures = [];
-    let settleCleanup;
-    const cleanup = new Promise((resolve) => {
-      settleCleanup = resolve;
-    });
-    const error = new Error(
-      `Test-harness watchdog expired after ${watchdogMs}ms; ` +
-      "QGR task timeout semantics were not changed.",
-    );
-    Object.defineProperties(error, {
-      cleanup: { enumerable: false, value: cleanup },
-      cleanupFailures: { enumerable: true, value: cleanupFailures },
-    });
-    rejectWatchdog(error);
-    setImmediate(() => {
-      void Promise.allSettled([
-        Promise.resolve().then(() => stop()),
-        Promise.resolve().then(() => options.fixtureBoundary?.stop()),
-      ]).then((outcomes) => {
-        for (const outcome of outcomes) {
-          if (outcome.status === "rejected") {
-            cleanupFailures.push(normalizeError(outcome.reason, "Watchdog cleanup failed."));
-          }
-        }
-        settleCleanup(cleanupFailures);
-        return cleanupFailures;
-      });
-    });
-  }, watchdogMs);
-  const result = Promise.race([
-    completed.then((value) => watchdogExpired ? watchdogFailure : value),
-    watchdogFailure,
-  ]).finally(() => { clearTimeout(watchdog); });
-  return { command, result, stop };
-}
-
-export async function removeFixtureRoot(root) {
-  await rm(root, {
-    force: true,
-    maxRetries: process.platform === "win32" ? 50 : 0,
-    recursive: true,
-    retryDelay: 100,
-  });
-}
-
-export async function cleanupSyntheticFixture({
-  boundaries = [],
-  executions = [],
-  remove = removeFixtureRoot,
-  roots = [],
-}) {
-  const failures = [];
-  const runStage = async (label, actions) => {
-    const outcomes = await Promise.allSettled(
-      actions.map((action) => Promise.resolve().then(action)),
-    );
-    for (const [index, outcome] of outcomes.entries()) {
-      if (outcome.status === "rejected") {
-        failures.push(new Error(`${label} ${index + 1} failed.`, { cause: outcome.reason }));
-      }
-    }
-  };
-  await runStage("CLI child cleanup", executions.map((execution) => () => execution?.stop()));
-  await runStage("Fixture boundary cleanup", boundaries.map((boundary) => () => boundary?.stop()));
-  await runStage("Fixture root cleanup", roots.map((root) => () => remove(root)));
-  if (failures.length > 0) {
-    throw new AggregateError(failures, "Synthetic QGR fixture cleanup failed.");
-  }
-}
-
 export async function writeFixtureBoundaryClient(root) {
   await writeFile(join(root, "fixture-boundary-client.cjs"), `const { once } = require("node:events");
 const { createConnection } = require("node:net");
 
-exports.connect = async function connect(role, onStop = async () => {}) {
+exports.connect = async function connect(
+  onStop = async () => {},
+  onRelease = async () => {},
+) {
+  const boundaryId = process.env.QGR_FIXTURE_BOUNDARY_ID;
+  const credential = process.env.QGR_FIXTURE_CREDENTIAL;
   const host = process.env.QGR_FIXTURE_HOST;
-  const nonce = process.env.QGR_FIXTURE_NONCE;
   const port = Number.parseInt(process.env.QGR_FIXTURE_PORT ?? "", 10);
-  if (host === undefined || nonce === undefined || !Number.isSafeInteger(port)) {
+  const role = process.env.QGR_FIXTURE_ROLE;
+  if (
+    boundaryId === undefined ||
+    credential === undefined ||
+    host === undefined ||
+    role === undefined ||
+    !Number.isSafeInteger(port)
+  ) {
     return undefined;
   }
   const socket = createConnection({ host, port });
@@ -666,8 +573,9 @@ exports.connect = async function connect(role, onStop = async () => {}) {
     once(socket, "connect"),
     once(socket, "error").then(([error]) => { throw error; }),
   ]);
-  socket.write(JSON.stringify({ nonce, role }) + "\\n");
+  socket.write(JSON.stringify({ boundaryId, credential }) + "\\n");
   let authenticated = false;
+  let released = false;
   let source = "";
   let stopping = false;
   let rejectRegistration;
@@ -695,6 +603,11 @@ exports.connect = async function connect(role, onStop = async () => {}) {
       process.exit(0);
     }
   };
+  const release = async () => {
+    if (released) return;
+    released = true;
+    await onRelease();
+  };
   socket.on("data", (chunk) => {
     source += chunk;
     for (;;) {
@@ -710,7 +623,7 @@ exports.connect = async function connect(role, onStop = async () => {}) {
       source = source.slice(newline + 1);
       if (!authenticated) {
         if (
-          message.nonce !== nonce ||
+          message.boundaryId !== boundaryId ||
           message.command !== "registered" ||
           message.role !== role
         ) {
@@ -719,8 +632,14 @@ exports.connect = async function connect(role, onStop = async () => {}) {
         }
         authenticated = true;
         resolveRegistration();
-      } else if (message.nonce === nonce && message.command === "stop") {
+      } else if (message.boundaryId === boundaryId && message.command === "stop") {
         void stop();
+      } else if (
+        message.boundaryId === boundaryId &&
+        message.command === "release" &&
+        message.role === role
+      ) {
+        void release().catch(fail);
       } else {
         fail(new Error("Fixture boundary returned an unexpected authenticated message."));
         return;

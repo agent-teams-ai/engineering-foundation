@@ -56,7 +56,7 @@
     "test:coverage:evidence:built": "node scripts/merge-test-coverage-evidence.mjs",
     "test:manifests:check": "node scripts/check-test-manifests.mjs",
     "test:performance:built": "node scripts/run-performance-benchmarks.mjs",
-    "test:qgr:lifecycle:built": "node --test --test-concurrency=1 tests/quality-gate-runner.test.mjs tests/quality-gate-runner-lifecycle.test.mjs",
+    "test:qgr:lifecycle:built": "node --test --test-concurrency=1 tests/quality-gate-runner.test.mjs tests/quality-gate-runner-lifecycle.test.mjs tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs",
     "test:shard:built": "node scripts/run-test-shard.mjs",
     "typecheck": "tsc --build tsconfig.json --pretty false"
   },

@@ -116,7 +116,8 @@
         "tests/scaffolding-recovery-scope.test.mjs",
         "tests/security-toolchain-bootstrap.test.mjs",
         "tests/strict-json.test.mjs",
-        "tests/tooling.test.mjs"
+        "tests/tooling.test.mjs",
+        "tests/windows-managed-process.test.mjs"
       ]
     },
     {

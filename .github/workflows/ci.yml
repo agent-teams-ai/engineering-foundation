@@ -342,6 +342,18 @@ jobs:
         with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
+      - name: Compile Windows managed-process helpers
+        shell: powershell
+        run: |
+          $tokens = $null
+          $syntaxErrors = $null
+          $scriptPath = Resolve-Path "packages/engineering-foundation/assets/windows-managed-process/bootstrap.ps1"
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            $scriptPath, [ref]$tokens, [ref]$syntaxErrors)
+          if ($syntaxErrors.Count -ne 0) {
+            throw ($syntaxErrors | Out-String)
+          }
+          Add-Type -Path "packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs"
       - run: pnpm check:fast
       - run: pnpm parser-spike:check
 

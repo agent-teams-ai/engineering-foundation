@@ -253,7 +253,7 @@
     "schemas/workspace-dependency-declarations/v1.schema.json"
   ],
   "packedE2e": {
-    "packageCheckBuilt": "node scripts/prepare-package.mjs && publint packages/engineering-foundation && attw --pack --profile esm-only packages/engineering-foundation && node scripts/pack-test.mjs",
+    "packageCheckBuilt": "node scripts/prepare-package.mjs && publint packages/engineering-foundation && publint packages/docs-protocol && publint packages/docs-protocol-mcp && attw --pack --profile esm-only packages/engineering-foundation && attw --pack --profile esm-only packages/docs-protocol && attw --pack --profile esm-only packages/docs-protocol-mcp && node scripts/pack-test.mjs",
     "registryInstallBuilt": "node scripts/registry-install-e2e.mjs"
   }
 }

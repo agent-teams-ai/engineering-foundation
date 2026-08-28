@@ -67,6 +67,35 @@ export interface DocsProtocolProfileV2 {
   readonly semanticValidatorIds: readonly string[];
 }
 
+export interface DocsProtocolProfileV3 {
+  readonly schemaVersion: 3;
+  readonly protocol: {
+    readonly id: typeof DOCS_PROTOCOL_ID;
+    readonly version: typeof DOCS_PROTOCOL_VERSION;
+  };
+  readonly foundationProfile: {
+    readonly metadataSidecarPolicy: "foundation-profile-v3-strict-merge";
+    readonly path: string;
+    readonly schemaVersion: 3;
+  };
+  readonly agentWorkflow: {
+    readonly adoption: "portable-v1";
+    readonly skillPath: string;
+  };
+  readonly semanticValidatorIds: readonly string[];
+}
+
+export type NormalizedDocsProtocolProfile =
+  | (import("./model.js").DocsProtocolProfile & {
+      readonly adoptionPolicy: "agent-teams-managed-v1";
+    })
+  | (DocsProtocolProfileV2 & {
+      readonly adoptionPolicy: "agent-teams-managed-v1";
+    })
+  | (DocsProtocolProfileV3 & {
+      readonly adoptionPolicy: "portable-v1";
+    });
+
 export interface DocsCompiledDocumentV1 {
   readonly schemaVersion: 1;
   readonly document: {
@@ -133,5 +162,5 @@ export interface FoundationDocsPortV2 {
 }
 
 export interface DocsProfileReaderV2 {
-  read(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }): Promise<import("./model.js").DocsProtocolProfile | DocsProtocolProfileV2>;
+  read(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }): Promise<NormalizedDocsProtocolProfile>;
 }

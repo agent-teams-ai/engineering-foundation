@@ -12,6 +12,7 @@ import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const foundationName = "@agent-teams/engineering-foundation";
 const docsProtocolName = "@agent-teams/docs-protocol";
+const docsProtocolMcpName = "@agent-teams/docs-protocol-mcp";
 const dependencySections = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
 const exactVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 
@@ -73,10 +74,11 @@ function reverseDependencyReferences(foundation, workspace = {}) {
 test("publishable package catalog and manifests preserve one-way layering", async () => {
   assert.deepEqual(
     PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
-    [foundationName, docsProtocolName],
+    [foundationName, docsProtocolName, docsProtocolMcpName],
   );
   const foundation = await json("packages/engineering-foundation/package.json");
   const docsProtocol = await json("packages/docs-protocol/package.json");
+  const docsProtocolMcp = await json("packages/docs-protocol-mcp/package.json");
   const workspace = await json("package.json");
   assert.equal(docsProtocol.private, undefined);
   assert.deepEqual(docsProtocol.publishConfig, {
@@ -91,6 +93,20 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
   );
   assert.deepEqual(reverseDependencyReferences(foundation, workspace), []);
   assert.equal(docsProtocol.dependencies?.[foundationName], "workspace:*");
+  assert.equal(docsProtocol.dependencies?.[docsProtocolMcpName], undefined);
+  assert.equal(docsProtocolMcp.dependencies?.[docsProtocolName], "workspace:*");
+  assert.equal(docsProtocolMcp.dependencies?.[foundationName], undefined);
+  assert.match(
+    docsProtocolMcp.version,
+    exactVersion,
+    "Docs Protocol MCP must retain an exact semver version after its initial Changesets release",
+  );
+  assert.equal(docsProtocolMcp.private, undefined);
+  assert.deepEqual(docsProtocolMcp.publishConfig, {
+    access: "public",
+    provenance: true,
+    registry: "https://registry.npmjs.org/",
+  });
   assert.match(foundation.version, exactVersion);
   for (const section of dependencySections) {
     assert.equal(
@@ -104,6 +120,13 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     docsProtocol.dependencies[foundationName] === "workspace:*" ? foundation.version : docsProtocol.dependencies[foundationName],
     foundation.version,
     "Docs Protocol must pack its one-way Foundation dependency to the exact Foundation version",
+  );
+  assert.equal(
+    docsProtocolMcp.dependencies[docsProtocolName] === "workspace:*"
+      ? docsProtocol.version
+      : docsProtocolMcp.dependencies[docsProtocolName],
+    docsProtocol.version,
+    "Docs Protocol MCP must pack its one-way Docs Protocol dependency to the exact version",
   );
   const packageDirectories = await readdir(join(repositoryRoot, "packages"), {
     withFileTypes: true,
@@ -211,6 +234,8 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       "docs-protocol.adapters",
       "docs-protocol.application",
       "docs-protocol.composition",
+      "docs-protocol.community.bootstrap",
+      "docs-protocol.community.context",
       "docs-protocol.domain",
       "docs-protocol.qualification",
     ].includes(id))
@@ -231,12 +256,13 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
         "packages/docs-protocol/src/domain/document-semantics.ts",
         "packages/docs-protocol/src/domain/model.ts",
         "packages/docs-protocol/src/domain/model-v2.ts",
+        "packages/docs-protocol/src/domain/model-v3.ts",
         "packages/docs-protocol/src/domain/profile-policy.ts",
       ],
     },
     "docs-protocol.application": {
       roots: ["packages/docs-protocol/src/application"],
-      boundaries: ["docs-protocol.domain"],
+      boundaries: ["docs-protocol.community.context", "docs-protocol.domain"],
       packages: [foundationName, "yaml"],
       builtins: [],
       entrypoints: ["packages/docs-protocol/src/application/docs-protocol.ts"],
@@ -252,6 +278,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
         "packages/docs-protocol/src/adapters/node-adoption-inspector.ts",
         "packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts",
         "packages/docs-protocol/src/adapters/node-profile-reader.ts",
+        "packages/docs-protocol/src/adapters/node-profile-discovery.ts",
       ],
     },
     "docs-protocol.composition": {
@@ -263,6 +290,8 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       boundaries: [
         "docs-protocol.adapters",
         "docs-protocol.application",
+        "docs-protocol.community.bootstrap",
+        "docs-protocol.community.context",
         "docs-protocol.consumer-integration.composition",
         "docs-protocol.domain",
         "docs-protocol.qualification",
@@ -273,6 +302,20 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
         "packages/docs-protocol/src/index.ts",
         "packages/docs-protocol/src/cli.ts",
       ],
+    },
+    "docs-protocol.community.context": {
+      roots: ["packages/docs-protocol/src/community/context"],
+      boundaries: ["docs-protocol.domain"],
+      packages: ["minisearch"],
+      builtins: [],
+      entrypoints: ["packages/docs-protocol/src/community/context/index.ts"],
+    },
+    "docs-protocol.community.bootstrap": {
+      roots: ["packages/docs-protocol/src/community/bootstrap"],
+      boundaries: ["docs-protocol.domain"],
+      packages: [foundationName],
+      builtins: ["node:crypto", "node:fs", "node:fs/promises", "node:path"],
+      entrypoints: ["packages/docs-protocol/src/community/bootstrap/index.ts"],
     },
     "docs-protocol.qualification": {
       roots: ["packages/docs-protocol/src/qualification"],
@@ -297,6 +340,39 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       entrypoints: ["packages/docs-protocol/src/qualification/index.ts"],
     },
   });
+});
+
+test("Docs Protocol MCP retains one governed read-only package boundary", async () => {
+  const policy = parseYaml(await readFile(join(
+    repositoryRoot,
+    "architecture/foundation/source-dependencies.yaml",
+  ), "utf8"));
+  const boundary = policy.boundaries.find(({ id }) => id === "docs-protocol-mcp.surface");
+  assert.deepEqual(boundary, {
+    id: "docs-protocol-mcp.surface",
+    roots: ["packages/docs-protocol-mcp/src"],
+    allow: {
+      boundaries: [],
+      packages: [docsProtocolName, "@modelcontextprotocol/server"],
+      builtins: ["node:fs/promises", "node:module", "node:path"],
+      runtimeReferences: [],
+    },
+    entrypoints: [
+      "packages/docs-protocol-mcp/src/index.ts",
+      "packages/docs-protocol-mcp/src/cli.ts",
+    ],
+  });
+  const sources = await sourceFiles(join(repositoryRoot, "packages/docs-protocol-mcp/src"));
+  const specifiers = (await Promise.all(sources.map((path) => readFile(path, "utf8"))))
+    .flatMap(importedSpecifiers);
+  assert.deepEqual(
+    [...new Set(specifiers.filter((specifier) => specifier.startsWith("node:")))].toSorted(),
+    boundary.allow.builtins.toSorted(),
+  );
+  assert.deepEqual(
+    [...new Set(specifiers.map(packageName).filter(Boolean))].toSorted(),
+    boundary.allow.packages.toSorted(),
+  );
 });
 
 test("Docs Protocol clean-layer policy rejects outward imports and permits composition wiring", async () => {

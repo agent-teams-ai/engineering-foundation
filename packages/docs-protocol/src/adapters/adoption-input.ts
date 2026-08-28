@@ -6,9 +6,6 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { parseDocument } from "yaml";
 
 const MAX_AUTHORITY_BYTES = 8 * 1024 * 1024;
-export const MAX_MANIFEST_BYTES = 1024 * 1024;
-export const MAX_ROUTING_BYTES = 64 * 1024;
-export const MAX_SKILL_BYTES = 16 * 1024;
 
 class AdoptionInputError extends Error {
   constructor(message: string) {
@@ -28,14 +25,23 @@ export async function readRealRegularText(path: string, maximumBytes: number): P
   try {
     const before = await handle.stat({ bigint: true });
     if (!before.isFile() || before.size > BigInt(maximumBytes)) {throw new AdoptionInputError(`Input must be a regular file of at most ${maximumBytes} bytes.`);}
-    const source = await handle.readFile("utf8");
+    const bytes = await handle.readFile();
     const [after, pathState, finalPath] = await Promise.all([
       handle.stat({ bigint: true }),
       lstat(absolute, { bigint: true }),
       realpath(absolute)
     ]);
-    if (!stable(before, after) || pathState.dev !== after.dev || pathState.ino !== after.ino || finalPath !== absolute || Buffer.byteLength(source, "utf8") !== Number(after.size)) {
+    if (!stable(before, after) || pathState.dev !== after.dev || pathState.ino !== after.ino || finalPath !== absolute || bytes.byteLength !== Number(after.size)) {
       throw new AdoptionInputError("Input path or contents changed while it was read.");
+    }
+    let source: string;
+    try {
+      source = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    } catch {
+      throw new AdoptionInputError("Input must be strict UTF-8 text.");
+    }
+    if (source.startsWith("\uFEFF") || source.includes("\u0000")) {
+      throw new AdoptionInputError("Input must not contain a UTF-8 BOM or NUL bytes.");
     }
     return source;
   } finally {

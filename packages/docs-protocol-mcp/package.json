@@ -1,0 +1,53 @@
+{
+  "name": "@agent-teams/docs-protocol-mcp",
+  "version": "0.0.0",
+  "description": "Open-source read-only MCP stdio adapter for documentation governed by the Agent Teams docs protocol in any repository.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "docs-protocol-mcp": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false",
+    "test": "pnpm build && node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=11.17.0 <12"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/docs-protocol-mcp"
+  },
+  "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
+  "bugs": {
+    "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
+  },
+  "dependencies": {
+    "@agent-teams/docs-protocol": "workspace:*",
+    "@modelcontextprotocol/server": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

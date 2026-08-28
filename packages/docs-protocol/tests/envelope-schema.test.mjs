@@ -17,15 +17,19 @@ const fixture = new URL("./fixtures/qualification", import.meta.url).pathname;
 const schema = JSON.parse(await readFile(new URL("../schemas/docs-protocol-command-envelope/v1.schema.json", import.meta.url), "utf8"));
 const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
 const schemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-command-envelope/v2.schema.json", import.meta.url), "utf8"));
+const schemaV3 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-command-envelope/v3.schema.json", import.meta.url), "utf8"));
 const qualificationReceiptSchemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"));
 const consumerIntegrationSchemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8"));
 const ajvV2 = new Ajv2020({ allErrors: true, strict: true });
 ajvV2.addSchema(consumerIntegrationSchemaV2);
 ajvV2.addSchema(qualificationReceiptSchemaV2);
 const validateV2 = ajvV2.compile(schemaV2);
+const validateV3 = ajvV2.compile(schemaV3);
 
 function assertValidEnvelope(value) {
-  const selected = value.schemaVersion === 2 ? validateV2 : validate;
+  const selected = value.schemaVersion === 3 ? validateV3
+    : value.schemaVersion === 2 ? validateV2
+      : validate;
   assert.equal(selected(value), true, JSON.stringify(selected.errors, null, 2));
 }
 
@@ -81,6 +85,9 @@ test("schema accepts emitted success and stable zero-match envelopes", async () 
   const envelope = JSON.parse(empty.stdout);
   assert.equal(envelope.result.matches, 0);
   assertValidEnvelope(envelope);
+
+  const context = await execute(process.execPath, [cli.pathname, "context", "--consumer", fixture, "--max-documents", "1", "--json"]);
+  assertValidEnvelope(JSON.parse(context.stdout));
 });
 
 test("qualify --json emits the v2 command envelope with an extractable closed receipt", async () => {
@@ -250,6 +257,13 @@ test("find envelope capacity matches the Foundation 10k catalog hard cap", () =>
   assert.equal(schema.$defs.findResult.properties.documents.maxItems, 10_000);
 });
 
+test("published v2 envelope stays closed while community commands use v3", () => {
+  assert.equal(schemaV2.properties.command.enum.includes("docs.context"), false);
+  assert.equal(schemaV2.properties.command.enum.includes("docs.init"), false);
+  assert.equal(schemaV3.properties.command.enum.includes("docs.context"), true);
+  assert.equal(schemaV3.properties.command.enum.includes("docs.init"), true);
+});
+
 test("v2 authority evidence capacity covers 32 types without becoming unbounded", async () => {
   const emitted = await execute(process.execPath, [cli.pathname, "info", "--consumer", fixture, "--json"]);
   const envelope = JSON.parse(emitted.stdout);
@@ -303,6 +317,186 @@ test("schema closes new and recover outcomes and excludes retired directory roll
     { ...base, command: "docs.new", outcome: "recovery-required", result: { kind: "new", reservation: "none", writeState: "published-recovery-required", documentPath: "docs/a.md", planDigest: `sha256:${"1".repeat(64)}`, receiptDigest: `sha256:${"2".repeat(64)}`, receiptOutcome: "recovery-required", receipt } }
   ]) {
     assert.equal(validate(envelope), false, JSON.stringify(envelope));
+  }
+});
+
+test("init envelope binds receipts and conflicts to their exact write states", () => {
+  const base = {
+    schemaVersion: 3,
+    protocol: { id: "agent-teams.docs-protocol", version: 1 },
+    command: "docs.init",
+    outcome: "success",
+    diagnostics: []
+  };
+  const plan = {
+    kind: "init",
+    operation: "plan",
+    writeState: "preview",
+    planDigest: `sha256:${"1".repeat(64)}`,
+    files: [{ ownership: "create-only", path: "docs.config.yaml", writeState: "create" }],
+    issues: []
+  };
+  const currentPlan = {
+    ...plan,
+    writeState: "current",
+    files: [{ ownership: "create-only", path: "docs.config.yaml", writeState: "current" }]
+  };
+  assertValidEnvelope({ ...base, result: plan });
+  assertValidEnvelope({
+    ...base,
+    outcome: "conflict",
+    result: {
+      ...plan,
+      writeState: "blocked",
+      files: [{ ownership: "managed-block", path: "AGENTS.md", writeState: "blocked" }],
+      issues: [{
+        code: "PORTABLE_BOOTSTRAP_AGENTS_TOO_LARGE",
+        message: "The managed AGENTS.md postimage exceeds the routing limit.",
+        path: "AGENTS.md"
+      }]
+    }
+  });
+  assertValidEnvelope({ ...base, result: currentPlan });
+  const wait = {
+    kind: "init",
+    operation: "wait",
+    writeState: "blocked",
+    reason: "operation-active",
+  };
+  assertValidEnvelope({ ...base, outcome: "conflict", result: wait });
+  assertValidEnvelope({
+    ...base,
+    result: {
+      ...plan,
+      writeState: "applied",
+      receiptDigest: `sha256:${"2".repeat(64)}`,
+      receiptOutcome: "applied"
+    }
+  });
+  assertValidEnvelope({
+    ...base,
+    result: {
+      ...currentPlan,
+      receiptDigest: `sha256:${"2".repeat(64)}`,
+      receiptOutcome: "already-satisfied"
+    }
+  });
+  for (const result of [
+    { ...plan, receiptDigest: `sha256:${"2".repeat(64)}`, receiptOutcome: "applied" },
+    { ...plan, writeState: "applied" },
+    { ...plan, writeState: "blocked", issues: [] },
+    { ...plan, writeState: "current" },
+    { ...currentPlan, receiptDigest: `sha256:${"2".repeat(64)}` },
+    { ...currentPlan, receiptDigest: `sha256:${"2".repeat(64)}`, receiptOutcome: "applied" },
+    { ...plan, writeState: "applied", receiptDigest: `sha256:${"2".repeat(64)}`, receiptOutcome: "rolled-back" },
+    { kind: "init", operation: "recover", writeState: "recovered" },
+    { kind: "init", operation: "recover", writeState: "unchanged", receiptDigest: `sha256:${"3".repeat(64)}`, receiptOutcome: "rolled-back" }
+  ]) {
+    assert.equal(validateV3({ ...base, result }), false, JSON.stringify(result));
+  }
+  assert.equal(validateV3({ ...base, outcome: "recovery-required", result: wait }), false);
+  assert.equal(validateV3({
+    ...base,
+    outcome: "conflict",
+    result: { kind: "init", operation: "recover", writeState: "blocked" },
+  }), false);
+});
+
+test("context envelope binds truncation to omitted documents", () => {
+  const base = {
+    schemaVersion: 3,
+    protocol: { id: "agent-teams.docs-protocol", version: 1 },
+    command: "docs.context",
+    outcome: "success",
+    diagnostics: [],
+    result: {
+      kind: "context",
+      format: "llms.txt",
+      projectId: "portable-e2e",
+      catalogSemanticDigest: `sha256:${"1".repeat(64)}`,
+      selection: { ranking: "binary-default", query: {} },
+      limits: { maxBytes: 262144, maxDocuments: 64 },
+      includedDocuments: 1,
+      omittedDocuments: 0,
+      truncated: false,
+      content: "# Context\n"
+    }
+  };
+  assertValidEnvelope(base);
+  assertValidEnvelope({
+    ...base,
+    result: { ...base.result, omittedDocuments: 1, truncated: true }
+  });
+  assertValidEnvelope({
+    ...base,
+    result: { ...base.result, selection: { ranking: "fuzzy-advisory", query: { text: "context" } } }
+  });
+  for (const result of [
+    { ...base.result, omittedDocuments: 1, truncated: false },
+    { ...base.result, omittedDocuments: 0, truncated: true },
+    { ...base.result, ranking: "binary-default" },
+    { ...base.result, selection: { ...base.result.selection, rawInput: {} } },
+    { ...base.result, selection: { ranking: "binary-default", query: { fuzzy: false } } },
+    { ...base.result, selection: { ranking: "fuzzy-advisory", query: {} } },
+    { ...base.result, selection: { ranking: "fuzzy-advisory", query: { text: "" } } },
+    { ...base.result, selection: { ranking: "fuzzy-advisory", query: { text: "unsafe\u0000query" } } },
+    { ...base.result, selection: { ranking: "fuzzy-advisory", query: { text: " untrimmed" } } },
+    { ...base.result, limits: { ...base.result.limits, extra: 1 } },
+    { ...base.result, limits: { maxBytes: 262144 } },
+    { ...base.result, limits: { maxBytes: 1023, maxDocuments: 64 } }
+  ]) {
+    assert.equal(validateV3({ ...base, result }), false, JSON.stringify(result));
+  }
+});
+
+test("v3 search envelopes withhold document content for fail-closed outcomes", () => {
+  const common = {
+    schemaVersion: 3,
+    protocol: { id: "agent-teams.docs-protocol", version: 1 },
+    diagnostics: []
+  };
+  const findViolation = {
+    ...common,
+    command: "docs.find",
+    outcome: "violation",
+    result: { kind: "find", matches: 0, documents: [] }
+  };
+  const document = {
+    id: "ADR-0001",
+    type: "adr",
+    status: "proposed",
+    owner: "architecture/tooling",
+    summary: "Withheld document",
+    title: "Withheld document",
+    repositoryPath: "docs/decisions/0001-withheld.md",
+    source: "markdown-tree",
+    metadata: {},
+    related: [],
+    blockedBy: []
+  };
+  const contextResult = {
+    kind: "context",
+    format: "llms.txt",
+    projectId: "portable-e2e",
+    catalogSemanticDigest: `sha256:${"1".repeat(64)}`,
+    selection: { ranking: "binary-default", query: {} },
+    limits: { maxBytes: 262144, maxDocuments: 64 },
+    includedDocuments: 0,
+    omittedDocuments: 1,
+    truncated: true,
+    content: ""
+  };
+  assertValidEnvelope(findViolation);
+  for (const outcome of ["violation", "authority-stale"]) {
+    assertValidEnvelope({ ...common, command: "docs.context", outcome, result: contextResult });
+  }
+  for (const envelope of [
+    { ...findViolation, result: { ...findViolation.result, matches: 1 } },
+    { ...findViolation, result: { ...findViolation.result, documents: [document] } },
+    { ...common, command: "docs.context", outcome: "violation", result: { ...contextResult, includedDocuments: 1 } },
+    { ...common, command: "docs.context", outcome: "authority-stale", result: { ...contextResult, content: "# Leaked context\n" } }
+  ]) {
+    assert.equal(validateV3(envelope), false, JSON.stringify(envelope));
   }
 });
 

@@ -28,6 +28,9 @@
     "packages/docs-protocol": {
       "project": ["src/**/*.ts"]
     },
+    "packages/docs-protocol-mcp": {
+      "project": ["src/**/*.ts"]
+    },
     "spikes/source-dependency-parser": {
       "project": ["*.mjs"]
     }

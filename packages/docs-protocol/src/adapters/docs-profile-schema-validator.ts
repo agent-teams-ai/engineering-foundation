@@ -7,7 +7,7 @@ import { DocsProfileError } from "../domain/profile-policy.js";
 
 const validatorPromises = new Map<number, Promise<ValidateFunction>>();
 
-async function validator(version: 1 | 2): Promise<ValidateFunction> {
+async function validator(version: 1 | 2 | 3): Promise<ValidateFunction> {
   const existing = validatorPromises.get(version);
   if (existing !== undefined) {return existing;}
   const loading = (async () => {
@@ -22,7 +22,10 @@ async function validator(version: 1 | 2): Promise<ValidateFunction> {
 }
 
 export async function assertDocsProtocolProfileSchema(value: unknown): Promise<void> {
-  const version = typeof value === "object" && value !== null && "schemaVersion" in value && (value as { schemaVersion?: unknown }).schemaVersion === 2 ? 2 : 1;
+  const declared = typeof value === "object" && value !== null && "schemaVersion" in value
+    ? (value as { schemaVersion?: unknown }).schemaVersion
+    : undefined;
+  const version = declared === 2 ? 2 : declared === 3 ? 3 : 1;
   const validate = await validator(version);
   if (validate(value)) {
     return;

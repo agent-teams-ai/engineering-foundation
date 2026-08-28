@@ -5,7 +5,36 @@ workspace:
 governedRoots:
   - packages/engineering-foundation/src
   - packages/docs-protocol/src
+  - packages/docs-protocol-mcp/src
 boundaries:
+  - id: docs-protocol.community.context
+    roots:
+      - packages/docs-protocol/src/community/context
+    allow:
+      boundaries:
+        - docs-protocol.domain
+      packages:
+        - minisearch
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/community/context/index.ts
+  - id: docs-protocol.community.bootstrap
+    roots:
+      - packages/docs-protocol/src/community/bootstrap
+    allow:
+      boundaries:
+        - docs-protocol.domain
+      packages:
+        - "@agent-teams/engineering-foundation"
+      builtins:
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/community/bootstrap/index.ts
   - id: docs-protocol.domain
     roots:
       - packages/docs-protocol/src/domain
@@ -20,12 +49,14 @@ boundaries:
       - packages/docs-protocol/src/domain/document-semantics.ts
       - packages/docs-protocol/src/domain/model.ts
       - packages/docs-protocol/src/domain/model-v2.ts
+      - packages/docs-protocol/src/domain/model-v3.ts
       - packages/docs-protocol/src/domain/profile-policy.ts
   - id: docs-protocol.application
     roots:
       - packages/docs-protocol/src/application
     allow:
       boundaries:
+        - docs-protocol.community.context
         - docs-protocol.domain
       packages:
         - "@agent-teams/engineering-foundation"
@@ -59,6 +90,7 @@ boundaries:
       - packages/docs-protocol/src/adapters/node-adoption-inspector.ts
       - packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts
       - packages/docs-protocol/src/adapters/node-profile-reader.ts
+      - packages/docs-protocol/src/adapters/node-profile-discovery.ts
   - id: docs-protocol.composition
     roots:
       - packages/docs-protocol/src/composition
@@ -68,6 +100,8 @@ boundaries:
       boundaries:
         - docs-protocol.adapters
         - docs-protocol.application
+        - docs-protocol.community.bootstrap
+        - docs-protocol.community.context
         - docs-protocol.consumer-integration.composition
         - docs-protocol.domain
         - docs-protocol.qualification
@@ -78,6 +112,22 @@ boundaries:
     entrypoints:
       - packages/docs-protocol/src/index.ts
       - packages/docs-protocol/src/cli.ts
+  - id: docs-protocol-mcp.surface
+    roots:
+      - packages/docs-protocol-mcp/src
+    allow:
+      boundaries: []
+      packages:
+        - "@agent-teams/docs-protocol"
+        - "@modelcontextprotocol/server"
+      builtins:
+        - node:fs/promises
+        - node:module
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-mcp/src/index.ts
+      - packages/docs-protocol-mcp/src/cli.ts
   - id: docs-protocol.qualification
     roots:
       - packages/docs-protocol/src/qualification

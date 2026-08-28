@@ -16,6 +16,7 @@ import type {
   DocsFindDocument,
 } from "../domain/model.js";
 import type { FoundationDocsDescriptionV2, FoundationDocsPortV2 } from "../domain/model-v2.js";
+import type { FoundationDocsPortV3 } from "../domain/model-v3.js";
 import { DocsProfileError } from "../domain/profile-policy.js";
 import { normalizeDocumentIds } from "../domain/document-semantics.js";
 
@@ -41,7 +42,7 @@ function signalOption(signal: AbortSignal | undefined): { readonly signal?: Abor
   return signal === undefined ? {} : { signal };
 }
 
-export class NodeFoundationDocsPort implements FoundationDocsPortV2 {
+export class NodeFoundationDocsPort implements FoundationDocsPortV3 {
   inspectEnvironment(input: Parameters<FoundationDocsPortV2["inspectEnvironment"]>[0]) {
     return inspectDocumentAuthoringEnvironmentV1({
       consumerRoot: input.consumerRoot,
@@ -91,6 +92,10 @@ export class NodeFoundationDocsPort implements FoundationDocsPortV2 {
   }
 
   async find(input: Parameters<FoundationDocsPortV2["find"]>[0]): Promise<readonly DocsFindDocument[]> {
+    return (await this.findWithEvidence(input)).documents;
+  }
+
+  async findWithEvidence(input: Parameters<FoundationDocsPortV2["find"]>[0]) {
     const base = await findDocumentationDocumentsV2({
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
@@ -105,7 +110,12 @@ export class NodeFoundationDocsPort implements FoundationDocsPortV2 {
       },
       ...signalOption(input.signal)
     });
-    return Object.freeze(base.documents.map((entry) => projected(entry, "blocked_by")));
+    return Object.freeze({
+      catalogSemanticDigest: base.catalogSemanticDigest,
+      catalogStatus: base.catalogStatus,
+      diagnostics: base.diagnostics,
+      documents: Object.freeze(base.documents.map((entry) => projected(entry, "blocked_by")))
+    });
   }
 
   inspect(consumerRoot: string) {

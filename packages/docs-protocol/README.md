@@ -1,12 +1,13 @@
 # `@agent-teams/docs-protocol`
 
-One deterministic documentation UX for Agent Teams repositories. This package
-is a thin application and CLI layer over the versioned mutation kernel exported
-by `@agent-teams/engineering-foundation`.
+A deterministic, repository-native documentation library and CLI for humans
+and coding agents. It keeps Markdown/YAML as authority, provides safe
+create-only authoring, advisory fuzzy search, bounded `llms.txt` context, and a
+portable setup that does not require an Agent Teams managed repository.
 
-The authoring protocol is independently versioned from its managed consumer
-integration. A consumer upgrade selects one externally qualified cohort with
-exact package, workflow, provenance, and asset identities.
+The package is a thin application layer over the versioned mutation kernel in
+`@agent-teams/engineering-foundation`. The optional read-only MCP transport is
+published separately as `@agent-teams/docs-protocol-mcp`.
 
 ## Boundary
 
@@ -22,7 +23,60 @@ references, environment interpolation, or executable consumer code. Semantic
 validator IDs are reported by `docs:info` and `docs:check`; this package never
 executes them.
 
-## Consumer commands
+## Portable quick start
+
+Install one exact version as a development dependency using npm or pnpm, the
+package managers qualified by the initial portable release. Yarn, Bun, and
+other installation paths require separate packed-registry and cross-platform
+qualification. Never use `latest`, a version range, floating `npx`, or floating
+`dlx` in repository automation.
+
+Portable bootstrap apply and recovery are initially POSIX-only. Windows is
+qualified for read-only CLI and MCP use of authority initialized on a supported
+POSIX host, committed, and then cloned; local Windows bootstrap mutation is not
+yet a support claim.
+
+Preview setup without writing:
+
+```bash
+docs-protocol init --project-id example/widgets \
+  --owner documentation/team --dry-run --json
+```
+
+Review the returned files and digest, then repeat the same authority inputs:
+
+```bash
+docs-protocol init --project-id example/widgets \
+  --owner documentation/team --apply \
+  --expect sha256:PLAN_DIGEST_FROM_PREVIEW --json
+```
+
+Bootstrap creates inert local profiles, a metadata schema, owners, Diataxis
+templates and indexes, a documentation Skill, and one marker-bounded route in
+`AGENTS.md`. It does not edit a package manifest, lockfile, workflow, or existing
+create-only target. A changed preimage requires a fresh preview.
+
+The generated `docs.config.yaml` is discovered automatically:
+
+```bash
+docs-protocol find "tenant isolation" --fuzzy
+docs-protocol context "tenant isolation" --fuzzy --max-documents 12
+docs-protocol new --type tutorial --id docs.tutorial.first-run \
+  --title "First run" --owner documentation/team \
+  --summary "Complete the first successful run." --dry-run
+docs-protocol check
+```
+
+Use the same explicit `new` inputs with `--apply` only after reviewing the
+preview. Fuzzy ranking and context are disposable advice; identity, metadata,
+paths, collision checks, and writes always come from the canonical catalog.
+The public Node API exposes the same info/find/context/new/check and portable
+init plan/apply/recover behavior without a terminal.
+
+See the [community workflow](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/open-source-docs-protocol.md)
+for the complete safety and installation contract.
+
+## Managed Agent Teams commands
 
 Install this tooling package at one exact version in `devDependencies`, never in
 production `dependencies`. Map these scripts to `agent-teams-docs`:
@@ -36,9 +90,11 @@ docs:recover  -> agent-teams-docs recover
 docs:check    -> agent-teams-docs check
 ```
 
-The default protocol profile is
-`architecture/foundation/docs-protocol.yaml`. Override it with `--profile`;
-override the repository with `--consumer`.
+Managed repositories use
+`architecture/foundation/docs-protocol.yaml`. Portable repositories use
+`docs.config.yaml`. The CLI discovers either path and fails closed when both
+exist; override it with `--profile` and override the repository with
+`--consumer`.
 
 `new` requires exactly one of `--dry-run` or `--apply`. Preview never reserves
 an ID or writes. Apply creates only the planned document and reports the exact
@@ -76,6 +132,10 @@ The JSON schemas are exported under `@agent-teams/docs-protocol/schemas/*`.
 Machine output uses one JSON envelope with protocol ID/version and stable exit
 codes: `0` success, `1` violation/conflict/recovery, `2` invalid input, `3`
 execution failure, and `130` cancellation.
+Published v1/v2 commands retain their existing envelope shapes. Portable
+`init`, bounded `context`, and opt-in fuzzy `find` use the additive v3 envelope;
+default exact `find` remains v2. Consumers must dispatch on `schemaVersion` and
+validate against the matching exported schema.
 Recovery is bound to the persisted transaction and exact installed Foundation
 build, so it does not parse mutable authoring profiles before resuming.
 

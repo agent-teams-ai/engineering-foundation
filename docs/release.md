@@ -1,25 +1,26 @@
 # Release Procedure
 
-All current Foundation and Docs Protocol releases use npm Trusted Publishing
+All current Foundation, Docs Protocol, and Docs Protocol MCP releases use npm Trusted Publishing
 from the protected `main` workflow with GitHub OIDC and automatic provenance.
 Manual workstation publication and stored npm credentials are not supported.
 
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
 
-The current stable line is Foundation `0.18.0` with Docs Protocol `0.1.2`.
-Normal package changes enter the ordinary Changesets flow described below; the
-completed namespace bootstrap and D'/RC rollout are not prerequisites to rerun.
+Release agents derive every exact current version from the reviewed manifests,
+Changesets state, and registry evidence; this runbook intentionally carries no
+mutable "current version" copy. Normal package changes enter the ordinary
+Changesets flow described below; the completed namespace bootstrap and D'/RC
+rollout are not prerequisites to rerun.
 
 ## Completed bootstrap history
 
 The D' rollout first published Foundation `0.17.0-rc.0`, then promoted Docs
 Protocol from its exact public `0.0.0` namespace baseline into the bounded
-catalog and qualified the packed pair through the RC waves. Stable Foundation
-`0.17.0`, Docs Protocol `0.1.0`, and follow-up releases through Foundation
-`0.18.0` and Docs Protocol `0.1.2` are now published. This paragraph records
-completed history; it is not an executable
-release checklist.
+catalog and qualified the packed pair through the RC waves. The subsequent
+stable Foundation and Docs Protocol releases are recorded by their package
+changelogs, immutable registry versions, Git tags, and GitHub releases. This
+paragraph records completed history; it is not an executable release checklist.
 
 The one-time ADR-0029 namespace bootstrap is likewise completed historical
 evidence. Do not rerun its retired workflow. Any future namespace bootstrap
@@ -32,8 +33,9 @@ by hand.
 Release-candidate waves use committed Changesets prerelease state with the exact
 `rc` tag. Changesets remains the sole version and changelog authority, but the
 publish step is deliberately ordered rather than delegated to concurrent
-workspace publication. It packs both reviewed artifacts, proves that Docs
-Protocol names the exact packed Foundation version, and publishes Foundation
+workspace publication. It packs every reviewed artifact, proves the exact
+runtime dependency graph `Foundation -> Docs Protocol -> Docs Protocol MCP`,
+and publishes Foundation
 directly under the reviewed final `rc` or `latest` tag using npm Trusted
 Publishing with the npm version bundled by the pinned Node runtime. No npm
 token is stored. Immediately before each npm write, the live protected
@@ -50,34 +52,37 @@ only from the exact SLSA statement inside that npm-verified Sigstore bundle,
 including package subject, tarball SRI, repository, workflow, ref and commit.
 Separately fetched registry attestation data is only supplementary and must
 agree with the verified statement. Only a clean exact-package signature result
-permits Docs Protocol publication under the same final tag. Docs Protocol must
-pass the same audit before Git tags or GitHub releases are reconciled. It
-additionally requires
-`Foundation published_at <= Docs Protocol published_at`. After both signature
-checks it re-reads both exact tarballs, final tags, SRI and provenance before
+permits Docs Protocol publication under the same final tag, and the same proof
+then permits Docs Protocol MCP publication. Every package must pass the same
+audit before Git tags or GitHub releases are reconciled. The publisher requires
+`Foundation published_at <= Docs Protocol published_at <= Docs Protocol MCP published_at`.
+After all signature checks it re-reads every exact tarball, final tag, SRI and provenance before
 creating any GitHub release. The short interval where only Foundation's final
 tag has moved is non-authoritative: consumer admission starts only after the
-exact pair receives an external Qualified Cohort.
+exact package graph receives its external qualification.
 
 The ordered publisher also owns idempotent Git tag and GitHub release
 reconciliation. The Changesets action's built-in GitHub release creation is
-disabled because its two-package boundary is not retry-safe. Existing refs and
+disabled because concurrent workspace publication is not retry-safe. Existing refs and
 releases are reused only when their commit, prerelease flag, title and exact
 Changesets changelog body match. A partial boundary is completed on retry.
 Later `main` commits accept only package provenance from a verified protected-main
-ancestor and require intact final tags. An already-published exact pair performs
-no npm writes and emits no `New tag:` lines. A current exact-main Docs-only patch
-may publish only its missing Docs version and emits only that package's
-parser-compatible line after npm and GitHub postconditions have converged.
+ancestor and require intact final tags. An already-published exact graph performs
+no npm writes and emits no `New tag:` lines. A current exact-main patch may reuse
+an already-proven upstream prefix and publish only the missing downstream suffix
+of `Foundation -> Docs Protocol -> Docs Protocol MCP`. It emits one
+parser-compatible line for every package in that completed suffix after all npm
+and GitHub postconditions have converged.
 
 A partial retry never uses `npm dist-tag`, overwrites or unpublishes an
 immutable npm version. It may skip an existing version only when its SRI,
 complete packed manifest and trusted source provenance exactly match the local
-reviewed artifact. A Foundation-only partial release can publish its missing
-Docs Protocol partner from a later exact protected-main run under the same
-reusable-Foundation proof as a reviewed Docs-only patch. Before the first
-publication, both exact package states are inspected;
-a Docs-only state is quarantined without publishing Foundation. A timeout, 5xx,
+reviewed artifact. A partial release may publish its missing downstream suffix
+from a later exact protected-main run only after every existing upstream package
+passes the reusable-artifact proof. Before the first publication, every exact
+package state is inspected; a graph with a published package whose required
+upstream dependency is missing is quarantined without filling that upstream
+hole. A timeout, 5xx,
 unknown publish result or temporarily missing version is retried only as a
 read-only registry observation. Persistent uncertainty fails closed. Any
 identity mismatch requires quarantine/deprecation and an explicitly reviewed

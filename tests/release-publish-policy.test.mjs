@@ -8,6 +8,8 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { DOCS_PROTOCOL_BOOTSTRAP } from "../scripts/docs-protocol-bootstrap.mjs";
+import { PUBLISHABLE_PACKAGE_DEPENDENCIES, publishablePackageByName } from "../scripts/publishable-packages.mjs";
+import { DOCS_MCP_PACKAGE } from "../scripts/release-publish-ordered.mjs";
 import {
   changesetsPublishArguments,
   main,
@@ -29,6 +31,8 @@ const docsProtocol = {
   name: DOCS_PROTOCOL_BOOTSTRAP.name,
   version: DOCS_PROTOCOL_BOOTSTRAP.version,
 };
+const docsProtocolMcp = { name: publishablePackageByName(DOCS_MCP_PACKAGE).name, version: "0.1.0-rc.0" };
+const docsProtocolMcpBaselineVersion = "0.0.0";
 const freshPreState = {
   mode: "pre",
   tag: "rc",
@@ -386,6 +390,20 @@ async function runChangesets(root, marker, arguments_) {
   });
 }
 
+async function writeDocsMcpManifest(root, version = docsProtocolMcp.version) {
+  await json(join(root, "packages/docs-protocol-mcp/package.json"), {
+    name: docsProtocolMcp.name,
+    version,
+    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocolMcp.name]
+      .map((name) => [name, "workspace:*"])),
+    publishConfig: {
+      access: "public",
+      provenance: true,
+      registry: DOCS_PROTOCOL_BOOTSTRAP.registry,
+    },
+  });
+}
+
 async function fixture(root, registry) {
   await json(join(root, "package.json"), {
     name: "release-fixture",
@@ -412,6 +430,8 @@ async function fixture(root, registry) {
     },
   });
   await writeFile(join(root, "packages/docs-protocol/dist.js"), "export const docs = 1;\n");
+  await writeDocsMcpManifest(root);
+  await writeFile(join(root, "packages/docs-protocol-mcp/dist.js"), "export const mcp = 1;\n");
   await json(join(root, "spikes/source-dependency-parser/package.json"), {
     ...privateSpike,
     private: true,
@@ -425,6 +445,7 @@ async function fixture(root, registry) {
     initialVersions: {
       ...freshPreState.initialVersions,
       [docsProtocol.name]: docsProtocol.version,
+      [docsProtocolMcp.name]: docsProtocolMcpBaselineVersion,
     },
   });
   await writeFile(
@@ -433,7 +454,8 @@ async function fixture(root, registry) {
       `globalThis.fetch = (input, init) => {\n` +
       `  const url = new URL(input);\n` +
       `  if (url.origin === "https://registry.npmjs.org" &&\n` +
-      `      decodeURIComponent(url.pathname.slice(1)) === ${JSON.stringify(docsProtocol.name)}) {\n` +
+      `      ${JSON.stringify([docsProtocol.name, docsProtocolMcp.name])}.includes(` +
+      `decodeURIComponent(url.pathname.slice(1)))) {\n` +
       `    return originalFetch(new URL(url.pathname.slice(1), ${JSON.stringify(registry)}), init);\n` +
       `  }\n` +
       `  return originalFetch(input, init);\n` +
@@ -564,6 +586,7 @@ test("publish entrypoint independently rejects every publish-control drift bound
 test("real release entrypoint proves multi-package registry state and fails closed on drift", async (t) => {
   const versions = new Map([
     [docsProtocol.name, new Set([docsProtocol.version])],
+    [docsProtocolMcp.name, new Set([docsProtocolMcpBaselineVersion])],
     [foundation.name, new Set([foundation.version])],
   ]);
   let registryRequestHook = noop;
@@ -613,6 +636,16 @@ test("real release entrypoint proves multi-package registry state and fails clos
   assert.notEqual(absent.result.status, 0);
   await assert.rejects(readFile(absent.marker), { code: "ENOENT" });
   versions.get(foundation.name).add(foundation.version);
+
+  versions.get(docsProtocolMcp.name).delete(docsProtocolMcpBaselineVersion);
+  const absentMcp = await scenario(
+    "registry-mcp-miss",
+    async () => {},
+    /requires stable registry history/u,
+  );
+  assert.notEqual(absentMcp.result.status, 0);
+  await assert.rejects(readFile(absentMcp.marker), { code: "ENOENT" });
+  versions.get(docsProtocolMcp.name).add(docsProtocolMcpBaselineVersion);
 
   versions.get(foundation.name).add("0.17.0-rc.1");
   const downgrade = await scenario(
@@ -735,6 +768,7 @@ test("real release entrypoint proves multi-package registry state and fails clos
         publishConfig: { registry: registryUrl },
         version: "0.17.0",
       });
+      await writeDocsMcpManifest(root, "0.1.0");
     },
     /not registry-monotonic/u,
   );

@@ -121,12 +121,29 @@ function stableExitVersion(baseVersion, state) {
     : undefined;
 }
 
+function normalizeInitialVersionAdditions(
+  normalizedBase,
+  normalizedHead,
+  { docsBootstrapInitialVersionAddition, initialVersionAdditions = [] },
+) {
+  const allowedAdditions = new Set(initialVersionAdditions);
+  if (docsBootstrapInitialVersionAddition === true) {
+    allowedAdditions.add(DOCS_PROTOCOL_NAME);
+  }
+  for (const packageName of allowedAdditions) {
+    if (!Object.hasOwn(normalizedBase.initialVersions, packageName) &&
+        normalizedHead.initialVersions?.[packageName] === "0.0.0") {
+      normalizedBase.initialVersions[packageName] = "0.0.0";
+    }
+  }
+}
+
 function prereleaseStateViolations(
   baseState,
   headState,
   baseVersion,
   headVersion,
-  docsBootstrapInitialVersionAddition,
+  { docsBootstrapInitialVersionAddition, initialVersionAdditions = [] } = {},
 ) {
   if (baseState === undefined && headState === undefined) {
     return [];
@@ -145,15 +162,10 @@ function prereleaseStateViolations(
   const headChangesets = new Set(normalizedHead.changesets);
   delete normalizedBase.changesets;
   delete normalizedHead.changesets;
-  if (
-    docsBootstrapInitialVersionAddition === true &&
-    !Object.hasOwn(normalizedBase.initialVersions, DOCS_PROTOCOL_NAME) &&
-    normalizedHead.initialVersions?.[DOCS_PROTOCOL_NAME] === "0.0.0" &&
-    Object.keys(normalizedHead.initialVersions).length ===
-      Object.keys(normalizedBase.initialVersions).length + 1
-  ) {
-    normalizedBase.initialVersions[DOCS_PROTOCOL_NAME] = "0.0.0";
-  }
+  normalizeInitialVersionAdditions(normalizedBase, normalizedHead, {
+    docsBootstrapInitialVersionAddition,
+    initialVersionAdditions,
+  });
   const stateChanged = !isDeepStrictEqual(normalizedBase, normalizedHead);
   const removed = [...baseChangesets].some((id) => !headChangesets.has(id));
   const added = [...headChangesets].some((id) => !baseChangesets.has(id));
@@ -246,6 +258,7 @@ export function releasePullRequestContentViolations({
   basePrereleaseState,
   headPrereleaseState,
   docsBootstrapInitialVersionAddition = false,
+  initialVersionAdditions = [],
 }) {
   const violations = [];
   const normalizedBaseManifest = structuredClone(baseManifest);
@@ -271,7 +284,7 @@ export function releasePullRequestContentViolations({
       headPrereleaseState,
       baseVersion,
       headVersion,
-      docsBootstrapInitialVersionAddition,
+      { docsBootstrapInitialVersionAddition, initialVersionAdditions },
     ),
   );
   const changelogTitleEnd =
@@ -342,15 +355,39 @@ async function exactPrivateDocsBootstrapInitialVersionAddition(baseRevision, hea
   );
 }
 
+async function exactInitialPublicPackageAdditions(baseRevision, headRevision) {
+  const additions = [];
+  for (const releasePackage of PUBLISHABLE_PACKAGES) {
+    const [baseManifest, headManifest] = await Promise.all([
+      optionalJsonAtRevision(baseRevision, releasePackage.manifestPath),
+      optionalJsonAtRevision(headRevision, releasePackage.manifestPath),
+    ]);
+    if (baseManifest?.name !== releasePackage.name || baseManifest.version !== "0.0.0" ||
+        baseManifest.private === true || headManifest?.name !== releasePackage.name) {
+      continue;
+    }
+    const normalizedBase = structuredClone(baseManifest);
+    const normalizedHead = structuredClone(headManifest);
+    delete normalizedBase.version;
+    delete normalizedHead.version;
+    if (isDeepStrictEqual(normalizedBase, normalizedHead)) {
+      additions.push(releasePackage.name);
+    }
+  }
+  return additions;
+}
+
 async function main() {
   const pages = JSON.parse(await readStreamText(process.stdin));
   const files = Array.isArray(pages) ? pages.flat() : pages;
   const baseRevision = revisionArgument("--base");
   const headRevision = revisionArgument("--head");
-  const [basePrereleaseState, headPrereleaseState, docsBootstrapInitialVersionAddition] = await Promise.all([
+  const [basePrereleaseState, headPrereleaseState, docsBootstrapInitialVersionAddition,
+    initialPublicPackageAdditions] = await Promise.all([
     optionalJsonAtRevision(baseRevision, PRERELEASE_STATE),
     optionalJsonAtRevision(headRevision, PRERELEASE_STATE),
     exactPrivateDocsBootstrapInitialVersionAddition(baseRevision, headRevision),
+    exactInitialPublicPackageAdditions(baseRevision, headRevision),
   ]);
   const hasModifiedFile = (filename) =>
     files.some((file) => file?.filename === filename && file.status === "modified");
@@ -376,6 +413,7 @@ async function main() {
         basePrereleaseState,
         headPrereleaseState,
         docsBootstrapInitialVersionAddition,
+        initialVersionAdditions: initialPublicPackageAdditions,
       }).map((violation) => `${releasePackage.name}: ${violation}`);
     }),
   );

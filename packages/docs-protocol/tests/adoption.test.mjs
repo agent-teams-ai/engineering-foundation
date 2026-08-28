@@ -159,3 +159,28 @@ test("adoption rejects malformed, oversized, symlinked, and non-canonical workfl
     await Promise.all([malformedRoot, oversizedRoot, workflowRoot].map((root) => rm(root, { recursive: true, force: true })));
   }
 });
+
+test("adoption rejects malformed UTF-8, BOM, and NUL in Skill and AGENTS routes", async () => {
+  for (const [name, bytes] of [
+    ["malformed UTF-8", Buffer.from([0xff])],
+    ["BOM", Buffer.from("\uFEFFroute\n", "utf8")],
+    ["NUL", Buffer.from("route\u0000text\n", "utf8")]
+  ]) {
+    const skillRoot = await createFixture();
+    const agentsRoot = await createFixture();
+    try {
+      await writeFile(join(skillRoot, skillPath), bytes);
+      assert.ok((await inspect(skillRoot)).some(({ subject, message }) =>
+        subject === skillPath && message.includes("bounded real file")
+      ), `${name} Skill must be rejected`);
+      await writeFile(join(agentsRoot, "AGENTS.md"), bytes);
+      assert.ok((await inspect(agentsRoot)).some(({ subject, message }) =>
+        subject === "AGENTS.md" && message.includes("bounded real file")
+      ), `${name} AGENTS.md must be rejected`);
+    } finally {
+      await Promise.all([skillRoot, agentsRoot].map((root) =>
+        rm(root, { recursive: true, force: true })
+      ));
+    }
+  }
+});

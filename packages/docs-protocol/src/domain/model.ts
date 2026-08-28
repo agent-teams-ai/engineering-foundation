@@ -8,6 +8,9 @@ import type {
 
 export const DOCS_PROTOCOL_ID = "agent-teams.docs-protocol" as const;
 export const DOCS_PROTOCOL_VERSION = 1 as const;
+export const DOCS_ADOPTION_MAX_MANIFEST_BYTES = 1024 * 1024;
+export const DOCS_ADOPTION_MAX_ROUTING_BYTES = 64 * 1024;
+export const DOCS_ADOPTION_MAX_SKILL_BYTES = 16 * 1024;
 
 export type DocsCommand =
   | "docs.check"
@@ -97,6 +100,8 @@ export interface DocsProtocolProfile {
 
 export interface DocsAdoptionInspector {
   inspect(input: {
+    /** Omitted by legacy callers; the managed policy remains the compatibility default. */
+    readonly policy?: "agent-teams-managed-v1" | "portable-v1";
     readonly authorityPaths: readonly string[];
     readonly consumerRoot: string;
     readonly profilePath: string;

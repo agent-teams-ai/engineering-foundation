@@ -36,6 +36,7 @@ No proposed decisions.
 - [ADR-0036: Incubate the Agent Architecture Standard](0036-incubate-agent-architecture-standard.md)
 - [ADR-0037: One-Command Qualified Cohort Upgrades](0037-one-command-qualified-cohort-upgrades.md)
 - [ADR-0038: Approve Docs Consumer Upgrade API](0038-approve-docs-consumer-upgrade-api.md)
+- [ADR-0039: Open-Source Documentation Protocol](0039-open-source-documentation-protocol.md)
 
 ## Superseded
 

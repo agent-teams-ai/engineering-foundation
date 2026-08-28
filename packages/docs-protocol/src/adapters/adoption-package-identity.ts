@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import { inspectDocumentAuthoringEnvironmentV1 } from "@agent-teams/engineering-foundation/document-authoring";
 
-import { MAX_MANIFEST_BYTES, parseJsonRecord, readRealRegularText } from "./adoption-input.js";
+import { DOCS_ADOPTION_MAX_MANIFEST_BYTES } from "../domain/model.js";
+import { parseJsonRecord, readRealRegularText } from "./adoption-input.js";
 
 const EXACT_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
@@ -34,8 +35,8 @@ export async function inspectAdoptionPackageIdentity(
     const consumerDocsManifestPath = resolvedManifest(root, DOCS_PACKAGE);
     const consumerFoundationManifestPath = resolvedManifest(root, FOUNDATION_PACKAGE);
     const [docsManifest, foundationManifest] = await Promise.all([
-      readRealRegularText(executingDocsManifestPath, MAX_MANIFEST_BYTES).then(parseJsonRecord),
-      readRealRegularText(executingFoundationManifestPath, MAX_MANIFEST_BYTES).then(parseJsonRecord)
+      readRealRegularText(executingDocsManifestPath, DOCS_ADOPTION_MAX_MANIFEST_BYTES).then(parseJsonRecord),
+      readRealRegularText(executingFoundationManifestPath, DOCS_ADOPTION_MAX_MANIFEST_BYTES).then(parseJsonRecord)
     ]);
     const docsVersion = packageVersion(docsManifest, DOCS_PACKAGE);
     const foundationVersion = packageVersion(foundationManifest, FOUNDATION_PACKAGE);

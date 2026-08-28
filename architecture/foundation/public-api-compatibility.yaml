@@ -65,3 +65,15 @@ packages:
     approvedBreakingChanges:
       - fingerprint: sha256:181c6e224092cae9505f524005b4f6595700bb518f07cb3e5a2dcd3a68266f70
         decisionId: ADR-0038
+  - packageName: "@agent-teams/docs-protocol-mcp"
+    packageRoot: packages/docs-protocol-mcp
+    manifestPath: packages/docs-protocol-mcp/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/docs-protocol-mcp/dist/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+    tsconfigPath: packages/docs-protocol-mcp/tsconfig.json
+    releasedBaselinePath: architecture/public-api/docs-protocol-mcp.json
+    approvedBreakingChanges: []

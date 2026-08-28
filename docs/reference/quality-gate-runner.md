@@ -35,10 +35,11 @@ failures, run `agent-teams-foundation check quality.gate-runner --consumer .`
 and correct the reported declaration or consumer-owned script. The check is
 static; it cannot diagnose an execution-only failure.
 
-For `QUALITY_GATE_PROFILE_UNKNOWN`, select a profile ID declared in
-`architecture/foundation/quality-gates.yaml` (or deliberately add the missing
-profile) and rerun `gate run` with that ID. For active
-`QUALITY_GATE_RECURSION`, stop the nested `gate run`, remove that launch from the
+For `QUALITY_GATE_PROFILE_UNKNOWN`, select a profile ID declared in the file at
+`capabilities.quality.gate-runner.configPath` in `foundation.config.yaml` (or
+deliberately add the missing profile) and rerun `gate run` with that ID. The
+`architecture/foundation/quality-gates.yaml` path above is only an example. For
+active `QUALITY_GATE_RECURSION`, stop the nested `gate run`, remove that launch from the
 executing wrapper or package script, and rerun only the outer profile. Neither
 case requires a static check before applying its direct correction.
 

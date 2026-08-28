@@ -1,5 +1,11 @@
 # @agent-teams/docs-protocol
 
+## 0.3.2
+
+### Patch Changes
+
+- [#209](https://github.com/agent-teams-ai/engineering-foundation/pull/209) [`86f68e7`](https://github.com/agent-teams-ai/engineering-foundation/commit/86f68e7d8e0694db3dc1088e31cb627d88bdb107) Thanks [@777genius](https://github.com/777genius)! - Keep exact source and target Cohort packages temporarily exempt from pnpm release-age checks while the one-command upgrade regenerates the lockfile, then commit only the target exclusions.
+
 ## 0.3.1
 
 ### Patch Changes

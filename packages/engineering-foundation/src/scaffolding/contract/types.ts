@@ -10,6 +10,13 @@ export type JsonObject = { readonly [key: string]: JsonValue };
 export type Sha256Digest = `sha256:${string}`;
 export type RepositoryPath = string;
 
+export interface AuthorityScaffoldRecoveryScope {
+  readonly projectId: string;
+  readonly configPath: RepositoryPath;
+  readonly targetCatalogPath: RepositoryPath;
+  readonly compositionId: string;
+}
+
 export interface DefinitionRef {
   readonly id: string;
   readonly contractVersion: number;

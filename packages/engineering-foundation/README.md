@@ -165,6 +165,13 @@ agent-teams-foundation scaffold-apply plans/example.json --consumer /repo --json
 agent-teams-foundation scaffold-recover --consumer /repo --json
 ```
 
+Programmatic callers may bind mutation to expected consumer descriptors with
+`recoverFilesystemScaffold(consumerRoot, { projectId, configPath,
+targetCatalogPath, compositionId })`. Foundation snapshots the closed value and
+requires exact portable-string agreement with the stored journal before reading
+authority or continuing recovery. The one-argument API and CLI are unchanged;
+`inspectFoundationTransactionAwareMode` remains the read-only advisory preflight.
+
 The current built-in Composition is a testing-only conformance fixture. Product
 package and feature recipes, structured updates, and Nx integration require
 separate qualification before they become available.

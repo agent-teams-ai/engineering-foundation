@@ -52,6 +52,15 @@ function journalPath(root) {
   return join(root, ".agent-teams-local", "scaffolding-transaction.json");
 }
 
+function recoveryScope(plan) {
+  return {
+    projectId: plan.projectId,
+    configPath: plan.authority.configPath,
+    targetCatalogPath: plan.authority.targetCatalogPath,
+    compositionId: plan.intent.compositionId,
+  };
+}
+
 function residuePath(root, plan, operation) {
   const destination = join(root, operation.path);
   const identity = sha256Text(`${plan.planDigest}:${operation.id}`).slice(7);
@@ -140,7 +149,7 @@ test("recovery preserves a PUBLISHING journal, exact output, barrier, and residu
       residue: await readFile(join(residue, "owned-temporary")),
     };
 
-    const receipt = await recoverFilesystemScaffold(root);
+    const receipt = await recoverFilesystemScaffold(root, recoveryScope(plan));
     assert.equal(receipt?.outcome, "recovery-required");
     await assertPreserved(journalPath(root), before.journal);
     await assertPreserved(join(root, first.path), before.output);

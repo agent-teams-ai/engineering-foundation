@@ -30,6 +30,7 @@ export type {
   ScaffoldReceipt,
   ScaffoldReceiptCommon,
   ScaffoldReceiptOutcome,
+  ScaffoldRecoveryScope,
   ScaffoldSatisfiedOperationReceipt,
   ScaffoldTarget,
   ScaffoldTargetCatalogEntry,

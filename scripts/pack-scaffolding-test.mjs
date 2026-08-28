@@ -142,6 +142,12 @@ const repeated = await applyFilesystemScaffold(programmaticRoot, plan);
 if (repeated.outcome !== "already-applied") process.exit(5);
 if ((await recoverFilesystemScaffold(programmaticRoot)) !== undefined) process.exit(6);
 const recoveryPlan = await planScaffoldFromFile({ consumerRoot: recoveryRoot, intentPath: "intents/create-fixture.yaml" });
+const recoveryScope = {
+  projectId: recoveryPlan.projectId,
+  configPath: recoveryPlan.authority.configPath,
+  targetCatalogPath: recoveryPlan.authority.targetCatalogPath,
+  compositionId: recoveryPlan.intent.compositionId
+};
 const journalPath = join(recoveryRoot, ".agent-teams-local", "scaffolding-transaction.json");
 await mkdir(join(recoveryRoot, ".agent-teams-local"), { recursive: true });
 await writeFile(journalPath, \`\${JSON.stringify({
@@ -150,10 +156,10 @@ await writeFile(journalPath, \`\${JSON.stringify({
   plan: recoveryPlan,
   operations: recoveryPlan.operations.map((operation) => ({ operationId: operation.id, path: operation.path, state: "pending" }))
 }, null, 2)}\\n\`);
-const recovered = await recoverFilesystemScaffold(recoveryRoot);
+const recovered = await recoverFilesystemScaffold(recoveryRoot, recoveryScope);
 if (recovered?.outcome !== "failed-recovered") process.exit(7);
 await validateScaffoldReceipt(recovered, recoveryPlan);
-if ((await recoverFilesystemScaffold(recoveryRoot)) !== undefined) process.exit(8);
+if ((await recoverFilesystemScaffold(recoveryRoot, recoveryScope)) !== undefined) process.exit(8);
 process.stdout.write(JSON.stringify({ outcome: "passed" }));
 `
   );

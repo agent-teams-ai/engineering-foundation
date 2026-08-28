@@ -50,6 +50,17 @@ filesystem adapter never deletes output after publication begins: journal state,
 process-local observation, and matching bytes cannot prove that a path was not
 replaced by another writer.
 
+The programmatic recovery API also accepts an optional closed
+`ScaffoldRecoveryScope`. Foundation snapshots and validates its exact project,
+configuration path, target-catalog path, and Composition ID before asynchronous
+work. After canonical-root resolution and cooperative lease acquisition, the
+Node adapter compares those portable strings with the single stored journal
+record that it continues. A mismatch retains the transaction barrier and occurs
+before authority reads, output classification, journal replacement, or
+publication. The one-argument API and `scaffold-recover` CLI retain their
+existing behavior; the overload adds caller-to-journal binding without changing
+the journal or Plan protocols.
+
 ## Goals
 
 - one deterministic scaffolding protocol for multiple repositories and tools;
@@ -374,6 +385,9 @@ requires a separate threat-model decision and a platform adapter with
 descriptor-relative filesystem primitives unavailable in the portable Node.js
 API. Current conformance covers pre-existing symlinks or reparse paths and
 cooperative concurrent writers, not adversarial same-identity ancestor swaps.
+Scoped recovery does not widen that claim: it adds a cooperative caller-to-record
+check and reuses the existing journal-store identity fence rather than adding a
+descriptor-relative filesystem protocol.
 All Foundation-aware automated writers of authority sources and scaffold outputs
 must acquire the same repository Foundation operation lock. `A-C-A-C` is
 stability evidence inside that cooperative model; it is not an atomic snapshot

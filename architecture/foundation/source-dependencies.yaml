@@ -712,6 +712,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-receipt.ts
       - packages/engineering-foundation/src/scaffolding/kernel/plan-validation.ts
+      - packages/engineering-foundation/src/scaffolding/kernel/recovery-scope.ts
     allow:
       boundaries:
         - foundation.scaffolding.core
@@ -724,6 +725,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-receipt.ts
       - packages/engineering-foundation/src/scaffolding/kernel/plan-validation.ts
+      - packages/engineering-foundation/src/scaffolding/kernel/recovery-scope.ts
   - id: foundation.scaffolding.shared-adapters
     roots:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-file-identity.ts
@@ -756,6 +758,7 @@ boundaries:
   - id: foundation.scaffolding.canonical-adapters
     roots:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-workspace.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-recovery.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-finalization.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-journal-state.ts
@@ -792,6 +795,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-workspace.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-recovery.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-finalization.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-journal-state.ts

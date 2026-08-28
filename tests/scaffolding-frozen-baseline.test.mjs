@@ -224,6 +224,26 @@ test("validates the release-owned public API baseline and freezes the package ex
     assert.match(entrypoint.exportPath, /^\.|^\.\//u);
     assert.ok(entrypoint.items.length > 0);
   }
+  const scaffolding = baseline.entrypoints.find(
+    ({ exportPath }) => exportPath === "./scaffolding",
+  );
+  assert.ok(scaffolding);
+  assert.deepEqual(
+    scaffolding.items.find(
+      ({ canonicalReference }) =>
+        canonicalReference ===
+        "@agent-teams/engineering-foundation!recoverFilesystemScaffold:function(1)",
+    ),
+    {
+      canonicalReference:
+        "@agent-teams/engineering-foundation!recoverFilesystemScaffold:function(1)",
+      kind: "Function",
+      parentReference: "@agent-teams/engineering-foundation!",
+      parentKind: "EntryPoint",
+      signature:
+        "export declare function recoverFilesystemScaffold(consumerRoot: string): Promise<ScaffoldReceipt | undefined>;",
+    },
+  );
   assert.deepEqual(packageManifest.exports, vector.publicApi.exports);
 });
 

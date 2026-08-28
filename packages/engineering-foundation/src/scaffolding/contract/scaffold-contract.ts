@@ -46,6 +46,14 @@ export interface ScaffoldIntent {
   readonly facets?: readonly ConfiguredDefinition[];
 }
 
+/** The exact consumer-owned descriptors that authorize one recovery attempt. */
+export interface ScaffoldRecoveryScope {
+  readonly projectId: string;
+  readonly configPath: RepositoryPath;
+  readonly targetCatalogPath: RepositoryPath;
+  readonly compositionId: string;
+}
+
 export interface ScaffoldOwnerDocumentBinding {
   readonly id: string;
   readonly path: RepositoryPath;

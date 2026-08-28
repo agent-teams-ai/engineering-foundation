@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol",
-  "packageVersion": "0.2.0",
+  "packageVersion": "0.3.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -1114,6 +1114,90 @@
           "signature": "export interface ConsumerIntegrationSnapshot"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1#cohort:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohort: QualifiedDocsCohortBindingV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: \"governance/docs-qualified-cohorts.json\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1#repository:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repository: \"agent-teams-ai/.github\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1#revision:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly revision: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
+          "parentKind": "Namespace",
+          "signature": "export interface ConsumerUpgradeAuthorityV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority?: {\n        readonly repository: ConsumerUpgradeAuthorityV1[\"repository\"];\n        readonly path: ConsumerUpgradeAuthorityV1[\"path\"];\n        readonly revision: string;\n        readonly cohortId: string;\n        readonly recordDigest: ConsumerIntegrationDigest;\n        readonly qualificationEventDigest: ConsumerIntegrationDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#command:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly command: \"consumer.upgrade\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#issues:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly issues: readonly ConsumerIntegrationIssue[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: \"blocked\" | \"current\" | \"upgraded\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#receipt:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receipt?: KnownFileTransactionReceiptV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
+          "parentKind": "Namespace",
+          "signature": "export interface ConsumerUpgradeExecutionV1"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1#currentDigest:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1:interface",
@@ -1371,6 +1455,13 @@
           "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
           "parentKind": "Namespace",
           "signature": "export declare function recoverConsumerIntegration(options: {\n    readonly consumerRoot: string;\n}): Promise<ConsumerIntegrationExecutionV1>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.upgradeConsumerIntegration:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
+          "parentKind": "Namespace",
+          "signature": "export declare function upgradeConsumerIntegration(options: {\n    readonly consumerRoot: string;\n    readonly authorityRevision?: string;\n    readonly to: string;\n}): Promise<ConsumerUpgradeExecutionV1>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",

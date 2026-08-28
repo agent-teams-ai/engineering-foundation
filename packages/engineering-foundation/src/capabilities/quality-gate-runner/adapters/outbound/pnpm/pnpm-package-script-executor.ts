@@ -3,6 +3,10 @@ import { delimiter, isAbsolute, resolve } from "node:path";
 
 import { FoundationError } from "../../../../../errors.js";
 import { executeManagedProcess } from "../../../../../process-execution/node-process-runner.js";
+import type {
+  ManagedProcessResult,
+  ProcessRequest
+} from "../../../../../process-execution/types.js";
 import {
   PackageScriptTimeoutError,
   type PackageScriptExecutor
@@ -13,6 +17,14 @@ export interface QualityGatePnpmEnvironment {
   readonly pnpmHome?: string;
   readonly pathValue?: string;
 }
+
+export interface QualityGateManagedProcessExecutor {
+  run(request: ProcessRequest): Promise<ManagedProcessResult>;
+}
+
+const nodeManagedProcessExecutor: QualityGateManagedProcessExecutor = {
+  run: executeManagedProcess
+};
 
 interface PnpmInvocation {
   readonly command: string;
@@ -86,7 +98,11 @@ async function resolvePnpmInvocation(
 }
 
 export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
-  constructor(private readonly environment: QualityGatePnpmEnvironment) {}
+  constructor(
+    private readonly environment: QualityGatePnpmEnvironment,
+    private readonly processExecutor: QualityGateManagedProcessExecutor =
+      nodeManagedProcessExecutor
+  ) {}
 
   async run(input: {
     readonly consumerRoot: string;
@@ -96,7 +112,7 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
   }) {
     const invocation = await resolvePnpmInvocation(this.environment);
     try {
-      const result = await executeManagedProcess({
+      const result = await this.processExecutor.run({
         command: invocation.command,
         args: [...invocation.argsPrefix, "run", input.scriptId],
         cwd: input.consumerRoot,

@@ -92,9 +92,15 @@ applies when an adversarial descendant deliberately escapes its process group.
 The repository lifecycle qualification observes cooperating, harness-owned
 fixture roles. Its fixture server assigns a distinct one-use credential to each
 declared role; a registration presents that credential and the server, not the
-client, resolves the role. Timeout and POSIX cancellation qualifications run
-live parent and descendant roles through the installed pnpm process boundary
-and require every role connection to close before final CLI completion.
+client, resolves the role. A deterministic port test proves that the configured
+`timeoutMs` crosses the command, use-case, pnpm adapter, and managed-process
+request unchanged; controlled application evidence proves timeout classification
+and concurrent-sibling isolation without a wall-clock gate. One cross-platform
+cancellation qualification waits for authenticated readiness, then drives the
+QGR cancellation port through the real installed pnpm process boundary. On
+Windows that reaches the Job Object adapter without relying on POSIX signals.
+The installed-pnpm and synthetic cancellation evidence requires every owned role
+connection to close before accepting final command completion.
 
 This is exact evidence for the owned fixture model, not hostile-process
 authentication. The credentials prevent one inherited fixture bearer from

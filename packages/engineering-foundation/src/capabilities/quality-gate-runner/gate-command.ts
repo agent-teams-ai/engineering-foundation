@@ -1,13 +1,11 @@
 import { CapabilityInputError } from "../../capability-runtime.js";
 import type { QualityGateRunReport } from "./application/model/quality-gate-report.js";
+import type { QualityGateOperatorCancellationSource } from "./application/ports/operator-cancellation-source.js";
+import type { PackageScriptExecutor } from "./application/ports/package-script-executor.js";
 import { evaluateQualityGateScripts } from "./application/policies/evaluate-quality-gate-scripts.js";
 import { runQualityGateProfile } from "./application/use-cases/run-quality-gate-profile.js";
 import { renderQualityGateRunReport } from "./adapters/inbound/cli/report-renderer.js";
 import { FilesystemPackageScriptCatalogReader } from "./adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
-import {
-  PnpmQualityGateScriptExecutor,
-  type QualityGatePnpmEnvironment
-} from "./adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import { performanceMonotonicClock } from "./adapters/outbound/time/performance-monotonic-clock.js";
 import { loadQualityGatePolicy } from "./contract/config.js";
 
@@ -25,13 +23,13 @@ function inputError(code: string, message: string): never {
 
 function exitCodeForQualityGateRun(
   report: QualityGateRunReport,
-  cancellationSignal?: "SIGINT" | "SIGTERM"
+  cancellation?: "interrupt" | "terminate"
 ): number {
   if (report.outcome === "passed") {
     return 0;
   }
   if (report.outcome === "cancelled") {
-    return cancellationSignal === "SIGTERM" ? 143 : 130;
+    return cancellation === "terminate" ? 143 : 130;
   }
   for (const task of report.tasks) {
     if (task.outcome === "timed-out") {
@@ -50,7 +48,8 @@ export async function runQualityGateCommand(input: {
   readonly profileId: string;
   readonly format: "json" | "text";
   readonly environment: NodeJS.ProcessEnv;
-  readonly pnpmEnvironment: QualityGatePnpmEnvironment;
+  readonly cancellationSource: QualityGateOperatorCancellationSource;
+  readonly executor: PackageScriptExecutor;
 }): Promise<void> {
   if (input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE] !== undefined) {
     inputError(
@@ -59,15 +58,11 @@ export async function runQualityGateCommand(input: {
     );
   }
   const controller = new AbortController();
-  let cancellationSignal: "SIGINT" | "SIGTERM" | undefined;
-  const cancelFor = (signal: "SIGINT" | "SIGTERM") => () => {
-    cancellationSignal ??= signal;
-    controller.abort(signal);
-  };
-  const onInterrupt = cancelFor("SIGINT");
-  const onTerminate = cancelFor("SIGTERM");
-  process.on("SIGINT", onInterrupt);
-  process.on("SIGTERM", onTerminate);
+  let cancellation: "interrupt" | "terminate" | undefined;
+  const unsubscribe = input.cancellationSource.subscribe((requested) => {
+    cancellation ??= requested;
+    controller.abort(requested);
+  });
   try {
     const policy = await loadQualityGatePolicy(
       input.consumerRoot,
@@ -101,7 +96,7 @@ export async function runQualityGateCommand(input: {
           profile,
           signal: controller.signal
         },
-        new PnpmQualityGateScriptExecutor(input.pnpmEnvironment),
+        input.executor,
         performanceMonotonicClock
       );
     } finally {
@@ -112,9 +107,8 @@ export async function runQualityGateCommand(input: {
         ? `${JSON.stringify(report, null, 2)}\n`
         : renderQualityGateRunReport(report)
     );
-    process.exitCode = exitCodeForQualityGateRun(report, cancellationSignal);
+    process.exitCode = exitCodeForQualityGateRun(report, cancellation);
   } finally {
-    process.removeListener("SIGINT", onInterrupt);
-    process.removeListener("SIGTERM", onTerminate);
+    unsubscribe();
   }
 }

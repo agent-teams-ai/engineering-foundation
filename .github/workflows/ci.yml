@@ -362,7 +362,9 @@ jobs:
       - run: pnpm build
       # Successful runs 32652672062, 32654047694, and 32654516277 measured the
       # former 1+2 lane at 431/414/424s versus 240/246/236s for 3+4. Pairing
-      # opposite shards separates the two longest observed Windows suites.
+      # opposite shards separates the two longest observed Windows suites. The
+      # QGR lifecycle files stay in shard 3, opposite shard 1, and are not run
+      # again in the macOS qualification lane.
       - run: pnpm test:shard:built -- --shards 1,4
 
   windows-test-b:
@@ -470,8 +472,6 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - name: Qualify QGR synthetic lifecycle
-        run: pnpm test:qgr:lifecycle:built
       - name: Qualify repository mutation, scaffolding, and durable document writing
         run: >-
           node --test --test-concurrency=1

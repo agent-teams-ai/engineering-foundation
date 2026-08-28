@@ -147,6 +147,81 @@ function collectCleanupFailures(outcomes, cleanupFailures) {
   return cleanupFailures;
 }
 
+function appendUniqueFailures(destination, candidates) {
+  for (const candidate of candidates) {
+    if (!destination.includes(candidate)) {
+      destination.push(candidate);
+    }
+  }
+}
+
+export async function awaitQgrSetupBeforeTransfer(execution, validate = () => {}) {
+  try {
+    const result = await execution.result;
+    await validate(result);
+    return result;
+  } catch (error) {
+    const cleanupFailures = [];
+    if (error?.cleanup !== undefined) {
+      try {
+        appendUniqueFailures(cleanupFailures, await error.cleanup);
+      } catch (cleanupError) {
+        appendUniqueFailures(cleanupFailures, [cleanupError]);
+      }
+    }
+    try {
+      await execution.stop();
+    } catch (cleanupError) {
+      appendUniqueFailures(cleanupFailures, [cleanupError]);
+    }
+    if (error instanceof Error && Object.isExtensible(error)) {
+      Object.defineProperty(error, "setupCleanupFailures", {
+        enumerable: true,
+        value: Object.freeze([...cleanupFailures]),
+      });
+    }
+    throw error;
+  }
+}
+
+export function createControlledQgrCancellationSource() {
+  let listener;
+  return {
+    cancel(cancellation = "interrupt") {
+      if (listener === undefined) {
+        throw new Error("Controlled QGR cancellation was requested without an active subscriber.");
+      }
+      listener(cancellation);
+    },
+    subscribe(onCancellation) {
+      if (listener !== undefined) {
+        throw new Error("Controlled QGR cancellation accepts only one active subscriber.");
+      }
+      listener = onCancellation;
+      return () => { listener = undefined; };
+    },
+  };
+}
+
+export function startCapturedQgrCommand(start) {
+  const previousExitCode = process.exitCode;
+  const previousWrite = process.stdout.write;
+  let stdout = "";
+  process.exitCode = undefined;
+  process.stdout.write = (chunk) => {
+    stdout += String(chunk);
+    return true;
+  };
+  const result = Promise.resolve()
+    .then(start)
+    .then(() => ({ exitCode: process.exitCode, stdout }))
+    .finally(() => {
+      process.stdout.write = previousWrite;
+      process.exitCode = previousExitCode;
+    });
+  return { result };
+}
+
 export function startBoundedCli(cliPath, arguments_, options = {}) {
   const shutdownGraceMs = options.shutdownGraceMs ?? TEST_HARNESS_SHUTDOWN_GRACE_MS;
   const watchdogMs = options.watchdogMs ?? TEST_HARNESS_WATCHDOG_MS;

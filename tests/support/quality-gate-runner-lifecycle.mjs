@@ -6,9 +6,12 @@ import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 
 export {
+  awaitQgrSetupBeforeTransfer,
   cleanupSyntheticFixture,
+  createControlledQgrCancellationSource,
   removeFixtureRoot,
   startBoundedCli,
+  startCapturedQgrCommand,
 } from "./quality-gate-runner-cleanup.mjs";
 
 const TEST_HARNESS_READINESS_MS = 60_000;

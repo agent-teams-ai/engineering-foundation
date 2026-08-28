@@ -1,5 +1,11 @@
 # @agent-teams/docs-protocol
 
+## 0.3.1
+
+### Patch Changes
+
+- [#207](https://github.com/agent-teams-ai/engineering-foundation/pull/207) [`e3d4de2`](https://github.com/agent-teams-ai/engineering-foundation/commit/e3d4de2baca1f3fd2ff0aa7c26f759f167be7a7d) Thanks [@777genius](https://github.com/777genius)! - Bundle the current stable8 Cohort and its immutable managed assets as a direct migration origin so the one-command consumer upgrade can qualify and activate its stable9 successor.
+
 ## 0.3.0
 
 ### Minor Changes

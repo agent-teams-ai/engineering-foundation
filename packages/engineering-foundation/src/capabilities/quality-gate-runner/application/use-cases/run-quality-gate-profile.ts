@@ -48,6 +48,7 @@ function failureTail(stdout: string, stderr: string): string {
 
 async function executeTask(input: {
   readonly consumerRoot: string;
+  readonly environment?: Readonly<NodeJS.ProcessEnv>;
   readonly task: QualityGateTask;
   readonly signal?: AbortSignal;
 }, executor: PackageScriptExecutor, clock: MonotonicClock): Promise<QualityGateTaskReport> {
@@ -55,6 +56,9 @@ async function executeTask(input: {
   try {
     const result = await executor.run({
       consumerRoot: input.consumerRoot,
+      ...(input.environment === undefined
+        ? {}
+        : { environment: input.environment }),
       scriptId: input.task.id,
       ...(input.task.timeoutMs === undefined
         ? {}
@@ -127,6 +131,7 @@ function profileOutcome(
 
 export async function runQualityGateProfile(input: {
   readonly consumerRoot: string;
+  readonly environment?: Readonly<NodeJS.ProcessEnv>;
   readonly profile: QualityGateProfile;
   readonly signal?: AbortSignal;
 }, executor: PackageScriptExecutor, clock: MonotonicClock): Promise<QualityGateRunReport> {
@@ -164,6 +169,7 @@ export async function runQualityGateProfile(input: {
 function scheduleReadyTasks(
   input: {
     readonly consumerRoot: string;
+    readonly environment?: Readonly<NodeJS.ProcessEnv>;
     readonly profile: QualityGateProfile;
     readonly signal?: AbortSignal;
   },
@@ -196,6 +202,9 @@ function scheduleReadyTasks(
     }
     active.set(task.id, executeTask({
       consumerRoot: input.consumerRoot,
+      ...(input.environment === undefined
+        ? {}
+        : { environment: input.environment }),
       task,
       ...(input.signal === undefined ? {} : { signal: input.signal })
     }, executor, clock));

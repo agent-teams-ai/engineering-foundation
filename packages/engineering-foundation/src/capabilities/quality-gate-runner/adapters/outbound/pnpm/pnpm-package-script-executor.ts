@@ -4,7 +4,8 @@ import { delimiter, isAbsolute, resolve } from "node:path";
 import { FoundationError } from "../../../../../errors.js";
 import {
   executeManagedProcess,
-  ProcessCancellationError
+  ProcessCancellationError,
+  ProcessTimeoutError
 } from "../../../../../process-execution/node-process-runner.js";
 import type {
   ManagedProcessResult,
@@ -110,6 +111,7 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
 
   async run(input: {
     readonly consumerRoot: string;
+    readonly environment?: Readonly<NodeJS.ProcessEnv>;
     readonly scriptId: string;
     readonly timeoutMs?: number;
     readonly signal?: AbortSignal;
@@ -120,6 +122,9 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
         command: invocation.command,
         args: [...invocation.argsPrefix, "run", input.scriptId],
         cwd: input.consumerRoot,
+        ...(input.environment === undefined
+          ? {}
+          : { environment: input.environment }),
         ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
         ...(input.signal === undefined ? {} : { signal: input.signal })
       });
@@ -131,12 +136,8 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
       if (error instanceof ProcessCancellationError) {
         throw new PackageScriptCancellationError({ cause: error });
       }
-      if (
-        input.timeoutMs !== undefined &&
-        error instanceof FoundationError &&
-        error.message.endsWith(`timed out after ${input.timeoutMs}ms.`)
-      ) {
-        throw new PackageScriptTimeoutError(input.timeoutMs, { cause: error });
+      if (error instanceof ProcessTimeoutError) {
+        throw new PackageScriptTimeoutError(error.timeoutMs, { cause: error });
       }
       throw error;
     }

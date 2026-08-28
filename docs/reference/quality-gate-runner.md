@@ -80,7 +80,10 @@ concurrency, and invalid timeouts fail before execution.
 Static script inspection is intentionally conservative rather than a shell
 parser. An inherited runtime marker also rejects recursion assembled dynamically
 by a wrapper script, so an unrecognized command shape fails instead of creating
-an unbounded tree of nested runners.
+an unbounded tree of nested runners. The CLI takes one immutable snapshot of the
+provided environment, adds the recursion marker to that snapshot, and passes the
+exact snapshot through the pnpm adapter to every task. It neither mutates the
+caller's environment nor re-reads ambient environment state during the run.
 
 ## Lifecycle and evidence
 
@@ -95,6 +98,11 @@ loading, and task execution. SIGINT exits 130 and SIGTERM exits 143. If a real
 task, output-limit, or containment failure is observed while cancellation is in
 progress, the task and aggregate report remain failed and the failure exit code
 takes precedence over the cancellation exit code.
+
+Managed-process deadlines reject with the typed `ProcessTimeoutError`, whose
+`timeoutMs` property retains the configured value. The pnpm adapter classifies
+timeouts with `instanceof` and translates them to `PackageScriptTimeoutError`;
+it does not infer timeout semantics by matching error-message text.
 
 The repository lifecycle qualification runs in cross-platform test shard 3.
 The required macOS qualification lane also runs the focused QGR lifecycle suite
@@ -134,6 +142,10 @@ canonical `foundation-command-error/v1` cancellation envelope in JSON mode
 because no run report exists yet. Text mode writes one concise cancellation
 message instead. A non-cancellation setup failure observed after a signal is not
 reclassified as cancellation.
+
+`createQualityGateCliCommand` owns the single CLI projection. JSON and text use
+the canonical report renderer; there is no secondary execution-and-rendering
+entrypoint with independent exit-code logic.
 
 Canonical QGR JSON is execution evidence, not standalone provenance. A consumer
 that retains it must wrap it in external evidence binding the consumer identity,

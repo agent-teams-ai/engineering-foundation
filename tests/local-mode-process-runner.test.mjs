@@ -10,6 +10,7 @@ import test from "node:test";
 import {
   NodeProcessRunner
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
+import { ProcessTimeoutError } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
   spawnWindowsManagedProcess,
@@ -118,6 +119,8 @@ test("terminates a never-exiting process tree when its deadline expires", { time
       timeoutMs: PROCESS_DEADLINE_MS
     });
     const rejected = assert.rejects(execution, (error) => {
+      assert.equal(error instanceof ProcessTimeoutError, true);
+      assert.equal(error.timeoutMs, PROCESS_DEADLINE_MS);
       assert.equal(error?.code, "PROCESS_FAILED");
       assert.match(error.message, new RegExp(`timed out after ${PROCESS_DEADLINE_MS}ms`, "u"));
       return true;
@@ -485,4 +488,101 @@ test("rejects output beyond the bounded capture limit", { timeout: TEST_TIMEOUT_
       return true;
     }
   );
+});
+
+test("an output-limit failure observed during real cancellation outranks cancellation", {
+  skip: process.platform === "win32",
+  timeout: TEST_TIMEOUT_MS
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-process-runner-cancel-output-"));
+  const readyPath = join(root, "ready.txt");
+  try {
+    const controller = new AbortController();
+    const runner = new NodeProcessRunner();
+    const execution = runner.run({
+      command: process.execPath,
+      args: ["-e", `
+        const { writeFileSync } = require("node:fs");
+        process.once("SIGTERM", () => {
+          process.stdout.write(Buffer.alloc(4 * 1024 * 1024 + 1));
+          process.exitCode = 23;
+        });
+        writeFileSync(${JSON.stringify(readyPath)}, "ready");
+        setInterval(() => {}, 60_000);
+      `],
+      cwd: root,
+      signal: controller.signal,
+      timeoutMs: 5_000
+    });
+    const readinessDeadline = Date.now() + READY_TIMEOUT_MS;
+    while (Date.now() < readinessDeadline) {
+      try {
+        if (await readFile(readyPath, "utf8") === "ready") {
+          break;
+        }
+      } catch (error) {
+        if (error?.code !== "ENOENT") {
+          throw error;
+        }
+      }
+      await delay(POLL_INTERVAL_MS);
+    }
+    assert.equal(await readFile(readyPath, "utf8"), "ready");
+    controller.abort("test cancellation");
+    await assert.rejects(execution, (error) => {
+      assert.equal(error?.code, "PROCESS_FAILED");
+      assert.match(error.message, /exceeded the stdout output limit/u);
+      assert.doesNotMatch(error.message, /was cancelled/u);
+      return true;
+    });
+  } finally {
+    await removeTestRoot(root);
+  }
+});
+
+test("a nonzero completion observed during real cancellation outranks cancellation", {
+  skip: process.platform === "win32",
+  timeout: TEST_TIMEOUT_MS
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-process-runner-cancel-nonzero-"));
+  const readyPath = join(root, "ready.txt");
+  try {
+    const controller = new AbortController();
+    const runner = new NodeProcessRunner();
+    const execution = runner.run({
+      command: process.execPath,
+      args: ["-e", `
+        const { writeFileSync } = require("node:fs");
+        process.once("SIGTERM", () => process.exit(23));
+        writeFileSync(${JSON.stringify(readyPath)}, "ready");
+        setInterval(() => {}, 60_000);
+      `],
+      cwd: root,
+      signal: controller.signal,
+      timeoutMs: 5_000
+    });
+    const readinessDeadline = Date.now() + READY_TIMEOUT_MS;
+    while (Date.now() < readinessDeadline) {
+      try {
+        if (await readFile(readyPath, "utf8") === "ready") {
+          break;
+        }
+      } catch (error) {
+        if (error?.code !== "ENOENT") {
+          throw error;
+        }
+      }
+      await delay(POLL_INTERVAL_MS);
+    }
+    assert.equal(await readFile(readyPath, "utf8"), "ready");
+    controller.abort("test cancellation");
+    await assert.rejects(execution, (error) => {
+      assert.equal(error?.code, "PROCESS_FAILED");
+      assert.match(error.message, /exit code 23/u);
+      assert.doesNotMatch(error.message, /was cancelled/u);
+      return true;
+    });
+  } finally {
+    await removeTestRoot(root);
+  }
 });

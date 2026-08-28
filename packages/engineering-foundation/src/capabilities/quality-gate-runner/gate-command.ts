@@ -1,15 +1,11 @@
 import { CapabilityInputError } from "../../capability-runtime.js";
 import type { QualityGateRunReport } from "./application/model/quality-gate-report.js";
 import type { MonotonicClock } from "./application/ports/monotonic-clock.js";
-import type {
-  QualityGateOperatorCancellation,
-  QualityGateOperatorCancellationSource
-} from "./application/ports/operator-cancellation-source.js";
+import type { QualityGateOperatorCancellationSource } from "./application/ports/operator-cancellation-source.js";
 import type { PackageScriptCatalogReader } from "./application/ports/package-script-catalog-reader.js";
 import type { PackageScriptExecutor } from "./application/ports/package-script-executor.js";
 import { evaluateQualityGateScripts } from "./application/policies/evaluate-quality-gate-scripts.js";
 import { runQualityGateProfile } from "./application/use-cases/run-quality-gate-profile.js";
-import { renderQualityGateRunReport } from "./adapters/inbound/cli/report-renderer.js";
 import { NodeSignalQualityGateCancellationSource } from "./adapters/inbound/cli/node-signal-cancellation-source.js";
 import { FilesystemPackageScriptCatalogReader } from "./adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { PnpmQualityGateScriptExecutor } from "./adapters/outbound/pnpm/pnpm-package-script-executor.js";
@@ -71,6 +67,10 @@ export function createQualityGateCommand(
         "A quality gate task cannot start another quality gate runner."
       );
     }
+    const environment = Object.freeze({
+      ...input.environment,
+      [ACTIVE_GATE_ENVIRONMENT_VARIABLE]: input.profileId
+    });
     assertNotCancelled(input.signal);
     const policy = await dependencies.policyLoader(
       input.consumerRoot,
@@ -97,20 +97,16 @@ export function createQualityGateCommand(
         diagnostics.map(({ message }) => message).join(" ")
       );
     }
-    input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE] = input.profileId;
-    try {
-      return await runQualityGateProfile(
-        {
-          consumerRoot: input.consumerRoot,
-          profile,
-          ...(input.signal === undefined ? {} : { signal: input.signal })
-        },
-        dependencies.executor,
-        dependencies.clock
-      );
-    } finally {
-      delete input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE];
-    }
+    return await runQualityGateProfile(
+      {
+        consumerRoot: input.consumerRoot,
+        environment,
+        profile,
+        ...(input.signal === undefined ? {} : { signal: input.signal })
+      },
+      dependencies.executor,
+      dependencies.clock
+    );
   };
 }
 
@@ -137,64 +133,4 @@ export function createNodeQualityGateCommand(
 
 export function createNodeQualityGateCancellationSource(): QualityGateOperatorCancellationSource {
   return new NodeSignalQualityGateCancellationSource();
-}
-
-/**
- * Deprecated internal compatibility seam for existing focused lifecycle tests.
- * Production CLI projection is owned by quality-gate-cli-command.
- */
-export async function runQualityGateCommand(input: Omit<QualityGateCommandInput, "signal"> & {
-  readonly cancellationSource: QualityGateOperatorCancellationSource;
-  readonly executor: PackageScriptExecutor;
-  readonly format: "json" | "text";
-}): Promise<void> {
-  const controller = new AbortController();
-  let cancellation: QualityGateOperatorCancellation | undefined;
-  const unsubscribe = input.cancellationSource.subscribe((requested) => {
-    cancellation ??= requested;
-    controller.abort(requested);
-  });
-  try {
-    const report = await createQualityGateCommand({
-      catalogReader: new FilesystemPackageScriptCatalogReader(),
-      clock: performanceMonotonicClock,
-      executor: input.executor,
-      policyLoader: loadQualityGatePolicy
-    })({
-      configPath: input.configPath,
-      consumerRoot: input.consumerRoot,
-      environment: input.environment,
-      profileId: input.profileId,
-      signal: controller.signal
-    });
-    process.stdout.write(
-      input.format === "json"
-        ? `${JSON.stringify(report, null, 2)}\n`
-        : renderQualityGateRunReport(report)
-    );
-    process.exitCode = legacyExitCodeForQualityGateRun(report, cancellation);
-  } finally {
-    unsubscribe();
-  }
-}
-
-function legacyExitCodeForQualityGateRun(
-  report: QualityGateRunReport,
-  cancellation: QualityGateOperatorCancellation | undefined
-): number {
-  if (cancellation !== undefined && report.outcome !== "failed") {
-    return cancellation === "terminate" ? 143 : 130;
-  }
-  if (report.outcome === "passed") {
-    return 0;
-  }
-  for (const task of report.tasks) {
-    if (task.outcome === "timed-out") {
-      return 124;
-    }
-    if (task.outcome === "failed") {
-      return task.exitCode === null || task.exitCode === 0 ? 1 : task.exitCode;
-    }
-  }
-  return cancellation === "terminate" ? 143 : 130;
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -12,6 +12,7 @@ import {
   createQualityGateCommand,
 } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
+import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import { CapabilityInputError } from "../packages/engineering-foundation/dist/capability-runtime.js";
 import { parseArguments } from "../packages/engineering-foundation/dist/cli-arguments.js";
 import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
@@ -22,6 +23,7 @@ import {
   createSyntheticFixtureBoundaries,
   createSyntheticFixtureBoundary,
   startBoundedCli,
+  waitForFixtureEffect,
 } from "./support/quality-gate-runner-lifecycle.mjs";
 
 function policy() {
@@ -241,6 +243,110 @@ test("late cancellation retains an already observed passing task", async () => {
     signal: null,
     failureTail: "",
   });
+});
+
+test("QGR passes one immutable exact environment snapshot through the pnpm adapter", async () => {
+  const original = { FOUNDATION_ENV_TEST: "before" };
+  let releasePolicy;
+  let policyStarted;
+  const policyReady = new Promise((resolve) => { policyStarted = resolve; });
+  const command = createQualityGateCommand({
+    catalogReader: { async read() { return { scripts: { slow: "node slow.cjs" } }; } },
+    clock: { nowMs: () => 0 },
+    executor: new PnpmQualityGateScriptExecutor({
+      npmExecPath: new URL(import.meta.url).pathname,
+    }, {
+      async run(request) {
+        assert.equal(Object.isFrozen(request.environment), true);
+        assert.deepEqual(request.environment, {
+          AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE: "verify",
+          FOUNDATION_ENV_TEST: "before",
+        });
+        assert.throws(() => {
+          request.environment.FOUNDATION_ENV_TEST = "changed";
+        }, TypeError);
+        return { exitCode: 0, signal: null, stderr: "", stdout: "" };
+      },
+    }),
+    async policyLoader() {
+      policyStarted();
+      await new Promise((resolve) => { releasePolicy = resolve; });
+      return policy();
+    },
+  });
+  const execution = command({
+    configPath: "/fixture/quality-gates.yaml",
+    consumerRoot: "/fixture",
+    environment: original,
+    profileId: "verify",
+  });
+  await policyReady;
+  original.FOUNDATION_ENV_TEST = "after";
+  original.LATE_ENV_TEST = "must-not-leak";
+  releasePolicy();
+
+  const report = await execution;
+  assert.equal(report.outcome, "passed");
+  assert.deepEqual(original, {
+    FOUNDATION_ENV_TEST: "after",
+    LATE_ENV_TEST: "must-not-leak",
+  });
+});
+
+test("real SIGINT cancellation projects canonical JSON and exits 130", {
+  skip: process.platform === "win32",
+  timeout: 15_000,
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-real-sigint-"));
+  const readyPath = join(root, "ready.txt");
+  let execution;
+  try {
+    await mkdir(join(root, "architecture", "foundation"), { recursive: true });
+    const fixturePnpm = join(root, "fixture-pnpm.cjs");
+    await writeFile(join(root, "package.json"), `${JSON.stringify({
+      name: "qgr-real-sigint",
+      private: true,
+      scripts: { slow: "fixture" },
+    })}\n`, "utf8");
+    await writeFile(join(root, "foundation.config.yaml"), `schemaVersion: 1
+project:
+  id: qgr-real-sigint
+capabilities:
+  quality.gate-runner:
+    configPath: architecture/foundation/quality-gates.yaml
+`, "utf8");
+    await writeFile(join(root, "architecture", "foundation", "quality-gates.yaml"), `schemaVersion: 1
+packageManager: pnpm
+profiles:
+  - id: verify
+    concurrency: 1
+    tasks:
+      - id: slow
+`, "utf8");
+    await writeFile(fixturePnpm, `const { writeFileSync } = require("node:fs");
+if (process.argv.slice(2).join(" ") !== "run slow") throw new Error("Unexpected pnpm invocation");
+if (process.env.AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE !== "verify") throw new Error("Missing recursion marker");
+writeFileSync(${JSON.stringify(readyPath)}, "ready", { flag: "wx" });
+setInterval(() => {}, 60_000);
+`, "utf8");
+    const cliPath = join(process.cwd(), "packages", "engineering-foundation", "dist", "cli.js");
+    execution = startBoundedCli(cliPath, [
+      "gate", "run", "verify", "--consumer", root, "--format", "json",
+    ], {
+      deferWatchdogUntilReady: true,
+      env: { ...process.env, npm_execpath: fixturePnpm },
+    });
+    await waitForFixtureEffect(readyPath, execution);
+    assert.equal(execution.command.kill("SIGINT"), true);
+    const result = await execution.result;
+    assert.deepEqual({ code: result.status, signal: result.signal }, { code: 130, signal: null });
+    assert.equal(result.stderr, "");
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.outcome, "cancelled");
+    assert.equal(report.tasks[0].outcome, "cancelled");
+  } finally {
+    await cleanupSyntheticFixture({ executions: [execution], roots: [root] });
+  }
 });
 
 test("partial concurrent-boundary setup closes every created server before rethrowing", async () => {

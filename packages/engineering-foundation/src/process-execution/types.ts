@@ -6,6 +6,8 @@ export interface ProcessRequest {
   readonly timeoutMs?: number;
   /** Cancels the process and descendants retained by the platform containment boundary. */
   readonly signal?: AbortSignal;
+  /** Exact environment exposed to the child. Omission inherits the current process environment. */
+  readonly environment?: Readonly<NodeJS.ProcessEnv>;
 }
 
 export interface ManagedProcessResult {

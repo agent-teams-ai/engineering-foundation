@@ -233,6 +233,7 @@ profiles:
 test("static capability check validates an opted-in profile without running scripts", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-static-"));
   const marker = join(root, "must-not-exist");
+  const guardedSource = `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "")`;
   let execution;
   try {
     await writeConsumer(root, `schemaVersion: 1
@@ -243,7 +244,7 @@ profiles:
     tasks:
       - id: guarded
 `, {
-      guarded: `node --eval "require('node:fs').writeFileSync('${marker}', '')"`,
+      guarded: `node --eval ${JSON.stringify(guardedSource)}`,
     });
     execution = startCli([
       "check", "quality.gate-runner", "--consumer", root, "--format", "json",

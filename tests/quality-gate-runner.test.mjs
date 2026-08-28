@@ -46,14 +46,22 @@ function errorEvidence(error) {
   return evidence.flat(Infinity).join("\n");
 }
 
-async function openRawFixtureSocket(boundary) {
+async function createTeardownRegisteredBoundary(context, options) {
+  const boundary = await createSyntheticFixtureBoundary(options);
+  context.after(() => Promise.allSettled([boundary.abortSetup()]));
+  return boundary;
+}
+
+async function openRawFixtureSocket(boundary, context) {
   const socket = createConnection({
     host: boundary.environment.QGR_FIXTURE_HOST,
     port: Number.parseInt(boundary.environment.QGR_FIXTURE_PORT, 10),
   });
+  const closed = onceSocket(socket, "close");
+  context.after(async () => { socket.destroy(); await closed; });
   socket.on("error", () => {});
   await onceSocket(socket, "connect");
-  return socket;
+  return { closed, socket };
 }
 
 function onceSocket(socket, event) {
@@ -78,8 +86,8 @@ function readSocketLine(socket) {
   });
 }
 
-async function registerRawFixtureRole(boundary, role) {
-  const socket = await openRawFixtureSocket(boundary);
+async function registerRawFixtureRole(boundary, role, context) {
+  const { closed, socket } = await openRawFixtureSocket(boundary, context);
   socket.setEncoding("utf8");
   const acknowledged = readSocketLine(socket);
   const environment = boundary.environmentFor(role);
@@ -95,7 +103,7 @@ async function registerRawFixtureRole(boundary, role) {
       role,
     })}\n`,
   );
-  return socket;
+  return { closed, socket };
 }
 
 function createControlledDeadlines() {
@@ -620,7 +628,7 @@ test("default child environments remove ambient QGR fixture authority", async ()
   }
 });
 
-test("synthetic boundary rejects unauthenticated abuse and invalid role consumption", async () => {
+test("synthetic boundary rejects unauthenticated abuse and invalid role consumption", async (context) => {
   const cases = [
     {
       expected: /exceeded 32 bytes/u,
@@ -657,13 +665,12 @@ test("synthetic boundary rejects unauthenticated abuse and invalid role consumpt
     },
   ];
   for (const candidate of cases) {
-    const boundary = await createSyntheticFixtureBoundary({
+    const boundary = await createTeardownRegisteredBoundary(context, {
       expectedRoles: ["owned"],
       shutdownGraceMs: 100,
       ...candidate.options,
     });
-    const socket = await openRawFixtureSocket(boundary);
-    const closed = onceSocket(socket, "close");
+    const { closed, socket } = await openRawFixtureSocket(boundary, context);
     socket.write(
       typeof candidate.payload === "function" ? candidate.payload(boundary) : candidate.payload,
     );
@@ -674,24 +681,23 @@ test("synthetic boundary rejects unauthenticated abuse and invalid role consumpt
     });
   }
 
-  const dwellBoundary = await createSyntheticFixtureBoundary({
+  const dwellBoundary = await createTeardownRegisteredBoundary(context, {
     expectedRoles: ["owned"],
     preAuthenticationDwellMs: 20,
     shutdownGraceMs: 100,
   });
-  const dwellingSocket = await openRawFixtureSocket(dwellBoundary);
-  await onceSocket(dwellingSocket, "close");
+  const { closed: dwellingClosed } = await openRawFixtureSocket(dwellBoundary, context);
+  await dwellingClosed;
   await assert.rejects(dwellBoundary.stop(), (error) => {
     assert.match(errorEvidence(error), /registration exceeded 20ms/u);
     return true;
   });
 
-  const abandonedBoundary = await createSyntheticFixtureBoundary({
+  const abandonedBoundary = await createTeardownRegisteredBoundary(context, {
     expectedRoles: ["owned"],
     shutdownGraceMs: 100,
   });
-  const abandonedSocket = await openRawFixtureSocket(abandonedBoundary);
-  const abandonedClose = onceSocket(abandonedSocket, "close");
+  const { closed: abandonedClose, socket: abandonedSocket } = await openRawFixtureSocket(abandonedBoundary, context);
   abandonedSocket.end();
   await abandonedClose;
   await assert.rejects(abandonedBoundary.stop(), (error) => {
@@ -700,17 +706,15 @@ test("synthetic boundary rejects unauthenticated abuse and invalid role consumpt
   });
 });
 
-test("synthetic boundary rejects duplicate execution and force-destroys retained sockets", async () => {
-  const duplicateBoundary = await createSyntheticFixtureBoundary({
+test("synthetic boundary rejects duplicate execution and force-destroys retained sockets", async (context) => {
+  const duplicateBoundary = await createTeardownRegisteredBoundary(context, {
     expectedRoles: ["owned"],
     shutdownGraceMs: 100,
   });
-  const first = await registerRawFixtureRole(duplicateBoundary, "owned");
-  const firstClosed = onceSocket(first, "close");
+  const { closed: firstClosed, socket: first } = await registerRawFixtureRole(duplicateBoundary, "owned", context);
   first.destroy();
   await firstClosed;
-  const duplicate = await openRawFixtureSocket(duplicateBoundary);
-  const duplicateClosed = onceSocket(duplicate, "close");
+  const { closed: duplicateClosed, socket: duplicate } = await openRawFixtureSocket(duplicateBoundary, context);
   const duplicateEnvironment = duplicateBoundary.environmentFor("owned");
   duplicate.write(`${JSON.stringify({
     boundaryId: duplicateEnvironment.QGR_FIXTURE_BOUNDARY_ID,
@@ -722,12 +726,11 @@ test("synthetic boundary rejects duplicate execution and force-destroys retained
     return true;
   });
 
-  const retainedBoundary = await createSyntheticFixtureBoundary({
+  const retainedBoundary = await createTeardownRegisteredBoundary(context, {
     expectedRoles: ["retained"],
     shutdownGraceMs: 30,
   });
-  const retained = await registerRawFixtureRole(retainedBoundary, "retained");
-  const retainedClosed = onceSocket(retained, "close");
+  const { closed: retainedClosed } = await registerRawFixtureRole(retainedBoundary, "retained", context);
   await assert.rejects(retainedBoundary.stop(), (error) => {
     assert.match(errorEvidence(error), /Timed out waiting/u);
     return true;

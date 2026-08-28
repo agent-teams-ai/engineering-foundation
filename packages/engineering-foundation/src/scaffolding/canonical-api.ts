@@ -16,6 +16,7 @@ import {
 import { assertAuthorityScaffoldPlanDigest } from "./kernel/plan-validation.js";
 import { assertAuthorityScaffoldReceiptDigest } from "./kernel/authority-receipt.js";
 import { snapshotAuthorityScaffoldRecoveryScope } from "./kernel/recovery-scope.js";
+import { ScaffoldError } from "./scaffold-error.js";
 import { planAuthorityScaffoldFromFile } from "./authority-service.js";
 
 export async function planScaffoldFromFile(options: {
@@ -44,10 +45,15 @@ export async function recoverFilesystemScaffold(
   consumerRoot: string,
   ...scopeArgument: readonly [] | readonly [scope: ScaffoldRecoveryScope]
 ): Promise<ScaffoldReceipt | undefined> {
-  const [scope] = scopeArgument;
-  const snapshot = scope === undefined
+  if (scopeArgument.length > 1) {
+    throw new ScaffoldError(
+      "SCAFFOLD_INPUT_INVALID",
+      "Scaffolding recovery accepts at most one recovery scope."
+    );
+  }
+  const snapshot = scopeArgument.length === 0
     ? undefined
-    : snapshotAuthorityScaffoldRecoveryScope(scope);
+    : snapshotAuthorityScaffoldRecoveryScope(scopeArgument[0]);
   return recoverAuthorityFilesystemScaffold(consumerRoot, snapshot);
 }
 

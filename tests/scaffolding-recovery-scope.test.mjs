@@ -50,6 +50,10 @@ function journalPath(root) {
   return join(root, ".agent-teams-local", "scaffolding-transaction.json");
 }
 
+function barrierPath(root) {
+  return join(root, ".agent-teams-local", "foundation-operation.lock");
+}
+
 function recoveryScope(plan) {
   return {
     projectId: plan.projectId,
@@ -83,6 +87,86 @@ async function writePreparedJournal(root, plan, path = journalPath(root)) {
   return bytes;
 }
 
+async function snapshotPath(path) {
+  try {
+    const metadata = await stat(path);
+    assert.equal(metadata.isFile(), true);
+    return {
+      state: "file",
+      bytes: await readFile(path),
+      mode: metadata.mode & 0o777,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return { state: "missing" };
+    }
+    throw error;
+  }
+}
+
+async function materializeOutput(root, operation, bytes, mode) {
+  const path = join(root, operation.path);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, bytes, { mode });
+}
+
+async function prepareScopeMismatchEvidence(root, plan) {
+  assert.ok(plan.operations.length >= 2);
+  const [exactOperation, conflictingOperation] = plan.operations;
+  assert.ok(exactOperation);
+  assert.ok(conflictingOperation);
+  const exactBytes = Buffer.from(exactOperation.after.contentBase64, "base64");
+  const conflictingBytes = Buffer.from(
+    "preexisting output that conflicts with the prepared Plan\r\n",
+  );
+  assert.notDeepEqual(
+    conflictingBytes,
+    Buffer.from(conflictingOperation.after.contentBase64, "base64"),
+  );
+  await writePreparedJournal(root, plan);
+  await materializeOutput(
+    root,
+    exactOperation,
+    exactBytes,
+    Number.parseInt(exactOperation.after.mode, 8),
+  );
+  await materializeOutput(root, conflictingOperation, conflictingBytes, 0o600);
+  return {
+    journal: await snapshotPath(journalPath(root)),
+    outputs: await Promise.all(plan.operations.map(async (operation) => ({
+      path: operation.path,
+      snapshot: await snapshotPath(join(root, operation.path)),
+    }))),
+  };
+}
+
+async function assertScopeMismatchEvidenceUnchanged(root, before) {
+  assert.deepEqual(await snapshotPath(journalPath(root)), before.journal);
+  for (const output of before.outputs) {
+    assert.deepEqual(
+      await snapshotPath(join(root, output.path)),
+      output.snapshot,
+    );
+  }
+  const barrier = await snapshotPath(barrierPath(root));
+  assert.equal(barrier.state, "file");
+  if (process.platform !== "win32") {
+    assert.equal(barrier.mode, 0o600);
+  }
+  const evidence = JSON.parse(barrier.bytes.toString("utf8"));
+  assert.deepEqual(Object.keys(evidence).toSorted(), [
+    "kind",
+    "schemaVersion",
+    "token",
+  ]);
+  assert.equal(evidence.kind, "transaction-barrier");
+  assert.equal(evidence.schemaVersion, 1);
+  assert.match(
+    evidence.token,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+  );
+}
+
 function withRecomputedPlanDigest(value) {
   const { planDigest: _planDigest, ...body } = value;
   return { ...body, planDigest: sha256Json(body) };
@@ -99,7 +183,7 @@ async function assertOutputsMissing(root, plan) {
 
 async function assertRetainedBarrier(root) {
   const barrier = JSON.parse(await readFile(
-    join(root, ".agent-teams-local", "foundation-operation.lock"),
+    barrierPath(root),
     "utf8",
   ));
   assert.equal(barrier.kind, "transaction-barrier");
@@ -133,6 +217,44 @@ test("keeps one-argument recovery behavior and exact scoped recovery replay", as
     const recovered = await recoverFilesystemScaffold(root, scope);
     assert.equal(recovered?.outcome, "failed-recovered");
     assert.equal(await recoverFilesystemScaffold(root, scope), undefined);
+  });
+});
+
+test("fails closed for explicit undefined and excess runtime arguments", async () => {
+  assert.equal(recoverFilesystemScaffold.length, 1);
+  await withConsumer(async (root, plan) => {
+    await assert.rejects(
+      recoverFilesystemScaffold(root, void 0),
+      (error) => {
+        assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID");
+        assert.equal(
+          error.message,
+          "Scaffolding recovery scope must be a closed data object.",
+        );
+        assert.deepEqual(error.diagnostics, []);
+        return true;
+      },
+    );
+    await assert.rejects(
+      Reflect.apply(recoverFilesystemScaffold, undefined, [
+        root,
+        recoveryScope(plan),
+        recoveryScope(plan),
+      ]),
+      (error) => {
+        assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID");
+        assert.equal(
+          error.message,
+          "Scaffolding recovery accepts at most one recovery scope.",
+        );
+        assert.deepEqual(error.diagnostics, []);
+        return true;
+      },
+    );
+    assert.deepEqual(
+      await snapshotPath(join(root, ".agent-teams-local")),
+      { state: "missing" },
+    );
   });
 });
 
@@ -211,15 +333,13 @@ test("every scope field mismatch is stable and preserves journal, outputs, and b
   for (const [field, mutate] of Object.entries(mutations)) {
     await context.test(field, async () => {
       await withConsumer(async (root, plan) => {
-        const before = await writePreparedJournal(root, plan);
+        const before = await prepareScopeMismatchEvidence(root, plan);
         await rm(join(root, plan.authority.configPath));
         await assert.rejects(
           recoverFilesystemScaffold(root, mutate(recoveryScope(plan))),
           isScopeMismatch,
         );
-        assert.deepEqual(await readFile(journalPath(root)), before);
-        await assertOutputsMissing(root, plan);
-        await assertRetainedBarrier(root);
+        await assertScopeMismatchEvidenceUnchanged(root, before);
       });
     });
   }
@@ -230,14 +350,12 @@ test("fails closed when journal Intent and Composition disagree", async () => {
     const disagreeing = structuredClone(plan);
     disagreeing.composition.id = `${plan.composition.id}-other`;
     const persistedPlan = withRecomputedPlanDigest(disagreeing);
-    const before = await writePreparedJournal(root, persistedPlan);
+    const before = await prepareScopeMismatchEvidence(root, persistedPlan);
     await assert.rejects(
       recoverFilesystemScaffold(root, recoveryScope(plan)),
       isScopeMismatch,
     );
-    assert.deepEqual(await readFile(journalPath(root)), before);
-    await assertOutputsMissing(root, persistedPlan);
-    await assertRetainedBarrier(root);
+    await assertScopeMismatchEvidenceUnchanged(root, before);
   });
 });
 

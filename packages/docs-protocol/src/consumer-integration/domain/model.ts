@@ -127,3 +127,10 @@ export interface ConsumerIntegrationPlanV1 {
   readonly assets: readonly ConsumerIntegrationAssetPlan[];
   readonly issues: readonly ConsumerIntegrationIssue[];
 }
+
+export interface ConsumerUpgradeAuthorityV1 {
+  readonly repository: "agent-teams-ai/.github";
+  readonly path: "governance/docs-qualified-cohorts.json";
+  readonly revision: string;
+  readonly cohort: QualifiedDocsCohortBindingV1;
+}

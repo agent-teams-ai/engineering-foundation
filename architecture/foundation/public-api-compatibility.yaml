@@ -62,4 +62,6 @@ packages:
         kind: wildcard
     tsconfigPath: packages/docs-protocol/tsconfig.json
     releasedBaselinePath: architecture/public-api/docs-protocol.json
-    approvedBreakingChanges: []
+    approvedBreakingChanges:
+      - fingerprint: sha256:181c6e224092cae9505f524005b4f6595700bb518f07cb3e5a2dcd3a68266f70
+        decisionId: ADR-0038

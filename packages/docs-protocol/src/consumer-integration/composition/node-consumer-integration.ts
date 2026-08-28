@@ -1,16 +1,24 @@
 import { foundationKnownFileTransaction } from "../adapters/foundation-known-file-transaction.js";
+import { githubCohortAuthorityReader } from "../adapters/github-cohort-authority-reader.js";
 import {
   nodeConsumerIntegrationInputReader
 } from "../adapters/node-consumer-integration-repository.js";
 import {
   packageConsumerAssetCatalogReader
 } from "../adapters/package-consumer-asset-catalog.js";
+import { nodeConsumerUpgradeSandbox } from "../adapters/node-consumer-upgrade-sandbox.js";
 import type {
   ConsumerIntegrationExecutionV1
 } from "../application/model/consumer-integration-execution.js";
 import {
   createConsumerIntegrationUseCases
 } from "../application/use-cases/run-consumer-integration.js";
+import {
+  createConsumerUpgradeUseCase
+} from "../application/use-cases/upgrade-consumer-integration.js";
+import type {
+  ConsumerUpgradeExecutionV1
+} from "../application/model/consumer-upgrade-execution.js";
 import { consumerIntegrationPlanningPorts } from "./consumer-integration-planner.js";
 
 export type {
@@ -21,6 +29,15 @@ const useCases = createConsumerIntegrationUseCases({
   assets: packageConsumerAssetCatalogReader,
   input: nodeConsumerIntegrationInputReader,
   planning: consumerIntegrationPlanningPorts,
+  transaction: foundationKnownFileTransaction
+});
+
+const upgrade = createConsumerUpgradeUseCase({
+  assets: packageConsumerAssetCatalogReader,
+  authority: githubCohortAuthorityReader,
+  input: nodeConsumerIntegrationInputReader,
+  planning: consumerIntegrationPlanningPorts,
+  sandbox: nodeConsumerUpgradeSandbox,
   transaction: foundationKnownFileTransaction
 });
 
@@ -51,4 +68,12 @@ export function recoverConsumerIntegration(options: {
   readonly consumerRoot: string;
 }): Promise<ConsumerIntegrationExecutionV1> {
   return useCases.recover(options);
+}
+
+export function upgradeConsumerIntegration(options: {
+  readonly consumerRoot: string;
+  readonly authorityRevision?: string;
+  readonly to: string;
+}): Promise<ConsumerUpgradeExecutionV1> {
+  return upgrade(options);
 }

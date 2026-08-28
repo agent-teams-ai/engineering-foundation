@@ -1,6 +1,6 @@
 # Managed Docs Protocol Consumer Integration
 
-Status: Accepted target from ADR-0030 and ADR-0031. The internal bounded-context
+Status: Accepted target from ADR-0030 and ADR-0037. The internal bounded-context
 dependency fence is implemented and the managed integration is release-qualified;
 consumer activation remains explicit.
 
@@ -75,17 +75,38 @@ unchanged receipt.
 | Six `docs:*` aliases | Docs Protocol | Exact package fields |
 | Docs Protocol and Foundation pins | Qualified Cohort | Exact development dependency fields |
 | Documentation route in `AGENTS.md` | Docs Protocol | One exact managed block |
-| pnpm lockfile | Package manager | Read and validate only |
+| Integration profile Cohort field | `.github` governance via Docs Protocol upgrade | One exact field |
+| pnpm lockfile | Package manager plus Foundation publication | Generate only in disposable staging; publish exact postimage |
 | Profiles, owners, schemas, templates, validators, documents | Consumer | No write authority |
 | Enrolled repositories and exceptions | `.github` governance | External audit and admission |
 
 ## Lifecycle
 
 ```text
-discover -> check -> plan -> review -> apply -> check -> hosted CI -> admission
+discover -> check source -> stage successor -> prove target -> publish -> check target
+         -> review Git diff -> hosted CI -> admission
 ```
 
-`check` and `plan` are deterministic observations. `apply` accepts only a newly
+The normal migration is one explicit command:
+
+```bash
+agent-teams-docs consumer upgrade --to docs-YYYY-MM-DD-N --json
+```
+
+It resolves current protected `.github` main, projects the qualified Cohort and
+exact package pins, lets pnpm generate the lockfile only inside a disposable Git
+copy, and runs the successor CLI there. Foundation then publishes the closed
+postimage set once, after revalidating that the captured SHA is still protected
+main. Activation is a frozen offline install plus read-only check;
+failure publishes exact reverse operations and restores the source installation.
+
+The source must be current, transaction-idle, and clean at one Git HEAD. The
+optional `--authority-revision` is a freshness assertion and must equal current
+protected main. The Cohort's `eligible_after` timestamp remains informational;
+lifecycle state, canary enrollment, and explicit `upgrade_from` are the local
+selection gates.
+
+`check` and `plan` remain deterministic offline observations. `apply` accepts only a newly
 rebuilt Plan whose digest equals the caller's expectation, then delegates to the
 Foundation recoverable serialized CAS transaction. A crash can expose mixed
 bytes until exact-build recovery completes; the transaction journal and hosted
@@ -102,8 +123,8 @@ qualified.
 ## Non-goals
 
 - a generic managed-files or plugin framework;
-- lockfile generation or dependency installation;
+- package installation outside the explicit disposable upgrade and frozen activation boundary;
 - automatic documentation, profile, schema, template, owner, or validator edits;
-- network access during local lifecycle commands;
+- network access during `check`, `plan`, `apply`, or `recover`;
 - multi-file atomicity claims;
 - continuous organization-wide compliance before a separate read-only auditor.

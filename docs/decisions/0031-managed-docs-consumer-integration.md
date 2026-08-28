@@ -1,8 +1,9 @@
 ---
 id: ADR-0031
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by:
+  - ADR-0037
 ---
 
 # ADR-0031: Managed Docs Protocol Consumer Integration

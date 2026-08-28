@@ -80,6 +80,7 @@ agent-teams-docs new --type adr --id ADR-0083 \
   --dry-run
 agent-teams-docs doctor
 agent-teams-docs recover
+agent-teams-docs consumer upgrade --to docs-YYYY-MM-DD-N --json
 ```
 
 After reviewing a dry run, repeat `agent-teams-docs new` with `--apply`, follow its

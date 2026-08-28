@@ -59,12 +59,14 @@ Foundation cannot depend on Docs Protocol. Consumers still own their data-only
 profiles, schemas, owners, templates, reachability, and semantic validators;
 neither shared package accepts executable consumer extensions.
 
-ADR-0030 and ADR-0031 extend that split for consumer maintenance. Foundation
+ADR-0030 and ADR-0037 extend that split for consumer maintenance. Foundation
 alone owns recoverable create-or-replace-known-file transactions. Docs Protocol
 owns the pure consumer-integration compiler and package-owned asset catalog, and
 delegates every apply to that Foundation port. Organization governance owns the
-Qualified Cohort and enrollment evidence. Lockfiles remain package-manager-owned,
-while profiles and documentation authority remain consumer-owned.
+Qualified Cohort and enrollment evidence. During an explicit one-command
+upgrade, pnpm generates the lockfile only in disposable staging and Foundation
+publishes the proven bytes; other profile fields and documentation authority
+remain consumer-owned.
 
 ADR-0033 closes the remaining dual-CLI ambiguity. Docs Protocol is the target
 owner of documentation commands and workflow. Foundation's older top-level

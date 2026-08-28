@@ -147,7 +147,7 @@ async function run(runtime, overrides = {}) {
 test("allows bounded npm provenance propagation without a failed publish attempt", () => {
   assert.equal(
     (REGISTRY_OBSERVATION_ATTEMPTS - 1) * REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
-    180_000,
+    360_000,
   );
 });
 

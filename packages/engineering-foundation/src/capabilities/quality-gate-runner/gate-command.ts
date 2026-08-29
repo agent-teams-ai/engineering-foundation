@@ -25,7 +25,7 @@ function inputError(code: string, message: string): never {
   });
 }
 
-export interface QualityGateCommandInput {
+interface QualityGateCommandInput {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly profileId: string;
@@ -43,8 +43,6 @@ export interface QualityGateCommandDependencies {
 export type QualityGateCommand = (
   input: QualityGateCommandInput
 ) => Promise<QualityGateRunReport>;
-
-export type { QualityGateRunReport };
 
 function assertNotCancelled(signal: AbortSignal | undefined): void {
   if (signal?.aborted === true) {

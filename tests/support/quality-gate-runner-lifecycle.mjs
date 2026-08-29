@@ -19,7 +19,6 @@ export {
   createControlledQgrCancellationSource,
   removeFixtureRoot,
   startBoundedCli,
-  startCapturedQgrCommand,
 } from "./quality-gate-runner-cleanup.mjs";
 
 const TEST_HARNESS_READINESS_MS = 60_000;

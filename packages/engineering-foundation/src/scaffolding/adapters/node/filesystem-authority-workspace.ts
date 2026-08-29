@@ -54,7 +54,7 @@ import { createNodeFoundationCleanupTransition } from "../../../transaction-coor
 import { syncFoundationStateDirectory } from "../../../transaction-coordination/adapters/node/node-foundation-state-directory.js";
 import { sha256Text } from "../../kernel/canonical-json.js";
 
-export interface ScaffoldAuthorityFaultPoint {
+interface ScaffoldAuthorityFaultPoint {
   readonly phase:
     | "after-hard-link"
     | "after-journal-operation-published"

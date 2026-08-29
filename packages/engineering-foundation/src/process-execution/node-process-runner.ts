@@ -358,11 +358,7 @@ async function normalExitResult(input: {
 }): Promise<ManagedProcessResult | FoundationError> {
   try {
     await cleanUpAfterNormalExit(input.child);
-    if (process.platform === "win32") {
-      await input.closed;
-    } else {
-      await waitForCloseWithinCleanupDeadline(input.closed);
-    }
+    await (process.platform === "win32" ? input.closed : waitForCloseWithinCleanupDeadline(input.closed));
   } catch (error) {
     return processFailure(
       input.request,

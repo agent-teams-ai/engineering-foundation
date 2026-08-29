@@ -3,6 +3,7 @@ import {
   cp,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   rename,
   rm,
@@ -127,12 +128,14 @@ async function writePreparedJournal(root, plan, path = journalPath(root)) {
 }
 
 async function snapshotPath(path) {
+  let handle;
   try {
-    const metadata = await stat(path);
+    handle = await open(path, "r");
+    const metadata = await handle.stat();
     assert.equal(metadata.isFile(), true);
     return {
       state: "file",
-      bytes: await readFile(path),
+      bytes: await handle.readFile(),
       mode: metadata.mode & 0o777,
     };
   } catch (error) {
@@ -140,6 +143,8 @@ async function snapshotPath(path) {
       return { state: "missing" };
     }
     throw error;
+  } finally {
+    await handle?.close();
   }
 }
 

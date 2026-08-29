@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, open, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
 import { join } from "node:path";
@@ -83,6 +83,15 @@ async function waitForJsonFile(path) {
     }
   }
   assert.fail(`managed process did not write ${path} before the deadline`);
+}
+
+async function writeNewFileExclusive(path, contents) {
+  const handle = await open(path, "wx", 0o600);
+  try {
+    await handle.writeFile(contents, "utf8");
+  } finally {
+    await handle.close();
+  }
 }
 
 windowsTest(
@@ -325,7 +334,7 @@ for (const confirmationFailure of ["invalid", "read"]) {
       const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
       ({ pid: managedPid } = await waitForJsonFile(startedPath));
       if (confirmationFailure === "invalid") {
-        await writeFile(join(controlRoot, "contained"), "INVALID", "utf8");
+        await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
       } else {
         await mkdir(join(controlRoot, "contained"));
       }
@@ -370,7 +379,7 @@ windowsTest("retains controls and both errors when forced wrapper cleanup fails"
     });
     controlRoot = await waitForNewWindowsControlRoot(previousRoots);
     ({ pid: managedPid } = await waitForJsonFile(startedPath));
-    await writeFile(join(controlRoot, "contained"), "INVALID", "utf8");
+    await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
     realKill = child.kill.bind(child);
     child.kill = () => {
       throw cleanupError;
@@ -424,7 +433,7 @@ windowsTest("does not fabricate cleanup failure when kill returns false as the w
     });
     const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
     ({ pid: managedPid } = await waitForJsonFile(startedPath));
-    await writeFile(join(controlRoot, "contained"), "INVALID", "utf8");
+    await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
     realKill = child.kill.bind(child);
     child.kill = (signal) => {
       assert.equal(realKill(signal), true);

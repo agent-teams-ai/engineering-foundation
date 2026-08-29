@@ -37,6 +37,10 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     join(repositoryRoot, "scripts", "npm-package-bootstrap-cli.mjs"),
     "utf8",
   );
+  const packTestSupportSource = await readFile(
+    join(repositoryRoot, "scripts", "pack-test-support.mjs"),
+    "utf8",
+  );
   const release = await workflow("release.yml");
   const job = bootstrap.jobs.bootstrap;
   const publish = job.steps.find(
@@ -124,6 +128,15 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.match(registrySource, /`--@agent-teams:registry=\$\{registry\}`/u);
   assert.match(registrySource, /runNpmCommand/u);
   assert.doesNotMatch(registrySource, /execFile|npm\.cmd/u);
+  assert.doesNotMatch(
+    packTestSupportSource,
+    /^import .*windows-managed-process/u,
+    "pre-build release guards must not resolve built Windows adapters during module loading",
+  );
+  assert.match(
+    packTestSupportSource,
+    /process\.platform !== "win32"[\s\S]*?await import\([\s\S]*?windows-managed-process\.js/u,
+  );
   assert.equal(reconcile.needs, "bootstrap");
   assert.deepEqual(reconcile.permissions, { contents: "write" });
   assert.match(reconcile.steps[0].uses, /^actions\/checkout@[a-f0-9]{40}$/u);

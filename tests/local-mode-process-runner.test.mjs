@@ -605,7 +605,7 @@ test("Windows cancellation protocol proves containment across Job assignment", a
     resumeThread
   );
   const launchConfirmedCancellation = windowsManagedProcessSource.indexOf(
-    "if (File.Exists(launchPath) && CancelAssignedIfRequested(",
+    "if (LaunchSucceeded(launchPath) &&",
     waitForLaunchAttempt
   );
   assert.ok(updateJobList >= 0);
@@ -620,6 +620,10 @@ test("Windows cancellation protocol proves containment across Job assignment", a
   assert.ok(createProcess < resumeThread);
   assert.ok(resumeThread < waitForLaunchAttempt);
   assert.ok(waitForLaunchAttempt < launchConfirmedCancellation);
+  assert.match(
+    windowsManagedProcessSource,
+    /private static bool LaunchSucceeded[\s\S]*catch \(IOException\)/u
+  );
 
   const assignedCancellationHelper = windowsManagedProcessSource.indexOf(
     "private static bool CancelAssignedIfRequested"
@@ -665,7 +669,7 @@ test("Windows cancellation protocol proves containment across Job assignment", a
   assert.ok(readExitCode > waitForProcessExit);
   assert.match(
     windowsManagedProcessSource.slice(waitForProcessExit, readExitCode),
-    /File\.Exists\(launchPath\)[\s\S]*CancelAssignedIfRequested/u
+    /LaunchSucceeded\(launchPath\)[\s\S]*CancelAssignedIfRequested/u
   );
   assert.equal(
     windowsManagedProcessSource.match(/return 0;/gu)?.length,

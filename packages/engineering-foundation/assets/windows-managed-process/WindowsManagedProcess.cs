@@ -298,6 +298,21 @@ namespace AgentTeams.Foundation
             return true;
         }
 
+        private static bool LaunchSucceeded(string launchPath)
+        {
+            try
+            {
+                return File.Exists(launchPath) &&
+                    File.ReadAllText(launchPath) == "STARTED";
+            }
+            catch (IOException)
+            {
+                // The host publishes the marker atomically enough for durability,
+                // but Windows may briefly deny a concurrent read while it closes.
+                return false;
+            }
+        }
+
         private static void ConfigureKillOnClose(IntPtr job)
         {
             var limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
@@ -411,8 +426,7 @@ namespace AgentTeams.Foundation
                     }
                     // Once the trusted host has attempted the requested launch,
                     // an already observed host failure outranks cancellation.
-                    if (File.Exists(launchPath) &&
-                        File.ReadAllText(launchPath) == "STARTED" &&
+                    if (LaunchSucceeded(launchPath) &&
                         CancelAssignedIfRequested(cancellationPath, confirmationPath, job))
                     {
                         return 0;

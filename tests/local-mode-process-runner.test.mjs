@@ -61,22 +61,6 @@ const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
 const FAKE_ABSOLUTE_SYSTEM_ROOT = String.raw`C:\Windows`;
 const FAKE_WINDOWS_POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
 
-async function withWindowsSystemRoot(callback) {
-  const originalSystemRoot = process.env.SystemRoot;
-  if (process.platform !== "win32") {
-    process.env.SystemRoot = FAKE_ABSOLUTE_SYSTEM_ROOT;
-  }
-  try {
-    return await callback();
-  } finally {
-    if (originalSystemRoot === undefined) {
-      delete process.env.SystemRoot;
-    } else {
-      process.env.SystemRoot = originalSystemRoot;
-    }
-  }
-}
-
 async function removeNewWindowsControlRoots(previousRoots) {
   const currentRoots = await windowsControlRoots();
   await Promise.all([...currentRoots]
@@ -356,17 +340,22 @@ test("preserves a synchronous PowerShell launch failure when control cleanup fai
   const root = await mkdtemp(join(tmpdir(), "foundation-windows-sync-launch-failure-"));
   const previousControls = await windowsControlRoots();
   try {
-    await withWindowsSystemRoot(() => withFailingSynchronousControlCleanup(context.mock, (cleanupError) => {
+    await withFailingSynchronousControlCleanup(context.mock, (cleanupError) => {
       assert.throws(
         () => spawnWindowsManagedProcess({
           command: process.execPath,
           args: ["-e", "process.exit()"],
           cwd: root,
-          environment: { ...process.env, FOUNDATION_INVALID_ENVIRONMENT: "invalid\0value" }
+          environment: process.env,
+          launcherEnvironment: {
+            ...process.env,
+            SystemRoot: FAKE_ABSOLUTE_SYSTEM_ROOT,
+            FOUNDATION_INVALID_ENVIRONMENT: "invalid\0value"
+          }
         }),
         (error) => error?.code === "ERR_INVALID_ARG_VALUE" && error !== cleanupError
       );
-    }));
+    });
     await removeNewWindowsControlRoots(previousControls);
     await assertNoNewWindowsControlRoots(previousControls);
   } finally {
@@ -380,11 +369,12 @@ test("contains asynchronous control cleanup failures and permits an idempotent r
   const previousControls = await windowsControlRoots();
   let child;
   try {
-    await withWindowsSystemRoot(() => withFailingSynchronousControlCleanup(context.mock, async (cleanupError) => {
+    await withFailingSynchronousControlCleanup(context.mock, async (cleanupError) => {
       child = spawnWindowsManagedProcess({
         command: process.execPath,
         args: ["-e", "process.exit()"],
-        cwd: join(root, "missing-working-directory")
+        cwd: join(root, "missing-working-directory"),
+        launcherEnvironment: { ...process.env, SystemRoot: FAKE_ABSOLUTE_SYSTEM_ROOT }
       });
       const closed = new Promise((resolve) => {
         child.once("close", resolve);
@@ -394,7 +384,7 @@ test("contains asynchronous control cleanup failures and permits an idempotent r
       assert.notEqual(launchError, cleanupError);
       assert.equal(child.pid, undefined);
       await closed;
-    }));
+    });
 
     const [controlRoot] = [...await windowsControlRoots()]
       .filter((candidate) => !previousControls.has(candidate));
@@ -436,16 +426,19 @@ test("accepts a containment marker published in the wrapper-exit poll race", {
   await chmod(fakePowerShell, 0o700);
 
   try {
-    await withWindowsSystemRoot(async () => {
+    {
+      const launcherEnvironment = {
+        ...process.env,
+        SystemRoot: FAKE_ABSOLUTE_SYSTEM_ROOT,
+        FOUNDATION_TEST_RELEASE_PATH: releasePath,
+        PATH: `${bin}:${process.env.PATH ?? ""}`
+      };
       child = spawnWindowsManagedProcess({
         command: process.execPath,
         args: ["-e", "process.exit()"],
         cwd: root,
-        environment: {
-          ...process.env,
-          FOUNDATION_TEST_RELEASE_PATH: releasePath,
-          PATH: `${bin}:${process.env.PATH ?? ""}`
-        }
+        environment: process.env,
+        launcherEnvironment
       });
       const originalReadFile = fileSystem.promises.readFile;
       let confirmationReads = 0;
@@ -477,7 +470,7 @@ test("accepts a containment marker published in the wrapper-exit poll race", {
       }
       assert.equal(confirmationReads, 2);
       assert.equal(child.exitCode, 0);
-    });
+    }
     await assertNoNewWindowsControlRoots(previousControls);
   } finally {
     if (child?.exitCode === null && child.signalCode === null) {

@@ -12,6 +12,7 @@ try {
     [string]$bootstrapRequest.processHostPath,
     [string]$bootstrapRequest.encodedRequest,
     [string]$bootstrapRequest.cwd,
+    [string[]]$bootstrapRequest.environmentEntries,
     [string]$bootstrapRequest.cancellationPath,
     [string]$bootstrapRequest.confirmationPath,
     [string]$bootstrapRequest.launchPath)

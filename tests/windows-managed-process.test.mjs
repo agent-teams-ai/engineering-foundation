@@ -164,25 +164,16 @@ windowsTest("rejects a native Windows command line that cannot fit", { timeout: 
 
 windowsTest("rejects a non-absolute SystemRoot without leaking controls", { timeout: TEST_TIMEOUT_MS }, async () => {
   const previousRoots = await windowsControlRoots();
-  const originalSystemRoot = process.env.SystemRoot;
-  try {
-    process.env.SystemRoot = "relative-system-root";
-    assert.throws(
-      () => spawnWindowsManagedProcess({
-        command: process.execPath,
-        args: [],
-        cwd: process.cwd()
-      }),
-      /SystemRoot must be an absolute Windows path/u
-    );
-    await assertNoNewWindowsControlRoots(previousRoots);
-  } finally {
-    if (originalSystemRoot === undefined) {
-      delete process.env.SystemRoot;
-    } else {
-      process.env.SystemRoot = originalSystemRoot;
-    }
-  }
+  assert.throws(
+    () => spawnWindowsManagedProcess({
+      command: process.execPath,
+      args: [],
+      cwd: process.cwd(),
+      launcherEnvironment: { ...process.env, SystemRoot: "relative-system-root" }
+    }),
+    /SystemRoot must be an absolute Windows path/u
+  );
+  await assertNoNewWindowsControlRoots(previousRoots);
 });
 
 windowsTest("uses absolute SystemRoot PowerShell despite cwd and early PATH decoys", { timeout: TEST_TIMEOUT_MS }, async () => {
@@ -204,10 +195,11 @@ windowsTest("uses absolute SystemRoot PowerShell despite cwd and early PATH deco
 
   try {
     const child = spawnWindowsManagedProcess({
+      launcherEnvironment: environment,
       command: process.execPath,
       args: ["-e", `require('node:fs').writeFileSync(${JSON.stringify(outputPath)}, 'managed')`],
       cwd,
-      environment
+      environment: { FOUNDATION_EXACT_CHILD_ENVIRONMENT: "1" }
     });
     let stderr = "";
     child.stderr?.setEncoding("utf8");

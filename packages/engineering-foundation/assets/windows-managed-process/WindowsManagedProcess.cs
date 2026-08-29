@@ -11,6 +11,7 @@ namespace AgentTeams.Foundation
     public static class WindowsManagedProcess
     {
         private const uint CREATE_SUSPENDED = 0x00000004;
+        private const uint CREATE_UNICODE_ENVIRONMENT = 0x00000400;
         private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
         private const uint STARTF_USESTDHANDLES = 0x00000100;
         private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
@@ -209,6 +210,31 @@ namespace AgentTeams.Foundation
             return commandLine;
         }
 
+        private static IntPtr BuildEnvironmentBlock(string[] entries)
+        {
+            var copy = entries == null ? new string[0] : (string[])entries.Clone();
+            Array.Sort(copy, StringComparer.OrdinalIgnoreCase);
+            string previousName = null;
+            foreach (var entry in copy)
+            {
+                var separator = entry == null ? -1 : entry.IndexOf('=');
+                if (separator <= 0 || entry.IndexOf('\0') >= 0)
+                {
+                    throw new ArgumentException(
+                        "The managed Windows process environment contains an invalid entry.");
+                }
+                var name = entry.Substring(0, separator);
+                if (previousName != null &&
+                    StringComparer.OrdinalIgnoreCase.Equals(previousName, name))
+                {
+                    throw new ArgumentException(
+                        "The managed Windows process environment contains a duplicate name.");
+                }
+                previousName = name;
+            }
+            return Marshal.StringToHGlobalUni(string.Join("\0", copy) + "\0\0");
+        }
+
         private static uint ActiveProcessCount(IntPtr job)
         {
             var accounting = new JOBOBJECT_BASIC_ACCOUNTING_INFORMATION();
@@ -297,11 +323,13 @@ namespace AgentTeams.Foundation
         public static int Run(
             string executable, string hostPath, string encodedRequest,
             string currentDirectory,
+            string[] environmentEntries,
             string cancellationPath, string confirmationPath, string launchPath)
         {
             var commandLine = BuildCommandLine(
                 executable, new[] { hostPath, encodedRequest });
             var job = IntPtr.Zero;
+            var environmentBlock = IntPtr.Zero;
             var attributeList = IntPtr.Zero;
             var jobHandleValue = IntPtr.Zero;
             var attributeListInitialized = false;
@@ -348,10 +376,11 @@ namespace AgentTeams.Foundation
                 startup.StartupInfo.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
                 startup.StartupInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
                 startup.lpAttributeList = attributeList;
+                environmentBlock = BuildEnvironmentBlock(environmentEntries);
                 if (!CreateProcess(
                     executable, commandLine, IntPtr.Zero, IntPtr.Zero, true,
-                    CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
-                    IntPtr.Zero, currentDirectory, ref startup, out process))
+                    CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT,
+                    environmentBlock, currentDirectory, ref startup, out process))
                 {
                     throw new Win32Exception(
                         Marshal.GetLastWin32Error(), "CreateProcess failed");
@@ -430,6 +459,10 @@ namespace AgentTeams.Foundation
                 if (jobHandleValue != IntPtr.Zero)
                 {
                     Marshal.FreeHGlobal(jobHandleValue);
+                }
+                if (environmentBlock != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(environmentBlock);
                 }
                 if (attributeListInitialized)
                 {

@@ -73,7 +73,7 @@ if (process.platform !== "win32") {
         process.exitCode = 1;
       }
     });
-    child.once("exit", (exitCode) => {
+    child.once("close", (exitCode) => {
       process.exitCode = exitCode ?? 1;
     });
   } catch (error) {

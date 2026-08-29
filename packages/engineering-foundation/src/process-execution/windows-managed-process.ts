@@ -11,7 +11,10 @@ export interface WindowsManagedProcessRequest {
   readonly command: string;
   readonly args: readonly string[];
   readonly cwd: string;
+  /** Exact environment inherited by the requested command. */
   readonly environment?: Readonly<NodeJS.ProcessEnv>;
+  /** Private environment used only to launch the trusted PowerShell wrapper. */
+  readonly launcherEnvironment?: Readonly<NodeJS.ProcessEnv>;
 }
 
 const WINDOWS_BOOTSTRAP_PATH = fileURLToPath(
@@ -139,6 +142,8 @@ export function spawnWindowsManagedProcess(
   request: WindowsManagedProcessRequest
 ): ChildProcess {
   const control = createControl();
+  const launcherEnvironment = request.launcherEnvironment ?? process.env;
+  const commandEnvironment = request.environment ?? launcherEnvironment;
   const encodedRequest = Buffer.from(JSON.stringify({
     schemaVersion: 1,
     command: request.command,
@@ -155,7 +160,7 @@ export function spawnWindowsManagedProcess(
   let child: ChildProcess;
   try {
     child = spawn(
-      resolveWindowsPowerShellPath(request.environment),
+      resolveWindowsPowerShellPath(launcherEnvironment),
       [
         "-NoLogo",
         "-NoProfile",
@@ -167,7 +172,7 @@ export function spawnWindowsManagedProcess(
       ],
       {
         cwd: request.cwd,
-        ...(request.environment === undefined ? {} : { env: request.environment }),
+        env: launcherEnvironment,
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true
       }
@@ -198,6 +203,9 @@ export function spawnWindowsManagedProcess(
     processHostPath: PROCESS_HOST_PATH,
     encodedRequest,
     cwd: request.cwd,
+    environmentEntries: Object.entries(commandEnvironment)
+      .filter((entry): entry is [string, string] => entry[1] !== undefined)
+      .map(([key, value]) => `${key}=${value}`),
     cancellationPath: control.cancellationPath,
     confirmationPath: control.confirmationPath,
     launchPath: control.launchPath

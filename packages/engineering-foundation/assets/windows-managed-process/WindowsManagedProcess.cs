@@ -411,8 +411,9 @@ namespace AgentTeams.Foundation
                     }
                     // Once the trusted host has attempted the requested launch,
                     // an already observed host failure outranks cancellation.
-                    if (File.Exists(launchPath) && CancelAssignedIfRequested(
-                        cancellationPath, confirmationPath, job))
+                    if (File.Exists(launchPath) &&
+                        File.ReadAllText(launchPath) == "STARTED" &&
+                        CancelAssignedIfRequested(cancellationPath, confirmationPath, job))
                     {
                         return 0;
                     }

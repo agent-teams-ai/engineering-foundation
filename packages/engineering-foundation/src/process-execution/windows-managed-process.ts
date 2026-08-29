@@ -73,6 +73,19 @@ function resolveWindowsPowerShellPath(
   );
 }
 
+function commandEnvironmentWithSystemRoot(
+  environment: Readonly<NodeJS.ProcessEnv>,
+  launcherEnvironment: Readonly<NodeJS.ProcessEnv>
+): Readonly<NodeJS.ProcessEnv> {
+  if (Object.keys(environment).some((key) => key.toLowerCase() === "systemroot")) {
+    return environment;
+  }
+  const systemRoot = Object.entries(launcherEnvironment).find(
+    ([key]) => key.toLowerCase() === "systemroot"
+  )?.[1];
+  return { ...environment, SystemRoot: systemRoot };
+}
+
 function removeControlRootBestEffort(root: string): boolean {
   try {
     rmSync(root, { force: true, recursive: true });
@@ -143,7 +156,10 @@ export function spawnWindowsManagedProcess(
 ): ChildProcess {
   const control = createControl();
   const launcherEnvironment = request.launcherEnvironment ?? process.env;
-  const commandEnvironment = request.environment ?? launcherEnvironment;
+  const commandEnvironment = commandEnvironmentWithSystemRoot(
+    request.environment ?? launcherEnvironment,
+    launcherEnvironment
+  );
   const encodedRequest = Buffer.from(JSON.stringify({
     schemaVersion: 1,
     command: request.command,

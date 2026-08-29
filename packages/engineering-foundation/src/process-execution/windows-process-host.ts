@@ -74,7 +74,7 @@ if (process.platform !== "win32") {
       }
     });
     child.once("close", (exitCode) => {
-      process.exitCode = exitCode ?? 1;
+      process.exit(exitCode ?? 1);
     });
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);

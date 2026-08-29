@@ -9,7 +9,10 @@ import {
   exactChangesetPreState,
 } from "./release-changeset-state.mjs";
 import { changesetsPublishArguments, releasePublishInvocation } from "./release-publish-command.mjs";
-import { assertOrdinaryDocsReleasePolicy } from "./release-publish-docs-policy.mjs";
+import {
+  assertBootstrapReleasePolicy,
+  verifyReleaseBootstrapBaselines,
+} from "./npm-package-bootstrap.mjs";
 import { publishOrderedRelease } from "./release-publish-ordered-runtime.mjs";
 import {
   comparePublishedVersions,
@@ -410,7 +413,7 @@ async function verifyPublishRegistryState(state) {
       throw new Error(`Release ${packageInfo.name}@${packageInfo.version} is not registry-monotonic.`);
     }
   }
-  assertOrdinaryDocsReleasePolicy(state, registryState);
+  assertBootstrapReleasePolicy(state, registryState);
   return registryState;
 }
 
@@ -432,6 +435,7 @@ export async function main({
   cwd = process.cwd(),
   inspectReleaseState = releaseState,
   publishOrdered = publishOrderedRelease,
+  verifyBootstrapBaselines = verifyReleaseBootstrapBaselines,
   verifyRegistry = verifyPublishRegistryState,
 } = {}) {
   const initialState = await inspectReleaseState(cwd);
@@ -452,6 +456,7 @@ export async function main({
     process.stdout.write("Fresh Changesets prerelease state has no releases; publish skipped.\n");
     return;
   }
+  await verifyBootstrapBaselines();
   const initialRegistryState = await verifyRegistry(initialState);
   const verifiedState = await inspectReleaseState(cwd);
   if (JSON.stringify(verifiedState) !== JSON.stringify(initialState)) {

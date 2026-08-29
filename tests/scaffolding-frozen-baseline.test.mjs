@@ -272,6 +272,10 @@ test("keeps packed and registry-install qualification wired", async () => {
     repositoryManifest.scripts["published-compatibility:e2e"],
     "node scripts/published-compatibility-e2e.mjs",
   );
+  assert.equal(
+    repositoryManifest.scripts["public-docs-release:e2e"],
+    "node scripts/public-docs-release-e2e.mjs",
+  );
   assert.match(
     await readFile(join(repositoryRoot, "scripts", "pack-test.mjs"), "utf8"),
     /verifyPackedAuthorityScaffolding/u,

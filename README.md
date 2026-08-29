@@ -15,6 +15,8 @@ The optional `@agent-teams/docs-protocol-mcp` package is a read-only transport
 over that public API. Dependencies never point back toward Foundation, and
 consumer-specific document types, schemas, owners, templates, reachability,
 and semantic validators remain strict data-only authority in each repository.
+Exact public installation and optional MCP pairing have one canonical authority:
+the [open-source Docs Protocol workflow](docs/reference/open-source-docs-protocol.md#install-one-exact-version).
 
 ## Scope
 

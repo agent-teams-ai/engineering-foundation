@@ -11,14 +11,97 @@ import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const foundationName = "@agent-teams/engineering-foundation";
-const docsProtocolName = "@agent-teams/docs-protocol";
-const docsProtocolMcpName = "@agent-teams/docs-protocol-mcp";
+const openSourceDocsRelease = JSON.parse(await readFile(
+  join(repositoryRoot, "architecture/foundation/open-source-docs-release.json"),
+  "utf8",
+));
+const docsProtocolName = openSourceDocsRelease.packages.cli.name;
+const docsProtocolMcpName = openSourceDocsRelease.packages.mcp.name;
 const dependencySections = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
 const exactVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 
 async function json(path) {
   return JSON.parse(await readFile(join(repositoryRoot, path), "utf8"));
 }
+
+function escapedRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function fencedCodeBlocks(source) {
+  return [...source.matchAll(/```[^\n]*\n([\s\S]*?)```/gu)].map((match) => match[1]);
+}
+
+test("open-source install authority is exact, registry-pinned, atomic, and DRY", async () => {
+  const canonical = await readFile(
+    join(repositoryRoot, "docs/reference/open-source-docs-protocol.md"),
+    "utf8",
+  );
+  assert.deepEqual(Object.keys(openSourceDocsRelease).toSorted(), [
+    "packages", "qualifiedPackageManagers", "registry", "schemaVersion", "source",
+  ]);
+  assert.equal(openSourceDocsRelease.schemaVersion, 1);
+  assert.deepEqual(openSourceDocsRelease.qualifiedPackageManagers, ["npm", "pnpm"]);
+  assert.deepEqual(openSourceDocsRelease.source, {
+    ref: "refs/heads/main",
+    repository: "https://github.com/agent-teams-ai/engineering-foundation",
+    workflow: ".github/workflows/release.yml",
+  });
+  const docsCoordinate = `${docsProtocolName}@${openSourceDocsRelease.packages.cli.version}`;
+  const mcpCoordinate = `${docsProtocolMcpName}@${openSourceDocsRelease.packages.mcp.version}`;
+  assert.doesNotMatch(canonical, /X\.Y\.Z|docs-protocol@0\.3\.2/u);
+  const executableExamples = fencedCodeBlocks(canonical);
+  assert.doesNotMatch(
+    executableExamples.join("\n"),
+    /(?:\bnpx\b|\bpnpm\s+dlx\b|@agent-teams\/docs-protocol(?:-mcp)?@latest|X\.Y\.Z)/u,
+  );
+  for (const example of executableExamples.filter((block) =>
+    /(?:npm|pnpm)\s+(?:view|install|add)[\s\S]*@agent-teams\/docs-protocol/u.test(block))) {
+    assert.match(example, new RegExp(escapedRegex(openSourceDocsRelease.registry), "u"));
+    if (example.includes(docsProtocolMcpName)) {
+      assert.match(example, new RegExp(escapedRegex(mcpCoordinate), "u"));
+    }
+    if (example.replaceAll(docsProtocolMcpName, "").includes(docsProtocolName)) {
+      assert.match(example, new RegExp(escapedRegex(docsCoordinate), "u"));
+    }
+  }
+  for (const expected of [
+    docsCoordinate,
+    mcpCoordinate,
+    `--registry=${openSourceDocsRelease.registry}`,
+    `--@agent-teams:registry=${openSourceDocsRelease.registry}`,
+    `--config.registry=${openSourceDocsRelease.registry}`,
+    `--config.@agent-teams:registry=${openSourceDocsRelease.registry}`,
+  ]) {
+    assert.match(canonical, new RegExp(escapedRegex(expected), "u"));
+  }
+  assert.match(
+    canonical,
+    new RegExp(`npm install[\\s\\S]*?${escapedRegex(docsCoordinate)}[\\s\\S]*?${escapedRegex(mcpCoordinate)}`, "u"),
+  );
+  assert.match(
+    canonical,
+    new RegExp(`pnpm add[\\s\\S]*?${escapedRegex(docsCoordinate)}[\\s\\S]*?${escapedRegex(mcpCoordinate)}`, "u"),
+  );
+
+  const readmes = await Promise.all([
+    "README.md",
+    "packages/docs-protocol/README.md",
+    "packages/docs-protocol-mcp/README.md",
+  ].map(async (path) => ({ path, source: await readFile(join(repositoryRoot, path), "utf8") })));
+  for (const { path, source } of readmes) {
+    assert.match(source, /open-source-docs-protocol\.md/u, `${path} must route to canonical install authority`);
+    assert.doesNotMatch(
+      source,
+      new RegExp(
+        `(?:npm\\s+(?:install|view)|pnpm\\s+(?:add|view|dlx)|npx)[\\s\\S]{0,500}` +
+        `${escapedRegex(docsProtocolName)}|${escapedRegex(docsCoordinate)}|${escapedRegex(mcpCoordinate)}`,
+        "u",
+      ),
+      path,
+    );
+  }
+});
 
 async function sourceFiles(root) {
   const files = [];

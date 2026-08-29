@@ -1,9 +1,10 @@
 # Open-Source Docs Protocol
 
-Status: Target community workflow accepted by ADR-0039. The released
-`@agent-teams/docs-protocol@0.3.2` does not yet provide `init` or `context`.
-Replace `X.Y.Z` below only with the exact registry-published version whose
-release notes declare this workflow implemented and qualified.
+Status: Community workflow accepted by ADR-0039 and implemented for the
+qualified coordinates `@agent-teams/docs-protocol@0.4.0` and optional
+`@agent-teams/docs-protocol-mcp@0.1.0`. Source or release-branch state never
+proves availability: proceed only when the exact registry checks below resolve
+both requested versions from public npm.
 
 This workflow keeps documentation as ordinary repository-owned Markdown and
 YAML. Generated search and context output is disposable and non-authoritative.
@@ -24,22 +25,39 @@ the read-only `info`, `find`, `context`, `check`, and MCP flows are qualified
 there. Do not run or automate local Windows `init --apply` or recovery until a
 release explicitly adds durable Windows transaction evidence.
 
-`X.Y.Z` is a documentation placeholder, not a version range. Substitute one
-literal three-part version such as the version named by a future release note;
-do not copy the placeholder into a manifest.
-
 ## Install one exact version
 
-The initial portable release qualifies npm and pnpm. Use the one already
-authoritative for the repository. These forms add the package to development
-dependencies at one exact version:
+The initial portable release qualifies npm and pnpm. First prove that the exact
+CLI coordinate exists. Override both the default and scoped registry so user or
+repository configuration cannot silently redirect one request:
 
 ```bash
-npm install --save-dev --save-exact @agent-teams/docs-protocol@X.Y.Z
+npm view @agent-teams/docs-protocol@0.4.0 version --json \
+  --registry=https://registry.npmjs.org/ \
+  --@agent-teams:registry=https://registry.npmjs.org/
 ```
 
 ```bash
-pnpm add --save-dev --save-exact @agent-teams/docs-protocol@X.Y.Z
+pnpm view @agent-teams/docs-protocol@0.4.0 version --json \
+  --config.registry=https://registry.npmjs.org/ \
+  --config.@agent-teams:registry=https://registry.npmjs.org/
+```
+
+The command must return exactly `0.4.0`. Then use the package manager already
+authoritative for the repository:
+
+```bash
+npm install --save-dev --save-exact \
+  --registry=https://registry.npmjs.org/ \
+  --@agent-teams:registry=https://registry.npmjs.org/ \
+  @agent-teams/docs-protocol@0.4.0
+```
+
+```bash
+pnpm add --save-dev --save-exact \
+  --config.registry=https://registry.npmjs.org/ \
+  --config.@agent-teams:registry=https://registry.npmjs.org/ \
+  @agent-teams/docs-protocol@0.4.0
 ```
 
 Commit the resulting manifest and native lockfile. Do not create a second
@@ -153,11 +171,45 @@ operator steps.
 
 ## Optional MCP transport
 
-MCP is not required for CLI use. When an MCP adapter is published and its
-release documentation identifies its exact package and compatible Docs Protocol
-version, install both exact versions in development dependencies. Configure the
-installed MCP binary directly in the client; do not invoke it through `npx`,
-`pnpm dlx`, another package manager's floating execute mode, or a `latest` tag.
+MCP is not required for CLI use. First complete the exact Docs Protocol registry
+proof above, then prove the compatible MCP coordinate with the same authoritative
+package manager:
+
+```bash
+npm view @agent-teams/docs-protocol-mcp@0.1.0 version --json \
+  --registry=https://registry.npmjs.org/ \
+  --@agent-teams:registry=https://registry.npmjs.org/
+```
+
+```bash
+pnpm view @agent-teams/docs-protocol-mcp@0.1.0 version --json \
+  --config.registry=https://registry.npmjs.org/ \
+  --config.@agent-teams:registry=https://registry.npmjs.org/
+```
+
+The two registry proofs must return their requested literal versions. Install the pair in
+one package-manager transaction so the manifest and native lockfile cannot
+record a half-configured transport:
+
+```bash
+npm install --save-dev --save-exact \
+  --registry=https://registry.npmjs.org/ \
+  --@agent-teams:registry=https://registry.npmjs.org/ \
+  @agent-teams/docs-protocol@0.4.0 \
+  @agent-teams/docs-protocol-mcp@0.1.0
+```
+
+```bash
+pnpm add --save-dev --save-exact \
+  --config.registry=https://registry.npmjs.org/ \
+  --config.@agent-teams:registry=https://registry.npmjs.org/ \
+  @agent-teams/docs-protocol@0.4.0 \
+  @agent-teams/docs-protocol-mcp@0.1.0
+```
+
+Configure the installed MCP binary directly in the client; do not invoke it
+through `npx`, `pnpm dlx`, another package manager's floating execute mode, or a
+`latest` tag.
 
 Start the installed stdio adapter with one fixed repository binding:
 

@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- The registry matrix remains one auditable disposable orchestration.
 import { createHash } from "node:crypto";
 import {
   lstat,
@@ -19,7 +20,11 @@ import {
   createPnpmRunner,
   runNpmCommand,
 } from "./pack-test-support.mjs";
-import { verifyRegistryDocsProtocolMcp } from "./registry-docs-protocol-mcp-e2e.mjs";
+import {
+  verifyRegistryDocsProtocolCli,
+  verifyRegistryDocsProtocolMcp,
+} from "./registry-docs-protocol-mcp-e2e.mjs";
+import { registryInstallMatrix } from "./registry-install-policy.mjs";
 import {
   verifyFoundationFeatures,
   verifyInstalledBufQualifierForPackage,
@@ -348,9 +353,9 @@ async function verifyInstalledBufQualifier(installedRoot) {
   await verifyInstalledBufQualifierForPackage(installedRoot);
 }
 
-async function createConsumerAttempt(targets, registryUrl, attempt) {
+async function createConsumerAttempt(targets, registryUrl, matrixEntry, attempt) {
   const { cacheRoot, clientRoot, consumerRoot, userConfigPath } = registryInstallAttemptPaths(
-    temporaryRoot,
+    join(temporaryRoot, "consumer-matrix", matrixEntry.id),
     attempt,
   );
   await Promise.all([
@@ -362,11 +367,13 @@ async function createConsumerAttempt(targets, registryUrl, attempt) {
     join(consumerRoot, "package.json"),
     `${JSON.stringify(
       {
-        name: "foundation-registry-e2e-consumer",
+        name: `foundation-registry-e2e-${matrixEntry.id}`,
         private: true,
         type: "module",
         devDependencies: Object.fromEntries(
-          targets.map((target) => [target.manifest.name, target.manifest.version]),
+          targets
+            .filter((target) => matrixEntry.packageNames.includes(target.manifest.name))
+            .map((target) => [target.manifest.name, target.manifest.version]),
         ),
       },
       null,
@@ -377,14 +384,14 @@ async function createConsumerAttempt(targets, registryUrl, attempt) {
   return Object.freeze({ cacheRoot, clientRoot, consumerRoot, userConfigPath });
 }
 
-async function installConsumer(targets, registryUrl) {
+async function installConsumer(targets, registryUrl, matrixEntry) {
   return installRegistryConsumerWithRetry({
     cleanupAttempt: (context) => Promise.all([
       rm(context.clientRoot, { force: true, recursive: true }),
       rm(context.consumerRoot, { force: true, recursive: true }),
     ]),
     createAttempt: (attempt) =>
-      createConsumerAttempt(targets, registryUrl, attempt),
+      createConsumerAttempt(targets, registryUrl, matrixEntry, attempt),
     onRetry: ({ attempt, delayMs, timeoutMs }) => {
       process.stdout.write(
         `Registry E2E install retry attempt=${attempt} delayMs=${delayMs} timeoutMs=${timeoutMs}.\n`,
@@ -392,28 +399,51 @@ async function installConsumer(targets, registryUrl) {
     },
     runInstall: (context, { attempt, timeoutMs }) =>
       runRegistryPhase(`consumer-install-attempt-${attempt}`, async () => {
-        await runNpm(
-          [
-            "install",
-            "--registry",
-            registryUrl,
-            "--ignore-scripts",
-            "--no-audit",
-            "--no-fund",
-            "--package-lock=true",
-            "--cache",
-            context.cacheRoot,
-          ],
-          context.consumerRoot,
-          { timeoutMs, userConfigPath: context.userConfigPath },
-        );
+        if (matrixEntry.manager === "npm") {
+          await runNpm(
+            [
+              "install", "--registry", registryUrl, "--ignore-scripts",
+              "--no-audit", "--no-fund", "--package-lock=true",
+              "--cache", context.cacheRoot,
+            ],
+            context.consumerRoot,
+            { timeoutMs, userConfigPath: context.userConfigPath },
+          );
+        } else {
+          await runPnpm([
+            "install", "--registry", registryUrl, "--ignore-scripts",
+            `--config.userconfig=${context.userConfigPath}`,
+            "--store-dir", context.cacheRoot,
+          ], context.consumerRoot);
+        }
         return context;
       }),
   });
 }
 
-async function verifyConsumer(targets, registryUrl) {
-  const { consumerRoot } = await installConsumer(targets, registryUrl);
+async function verifyPnpmRegistryPackage({ consumerRoot, registryUrl, target, userConfigPath }) {
+  const targetRoot = await realpath(join(
+    consumerRoot, "node_modules", ...target.manifest.name.split("/"),
+  ));
+  const installedManifest = await readManifest(targetRoot);
+  if (installedManifest.version !== target.manifest.version) {
+    throw new Error(`pnpm installed the wrong version of ${target.manifest.name}.`);
+  }
+  const viewed = await runPnpm([
+    "view", `${target.manifest.name}@${target.manifest.version}`, "version",
+    "--registry", registryUrl, `--config.userconfig=${userConfigPath}`,
+  ], consumerRoot);
+  if (viewed.stdout.trim() !== target.manifest.version) {
+    throw new Error(`pnpm registry metadata is incomplete for ${target.manifest.name}.`);
+  }
+  await lstat(join(consumerRoot, "pnpm-lock.yaml"));
+  return targetRoot;
+}
+
+async function verifyConsumer(targets, registryUrl, matrixEntry) {
+  const { consumerRoot, userConfigPath } = await installConsumer(
+    targets, registryUrl, matrixEntry,
+  );
   const requiredTarget = (name) => {
     const target = targets.find((candidate) => candidate.manifest.name === name);
     if (target === undefined) {
@@ -424,47 +454,68 @@ async function verifyConsumer(targets, registryUrl) {
   const foundationTarget = requiredTarget(FOUNDATION_PACKAGE_NAME);
   const docsTarget = requiredTarget(DOCS_PROTOCOL_PACKAGE_NAME);
   const mcpTarget = requiredTarget(DOCS_PROTOCOL_MCP_PACKAGE_NAME);
-  const lockfile = JSON.parse(
-    await readFile(join(consumerRoot, "package-lock.json"), "utf8"),
+  const selectedTargets = targets.filter((target) =>
+    matrixEntry.packageNames.includes(target.manifest.name),
   );
+  if (selectedTargets.length !== matrixEntry.packageNames.length) {
+    throw new Error(`Registry matrix ${matrixEntry.id} is missing a target archive.`);
+  }
+  const lockfile = matrixEntry.manager === "npm"
+    ? JSON.parse(await readFile(join(consumerRoot, "package-lock.json"), "utf8"))
+    : undefined;
   const installedRoots = new Map();
-  for (const target of targets) {
-    const targetRoot = await verifyRegistryPackage({
-      consumerRoot,
-      lockfile,
-      registryUrl,
-      runNpm,
-      target,
-    });
+  for (const target of selectedTargets) {
+    const targetRoot = matrixEntry.manager === "npm"
+      ? await verifyRegistryPackage({ consumerRoot, lockfile, registryUrl, runNpm, target })
+      : await verifyPnpmRegistryPackage({
+        consumerRoot, registryUrl, target, userConfigPath,
+      });
     installedRoots.set(target.manifest.name, targetRoot);
   }
-  const installedFoundationRoot = installedRoots.get(FOUNDATION_PACKAGE_NAME);
   const installedDocsRoot = installedRoots.get(DOCS_PROTOCOL_PACKAGE_NAME);
   const installedMcpRoot = installedRoots.get(DOCS_PROTOCOL_MCP_PACKAGE_NAME);
-  if (
-    installedFoundationRoot === undefined ||
-    installedDocsRoot === undefined ||
-    installedMcpRoot === undefined
-  ) {
-    throw new Error("One or more installed registry qualification targets are missing.");
+  if (installedDocsRoot === undefined) {
+    throw new Error("Installed Docs Protocol qualification target is missing.");
   }
-  await verifyFoundationFeatures({
+  if (matrixEntry.profile === "docs-only") {
+    await verifyRegistryDocsProtocolCli({
+      consumerRoot: join(consumerRoot, "docs-protocol-cli-consumer"),
+      installedDocsRoot,
+    });
+  } else if (matrixEntry.profile === "docs-mcp") {
+    if (installedMcpRoot === undefined) {
+      throw new Error("Installed Docs Protocol MCP qualification target is missing.");
+    }
+    await verifyRegistryDocsProtocolMcp({
+      consumerRoot,
+      installedDocsRoot,
+      installedMcpRoot,
+      mcpVersion: mcpTarget.manifest.version,
+    });
+  }
+  if (matrixEntry.profile === "foundation-full") {
+    const installedFoundationRoot = await resolveDependencyRoot(
+      installedDocsRoot, FOUNDATION_PACKAGE_NAME,
+    );
+    if (installedFoundationRoot === undefined) {
+      throw new Error("Installed Foundation dependency is missing.");
+    }
+    await verifyFoundationFeatures({
+      consumerRoot,
+      docsVersion: docsTarget.manifest.version,
+      featureImports: FOUNDATION_FEATURE_IMPORTS,
+      installedRoot: installedFoundationRoot,
+      repositoryRoot,
+      verifyInstalledBufQualifier,
+      version: foundationTarget.manifest.version,
+    });
+  }
+  const lockPath = join(
     consumerRoot,
-    docsVersion: docsTarget.manifest.version,
-    featureImports: FOUNDATION_FEATURE_IMPORTS,
-    installedRoot: installedFoundationRoot,
-    repositoryRoot,
-    verifyInstalledBufQualifier,
-    version: foundationTarget.manifest.version,
-  });
-  await verifyRegistryDocsProtocolMcp({
-    consumerRoot,
-    installedDocsRoot,
-    installedMcpRoot,
-    mcpVersion: mcpTarget.manifest.version,
-  });
+    matrixEntry.manager === "npm" ? "package-lock.json" : "pnpm-lock.yaml",
+  );
   return createHash("sha256")
-    .update(await readFile(join(consumerRoot, "package-lock.json")))
+    .update(await readFile(lockPath))
     .digest("hex");
 }
 
@@ -494,11 +545,29 @@ try {
       );
     }
   });
-  const lockDigest = await runRegistryPhase("consumer-qualification", () =>
-    verifyConsumer(targets, registry.registryUrl),
-  );
+  const matrix = registryInstallMatrix({
+    docsPackageName: DOCS_PROTOCOL_PACKAGE_NAME,
+    mcpPackageName: DOCS_PROTOCOL_MCP_PACKAGE_NAME,
+  });
+  const foundationEntry = Object.freeze({
+    id: "npm-foundation",
+    manager: "npm",
+    packageNames: Object.freeze([
+      FOUNDATION_PACKAGE_NAME,
+      DOCS_PROTOCOL_PACKAGE_NAME,
+      DOCS_PROTOCOL_MCP_PACKAGE_NAME,
+    ]),
+    profile: "foundation-full",
+  });
+  const lockDigests = [];
+  for (const matrixEntry of [...matrix, foundationEntry]) {
+    lockDigests.push([matrixEntry.id, await runRegistryPhase(
+      `consumer-qualification-${matrixEntry.id}`,
+      () => verifyConsumer(targets, registry.registryUrl, matrixEntry),
+    )]);
+  }
   process.stdout.write(
-    `Registry-install qualification PASS: ${targets.map((target) => `${target.manifest.name}@${target.manifest.version}`).join(", ")}; ${dependencies.length} runtime packages; lock sha256:${lockDigest}.\n`,
+    `Registry-install qualification PASS: ${targets.map((target) => `${target.manifest.name}@${target.manifest.version}`).join(", ")}; ${dependencies.length} runtime packages; ${lockDigests.map(([id, digest]) => `${id}=sha256:${digest}`).join(", ")}.\n`,
   );
 } finally {
   if (previousRegistryToken === undefined) {

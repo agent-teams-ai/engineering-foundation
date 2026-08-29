@@ -329,7 +329,10 @@ test("coverage keeps cross-platform shards complete and adds package evidence", 
   const ids = ["1", "2", "3", "4"];
   const crossPlatformTests = selectTestShardPaths(testManifest, ids, false);
   const coverageTests = selectTestShardPaths(testManifest, ids, true);
-  assert.equal(crossPlatformTests.length, 129);
+  const coverageOnlyCount = Object.values(
+    testManifest.coverageConfig.additionalTestsByShard,
+  ).flat().length;
+  assert.equal(crossPlatformTests.length, testManifest.testCount - coverageOnlyCount);
   assert.equal(
     crossPlatformTests.some((path) => path.startsWith("packages/docs-protocol/tests/")),
     false,

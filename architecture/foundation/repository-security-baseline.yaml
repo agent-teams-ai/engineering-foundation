@@ -46,12 +46,12 @@ allowedUses:
   - uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030
     transitiveUses: []
 privilegedJobs:
-  - workflowPath: .github/workflows/docs-protocol-bootstrap.yml
+  - workflowPath: .github/workflows/npm-package-bootstrap.yml
     jobId: bootstrap
     permissions:
       contents: read
       id-token: write
-  - workflowPath: .github/workflows/docs-protocol-bootstrap.yml
+  - workflowPath: .github/workflows/npm-package-bootstrap.yml
     jobId: reconcile-github
     permissions:
       contents: write
@@ -98,3 +98,4 @@ privilegedJobs:
 publishablePackageManifests:
   - packages/engineering-foundation/package.json
   - packages/docs-protocol/package.json
+  - packages/docs-protocol-mcp/package.json

@@ -3,6 +3,10 @@
 Open-source optional read-only MCP stdio adapter for documentation governed by
 `@agent-teams/docs-protocol` in any repository.
 
+Prove and install the exact compatible pair only through the
+[canonical MCP workflow](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/open-source-docs-protocol.md#optional-mcp-transport),
+which owns versions, registry pinning, and atomic installation.
+
 ```sh
 docs-protocol-mcp --consumer-root /absolute/repository/path
 ```

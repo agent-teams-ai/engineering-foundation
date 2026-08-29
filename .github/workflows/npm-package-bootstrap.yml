@@ -1,0 +1,317 @@
+name: Bootstrap npm package namespace
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_id:
+        description: Closed bootstrap catalog package ID
+        required: true
+        type: string
+      operation:
+        description: Bootstrap normally or quarantine an exact uncertain artifact
+        required: true
+        type: choice
+        options:
+          - bootstrap
+          - quarantine
+      expected_commit:
+        description: Exact reviewed protected-main commit to publish
+        required: true
+        type: string
+      token_created_at:
+        description: Granular npm token creation time in UTC
+        required: true
+        type: string
+      token_expires_at:
+        description: Granular npm token expiry time in UTC, at most one day after creation
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-package-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    name: bootstrap-npm-package
+    if: ${{ vars.NPM_PACKAGE_BOOTSTRAP_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit }}
+    permissions:
+      contents: read
+      id-token: write
+    environment: npm-package-bootstrap
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.authority.outputs.tag }}
+      title: ${{ steps.authority.outputs.title }}
+    env:
+      NPM_CONFIG_AUDIT: "false"
+      NPM_CONFIG_FUND: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.expected_commit }}
+      - uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Validate reviewed bootstrap authority
+        id: authority
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+          TOKEN_CREATED_AT: ${{ inputs.token_created_at }}
+          TOKEN_EXPIRES_AT: ${{ inputs.token_expires_at }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_COMMIT}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_COMMIT}"
+          node scripts/npm-package-bootstrap-cli.mjs token-window \
+            "${TOKEN_CREATED_AT}" "${TOKEN_EXPIRES_AT}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          node scripts/npm-package-bootstrap-cli.mjs prepare "${PACKAGE_ID}" "${GITHUB_OUTPUT}"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm check
+      - name: Build and bind the exact tarball
+        id: pack
+        env:
+          PACKAGE_ID: ${{ inputs.package_id }}
+          PACKAGE_NAME: ${{ steps.authority.outputs.name }}
+          PACKAGE_ROOT: ${{ steps.authority.outputs.root }}
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
+          mkdir -p "${evidence_root}/pack"
+          pnpm --filter "${PACKAGE_NAME}" pack \
+            --pack-destination "${evidence_root}/pack" --json \
+            --config.ignore-scripts=true > "${evidence_root}/pack.json"
+          archive_path="$(jq -er '.filename' "${evidence_root}/pack.json")"
+          tar -tzf "${archive_path}" > "${evidence_root}/tar-entries.txt"
+          tar -tvzf "${archive_path}" > "${evidence_root}/tar-verbose.txt"
+          tar -xOf "${archive_path}" package/package.json > \
+            "${evidence_root}/packed-package.json"
+          package_tree="$(git rev-parse "HEAD:${PACKAGE_ROOT}")"
+          node scripts/npm-package-bootstrap-cli.mjs pack-evidence \
+            "${PACKAGE_ID}" "${evidence_root}/pack.json" \
+            "${evidence_root}/packed-package.json" "${evidence_root}/tar-entries.txt" \
+            "${archive_path}" "${GITHUB_OUTPUT}" "${package_tree}" \
+            "${evidence_root}/tar-verbose.txt"
+      - name: Verify registry preconditions
+        id: registry
+        env:
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+        run: node scripts/npm-package-bootstrap-cli.mjs registry-preflight "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${GITHUB_OUTPUT}"
+      - name: Prove an existing artifact before reuse
+        if: ${{ inputs.operation == 'bootstrap' && steps.registry.outputs.action == 'reuse' }}
+        env:
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
+          node scripts/npm-package-bootstrap-cli.mjs reuse-proof \
+            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
+            "${evidence_root}/reuse-audit.json"
+      - name: Prove an exact uncertain artifact before quarantine
+        if: ${{ inputs.operation == 'quarantine' }}
+        env:
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
+          node scripts/npm-package-bootstrap-cli.mjs quarantine-proof \
+            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" \
+            "${evidence_root}/quarantine-before.json"
+      - name: Publish, resume, or quarantine the exact bootstrap artifact
+        env:
+          ARCHIVE_PATH: ${{ steps.pack.outputs.archivePath }}
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          DEPRECATION_MESSAGE: ${{ steps.authority.outputs.deprecationMessage }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_BOOTSTRAP_TOKEN }}
+          OPERATION: ${{ inputs.operation }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+          PACKAGE_TAG: ${{ steps.authority.outputs.tag }}
+          REGISTRY_ACTION: ${{ steps.registry.outputs.action }}
+          TOKEN_CREATED_AT: ${{ inputs.token_created_at }}
+          TOKEN_EXPIRES_AT: ${{ inputs.token_expires_at }}
+        run: |
+          set -Eeuo pipefail
+          test "${NODE_AUTH_TOKEN}" != ""
+          test "${NODE_AUTH_TOKEN#npm_}" != "${NODE_AUTH_TOKEN}"
+          npm_token="${NODE_AUTH_TOKEN}"
+          unset NODE_AUTH_TOKEN
+          assert_fresh_main_bounded() {
+            local attempt current_main
+            current_main=""
+            for attempt in 1 2 3; do
+              if current_main="$(
+                git ls-remote --exit-code origin refs/heads/main |
+                  awk 'NR == 1 { print $1 } END { if (NR != 1) exit 1 }'
+              )"; then
+                break
+              fi
+              if [[ "${attempt}" == "3" ]]; then
+                echo "Protected main remained unknown before npm mutation." >&2
+                return 1
+              fi
+              sleep "${attempt}"
+            done
+            test "${current_main}" = "${EXPECTED_COMMIT}"
+          }
+          assert_fresh_main() {
+            local current_main
+            current_main="$(
+              git ls-remote --exit-code origin refs/heads/main |
+                awk 'NR == 1 { print $1 } END { if (NR != 1) exit 1 }'
+            )"
+            test "${current_main}" = "${EXPECTED_COMMIT}"
+          }
+          assert_token_window() {
+            node scripts/npm-package-bootstrap-cli.mjs token-window \
+              "${TOKEN_CREATED_AT}" "${TOKEN_EXPIRES_AT}" \
+              "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
+          if [[ "${OPERATION}" == "quarantine" ]]; then
+            test "${REGISTRY_ACTION}" = "reuse"
+            assert_fresh_main_bounded
+            node scripts/npm-package-bootstrap-cli.mjs quarantine-final-proof \
+              "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" \
+              "${evidence_root}/quarantine-before-mutation.json"
+            deprecation_matches="$(
+              jq -r 'if (.live.deprecationMatches | type) == "boolean" then (.live.deprecationMatches | tostring) else error("invalid evidence") end' \
+                "${evidence_root}/quarantine-before-mutation.json"
+            )"
+            if [[ "${deprecation_matches}" != "true" ]]; then
+              assert_fresh_main
+              assert_token_window
+              NODE_AUTH_TOKEN="${npm_token}" \
+                npm deprecate "${PACKAGE_TAG}" "${DEPRECATION_MESSAGE}"
+            fi
+            exit 0
+          fi
+          test "${OPERATION}" = "bootstrap"
+          if [[ "${REGISTRY_ACTION}" == "publish" ]]; then
+            assert_fresh_main_bounded
+            final_registry_output="${evidence_root}/registry-before-publish.output"
+            : > "${final_registry_output}"
+            node scripts/npm-package-bootstrap-cli.mjs registry-final-preflight \
+              "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${final_registry_output}"
+            test "$(sed -n 's/^action=//p' "${final_registry_output}")" = "publish"
+            assert_fresh_main
+            assert_token_window
+            set +e
+            NODE_AUTH_TOKEN="${npm_token}" \
+              npm publish "${ARCHIVE_PATH}" --tag bootstrap --provenance --ignore-scripts
+            publish_status="$?"
+            set -e
+            echo "npm publish returned status ${publish_status}; reconciling exact registry evidence."
+          elif [[ "${REGISTRY_ACTION}" != "reuse" ]]; then
+            echo "Unexpected registry action." >&2
+            exit 1
+          fi
+          node scripts/npm-package-bootstrap-cli.mjs mutation-proof \
+            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
+            "${evidence_root}/mutation-audit.json"
+          deprecation_matches="$(
+            jq -r 'if (.live.deprecationMatches | type) == "boolean" then (.live.deprecationMatches | tostring) else error("invalid evidence") end' \
+              "${evidence_root}/mutation-audit.json"
+          )"
+          if [[ "${deprecation_matches}" != "true" ]]; then
+            assert_fresh_main_bounded
+            node scripts/npm-package-bootstrap-cli.mjs quarantine-final-proof \
+              "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" \
+              "${evidence_root}/registry-before-deprecation.json"
+            deprecation_matches="$(
+              jq -r 'if (.live.deprecationMatches | type) == "boolean" then (.live.deprecationMatches | tostring) else error("invalid evidence") end' \
+                "${evidence_root}/registry-before-deprecation.json"
+            )"
+            if [[ "${deprecation_matches}" != "true" ]]; then
+              assert_fresh_main
+              assert_token_window
+              NODE_AUTH_TOKEN="${npm_token}" \
+                npm deprecate "${PACKAGE_TAG}" "${DEPRECATION_MESSAGE}"
+            fi
+          fi
+      - name: Prove registry postconditions and provenance
+        if: ${{ inputs.operation == 'bootstrap' }}
+        env:
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
+          node scripts/npm-package-bootstrap-cli.mjs postconditions \
+            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
+            "${evidence_root}/audit.json"
+      - name: Prove quarantine postconditions
+        if: ${{ inputs.operation == 'quarantine' }}
+        env:
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
+          node scripts/npm-package-bootstrap-cli.mjs quarantine-postconditions \
+            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" \
+            "${evidence_root}/quarantine-after.json"
+      - name: Retain bootstrap evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-package-bootstrap-evidence-${{ inputs.package_id }}-${{ github.sha }}
+          path: ${{ runner.temp }}/npm-package-bootstrap
+          if-no-files-found: error
+          retention-days: 30
+
+  reconcile-github:
+    name: reconcile-npm-bootstrap-github-release
+    needs: bootstrap
+    if: ${{ vars.NPM_PACKAGE_BOOTSTRAP_ENABLED == 'true' && inputs.operation == 'bootstrap' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ inputs.expected_commit }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Create or reuse the exact tag and prerelease
+        env:
+          BODY: Bootstrap-only artifact. Do not adopt.
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ needs.bootstrap.outputs.tag }}
+          TITLE: ${{ needs.bootstrap.outputs.title }}
+        run: |
+          set -Eeuo pipefail
+          evidence_root="${RUNNER_TEMP}/npm-package-github-reconciliation"
+          mkdir -p "${evidence_root}"
+          node scripts/github-release-reconciliation.mjs \
+            "${TAG}" "${TITLE}" "${BODY}" true "${EXPECTED_COMMIT}" \
+            > "${evidence_root}/result.json"
+      - name: Retain GitHub reconciliation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-package-github-reconciliation-${{ inputs.package_id }}-${{ github.sha }}
+          path: ${{ runner.temp }}/npm-package-github-reconciliation
+          if-no-files-found: error
+          retention-days: 30

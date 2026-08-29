@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { copyFile, cp, mkdir, readFile, readdir, stat, symlink } from "node:fs/promises";
+import { copyFile, cp, mkdir, readFile, readdir, symlink } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import {
@@ -67,13 +67,21 @@ async function sha256(path) {
   return createHash("sha256").update(await readFile(path)).digest("hex");
 }
 
-function assertNoSpecialTarEntries(verboseListing) {
+export function assertNoSpecialTarEntries(verboseListing) {
   for (const line of verboseListing.split(/\r?\n/u).filter(Boolean)) {
     const type = line[0];
     if (type !== "-" && type !== "d") {
       throw new Error(`Package contains a prohibited special tar entry: ${line}`);
     }
   }
+}
+
+export function assertArchiveSafety({ archiveBytes, listing, requiredArtifactPaths, verboseListing }) {
+  if (!Buffer.isBuffer(archiveBytes) || archiveBytes.length > MAX_ARCHIVE_BYTES) {
+    throw new Error(`Package archive exceeds ${MAX_ARCHIVE_BYTES} bytes.`);
+  }
+  assertArchiveListing(listing, requiredArtifactPaths);
+  assertNoSpecialTarEntries(verboseListing);
 }
 
 function shouldCopyPackagePath(path) {
@@ -143,18 +151,18 @@ export async function packAndInspectArtifact(input) {
   if ((await sha256(first.archivePath)) !== (await sha256(second.archivePath))) {
     throw new Error("Two clean package builds did not produce byte-identical tarballs.");
   }
-  const archiveMetadata = await stat(first.archivePath);
-  if (archiveMetadata.size > MAX_ARCHIVE_BYTES) {
-    throw new Error(`Package archive exceeds ${MAX_ARCHIVE_BYTES} bytes.`);
-  }
   const { stdout: listing } = await runCommand("tar", ["-tzf", first.archivePath], input.temporaryRoot);
-  assertArchiveListing(listing, input.requiredArtifactPaths);
   const { stdout: verboseListing } = await runCommand(
     "tar",
     ["-tvzf", first.archivePath],
     input.temporaryRoot
   );
-  assertNoSpecialTarEntries(verboseListing);
+  assertArchiveSafety({
+    archiveBytes: await readFile(first.archivePath),
+    listing,
+    requiredArtifactPaths: input.requiredArtifactPaths,
+    verboseListing,
+  });
 
   const extractedRoot = join(
     input.temporaryRoot,

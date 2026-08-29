@@ -162,10 +162,10 @@ test("bootstrap catalog is closed, data-only, and owns one historical and one ap
 });
 
 test("bootstrap workspace authority distinguishes internal and catalog dependencies", async () => {
-  const manifest = JSON.parse(await readFile(
+  const manifest = Object.assign(JSON.parse(await readFile(
     new URL("../packages/docs-protocol-mcp/package.json", import.meta.url),
     "utf8",
-  ));
+  )), { version: mcpProfile.bootstrapVersion });
   assert.doesNotThrow(() => assertWorkspaceManifestMatchesProfile(mcpProfile, manifest));
 
   const catalogDrift = structuredClone(manifest);

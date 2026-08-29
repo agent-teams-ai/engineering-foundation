@@ -94,8 +94,20 @@ function forgedAuditEvidence(coordinates, published) {
 }
 
 test("public install evidence rejects workspace, link, and file dependency escape hatches", () => {
+  const localProtocols = [
+    "workspace:*", "link:../docs", "file:../docs.tgz", "git+file:///tmp/docs",
+  ];
   const exact = {
-    lockfile: "lockfileVersion: '9.0'\nresolution: {integrity: sha512-exact}\n",
+    lockfile: [
+      "lockfileVersion: '9.0'",
+      "settings:",
+      "  excludeLinksFromLockfile: false",
+      "metadata:",
+      "  profile: strict",
+      "  resolved: https://registry.npmjs.org/profile:metadata",
+      "resolution: {integrity: sha512-exact}",
+      "",
+    ].join("\n"),
     manifests: [{
       manifest: {
         dependencies: { "@example/foundation": "1.2.3" },
@@ -107,7 +119,7 @@ test("public install evidence rejects workspace, link, and file dependency escap
     }],
   };
   assert.doesNotThrow(() => assertRegistryOnlyInstallEvidence(exact));
-  for (const protocol of ["workspace:*", "link:../docs", "file:../docs.tgz"]) {
+  for (const protocol of localProtocols) {
     const input = structuredClone(exact);
     input.manifests[0].manifest.dependencies["@example/foundation"] = protocol;
     assert.throws(() => assertRegistryOnlyInstallEvidence(input), /local dependency/u);
@@ -116,6 +128,32 @@ test("public install evidence rejects workspace, link, and file dependency escap
       lockfile: `${exact.lockfile}specifier: ${protocol}\n`,
     }), /lockfile contains a local/u);
   }
+  for (const protocol of localProtocols) {
+    assert.throws(() => assertRegistryOnlyInstallEvidence({
+      ...exact,
+      lockfile: `${exact.lockfile}snapshots:\n  '@example/docs@${protocol}': {}\n`,
+    }), /lockfile contains a local/u);
+  }
+  assert.doesNotThrow(() => assertRegistryOnlyInstallEvidence({
+    ...exact,
+    lockfile: JSON.stringify({
+      lockfileVersion: 3,
+      packages: { "": { profile: "strict" } },
+    }),
+  }));
+  for (const protocol of localProtocols) {
+    assert.throws(() => assertRegistryOnlyInstallEvidence({
+      ...exact,
+      lockfile: JSON.stringify({
+        lockfileVersion: 3,
+        packages: { "node_modules/@example/docs": { resolved: protocol } },
+      }),
+    }), /lockfile contains a local/u);
+  }
+  assert.throws(() => assertRegistryOnlyInstallEvidence({
+    ...exact,
+    lockfile: "not: [valid",
+  }), /not valid JSON or YAML/u);
 });
 
 test("unpublished release-authority coordinate blocks public installation", async () => {

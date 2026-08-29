@@ -35,6 +35,9 @@ separate from ordinary OIDC release authority. Never edit package versions or
 `architecture/foundation/npm-package-bootstrap.json` is the only package-specific
 authority. The MCP profile must be `approved` with reviewed package-tree and SRI
 evidence before the protected `npm-package-bootstrap` environment can run. The
+SRI must come from the retained Ubuntu writer artifact with the repository-pinned
+Node and pnpm versions, never from a local `npm pack` or `pnpm pack`: gzip bytes
+are platform-specific even when the underlying tar payload is identical. The
 environment reviewer verifies the granular token is scoped for the one bootstrap,
 was created at the dispatch timestamp, expires within 24 hours, and has at least
 15 minutes remaining. Only then may the manual workflow run on the exact reviewed

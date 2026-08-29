@@ -100,7 +100,7 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-cyXyVrFoan9zEiKRT6i+PO7Ma49bL7rQxVPhM7LJ0AzQdTCpd/c2el12u4bDOGFVx7ZZTkDvG64UTYxQWp04tQ==",
+        "archiveIntegrity": "sha512-5RyzpWvGCJOJKx4fMWUY0PkayT0T+vbamk0veGbXzNISIvnl9EBUK7CaH8v+Te/lg7+4JVZsHCjTr2f81X/kbw==",
         "packageTree": "07708c6733536c9d1bad8a8d17e1c46f1e6bf3fe"
       }
     }

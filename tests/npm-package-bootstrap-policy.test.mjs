@@ -4,6 +4,7 @@ import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 import {
   NPM_PACKAGE_BOOTSTRAP,
@@ -209,7 +210,11 @@ test("bootstrap accepts only a live granular token window of at most one day", (
 });
 
 test("pack evidence binds identity, dependency, allowlist, tree, and reviewed SRI", () => {
-  const archiveBytes = Buffer.from("reviewed archive");
+  const tarPayload = Buffer.from("portable tar payload".repeat(4_096));
+  const archiveBytes = gzipSync(tarPayload, { level: 9 });
+  const foreignGzipWrapper = gzipSync(tarPayload, { level: 1 });
+  assert.deepEqual(gunzipSync(foreignGzipWrapper), gunzipSync(archiveBytes));
+  assert.notDeepEqual(foreignGzipWrapper, archiveBytes);
   const catalog = approvedMcpCatalog(archiveBytes);
   const profile = catalog.packages[0];
   const archivePath = resolve("/tmp/agent-teams-docs-protocol-mcp-0.0.0.tgz");
@@ -248,6 +253,7 @@ test("pack evidence binds identity, dependency, allowlist, tree, and reviewed SR
   for (const mutation of [
     (value) => { value.packageTree = "c".repeat(40); },
     (value) => { value.archiveBytes = Buffer.from("different"); },
+    (value) => { value.archiveBytes = foreignGzipWrapper; },
     (value) => { value.packedManifest.dependencies["@agent-teams/docs-protocol"] = "0.3.1"; },
     (value) => { value.packedManifest.dependencies["unexpected-package"] = "1.0.0"; },
     (value) => { value.packedManifest.optionalDependencies = {}; },

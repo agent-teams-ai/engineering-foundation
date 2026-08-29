@@ -27,6 +27,7 @@ import {
 import {
   assertWorkspaceManifestMatchesProfile,
   prove as proveLiveBootstrap,
+  proveQuarantine,
 } from "../scripts/npm-package-bootstrap-cli.mjs";
 import { main as releasePublishMain } from "../scripts/release-publish.mjs";
 
@@ -406,6 +407,71 @@ test("mutation proof stores only validated evidence fields", async () => {
   assert.equal(evidence.verified, true);
 });
 
+test("mutation proof retries stale registry metadata without repeating its audit", async () => {
+  let audits = 0;
+  const reads = [];
+  const waits = [];
+  let writes = 0;
+  await proveLiveBootstrap(
+    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    assertBootstrapMutationPreconditions,
+    "bootstrap mutation target remained absent.",
+    {
+      assertionAttempts: 3,
+      auditPackage: async () => {
+        audits += 1;
+        return auditEvidence(mcpProfile);
+      },
+      liveEvidence: async (_profile, _fetch, options) => {
+        reads.push(options);
+        return {
+          deprecatedMessage: null,
+          integrity: reads.length === 1 ? null : mcpProfile.approval.archiveIntegrity,
+          metadata: reads.length === 1
+            ? { versions: [], "dist-tags": {} }
+            : bootstrapMetadata(mcpProfile),
+        };
+      },
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      writeEvidence: async () => { writes += 1; },
+    },
+  );
+  assert.equal(audits, 1);
+  assert.equal(reads.length, 2);
+  assert.ok(reads.every((options) => options.attempts === 1 && options.retryNotFound === true));
+  assert.deepEqual(waits, [5_000]);
+  assert.equal(writes, 1);
+});
+
+test("mutation proof fails after bounded retries when registry metadata stays stale", async () => {
+  let audits = 0;
+  let reads = 0;
+  const waits = [];
+  let writes = 0;
+  await assert.rejects(() => proveLiveBootstrap(
+    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    assertBootstrapMutationPreconditions,
+    "bootstrap mutation target remained absent.",
+    {
+      assertionAttempts: 3,
+      auditPackage: async () => {
+        audits += 1;
+        return auditEvidence(mcpProfile);
+      },
+      liveEvidence: async () => {
+        reads += 1;
+        return { deprecatedMessage: null, integrity: null, metadata: { versions: [], "dist-tags": {} } };
+      },
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      writeEvidence: async () => { writes += 1; },
+    },
+  ), /registry versions/u);
+  assert.equal(audits, 1);
+  assert.equal(reads, 3);
+  assert.deepEqual(waits, [5_000, 5_000]);
+  assert.equal(writes, 0);
+});
+
 test("npm signature audit uses the shared cross-platform command runner", async () => {
   const root = await mkdtemp(join(tmpdir(), "npm-bootstrap-runner-test-"));
   const calls = [];
@@ -457,6 +523,59 @@ test("quarantine deprecates exact bytes but never substitutes for provenance", (
   }), /bootstrap refused/u);
 });
 
+test("quarantine postconditions retry a stale deprecation before writing evidence", async () => {
+  const reads = [];
+  const waits = [];
+  let writes = 0;
+  await proveQuarantine(
+    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, "evidence.json"],
+    assertBootstrapQuarantinePostconditions,
+    {
+      assertionAttempts: 3,
+      liveEvidence: async (_profile, _fetch, options) => {
+        reads.push(options);
+        return {
+          deprecatedMessage: reads.length === 1 ? null : mcpProfile.deprecationMessage,
+          integrity: mcpProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(mcpProfile),
+        };
+      },
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      writeEvidence: async () => { writes += 1; },
+    },
+  );
+  assert.equal(reads.length, 2);
+  assert.ok(reads.every((options) => options.attempts === 1 && options.retryNotFound === true));
+  assert.deepEqual(waits, [5_000]);
+  assert.equal(writes, 1);
+});
+
+test("quarantine postconditions fail boundedly when deprecation stays stale", async () => {
+  let reads = 0;
+  const waits = [];
+  let writes = 0;
+  await assert.rejects(() => proveQuarantine(
+    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, "evidence.json"],
+    assertBootstrapQuarantinePostconditions,
+    {
+      assertionAttempts: 3,
+      liveEvidence: async () => {
+        reads += 1;
+        return {
+          deprecatedMessage: null,
+          integrity: mcpProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(mcpProfile),
+        };
+      },
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      writeEvidence: async () => { writes += 1; },
+    },
+  ), /exact deprecation message/u);
+  assert.equal(reads, 3);
+  assert.deepEqual(waits, [5_000, 5_000]);
+  assert.equal(writes, 0);
+});
+
 test("postconditions require exact registry state, deprecation, signature audit, and provenance", () => {
   const profile = approvedMcpCatalog().packages[0];
   const input = {
@@ -479,6 +598,73 @@ test("postconditions require exact registry state, deprecation, signature audit,
     mutation(value);
     assert.throws(() => assertBootstrapPostconditions(value), /bootstrap refused/u);
   }
+});
+
+test("postconditions retry stale registry metadata until the exact deprecation converges", async () => {
+  let audits = 0;
+  const reads = [];
+  const waits = [];
+  let written;
+  await proveLiveBootstrap(
+    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    assertBootstrapPostconditions,
+    "published bootstrap package remained absent.",
+    {
+      assertionAttempts: 3,
+      auditPackage: async () => {
+        audits += 1;
+        return auditEvidence(mcpProfile);
+      },
+      liveEvidence: async (_profile, _fetch, options) => {
+        reads.push(options);
+        return {
+          deprecatedMessage: reads.length === 1 ? null : mcpProfile.deprecationMessage,
+          integrity: mcpProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(mcpProfile),
+        };
+      },
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      writeEvidence: async (_path, value) => { written = value; },
+    },
+  );
+  assert.equal(audits, 1);
+  assert.equal(reads.length, 2);
+  assert.ok(reads.every((options) => options.attempts === 1 && options.retryNotFound === true));
+  assert.deepEqual(waits, [5_000]);
+  assert.equal(JSON.parse(written).live.deprecationMatches, true);
+});
+
+test("postconditions fail after the bounded attempts when registry metadata stays stale", async () => {
+  let audits = 0;
+  let reads = 0;
+  const waits = [];
+  let writes = 0;
+  await assert.rejects(() => proveLiveBootstrap(
+    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    assertBootstrapPostconditions,
+    "published bootstrap package remained absent.",
+    {
+      assertionAttempts: 3,
+      auditPackage: async () => {
+        audits += 1;
+        return auditEvidence(mcpProfile);
+      },
+      liveEvidence: async () => {
+        reads += 1;
+        return {
+          deprecatedMessage: null,
+          integrity: mcpProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(mcpProfile),
+        };
+      },
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      writeEvidence: async () => { writes += 1; },
+    },
+  ), /exact deprecation message/u);
+  assert.equal(audits, 1);
+  assert.equal(reads, 3);
+  assert.deepEqual(waits, [5_000, 5_000]);
+  assert.equal(writes, 0);
 });
 
 test("release policy blocks a package transition until approved baseline exists", () => {

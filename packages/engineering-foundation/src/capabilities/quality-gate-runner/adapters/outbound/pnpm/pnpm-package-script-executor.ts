@@ -24,8 +24,12 @@ export interface QualityGatePnpmEnvironment {
   readonly pathValue?: string;
 }
 
+interface QualityGateManagedProcessRequest extends ProcessRequest {
+  readonly environment: Readonly<NodeJS.ProcessEnv>;
+}
+
 export interface QualityGateManagedProcessExecutor {
-  run(request: ProcessRequest): Promise<ManagedProcessResult>;
+  run(request: QualityGateManagedProcessRequest): Promise<ManagedProcessResult>;
 }
 
 const nodeManagedProcessExecutor: QualityGateManagedProcessExecutor = {

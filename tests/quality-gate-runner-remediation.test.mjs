@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -269,7 +270,7 @@ test("QGR binds one immutable exact child environment in the pnpm adapter", asyn
     clock: { nowMs: () => 0 },
     executor: new PnpmQualityGateScriptExecutor({
       childEnvironment,
-      npmExecPath: new URL(import.meta.url).pathname,
+      npmExecPath: fileURLToPath(import.meta.url),
     }, {
       async run(request) {
         assert.equal(Object.isFrozen(request.environment), true);

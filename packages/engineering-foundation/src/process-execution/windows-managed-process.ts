@@ -11,7 +11,7 @@ export interface WindowsManagedProcessRequest {
   readonly command: string;
   readonly args: readonly string[];
   readonly cwd: string;
-  readonly environment?: NodeJS.ProcessEnv;
+  readonly environment?: Readonly<NodeJS.ProcessEnv>;
 }
 
 const WINDOWS_BOOTSTRAP_PATH = fileURLToPath(
@@ -32,6 +32,7 @@ const CONTROL_POLL_INTERVAL_MS = 10;
 interface WindowsProcessControl {
   readonly cancellationPath: string;
   readonly confirmationPath: string;
+  readonly launchPath: string;
   readonly root: string;
 }
 
@@ -42,12 +43,17 @@ function createControl(): WindowsProcessControl {
   return {
     cancellationPath: join(root, "cancel"),
     confirmationPath: join(root, "contained"),
+    launchPath: join(root, "launched"),
     root
   };
 }
 
-function resolveWindowsPowerShellPath(): string {
-  const systemRoot = process.env.SystemRoot;
+function resolveWindowsPowerShellPath(
+  environment: Readonly<NodeJS.ProcessEnv> | undefined
+): string {
+  const systemRoot = Object.entries(environment ?? {}).find(
+    ([key]) => key.toLowerCase() === "systemroot"
+  )?.[1];
   if (
     typeof systemRoot !== "string" ||
     systemRoot.length === 0 ||
@@ -132,18 +138,24 @@ function assertWindowsCommandLineFits(executable: string, args: readonly string[
 export function spawnWindowsManagedProcess(
   request: WindowsManagedProcessRequest
 ): ChildProcess {
+  const control = createControl();
   const encodedRequest = Buffer.from(JSON.stringify({
     schemaVersion: 1,
     command: request.command,
     args: [...request.args],
-    cwd: request.cwd
+    cwd: request.cwd,
+    launchPath: control.launchPath
   })).toString("base64url");
-  assertWindowsCommandLineFits(process.execPath, [PROCESS_HOST_PATH, encodedRequest]);
-  const control = createControl();
+  try {
+    assertWindowsCommandLineFits(process.execPath, [PROCESS_HOST_PATH, encodedRequest]);
+  } catch (error) {
+    removeControlRootBestEffort(control.root);
+    throw error;
+  }
   let child: ChildProcess;
   try {
     child = spawn(
-      resolveWindowsPowerShellPath(),
+      resolveWindowsPowerShellPath(request.environment),
       [
         "-NoLogo",
         "-NoProfile",
@@ -187,7 +199,8 @@ export function spawnWindowsManagedProcess(
     encodedRequest,
     cwd: request.cwd,
     cancellationPath: control.cancellationPath,
-    confirmationPath: control.confirmationPath
+    confirmationPath: control.confirmationPath,
+    launchPath: control.launchPath
   }));
   return child;
 }

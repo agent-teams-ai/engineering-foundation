@@ -254,6 +254,17 @@ test("packaging subprocesses have a bounded deadline", async () => {
   );
 });
 
+test("packaging confirms containment after a normal nonzero exit", async () => {
+  await assert.rejects(
+    runCommand(
+      process.execPath,
+      ["--input-type=module", "--eval", "process.exit(7);"],
+      repositoryRoot,
+    ),
+    (error) => error?.code === 7 && error?.terminationConfirmed === true,
+  );
+});
+
 test("packaging rejects unsupported deadlines before process creation", async () => {
   await assert.rejects(
     runCommand(

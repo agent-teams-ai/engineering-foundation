@@ -9,9 +9,16 @@ import test from "node:test";
 
 import {
   requestWindowsManagedProcessTermination,
-  spawnWindowsManagedProcess,
+  spawnWindowsManagedProcess as spawnWindowsManagedProcessWithoutEnvironment,
   waitForWindowsManagedProcessContainment
 } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js";
+
+function spawnWindowsManagedProcess(request) {
+  return spawnWindowsManagedProcessWithoutEnvironment({
+    environment: process.env,
+    ...request
+  });
+}
 
 const windowsTest = process.platform === "win32" ? test : test.skip;
 const TEST_TIMEOUT_MS = 90_000;

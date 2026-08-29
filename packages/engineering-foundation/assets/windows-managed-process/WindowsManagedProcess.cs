@@ -297,7 +297,7 @@ namespace AgentTeams.Foundation
         public static int Run(
             string executable, string hostPath, string encodedRequest,
             string currentDirectory,
-            string cancellationPath, string confirmationPath)
+            string cancellationPath, string confirmationPath, string launchPath)
         {
             var commandLine = BuildCommandLine(
                 executable, new[] { hostPath, encodedRequest });
@@ -316,12 +316,6 @@ namespace AgentTeams.Foundation
                         Marshal.GetLastWin32Error(), "CreateJobObject failed");
                 }
                 ConfigureKillOnClose(job);
-
-                if (File.Exists(cancellationPath))
-                {
-                    ConfirmContainment(confirmationPath);
-                    return 0;
-                }
 
                 var attributeListSize = IntPtr.Zero;
                 InitializeProcThreadAttributeList(
@@ -368,11 +362,6 @@ namespace AgentTeams.Foundation
                 // closing or terminating the job contains every possible child.
                 assigned = true;
 
-                if (CancelAssignedIfRequested(
-                    cancellationPath, confirmationPath, job))
-                {
-                    return 0;
-                }
                 if (ResumeThread(process.hThread) == WAIT_FAILED)
                 {
                     throw new Win32Exception(
@@ -381,11 +370,6 @@ namespace AgentTeams.Foundation
 
                 while (true)
                 {
-                    if (CancelAssignedIfRequested(
-                        cancellationPath, confirmationPath, job))
-                    {
-                        return 0;
-                    }
                     var waitResult = WaitForSingleObject(process.hProcess, 10);
                     if (waitResult == WAIT_OBJECT_0)
                     {
@@ -395,6 +379,13 @@ namespace AgentTeams.Foundation
                     {
                         throw new Win32Exception(
                             Marshal.GetLastWin32Error(), "WaitForSingleObject failed");
+                    }
+                    // Once the trusted host has attempted the requested launch,
+                    // an already observed host failure outranks cancellation.
+                    if (File.Exists(launchPath) && CancelAssignedIfRequested(
+                        cancellationPath, confirmationPath, job))
+                    {
+                        return 0;
                     }
                 }
 

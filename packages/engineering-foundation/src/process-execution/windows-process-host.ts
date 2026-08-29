@@ -1,10 +1,12 @@
 import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
 
 interface HostRequest {
   readonly schemaVersion: 1;
   readonly command: string;
   readonly args: readonly string[];
   readonly cwd: string;
+  readonly launchPath: string;
 }
 
 function isHostRequest(value: unknown): value is HostRequest {
@@ -19,7 +21,9 @@ function isHostRequest(value: unknown): value is HostRequest {
     Array.isArray(candidate.args) &&
     candidate.args.every((argument) => typeof argument === "string") &&
     typeof candidate.cwd === "string" &&
-    candidate.cwd.length > 0
+    candidate.cwd.length > 0 &&
+    typeof candidate.launchPath === "string" &&
+    candidate.launchPath.length > 0
   );
 }
 
@@ -54,8 +58,20 @@ if (process.platform !== "win32") {
       windowsHide: true
     });
     child.once("error", (error) => {
+      writeFileSync(request.launchPath, "FAILED", { encoding: "utf8", flag: "wx" });
       process.stderr.write(`Managed command could not be started: ${error.message}\n`);
       process.exitCode = 1;
+    });
+    child.once("spawn", () => {
+      try {
+        writeFileSync(request.launchPath, "STARTED", { encoding: "utf8", flag: "wx" });
+      } catch (error) {
+        child.kill("SIGKILL");
+        process.stderr.write(
+          `Managed command launch could not be confirmed: ${error instanceof Error ? error.message : String(error)}\n`
+        );
+        process.exitCode = 1;
+      }
     });
     child.once("exit", (exitCode) => {
       process.exitCode = exitCode ?? 1;

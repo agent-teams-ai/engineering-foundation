@@ -156,23 +156,21 @@ async function windowsProcessSpawner() {
   if (process.platform !== "win32") {
     return null;
   }
-  return (await import(
+  return await import(
     "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js"
-  )).spawnWindowsManagedProcess;
+  );
 }
 
-function terminateWindowsProcessTree(child) {
-  if (child.exitCode === null && child.signalCode === null) {
-    child.kill("SIGKILL");
-  }
+async function terminateWindowsProcessTree(child, windowsManagedProcess) {
+  await windowsManagedProcess.requestWindowsManagedProcessTermination(child);
 }
 
-async function terminateCommandTree(child) {
+async function terminateCommandTree(child, windowsManagedProcess) {
   if (child.pid === undefined) {
     return;
   }
   if (process.platform === "win32") {
-    terminateWindowsProcessTree(child);
+    await terminateWindowsProcessTree(child, windowsManagedProcess);
     return;
   }
   try {
@@ -184,9 +182,34 @@ async function terminateCommandTree(child) {
   }
 }
 
-async function cleanUpAfterNormalExit(child) {
-  if (process.platform !== "win32") {
-    await terminateCommandTree(child);
+async function cleanUpAfterNormalExit(child, windowsManagedProcess) {
+  if (process.platform === "win32") {
+    await windowsManagedProcess.waitForWindowsManagedProcessContainment(child);
+  } else {
+    await terminateCommandTree(child, windowsManagedProcess);
+  }
+}
+
+function spawnCommand(command, args, cwd, windowsManagedProcess) {
+  return process.platform === "win32"
+    ? windowsManagedProcess.spawnWindowsManagedProcess({
+        command, args, cwd, environment: process.env
+      })
+    : spawn(command, args, {
+        cwd, detached: true, stdio: ["ignore", "pipe", "pipe"], windowsHide: true
+      });
+}
+
+async function cleanUpCommandTree(child, windowsManagedProcess, forced, requestTermination) {
+  try {
+    if (forced) {
+      await requestTermination();
+    } else {
+      await cleanUpAfterNormalExit(child, windowsManagedProcess);
+    }
+    return { confirmed: true };
+  } catch (error) {
+    return { confirmed: false, error };
   }
 }
 
@@ -216,21 +239,13 @@ export async function runCommand(command, args, cwd, options = {}) {
       timeoutMs
     });
   }
-  const spawnWindowsManagedProcess = await windowsProcessSpawner();
+  const windowsManagedProcess = await windowsProcessSpawner();
   let resolveForcedTermination;
   const forcedTermination = new Promise((_resolve) => {
     resolveForcedTermination = _resolve;
   });
   return new Promise((resolve, reject) => {
-    const child =
-      process.platform === "win32"
-        ? spawnWindowsManagedProcess({ command, args, cwd })
-        : spawn(command, args, {
-            cwd,
-            detached: true,
-            stdio: ["ignore", "pipe", "pipe"],
-            windowsHide: true
-          });
+    const child = spawnCommand(command, args, cwd, windowsManagedProcess);
     const stdout = [];
     const stderr = [];
     let stdoutBytes = 0;
@@ -239,6 +254,7 @@ export async function runCommand(command, args, cwd, options = {}) {
     const exit = waitForExit(child);
     let cause;
     let completing = false;
+    let containmentConfirmed = false;
     let forceTerminationRequested = false;
     let terminationFailed = false;
     let terminationPromise;
@@ -270,7 +286,7 @@ export async function runCommand(command, args, cwd, options = {}) {
       }
       terminationPromise = (async () => {
         try {
-          await terminateCommandTree(child);
+          await terminateCommandTree(child, windowsManagedProcess);
         } catch (error) {
           terminationFailed = true;
           cause ??= error;
@@ -287,10 +303,13 @@ export async function runCommand(command, args, cwd, options = {}) {
       const result = await Promise.race([exit, forcedTermination]);
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", onAbort);
-      if (forceTerminationRequested) {
-        await requestTermination();
-      } else {
-        await cleanUpAfterNormalExit(child);
+      const cleanup = await cleanUpCommandTree(
+        child, windowsManagedProcess, forceTerminationRequested, requestTermination
+      );
+      containmentConfirmed = cleanup.confirmed && !terminationFailed;
+      if (!cleanup.confirmed) {
+        terminationFailed = true;
+        cause ??= cleanup.error;
       }
       let streamsClosed = false;
       try {
@@ -314,7 +333,7 @@ export async function runCommand(command, args, cwd, options = {}) {
             signal: result.signal,
             ...text,
             terminationConfirmed:
-              forceTerminationRequested && !terminationFailed && streamsClosed,
+              containmentConfirmed && !terminationFailed && streamsClosed,
             timedOut,
             timeoutMs
           })

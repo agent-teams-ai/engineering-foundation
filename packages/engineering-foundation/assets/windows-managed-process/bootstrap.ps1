@@ -13,7 +13,8 @@ try {
     [string]$bootstrapRequest.encodedRequest,
     [string]$bootstrapRequest.cwd,
     [string]$bootstrapRequest.cancellationPath,
-    [string]$bootstrapRequest.confirmationPath)
+    [string]$bootstrapRequest.confirmationPath,
+    [string]$bootstrapRequest.launchPath)
   exit $exitCode
 } catch {
   [Console]::Error.WriteLine(

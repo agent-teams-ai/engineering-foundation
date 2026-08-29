@@ -158,6 +158,12 @@ export async function waitForFixtureEffect(
   const observation = observeFixtureEffect({
     read: async () => parse(await readFile(path, "utf8")),
     subscribe(notify) {
+      // Removing a watched temporary directory can assert inside libuv on Windows.
+      // The observer already has bounded polling, so keep fs.watch as an optional
+      // latency optimisation only on platforms where teardown is reliable.
+      if (process.platform === "win32") {
+        return NOOP;
+      }
       let watcher;
       try {
         watcher = watch(dirname(path), { persistent: false }, notify);

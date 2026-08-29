@@ -18,8 +18,9 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
-  NodeProcessRunner
+  NodeProcessRunner as PublicNodeProcessRunner
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
+import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
 import { foundationCommandFailure } from "../packages/engineering-foundation/dist/command-error.js";
 import {
   ProcessCancellationError,
@@ -27,9 +28,22 @@ import {
 } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
-  spawnWindowsManagedProcess,
+  spawnWindowsManagedProcess as spawnWindowsManagedProcessWithoutEnvironment,
   waitForWindowsManagedProcessContainment
 } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js";
+
+function spawnWindowsManagedProcess(request) {
+  return spawnWindowsManagedProcessWithoutEnvironment({
+    environment: process.env,
+    ...request
+  });
+}
+
+function NodeProcessRunner() {
+  return process.platform === "win32"
+    ? createNodeProcessRunner(process.env)
+    : new PublicNodeProcessRunner();
+}
 
 const NEVER_EXITING_PROCESS_PATH = fileURLToPath(
   new URL("./fixtures/never-exiting-process.mjs", import.meta.url)
@@ -589,24 +603,30 @@ test("Windows cancellation protocol proves containment across Job assignment", a
     "if (!CreateProcess(",
     updateJobList
   );
-  const preResumeCancellation = windowsManagedProcessSource.indexOf(
-    "if (CancelAssignedIfRequested(",
-    createProcess
-  );
   const resumeThread = windowsManagedProcessSource.indexOf(
     "if (ResumeThread(process.hThread)",
-    preResumeCancellation
+    createProcess
+  );
+  const waitForLaunchAttempt = windowsManagedProcessSource.indexOf(
+    "var waitResult = WaitForSingleObject(process.hProcess, 10);",
+    resumeThread
+  );
+  const launchConfirmedCancellation = windowsManagedProcessSource.indexOf(
+    "if (File.Exists(launchPath) && CancelAssignedIfRequested(",
+    waitForLaunchAttempt
   );
   assert.ok(updateJobList >= 0);
   assert.ok(jobListAttribute >= 0);
   assert.ok(createProcess >= 0);
-  assert.ok(preResumeCancellation >= 0);
   assert.ok(resumeThread >= 0);
+  assert.ok(waitForLaunchAttempt >= 0);
+  assert.ok(launchConfirmedCancellation >= 0);
   assert.ok(updateJobList < jobListAttribute);
   assert.ok(jobListAttribute < createProcess);
   assert.ok(updateJobList < createProcess);
-  assert.ok(createProcess < preResumeCancellation);
-  assert.ok(preResumeCancellation < resumeThread);
+  assert.ok(createProcess < resumeThread);
+  assert.ok(resumeThread < waitForLaunchAttempt);
+  assert.ok(waitForLaunchAttempt < launchConfirmedCancellation);
 
   const assignedCancellationHelper = windowsManagedProcessSource.indexOf(
     "private static bool CancelAssignedIfRequested"
@@ -650,14 +670,14 @@ test("Windows cancellation protocol proves containment across Job assignment", a
   );
   assert.ok(waitForProcessExit >= 0);
   assert.ok(readExitCode > waitForProcessExit);
-  assert.doesNotMatch(
+  assert.match(
     windowsManagedProcessSource.slice(waitForProcessExit, readExitCode),
-    /CancelAssignedIfRequested/u
+    /File\.Exists\(launchPath\)[\s\S]*CancelAssignedIfRequested/u
   );
   assert.equal(
     windowsManagedProcessSource.match(/return 0;/gu)?.length,
-    3,
-    "each wrapper-consumed cancellation path must be neutral"
+    1,
+    "the wrapper-consumed cancellation path must be neutral"
   );
 });
 

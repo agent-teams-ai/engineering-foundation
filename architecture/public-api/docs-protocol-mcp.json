@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-mcp",
-  "packageVersion": "0.0.0",
+  "packageVersion": "0.1.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -20,6 +20,34 @@
           "parentReference": "@agent-teams/docs-protocol-mcp!",
           "parentKind": "EntryPoint",
           "signature": "export declare class CliInputError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_CONTEXT_OUTPUT_SCHEMA_V1:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/docs-protocol-mcp!",
+          "parentKind": "EntryPoint",
+          "signature": "DOCS_CONTEXT_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_ERROR_OUTPUT_SCHEMA_V1:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/docs-protocol-mcp!",
+          "parentKind": "EntryPoint",
+          "signature": "DOCS_ERROR_OUTPUT_SCHEMA_V1: Readonly<{\n    type: \"object\";\n    additionalProperties: false;\n    required: readonly string[];\n    properties: Readonly<{\n        error: Readonly<{\n            type: \"object\";\n            additionalProperties: false;\n            required: readonly string[];\n            properties: Readonly<{\n                code: Readonly<{\n                    enum: readonly string[];\n                }>;\n                message: Readonly<{\n                    type: \"string\";\n                }>;\n            }>;\n        }>;\n    }>;\n}>"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_FIND_OUTPUT_SCHEMA_V1:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/docs-protocol-mcp!",
+          "parentKind": "EntryPoint",
+          "signature": "DOCS_FIND_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_INFO_OUTPUT_SCHEMA_V1:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/docs-protocol-mcp!",
+          "parentKind": "EntryPoint",
+          "signature": "DOCS_INFO_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_PROTOCOL_MCP_PACKAGE_VERSION:var",

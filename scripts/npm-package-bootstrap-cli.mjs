@@ -1,5 +1,6 @@
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 
 import {
   NPM_PACKAGE_BOOTSTRAP,
@@ -18,6 +19,10 @@ import {
   verifyReleaseBootstrapBaselines,
 } from "./npm-package-bootstrap.mjs";
 import { fail } from "./npm-package-bootstrap-catalog.mjs";
+import {
+  REGISTRY_OBSERVATION_ATTEMPTS,
+  REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
+} from "./npm-package-bootstrap-registry.mjs";
 
 async function output(path, values) {
   await appendFile(
@@ -115,26 +120,44 @@ export async function prove(
   assertion,
   absentMessage,
   {
+    assertionAttempts = 1,
     auditPackage = auditLivePackage,
     liveEvidence = livePackageEvidence,
+    wait = delay,
     writeEvidence = writeFile,
   } = {},
 ) {
   const profile = bootstrapPackageById(args[0], { approved: true });
   const auditEvidence = await auditPackage(profile);
-  const live = await liveEvidence(profile, fetch, { retryNotFound: true });
-  if (live === null) {
-    fail(absentMessage);
+  let live;
+  let lastError;
+  for (let attempt = 0; attempt < assertionAttempts; attempt += 1) {
+    try {
+      live = await liveEvidence(profile, fetch, { attempts: 1, retryNotFound: true });
+      if (live === null) {
+        fail(absentMessage);
+      }
+      assertion({
+        auditEvidence,
+        deprecatedMessage: live.deprecatedMessage,
+        expectedCommit: args[2],
+        localIntegrity: args[1],
+        packageMetadata: live.metadata,
+        profile,
+        publishedIntegrity: live.integrity,
+      });
+      lastError = undefined;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+    if (attempt + 1 < assertionAttempts) {
+      await wait(REGISTRY_OBSERVATION_RETRY_MILLISECONDS);
+    }
   }
-  assertion({
-    auditEvidence,
-    deprecatedMessage: live.deprecatedMessage,
-    expectedCommit: args[2],
-    localIntegrity: args[1],
-    packageMetadata: live.metadata,
-    profile,
-    publishedIntegrity: live.integrity,
-  });
+  if (lastError !== undefined) {
+    throw lastError;
+  }
   const evidence = verifiedEvidence({
     deprecationMatches: live.deprecatedMessage === profile.deprecationMessage,
     expectedCommit: args[2],
@@ -187,6 +210,7 @@ const handlers = Object.freeze({
     args,
     assertBootstrapPostconditions,
     "published bootstrap package remained absent.",
+    { assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS },
   ),
   prepare,
   "quarantine-postconditions": (args) => proveQuarantine(

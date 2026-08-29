@@ -481,6 +481,73 @@ test("postconditions require exact registry state, deprecation, signature audit,
   }
 });
 
+test("postconditions retry stale registry metadata until the exact deprecation converges", async () => {
+  let audits = 0;
+  const reads = [];
+  const waits = [];
+  let written;
+  await proveLiveBootstrap(
+    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    assertBootstrapPostconditions,
+    "published bootstrap package remained absent.",
+    {
+      assertionAttempts: 3,
+      auditPackage: async () => {
+        audits += 1;
+        return auditEvidence(mcpProfile);
+      },
+      liveEvidence: async (_profile, _fetch, options) => {
+        reads.push(options);
+        return {
+          deprecatedMessage: reads.length === 1 ? null : mcpProfile.deprecationMessage,
+          integrity: mcpProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(mcpProfile),
+        };
+      },
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      writeEvidence: async (_path, value) => { written = value; },
+    },
+  );
+  assert.equal(audits, 1);
+  assert.equal(reads.length, 2);
+  assert.ok(reads.every((options) => options.attempts === 1 && options.retryNotFound === true));
+  assert.deepEqual(waits, [5_000]);
+  assert.equal(JSON.parse(written).live.deprecationMatches, true);
+});
+
+test("postconditions fail after the bounded attempts when registry metadata stays stale", async () => {
+  let audits = 0;
+  let reads = 0;
+  const waits = [];
+  let writes = 0;
+  await assert.rejects(() => proveLiveBootstrap(
+    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    assertBootstrapPostconditions,
+    "published bootstrap package remained absent.",
+    {
+      assertionAttempts: 3,
+      auditPackage: async () => {
+        audits += 1;
+        return auditEvidence(mcpProfile);
+      },
+      liveEvidence: async () => {
+        reads += 1;
+        return {
+          deprecatedMessage: null,
+          integrity: mcpProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(mcpProfile),
+        };
+      },
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      writeEvidence: async () => { writes += 1; },
+    },
+  ), /exact deprecation message/u);
+  assert.equal(audits, 1);
+  assert.equal(reads, 3);
+  assert.deepEqual(waits, [5_000, 5_000]);
+  assert.equal(writes, 0);
+});
+
 test("release policy blocks a package transition until approved baseline exists", () => {
   const candidateCatalog = candidateMcpCatalog();
   const candidate = candidateCatalog.packages[0];

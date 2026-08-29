@@ -9,8 +9,8 @@ import {
 } from "./npm-package-bootstrap-catalog.mjs";
 import { runNpmCommand } from "./pack-test-support.mjs";
 
-const OBSERVATION_ATTEMPTS = 6;
-const OBSERVATION_RETRY_MILLISECONDS = 5_000;
+export const REGISTRY_OBSERVATION_ATTEMPTS = 6;
+export const REGISTRY_OBSERVATION_RETRY_MILLISECONDS = 5_000;
 
 const delay = (milliseconds) => new Promise((resolve) => {
   setTimeout(resolve, milliseconds);
@@ -19,7 +19,7 @@ const delay = (milliseconds) => new Promise((resolve) => {
 async function fetchWithRetry(
   url,
   fetchImplementation = fetch,
-  { attempts = OBSERVATION_ATTEMPTS, retryNotFound = false, wait = delay } = {},
+  { attempts = REGISTRY_OBSERVATION_ATTEMPTS, retryNotFound = false, wait = delay } = {},
 ) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -39,7 +39,7 @@ async function fetchWithRetry(
       lastError = error;
     }
     if (attempt + 1 < attempts) {
-      await wait(OBSERVATION_RETRY_MILLISECONDS);
+      await wait(REGISTRY_OBSERVATION_RETRY_MILLISECONDS);
     }
   }
   fail(`registry observation remained unknown${lastError instanceof Error ? `: ${lastError.message}` : "."}`);
@@ -117,7 +117,7 @@ async function auditLivePackageOnce(profile, temporaryRoot, runNpm) {
 export async function auditLivePackage(
   profile,
   temporaryRoot,
-  { attempts = OBSERVATION_ATTEMPTS, runNpm = runNpmCommand, wait = delay } = {},
+  { attempts = REGISTRY_OBSERVATION_ATTEMPTS, runNpm = runNpmCommand, wait = delay } = {},
 ) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -127,7 +127,7 @@ export async function auditLivePackage(
       lastError = error;
     }
     if (attempt + 1 < attempts) {
-      await wait(OBSERVATION_RETRY_MILLISECONDS);
+      await wait(REGISTRY_OBSERVATION_RETRY_MILLISECONDS);
     }
   }
   fail(`npm signature audit remained unknown${lastError instanceof Error ? `: ${lastError.message}` : "."}`);

@@ -18,6 +18,7 @@ const DEPENDENCY_SECTIONS = [
   "dependencies", "optionalDependencies", "peerDependencies", "devDependencies",
 ];
 const LOCAL_DEPENDENCY_PROTOCOL = /^(?:file|link|workspace):/u;
+const LOCAL_LOCKFILE_PROTOCOL = /(?:^|[\t "'=])(?:file|link|workspace):/mu;
 const PUBLIC_NPM_REGISTRY = "https://registry.npmjs.org/";
 const PUBLIC_PACKAGE_IDENTITIES = Object.freeze({
   cli: Object.freeze({
@@ -90,7 +91,7 @@ async function observePublishedPackages(coordinates, registry, dependencies = {}
 }
 
 export function assertRegistryOnlyInstallEvidence({ lockfile, manifests }) {
-  if (typeof lockfile !== "string" || /(?:file|link|workspace):/u.test(lockfile)) {
+  if (typeof lockfile !== "string" || LOCAL_LOCKFILE_PROTOCOL.test(lockfile)) {
     throw new Error("Public Docs lockfile contains a local or workspace dependency.");
   }
   for (const { manifest, name, version } of manifests) {

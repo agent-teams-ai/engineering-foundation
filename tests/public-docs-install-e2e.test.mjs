@@ -107,6 +107,16 @@ test("public install evidence rejects workspace, link, and file dependency escap
     }],
   };
   assert.doesNotThrow(() => assertRegistryOnlyInstallEvidence(exact));
+  assert.doesNotThrow(() => assertRegistryOnlyInstallEvidence({
+    ...exact,
+    lockfile: [
+      "excludeLinksFromLockfile: false",
+      "proper-lockfile: 4.1.2",
+      "jsonfile: 6.2.1",
+      "vfile: 6.0.3",
+      "",
+    ].join("\n"),
+  }));
   for (const protocol of ["workspace:*", "link:../docs", "file:../docs.tgz"]) {
     const input = structuredClone(exact);
     input.manifests[0].manifest.dependencies["@example/foundation"] = protocol;

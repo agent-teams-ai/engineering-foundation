@@ -16,6 +16,10 @@ import {
 } from "../scripts/pack-artifact-e2e.mjs";
 import { publishablePackageCheckPlan } from "../scripts/check-publishable-packages.mjs";
 import {
+  releaseGraphProjectionDiagnostics,
+  validateReleaseGraphProjections,
+} from "../scripts/check-release-graph-projections.mjs";
+import {
   registryQualificationPackages,
   stageQualificationPackage,
 } from "../scripts/registry-qualification-packages.mjs";
@@ -75,6 +79,43 @@ test("package lint and type-surface checks derive from the versioned release gra
       },
     ]);
   }
+});
+
+test("package manifests and TypeScript references are projections of the release graph", async () => {
+  assert.deepEqual(await validateReleaseGraphProjections(), {
+    packageCount: PUBLISHABLE_PACKAGES.length,
+  });
+});
+
+test("release graph projections reject reverse dev edges and reference drift", () => {
+  const graph = {
+    packages: [
+      { dependencies: [], name: "@example/a", root: "packages/a" },
+      { dependencies: ["@example/a"], name: "@example/b", root: "packages/b" },
+    ],
+  };
+  const manifestsByName = new Map([
+    ["@example/a", { name: "@example/a" }],
+    ["@example/b", {
+      dependencies: { "@example/a": "workspace:*" },
+      devDependencies: { "@example/a": "workspace:*" },
+      name: "@example/b",
+    }],
+  ]);
+  const diagnostics = releaseGraphProjectionDiagnostics({
+    graph,
+    manifestsByName,
+    packageTsconfigsByName: new Map([
+      ["@example/a", { references: [] }],
+      ["@example/b", { references: [] }],
+    ]),
+    rootTsconfig: { references: [{ path: "./packages/b" }, { path: "./packages/a" }] },
+  });
+  assert.deepEqual(diagnostics, [
+    "@example/b declares an internal package in multiple dependency sections",
+    "@example/b tsconfig references differ from the release graph",
+    "root tsconfig references must exactly follow package release graph order",
+  ]);
 });
 
 test("versioned release graph rejects ambiguity, escapes and non-topological edges", () => {

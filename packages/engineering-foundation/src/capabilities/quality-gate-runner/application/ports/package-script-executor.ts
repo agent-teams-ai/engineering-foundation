@@ -8,7 +8,6 @@ interface PackageScriptExecution {
 export interface PackageScriptExecutor {
   run(input: {
     readonly consumerRoot: string;
-    readonly environment?: Readonly<NodeJS.ProcessEnv>;
     readonly scriptId: string;
     readonly timeoutMs?: number;
     readonly signal?: AbortSignal;

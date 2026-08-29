@@ -35,6 +35,15 @@ const fixtureRoot = fileURLToPath(new URL(
 const scopeMismatchMessage =
   "Scaffolding recovery scope does not match the prepared journal; the journal and outputs were preserved.";
 
+test("scaffolding public declarations export the recovery authority and alias", async () => {
+  const declarations = await readFile(new URL(
+    "../packages/engineering-foundation/dist/scaffolding/index.d.ts",
+    import.meta.url,
+  ), "utf8");
+  assert.match(declarations, /AuthorityScaffoldRecoveryScope/u);
+  assert.match(declarations, /ScaffoldRecoveryScope/u);
+});
+
 test("recovery path validation stays identical to the published v1 schemas", async () => {
   const schemaDirectory = fileURLToPath(new URL(
     "../packages/engineering-foundation/schemas/",

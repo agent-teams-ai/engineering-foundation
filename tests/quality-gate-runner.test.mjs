@@ -312,7 +312,7 @@ profiles:
 `, "utf8");
     const requests = [];
     const executor = new PnpmQualityGateScriptExecutor(
-      { npmExecPath: pnpmEntrypoint },
+      { childEnvironment: {}, npmExecPath: pnpmEntrypoint },
       {
         async run(request) {
           requests.push(request);
@@ -821,7 +821,10 @@ test("resolves pnpm entrypoints from focused environment candidates", async () =
     for (const [index, candidate] of cases.entries()) {
       const marker = join(root, `resolver-${index}.json`);
       const { environment, expected } = await candidate.prepare(marker);
-      const result = await new PnpmQualityGateScriptExecutor(environment).run({
+      const result = await new PnpmQualityGateScriptExecutor({
+        ...environment,
+        childEnvironment: {},
+      }).run({
         consumerRoot: root,
         scriptId: "probe",
       });

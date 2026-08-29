@@ -1,10 +1,10 @@
 import type {
-  QualityGateOperatorCancellation,
-  QualityGateOperatorCancellationSource
-} from "../../../application/ports/operator-cancellation-source.js";
+  QualityGateCancellationSource,
+  QualityGateOperatorCancellation
+} from "./quality-gate-cli.js";
 
 export class NodeSignalQualityGateCancellationSource
-implements QualityGateOperatorCancellationSource {
+implements QualityGateCancellationSource {
   subscribe(
     onCancellation: (cancellation: QualityGateOperatorCancellation) => void
   ): () => void {

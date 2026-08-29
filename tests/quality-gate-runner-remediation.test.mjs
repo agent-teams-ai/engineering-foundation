@@ -8,9 +8,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { Ajv2020 } from "ajv/dist/2020.js";
 
 import {
-  createNodeQualityGateCancellationSource,
   createQualityGateCommand,
 } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
+import { NodeSignalQualityGateCancellationSource } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import { CapabilityInputError } from "../packages/engineering-foundation/dist/capability-runtime.js";
@@ -102,7 +102,7 @@ test("entrypoint retains config-load SIGTERM through canonical JSON and concise 
     let observedSignal;
     const started = new Promise((resolve) => { configLoadStarted = resolve; });
     const entrypoint = createQualityGateCliCommand({
-      cancellationSource: createNodeQualityGateCancellationSource(),
+      cancellationSource: new NodeSignalQualityGateCancellationSource(),
       commandFactory() {
         throw new Error("QGR command must not start after configuration cancellation.");
       },
@@ -245,8 +245,12 @@ test("late cancellation retains an already observed passing task", async () => {
   });
 });
 
-test("QGR passes one immutable exact environment snapshot through the pnpm adapter", async () => {
+test("QGR binds one immutable exact child environment in the pnpm adapter", async () => {
   const original = { FOUNDATION_ENV_TEST: "before" };
+  const childEnvironment = Object.freeze({
+    ...original,
+    AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE: "verify",
+  });
   let releasePolicy;
   let policyStarted;
   const policyReady = new Promise((resolve) => { policyStarted = resolve; });
@@ -254,6 +258,7 @@ test("QGR passes one immutable exact environment snapshot through the pnpm adapt
     catalogReader: { async read() { return { scripts: { slow: "node slow.cjs" } }; } },
     clock: { nowMs: () => 0 },
     executor: new PnpmQualityGateScriptExecutor({
+      childEnvironment,
       npmExecPath: new URL(import.meta.url).pathname,
     }, {
       async run(request) {
@@ -277,7 +282,6 @@ test("QGR passes one immutable exact environment snapshot through the pnpm adapt
   const execution = command({
     configPath: "/fixture/quality-gates.yaml",
     consumerRoot: "/fixture",
-    environment: original,
     profileId: "verify",
   });
   await policyReady;
@@ -291,6 +295,33 @@ test("QGR passes one immutable exact environment snapshot through the pnpm adapt
     FOUNDATION_ENV_TEST: "after",
     LATE_ENV_TEST: "must-not-leak",
   });
+});
+
+test("QGR application contracts contain no Node process environment transport", async () => {
+  const applicationRoot = new URL(
+    "../packages/engineering-foundation/src/capabilities/quality-gate-runner/application/",
+    import.meta.url,
+  );
+  const sources = await Promise.all([
+    "ports/package-script-executor.ts",
+    "use-cases/run-quality-gate-profile.ts",
+  ].map((path) => readFile(new URL(path, applicationRoot), "utf8")));
+  for (const source of sources) {
+    assert.doesNotMatch(source, /NodeJS\.ProcessEnv|environment\??:/u);
+  }
+});
+
+test("QGR setup cancellation delegates its JSON envelope to the canonical Foundation failure mapper", async () => {
+  const projectionSource = await readFile(new URL(
+    "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts",
+    import.meta.url,
+  ), "utf8");
+  const commandSource = await readFile(new URL(
+    "../packages/engineering-foundation/src/quality-gate-cli-command.ts",
+    import.meta.url,
+  ), "utf8");
+  assert.doesNotMatch(projectionSource, /schemaVersion|EXECUTION_CANCELLED/u);
+  assert.match(commandSource, /foundationCommandFailure\(error\)\.envelope/u);
 });
 
 test("real SIGINT cancellation projects canonical JSON and exits 130", {

@@ -1,12 +1,10 @@
 import { CapabilityInputError } from "../../capability-runtime.js";
 import type { QualityGateRunReport } from "./application/model/quality-gate-report.js";
 import type { MonotonicClock } from "./application/ports/monotonic-clock.js";
-import type { QualityGateOperatorCancellationSource } from "./application/ports/operator-cancellation-source.js";
 import type { PackageScriptCatalogReader } from "./application/ports/package-script-catalog-reader.js";
 import type { PackageScriptExecutor } from "./application/ports/package-script-executor.js";
 import { evaluateQualityGateScripts } from "./application/policies/evaluate-quality-gate-scripts.js";
 import { runQualityGateProfile } from "./application/use-cases/run-quality-gate-profile.js";
-import { NodeSignalQualityGateCancellationSource } from "./adapters/inbound/cli/node-signal-cancellation-source.js";
 import { FilesystemPackageScriptCatalogReader } from "./adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { PnpmQualityGateScriptExecutor } from "./adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import { performanceMonotonicClock } from "./adapters/outbound/time/performance-monotonic-clock.js";
@@ -31,7 +29,6 @@ export interface QualityGateCommandInput {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly profileId: string;
-  readonly environment: NodeJS.ProcessEnv;
   readonly signal?: AbortSignal;
 }
 
@@ -39,6 +36,7 @@ export interface QualityGateCommandDependencies {
   readonly catalogReader: PackageScriptCatalogReader;
   readonly clock: MonotonicClock;
   readonly executor: PackageScriptExecutor;
+  readonly qualityGateActive?: boolean;
   readonly policyLoader: QualityGatePolicyLoader;
 }
 
@@ -61,16 +59,12 @@ export function createQualityGateCommand(
   dependencies: QualityGateCommandDependencies
 ): QualityGateCommand {
   return async (input) => {
-    if (input.environment[ACTIVE_GATE_ENVIRONMENT_VARIABLE] !== undefined) {
+    if (dependencies.qualityGateActive === true) {
       inputError(
         "QUALITY_GATE_RECURSION",
         "A quality gate task cannot start another quality gate runner."
       );
     }
-    const environment = Object.freeze({
-      ...input.environment,
-      [ACTIVE_GATE_ENVIRONMENT_VARIABLE]: input.profileId
-    });
     assertNotCancelled(input.signal);
     const policy = await dependencies.policyLoader(
       input.consumerRoot,
@@ -100,7 +94,6 @@ export function createQualityGateCommand(
     return await runQualityGateProfile(
       {
         consumerRoot: input.consumerRoot,
-        environment,
         profile,
         ...(input.signal === undefined ? {} : { signal: input.signal })
       },
@@ -113,24 +106,27 @@ export function createQualityGateCommand(
 export function createNodeQualityGateCommand(
   environment: NodeJS.ProcessEnv
 ): QualityGateCommand {
-  return createQualityGateCommand({
+  const snapshot = Object.freeze({ ...environment });
+  return async (input) => createQualityGateCommand({
     catalogReader: new FilesystemPackageScriptCatalogReader(),
     clock: performanceMonotonicClock,
     executor: new PnpmQualityGateScriptExecutor({
-      ...(environment.npm_execpath === undefined
+      childEnvironment: Object.freeze({
+        ...snapshot,
+        [ACTIVE_GATE_ENVIRONMENT_VARIABLE]: input.profileId
+      }),
+      ...(snapshot.npm_execpath === undefined
         ? {}
-        : { npmExecPath: environment.npm_execpath }),
-      ...(environment.PNPM_HOME === undefined
+        : { npmExecPath: snapshot.npm_execpath }),
+      ...(snapshot.PNPM_HOME === undefined
         ? {}
-        : { pnpmHome: environment.PNPM_HOME }),
-      ...(environment.PATH === undefined
+        : { pnpmHome: snapshot.PNPM_HOME }),
+      ...(snapshot.PATH === undefined
         ? {}
-        : { pathValue: environment.PATH })
+        : { pathValue: snapshot.PATH })
     }),
-    policyLoader: loadQualityGatePolicy
-  });
-}
-
-export function createNodeQualityGateCancellationSource(): QualityGateOperatorCancellationSource {
-  return new NodeSignalQualityGateCancellationSource();
+    policyLoader: loadQualityGatePolicy,
+    qualityGateActive:
+      snapshot[ACTIVE_GATE_ENVIRONMENT_VARIABLE] !== undefined
+  })(input);
 }

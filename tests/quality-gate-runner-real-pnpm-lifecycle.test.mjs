@@ -227,6 +227,10 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
       consumerRoot: root,
       environment: process.env,
       executor: new PnpmQualityGateScriptExecutor({
+        childEnvironment: Object.freeze({
+          ...process.env,
+          AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE: "verify",
+        }),
         npmExecPath: installedPnpmEntrypoint,
       }),
       projectId: "quality-gate-real-pnpm-lifecycle",

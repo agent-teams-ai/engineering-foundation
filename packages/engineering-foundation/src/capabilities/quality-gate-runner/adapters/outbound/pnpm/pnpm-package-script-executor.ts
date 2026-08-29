@@ -18,6 +18,7 @@ import {
 } from "../../../application/ports/package-script-executor.js";
 
 export interface QualityGatePnpmEnvironment {
+  readonly childEnvironment: Readonly<NodeJS.ProcessEnv>;
   readonly npmExecPath?: string;
   readonly pnpmHome?: string;
   readonly pathValue?: string;
@@ -111,7 +112,6 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
 
   async run(input: {
     readonly consumerRoot: string;
-    readonly environment?: Readonly<NodeJS.ProcessEnv>;
     readonly scriptId: string;
     readonly timeoutMs?: number;
     readonly signal?: AbortSignal;
@@ -122,9 +122,7 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
         command: invocation.command,
         args: [...invocation.argsPrefix, "run", input.scriptId],
         cwd: input.consumerRoot,
-        ...(input.environment === undefined
-          ? {}
-          : { environment: input.environment }),
+        environment: this.environment.childEnvironment,
         ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
         ...(input.signal === undefined ? {} : { signal: input.signal })
       });

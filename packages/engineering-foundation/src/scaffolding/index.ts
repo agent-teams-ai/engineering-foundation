@@ -1,4 +1,5 @@
 export type {
+  AuthorityScaffoldRecoveryScope,
   ConfiguredDefinition,
   DefinitionRef,
   JsonObject,

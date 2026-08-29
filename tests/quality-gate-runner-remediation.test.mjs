@@ -456,17 +456,17 @@ setInterval(() => {}, 60000);
 });
 
 test("Windows watchdog contract retains Job Object ownership and awaits descendants", async () => {
-  const [cleanupSource, nodeAdapterSource, windowsAdapterSource] = await Promise.all([
+  const [cleanupSource, nodeAdapterSource, windowsManagedProcessSource] = await Promise.all([
     readFile(join(process.cwd(), "tests", "support", "quality-gate-runner-cleanup.mjs"), "utf8"),
     readFile(join(process.cwd(), "packages", "engineering-foundation", "src", "process-execution", "node-process-runner.ts"), "utf8"),
-    readFile(join(process.cwd(), "packages", "engineering-foundation", "src", "process-execution", "windows-managed-process.ts"), "utf8"),
+    readFile(join(process.cwd(), "packages", "engineering-foundation", "assets", "windows-managed-process", "WindowsManagedProcess.cs"), "utf8"),
   ]);
   assert.match(cleanupSource, /spawnNodeManagedProcess/u);
   assert.match(cleanupSource, /terminateNodeManagedProcess/u);
   assert.match(cleanupSource, /terminatePosixProcessGroup/u);
   assert.match(nodeAdapterSource, /return spawnWindowsManagedProcess\(request\)/u);
   assert.match(nodeAdapterSource, /Windows Job Object wrapper did not exit after forced shutdown/u);
-  assert.match(windowsAdapterSource, /JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/u);
-  assert.match(windowsAdapterSource, /TerminateRemainingProcessesAndWait\(job\)/u);
-  assert.match(windowsAdapterSource, /while \(ActiveProcessCount\(job\) > 0\)/u);
+  assert.match(windowsManagedProcessSource, /JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/u);
+  assert.match(windowsManagedProcessSource, /TerminateRemainingProcessesAndWait\(job\)/u);
+  assert.match(windowsManagedProcessSource, /while \(ActiveProcessCount\(job\) > 0\)/u);
 });

@@ -520,7 +520,7 @@ export async function executeManagedProcess(
       });
       child.once("error", (error) => {
         cleanUpWindowsManagedProcessLaunchFailure(child);
-        failAfterTermination(processFailure(request, "could not be started.", error));
+        failAfterTermination(completionFailure ??= processFailure(request, "could not be started.", error));
       });
       child.once("exit", completeAfterExit);
 

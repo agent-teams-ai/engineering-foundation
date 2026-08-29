@@ -333,6 +333,7 @@ test("coverage keeps cross-platform shards complete and adds package evidence", 
     testManifest.coverageConfig.additionalTestsByShard,
   ).flat().length;
   assert.equal(crossPlatformTests.length, testManifest.testCount - coverageOnlyCount);
+  assert.equal(coverageTests.length - crossPlatformTests.length, coverageOnlyCount);
   assert.equal(
     crossPlatformTests.some((path) => path.startsWith("packages/docs-protocol/tests/")),
     false,

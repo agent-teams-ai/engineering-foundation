@@ -8,6 +8,7 @@ import type {
 } from "../model/quality-gate-report.js";
 import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import {
+  PackageScriptCancellationError,
   PackageScriptTimeoutError,
   type PackageScriptExecutor
 } from "../ports/package-script-executor.js";
@@ -47,6 +48,7 @@ function failureTail(stdout: string, stderr: string): string {
 
 async function executeTask(input: {
   readonly consumerRoot: string;
+  readonly environment?: Readonly<NodeJS.ProcessEnv>;
   readonly task: QualityGateTask;
   readonly signal?: AbortSignal;
 }, executor: PackageScriptExecutor, clock: MonotonicClock): Promise<QualityGateTaskReport> {
@@ -54,23 +56,29 @@ async function executeTask(input: {
   try {
     const result = await executor.run({
       consumerRoot: input.consumerRoot,
+      ...(input.environment === undefined
+        ? {}
+        : { environment: input.environment }),
       scriptId: input.task.id,
       ...(input.task.timeoutMs === undefined
         ? {}
         : { timeoutMs: input.task.timeoutMs }),
       ...(input.signal === undefined ? {} : { signal: input.signal })
     });
+    const durationMs = elapsed(clock, startedAt);
     return Object.freeze({
       id: input.task.id,
       outcome: result.exitCode === 0 ? "passed" : "failed",
-      durationMs: elapsed(clock, startedAt),
+      durationMs,
       exitCode: result.exitCode,
       signal: result.signal,
       failureTail:
-        result.exitCode === 0 ? "" : failureTail(result.stdout, result.stderr)
+        result.exitCode === 0
+          ? ""
+          : failureTail(result.stdout, result.stderr)
     });
   } catch (error) {
-    const cancelled = input.signal?.aborted === true;
+    const cancelled = error instanceof PackageScriptCancellationError;
     const timedOut = error instanceof PackageScriptTimeoutError;
     return Object.freeze({
       id: input.task.id,
@@ -101,8 +109,29 @@ function terminalReport(
   });
 }
 
+function profileOutcome(
+  tasks: readonly QualityGateTaskReport[],
+  signal: AbortSignal | undefined
+): QualityGateRunReport["outcome"] {
+  if (tasks.some(({ outcome }) =>
+    outcome === "failed" || outcome === "timed-out"
+  )) {
+    return "failed";
+  }
+  if (
+    signal?.aborted === true ||
+    tasks.some(({ outcome }) => outcome === "cancelled")
+  ) {
+    return "cancelled";
+  }
+  return tasks.every(({ outcome }) => outcome === "passed")
+    ? "passed"
+    : "failed";
+}
+
 export async function runQualityGateProfile(input: {
   readonly consumerRoot: string;
+  readonly environment?: Readonly<NodeJS.ProcessEnv>;
   readonly profile: QualityGateProfile;
   readonly signal?: AbortSignal;
 }, executor: PackageScriptExecutor, clock: MonotonicClock): Promise<QualityGateRunReport> {
@@ -127,15 +156,12 @@ export async function runQualityGateProfile(input: {
   const tasks = Object.freeze(
     input.profile.tasks.map((task) => reports.get(task.id) as QualityGateTaskReport)
   );
+  const durationMs = elapsed(clock, startedAt);
   return Object.freeze({
     reportSchemaVersion: 1,
     profileId: input.profile.id,
-    outcome: tasks.some(({ outcome }) => outcome === "cancelled")
-      ? "cancelled"
-      : tasks.every(({ outcome }) => outcome === "passed")
-        ? "passed"
-        : "failed",
-    durationMs: elapsed(clock, startedAt),
+    outcome: profileOutcome(tasks, input.signal),
+    durationMs,
     tasks
   });
 }
@@ -143,6 +169,7 @@ export async function runQualityGateProfile(input: {
 function scheduleReadyTasks(
   input: {
     readonly consumerRoot: string;
+    readonly environment?: Readonly<NodeJS.ProcessEnv>;
     readonly profile: QualityGateProfile;
     readonly signal?: AbortSignal;
   },
@@ -175,6 +202,9 @@ function scheduleReadyTasks(
     }
     active.set(task.id, executeTask({
       consumerRoot: input.consumerRoot,
+      ...(input.environment === undefined
+        ? {}
+        : { environment: input.environment }),
       task,
       ...(input.signal === undefined ? {} : { signal: input.signal })
     }, executor, clock));

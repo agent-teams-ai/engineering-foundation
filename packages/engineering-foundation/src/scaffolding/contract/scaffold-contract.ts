@@ -1,10 +1,14 @@
 import type {
+  AuthorityScaffoldRecoveryScope,
   ConfiguredDefinition,
   DefinitionRef,
   JsonObject,
   RepositoryPath,
   Sha256Digest
 } from "./types.js";
+
+/** Public name for the single inward-owned v1 recovery scope contract. */
+export type ScaffoldRecoveryScope = AuthorityScaffoldRecoveryScope;
 
 export interface ScaffoldAuthorityVerifier {
   readonly id: "foundation.markdown-yaml-owner";

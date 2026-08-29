@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { once } from "node:events";
+import { readFile, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -9,6 +10,12 @@ import test from "node:test";
 import {
   NodeProcessRunner
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
+import { ProcessTimeoutError } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
+import {
+  cleanUpWindowsManagedProcessLaunchFailure,
+  spawnWindowsManagedProcess,
+  waitForWindowsManagedProcessContainment
+} from "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js";
 
 const NEVER_EXITING_PROCESS_PATH = fileURLToPath(
   new URL("./fixtures/never-exiting-process.mjs", import.meta.url)
@@ -22,6 +29,7 @@ const EXIT_TIMEOUT_MS = 3_000;
 const PROCESS_DEADLINE_MS = process.platform === "win32" ? 45_000 : 1_000;
 const CANCELLATION_DEADLINE_MS = process.platform === "win32" ? 45_000 : 5_000;
 const TEST_TIMEOUT_MS = process.platform === "win32" ? 65_000 : 10_000;
+const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
 
 async function removeTestRoot(root) {
   await rm(root, {
@@ -30,6 +38,20 @@ async function removeTestRoot(root) {
     recursive: true,
     retryDelay: 100
   });
+}
+
+async function windowsControlRoots() {
+  return new Set((await readdir(tmpdir(), { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(WINDOWS_CONTROL_ROOT_PREFIX))
+    .map((entry) => entry.name));
+}
+
+async function assertNoNewWindowsControlRoots(previousRoots) {
+  const currentRoots = await windowsControlRoots();
+  assert.deepEqual(
+    [...currentRoots].filter((root) => !previousRoots.has(root)),
+    []
+  );
 }
 
 async function waitForPidFile(path) {
@@ -97,6 +119,8 @@ test("terminates a never-exiting process tree when its deadline expires", { time
       timeoutMs: PROCESS_DEADLINE_MS
     });
     const rejected = assert.rejects(execution, (error) => {
+      assert.equal(error instanceof ProcessTimeoutError, true);
+      assert.equal(error.timeoutMs, PROCESS_DEADLINE_MS);
       assert.equal(error?.code, "PROCESS_FAILED");
       assert.match(error.message, new RegExp(`timed out after ${PROCESS_DEADLINE_MS}ms`, "u"));
       return true;
@@ -228,6 +252,227 @@ test(
   }
 );
 
+test("cleans Windows control artifacts after synchronous PowerShell launch failure", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-windows-sync-launch-failure-"));
+  const previousControls = await windowsControlRoots();
+  try {
+    assert.throws(
+      () => spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", "process.exit()"],
+        cwd: root,
+        environment: { ...process.env, FOUNDATION_INVALID_ENVIRONMENT: "invalid\0value" }
+      }),
+      (error) => error?.code === "ERR_INVALID_ARG_VALUE"
+    );
+    await assertNoNewWindowsControlRoots(previousControls);
+  } finally {
+    await removeTestRoot(root);
+  }
+});
+
+test("cleans Windows control artifacts idempotently after an asynchronous launch error", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-windows-async-launch-failure-"));
+  const previousControls = await windowsControlRoots();
+  try {
+    const child = spawnWindowsManagedProcess({
+      command: process.execPath,
+      args: ["-e", "process.exit()"],
+      cwd: join(root, "missing-working-directory")
+    });
+    const closed = new Promise((resolve) => {
+      child.once("close", resolve);
+    });
+    const [launchError] = await once(child, "error");
+    assert.equal(launchError.code, "ENOENT");
+    assert.equal(child.pid, undefined);
+
+    cleanUpWindowsManagedProcessLaunchFailure(child);
+    cleanUpWindowsManagedProcessLaunchFailure(child);
+    await closed;
+    await assertNoNewWindowsControlRoots(previousControls);
+  } finally {
+    await removeTestRoot(root);
+  }
+});
+
+test(
+  "NodeProcessRunner cleans Windows controls when PowerShell launch has no pid",
+  { skip: process.platform !== "win32", timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-windows-runner-launch-failure-"));
+    const previousControls = await windowsControlRoots();
+    try {
+      const runner = new NodeProcessRunner();
+      await assert.rejects(
+        runner.run({
+          command: process.execPath,
+          args: ["-e", "process.exit()"],
+          cwd: join(root, "missing-working-directory")
+        }),
+        /could not be started/u
+      );
+      await assertNoNewWindowsControlRoots(previousControls);
+    } finally {
+      await removeTestRoot(root);
+    }
+  }
+);
+
+test(
+  "retains unconfirmed Windows containment evidence until the live wrapper exits",
+  { skip: process.platform !== "win32", timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-windows-containment-timeout-"));
+    const previousControls = await windowsControlRoots();
+    try {
+      const child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => {}, 1000)"],
+        cwd: root
+      });
+      const closed = new Promise((resolve) => {
+        child.once("close", resolve);
+      });
+
+      await assert.rejects(
+        waitForWindowsManagedProcessContainment(child, 1),
+        /did not confirm containment within 1 ms/u
+      );
+      const retainedControls = [...await windowsControlRoots()]
+        .filter((controlRoot) => !previousControls.has(controlRoot));
+      assert.equal(retainedControls.length, 1);
+
+      await closed;
+      await assertNoNewWindowsControlRoots(previousControls);
+    } finally {
+      await removeTestRoot(root);
+    }
+  }
+);
+
+test(
+  "round-trips real Windows argument and working-directory serialization",
+  { skip: process.platform !== "win32", timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows path & ' [雪]-"));
+    const expectedArgs = [
+      "",
+      "plain",
+      "two words",
+      'embedded"quote',
+      "\\",
+      "trailing\\",
+      'slashes\\\\before"quote',
+      "PowerShell $&;|<>(){}[]`^",
+      "雪-😀"
+    ];
+    try {
+      const runner = new NodeProcessRunner();
+      const result = await runner.run({
+        command: process.execPath,
+        args: [
+          "-e",
+          "process.stdout.write(JSON.stringify({ args: process.argv.slice(1), cwd: process.cwd() }))",
+          ...expectedArgs
+        ],
+        cwd: root,
+        timeoutMs: 45_000
+      });
+      assert.deepEqual(JSON.parse(result.stdout), {
+        args: expectedArgs,
+        cwd: root
+      });
+    } finally {
+      await removeTestRoot(root);
+    }
+  }
+);
+
+test("Windows cancellation protocol proves containment across Job assignment", async () => {
+  const [nodeAdapterSource, windowsAdapterSource] = await Promise.all([
+    readFile(join(
+      process.cwd(),
+      "packages/engineering-foundation/src/process-execution/node-process-runner.ts"
+    ), "utf8"),
+    readFile(join(
+      process.cwd(),
+      "packages/engineering-foundation/src/process-execution/windows-managed-process.ts"
+    ), "utf8")
+  ]);
+
+  const createProcess = windowsAdapterSource.indexOf("if (!CreateProcess(");
+  const preAssignmentCancellation = windowsAdapterSource.indexOf(
+    "if (File.Exists(cancellationPath))",
+    createProcess
+  );
+  const terminateSuspendedProcess = windowsAdapterSource.indexOf(
+    "TerminateProcessAndWait(process.hProcess);",
+    preAssignmentCancellation
+  );
+  const confirmPreAssignmentContainment = windowsAdapterSource.indexOf(
+    "ConfirmContainment(confirmationPath);",
+    terminateSuspendedProcess
+  );
+  const assignProcess = windowsAdapterSource.indexOf(
+    "if (!AssignProcessToJobObject(job, process.hProcess))",
+    confirmPreAssignmentContainment
+  );
+  assert.ok(createProcess >= 0);
+  assert.ok(createProcess < preAssignmentCancellation);
+  assert.ok(preAssignmentCancellation < terminateSuspendedProcess);
+  assert.ok(terminateSuspendedProcess < confirmPreAssignmentContainment);
+  assert.ok(confirmPreAssignmentContainment < assignProcess);
+
+  const suspendedTermination = windowsAdapterSource.slice(
+    windowsAdapterSource.indexOf("private static void TerminateProcessAndWait"),
+    windowsAdapterSource.indexOf("private static uint ActiveProcessCount")
+  );
+  assert.match(suspendedTermination, /TerminateProcess\(process, 1\)/u);
+  assert.match(suspendedTermination, /WaitForSingleObject\(process, 5000\)/u);
+
+  const assignedCancellation = windowsAdapterSource.indexOf(
+    "if (CancelAssignedIfRequested(cancellationPath, confirmationPath, job))",
+    windowsAdapterSource.indexOf("assigned = true;")
+  );
+  const assignedCancellationHelper = windowsAdapterSource.indexOf(
+    "private static bool CancelAssignedIfRequested"
+  );
+  const terminateAssignedJob = windowsAdapterSource.indexOf(
+    "TerminateAssignedJobAndWait(job);",
+    assignedCancellationHelper
+  );
+  const confirmAssignedContainment = windowsAdapterSource.indexOf(
+    "ConfirmContainment(confirmationPath);",
+    assignedCancellationHelper
+  );
+  assert.ok(assignedCancellation >= 0);
+  assert.ok(assignedCancellationHelper < terminateAssignedJob);
+  assert.ok(terminateAssignedJob < confirmAssignedContainment);
+
+  const assignedJobTermination = windowsAdapterSource.slice(
+    windowsAdapterSource.indexOf("private static void TerminateAssignedJobAndWait"),
+    windowsAdapterSource.indexOf("public static int Run(")
+  );
+  assert.match(assignedJobTermination, /TerminateJobObject\(job, 1\)/u);
+  assert.match(assignedJobTermination, /while \(ActiveProcessCount\(job\) > 0\)/u);
+
+  const requestTermination = nodeAdapterSource.indexOf(
+    "await requestWindowsManagedProcessTermination(child);"
+  );
+  const forceWrapperExit = nodeAdapterSource.indexOf(
+    'child.kill("SIGKILL");',
+    requestTermination
+  );
+  assert.ok(requestTermination >= 0);
+  assert.ok(requestTermination < forceWrapperExit);
+  assert.match(nodeAdapterSource, /await waitForWindowsManagedProcessContainment\(child\)/u);
+  assert.match(windowsAdapterSource, /File\.Move\(temporaryPath, confirmationPath\)/u);
+  assert.match(windowsAdapterSource, /confirmation !== "CONTAINED"/u);
+  assert.match(windowsAdapterSource, /writeFile\(control\.cancellationPath, "CANCEL"/u);
+  assert.match(windowsAdapterSource, /Windows Job Object wrapper exited before it confirmed process containment/u);
+});
+
 test("rejects output beyond the bounded capture limit", { timeout: TEST_TIMEOUT_MS }, async () => {
   const runner = new NodeProcessRunner();
   await assert.rejects(
@@ -243,4 +488,101 @@ test("rejects output beyond the bounded capture limit", { timeout: TEST_TIMEOUT_
       return true;
     }
   );
+});
+
+test("an output-limit failure observed during real cancellation outranks cancellation", {
+  skip: process.platform === "win32",
+  timeout: TEST_TIMEOUT_MS
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-process-runner-cancel-output-"));
+  const readyPath = join(root, "ready.txt");
+  try {
+    const controller = new AbortController();
+    const runner = new NodeProcessRunner();
+    const execution = runner.run({
+      command: process.execPath,
+      args: ["-e", `
+        const { writeFileSync } = require("node:fs");
+        process.once("SIGTERM", () => {
+          process.stdout.write(Buffer.alloc(4 * 1024 * 1024 + 1));
+          process.exitCode = 23;
+        });
+        writeFileSync(${JSON.stringify(readyPath)}, "ready");
+        setInterval(() => {}, 60_000);
+      `],
+      cwd: root,
+      signal: controller.signal,
+      timeoutMs: 5_000
+    });
+    const readinessDeadline = Date.now() + READY_TIMEOUT_MS;
+    while (Date.now() < readinessDeadline) {
+      try {
+        if (await readFile(readyPath, "utf8") === "ready") {
+          break;
+        }
+      } catch (error) {
+        if (error?.code !== "ENOENT") {
+          throw error;
+        }
+      }
+      await delay(POLL_INTERVAL_MS);
+    }
+    assert.equal(await readFile(readyPath, "utf8"), "ready");
+    controller.abort("test cancellation");
+    await assert.rejects(execution, (error) => {
+      assert.equal(error?.code, "PROCESS_FAILED");
+      assert.match(error.message, /exceeded the stdout output limit/u);
+      assert.doesNotMatch(error.message, /was cancelled/u);
+      return true;
+    });
+  } finally {
+    await removeTestRoot(root);
+  }
+});
+
+test("a nonzero completion observed during real cancellation outranks cancellation", {
+  skip: process.platform === "win32",
+  timeout: TEST_TIMEOUT_MS
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-process-runner-cancel-nonzero-"));
+  const readyPath = join(root, "ready.txt");
+  try {
+    const controller = new AbortController();
+    const runner = new NodeProcessRunner();
+    const execution = runner.run({
+      command: process.execPath,
+      args: ["-e", `
+        const { writeFileSync } = require("node:fs");
+        process.once("SIGTERM", () => process.exit(23));
+        writeFileSync(${JSON.stringify(readyPath)}, "ready");
+        setInterval(() => {}, 60_000);
+      `],
+      cwd: root,
+      signal: controller.signal,
+      timeoutMs: 5_000
+    });
+    const readinessDeadline = Date.now() + READY_TIMEOUT_MS;
+    while (Date.now() < readinessDeadline) {
+      try {
+        if (await readFile(readyPath, "utf8") === "ready") {
+          break;
+        }
+      } catch (error) {
+        if (error?.code !== "ENOENT") {
+          throw error;
+        }
+      }
+      await delay(POLL_INTERVAL_MS);
+    }
+    assert.equal(await readFile(readyPath, "utf8"), "ready");
+    controller.abort("test cancellation");
+    await assert.rejects(execution, (error) => {
+      assert.equal(error?.code, "PROCESS_FAILED");
+      assert.match(error.message, /exit code 23/u);
+      assert.doesNotMatch(error.message, /was cancelled/u);
+      return true;
+    });
+  } finally {
+    await removeTestRoot(root);
+  }
 });

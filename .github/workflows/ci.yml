@@ -342,6 +342,18 @@ jobs:
         with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
+      - name: Compile Windows managed-process helpers
+        shell: powershell
+        run: |
+          $tokens = $null
+          $syntaxErrors = $null
+          $scriptPath = Resolve-Path "packages/engineering-foundation/assets/windows-managed-process/bootstrap.ps1"
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            $scriptPath, [ref]$tokens, [ref]$syntaxErrors)
+          if ($syntaxErrors.Count -ne 0) {
+            throw ($syntaxErrors | Out-String)
+          }
+          Add-Type -Path "packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs"
       - run: pnpm check:fast
       - run: pnpm parser-spike:check
 
@@ -362,7 +374,9 @@ jobs:
       - run: pnpm build
       # Successful runs 32652672062, 32654047694, and 32654516277 measured the
       # former 1+2 lane at 431/414/424s versus 240/246/236s for 3+4. Pairing
-      # opposite shards separates the two longest observed Windows suites.
+      # opposite shards separates the two longest observed Windows suites. The
+      # QGR synthetic and real-pnpm lifecycle qualification stays in shard 3,
+      # opposite shard 1. macOS repeats only the focused QGR lifecycle command.
       - run: pnpm test:shard:built -- --shards 1,4
 
   windows-test-b:
@@ -470,6 +484,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
+      - name: Qualify QGR lifecycle on Darwin
+        run: pnpm test:qgr:lifecycle:built
       - name: Qualify repository mutation, scaffolding, and durable document writing
         run: >-
           node --test --test-concurrency=1
@@ -477,6 +493,7 @@ jobs:
           tests/known-file-transaction-node.test.mjs
           tests/known-file-transaction-plan.test.mjs
           tests/scaffolding-authority.test.mjs
+          tests/scaffolding-recovery-scope.test.mjs
           tests/document-authoring-application-use-cases.test.mjs
           tests/document-authoring-journal-store.test.mjs
           tests/document-authoring-node-writer-adapters.test.mjs

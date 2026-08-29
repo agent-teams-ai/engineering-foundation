@@ -26,7 +26,7 @@ const PACKAGE_KEYS = [
   "tags",
 ];
 const CONTENT_POLICY_KEYS = ["exact", "prefixes", "required"];
-const DEPENDENCY_KEYS = ["name", "version"];
+const DEPENDENCY_KEYS = ["name", "specifier", "version"];
 const PROVENANCE_KEYS = ["ref", "workflowPath"];
 const APPROVAL_KEYS = ["archiveIntegrity", "packageTree"];
 
@@ -76,10 +76,13 @@ function portablePath(value, label) {
 
 function parseDependency(value, label) {
   exactKeys(value, DEPENDENCY_KEYS, label);
-  if (!PACKAGE_NAME.test(value.name) || !SEMVER.test(value.version)) {
-    fail(`${label} must contain an exact npm package name and version.`);
+  if (
+    !PACKAGE_NAME.test(value.name) || !SEMVER.test(value.version) ||
+    !["catalog:", "workspace:*", value.version].includes(value.specifier)
+  ) {
+    fail(`${label} must contain an exact npm package name, version, and closed workspace specifier.`);
   }
-  return Object.freeze({ name: value.name, version: value.version });
+  return Object.freeze({ name: value.name, specifier: value.specifier, version: value.version });
 }
 
 function parseContentPolicy(value, label) {

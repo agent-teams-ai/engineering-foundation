@@ -25,6 +25,11 @@ const repositoryPackageRoot = new URL(
   import.meta.url,
 );
 
+function assertMcpBaselineMatchesManifest(baseline, manifest) {
+  assert.equal(baseline.packageName, manifest.name);
+  assert.equal(baseline.packageVersion, manifest.version);
+}
+
 test("registry qualification includes Docs Protocol exactly once across bootstrap promotion", () => {
   const foundation = {
     name: "@agent-teams/engineering-foundation",
@@ -50,7 +55,7 @@ test("registry qualification includes Docs Protocol exactly once across bootstra
   );
 });
 
-test("reviewed catalog owns the exact public Docs Protocol bootstrap manifest", async () => {
+test("reviewed catalog owns the public Docs Protocol manifest", async () => {
   const docsEntries = PUBLISHABLE_PACKAGES.filter(
     ({ name }) => name === "@agent-teams/docs-protocol",
   );
@@ -71,14 +76,9 @@ test("reviewed catalog owns the exact public Docs Protocol bootstrap manifest", 
     provenance: true,
     registry: "https://registry.npmjs.org/",
   });
-  const baseline = JSON.parse(
-    await readFile(new URL("../architecture/public-api/docs-protocol-mcp.json", import.meta.url), "utf8"),
-  );
-  assert.equal(baseline.packageName, "@agent-teams/docs-protocol-mcp");
-  assert.equal(baseline.packageVersion, "0.0.0");
 });
 
-test("reviewed catalog owns the initial public Docs Protocol MCP manifest", async () => {
+test("reviewed catalog and API baseline follow the public Docs Protocol MCP manifest", async () => {
   const entries = PUBLISHABLE_PACKAGES.filter(
     ({ name }) => name === "@agent-teams/docs-protocol-mcp",
   );
@@ -101,6 +101,23 @@ test("reviewed catalog owns the initial public Docs Protocol MCP manifest", asyn
     provenance: true,
     registry: "https://registry.npmjs.org/",
   });
+  const baseline = JSON.parse(
+    await readFile(new URL("../architecture/public-api/docs-protocol-mcp.json", import.meta.url), "utf8"),
+  );
+  assertMcpBaselineMatchesManifest(baseline, manifest);
+});
+
+test("Docs Protocol MCP API baseline supports the initial release transition", () => {
+  for (const version of ["0.0.0", "0.1.0"]) {
+    assert.doesNotThrow(() => assertMcpBaselineMatchesManifest(
+      { packageName: "@agent-teams/docs-protocol-mcp", packageVersion: version },
+      { name: "@agent-teams/docs-protocol-mcp", version },
+    ));
+  }
+  assert.throws(() => assertMcpBaselineMatchesManifest(
+    { packageName: "@agent-teams/docs-protocol-mcp", packageVersion: "0.0.0" },
+    { name: "@agent-teams/docs-protocol-mcp", version: "0.1.0" },
+  ));
 });
 
 test("release manifest exactly follows the package self-check allowlist", async () => {

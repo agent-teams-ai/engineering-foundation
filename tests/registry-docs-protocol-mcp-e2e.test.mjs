@@ -4,6 +4,10 @@ import test from "node:test";
 import {
   prepareRegistryDocsProtocolMcpFixture,
 } from "../scripts/registry-docs-protocol-mcp-e2e.mjs";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
 function successfulCheck() {
   return {
@@ -68,4 +72,17 @@ test("POSIX registry fixture retains installed init and new apply qualification"
   assert.deepEqual(calls.map(([command]) => command), ["init", "init", "new", "check"]);
   assert.equal(calls.filter((arguments_) => arguments_.includes("--apply")).length, 2);
   assert.equal(expected.documentId, "docs.tutorial.registry-mcp");
+});
+
+test("registry harness directly qualifies every public read-only CLI command", async () => {
+  const source = await readFile(
+    `${repositoryRoot}/scripts/registry-docs-protocol-mcp-e2e.mjs`,
+    "utf8",
+  );
+  assert.match(source, /verifyRegistryDocsProtocolCli/u);
+  for (const command of ["info", "find", "context", "check"]) {
+    assert.match(source, new RegExp(`\\[?"${command}"`, "u"));
+    assert.match(source, new RegExp(`docs\\.${command}`, "u"));
+  }
+  assert.match(source, /read-only CLI commands must not write/u);
 });

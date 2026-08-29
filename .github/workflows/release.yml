@@ -38,8 +38,8 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Guard Docs Protocol bootstrap boundary
-        run: node scripts/docs-protocol-bootstrap.mjs ordinary-release-state
+      - name: Guard public package bootstrap baselines
+        run: node scripts/npm-package-bootstrap-cli.mjs check-release
       - id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:

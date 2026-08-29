@@ -25,11 +25,9 @@ executes them.
 
 ## Portable quick start
 
-Install one exact version as a development dependency using npm or pnpm, the
-package managers qualified by the initial portable release. Yarn, Bun, and
-other installation paths require separate packed-registry and cross-platform
-qualification. Never use `latest`, a version range, floating `npx`, or floating
-`dlx` in repository automation.
+Use the [canonical community workflow](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/open-source-docs-protocol.md#install-one-exact-version)
+to prove and install the exact qualified coordinate. It is the single authority
+for versions, registry pinning, package-manager support, and optional MCP pairing.
 
 Portable bootstrap apply and recovery are initially POSIX-only. Windows is
 qualified for read-only CLI and MCP use of authority initialized on a supported
@@ -74,7 +72,7 @@ The public Node API exposes the same info/find/context/new/check and portable
 init plan/apply/recover behavior without a terminal.
 
 See the [community workflow](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/open-source-docs-protocol.md)
-for the complete safety and installation contract.
+for the complete safety contract.
 
 ## Managed Agent Teams commands
 

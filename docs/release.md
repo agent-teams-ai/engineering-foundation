@@ -1,8 +1,10 @@
 # Release Procedure
 
-All current Foundation, Docs Protocol, and Docs Protocol MCP releases use npm Trusted Publishing
-from the protected `main` workflow with GitHub OIDC and automatic provenance.
-Manual workstation publication and stored npm credentials are not supported.
+All ordinary Foundation, Docs Protocol, and Docs Protocol MCP releases use npm
+Trusted Publishing from the protected `main` workflow with GitHub OIDC and
+automatic provenance. Manual workstation publication and stored long-lived npm
+credentials are not supported. The sole exception is the reviewed one-time MCP
+namespace bootstrap in ADR-0042; it cannot publish a supported release.
 
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
@@ -23,10 +25,46 @@ changelogs, immutable registry versions, Git tags, and GitHub releases. This
 paragraph records completed history; it is not an executable release checklist.
 
 The one-time ADR-0029 namespace bootstrap is likewise completed historical
-evidence. Do not rerun its retired workflow. Any future namespace bootstrap
-requires a new reviewed ADR and must not weaken this repository's OIDC-only
-current release boundary. Never edit package versions or `.changeset/pre.json`
-by hand.
+evidence. Do not rerun its retired workflow. ADR-0042 now owns the single generic
+closed-catalog mechanism for an explicitly approved future namespace and keeps it
+separate from ordinary OIDC release authority. Never edit package versions or
+`.changeset/pre.json` by hand.
+
+## One-time MCP namespace bootstrap
+
+`architecture/foundation/npm-package-bootstrap.json` is the only package-specific
+authority. The MCP profile must be `approved` with reviewed package-tree and SRI
+evidence before the protected `npm-package-bootstrap` environment can run. The
+environment reviewer verifies the granular token is scoped for the one bootstrap,
+was created at the dispatch timestamp, expires within 24 hours, and has at least
+15 minutes remaining. Only then may the manual workflow run on the exact reviewed
+protected-main commit.
+
+The workflow performs one publish attempt only after the complete local and npm
+preflight. Public npm assigns both `bootstrap` and `latest` to a namespace's
+first version even when publication requests only `bootstrap`; the workflow
+never creates or moves those tags explicitly. Normal publish or reuse re-proves
+exact SRI, both tags, signature, publish attestation, and source-bound SLSA
+provenance before deprecation. If publication is uncertain and provenance cannot
+be proved, rerun only the reviewed `quarantine` operation: it may deprecate the
+exact reviewed bytes but cannot publish, move tags, reconcile a GitHub release,
+or satisfy the ordinary release gate. Retain the evidence, revoke the token,
+disable the workflow, and require a successor ADR plus newly reviewed version
+path if provenance never converges. After the exact normal postconditions and
+GitHub prerelease are retained as evidence, configure npm Trusted Publisher for
+`@agent-teams/docs-protocol-mcp`, revoke the token immediately, remove its GitHub
+environment secret, and disable the bootstrap repository variable. Confirm all
+three actions before allowing the `0.1.0` release PR to merge.
+
+The ordered release command does not complete after npm publication alone. Its
+final required phase resolves the canonical public Docs Protocol coordinates and
+installs docs-only plus docs-and-MCP profiles through both npm and pnpm in fresh
+disposable repositories. It also requires each canonical coordinate to own its
+exact `latest` tag and SHA-512 integrity, verifies both npm signature and SLSA
+provenance statements in one disposable npm audit, and binds the stable Git tag
+and read-only GitHub release observation to the shared provenance commit.
+Missing coordinates or any failed supply-chain, installed CLI, or MCP flow
+leaves the release run failed and blocks completion evidence.
 
 ## Current stable procedure
 

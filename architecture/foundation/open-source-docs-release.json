@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "registry": "https://registry.npmjs.org/",
+  "source": {
+    "repository": "https://github.com/agent-teams-ai/engineering-foundation",
+    "ref": "refs/heads/main",
+    "workflow": ".github/workflows/release.yml"
+  },
+  "qualifiedPackageManagers": [
+    "npm",
+    "pnpm"
+  ],
+  "packages": {
+    "cli": {
+      "name": "@agent-teams/docs-protocol",
+      "version": "0.4.0"
+    },
+    "mcp": {
+      "name": "@agent-teams/docs-protocol-mcp",
+      "version": "0.1.0"
+    }
+  }
+}

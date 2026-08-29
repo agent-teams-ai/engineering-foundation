@@ -7,7 +7,10 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { DOCS_PROTOCOL_BOOTSTRAP } from "../scripts/docs-protocol-bootstrap.mjs";
+import {
+  NPM_PACKAGE_BOOTSTRAP,
+  bootstrapPackageById,
+} from "../scripts/npm-package-bootstrap.mjs";
 import { PUBLISHABLE_PACKAGE_DEPENDENCIES, publishablePackageByName } from "../scripts/publishable-packages.mjs";
 import { DOCS_MCP_PACKAGE } from "../scripts/release-publish-ordered.mjs";
 import {
@@ -19,17 +22,12 @@ import {
   releaseState,
 } from "../scripts/release-publish.mjs";
 
-const foundation = {
-  name: "@agent-teams/engineering-foundation",
-  version: "0.16.0",
-};
-const privateSpike = {
-  name: "@agent-teams/source-dependency-parser-spike",
-  version: "0.0.0",
-};
+const foundation = { name: "@agent-teams/engineering-foundation", version: "0.16.0" };
+const privateSpike = { name: "@agent-teams/source-dependency-parser-spike", version: "0.0.0" };
+const docsBootstrap = bootstrapPackageById("docs-protocol");
 const docsProtocol = {
-  name: DOCS_PROTOCOL_BOOTSTRAP.name,
-  version: DOCS_PROTOCOL_BOOTSTRAP.version,
+  name: docsBootstrap.name,
+  version: docsBootstrap.bootstrapVersion,
 };
 const docsProtocolMcp = { name: publishablePackageByName(DOCS_MCP_PACKAGE).name, version: "0.1.0-rc.0" };
 const docsProtocolMcpBaselineVersion = "0.0.0";
@@ -180,8 +178,6 @@ test("skips only an exact fresh prerelease state for the complete public package
     );
   }
 });
-
-
 test("routes an exact Changesets rc version to the rc npm dist-tag", () => {
   assert.deepEqual(
     releasePublishPolicy({
@@ -192,7 +188,6 @@ test("routes an exact Changesets rc version to the rc npm dist-tag", () => {
   );
   assert.deepEqual(changesetsPublishArguments(), ["changeset", "publish"]);
 });
-
 test("resolves release publishing without shell mode on Windows", () => {
   assert.deepEqual(
     releasePublishInvocation({ commandInterpreter: "C:\\Windows\\System32\\cmd.exe", platform: "win32" }),
@@ -206,7 +201,6 @@ test("resolves release publishing without shell mode on Windows", () => {
     command: "pnpm",
   });
 });
-
 test("keeps ordinary stable releases on the default dist-tag", () => {
   assert.deepEqual(
     releasePublishPolicy({ packageVersion: "0.16.0", preState: undefined }),
@@ -345,6 +339,7 @@ async function runRelease(root, marker) {
       `    await writeFile(process.env.PUBLISH_MARKER, "ordered publish");\n` +
       `    await appendFile(process.env.COMMAND_SHIM_MARKER, "ordered publish\\n");\n` +
       `  },\n` +
+      `  verifyBootstrapBaselines: async () => {},\n` +
       `});\n`,
   );
   return await new Promise((resolve) => {
@@ -399,7 +394,7 @@ async function writeDocsMcpManifest(root, version = docsProtocolMcp.version) {
     publishConfig: {
       access: "public",
       provenance: true,
-      registry: DOCS_PROTOCOL_BOOTSTRAP.registry,
+      registry: NPM_PACKAGE_BOOTSTRAP.registry,
     },
   });
 }
@@ -417,7 +412,7 @@ async function fixture(root, registry) {
   await json(join(root, "packages/engineering-foundation/package.json"), {
     ...foundation,
     publishConfig: { registry },
-    version: DOCS_PROTOCOL_BOOTSTRAP.foundationVersion,
+    version: docsBootstrap.dependencies[0].version,
   });
   await writeFile(join(root, "packages/engineering-foundation/dist.js"), "export const build = 1;\n");
   await json(join(root, "packages/docs-protocol/package.json"), {
@@ -426,7 +421,7 @@ async function fixture(root, registry) {
     publishConfig: {
       access: "public",
       provenance: true,
-      registry: DOCS_PROTOCOL_BOOTSTRAP.registry,
+      registry: NPM_PACKAGE_BOOTSTRAP.registry,
     },
   });
   await writeFile(join(root, "packages/docs-protocol/dist.js"), "export const docs = 1;\n");
@@ -574,6 +569,7 @@ test("publish entrypoint independently rejects every publish-control drift bound
         publishOrdered: async () => {
           spawned = true;
         },
+        verifyBootstrapBaselines: noop,
         verifyRegistry: noop,
       }),
       /filesystem state changed before the publish command|workspace package globs/u,

@@ -194,7 +194,9 @@ function toolPayload(response) {
   assert.equal(response.result.isError, undefined);
   assert.equal(response.result.content.length, 1);
   assert.equal(response.result.content[0].type, "text");
-  return JSON.parse(response.result.content[0].text);
+  const projection = JSON.parse(response.result.content[0].text);
+  assert.deepEqual(response.result.structuredContent, projection);
+  return projection;
 }
 
 async function bootstrapFixture(cliPath, consumerRoot, executeJson = runJson) {
@@ -290,14 +292,57 @@ export async function prepareRegistryDocsProtocolMcpFixture(input, dependencies 
     });
 }
 
-export async function verifyRegistryDocsProtocolMcp(input) {
-  const consumerRoot = join(input.consumerRoot, "docs-protocol-mcp-consumer");
+export async function verifyRegistryDocsProtocolCli(input) {
+  const consumerRoot = input.consumerRoot;
   await mkdir(consumerRoot, { recursive: true });
   const docsCli = join(input.installedDocsRoot, "dist", "cli.js");
-  const mcpCli = join(input.installedMcpRoot, "dist", "cli.js");
   const expectedDocument = await prepareRegistryDocsProtocolMcpFixture({
     consumerRoot,
     docsCli,
+    installedDocsRoot: input.installedDocsRoot,
+  });
+  const before = await snapshotTree(consumerRoot);
+  const info = await runJson(docsCli, consumerRoot, ["info", "--consumer", consumerRoot]);
+  assert.equal(info.schemaVersion, 2);
+  assert.equal(info.command, "docs.info");
+  assert.equal(info.outcome, "success");
+  assert.equal(info.result.projectId, "registry-mcp-e2e");
+
+  const found = await runJson(docsCli, consumerRoot, [
+    "find", expectedDocument.query, "--fuzzy", "--consumer", consumerRoot,
+  ]);
+  assert.equal(found.schemaVersion, 3);
+  assert.equal(found.command, "docs.find");
+  assert.equal(found.result.documents[0].id, expectedDocument.documentId);
+
+  const context = await runJson(docsCli, consumerRoot, [
+    "context", expectedDocument.query, "--fuzzy", "--max-documents", "1",
+    "--max-bytes", "4096", "--consumer", consumerRoot,
+  ]);
+  assert.equal(context.schemaVersion, 3);
+  assert.equal(context.command, "docs.context");
+  assert.equal(context.result.format, "llms.txt");
+  assert.ok(context.result.content.includes(expectedDocument.title));
+
+  const checked = await runJson(docsCli, consumerRoot, [
+    "check", "--consumer", consumerRoot,
+  ]);
+  assert.equal(checked.schemaVersion, 2);
+  assert.equal(checked.command, "docs.check");
+  assert.equal(checked.outcome, "success");
+  assert.deepEqual(
+    await snapshotTree(consumerRoot),
+    before,
+    "installed Docs Protocol read-only CLI commands must not write",
+  );
+  return expectedDocument;
+}
+
+export async function verifyRegistryDocsProtocolMcp(input) {
+  const consumerRoot = join(input.consumerRoot, "docs-protocol-mcp-consumer");
+  const mcpCli = join(input.installedMcpRoot, "dist", "cli.js");
+  const expectedDocument = await verifyRegistryDocsProtocolCli({
+    consumerRoot,
     installedDocsRoot: input.installedDocsRoot,
   });
   const before = await snapshotTree(consumerRoot);
@@ -319,6 +364,9 @@ export async function verifyRegistryDocsProtocolMcp(input) {
       "docs_info", "docs_find", "docs_context",
     ]);
     assert.ok(listed.result.tools.every(({ annotations }) => annotations.readOnlyHint === true));
+    assert.ok(listed.result.tools.every(({ outputSchema }) =>
+      outputSchema.type === "object" && outputSchema.additionalProperties === false &&
+      outputSchema.properties.result.additionalProperties === false));
 
     const info = toolPayload(await client.request("tools/call", {
       name: "docs_info", arguments: {},

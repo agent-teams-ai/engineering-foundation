@@ -8,15 +8,16 @@ import {
   orderedRelease,
   tarballIntegrity,
 } from "./release-publish-ordered.mjs";
+import {
+  GITHUB_RECONCILIATION_ATTEMPTS,
+  GITHUB_RECONCILIATION_RETRY_MILLISECONDS,
+  githubJson,
+  reconcileGithubTagRelease,
+} from "./github-release-reconciliation.mjs";
 import { publishablePackageByName } from "./publishable-packages.mjs";
 
 const EXPECTED_NPM_VERSION = "11.16.0";
-export const GITHUB_RECONCILIATION_ATTEMPTS = 37;
-export const GITHUB_RECONCILIATION_RETRY_MILLISECONDS = 5_000;
-
-const delay = (milliseconds) => new Promise((resolve) => {
-  setTimeout(resolve, milliseconds);
-});
+export { GITHUB_RECONCILIATION_ATTEMPTS, GITHUB_RECONCILIATION_RETRY_MILLISECONDS };
 
 export function npmPublishArguments(artifact, tag) {
   const registry = artifact.registry ?? "https://registry.npmjs.org/";
@@ -277,20 +278,6 @@ function isGitAncestor(cwd, ancestor, descendant) {
   throw new Error(`git ancestry verification failed with ${result.status}.`);
 }
 
-function githubJson(args, { allowNotFound = false } = {}) {
-  const result = spawnSync("gh", ["api", ...args], { encoding: "utf8" });
-  if (result.error !== undefined) {
-    throw result.error;
-  }
-  if (allowNotFound && result.status !== 0 && /HTTP 404/u.test(result.stderr)) {
-    return;
-  }
-  if (result.status !== 0) {
-    throw new Error(`gh api failed (${result.status}): ${result.stderr.trim()}`);
-  }
-  return result.stdout.length === 0 ? undefined : JSON.parse(result.stdout);
-}
-
 export function assertLiveMainHead(repository, expectedCommit, request = githubJson) {
   const live = request([`repos/${repository}/git/ref/heads/main`]);
   if (live?.ref !== "refs/heads/main" || live.object?.type !== "commit" ||
@@ -299,76 +286,13 @@ export function assertLiveMainHead(repository, expectedCommit, request = githubJ
   }
 }
 
-function assertExistingGithubRelease(release, artifact, tag) {
-  if (release.tag_name !== tag || release.name !== tag || release.body !== artifact.releaseNotes ||
-      release.prerelease !== artifact.version.includes("-") || release.draft !== false) {
-    throw new Error(`Existing GitHub release ${tag} differs from the reviewed changelog evidence.`);
-  }
-}
-
-function gitObjectCommit(repository, object, request, depth = 0) {
-  if (object?.type === "commit" && /^[a-f0-9]{40}$/u.test(object.sha ?? "")) {
-    return object.sha;
-  }
-  if (object?.type !== "tag" || !/^[a-f0-9]{40}$/u.test(object.sha ?? "") || depth >= 4) {
-    throw new Error("Git tag does not resolve through a bounded tag chain to one commit.");
-  }
-  const tag = request([`repos/${repository}/git/tags/${object.sha}`]);
-  return gitObjectCommit(repository, tag.object, request, depth + 1);
-}
-
-async function reconcileGithubReleaseOnce(artifact, releaseCommit, options) {
-  const repository = options.repository ?? process.env.GITHUB_REPOSITORY;
-  const request = options.request ?? githubJson;
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository ?? "")) {
-    throw new Error("GitHub release reconciliation requires an exact repository identity.");
-  }
-  const tag = `${artifact.name}@${artifact.version}`;
-  const encodedTag = encodeURIComponent(tag);
-  const tagRef = request([`repos/${repository}/git/ref/tags/${encodedTag}`], { allowNotFound: true });
-  if (tagRef === undefined) {
-    const createdRef = request([
-      "--method", "POST", `repos/${repository}/git/refs`,
-      "-f", `ref=refs/tags/${tag}`, "-f", `sha=${releaseCommit}`,
-    ]);
-    if (gitObjectCommit(repository, createdRef?.object, request) !== releaseCommit) {
-      throw new Error(`Created Git tag ${tag} is not bound to the trusted release commit.`);
-    }
-  } else if (gitObjectCommit(repository, tagRef.object, request) !== releaseCommit) {
-    throw new Error(`Existing Git tag ${tag} is not bound to the trusted release commit.`);
-  }
-  const release = request([`repos/${repository}/releases/tags/${encodedTag}`], { allowNotFound: true });
-  if (release !== undefined) {
-    assertExistingGithubRelease(release, artifact, tag);
-    return;
-  }
-  const createdRelease = request([
-    "--method", "POST", `repos/${repository}/releases`,
-    "-f", `tag_name=${tag}`, "-f", `name=${tag}`, "-f", `body=${artifact.releaseNotes}`,
-    "-F", `prerelease=${artifact.version.includes("-")}`, "-F", "draft=false",
-  ]);
-  assertExistingGithubRelease(createdRelease, artifact, tag);
-}
-
-function isTransientGithubFailure(error) {
-  return /HTTP (?:502|503|504)\b/u.test(error?.message ?? "");
-}
-
 export async function reconcileGithubRelease(artifact, releaseCommit, options = {}) {
-  const attempts = options.attempts ?? GITHUB_RECONCILIATION_ATTEMPTS;
-  const retryDelayMilliseconds = options.retryDelayMilliseconds ??
-    GITHUB_RECONCILIATION_RETRY_MILLISECONDS;
-  const wait = options.wait ?? delay;
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      return await reconcileGithubReleaseOnce(artifact, releaseCommit, options);
-    } catch (error) {
-      if (!isTransientGithubFailure(error) || attempt + 1 >= attempts) {
-        throw error;
-      }
-      await wait(retryDelayMilliseconds);
-    }
-  }
+  return await reconcileGithubTagRelease({
+    body: artifact.releaseNotes,
+    prerelease: artifact.version.includes("-"),
+    tag: `${artifact.name}@${artifact.version}`,
+    title: `${artifact.name}@${artifact.version}`,
+  }, releaseCommit, options);
 }
 
 function registryUrl(artifact, path) {

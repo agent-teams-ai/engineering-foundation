@@ -366,15 +366,20 @@ test("ordered publisher contains no npm dist-tag command path", async () => {
   }
 });
 
-test("current release runbook is OIDC-only and contains no retired bootstrap credentials", async () => {
+test("current runbook isolates the one-time token bootstrap from ordinary OIDC releases", async () => {
   const releaseDocs = await readFile(new URL("../docs/release.md", import.meta.url), "utf8");
   assert.match(
     releaseDocs,
-    /All current Foundation, Docs Protocol, and Docs Protocol MCP releases use npm Trusted Publishing/u,
+    /All ordinary Foundation, Docs Protocol, and Docs Protocol MCP releases use npm\s+Trusted Publishing/u,
   );
+  assert.match(releaseDocs, /sole exception is the reviewed one-time MCP\s+namespace bootstrap/u);
+  assert.match(releaseDocs, /expires within 24 hours/u);
+  assert.match(releaseDocs, /revoke the token immediately/u);
+  assert.match(releaseDocs, /never creates or moves those tags explicitly/u);
+  assert.match(releaseDocs, /final required phase resolves the canonical public Docs Protocol coordinates/u);
   assert.match(releaseDocs, /missing downstream suffix\s+of `Foundation -> Docs Protocol -> Docs Protocol MCP`/u);
   assert.match(releaseDocs, /published package whose required\s+upstream dependency is missing is quarantined/u);
-  assert.doesNotMatch(releaseDocs, /2FA|OTP|granular read\/write token|npm login|NPM_TOKEN/iu);
+  assert.doesNotMatch(releaseDocs, /long-lived npm credentials|npm login|NPM_TOKEN/iu);
 });
 
 test("resumes a Foundation-only prior publish without republishing it", async () => {

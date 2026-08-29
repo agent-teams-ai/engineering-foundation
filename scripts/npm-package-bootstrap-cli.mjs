@@ -115,6 +115,21 @@ function verifiedEvidence({ deprecationMatches, expectedCommit, localIntegrity, 
   return evidence;
 }
 
+async function observeAssertion({ attempts, observe, wait }) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await observe();
+    } catch (error) {
+      lastError = error;
+    }
+    if (attempt + 1 < attempts) {
+      await wait(REGISTRY_OBSERVATION_RETRY_MILLISECONDS);
+    }
+  }
+  throw lastError;
+}
+
 export async function prove(
   args,
   assertion,
@@ -129,35 +144,29 @@ export async function prove(
 ) {
   const profile = bootstrapPackageById(args[0], { approved: true });
   const auditEvidence = await auditPackage(profile);
-  let live;
-  let lastError;
-  for (let attempt = 0; attempt < assertionAttempts; attempt += 1) {
-    try {
-      live = await liveEvidence(profile, fetch, { attempts: 1, retryNotFound: true });
-      if (live === null) {
+  const live = await observeAssertion({
+    attempts: assertionAttempts,
+    observe: async () => {
+      const evidence = await liveEvidence(profile, fetch, {
+        attempts: assertionAttempts > 1 ? 1 : undefined,
+        retryNotFound: true,
+      });
+      if (evidence === null) {
         fail(absentMessage);
       }
       assertion({
         auditEvidence,
-        deprecatedMessage: live.deprecatedMessage,
+        deprecatedMessage: evidence.deprecatedMessage,
         expectedCommit: args[2],
         localIntegrity: args[1],
-        packageMetadata: live.metadata,
+        packageMetadata: evidence.metadata,
         profile,
-        publishedIntegrity: live.integrity,
+        publishedIntegrity: evidence.integrity,
       });
-      lastError = undefined;
-      break;
-    } catch (error) {
-      lastError = error;
-    }
-    if (attempt + 1 < assertionAttempts) {
-      await wait(REGISTRY_OBSERVATION_RETRY_MILLISECONDS);
-    }
-  }
-  if (lastError !== undefined) {
-    throw lastError;
-  }
+      return evidence;
+    },
+    wait,
+  });
   const evidence = verifiedEvidence({
     deprecationMatches: live.deprecatedMessage === profile.deprecationMessage,
     expectedCommit: args[2],
@@ -167,28 +176,46 @@ export async function prove(
   await writeEvidence(args[3], `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 }
 
-async function proveQuarantine(args, assertion, observationOptions) {
+export async function proveQuarantine(
+  args,
+  assertion,
+  {
+    assertionAttempts = 1,
+    liveEvidence = livePackageEvidence,
+    observationOptions,
+    wait = delay,
+    writeEvidence = writeFile,
+  } = {},
+) {
   const profile = bootstrapPackageById(args[0], { approved: true });
-  const live = await livePackageEvidence(profile, fetch, {
-    ...observationOptions,
-    retryNotFound: true,
-  });
-  if (live === null) {
-    fail("quarantine target remained absent.");
-  }
-  assertion({
-    deprecatedMessage: live.deprecatedMessage,
-    localIntegrity: args[1],
-    packageMetadata: live.metadata,
-    profile,
-    publishedIntegrity: live.integrity,
+  const live = await observeAssertion({
+    attempts: assertionAttempts,
+    observe: async () => {
+      const evidence = await liveEvidence(profile, fetch, {
+        ...observationOptions,
+        attempts: assertionAttempts > 1 ? 1 : observationOptions?.attempts,
+        retryNotFound: true,
+      });
+      if (evidence === null) {
+        fail("quarantine target remained absent.");
+      }
+      assertion({
+        deprecatedMessage: evidence.deprecatedMessage,
+        localIntegrity: args[1],
+        packageMetadata: evidence.metadata,
+        profile,
+        publishedIntegrity: evidence.integrity,
+      });
+      return evidence;
+    },
+    wait,
   });
   const evidence = verifiedEvidence({
     deprecationMatches: live.deprecatedMessage === profile.deprecationMessage,
     localIntegrity: args[1],
     profile,
   });
-  await writeFile(args[2], `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+  await writeEvidence(args[2], `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 }
 
 const handlers = Object.freeze({
@@ -205,6 +232,7 @@ const handlers = Object.freeze({
     args,
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
+    { assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS },
   ),
   "postconditions": (args) => prove(
     args,
@@ -216,11 +244,12 @@ const handlers = Object.freeze({
   "quarantine-postconditions": (args) => proveQuarantine(
     args,
     assertBootstrapQuarantinePostconditions,
+    { assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS },
   ),
   "quarantine-final-proof": (args) => proveQuarantine(
     args,
     assertBootstrapQuarantineCandidate,
-    { attempts: 1 },
+    { observationOptions: { attempts: 1 } },
   ),
   "quarantine-proof": (args) => proveQuarantine(
     args,

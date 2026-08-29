@@ -271,6 +271,7 @@ boundaries:
         - capability.architecture-decisions.composition
         - capability.contract-protobuf.qualification.composition
         - capability.public-api-compatibility.composition
+        - capability.quality-gate-runner.adapters
         - capability.quality-gate-runner.composition
         - capability.repository-agent-workflow.composition
         - foundation.composition
@@ -446,7 +447,8 @@ boundaries:
         - node:perf_hooks
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/report-renderer.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/time/performance-monotonic-clock.ts
@@ -552,7 +554,6 @@ boundaries:
       - packages/engineering-foundation/src/canonical-json.ts
   - id: foundation.scaffolding.core
     roots:
-      - packages/engineering-foundation/src/scaffolding/application
       - packages/engineering-foundation/src/scaffolding/contract
       - packages/engineering-foundation/src/scaffolding/definitions
       - packages/engineering-foundation/src/scaffolding/kernel/canonical-json.ts
@@ -563,8 +564,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/scaffold-defaults.ts
       - packages/engineering-foundation/src/scaffolding/scaffold-error.ts
     allow:
-      boundaries:
-        - foundation.repository-mutation.application
+      boundaries: []
       packages:
         - ajv
       builtins:
@@ -572,7 +572,6 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/scaffolding/application/policies/legacy-scaffolding-repository-path.ts
       - packages/engineering-foundation/src/scaffolding/contract/types.ts
       - packages/engineering-foundation/src/scaffolding/contract/scaffold-contract.ts
       - packages/engineering-foundation/src/scaffolding/definitions/registry.ts
@@ -583,6 +582,17 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/kernel/plan-content-validation.ts
       - packages/engineering-foundation/src/scaffolding/scaffold-defaults.ts
       - packages/engineering-foundation/src/scaffolding/scaffold-error.ts
+  - id: foundation.scaffolding.legacy-path-policy
+    roots:
+      - packages/engineering-foundation/src/scaffolding/application/policies/legacy-scaffolding-repository-path.ts
+    allow:
+      boundaries:
+        - foundation.repository-mutation.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/application/policies/legacy-scaffolding-repository-path.ts
   - id: foundation.package-identity
     roots:
       - packages/engineering-foundation/src/package-version.ts
@@ -766,6 +776,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-receipt.ts
       - packages/engineering-foundation/src/scaffolding/kernel/plan-validation.ts
+      - packages/engineering-foundation/src/scaffolding/kernel/recovery-scope.ts
     allow:
       boundaries:
         - foundation.scaffolding.core
@@ -778,6 +789,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-receipt.ts
       - packages/engineering-foundation/src/scaffolding/kernel/plan-validation.ts
+      - packages/engineering-foundation/src/scaffolding/kernel/recovery-scope.ts
   - id: foundation.scaffolding.shared-adapters
     roots:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-file-identity.ts
@@ -794,6 +806,7 @@ boundaries:
         - foundation.repository-mutation.application
         - foundation.repository-mutation.node-adapters
         - foundation.scaffolding.core
+        - foundation.scaffolding.legacy-path-policy
       packages: []
       builtins:
         - node:fs/promises
@@ -810,6 +823,7 @@ boundaries:
   - id: foundation.scaffolding.canonical-adapters
     roots:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-workspace.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-recovery.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-finalization.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-journal-state.ts
@@ -846,6 +860,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-workspace.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-recovery.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-finalization.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-journal-state.ts
@@ -921,6 +936,11 @@ boundaries:
       builtins:
         - node:child_process
         - node:events
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:perf_hooks
         - node:timers/promises
         - node:url
       runtimeReferences: []

@@ -18,13 +18,20 @@ import test from "node:test";
 import {
   FOUNDATION_PACKAGE_NAME,
   FoundationLocalModeService,
-  NodeProcessRunner,
+  NodeProcessRunner as PublicNodeProcessRunner,
   inspectFoundationMode
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
 import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
 } from "../packages/engineering-foundation/dist/package-self-check.js";
+import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
+
+function NodeProcessRunner() {
+  return process.platform === "win32"
+    ? createNodeProcessRunner(process.env)
+    : new PublicNodeProcessRunner();
+}
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const REGISTRY_INTEGRITY =

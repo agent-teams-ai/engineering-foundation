@@ -20,3 +20,14 @@ export class PackageScriptTimeoutError extends Error {
     this.name = "PackageScriptTimeoutError";
   }
 }
+
+/**
+ * The package-script containment boundary accepted cancellation and proved
+ * that its managed process tree has stopped.
+ */
+export class PackageScriptCancellationError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("Package script was cancelled after containment completed.", options);
+    this.name = "PackageScriptCancellationError";
+  }
+}

@@ -1,12 +1,13 @@
 import type {
   ScaffoldAuthorityEvidence,
   ScaffoldPlan,
+  ScaffoldRecoveryScope,
   ScaffoldReceipt
 } from "./contract/scaffold-contract.js";
 import {
-  applyAuthorityFilesystemScaffold,
-  recoverAuthorityFilesystemScaffold
+  applyAuthorityFilesystemScaffold
 } from "./adapters/node/filesystem-authority-workspace.js";
+import { recoverAuthorityFilesystemScaffold } from "./adapters/node/filesystem-authority-recovery.js";
 import { readAuthorityScaffoldPlanFile } from "./adapters/node/node-authority-input-loader.js";
 import { validateAuthorityScaffoldReceipt } from "./adapters/node/node-authority-receipt-validator.js";
 import {
@@ -14,6 +15,8 @@ import {
 } from "./kernel/authority-evidence.js";
 import { assertAuthorityScaffoldPlanDigest } from "./kernel/plan-validation.js";
 import { assertAuthorityScaffoldReceiptDigest } from "./kernel/authority-receipt.js";
+import { snapshotAuthorityScaffoldRecoveryScope } from "./kernel/recovery-scope.js";
+import { ScaffoldError } from "./scaffold-error.js";
 import { planAuthorityScaffoldFromFile } from "./authority-service.js";
 
 export async function planScaffoldFromFile(options: {
@@ -31,10 +34,27 @@ export async function applyFilesystemScaffold(
   return applyAuthorityFilesystemScaffold(consumerRoot, plan);
 }
 
-export async function recoverFilesystemScaffold(
+export function recoverFilesystemScaffold(
   consumerRoot: string
+): Promise<ScaffoldReceipt | undefined>;
+export function recoverFilesystemScaffold(
+  consumerRoot: string,
+  scope: ScaffoldRecoveryScope
+): Promise<ScaffoldReceipt | undefined>;
+export async function recoverFilesystemScaffold(
+  consumerRoot: string,
+  ...scopeArgument: readonly [] | readonly [scope: ScaffoldRecoveryScope]
 ): Promise<ScaffoldReceipt | undefined> {
-  return recoverAuthorityFilesystemScaffold(consumerRoot);
+  if (scopeArgument.length > 1) {
+    throw new ScaffoldError(
+      "SCAFFOLD_INPUT_INVALID",
+      "Scaffolding recovery accepts at most one recovery scope."
+    );
+  }
+  const snapshot = scopeArgument.length === 0
+    ? undefined
+    : snapshotAuthorityScaffoldRecoveryScope(scopeArgument[0]);
+  return recoverAuthorityFilesystemScaffold(consumerRoot, snapshot);
 }
 
 export async function readScaffoldPlanFile(

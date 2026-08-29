@@ -104,6 +104,8 @@
         "tests/local-mode-process-runner.test.mjs",
         "tests/locale-determinism.test.mjs",
         "tests/public-api-evidence-safety.test.mjs",
+        "tests/quality-gate-runner-lifecycle.test.mjs",
+        "tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs",
         "tests/registry-package-boundary.test.mjs",
         "tests/registry-publication-policy.test.mjs",
         "tests/scaffolding-authority.test.mjs",
@@ -111,9 +113,11 @@
         "tests/scaffolding-frozen-baseline.test.mjs",
         "tests/scaffolding-journal-gateway.test.mjs",
         "tests/scaffolding-library-recipe.test.mjs",
+        "tests/scaffolding-recovery-scope.test.mjs",
         "tests/security-toolchain-bootstrap.test.mjs",
         "tests/strict-json.test.mjs",
-        "tests/tooling.test.mjs"
+        "tests/tooling.test.mjs",
+        "tests/windows-managed-process.test.mjs"
       ]
     },
     {
@@ -147,6 +151,7 @@
         "tests/public-api-export-coverage.test.mjs",
         "tests/public-api-promotion.test.mjs",
         "tests/public-docs-install-e2e.test.mjs",
+        "tests/quality-gate-runner-remediation.test.mjs",
         "tests/quality-gate-runner.test.mjs",
         "tests/registry-docs-protocol-mcp-e2e.test.mjs",
         "tests/registry-install-policy.test.mjs",

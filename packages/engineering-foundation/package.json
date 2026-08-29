@@ -99,6 +99,8 @@
     "schemas/scaffold-target-catalog/v1.schema.json",
     "schemas/scaffolding-config/v1.schema.json",
     "schemas/workspace-dependency-declarations/v1.schema.json",
+    "assets/windows-managed-process/bootstrap.ps1",
+    "assets/windows-managed-process/WindowsManagedProcess.cs",
     "LICENSE",
     "README.md"
   ],

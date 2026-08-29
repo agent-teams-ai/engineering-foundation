@@ -3,7 +3,12 @@ import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { FoundationError } from "../errors.js";
-import { spawnWindowsManagedProcess } from "./windows-managed-process.js";
+import {
+  cleanUpWindowsManagedProcessLaunchFailure,
+  requestWindowsManagedProcessTermination,
+  spawnWindowsManagedProcess,
+  waitForWindowsManagedProcessContainment
+} from "./windows-managed-process.js";
 import type {
   ManagedProcessResult,
   ProcessRequest,
@@ -18,6 +23,16 @@ const TERMINATION_GRACE_MS = 1_000;
 interface ManagedProcessRequest extends ProcessRequest {
   /** Reject process output that is not well-formed UTF-8 instead of replacing bytes. */
   readonly strictUtf8?: boolean;
+}
+
+interface ObservedProcessExit {
+  readonly exitCode: number | null;
+  readonly signal: NodeJS.Signals | null;
+}
+
+export interface NodeManagedProcessRequest extends ProcessRequest {
+  /** Exact inherited environment for a private Node process-adapter boundary. */
+  readonly environment?: Readonly<NodeJS.ProcessEnv>;
 }
 
 function describeRequest(request: ProcessRequest): string {
@@ -43,6 +58,20 @@ export class ProcessCancellationError extends FoundationError {
   }
 }
 
+export class ProcessTimeoutError extends FoundationError {
+  constructor(
+    readonly timeoutMs: number,
+    options?: ErrorOptions & { readonly requestDescription?: string }
+  ) {
+    super(
+      "PROCESS_FAILED",
+      `${options?.requestDescription ?? "Process"} timed out after ${String(timeoutMs)}ms.`,
+      options
+    );
+    this.name = "ProcessTimeoutError";
+  }
+}
+
 function processCancelled(
   request: ProcessRequest,
   message: string,
@@ -52,6 +81,15 @@ function processCancelled(
     `${describeRequest(request)} ${message}`,
     cause === undefined ? undefined : { cause }
   );
+}
+
+function processTimedOut(
+  request: ProcessRequest,
+  timeoutMs: number
+): ProcessTimeoutError {
+  return new ProcessTimeoutError(timeoutMs, {
+    requestDescription: describeRequest(request)
+  });
 }
 
 function resolveTimeout(request: ProcessRequest): number | undefined {
@@ -108,17 +146,22 @@ async function waitForExit(
   return exited;
 }
 
-function signalPosixProcessTree(
-  child: ReturnType<typeof spawn>,
+function isMissingProcessGroupError(error: unknown): boolean {
+  return error instanceof Error &&
+    "code" in error &&
+    error.code === "ESRCH";
+}
+
+function signalPosixProcessGroup(
+  processGroupId: number,
   signal: NodeJS.Signals
 ): void {
-  if (child.pid === undefined) {
-    return;
-  }
   try {
-    process.kill(-child.pid, signal);
-  } catch {
-    child.kill(signal);
+    process.kill(-processGroupId, signal);
+  } catch (error) {
+    if (!isMissingProcessGroupError(error)) {
+      throw error;
+    }
   }
 }
 
@@ -127,11 +170,7 @@ function isPosixProcessGroupRunning(pid: number): boolean {
     process.kill(-pid, 0);
     return true;
   } catch (error) {
-    return !(
-      error instanceof Error &&
-      "code" in error &&
-      error.code === "ESRCH"
-    );
+    return !isMissingProcessGroupError(error);
   }
 }
 
@@ -150,16 +189,45 @@ async function waitForPosixProcessGroupExit(pid: number): Promise<boolean> {
 async function terminateWindowsProcessTree(
   child: ReturnType<typeof spawn>
 ): Promise<void> {
+  // The wrapper owns both the suspended pre-assignment handle and the assigned
+  // Job Object. It confirms the applicable containment boundary is empty before
+  // the outer process may treat wrapper exit as safe.
+  await requestWindowsManagedProcessTermination(child);
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
-  // The retained process handle targets the exact PowerShell wrapper. Closing
-  // that wrapper closes its strict Job Object and terminates every descendant.
+  if (await waitForExit(child, TERMINATION_GRACE_MS)) {
+    return;
+  }
+  // Containment is already confirmed, so forcing a stuck wrapper cannot orphan
+  // the suspended host or any assigned Job Object descendant.
   child.kill("SIGKILL");
-  await waitForExit(child, TERMINATION_GRACE_MS);
+  if (!await waitForExit(child, TERMINATION_GRACE_MS)) {
+    throw new Error("Windows Job Object wrapper did not exit after forced shutdown.");
+  }
 }
 
-async function terminateProcessTree(child: ReturnType<typeof spawn>): Promise<void> {
+export async function terminatePosixProcessGroup(
+  processGroupId: number
+): Promise<void> {
+  if (!Number.isSafeInteger(processGroupId) || processGroupId <= 0) {
+    throw new TypeError("A POSIX process group ID must be a positive safe integer.");
+  }
+  signalPosixProcessGroup(processGroupId, "SIGTERM");
+  if (await waitForPosixProcessGroupExit(processGroupId)) {
+    return;
+  }
+  signalPosixProcessGroup(processGroupId, "SIGKILL");
+  if (!await waitForPosixProcessGroupExit(processGroupId)) {
+    throw new Error(
+      `POSIX process group ${String(processGroupId)} did not exit after forced shutdown.`
+    );
+  }
+}
+
+export async function terminateNodeManagedProcess(
+  child: ReturnType<typeof spawn>
+): Promise<void> {
   if (child.pid === undefined) {
     return;
   }
@@ -167,13 +235,7 @@ async function terminateProcessTree(child: ReturnType<typeof spawn>): Promise<vo
     await terminateWindowsProcessTree(child);
     return;
   }
-  const processGroupId = child.pid;
-  signalPosixProcessTree(child, "SIGTERM");
-  if (await waitForPosixProcessGroupExit(processGroupId)) {
-    return;
-  }
-  signalPosixProcessTree(child, "SIGKILL");
-  await waitForPosixProcessGroupExit(processGroupId);
+  await terminatePosixProcessGroup(child.pid);
 }
 
 async function waitForCloseWithinCleanupDeadline(
@@ -194,13 +256,16 @@ async function waitForCloseWithinCleanupDeadline(
   }
 }
 
-function spawnManagedProcess(request: ProcessRequest): ReturnType<typeof spawn> {
+export function spawnNodeManagedProcess(
+  request: NodeManagedProcessRequest
+): ReturnType<typeof spawn> {
   if (process.platform === "win32") {
     return spawnWindowsManagedProcess(request);
   }
   return spawn(request.command, [...request.args], {
     cwd: request.cwd,
     detached: true,
+    ...(request.environment === undefined ? {} : { env: request.environment }),
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true
@@ -210,9 +275,11 @@ function spawnManagedProcess(request: ProcessRequest): ReturnType<typeof spawn> 
 async function cleanUpAfterNormalExit(
   child: ReturnType<typeof spawn>
 ): Promise<void> {
-  if (process.platform !== "win32") {
-    await terminateProcessTree(child);
+  if (process.platform === "win32") {
+    await waitForWindowsManagedProcessContainment(child);
+    return;
   }
+  await terminateNodeManagedProcess(child);
 }
 
 function decodeProcessOutput(
@@ -239,6 +306,82 @@ function decodeProcessOutput(
   }
 }
 
+function observedFailureAfterCancellation(
+  request: ManagedProcessRequest,
+  completionFailure: FoundationError | undefined,
+  observedExit: ObservedProcessExit | undefined,
+  stdout: readonly Buffer[],
+  stderr: readonly Buffer[]
+): ManagedProcessResult | FoundationError | undefined {
+  const decoded = decodeProcessOutput(request, stdout, stderr);
+  if (decoded instanceof FoundationError) {
+    return decoded;
+  }
+  if (completionFailure !== undefined) {
+    return completionFailure;
+  }
+  if (
+    observedExit?.exitCode === null ||
+    observedExit?.exitCode === undefined ||
+    observedExit.exitCode === 0
+  ) {
+    return undefined;
+  }
+  return {
+    exitCode: observedExit.exitCode,
+    signal: observedExit.signal,
+    stdout: decoded.stdout,
+    stderr: decoded.stderr
+  };
+}
+
+function combinedTerminationFailure(
+  request: ProcessRequest,
+  failure: FoundationError,
+  error: unknown
+): FoundationError {
+  return processFailure(
+    request,
+    "could not be terminated after failure.",
+    new AggregateError([failure, error], "Process execution and termination failed.")
+  );
+}
+
+async function normalExitResult(input: {
+  readonly request: ManagedProcessRequest;
+  readonly child: ReturnType<typeof spawn>;
+  readonly closed: Promise<unknown>;
+  readonly stdout: readonly Buffer[];
+  readonly stderr: readonly Buffer[];
+  readonly completionFailure: () => FoundationError | undefined;
+  readonly exit: ObservedProcessExit;
+}): Promise<ManagedProcessResult | FoundationError> {
+  try {
+    await cleanUpAfterNormalExit(input.child);
+    await (process.platform === "win32" ? input.closed : waitForCloseWithinCleanupDeadline(input.closed));
+  } catch (error) {
+    return processFailure(
+      input.request,
+      "could not clean up its process tree after exit.",
+      error
+    );
+  }
+  const decoded = decodeProcessOutput(
+    input.request,
+    input.stdout,
+    input.stderr
+  );
+  if (decoded instanceof FoundationError) {
+    return decoded;
+  }
+  return input.completionFailure() ?? {
+    exitCode: input.exit.exitCode ?? 1,
+    signal: input.exit.signal,
+    stdout: decoded.stdout,
+    stderr: decoded.stderr
+  };
+}
+
 export async function executeManagedProcess(
   request: ManagedProcessRequest
 ): Promise<ManagedProcessResult> {
@@ -246,7 +389,7 @@ export async function executeManagedProcess(
     return await new Promise((resolve, reject) => {
       let child: ReturnType<typeof spawn>;
       try {
-        child = spawnManagedProcess(request);
+        child = spawnNodeManagedProcess(request);
       } catch (error) {
         reject(processFailure(request, "could not be started.", error));
         return;
@@ -259,6 +402,7 @@ export async function executeManagedProcess(
       let settled = false;
       let terminating = false;
       let completionFailure: FoundationError | undefined;
+      let observedExit: ObservedProcessExit | undefined;
       const deadlineSignal = timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs);
 
       const finish = (result: ManagedProcessResult | FoundationError) => {
@@ -275,80 +419,71 @@ export async function executeManagedProcess(
         resolve(result);
       };
 
-      const failAfterTermination = (failure: FoundationError) => {
+      const failAfterTermination = (
+        failure: FoundationError,
+        preferObservedFailure = false
+      ) => {
         if (settled || terminating) {
           return;
         }
         terminating = true;
         void (async () => {
           try {
-            await terminateProcessTree(child);
+            await terminateNodeManagedProcess(child);
             await waitForCloseWithinCleanupDeadline(closed);
+            if (preferObservedFailure) {
+              const observedFailure = observedFailureAfterCancellation(
+                request,
+                completionFailure,
+                observedExit,
+                stdout,
+                stderr
+              );
+              if (observedFailure !== undefined) {
+                finish(observedFailure);
+                return;
+              }
+            }
             finish(failure);
           } catch (error) {
-            finish(
-              processFailure(
-                request,
-                "could not be terminated after failure.",
-                new AggregateError([failure, error], "Process execution and termination failed.")
-              )
-            );
+            finish(combinedTerminationFailure(request, failure, error));
           }
         })();
       };
 
       const onAbort = () => {
         failAfterTermination(
-          processCancelled(request, "was cancelled.", request.signal?.reason)
+          processCancelled(request, "was cancelled.", request.signal?.reason),
+          true
         );
       };
 
       const onTimeout = () => {
-        failAfterTermination(
-          processFailure(request, `timed out after ${String(timeoutMs)}ms.`)
-        );
+        if (timeoutMs !== undefined) {
+          failAfterTermination(processTimedOut(request, timeoutMs));
+        }
       };
 
       const completeAfterExit = (
         exitCode: number | null,
         signal: NodeJS.Signals | null
       ) => {
+        observedExit = { exitCode, signal };
         if (settled || terminating) {
           return;
         }
         terminating = true;
         deadlineSignal?.removeEventListener("abort", onTimeout);
         request.signal?.removeEventListener("abort", onAbort);
-        void (async () => {
-          try {
-            await cleanUpAfterNormalExit(child);
-            await waitForCloseWithinCleanupDeadline(closed);
-          } catch (error) {
-            finish(
-              processFailure(
-                request,
-                "could not clean up its process tree after exit.",
-                error
-              )
-            );
-            return;
-          }
-          const decoded = decodeProcessOutput(request, stdout, stderr);
-          if (decoded instanceof FoundationError) {
-            finish(decoded);
-            return;
-          }
-          if (completionFailure !== undefined) {
-            finish(completionFailure);
-            return;
-          }
-          finish({
-            exitCode: exitCode ?? 1,
-            signal,
-            stdout: decoded.stdout,
-            stderr: decoded.stderr
-          });
-        })();
+        void normalExitResult({
+          request,
+          child,
+          closed,
+          stdout,
+          stderr,
+          completionFailure: () => completionFailure,
+          exit: observedExit
+        }).then(finish);
       };
 
       const appendOutput = (
@@ -384,7 +519,8 @@ export async function executeManagedProcess(
         appendOutput(stderr, chunk, "stderr");
       });
       child.once("error", (error) => {
-        failAfterTermination(processFailure(request, "could not be started.", error));
+        cleanUpWindowsManagedProcessLaunchFailure(child);
+        failAfterTermination(completionFailure ??= processFailure(request, "could not be started.", error));
       });
       child.once("exit", completeAfterExit);
 

@@ -1,4 +1,5 @@
 export type {
+  AuthorityScaffoldRecoveryScope,
   ConfiguredDefinition,
   DefinitionRef,
   JsonObject,
@@ -30,6 +31,7 @@ export type {
   ScaffoldReceipt,
   ScaffoldReceiptCommon,
   ScaffoldReceiptOutcome,
+  ScaffoldRecoveryScope,
   ScaffoldSatisfiedOperationReceipt,
   ScaffoldTarget,
   ScaffoldTargetCatalogEntry,

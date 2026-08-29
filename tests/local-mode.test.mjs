@@ -15,7 +15,7 @@ import test from "node:test";
 import {
   FOUNDATION_PACKAGE_NAME,
   FoundationLocalModeService,
-  NodeProcessRunner,
+  NodeProcessRunner as PublicNodeProcessRunner,
   inspectFoundationMode
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
 import {
@@ -26,6 +26,13 @@ import {
   applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
 } from "../packages/engineering-foundation/dist/mutation/index.js";
+import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
+
+function NodeProcessRunner() {
+  return process.platform === "win32"
+    ? createNodeProcessRunner(process.env)
+    : new PublicNodeProcessRunner();
+}
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const strictDirectoryDurabilityTest = process.platform === "win32" ? test.skip : test;

@@ -4,7 +4,8 @@ import { join, resolve } from "node:path";
 import type {
   AuthorityScaffoldJournal,
   AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan, AuthorityScaffoldReceipt
+  AuthorityScaffoldPlan,
+  AuthorityScaffoldReceipt
 } from "../../contract/types.js";
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
@@ -45,7 +46,8 @@ import {
 } from "./node-scaffold-journal-gateway.js";
 import {
   NodeScaffoldJournalStore,
-  type ScaffoldJournalAuthority
+  type ScaffoldJournalAuthority,
+  type StoredScaffoldJournal
 } from "./node-scaffold-journal-store.js";
 import { scaffoldTransactionEvidenceExists } from "./node-scaffold-journal-transaction-evidence.js";
 import { createNodeFoundationCleanupTransition } from "../../../transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
@@ -58,6 +60,7 @@ interface ScaffoldAuthorityFaultPoint {
     | "after-journal-operation-published"
     | "after-journal-operation-publishing"
     | "after-journal-prepared"
+    | "after-recovery-scope-checked"
     | "after-journal-temporary-synced"
     | "after-journal-unlinked"
     | "after-temporary-synced"
@@ -69,7 +72,7 @@ interface ScaffoldAuthorityFaultPoint {
   readonly operationIndex?: number;
   readonly operationPath?: string;
 }
-type ScaffoldAuthorityFaultInjector = (
+export type ScaffoldAuthorityFaultInjector = (
   point: ScaffoldAuthorityFaultPoint
 ) => Promise<void> | void;
 function recoveryRequired(
@@ -85,8 +88,7 @@ function recoveryRequired(
 interface AuthorityContinuationOptions {
   readonly root: string;
   readonly journalPath: string;
-  readonly journal: AuthorityScaffoldJournal;
-  readonly journalAuthority: ScaffoldJournalAuthority;
+  readonly record: StoredScaffoldJournal;
   readonly journalStore: NodeScaffoldJournalStore;
   readonly journalFaultContext: ScaffoldJournalFaultContext;
   readonly recovered: boolean;
@@ -128,7 +130,7 @@ function snapshotAuthorityScaffoldPlan(
   return snapshot;
 }
 
-async function acquireScaffoldingTransaction(
+export async function acquireScaffoldingTransaction(
   canonicalRoot: string
 ): Promise<FoundationTransactionLease> {
   const coordinator = await createNodeFoundationTransactionCoordinator(canonicalRoot);
@@ -158,7 +160,7 @@ async function prepareJournal(
   | { readonly journal: AuthorityScaffoldJournal; readonly journalAuthority: ScaffoldJournalAuthority }
   | AuthorityScaffoldReceipt
 > {
-  let journal = options.journal;
+  let journal = options.record.journal;
   const initialAuthority = await resolveAuthority({ ...options, journal });
   if (initialAuthority !== undefined) {
     return initialAuthority;
@@ -170,7 +172,10 @@ async function prepareJournal(
     if (reconciled.conflictIds.size !== 0) {
       await replaceScaffoldJournalReconciled(
         options.journalStore,
-        { journal: options.journal, journalAuthority: options.journalAuthority },
+        {
+          journal: options.record.journal,
+          journalAuthority: options.record.authority
+        },
         journal,
       );
       return receiptFromJournalStates({
@@ -192,7 +197,10 @@ async function prepareJournal(
   }
   const journalAuthority = await replaceScaffoldJournalReconciled(
     options.journalStore,
-    { journal: options.journal, journalAuthority: options.journalAuthority },
+    {
+      journal: options.record.journal,
+      journalAuthority: options.record.authority
+    },
     journal
   );
   return { journal, journalAuthority };
@@ -311,7 +319,7 @@ async function publishPendingOperations(options: {
   return { journal, journalAuthority, receipts };
 }
 
-async function continueJournal(
+export async function continueAuthorityScaffoldJournal(
   options: AuthorityContinuationOptions
 ): Promise<AuthorityScaffoldReceipt> {
   const prepared = await prepareJournal(options);
@@ -382,11 +390,13 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
           "A different scaffolding transaction requires recovery before this Plan can apply."
         );
       }
-      return await continueJournal({
+      return await continueAuthorityScaffoldJournal({
         root: canonicalRoot,
         journalPath,
-        journal: existing.journal,
-        journalAuthority: existing.journalAuthority,
+        record: {
+          journal: existing.journal,
+          authority: existing.journalAuthority
+        },
         journalStore,
         journalFaultContext,
         recovered: true,
@@ -462,45 +472,14 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       journal
     );
     await faultInjector?.({ phase: "after-journal-prepared" });
-    return await continueJournal({
+    return await continueAuthorityScaffoldJournal({
       root: canonicalRoot,
       journalPath,
-      journal,
-      journalAuthority,
+      record: { journal, authority: journalAuthority },
       journalStore,
       journalFaultContext,
       recovered: false,
       ...(faultInjector === undefined ? {} : { faultInjector })
-    });
-  } finally {
-    await releaseFoundationTransactionLeaseSafely({
-      lease,
-      inspectRetainTransactionBarrier: () => scaffoldTransactionEvidenceExists(journalPath)
-    });
-  }
-}
-
-export async function recoverAuthorityFilesystemScaffold(
-  consumerRoot: string): Promise<AuthorityScaffoldReceipt | undefined> {
-  const canonicalRoot = await realpath(resolve(consumerRoot));
-  const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
-  const lease = await acquireScaffoldingTransaction(canonicalRoot);
-  try {
-    const journalStore = new NodeScaffoldJournalStore(canonicalRoot);
-    const journalFaultContext: ScaffoldJournalFaultContext = {};
-    const record = await readScaffoldJournal(journalStore);
-    if (record === undefined) {
-      return undefined;
-    }
-    assertSafeOperationPaths(record.journal.plan);
-    return await continueJournal({
-      root: canonicalRoot,
-      journalPath,
-      journal: record.journal,
-      journalAuthority: record.journalAuthority,
-      journalStore,
-      journalFaultContext,
-      recovered: true
     });
   } finally {
     await releaseFoundationTransactionLeaseSafely({

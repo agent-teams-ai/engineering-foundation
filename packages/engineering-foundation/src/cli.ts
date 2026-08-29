@@ -19,7 +19,7 @@ import { runDocumentCommand } from "./document-command.js";
 import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { loadFoundationConfig } from "./foundation-config.js";
 import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
-import { NodeProcessRunner } from "./local-mode/process-runner.js";
+import { createNodeProcessRunner } from "./local-mode/process-runner.js";
 import { FoundationLocalModeService } from "./local-mode/service.js";
 import type {
   FoundationDevOnlyStatus,
@@ -444,7 +444,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   const parsed = parseArguments(rawArguments);
   const json = parsed.format === "json";
   const service = new FoundationLocalModeService({
-    runner: new NodeProcessRunner(),
+    runner: createNodeProcessRunner(environment),
     now: systemNow
   });
   if (

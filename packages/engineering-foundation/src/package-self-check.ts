@@ -38,12 +38,16 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "dist/scaffolding/index.d.ts",
   "dist/scaffolding/index.js",
   ...FOUNDATION_REQUIRED_PRESET_PATHS,
-  ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`)
+  ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`),
+  "assets/windows-managed-process/bootstrap.ps1",
+  "assets/windows-managed-process/WindowsManagedProcess.cs"
 ] as const;
 export const FOUNDATION_PACKAGE_FILE_ALLOWLIST = [
   "dist",
   ...FOUNDATION_REQUIRED_PRESET_PATHS,
   ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`),
+  "assets/windows-managed-process/bootstrap.ps1",
+  "assets/windows-managed-process/WindowsManagedProcess.cs",
   "LICENSE",
   "README.md"
 ] as const;

@@ -1,5 +1,22 @@
 # @agent-teams/engineering-foundation
 
+## 0.21.0
+
+### Minor Changes
+
+- [#217](https://github.com/agent-teams-ai/engineering-foundation/pull/217) [`24c7b35`](https://github.com/agent-teams-ai/engineering-foundation/commit/24c7b355123cab25a8d143f29e48adb33874fbdf) Thanks [@777genius](https://github.com/777genius)! - Add the immutable four-field v1 scoped scaffolding recovery overload while
+  preserving the existing one-argument API, CLI, journal protocol, and portable
+  recovery. Scope paths follow the published v1 schema without host-specific
+  narrowing.
+
+### Patch Changes
+
+- [#217](https://github.com/agent-teams-ai/engineering-foundation/pull/217) [`24c7b35`](https://github.com/agent-teams-ai/engineering-foundation/commit/24c7b355123cab25a8d143f29e48adb33874fbdf) Thanks [@777genius](https://github.com/777genius)! - Emit one canonical JSON error envelope when SIGINT or SIGTERM cancels quality-gate
+  configuration or catalog loading, with exit codes 130 and 143 respectively.
+  Retain an already observed successful task as passed with exit code 0 while the
+  aggregate run is cancelled, and keep task or containment failures authoritative
+  over cancellation.
+
 ## 0.20.0
 
 ### Minor Changes

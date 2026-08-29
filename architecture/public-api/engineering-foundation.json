@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "0.20.0",
+  "packageVersion": "0.21.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -4812,6 +4812,41 @@
       "exportPath": "./scaffolding",
       "items": [
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope#compositionId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly compositionId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope#configPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly configPath: RepositoryPath;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope#projectId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly projectId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope#targetCatalogPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly targetCatalogPath: RepositoryPath;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!AuthorityScaffoldRecoveryScope:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface AuthorityScaffoldRecoveryScope"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!ConfiguredDefinition#parameters:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ConfiguredDefinition:interface",
@@ -5687,6 +5722,13 @@
           "signature": "export type ScaffoldReceiptOutcome = \"already-applied\" | \"applied\" | \"authority-stale\" | \"failed-recovered\" | \"recovery-required\" | \"rejected\";"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldRecoveryScope:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ScaffoldRecoveryScope = AuthorityScaffoldRecoveryScope;"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldSatisfiedOperationReceipt:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/engineering-foundation!",
@@ -5888,6 +5930,13 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function recoverFilesystemScaffold(consumerRoot: string): Promise<ScaffoldReceipt | undefined>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!recoverFilesystemScaffold:function(2)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function recoverFilesystemScaffold(consumerRoot: string, scope: ScaffoldRecoveryScope): Promise<ScaffoldReceipt | undefined>;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!validateScaffoldReceipt:function(1)",

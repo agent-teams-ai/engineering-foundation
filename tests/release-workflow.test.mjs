@@ -512,14 +512,12 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["published-compatibility:e2e"],
     "node scripts/published-compatibility-e2e.mjs",
   );
-  assert.equal(
-    ci.jobs["linux-published"].steps.at(-1).run,
-    "pnpm published-compatibility:e2e",
-  );
-  assert.equal(
-    ci.jobs["windows-published"].steps.at(-1).run,
-    "pnpm published-compatibility:e2e",
-  );
+  for (const name of ["linux-published", "windows-published"]) {
+    const step = ci.jobs[name].steps.at(-1);
+    assert.deepEqual([step.run, step.env], [
+      "pnpm published-compatibility:e2e", { GH_TOKEN: "${{ github.token }}" },
+    ]);
+  }
   const windowsTestA = ci.jobs["windows-test-a"];
   const windowsTestB = ci.jobs["windows-test-b"];
   assert.deepEqual(

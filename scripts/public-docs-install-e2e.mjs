@@ -1,6 +1,8 @@
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { parse as parseYaml } from "yaml";
+
 import { createPnpmRunner, runNpmCommand } from "./pack-test-support.mjs";
 import { verifyGithubTagRelease } from "./github-release-reconciliation.mjs";
 import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtime.mjs";
@@ -17,8 +19,8 @@ const runPnpm = createPnpmRunner();
 const DEPENDENCY_SECTIONS = [
   "dependencies", "optionalDependencies", "peerDependencies", "devDependencies",
 ];
-const LOCAL_DEPENDENCY_PROTOCOL = /^(?:file|link|workspace):/u;
-const LOCAL_LOCKFILE_PROTOCOL = /(?:^|[\t "'=])(?:file|link|workspace):/mu;
+const LOCAL_DEPENDENCY_PROTOCOL = /^(?:file|git\+file|link|workspace):/u;
+const LOCAL_LOCKFILE_REFERENCE = /(?:^|@)(?:file|git\+file|link|workspace):/u;
 const PUBLIC_NPM_REGISTRY = "https://registry.npmjs.org/";
 const PUBLIC_PACKAGE_IDENTITIES = Object.freeze({
   cli: Object.freeze({
@@ -90,8 +92,52 @@ async function observePublishedPackages(coordinates, registry, dependencies = {}
   })));
 }
 
+function parsedLockfileEvidence(lockfile) {
+  let parsedLockfile;
+  try {
+    parsedLockfile = typeof lockfile === "string"
+      ? parseYaml(lockfile, { maxAliasCount: 100, schema: "core" })
+      : undefined;
+  } catch {
+    throw new Error("Public Docs lockfile is not valid JSON or YAML.");
+  }
+  if (typeof parsedLockfile !== "object" || parsedLockfile === null || Array.isArray(parsedLockfile)) {
+    throw new Error("Public Docs lockfile is not valid JSON or YAML.");
+  }
+  return parsedLockfile;
+}
+
+function hasLocalLockfileReference(lockfile) {
+  const pending = [lockfile];
+  const seen = new Set();
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (typeof current !== "object" || current === null) {
+      if (typeof current === "string" && LOCAL_LOCKFILE_REFERENCE.test(current)) {
+        return true;
+      }
+      continue;
+    }
+    if (seen.has(current)) {
+      continue;
+    }
+    seen.add(current);
+    if (Array.isArray(current)) {
+      pending.push(...current);
+      continue;
+    }
+    for (const [key, value] of Object.entries(current)) {
+      if (LOCAL_LOCKFILE_REFERENCE.test(key)) {
+        return true;
+      }
+      pending.push(value);
+    }
+  }
+  return false;
+}
+
 export function assertRegistryOnlyInstallEvidence({ lockfile, manifests }) {
-  if (typeof lockfile !== "string" || LOCAL_LOCKFILE_PROTOCOL.test(lockfile)) {
+  if (hasLocalLockfileReference(parsedLockfileEvidence(lockfile))) {
     throw new Error("Public Docs lockfile contains a local or workspace dependency.");
   }
   for (const { manifest, name, version } of manifests) {

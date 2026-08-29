@@ -304,6 +304,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm published-compatibility:e2e
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   check:
     name: check
@@ -444,6 +446,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm published-compatibility:e2e
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   windows-check:
     name: windows-check

@@ -5,6 +5,7 @@ import {
   validateTestManifestData,
   validateTestManifests,
 } from "../scripts/check-test-manifests.mjs";
+import { builtTestArguments } from "../scripts/run-built-tests.mjs";
 
 function fixture() {
   return {
@@ -45,9 +46,25 @@ function fixture() {
 test("repository test manifests cover every top-level test exactly once", async () => {
   const result = await validateTestManifests();
   assert.equal(result.testCount, 160);
+  assert.equal(result.tests.length, result.testCount);
+  assert.ok(result.tests.includes("packages/docs-protocol/tests/docs-protocol.test.mjs"));
+  assert.ok(result.tests.includes("packages/docs-protocol-mcp/tests/mcp-e2e.test.mjs"));
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
   assert.equal([...result.shards.values()].flat().length, 136);
   assert.equal([...result.coverageShards.values()].flat().length, 160);
+});
+
+test("built test runner consumes the validated inventory without shell globs", () => {
+  assert.deepEqual(
+    builtTestArguments({ tests: ["tests/a.test.mjs", "packages/example/tests/b.test.mjs"] }),
+    [
+      "--test",
+      "--test-concurrency=1",
+      "tests/a.test.mjs",
+      "packages/example/tests/b.test.mjs",
+    ],
+  );
+  assert.throws(() => builtTestArguments({ tests: [] }), /non-empty validated test inventory/u);
 });
 
 test("test manifests fail closed for missing, duplicate, and nonexistent coverage tests", () => {

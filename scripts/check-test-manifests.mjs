@@ -1,12 +1,18 @@
 import { lstat, readFile, readdir } from "node:fs/promises";
-import { basename, dirname, join, resolve, sep } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 
 const scriptRoot = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = dirname(scriptRoot);
 const shardManifestPath = join(repositoryRoot, "tests", "manifests", "test-shards.v1.json");
 const coverageManifestPath = join(repositoryRoot, "tests", "manifests", "coverage.v1.json");
-const portableTestPath = /^(?:tests|packages\/(?:docs-protocol|docs-protocol-mcp)\/tests)\/[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
+const testRoots = Object.freeze([
+  "tests",
+  ...PUBLISHABLE_PACKAGES.map(({ root }) => `${root}/tests`),
+]);
+const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
 function fail(message) {
@@ -24,20 +30,30 @@ function assertExactKeys(value, keys, label) {
   }
 }
 
+function compareDirectoryEntries(left, right) {
+  const leftPath = `${left.parentPath ?? left.path}/${left.name}`;
+  const rightPath = `${right.parentPath ?? right.path}/${right.name}`;
+  return leftPath < rightPath ? -1 : leftPath > rightPath ? 1 : 0;
+}
+
 function validatePath(path, label) {
-  if (typeof path !== "string" || !portableTestPath.test(path)) {
+  const relativeRoot = typeof path === "string"
+    ? testRoots.find((candidate) => path.startsWith(`${candidate}/`))
+    : undefined;
+  const filename = relativeRoot === undefined ? undefined : path.slice(relativeRoot.length + 1);
+  if (
+    filename === undefined ||
+    filename.includes("/") ||
+    !portableTestFilename.test(filename)
+  ) {
     fail(`${label} must be a portable top-level test path: ${String(path)}`);
   }
-  const filename = basename(path);
   if (windowsReservedTestName.test(filename)) {
     fail(`${label} uses a Windows-reserved filename: ${path}`);
   }
   const absolute = resolve(repositoryRoot, ...path.split("/"));
-  const allowedRoots = [
-    `${resolve(repositoryRoot, "tests")}${sep}`,
-    `${resolve(repositoryRoot, "packages", "docs-protocol", "tests")}${sep}`,
-    `${resolve(repositoryRoot, "packages", "docs-protocol-mcp", "tests")}${sep}`,
-  ];
+  const allowedRoots = testRoots.map((root) =>
+    `${resolve(repositoryRoot, ...root.split("/"))}${sep}`);
   if (!allowedRoots.some((root) => absolute.startsWith(root))) {
     fail(`${label} escapes the allowed test directories: ${path}`);
   }
@@ -203,6 +219,7 @@ export function validateTestManifestData({ shardManifest, coverageManifest, test
     ),
     coverageTests: Object.freeze([...coverageManifest.legacyTests]),
     shards: new Map(shardManifest.shards.map((shard) => [shard.id, Object.freeze([...shard.tests])])),
+    tests: Object.freeze([...testPaths]),
     testCount: testPaths.length,
   });
 }
@@ -213,11 +230,18 @@ async function readJson(path) {
 
 export async function validateTestManifests() {
   const testPaths = [];
-  const testRoots = ["tests", "packages/docs-protocol/tests", "packages/docs-protocol-mcp/tests"];
   for (const relativeRoot of testRoots) {
     const testsRoot = resolve(repositoryRoot, ...relativeRoot.split("/"));
-    const entries = await readdir(testsRoot, { withFileTypes: true, recursive: true });
-    for (const entry of entries) {
+    let entries;
+    try {
+      entries = await readdir(testsRoot, { withFileTypes: true, recursive: true });
+    } catch (error) {
+      if (relativeRoot !== "tests" && error?.code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
+    for (const entry of entries.toSorted(compareDirectoryEntries)) {
       if (!entry.name.endsWith(".test.mjs")) {
         continue;
       }

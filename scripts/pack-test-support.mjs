@@ -3,8 +3,6 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { spawnWindowsManagedProcess } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js";
-
 const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4";
 const commandMaxBufferBytes = 16 * 1024 * 1024;
 const commandMaxTimeoutMs = 2_147_483_647;
@@ -154,6 +152,15 @@ function waitForExit(child) {
   });
 }
 
+async function windowsProcessSpawner() {
+  if (process.platform !== "win32") {
+    return null;
+  }
+  return (await import(
+    "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js"
+  )).spawnWindowsManagedProcess;
+}
+
 function terminateWindowsProcessTree(child) {
   if (child.exitCode === null && child.signalCode === null) {
     child.kill("SIGKILL");
@@ -209,6 +216,7 @@ export async function runCommand(command, args, cwd, options = {}) {
       timeoutMs
     });
   }
+  const spawnWindowsManagedProcess = await windowsProcessSpawner();
   let resolveForcedTermination;
   const forcedTermination = new Promise((_resolve) => {
     resolveForcedTermination = _resolve;

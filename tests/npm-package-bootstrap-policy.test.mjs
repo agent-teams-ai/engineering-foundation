@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -23,7 +23,10 @@ import {
   verifyLiveBootstrapBaselines,
   verifyReleaseBootstrapBaselines,
 } from "../scripts/npm-package-bootstrap.mjs";
-import { prove as proveLiveBootstrap } from "../scripts/npm-package-bootstrap-cli.mjs";
+import {
+  assertWorkspaceManifestMatchesProfile,
+  prove as proveLiveBootstrap,
+} from "../scripts/npm-package-bootstrap-cli.mjs";
 import { main as releasePublishMain } from "../scripts/release-publish.mjs";
 
 const mcpProfile = bootstrapPackageById("docs-protocol-mcp", { approved: true });
@@ -145,6 +148,7 @@ test("bootstrap catalog is closed, data-only, and owns one historical and one ap
     (value) => { value.extra = true; },
     (value) => { value.packages[0].root = "../escape"; },
     (value) => { value.packages[0].dependencies[0].version = "latest"; },
+    (value) => { value.packages[1].dependencies[1].specifier = "latest"; },
     (value) => { value.packages[0].contentPolicy.prefixes = ["dist/file.js"]; },
     (value) => { value.packages[0].approval.packageTree = "not-a-tree"; },
     (value) => { value.packages[1].approval = { archiveIntegrity: "bad", packageTree: "a".repeat(40) }; },
@@ -153,6 +157,28 @@ test("bootstrap catalog is closed, data-only, and owns one historical and one ap
     mutation(value);
     assert.throws(() => parseBootstrapCatalog(value), /bootstrap refused/u);
   }
+});
+
+test("bootstrap workspace authority distinguishes internal and catalog dependencies", async () => {
+  const manifest = JSON.parse(await readFile(
+    new URL("../packages/docs-protocol-mcp/package.json", import.meta.url),
+    "utf8",
+  ));
+  assert.doesNotThrow(() => assertWorkspaceManifestMatchesProfile(mcpProfile, manifest));
+
+  const catalogDrift = structuredClone(manifest);
+  catalogDrift.dependencies["@modelcontextprotocol/server"] = "workspace:*";
+  assert.throws(
+    () => assertWorkspaceManifestMatchesProfile(mcpProfile, catalogDrift),
+    /specifier mismatch for @modelcontextprotocol\/server/u,
+  );
+
+  const unexpectedDependency = structuredClone(manifest);
+  unexpectedDependency.dependencies["unexpected-package"] = "1.0.0";
+  assert.throws(
+    () => assertWorkspaceManifestMatchesProfile(mcpProfile, unexpectedDependency),
+    /runtime dependency names differ/u,
+  );
 });
 
 test("bootstrap accepts only a live granular token window of at most one day", () => {

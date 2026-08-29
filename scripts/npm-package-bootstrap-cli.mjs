@@ -31,9 +31,7 @@ async function tokenWindow(args) {
   assertOneDayGranularTokenWindow({ createdAt: args[0], expiresAt: args[1], now: args[2] });
 }
 
-async function prepare(args) {
-  const profile = bootstrapPackageById(args[0], { approved: true });
-  const manifest = JSON.parse(await readFile(profile.manifestPath, "utf8"));
+export function assertWorkspaceManifestMatchesProfile(profile, manifest) {
   if (
     manifest.name !== profile.name || manifest.version !== profile.bootstrapVersion || manifest.private === true ||
     manifest.publishConfig?.access !== "public" || manifest.publishConfig.provenance !== true ||
@@ -41,11 +39,22 @@ async function prepare(args) {
   ) {
     fail("workspace manifest does not match approved public bootstrap authority.");
   }
+  const dependencyNames = Object.keys(manifest.dependencies ?? {}).toSorted();
+  const expectedNames = profile.dependencies.map(({ name }) => name).toSorted();
+  if (JSON.stringify(dependencyNames) !== JSON.stringify(expectedNames)) {
+    fail("workspace manifest runtime dependency names differ from bootstrap authority.");
+  }
   for (const dependency of profile.dependencies) {
-    if (manifest.dependencies?.[dependency.name] !== "workspace:*") {
-      fail(`workspace manifest must use workspace:* for ${dependency.name}.`);
+    if (manifest.dependencies[dependency.name] !== dependency.specifier) {
+      fail(`workspace manifest dependency specifier mismatch for ${dependency.name}.`);
     }
   }
+}
+
+async function prepare(args) {
+  const profile = bootstrapPackageById(args[0], { approved: true });
+  const manifest = JSON.parse(await readFile(profile.manifestPath, "utf8"));
+  assertWorkspaceManifestMatchesProfile(profile, manifest);
   await output(args[1], {
     deprecationMessage: profile.deprecationMessage,
     name: profile.name,

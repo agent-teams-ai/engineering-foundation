@@ -41,7 +41,7 @@
     "public-docs-release:e2e": "node scripts/public-docs-release-e2e.mjs",
     "check:affected": "nx affected -t build --exclude=@agent-teams/engineering-foundation-repository",
     "package:check": "pnpm build && pnpm package:check:built",
-    "package:check:built": "node scripts/prepare-package.mjs && publint packages/engineering-foundation && publint packages/docs-protocol && publint packages/docs-protocol-mcp && attw --pack --profile esm-only packages/engineering-foundation && attw --pack --profile esm-only packages/docs-protocol && attw --pack --profile esm-only packages/docs-protocol-mcp && node scripts/pack-test.mjs",
+    "package:check:built": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs",
     "parser-spike:check": "pnpm --filter @agent-teams/source-dependency-parser-spike run check",
     "registry-install-e2e": "pnpm package:check && pnpm registry-install-e2e:built",
     "registry-install-e2e:built": "node scripts/registry-install-e2e.mjs",

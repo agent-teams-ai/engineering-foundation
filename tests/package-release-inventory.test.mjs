@@ -14,6 +14,7 @@ import {
   assertArchiveListing,
   createCleanBuildStage,
 } from "../scripts/pack-artifact-e2e.mjs";
+import { publishablePackageCheckPlan } from "../scripts/check-publishable-packages.mjs";
 import {
   registryQualificationPackages,
   stageQualificationPackage,
@@ -60,6 +61,20 @@ test("versioned release graph is the single topologically ordered package author
     PUBLISHABLE_PACKAGE_DEPENDENCIES,
   );
   assert.throws(() => PACKAGE_RELEASE_GRAPH.packages.push(releaseGraphPackage()), TypeError);
+});
+
+test("package lint and type-surface checks derive from the versioned release graph", () => {
+  const plan = publishablePackageCheckPlan(PUBLISHABLE_PACKAGES);
+  assert.equal(plan.length, PUBLISHABLE_PACKAGES.length * 2);
+  for (const [index, releasePackage] of PUBLISHABLE_PACKAGES.entries()) {
+    assert.deepEqual(plan.slice(index * 2, index * 2 + 2), [
+      { arguments: [releasePackage.root], tool: "publint" },
+      {
+        arguments: ["--pack", "--profile", "esm-only", releasePackage.root],
+        tool: "attw",
+      },
+    ]);
+  }
 });
 
 test("versioned release graph rejects ambiguity, escapes and non-topological edges", () => {

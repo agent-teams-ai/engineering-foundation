@@ -18,6 +18,17 @@ const DEPENDENCY_SECTIONS = [
   "dependencies", "optionalDependencies", "peerDependencies", "devDependencies",
 ];
 const LOCAL_DEPENDENCY_PROTOCOL = /^(?:file|link|workspace):/u;
+const PUBLIC_NPM_REGISTRY = "https://registry.npmjs.org/";
+const PUBLIC_PACKAGE_IDENTITIES = Object.freeze({
+  cli: Object.freeze({
+    name: "@agent-teams/docs-protocol",
+    registryPath: "%40agent-teams%2Fdocs-protocol",
+  }),
+  mcp: Object.freeze({
+    name: "@agent-teams/docs-protocol-mcp",
+    registryPath: "%40agent-teams%2Fdocs-protocol-mcp",
+  }),
+});
 
 async function json(path) {
   return JSON.parse(await readFile(path, "utf8"));
@@ -34,11 +45,11 @@ async function observePublishedPackages(coordinates, registry, dependencies = {}
   if (!Number.isSafeInteger(attempts) || attempts < 1 || attempts > 5) {
     throw new Error("Public npm observation attempts must be between one and five.");
   }
-  return Object.fromEntries(await Promise.all(coordinates.map(async ({ name }) => {
+  return Object.fromEntries(await Promise.all(coordinates.map(async ({ name, registryPath }) => {
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       let response;
       try {
-        response = await fetchRegistry(`${registry}${name.replace("/", "%2f")}`, {
+        response = await fetchRegistry(`${registry}${registryPath}`, {
           signal: AbortSignal.timeout(10_000),
         });
       } catch (error) {
@@ -216,10 +227,18 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, depend
     "../architecture/foundation/open-source-docs-release.json",
     import.meta.url,
   ));
-  const coordinates = Object.freeze(Object.values(authority.packages).map(({ name, version }) =>
-    Object.freeze({ name, version })));
+  if (authority.registry !== PUBLIC_NPM_REGISTRY) {
+    throw new Error("Public Docs authority must use the pinned public npm registry.");
+  }
+  const coordinates = Object.freeze(Object.entries(authority.packages).map(([id, { name, version }]) => {
+    const identity = PUBLIC_PACKAGE_IDENTITIES[id];
+    if (identity?.name !== name) {
+      throw new Error(`Public Docs authority contains an untrusted package identity for ${id}.`);
+    }
+    return Object.freeze({ name, registryPath: identity.registryPath, version });
+  }));
   const observe = dependencies.observePublishedPackages ?? observePublishedPackages;
-  const published = await observe(coordinates, authority.registry, dependencies);
+  const published = await observe(coordinates, PUBLIC_NPM_REGISTRY, dependencies);
   const decision = registryDecision(coordinates, published);
   if (decision.status === "pending") {
     return decision;
@@ -236,7 +255,7 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, depend
       coordinates,
       matrixEntry,
       mcpName: authority.packages.mcp.name,
-      registry: authority.registry,
+      registry: PUBLIC_NPM_REGISTRY,
       temporaryRoot,
     }));
   }
@@ -246,7 +265,7 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, depend
   }
   const audit = dependencies.auditSignatures ?? npmAuditSignatures;
   const auditEvidence = await audit({
-    registry: authority.registry,
+    registry: PUBLIC_NPM_REGISTRY,
     root: npmPair.root,
     userConfigPath: npmPair.userConfigPath,
   });
@@ -266,7 +285,7 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, depend
   for (const artifact of decision.artifacts) {
     await verifyGithub(`${artifact.name}@${artifact.version}`, commit, { repository });
   }
-  const finalPublished = await observe(coordinates, authority.registry, dependencies);
+  const finalPublished = await observe(coordinates, PUBLIC_NPM_REGISTRY, dependencies);
   const finalDecision = registryDecision(coordinates, finalPublished);
   if (finalDecision.status !== "ready") {
     throw new Error("Public Docs coordinates became unavailable during qualification.");

@@ -181,8 +181,6 @@ jobs:
               "${TOKEN_CREATED_AT}" "${TOKEN_EXPIRES_AT}" \
               "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           }
-          expected_deprecation="$(node -e 'process.stdout.write(JSON.stringify(process.argv[1]))' \
-            "${DEPRECATION_MESSAGE}")"
           evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
           if [[ "${OPERATION}" == "quarantine" ]]; then
             test "${REGISTRY_ACTION}" = "reuse"
@@ -190,11 +188,11 @@ jobs:
             node scripts/npm-package-bootstrap-cli.mjs quarantine-final-proof \
               "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" \
               "${evidence_root}/quarantine-before-mutation.json"
-            current_deprecation="$(
-              jq -c '.deprecatedMessage' \
+            deprecation_matches="$(
+              jq -r 'if (.live.deprecationMatches | type) == "boolean" then (.live.deprecationMatches | tostring) else error("invalid evidence") end' \
                 "${evidence_root}/quarantine-before-mutation.json"
             )"
-            if [[ "${current_deprecation}" != "${expected_deprecation}" ]]; then
+            if [[ "${deprecation_matches}" != "true" ]]; then
               assert_fresh_main
               assert_token_window
               NODE_AUTH_TOKEN="${npm_token}" \
@@ -225,19 +223,20 @@ jobs:
           node scripts/npm-package-bootstrap-cli.mjs mutation-proof \
             "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
             "${evidence_root}/mutation-audit.json"
-          current_deprecation="$(
-            jq -c '.live.deprecatedMessage' "${evidence_root}/mutation-audit.json"
+          deprecation_matches="$(
+            jq -r 'if (.live.deprecationMatches | type) == "boolean" then (.live.deprecationMatches | tostring) else error("invalid evidence") end' \
+              "${evidence_root}/mutation-audit.json"
           )"
-          if [[ "${current_deprecation}" != "${expected_deprecation}" ]]; then
+          if [[ "${deprecation_matches}" != "true" ]]; then
             assert_fresh_main_bounded
             node scripts/npm-package-bootstrap-cli.mjs quarantine-final-proof \
               "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" \
               "${evidence_root}/registry-before-deprecation.json"
-            current_deprecation="$(
-              jq -c '.deprecatedMessage' \
+            deprecation_matches="$(
+              jq -r 'if (.live.deprecationMatches | type) == "boolean" then (.live.deprecationMatches | tostring) else error("invalid evidence") end' \
                 "${evidence_root}/registry-before-deprecation.json"
             )"
-            if [[ "${current_deprecation}" != "${expected_deprecation}" ]]; then
+            if [[ "${deprecation_matches}" != "true" ]]; then
               assert_fresh_main
               assert_token_window
               NODE_AUTH_TOKEN="${npm_token}" \

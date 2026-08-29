@@ -204,10 +204,12 @@ test("non-required public observation can use one read without passive retry del
   try {
     let requests = 0;
     let delays = 0;
+    const urls = [];
     const result = await verifyPublicExactDocsCoordinates({ temporaryRoot: root }, {
       delay: async () => { delays += 1; },
-      fetchRegistry: async () => {
+      fetchRegistry: async (url) => {
         requests += 1;
+        urls.push(url);
         return { ok: false, status: 404 };
       },
       observationAttempts: 1,
@@ -215,6 +217,10 @@ test("non-required public observation can use one read without passive retry del
     assert.equal(result.status, "pending");
     assert.equal(requests, 2);
     assert.equal(delays, 0);
+    assert.deepEqual(urls, [
+      "https://registry.npmjs.org/%40agent-teams%2Fdocs-protocol",
+      "https://registry.npmjs.org/%40agent-teams%2Fdocs-protocol-mcp",
+    ]);
   } finally {
     await rm(root, { force: true, recursive: true });
   }

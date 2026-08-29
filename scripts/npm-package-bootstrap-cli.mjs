@@ -77,6 +77,30 @@ async function registryPreflight(args, observationOptions) {
   await output(args[2], { action });
 }
 
+function verifiedEvidence({ deprecationMatches, expectedCommit, localIntegrity, profile }) {
+  const evidence = {
+    schemaVersion: 1,
+    verified: true,
+    package: {
+      integrity: localIntegrity,
+      name: profile.name,
+      version: profile.bootstrapVersion,
+    },
+    live: {
+      deprecationMatches,
+    },
+  };
+  if (expectedCommit !== undefined) {
+    evidence.provenance = {
+      commit: expectedCommit,
+      ref: profile.provenance.ref,
+      repository: NPM_PACKAGE_BOOTSTRAP.repository,
+      workflow: profile.provenance.workflowPath,
+    };
+  }
+  return evidence;
+}
+
 export async function prove(
   args,
   assertion,
@@ -102,7 +126,13 @@ export async function prove(
     profile,
     publishedIntegrity: live.integrity,
   });
-  await writeEvidence(args[3], `${JSON.stringify({ auditEvidence, live }, null, 2)}\n`, "utf8");
+  const evidence = verifiedEvidence({
+    deprecationMatches: live.deprecatedMessage === profile.deprecationMessage,
+    expectedCommit: args[2],
+    localIntegrity: args[1],
+    profile,
+  });
+  await writeEvidence(args[3], `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 }
 
 async function proveQuarantine(args, assertion, observationOptions) {
@@ -121,7 +151,12 @@ async function proveQuarantine(args, assertion, observationOptions) {
     profile,
     publishedIntegrity: live.integrity,
   });
-  await writeFile(args[2], `${JSON.stringify(live, null, 2)}\n`, "utf8");
+  const evidence = verifiedEvidence({
+    deprecationMatches: live.deprecatedMessage === profile.deprecationMessage,
+    localIntegrity: args[1],
+    profile,
+  });
+  await writeFile(args[2], `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 }
 
 const handlers = Object.freeze({

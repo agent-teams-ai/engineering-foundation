@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { resolve } from "node:path";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -12,6 +14,7 @@ import {
   assertBootstrapReleasePolicy,
   assertReusableBootstrap,
   assertOneDayGranularTokenWindow,
+  auditLivePackage,
   bootstrapPackageById,
   classifyRegistryPreflight,
   observeRegistryPreflight,
@@ -341,6 +344,59 @@ test("mutation proof audits first and rejects registry state changed during the 
     },
   ), /unexpected bootstrap dist-tag/u);
   assert.deepEqual(events, ["audit", "fresh-registry-read"]);
+});
+
+test("mutation proof stores only validated evidence fields", async () => {
+  const profile = mcpProfile;
+  const remoteCanary = "UNTRUSTED_REMOTE_EVIDENCE_CANARY";
+  let written;
+  const audit = auditEvidence(profile);
+  audit.remoteCanary = remoteCanary;
+  await proveLiveBootstrap(
+    ["docs-protocol-mcp", profile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    assertBootstrapMutationPreconditions,
+    "bootstrap mutation target remained absent.",
+    {
+      auditPackage: async () => audit,
+      liveEvidence: async () => ({
+        deprecatedMessage: remoteCanary,
+        integrity: profile.approval.archiveIntegrity,
+        metadata: bootstrapMetadata(profile),
+      }),
+      writeEvidence: async (_path, value) => { written = value; },
+    },
+  );
+  const evidence = JSON.parse(written);
+  assert.equal(written.includes(remoteCanary), false);
+  assert.equal(evidence.live.deprecationMatches, false);
+  assert.equal(evidence.package.integrity, profile.approval.archiveIntegrity);
+  assert.equal(evidence.provenance.commit, reviewedCommit);
+  assert.equal(evidence.verified, true);
+});
+
+test("npm signature audit uses the shared cross-platform command runner", async () => {
+  const root = await mkdtemp(join(tmpdir(), "npm-bootstrap-runner-test-"));
+  const calls = [];
+  const expected = { invalid: [], missing: [], verified: [] };
+  try {
+    const result = await auditLivePackage(mcpProfile, root, {
+      attempts: 1,
+      runNpm: async (args, cwd, options) => {
+        calls.push({ args, cwd, options });
+        return {
+          stderr: "",
+          stdout: args[0] === "audit" ? JSON.stringify(expected) : "",
+        };
+      },
+    });
+    assert.deepEqual(result, expected);
+    assert.deepEqual(calls.map(({ args }) => args[0]), ["install", "audit"]);
+    assert.equal(calls[0].cwd, calls[1].cwd);
+    assert.ok(calls.every(({ options }) => options.timeoutMs === 120_000));
+    assert.deepEqual(await readdir(root), []);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test("quarantine deprecates exact bytes but never substitutes for provenance", () => {

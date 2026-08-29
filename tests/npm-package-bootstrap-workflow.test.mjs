@@ -122,6 +122,8 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.match(reconcile.if, /inputs\.operation == 'bootstrap'/u);
   assert.match(registrySource, /"audit", "signatures", "--json", "--include-attestations"/u);
   assert.match(registrySource, /`--@agent-teams:registry=\$\{registry\}`/u);
+  assert.match(registrySource, /runNpmCommand/u);
+  assert.doesNotMatch(registrySource, /execFile|npm\.cmd/u);
   assert.equal(reconcile.needs, "bootstrap");
   assert.deepEqual(reconcile.permissions, { contents: "write" });
   assert.match(reconcile.steps[0].uses, /^actions\/checkout@[a-f0-9]{40}$/u);

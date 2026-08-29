@@ -80,7 +80,9 @@ function disposeControl(child: ChildProcess, control: WindowsProcessControl): vo
 }
 
 function disposeControlAfterWrapperExit(child: ChildProcess, control: WindowsProcessControl): void {
-  const disposeAfterExit = () => disposeControl(child, control);
+  const disposeAfterExit = () => {
+    disposeControl(child, control);
+  };
   child.once("exit", disposeAfterExit);
   if (child.exitCode !== null || child.signalCode !== null) {
     child.removeListener("exit", disposeAfterExit);
@@ -163,7 +165,9 @@ export function spawnWindowsManagedProcess(
     throw error;
   }
   windowsProcessControls.set(child, control);
-  child.once("error", () => cleanUpWindowsManagedProcessLaunchFailure(child));
+  child.once("error", () => {
+    cleanUpWindowsManagedProcessLaunchFailure(child);
+  });
   const bootstrapInput = child.stdin;
   if (bootstrapInput === null) {
     try {
@@ -292,8 +296,8 @@ async function failAfterForcingWrapperExit(
   try {
     await forceAndWaitForWrapperExit(child, control);
   } catch (cleanupError) {
-    const cleanupErrors = cleanupError instanceof AggregateError ?
-      cleanupError.errors :
+    const cleanupErrors: readonly unknown[] = cleanupError instanceof AggregateError ?
+      cleanupError.errors as readonly unknown[] :
       [cleanupError];
     const aggregateError = new AggregateError(
       [originalError, ...cleanupErrors],

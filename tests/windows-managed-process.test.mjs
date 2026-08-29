@@ -207,6 +207,23 @@ windowsTest("uses absolute SystemRoot PowerShell despite cwd and early PATH deco
   }
 });
 
+windowsTest("preserves a real nonzero managed-process result", { timeout: TEST_TIMEOUT_MS }, async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation Windows nonzero exit "));
+  try {
+    const child = spawnWindowsManagedProcess({
+      command: process.execPath,
+      args: ["-e", "process.exit(23)"],
+      cwd: root
+    });
+    const [exitCode] = await once(child, "exit");
+    assert.equal(exitCode, 23);
+    await waitForWindowsManagedProcessContainment(child);
+    assert.equal(child.exitCode, 23);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 windowsTest("terminates and awaits every descendant in the assigned Job Object", { timeout: TEST_TIMEOUT_MS }, async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation Windows job "));
   const descendantPath = join(root, "descendant.json");
@@ -232,6 +249,7 @@ windowsTest("terminates and awaits every descendant in the assigned Job Object",
     if (child.exitCode === null && child.signalCode === null) {
       await once(child, "exit");
     }
+    assert.equal(child.exitCode, 0);
     assert.throws(
       () => process.kill(descendant.pid, 0),
       (error) => error instanceof Error && "code" in error && error.code === "ESRCH"

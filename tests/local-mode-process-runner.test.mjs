@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { readFile, mkdtemp, readdir, rm } from "node:fs/promises";
+import fileSystem from "node:fs";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile
+} from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -10,7 +20,11 @@ import test from "node:test";
 import {
   NodeProcessRunner
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
-import { ProcessTimeoutError } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
+import { foundationCommandFailure } from "../packages/engineering-foundation/dist/command-error.js";
+import {
+  ProcessCancellationError,
+  ProcessTimeoutError
+} from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
   spawnWindowsManagedProcess,
@@ -30,6 +44,45 @@ const PROCESS_DEADLINE_MS = process.platform === "win32" ? 45_000 : 1_000;
 const CANCELLATION_DEADLINE_MS = process.platform === "win32" ? 45_000 : 5_000;
 const TEST_TIMEOUT_MS = process.platform === "win32" ? 65_000 : 10_000;
 const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
+const FAKE_ABSOLUTE_SYSTEM_ROOT = String.raw`C:\Windows`;
+const FAKE_WINDOWS_POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
+
+async function withWindowsSystemRoot(callback) {
+  const originalSystemRoot = process.env.SystemRoot;
+  if (process.platform !== "win32") {
+    process.env.SystemRoot = FAKE_ABSOLUTE_SYSTEM_ROOT;
+  }
+  try {
+    return await callback();
+  } finally {
+    if (originalSystemRoot === undefined) {
+      delete process.env.SystemRoot;
+    } else {
+      process.env.SystemRoot = originalSystemRoot;
+    }
+  }
+}
+
+async function removeNewWindowsControlRoots(previousRoots) {
+  const currentRoots = await windowsControlRoots();
+  await Promise.all([...currentRoots]
+    .filter((root) => !previousRoots.has(root))
+    .map((root) => rm(join(tmpdir(), root), { force: true, recursive: true })));
+}
+
+async function withFailingSynchronousControlCleanup(mockTracker, callback) {
+  const cleanupError = new Error("synthetic control cleanup failure");
+  const mockedRmSync = mockTracker.method(fileSystem, "rmSync", () => {
+    throw cleanupError;
+  });
+  syncBuiltinESMExports();
+  try {
+    return await callback(cleanupError);
+  } finally {
+    mockedRmSync.mock.restore();
+    syncBuiltinESMExports();
+  }
+}
 
 async function removeTestRoot(root) {
   await rm(root, {
@@ -182,8 +235,21 @@ test("terminates a never-exiting process tree when cancelled", { timeout: TEST_T
       signal: controller.signal
     });
     const rejected = assert.rejects(execution, (error) => {
+      assert.equal(error instanceof ProcessCancellationError, true);
       assert.equal(error?.code, "PROCESS_FAILED");
       assert.match(error.message, /was cancelled/u);
+      assert.deepEqual(foundationCommandFailure(error), {
+        envelope: {
+          schemaVersion: 1,
+          outcome: "cancelled",
+          error: {
+            code: "PROCESS_CANCELLED",
+            message: error.message,
+            retryable: false
+          }
+        },
+        exitCode: 130
+      });
       return true;
     });
     const reported = await waitForPidFile(pidPath);
@@ -272,46 +338,140 @@ test(
   }
 );
 
-test("cleans Windows control artifacts after synchronous PowerShell launch failure", async () => {
+test("preserves a synchronous PowerShell launch failure when control cleanup fails", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "foundation-windows-sync-launch-failure-"));
   const previousControls = await windowsControlRoots();
   try {
-    assert.throws(
-      () => spawnWindowsManagedProcess({
-        command: process.execPath,
-        args: ["-e", "process.exit()"],
-        cwd: root,
-        environment: { ...process.env, FOUNDATION_INVALID_ENVIRONMENT: "invalid\0value" }
-      }),
-      (error) => error?.code === "ERR_INVALID_ARG_VALUE"
-    );
+    await withWindowsSystemRoot(() => withFailingSynchronousControlCleanup(context.mock, (cleanupError) => {
+      assert.throws(
+        () => spawnWindowsManagedProcess({
+          command: process.execPath,
+          args: ["-e", "process.exit()"],
+          cwd: root,
+          environment: { ...process.env, FOUNDATION_INVALID_ENVIRONMENT: "invalid\0value" }
+        }),
+        (error) => error?.code === "ERR_INVALID_ARG_VALUE" && error !== cleanupError
+      );
+    }));
+    await removeNewWindowsControlRoots(previousControls);
     await assertNoNewWindowsControlRoots(previousControls);
   } finally {
+    await removeNewWindowsControlRoots(previousControls);
     await removeTestRoot(root);
   }
 });
 
-test("cleans Windows control artifacts idempotently after an asynchronous launch error", async () => {
+test("contains asynchronous control cleanup failures and permits an idempotent retry", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "foundation-windows-async-launch-failure-"));
   const previousControls = await windowsControlRoots();
+  let child;
   try {
-    const child = spawnWindowsManagedProcess({
-      command: process.execPath,
-      args: ["-e", "process.exit()"],
-      cwd: join(root, "missing-working-directory")
-    });
-    const closed = new Promise((resolve) => {
-      child.once("close", resolve);
-    });
-    const [launchError] = await once(child, "error");
-    assert.equal(launchError.code, "ENOENT");
-    assert.equal(child.pid, undefined);
+    await withWindowsSystemRoot(() => withFailingSynchronousControlCleanup(context.mock, async (cleanupError) => {
+      child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", "process.exit()"],
+        cwd: join(root, "missing-working-directory")
+      });
+      const closed = new Promise((resolve) => {
+        child.once("close", resolve);
+      });
+      const [launchError] = await once(child, "error");
+      assert.equal(launchError.code, "ENOENT");
+      assert.notEqual(launchError, cleanupError);
+      assert.equal(child.pid, undefined);
+      await closed;
+    }));
 
+    const [controlRoot] = [...await windowsControlRoots()]
+      .filter((candidate) => !previousControls.has(candidate));
+    assert.notEqual(controlRoot, undefined);
     cleanUpWindowsManagedProcessLaunchFailure(child);
     cleanUpWindowsManagedProcessLaunchFailure(child);
-    await closed;
     await assertNoNewWindowsControlRoots(previousControls);
   } finally {
+    await removeNewWindowsControlRoots(previousControls);
+    await removeTestRoot(root);
+  }
+});
+
+test("accepts a containment marker published in the wrapper-exit poll race", {
+  skip: process.platform === "win32"
+}, async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-windows-final-marker-read-"));
+  const bin = join(root, "bin");
+  const releasePath = join(root, "release-wrapper");
+  const previousControls = await windowsControlRoots();
+  let child;
+  await mkdir(bin);
+  const fakePowerShell = join(bin, FAKE_WINDOWS_POWERSHELL);
+  await writeFile(fakePowerShell, [
+    "#!/usr/bin/env node",
+    'const { existsSync, writeFileSync } = require("node:fs");',
+    "let input = '';",
+    "process.stdin.setEncoding('utf8');",
+    "process.stdin.on('data', (chunk) => { input += chunk; });",
+    "process.stdin.on('end', () => {",
+    "  const request = JSON.parse(input);",
+    "  const interval = setInterval(() => {",
+    "    if (!existsSync(process.env.FOUNDATION_TEST_RELEASE_PATH)) return;",
+    "    clearInterval(interval);",
+    "    writeFileSync(request.confirmationPath, 'CONTAINED', 'utf8');",
+    "  }, 1);",
+    "});"
+  ].join("\n"), "utf8");
+  await chmod(fakePowerShell, 0o700);
+
+  try {
+    await withWindowsSystemRoot(async () => {
+      child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", "process.exit()"],
+        cwd: root,
+        environment: {
+          ...process.env,
+          FOUNDATION_TEST_RELEASE_PATH: releasePath,
+          PATH: `${bin}:${process.env.PATH ?? ""}`
+        }
+      });
+      const originalReadFile = fileSystem.promises.readFile;
+      let confirmationReads = 0;
+      const mockedReadFile = context.mock.method(
+        fileSystem.promises,
+        "readFile",
+        async (path, ...args) => {
+          if (typeof path !== "string" || !path.endsWith("/contained")) {
+            return await originalReadFile(path, ...args);
+          }
+          confirmationReads += 1;
+          if (confirmationReads === 1) {
+            const exited = once(child, "exit");
+            await writeFile(releasePath, "release", "utf8");
+            await exited;
+            const missing = new Error("synthetic pre-publication marker snapshot");
+            missing.code = "ENOENT";
+            throw missing;
+          }
+          return await originalReadFile(path, ...args);
+        }
+      );
+      syncBuiltinESMExports();
+      try {
+        await waitForWindowsManagedProcessContainment(child);
+      } finally {
+        mockedReadFile.mock.restore();
+        syncBuiltinESMExports();
+      }
+      assert.equal(confirmationReads, 2);
+      assert.equal(child.exitCode, 0);
+    });
+    await assertNoNewWindowsControlRoots(previousControls);
+  } finally {
+    if (child?.exitCode === null && child.signalCode === null) {
+      const exited = once(child, "exit");
+      child.kill("SIGKILL");
+      await exited;
+    }
+    await removeNewWindowsControlRoots(previousControls);
     await removeTestRoot(root);
   }
 });
@@ -480,6 +640,25 @@ test("Windows cancellation protocol proves containment across Job assignment", a
   assert.ok(requestTermination < forceWrapperExit);
   assert.match(nodeAdapterSource, /await waitForWindowsManagedProcessContainment\(child\)/u);
   assert.match(windowsManagedProcessSource, /File\.Move\(temporaryPath, confirmationPath\)/u);
+
+  const waitForProcessExit = windowsManagedProcessSource.indexOf(
+    "var waitResult = WaitForSingleObject(process.hProcess, 10);"
+  );
+  const readExitCode = windowsManagedProcessSource.indexOf(
+    "if (!GetExitCodeProcess(process.hProcess, out exitCode))",
+    waitForProcessExit
+  );
+  assert.ok(waitForProcessExit >= 0);
+  assert.ok(readExitCode > waitForProcessExit);
+  assert.doesNotMatch(
+    windowsManagedProcessSource.slice(waitForProcessExit, readExitCode),
+    /CancelAssignedIfRequested/u
+  );
+  assert.equal(
+    windowsManagedProcessSource.match(/return 0;/gu)?.length,
+    3,
+    "each wrapper-consumed cancellation path must be neutral"
+  );
 });
 
 test("rejects output beyond the bounded capture limit", { timeout: TEST_TIMEOUT_MS }, async () => {

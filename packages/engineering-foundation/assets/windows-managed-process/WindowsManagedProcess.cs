@@ -320,7 +320,7 @@ namespace AgentTeams.Foundation
                 if (File.Exists(cancellationPath))
                 {
                     ConfirmContainment(confirmationPath);
-                    return 1;
+                    return 0;
                 }
 
                 var attributeListSize = IntPtr.Zero;
@@ -371,7 +371,7 @@ namespace AgentTeams.Foundation
                 if (CancelAssignedIfRequested(
                     cancellationPath, confirmationPath, job))
                 {
-                    return 1;
+                    return 0;
                 }
                 if (ResumeThread(process.hThread) == WAIT_FAILED)
                 {
@@ -384,7 +384,7 @@ namespace AgentTeams.Foundation
                     if (CancelAssignedIfRequested(
                         cancellationPath, confirmationPath, job))
                     {
-                        return 1;
+                        return 0;
                     }
                     var waitResult = WaitForSingleObject(process.hProcess, 10);
                     if (waitResult == WAIT_OBJECT_0)
@@ -398,11 +398,6 @@ namespace AgentTeams.Foundation
                     }
                 }
 
-                if (CancelAssignedIfRequested(
-                    cancellationPath, confirmationPath, job))
-                {
-                    return 1;
-                }
                 uint exitCode;
                 if (!GetExitCodeProcess(process.hProcess, out exitCode))
                 {

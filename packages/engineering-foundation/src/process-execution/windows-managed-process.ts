@@ -64,9 +64,19 @@ function resolveWindowsPowerShellPath(): string {
   );
 }
 
+function removeControlRootBestEffort(root: string): boolean {
+  try {
+    rmSync(root, { force: true, recursive: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function disposeControl(child: ChildProcess, control: WindowsProcessControl): void {
-  windowsProcessControls.delete(child);
-  rmSync(control.root, { force: true, recursive: true });
+  if (removeControlRootBestEffort(control.root)) {
+    windowsProcessControls.delete(child);
+  }
 }
 
 function disposeControlAfterWrapperExit(child: ChildProcess, control: WindowsProcessControl): void {
@@ -149,7 +159,7 @@ export function spawnWindowsManagedProcess(
       }
     );
   } catch (error) {
-    rmSync(control.root, { force: true, recursive: true });
+    removeControlRootBestEffort(control.root);
     throw error;
   }
   windowsProcessControls.set(child, control);
@@ -183,6 +193,19 @@ export function cleanUpWindowsManagedProcessLaunchFailure(child: ChildProcess): 
   const control = windowsProcessControls.get(child);
   if (child.pid === undefined && control !== undefined) {
     disposeControl(child, control);
+  }
+}
+
+async function readContainmentConfirmation(
+  control: WindowsProcessControl
+): Promise<string | undefined> {
+  try {
+    return await readFile(control.confirmationPath, "utf8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return undefined;
+    }
+    throw error;
   }
 }
 
@@ -311,16 +334,14 @@ export async function waitForWindowsManagedProcessContainment(
   for (;;) {
     let confirmation: string | undefined;
     try {
-      confirmation = await readFile(control.confirmationPath, "utf8");
+      confirmation = await readContainmentConfirmation(control);
     } catch (error) {
-      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
-        await failAfterForcingWrapperExit(
-          child,
-          control,
-          error,
-          "Windows containment confirmation and wrapper cleanup both failed."
-        );
-      }
+      await failAfterForcingWrapperExit(
+        child,
+        control,
+        error,
+        "Windows containment confirmation and wrapper cleanup both failed."
+      );
     }
     if (confirmation !== undefined) {
       if (confirmation !== "CONTAINED") {
@@ -339,6 +360,31 @@ export async function waitForWindowsManagedProcessContainment(
       return;
     }
     if (child.exitCode !== null || child.signalCode !== null) {
+      // The wrapper publishes the marker immediately before it exits. If exit
+      // wins the poll race, perform one bounded final read before retiring the
+      // control directory so a durable confirmation is not discarded unseen.
+      try {
+        confirmation = await readContainmentConfirmation(control);
+      } catch (error) {
+        await failAfterForcingWrapperExit(
+          child,
+          control,
+          error,
+          "Windows containment confirmation and wrapper cleanup both failed."
+        );
+      }
+      if (confirmation === "CONTAINED") {
+        disposeControl(child, control);
+        return;
+      }
+      if (confirmation !== undefined) {
+        await failAfterForcingWrapperExit(
+          child,
+          control,
+          new Error("Windows Job Object wrapper sent an invalid containment confirmation."),
+          "Windows containment confirmation and wrapper cleanup both failed."
+        );
+      }
       disposeControl(child, control);
       throw new Error(
         "Windows Job Object wrapper exited before it confirmed process containment."

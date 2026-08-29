@@ -18,12 +18,85 @@ import {
   registryQualificationPackages,
   stageQualificationPackage,
 } from "../scripts/registry-qualification-packages.mjs";
-import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
+import {
+  PACKAGE_RELEASE_GRAPH,
+  PUBLISHABLE_PACKAGES,
+  PUBLISHABLE_PACKAGE_DEPENDENCIES,
+  parsePackageReleaseGraph,
+} from "../scripts/publishable-packages.mjs";
 
 const repositoryPackageRoot = new URL(
   "../packages/engineering-foundation/",
   import.meta.url,
 );
+
+function releaseGraphPackage(overrides = {}) {
+  return {
+    changelogPath: "packages/a/CHANGELOG.md",
+    dependencies: [],
+    manifestPath: "packages/a/package.json",
+    name: "@example/a",
+    required: false,
+    root: "packages/a",
+    ...overrides,
+  };
+}
+
+function releaseGraph(packages) {
+  return { packages, schemaVersion: 1 };
+}
+
+test("versioned release graph is the single topologically ordered package authority", () => {
+  assert.equal(PACKAGE_RELEASE_GRAPH.schemaVersion, 1);
+  assert.deepEqual(
+    PACKAGE_RELEASE_GRAPH.packages.map(({ name }) => name),
+    PUBLISHABLE_PACKAGES.map(({ name }) => name),
+  );
+  assert.deepEqual(
+    Object.fromEntries(PACKAGE_RELEASE_GRAPH.packages.map(({ dependencies, name }) => [
+      name,
+      dependencies,
+    ])),
+    PUBLISHABLE_PACKAGE_DEPENDENCIES,
+  );
+  assert.throws(() => PACKAGE_RELEASE_GRAPH.packages.push(releaseGraphPackage()), TypeError);
+});
+
+test("versioned release graph rejects ambiguity, escapes and non-topological edges", () => {
+  assert.throws(
+    () => parsePackageReleaseGraph(releaseGraph([releaseGraphPackage({ root: "../a" })])),
+    /portable repository-relative path/u,
+  );
+  assert.throws(
+    () => parsePackageReleaseGraph(releaseGraph([releaseGraphPackage({ root: "packages//a" })])),
+    /portable repository-relative path/u,
+  );
+  assert.throws(
+    () => parsePackageReleaseGraph(releaseGraph([
+      releaseGraphPackage(),
+      releaseGraphPackage({ name: "@example/b" }),
+    ])),
+    /root values must be unique/u,
+  );
+  assert.throws(
+    () => parsePackageReleaseGraph(releaseGraph([
+      releaseGraphPackage({ dependencies: ["@example/b"] }),
+      releaseGraphPackage({
+        changelogPath: "packages/b/CHANGELOG.md",
+        manifestPath: "packages/b/package.json",
+        name: "@example/b",
+        root: "packages/b",
+      }),
+    ])),
+    /dependencies must precede/u,
+  );
+  assert.throws(
+    () => parsePackageReleaseGraph(releaseGraph([
+      releaseGraphPackage({ dependencies: ["@example/missing"] }),
+    ])),
+    /undeclared package/u,
+  );
+});
 
 function assertMcpBaselineMatchesManifest(baseline, manifest) {
   assert.equal(baseline.packageName, manifest.name);

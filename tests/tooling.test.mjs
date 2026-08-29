@@ -344,6 +344,12 @@ test("clean removes incremental state and permits a full rebuild", async () => {
     "scripts",
     "publishable-packages.mjs",
   );
+  const packageReleaseGraph = join(
+    fixtureRoot,
+    "architecture",
+    "foundation",
+    "package-release-graph.json",
+  );
   const tsconfigPath = join(packageRoot, "tsconfig.json");
   const outputPath = join(packageRoot, "dist", "index.js");
   const buildInfoPath = join(packageRoot, "tsconfig.tsbuildinfo");
@@ -358,6 +364,7 @@ test("clean removes incremental state and permits a full rebuild", async () => {
 
     await mkdir(sourceRoot, { recursive: true });
     await mkdir(dirname(cleanScript), { recursive: true });
+    await mkdir(dirname(packageReleaseGraph), { recursive: true });
     await Promise.all([
       writeFile(join(sourceRoot, "index.ts"), "export const built = true;\n", "utf8"),
       writeFile(join(packageRoot, "LICENSE"), "generated", "utf8"),
@@ -372,6 +379,14 @@ test("clean removes incremental state and permits a full rebuild", async () => {
         publishablePackagesScript,
         await readFile(
           join(repositoryRoot, "scripts", "publishable-packages.mjs"),
+          "utf8",
+        ),
+        "utf8",
+      ),
+      writeFile(
+        packageReleaseGraph,
+        await readFile(
+          join(repositoryRoot, "architecture", "foundation", "package-release-graph.json"),
           "utf8",
         ),
         "utf8",

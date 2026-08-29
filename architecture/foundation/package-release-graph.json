@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "name": "@agent-teams/engineering-foundation",
+      "root": "packages/engineering-foundation",
+      "manifestPath": "packages/engineering-foundation/package.json",
+      "changelogPath": "packages/engineering-foundation/CHANGELOG.md",
+      "required": true,
+      "dependencies": []
+    },
+    {
+      "name": "@agent-teams/docs-protocol",
+      "root": "packages/docs-protocol",
+      "manifestPath": "packages/docs-protocol/package.json",
+      "changelogPath": "packages/docs-protocol/CHANGELOG.md",
+      "required": false,
+      "dependencies": [
+        "@agent-teams/engineering-foundation"
+      ]
+    },
+    {
+      "name": "@agent-teams/docs-protocol-mcp",
+      "root": "packages/docs-protocol-mcp",
+      "manifestPath": "packages/docs-protocol-mcp/package.json",
+      "changelogPath": "packages/docs-protocol-mcp/CHANGELOG.md",
+      "required": false,
+      "dependencies": [
+        "@agent-teams/docs-protocol"
+      ]
+    }
+  ]
+}

@@ -17,6 +17,8 @@ import {
   digestBytes
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
 
+const { consumerIntegration: managedCompatibilityApi } = await import("../dist/index.js");
+
 const shapes = JSON.parse(await readFile(
   join(import.meta.dirname, "fixtures", "current-consumer-shapes.v1.json"),
   "utf8"
@@ -147,6 +149,7 @@ function fleetBundle(catalog, cohortId) {
 
 for (const shape of shapes.fixtures) {
   test(`characterizes and migrates ${shape.repository.nameWithOwner} without repo-specific compiler code`, async () => {
+    assert.equal(managedCompatibilityApi.planConsumerIntegration, planConsumerIntegration);
     const desired = {
       schemaVersion: 1,
       repository: shape.repository,

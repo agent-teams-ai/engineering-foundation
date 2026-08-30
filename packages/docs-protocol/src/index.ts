@@ -41,8 +41,10 @@ export {
   DOCS_PROTOCOL_VERSION
 } from "./domain/model.js";
 export { validatePortableRepositoryPath } from "./domain/profile-policy.js";
-export * as consumerIntegration from "./consumer-integration/index.js";
-export { CANONICAL_DOCS_SKILL_V2 } from "./consumer-integration/composition/canonical-docs-skill-v2.js";
+export {
+  CANONICAL_DOCS_SKILL_V2,
+  consumerIntegration
+} from "./consumer-integration/composition/canonical-docs-skill-v2.js";
 export type {
   DocsCommand,
   DocsCommandEnvelope,

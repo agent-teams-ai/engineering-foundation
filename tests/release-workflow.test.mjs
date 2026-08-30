@@ -15,7 +15,7 @@ import {
 import { selectReleaseCiRun } from "../scripts/select-release-ci-run.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const reviewRouterRevision = "8a0a31ae1d92c89466c8a939272a1e333e88c5a0";
+const reviewRouterRevision = "75cbecab131d74021677fcd1fb21962994d306b8";
 const reviewRouterSecretName =
   "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E9_e48bdc66e1e840db18db2822ad456566";
 

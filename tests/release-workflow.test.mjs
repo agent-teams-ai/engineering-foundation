@@ -17,7 +17,7 @@ import { selectReleaseCiRun } from "../scripts/select-release-ci-run.mjs";
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const reviewRouterRevision = "8a0a31ae1d92c89466c8a939272a1e333e88c5a0";
 const reviewRouterSecretName =
-  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E8_3496cd251b94dfa849df4011a4ad0136";
+  "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E9_e48bdc66e1e840db18db2822ad456566";
 
 async function workflow(name) {
   return parseYaml(

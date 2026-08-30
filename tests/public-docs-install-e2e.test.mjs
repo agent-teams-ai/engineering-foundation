@@ -217,6 +217,77 @@ test("published release-authority coordinates qualify the complete matrix", asyn
   }
 });
 
+test("package manifest bumps flow through every public qualification coordinate", async () => {
+  const root = await mkdtemp(join(tmpdir(), "public-docs-policy-"));
+  try {
+    const manifestVersions = new Map([
+      ["@agent-teams/docs-protocol", "9.8.7"],
+      ["@agent-teams/docs-protocol-mcp", "6.5.4"],
+    ]);
+    const expected = [...manifestVersions].map(([name, version]) => ({ name, version }));
+    const github = [];
+    const installs = [];
+    const observations = [];
+    const provenances = [];
+    const result = await verifyPublicExactDocsCoordinates({ temporaryRoot: root }, {
+      auditSignatures: async () => ({}),
+      installAndQualify: async ({ coordinates, matrixEntry }) => {
+        installs.push(coordinates.map(({ name, version }) => ({ name, version })));
+        return {
+          root: `/disposable/${matrixEntry.id}`,
+          userConfigPath: `/disposable/${matrixEntry.id}/npmrc`,
+        };
+      },
+      observePublishedPackages: async (coordinates) => {
+        observations.push(coordinates.map(({ name, version }) => ({ name, version })));
+        return publishedEvidence(coordinates);
+      },
+      readPackageManifest: async (path) => {
+        const name = path.pathname.endsWith("/docs-protocol-mcp/package.json")
+          ? "@agent-teams/docs-protocol-mcp"
+          : "@agent-teams/docs-protocol";
+        return { name, version: manifestVersions.get(name) };
+      },
+      verifyGithub: async (tag) => github.push(tag),
+      verifyProvenance: (_audit, artifact) => {
+        provenances.push({ name: artifact.name, version: artifact.version });
+        return { commit: "a".repeat(40) };
+      },
+    });
+    assert.deepEqual(result.coordinates, expected);
+    assert.deepEqual(observations, [expected, expected]);
+    assert.deepEqual(installs, [expected, expected, expected, expected]);
+    assert.deepEqual(provenances, expected);
+    assert.deepEqual(github, expected.map(({ name, version }) => `${name}@${version}`));
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("public qualification rejects manifest identity and version drift before registry access", async () => {
+  const root = await mkdtemp(join(tmpdir(), "public-docs-policy-"));
+  try {
+    for (const [cliManifest, expected] of [
+      [{ name: "@example/forged", version: "9.8.7" }, /untrusted package identity/u],
+      [{ name: "@agent-teams/docs-protocol", version: "workspace:*" }, /invalid release version/u],
+    ]) {
+      let observed = false;
+      await assert.rejects(verifyPublicExactDocsCoordinates({ temporaryRoot: root }, {
+        observePublishedPackages: async () => {
+          observed = true;
+          return {};
+        },
+        readPackageManifest: async (path) => path.pathname.endsWith("/docs-protocol-mcp/package.json")
+          ? { name: "@agent-teams/docs-protocol-mcp", version: "6.5.4" }
+          : cliManifest,
+      }), expected);
+      assert.equal(observed, false);
+    }
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 test("public observation retries 404 boundedly before returning pending", async () => {
   const root = await mkdtemp(join(tmpdir(), "public-docs-policy-"));
   try {

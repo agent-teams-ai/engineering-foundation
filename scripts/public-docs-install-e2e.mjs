@@ -10,6 +10,7 @@ import {
   exactPublicCoordinateDecision,
   registryInstallMatrix,
 } from "./registry-install-policy.mjs";
+import { parsePublishedVersion } from "./release-publish-registry-version.mjs";
 import {
   verifyRegistryDocsProtocolCli,
   verifyRegistryDocsProtocolMcp,
@@ -24,10 +25,12 @@ const LOCAL_LOCKFILE_REFERENCE = /(?:^|@)(?:file|git\+file|link|workspace):/u;
 const PUBLIC_NPM_REGISTRY = "https://registry.npmjs.org/";
 const PUBLIC_PACKAGE_IDENTITIES = Object.freeze({
   cli: Object.freeze({
+    manifestPath: "../packages/docs-protocol/package.json",
     name: "@agent-teams/docs-protocol",
     registryPath: "%40agent-teams%2Fdocs-protocol",
   }),
   mcp: Object.freeze({
+    manifestPath: "../packages/docs-protocol-mcp/package.json",
     name: "@agent-teams/docs-protocol-mcp",
     registryPath: "%40agent-teams%2Fdocs-protocol-mcp",
   }),
@@ -35,6 +38,29 @@ const PUBLIC_PACKAGE_IDENTITIES = Object.freeze({
 
 async function json(path) {
   return JSON.parse(await readFile(path, "utf8"));
+}
+
+async function currentPublicCoordinates(authority, readPackageManifest) {
+  return Object.freeze(await Promise.all(
+    Object.entries(authority.packages).map(async ([id, { name }]) => {
+      const identity = PUBLIC_PACKAGE_IDENTITIES[id];
+      if (identity?.name !== name) {
+        throw new Error(`Public Docs authority contains an untrusted package identity for ${id}.`);
+      }
+      const manifest = await readPackageManifest(new URL(identity.manifestPath, import.meta.url));
+      if (manifest?.name !== identity.name) {
+        throw new Error(`Public Docs manifest contains an untrusted package identity for ${id}.`);
+      }
+      if (parsePublishedVersion(manifest.version) === undefined) {
+        throw new Error(`Public Docs manifest contains an invalid release version for ${name}.`);
+      }
+      return Object.freeze({
+        name,
+        registryPath: identity.registryPath,
+        version: manifest.version,
+      });
+    }),
+  ));
 }
 
 const wait = (milliseconds) => new Promise((resolve) => {
@@ -277,13 +303,10 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, depend
   if (authority.registry !== PUBLIC_NPM_REGISTRY) {
     throw new Error("Public Docs authority must use the pinned public npm registry.");
   }
-  const coordinates = Object.freeze(Object.entries(authority.packages).map(([id, { name, version }]) => {
-    const identity = PUBLIC_PACKAGE_IDENTITIES[id];
-    if (identity?.name !== name) {
-      throw new Error(`Public Docs authority contains an untrusted package identity for ${id}.`);
-    }
-    return Object.freeze({ name, registryPath: identity.registryPath, version });
-  }));
+  const coordinates = await currentPublicCoordinates(
+    authority,
+    dependencies.readPackageManifest ?? json,
+  );
   const observe = dependencies.observePublishedPackages ?? observePublishedPackages;
   const published = await observe(coordinates, PUBLIC_NPM_REGISTRY, dependencies);
   const decision = registryDecision(coordinates, published);

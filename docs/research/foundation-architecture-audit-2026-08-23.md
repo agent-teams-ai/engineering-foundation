@@ -128,7 +128,7 @@ application, adapters и composition в
 [`source-dependencies.yaml`](../../architecture/foundation/source-dependencies.yaml).
 Application зависит от узких lifecycle/planner ports, а concrete Node,
 package-manager и Foundation mutation adapters собираются только в
-[`node-consumer-integration.ts`](../../packages/docs-protocol/src/consumer-integration/composition/node-consumer-integration.ts).
+[`node-consumer-integration.ts`](../../packages/docs-protocol-agent-teams/src/consumer-integration/composition/node-consumer-integration.ts).
 
 Направление защищено golden policy и негативным тестом в
 [`package-boundary.test.mjs`](../../tests/package-boundary.test.mjs). Это
@@ -260,7 +260,7 @@ failure.
 
 [`mutation/index.ts`](../../packages/engineering-foundation/src/mutation/index.ts)
 экспортирует concrete Node operations и fault injector types.
-[`consumer-integration/index.ts`](../../packages/docs-protocol/src/consumer-integration/index.ts)
+[`consumer-integration/index.ts`](../../packages/docs-protocol-agent-teams/src/consumer-integration/index.ts)
 экспортирует planners/adapters и Node error рядом с основными use cases.
 
 Это полезно для существующей qualification, но увеличивает стоимость каждого

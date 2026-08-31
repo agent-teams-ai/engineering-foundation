@@ -195,7 +195,7 @@ test("schema accepts an emitted recovery-required doctor envelope", async () => 
     foundation,
     profiles: { async read() { return profile; } }
   });
-  const execution = await protocol.doctor({ consumerRoot: ".", profilePath: "docs.config.yaml" });
+  const execution = await protocol.doctorV2({ consumerRoot: ".", profilePath: "docs.config.yaml" });
   assert.equal(execution.exitCode, 1);
   assert.equal(execution.envelope.outcome, "recovery-required");
   assertValidEnvelope(execution.envelope);

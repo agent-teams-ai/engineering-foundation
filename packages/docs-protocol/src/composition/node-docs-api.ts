@@ -5,7 +5,7 @@ import { NodeFoundationDocsPort } from "../adapters/foundation-docs-port.js";
 import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { discoverDocsProfilePath } from "../adapters/node-profile-discovery.js";
 import { assertDocsCommandEnvelopeSchema } from "../adapters/docs-command-envelope-schema-validator.js";
-import type { DocsExecution, DocsFindQuery, DocsNewRequest, DocsNewResult } from "../domain/model.js";
+import type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
 import type {
   DocsExecutionV2,
   DocsNewResultV2
@@ -47,33 +47,6 @@ export function docsProfilePath(input: {
   return discoverDocsProfilePath(input);
 }
 
-export function docsInfo(input: DocsConsumerRequest) {
-  return verified(nodeProtocol().info(input));
-}
-
-export function docsFind(input: DocsConsumerRequest & {
-  readonly query: DocsFindQuery;
-  readonly signal?: AbortSignal;
-}) {
-  return verified(nodeProtocol().find(input));
-}
-
-export function docsNew(input: DocsNewRequest): Promise<DocsExecution<DocsNewResult>> {
-  return verified(nodeProtocol().newDocument(input));
-}
-
-export function docsDoctor(input: DocsConsumerRequest) {
-  return verified(nodeProtocol().doctor(input));
-}
-
-export function docsRecover(input: DocsConsumerRequest & { readonly signal?: AbortSignal }) {
-  return verified(nodeProtocol().recover(input));
-}
-
-export function docsCheck(input: DocsConsumerRequest) {
-  return verified(nodeProtocol().check(input));
-}
-
 export function docsInfoV2(input: DocsConsumerRequest) {
   return verified(nodeProtocol().infoV2(input));
 }
@@ -92,12 +65,8 @@ export function docsFindV3(input: DocsConsumerRequest & {
   return verified(nodeProtocol().findV3(input));
 }
 
-export function docsContext(input: DocsContextRequestV1): Promise<DocsExecutionV3<DocsContextResultV1>> {
-  return verified(nodeProtocol().contextV1(input));
-}
-
 export function docsContextV1(input: DocsContextRequestV1): Promise<DocsExecutionV3<DocsContextResultV1>> {
-  return docsContext(input);
+  return verified(nodeProtocol().contextV1(input));
 }
 
 export function docsNewV2(input: DocsNewRequest): Promise<DocsExecutionV2<DocsNewResultV2>> {

@@ -34,16 +34,16 @@ test("doctor preserves transaction diagnostics and recover ignores mutable profi
     foundation,
     profiles: { async read() { profileReads += 1; throw new Error("corrupt profile"); } }
   });
-  const doctor = await protocol.doctor({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
+  const doctor = await protocol.doctorV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
   assert.equal(doctor.envelope.outcome, "recovery-required");
   assert.equal(doctor.envelope.result.transaction.state, "recoverable");
   assert.match(doctor.envelope.diagnostics[0].message, /corrupt profile/u);
 
   transactionFormat = "document-authoring-envelope-v4";
-  const v4Doctor = await protocol.doctor({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
+  const v4Doctor = await protocol.doctorV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
   assert.equal(v4Doctor.envelope.result.transaction.state, "recoverable");
 
-  const recovered = await protocol.recover({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
+  const recovered = await protocol.recoverV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
   assert.equal(recovered.exitCode, 0);
   assert.equal(recovered.envelope.result.writeState, "committed");
   assert.equal(recovered.envelope.result.receipt.commit.publication, "published");

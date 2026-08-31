@@ -31,7 +31,7 @@ import {
   docsInitRecover
 } from "./node-docs-bootstrap-api.js";
 
-export { renderDocsHuman, renderDocsHumanV2, renderDocsHumanV3 } from "./docs-human-renderer.js";
+export { renderDocsHumanV2, renderDocsHumanV3 } from "./docs-human-renderer.js";
 export { docsCliErrorExecution, validatedMachineExecution } from "./docs-cli-machine.js";
 
 interface CommonArguments {

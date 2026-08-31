@@ -202,7 +202,7 @@ requiresStrictDirectoryDurability("recovery uses persisted transaction authority
       foundation: new NodeFoundationDocsPort(),
       profiles: new NodeDocsProfileReader()
     });
-    const recovered = await protocol.recover({
+    const recovered = await protocol.recoverV2({
       consumerRoot,
       profilePath: "docs.config.yaml"
     });

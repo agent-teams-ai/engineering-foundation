@@ -31,6 +31,7 @@ test("portable tarball projection contains no managed integration authority", as
   const sources = await files(join(packageRoot, "src"));
   const combined = (await Promise.all(sources.map((path) => readFile(path, "utf8")))).join("\n");
   assert.doesNotMatch(combined, /consumerIntegration|QualifiedDocsCohort|agent-teams-managed-v1|docs\.qualify|runDocsProtocolQualificationV2/u);
+  assert.doesNotMatch(combined, /docs-protocol-v1-presenter|present(?:Check|Doctor|Find|Info|New|Recover)V1/u);
   assert.doesNotMatch(combined, /import\s*\(\s*[`'"]@agent-teams\/docs-protocol-agent-teams|require\s*\(\s*[`'"]@agent-teams\/docs-protocol-agent-teams/u);
 });
 

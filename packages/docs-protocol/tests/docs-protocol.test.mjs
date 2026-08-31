@@ -5,10 +5,10 @@ import { DocsProtocol } from "../dist/application/docs-protocol.js";
 import { parseDocsProtocolProfile } from "../dist/domain/profile-policy.js";
 
 const profile = parseDocsProtocolProfile({
-  schemaVersion: 1,
+  schemaVersion: 3,
   protocol: { id: "agent-teams.docs-protocol", version: 1 },
-  foundationProfile: { path: "architecture/foundation/document-authoring.yaml", schemaVersion: 2, metadataSidecarPolicy: "foundation-profile-v2-strict-merge" },
-  agentWorkflow: { skillPath: ".agents/skills/docs-authoring/SKILL.md" },
+  foundationProfile: { path: "architecture/foundation/document-authoring.yaml", schemaVersion: 3, metadataSidecarPolicy: "foundation-profile-v3-strict-merge" },
+  agentWorkflow: { adoption: "portable-v1", skillPath: ".agents/skills/docs-authoring/SKILL.md" },
   semanticValidatorIds: ["documentation.domain-semantics"]
 });
 
@@ -77,7 +77,7 @@ function plan(intent) {
 
 function harness(options = {}) {
   const calls = { apply: 0, buildCatalog: 0, describe: 0, find: 0, plan: [] };
-  const defaultDescription = { authority: { templates: [] }, catalog: { collections: [], excludedPrefixes: [] }, projectId: "fixture-project", profileSchemaVersion: 2, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
+  const defaultDescription = { authority: { templates: [] }, catalog: { collections: [], excludedPrefixes: [] }, projectId: "fixture-project", profileSchemaVersion: 3, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
   const defaultCatalog = { projectId: "fixture-project", status: "complete", diagnostics: [], documents: [
     { ...descriptor({ id: "ADR-0001", repositoryPath: "docs/decisions/0001-first.md" }), metadata: {} },
     { ...descriptor({ id: "OD-001", type: "open-decision", status: "open", repositoryPath: "docs/open-decisions/OD-001.md" }), metadata: {} }
@@ -124,17 +124,17 @@ function harness(options = {}) {
 
 test("find applies relation filters with AND and stable zero-match success", async () => {
   const { protocol } = harness();
-  const found = await protocol.find({ consumerRoot: ".", profilePath: "docs/docs-protocol.json", query: { type: "adr", related: "ADR-0001", blockedBy: "ADR-0003" } });
+  const found = await protocol.findV2({ consumerRoot: ".", profilePath: "docs/docs-protocol.json", query: { type: "adr", related: "ADR-0001", blockedBy: "ADR-0003" } });
   assert.equal(found.exitCode, 0);
   assert.deepEqual(found.envelope.result.documents.map(({ id }) => id), ["ADR-0002"]);
-  const empty = await protocol.find({ consumerRoot: ".", profilePath: "docs/docs-protocol.json", query: { related: "ADR-9999" } });
+  const empty = await protocol.findV2({ consumerRoot: ".", profilePath: "docs/docs-protocol.json", query: { related: "ADR-9999" } });
   assert.equal(empty.exitCode, 0);
   assert.equal(empty.envelope.result.matches, 0);
 });
 
 test("new preview is non-mutating and preserves unified metadata vocabulary", async () => {
   const { protocol, calls } = harness();
-  const result = await protocol.newDocument({
+  const result = await protocol.newDocumentV2({
     apply: false,
     consumerRoot: ".",
     profilePath: "docs/docs-protocol.json",
@@ -161,21 +161,25 @@ test("new preview is non-mutating and preserves unified metadata vocabulary", as
   });
 });
 
-test("v1 presenters strip rich evidence while v2 routes preserve it", async () => {
-  const legacy = harness().protocol;
-  const rich = harness().protocol;
+test("current protocol methods expose portable v3 profile evidence without legacy wrappers", async () => {
+  const current = harness().protocol;
   const request = {
     apply: false, consumerRoot: ".", profilePath: "docs/docs-protocol.json",
     intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." }
   };
-  const [legacyInfo, legacyNew, richInfo, richNew] = await Promise.all([
-    legacy.info(request), legacy.newDocument(request), rich.infoV2(request), rich.newDocumentV2(request)
+  const [richInfo, richNew] = await Promise.all([
+    current.infoV2(request), current.newDocumentV2(request)
   ]);
 
-  assert.equal(legacyInfo.envelope.schemaVersion, 1);
-  assert.deepEqual(["authority", "authorityPaths", "catalog"].map((key) => Object.hasOwn(legacyInfo.envelope.result, key)), [false, false, false]);
-  assert.equal(Object.hasOwn(legacyNew.envelope.result, "compiled"), false);
+  for (const method of ["info", "find", "newDocument", "doctor", "recover", "check"]) {
+    assert.equal(typeof current[method], "undefined");
+  }
   assert.equal(richInfo.envelope.schemaVersion, 2);
+  assert.deepEqual(richInfo.envelope.result.foundationProfile, {
+    metadataSidecarPolicy: "foundation-profile-v3-strict-merge",
+    path: "architecture/foundation/document-authoring.yaml",
+    schemaVersion: 3
+  });
   assert.deepEqual(["authority", "authorityPaths", "catalog"].map((key) => Object.hasOwn(richInfo.envelope.result, key)), [true, true, true]);
   assert.deepEqual(richInfo.envelope.result.authority, { templates: [] });
   assert.deepEqual(richInfo.envelope.result.catalog, { collections: [], excludedPrefixes: [] });
@@ -187,14 +191,14 @@ test("new omits semantically empty optional metadata identically for preview and
   const base = { consumerRoot: ".", profilePath: "docs/docs-protocol.json", intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." } };
   const previewHarness = harness();
   const applyHarness = harness();
-  const preview = await previewHarness.protocol.newDocument({
+  const preview = await previewHarness.protocol.newDocumentV2({
     ...base,
     apply: false,
     related: [],
     blockedBy: [],
     codeAnchors: []
   });
-  const applied = await applyHarness.protocol.newDocument({ ...base, apply: true });
+  const applied = await applyHarness.protocol.newDocumentV2({ ...base, apply: true });
 
   assert.deepEqual([preview.exitCode, applied.exitCode], [0, 0]);
   assert.equal(JSON.stringify(previewHarness.calls.plan[0].intent), JSON.stringify(applyHarness.calls.plan[0].intent));
@@ -206,7 +210,7 @@ test("new omits semantically empty optional metadata identically for preview and
 test("new rejects optional metadata aliases even when callers try to inject empty arrays", async () => {
   for (const key of ["related", "blocked_by", "code_anchors"]) {
     const { protocol, calls } = harness();
-    await assert.rejects(protocol.newDocument({
+    await assert.rejects(protocol.newDocumentV2({
       apply: false,
       consumerRoot: ".",
       profilePath: "docs/docs-protocol.json",
@@ -220,7 +224,7 @@ test("new rejects optional metadata aliases even when callers try to inject empt
 test("new rejects missing, self, and non-open-decision blockers before planning", async () => {
   for (const blockedBy of [["ADR-9999"], ["ADR-0083"], ["ADR-0001"]]) {
     const { protocol, calls } = harness();
-    await assert.rejects(protocol.newDocument({
+    await assert.rejects(protocol.newDocumentV2({
       apply: false,
       consumerRoot: ".",
       profilePath: "architecture/foundation/docs-protocol.yaml",
@@ -240,7 +244,7 @@ test("new preview and apply fail closed before Plan when adoption identity is in
         }
       }
     });
-    const result = await protocol.newDocument({
+    const result = await protocol.newDocumentV2({
       apply,
       consumerRoot: ".",
       profilePath: "architecture/foundation/docs-protocol.yaml",
@@ -260,12 +264,12 @@ test("check reports invalid common relation semantics without executing validato
   // The public check path uses only injected read-only ports. A missing related
   // target in v2 metadata must fail before any consumer validator is invoked.
   const badFoundation = {
-    async describe() { return { authority: {}, projectId: "fixture-project", profileSchemaVersion: 2, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] }; },
+    async describe() { return { authority: {}, projectId: "fixture-project", profileSchemaVersion: 3, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] }; },
     async buildCatalog() { return { projectId: "fixture-project", status: "complete", diagnostics: [], documents: [{ ...descriptor(), metadata: { related: ["ADR-9999"] } }], identityProjection: [], ownerIds: [], authority: {} }; },
     async inspect() { return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
     async find() { return []; }, async plan() { throw new Error("not used"); }, async apply() { throw new Error("not used"); }, async recover() { throw new Error("not used"); }
   };
-  const checked = await new DocsProtocol({ adoption: { async inspect() { return []; } }, anchors: { async matchedPatterns({ patterns }) { return patterns; } }, foundation: badFoundation, profiles: { async read() { return profile; } } }).check({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
+  const checked = await new DocsProtocol({ adoption: { async inspect() { return []; } }, anchors: { async matchedPatterns({ patterns }) { return patterns; } }, foundation: badFoundation, profiles: { async read() { return profile; } } }).checkV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
   assert.equal(checked.exitCode, 1);
   assert.ok(checked.envelope.diagnostics.some(({ message }) => message.includes("does not exist")));
   assert.ok(originalBuild);
@@ -273,7 +277,7 @@ test("check reports invalid common relation semantics without executing validato
 
 test("new apply delegates the exact Foundation plan once", async () => {
   const { protocol, calls } = harness();
-  const result = await protocol.newDocument({
+  const result = await protocol.newDocumentV2({
     apply: true,
     consumerRoot: ".",
     profilePath: "docs/docs-protocol.json",
@@ -286,7 +290,7 @@ test("new apply delegates the exact Foundation plan once", async () => {
 
 test("new withholds reachability when the published catalog misses the expected postimage", async () => {
   const { protocol, calls } = harness({ catalogs: [undefined, undefined, { semanticDigest: `sha256:${"8".repeat(64)}` }] });
-  const result = await protocol.newDocument({
+  const result = await protocol.newDocumentV2({
     apply: true,
     consumerRoot: ".",
     profilePath: "docs/docs-protocol.json",
@@ -321,7 +325,7 @@ test("new reports published recovery state and directory evidence truthfully", a
     receiptDigest: `sha256:${"6".repeat(64)}`
   };
   const { protocol } = harness({ applyReceipt: receipt });
-  const result = await protocol.newDocument({
+  const result = await protocol.newDocumentV2({
     apply: true,
     consumerRoot: ".",
     profilePath: "architecture/foundation/docs-protocol.yaml",
@@ -341,7 +345,7 @@ test("advisory anchors warn without gating while required anchors fail closed", 
     profilePath: "architecture/foundation/docs-protocol.yaml",
     intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." }
   };
-  const advisory = await harness({ matchedPatterns: [] }).protocol.newDocument({
+  const advisory = await harness({ matchedPatterns: [] }).protocol.newDocumentV2({
     ...base,
     codeAnchors: [{ pattern: "src/advisory.ts", enforcement: "advisory" }]
   });
@@ -349,7 +353,7 @@ test("advisory anchors warn without gating while required anchors fail closed", 
   assert.equal(advisory.envelope.diagnostics[0].severity, "warning");
   assert.equal(advisory.envelope.diagnostics[0].ruleId, "docs.code-anchor.advisory-unmatched");
   await assert.rejects(
-    harness({ matchedPatterns: [] }).protocol.newDocument({ ...base, codeAnchors: [{ pattern: "src/required.ts", enforcement: "required" }] }),
+    harness({ matchedPatterns: [] }).protocol.newDocumentV2({ ...base, codeAnchors: [{ pattern: "src/required.ts", enforcement: "required" }] }),
     /Required code anchor/u
   );
 });
@@ -364,7 +368,7 @@ test("required anchors are recaptured immediately before apply and block a stale
       }
     }
   });
-  const result = await protocol.newDocument({
+  const result = await protocol.newDocumentV2({
     apply: true,
     consumerRoot: ".",
     profilePath: "architecture/foundation/docs-protocol.yaml",
@@ -389,7 +393,7 @@ test("advisory anchor drift remains a single stable warning and does not gate pu
       }
     }
   });
-  const result = await protocol.newDocument({
+  const result = await protocol.newDocumentV2({
     apply: true,
     consumerRoot: ".",
     profilePath: "architecture/foundation/docs-protocol.yaml",
@@ -417,17 +421,17 @@ test("check bounds corpus anchor aggregation and emits one deterministic budget 
     catalogs: [{ projectId: "fixture-project", status: "complete", diagnostics: [], documents, identityProjection: [], ownerIds: [], authority: {}, semanticDigest: CATALOG_SEMANTIC_DIGEST }],
     anchors: { async matchedPatterns({ patterns }) { observedPatterns = patterns.length; return patterns; } }
   });
-  const result = await protocol.check({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
+  const result = await protocol.checkV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
   assert.equal(observedPatterns, 1_024);
   assert.equal(result.envelope.outcome, "violation");
   assert.equal(result.envelope.diagnostics.filter(({ ruleId }) => ruleId === "docs.code-anchor.corpus-budget-exceeded").length, 1);
   assert.ok(result.envelope.diagnostics.length <= 256);
 });
 
-test("find binds the referenced Foundation profile to schema v2 before querying", async () => {
+test("find binds the referenced current Foundation profile before querying", async () => {
   let queried = false;
   const foundation = {
-    async describe() { throw new Error("Foundation authoring profile schemaVersion must be 2"); },
+    async describe() { throw new Error("Foundation authoring profile schemaVersion must be 3"); },
     async find() { queried = true; return []; }
   };
   const protocol = new DocsProtocol({
@@ -437,8 +441,8 @@ test("find binds the referenced Foundation profile to schema v2 before querying"
     profiles: { async read() { return profile; } }
   });
   await assert.rejects(
-    protocol.find({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml", query: {} }),
-    /schemaVersion must be 2/u
+    protocol.findV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml", query: {} }),
+    /schemaVersion must be 3/u
   );
   assert.equal(queried, false);
 });
@@ -446,7 +450,7 @@ test("find binds the referenced Foundation profile to schema v2 before querying"
 test("direct API rejects invalid relation filters and bounded authoring collections", async () => {
   const { protocol, calls } = harness();
   await assert.rejects(
-    protocol.find({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml", query: { related: " ADR-0001" } }),
+    protocol.findV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml", query: { related: " ADR-0001" } }),
     /canonical document ID/u
   );
   assert.equal(calls.find, 0);
@@ -457,27 +461,27 @@ test("direct API rejects invalid relation filters and bounded authoring collecti
     profilePath: "architecture/foundation/docs-protocol.yaml",
     intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." }
   };
-  await assert.rejects(protocol.newDocument({ ...base, related: Array.from({ length: 257 }, (_value, index) => `ADR-${String(index).padStart(4, "0")}`) }), /exceeds 256/u);
-  await assert.rejects(protocol.newDocument({ ...base, codeAnchors: Array.from({ length: 257 }, (_value, index) => ({ pattern: `src/file-${index}.ts`, enforcement: "required" })) }), /exceeds 256/u);
+  await assert.rejects(protocol.newDocumentV2({ ...base, related: Array.from({ length: 257 }, (_value, index) => `ADR-${String(index).padStart(4, "0")}`) }), /exceeds 256/u);
+  await assert.rejects(protocol.newDocumentV2({ ...base, codeAnchors: Array.from({ length: 257 }, (_value, index) => ({ pattern: `src/file-${index}.ts`, enforcement: "required" })) }), /exceeds 256/u);
   const oversizedMetadata = Object.fromEntries(Array.from({ length: 10_001 }, (_value, index) => [`key_${index}`, index]));
-  await assert.rejects(protocol.newDocument({ ...base, additionalMetadata: oversizedMetadata }), /exceeds 10000/u);
+  await assert.rejects(protocol.newDocumentV2({ ...base, additionalMetadata: oversizedMetadata }), /exceeds 10000/u);
   const sparse = [];
   sparse.length = 2;
   sparse[1] = "present";
-  await assert.rejects(protocol.newDocument({ ...base, additionalMetadata: { sparse } }), /sparse/u);
+  await assert.rejects(protocol.newDocumentV2({ ...base, additionalMetadata: { sparse } }), /sparse/u);
   const accessor = {};
   Object.defineProperty(accessor, "computed", { enumerable: true, get() { return "value"; } });
-  await assert.rejects(protocol.newDocument({ ...base, additionalMetadata: accessor }), /data property/u);
+  await assert.rejects(protocol.newDocumentV2({ ...base, additionalMetadata: accessor }), /data property/u);
   assert.equal(calls.plan.length, 0);
 });
 
 test("new fails authority-stale across profile and blocker-status races without applying or advising an index", async () => {
-  const initialDescription = { authority: { templates: [] }, projectId: "fixture-project", profileSchemaVersion: 2, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
+  const initialDescription = { authority: { templates: [] }, projectId: "fixture-project", profileSchemaVersion: 3, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
   const changedDescription = { ...initialDescription, semanticDigest: `sha256:${"8".repeat(64)}`, types: [{ ...types[0], initialStatus: "accepted", reachability: { kind: "not-required", reason: "changed" } }] };
   const baseCatalog = { projectId: "fixture-project", status: "complete", diagnostics: [], documents: [{ ...descriptor({ id: "OD-001", type: "open-decision", status: "open", repositoryPath: "docs/open-decisions/OD-001.md" }), metadata: {} }], identityProjection: [], ownerIds: ["architecture/tooling"], authority: {}, semanticDigest: CATALOG_SEMANTIC_DIGEST };
   const changedCatalog = { ...baseCatalog, semanticDigest: `sha256:${"9".repeat(64)}`, documents: [{ ...baseCatalog.documents[0], status: "resolved" }] };
   const { protocol, calls } = harness({ descriptions: [initialDescription, changedDescription], catalogs: [baseCatalog, changedCatalog] });
-  const result = await protocol.newDocument({
+  const result = await protocol.newDocumentV2({
     apply: true,
     consumerRoot: ".",
     profilePath: "architecture/foundation/docs-protocol.yaml",
@@ -502,7 +506,7 @@ test("new fails authority-stale when Plan is bound to a different authority snap
   mismatchedPlan.authority.profileSemanticDigest = `sha256:${"8".repeat(64)}`;
   mismatchedPlan.authority.catalogPreimageSemanticDigest = `sha256:${"9".repeat(64)}`;
   const { protocol, calls } = harness({ plan: mismatchedPlan });
-  const result = await protocol.newDocument({
+  const result = await protocol.newDocumentV2({
     apply: true,
     consumerRoot: ".",
     profilePath: "architecture/foundation/docs-protocol.yaml",

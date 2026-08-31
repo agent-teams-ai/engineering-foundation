@@ -1,7 +1,6 @@
 import {
   applyDocumentationPlanV2,
   buildDocumentationCatalogV2,
-  describeDocumentAuthoringProfileV2,
   describeDocumentAuthoringProfileV3,
   findDocumentationDocumentsV2,
   inspectDocumentTransactionV2,
@@ -56,9 +55,7 @@ export class NodeFoundationDocsPort implements FoundationDocsPortV3 {
       profilePath: input.profilePath,
       ...signalOption(input.signal)
     };
-    const description = input.profileSchemaVersion === 2
-      ? await describeDocumentAuthoringProfileV2(request)
-      : await describeDocumentAuthoringProfileV3(request);
+    const description = await describeDocumentAuthoringProfileV3(request);
     return Object.freeze({
       authority: description.authority,
       catalog: description.catalog,

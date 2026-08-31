@@ -111,7 +111,7 @@ export interface FoundationDocsDescriptionV2 {
     readonly collections: readonly unknown[];
     readonly excludedPrefixes: readonly string[];
   };
-  readonly profileSchemaVersion: 2 | 3;
+  readonly profileSchemaVersion: 3;
   readonly semanticDigest: string;
   readonly metadataSchemaPath: string;
   readonly metadataSidecar: { readonly kind: "none" } | { readonly kind: "path-metadata-map"; readonly path: string };
@@ -129,7 +129,7 @@ export interface FoundationDocsPortV2 {
       readonly strictDirectoryDurability: "platform-supported" | "platform-unsupported";
     };
   }>;
-  describe(input: { readonly consumerRoot: string; readonly profilePath: string; readonly profileSchemaVersion: 2 | 3; readonly signal?: AbortSignal }): Promise<FoundationDocsDescriptionV2>;
+  describe(input: { readonly consumerRoot: string; readonly profilePath: string; readonly profileSchemaVersion: 3; readonly signal?: AbortSignal }): Promise<FoundationDocsDescriptionV2>;
   buildCatalog(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }): Promise<DocumentationCatalogSnapshotV2>;
   find(input: { readonly consumerRoot: string; readonly profilePath: string; readonly query: DocsFindQuery; readonly signal?: AbortSignal }): Promise<readonly DocsFindDocument[]>;
   inspect(consumerRoot: string): Promise<DocumentTransactionInspectionV2>;

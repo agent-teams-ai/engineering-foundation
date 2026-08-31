@@ -33,7 +33,7 @@ function portableEntryIdentity(entry) {
   }
   const rawSegments = entry.endsWith("/") ? entry.slice(0, -1).split("/") : entry.split("/");
   if (rawSegments.some((segment) => segment === "" || segment === "." || segment === ".." ||
-      /[\0-\x1f\x7f<>:"|?*]/u.test(segment) || /[. ]$/u.test(segment))) {
+      /[\u0000-\u001f\u007f<>:"|?*]/u.test(segment) || /[. ]$/u.test(segment))) {
     throw new Error(`Package contains an unsafe archive member: ${entry}`);
   }
   const directory = entry.endsWith("/");
@@ -72,7 +72,9 @@ function archiveEntries(listing) {
 
 export function assertArchiveListing(listing, requiredArtifactPaths, allowedArtifactPaths = requiredArtifactPaths) {
   for (const forbidden of forbiddenEntries) {
-    if (listing.includes(forbidden)) throw new Error(`Forbidden package entry detected: ${forbidden}`);
+    if (listing.includes(forbidden)) {
+      throw new Error(`Forbidden package entry detected: ${forbidden}`);
+    }
   }
   const entries = archiveEntries(listing);
   const entrySet = new Set(entries);
@@ -81,7 +83,9 @@ export function assertArchiveListing(listing, requiredArtifactPaths, allowedArti
     ...requiredArtifactPaths.map((path) => `package/${path}`),
   ];
   for (const required of requiredEntries) {
-    if (!entrySet.has(required)) throw new Error(`Required package entry missing: ${required}`);
+    if (!entrySet.has(required)) {
+      throw new Error(`Required package entry missing: ${required}`);
+    }
   }
   const requiredDirectories = new Set(["package/"]);
   for (const required of requiredEntries) {
@@ -103,12 +107,20 @@ export function assertArchiveListing(listing, requiredArtifactPaths, allowedArti
 }
 
 function parseTarNumber(field, label) {
-  if ((field[0] & 0x80) !== 0) throw new Error(`Package tar uses unsupported base-256 ${label}.`);
-  const text = field.toString("ascii").replace(/\0.*$/u, "").trim();
-  if (text === "") return 0;
-  if (!/^[0-7]+$/u.test(text)) throw new Error(`Package tar has malformed ${label}.`);
+  if ((field[0] & 0x80) !== 0) {
+    throw new Error(`Package tar uses unsupported base-256 ${label}.`);
+  }
+  const text = field.toString("ascii").replace(/\u0000.*$/u, "").trim();
+  if (text === "") {
+    return 0;
+  }
+  if (!/^[0-7]+$/u.test(text)) {
+    throw new Error(`Package tar has malformed ${label}.`);
+  }
   const value = Number.parseInt(text, 8);
-  if (!Number.isSafeInteger(value)) throw new Error(`Package tar ${label} is not safely bounded.`);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`Package tar ${label} is not safely bounded.`);
+  }
   return value;
 }
 
@@ -118,7 +130,9 @@ function verifyTarChecksum(header) {
   for (let index = 0; index < header.length; index += 1) {
     actual += index >= 148 && index < 156 ? 32 : header[index];
   }
-  if (actual !== expected) throw new Error("Package tar has an invalid header checksum.");
+  if (actual !== expected) {
+    throw new Error("Package tar has an invalid header checksum.");
+  }
 }
 
 export function inspectCompressedTarArchive(archiveBytes) {
@@ -159,7 +173,9 @@ export function inspectCompressedTarArchive(archiveBytes) {
       throw new Error(`Package tar has a malformed UTF-8 member name: ${error.message}`, { cause: error });
     }
     portableEntryIdentity(name);
-    if (type === "S") throw new Error("Package tar contains a prohibited GNU sparse logical file.");
+    if (type === "S") {
+      throw new Error("Package tar contains a prohibited GNU sparse logical file.");
+    }
     if (size > MAX_MEMBER_BYTES) {
       throw new Error(`Package tar member exceeds ${MAX_MEMBER_BYTES} bytes.`);
     }
@@ -168,9 +184,13 @@ export function inspectCompressedTarArchive(archiveBytes) {
       throw new Error(`Package tar members exceed ${MAX_UNCOMPRESSED_BYTES} aggregate bytes.`);
     }
     entryCount += 1;
-    if (entryCount > MAX_ARCHIVE_ENTRIES) throw new Error(`Package contains too many entries: ${entryCount}.`);
+    if (entryCount > MAX_ARCHIVE_ENTRIES) {
+      throw new Error(`Package contains too many entries: ${entryCount}.`);
+    }
     const next = offset + 512 + Math.ceil(size / 512) * 512;
-    if (next > tar.length) throw new Error("Package tar member extends beyond the archive.");
+    if (next > tar.length) {
+      throw new Error("Package tar member extends beyond the archive.");
+    }
     const data = tar.subarray(offset + 512, offset + 512 + size);
     if ((type === "x" || type === "g") && /(?:GNU\.sparse\.|SCHILY\.realsize)/u.test(data.toString("utf8"))) {
       throw new Error("Package tar contains prohibited PAX sparse logical-file metadata.");
@@ -181,7 +201,9 @@ export function inspectCompressedTarArchive(archiveBytes) {
     entries.push(Object.freeze({ data, name, size, type }));
     offset = next;
   }
-  if (offset !== tar.length) throw new Error("Package tar is truncated or lacks a two-zero-block terminator.");
+  if (offset !== tar.length) {
+    throw new Error("Package tar is truncated or lacks a two-zero-block terminator.");
+  }
   const result = { aggregateBytes, entryCount, uncompressedBytes: tar.length };
   Object.defineProperty(result, "entries", { value: Object.freeze(entries) });
   return Object.freeze(result);
@@ -216,9 +238,13 @@ function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex")
 
 export async function readVerifiedArchive(path, expectedSha256) {
   const metadata = await lstat(path);
-  if (metadata.isSymbolicLink()) throw new Error(`Verified package archive was replaced by a symlink: ${path}.`);
+  if (metadata.isSymbolicLink()) {
+    throw new Error(`Verified package archive was replaced by a symlink: ${path}.`);
+  }
   const bytes = await readRegularArchive(path);
-  if (sha256(bytes) !== expectedSha256) throw new Error(`Verified package archive digest changed: ${path}.`);
+  if (sha256(bytes) !== expectedSha256) {
+    throw new Error(`Verified package archive digest changed: ${path}.`);
+  }
   return bytes;
 }
 
@@ -241,7 +267,9 @@ export function assertArchiveSafety({ allowedArtifactPaths, archiveBytes, listin
 
 async function pathExists(path) {
   try { await lstat(path); return true; } catch (error) {
-    if (error?.code === "ENOENT") return false;
+    if (error?.code === "ENOENT") {
+      return false;
+    }
     throw error;
   }
 }
@@ -265,7 +293,9 @@ async function readStableRegularFile(path, state, label, expected, maximumBytes 
   const handle = await open(physical, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
   try {
     const opened = await handle.stat();
-    if (!sameFileState(before, opened)) throw new Error(`${label} changed before staging: ${path}.`);
+    if (!sameFileState(before, opened)) {
+      throw new Error(`${label} changed before staging: ${path}.`);
+    }
     const bytes = Buffer.alloc(opened.size);
     const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
     const overflow = Buffer.alloc(1);
@@ -277,7 +307,9 @@ async function readStableRegularFile(path, state, label, expected, maximumBytes 
       throw new Error(`${label} changed during staging: ${path}.`);
     }
     state.bytes += bytes.length;
-    if (state.bytes > MAX_STAGE_BYTES) throw new Error(`${label} exceeds its bounded byte limit.`);
+    if (state.bytes > MAX_STAGE_BYTES) {
+      throw new Error(`${label} exceeds its bounded byte limit.`);
+    }
     return { bytes, mode: opened.mode & 0o777 };
   } finally {
     await handle.close();
@@ -298,7 +330,9 @@ async function boundedDirectoryEntries(path, label, state) {
   try {
     for await (const entry of directory) {
       state.entries += 1;
-      if (state.entries > MAX_STAGE_ENTRIES) throw new Error(`${label} exceeds its bounded entry limit.`);
+      if (state.entries > MAX_STAGE_ENTRIES) {
+        throw new Error(`${label} exceeds its bounded entry limit.`);
+      }
       entries.push(entry);
     }
   } finally {
@@ -309,7 +343,9 @@ async function boundedDirectoryEntries(path, label, state) {
 
 async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks, excludedEntries, label, state, validatePhysical }) {
   async function visit(source, destination, depth, countSelf = true) {
-    if (depth > 64) throw new Error(`${label} exceeds its bounded traversal depth.`);
+    if (depth > 64) {
+      throw new Error(`${label} exceeds its bounded traversal depth.`);
+    }
     const pathnameBefore = await lstat(source);
     if (pathnameBefore.isSymbolicLink() && !allowLinks) {
       throw new Error(`${label} contains a symlink: ${source}.`);
@@ -317,8 +353,12 @@ async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks, exclu
     const physical = await realpath(source);
     const metadataBefore = await lstat(physical);
     await validatePhysical?.(physical, source, metadataBefore);
-    if (countSelf) state.entries += 1;
-    if (state.entries > MAX_STAGE_ENTRIES) throw new Error(`${label} exceeds its bounded entry limit.`);
+    if (countSelf) {
+      state.entries += 1;
+    }
+    if (state.entries > MAX_STAGE_ENTRIES) {
+      throw new Error(`${label} exceeds its bounded entry limit.`);
+    }
     if (metadataBefore.isFile()) {
       const { bytes, mode } = await readStableRegularFile(source, state, label, {
         metadata: metadataBefore, pathname: pathnameBefore, physical,
@@ -327,11 +367,15 @@ async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks, exclu
       await writeFile(destination, bytes, { flag: "wx", mode });
       return;
     }
-    if (!metadataBefore.isDirectory()) throw new Error(`${label} contains a special file: ${source}.`);
+    if (!metadataBefore.isDirectory()) {
+      throw new Error(`${label} contains a special file: ${source}.`);
+    }
     await mkdir(destination, { mode: metadataBefore.mode & 0o777, recursive: false });
     const entries = await boundedDirectoryEntries(physical, label, state);
     for (const entry of entries) {
-      if (excludedEntries.has(entry.name)) continue;
+      if (excludedEntries.has(entry.name)) {
+        continue;
+      }
       await visit(join(source, entry.name), join(destination, entry.name), depth + 1, false);
     }
     const [pathnameAfter, metadataAfter, physicalAfter] = await Promise.all([
@@ -351,7 +395,9 @@ function containsPhysicalPath(parent, candidate) {
 }
 
 function isInternalSourcePath(internalRoot, candidate) {
-  if (!containsPhysicalPath(internalRoot, candidate)) return false;
+  if (!containsPhysicalPath(internalRoot, candidate)) {
+    return false;
+  }
   const remainder = relative(internalRoot, candidate);
   return remainder === "" || remainder.split(sep)[0] !== "node_modules";
 }
@@ -369,10 +415,16 @@ async function assertNoInternalResolutionFromAncestors(physicalRoot, internalPac
         );
       }
     }
-    if (installationBoundarySeen) break;
-    if (current.endsWith(`${sep}node_modules`)) installationBoundarySeen = true;
+    if (installationBoundarySeen) {
+      break;
+    }
+    if (current.endsWith(`${sep}node_modules`)) {
+      installationBoundarySeen = true;
+    }
     const parent = dirname(current);
-    if (parent === current) break;
+    if (parent === current) {
+      break;
+    }
     current = parent;
   }
 }
@@ -388,7 +440,9 @@ function dependencyRequests(manifest, sections) {
       if (typeof specifier !== "string" || specifier === "") {
         throw new Error(`Package manifest has malformed ${section} request for ${name}.`);
       }
-      if (!requests.has(name)) requests.set(name, specifier);
+      if (!requests.has(name)) {
+        requests.set(name, specifier);
+      }
     }
   }
   return requests;
@@ -407,11 +461,19 @@ async function resolveInstalledPackage(sourceRoot, packageName) {
   let installationBoundarySeen = false;
   while (true) {
     const candidate = join(current, "node_modules", ...packageName.split("/"));
-    if (await pathExists(candidate)) return candidate;
-    if (installationBoundarySeen) return undefined;
-    if (current.endsWith(`${sep}node_modules`)) installationBoundarySeen = true;
+    if (await pathExists(candidate)) {
+      return candidate;
+    }
+    if (installationBoundarySeen) {
+      return undefined;
+    }
+    if (current.endsWith(`${sep}node_modules`)) {
+      installationBoundarySeen = true;
+    }
     const parent = dirname(current);
-    if (parent === current) return undefined;
+    if (parent === current) {
+      return undefined;
+    }
     current = parent;
   }
 }
@@ -422,21 +484,37 @@ function parseVersion(value) {
 }
 
 function compareVersion(left, right) {
-  for (let index = 0; index < 3; index += 1) if (left[index] !== right[index]) return left[index] - right[index];
-  if (left[3] === right[3]) return 0;
-  if (left[3] === "") return 1;
-  if (right[3] === "") return -1;
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] !== right[index]) {
+      return left[index] - right[index];
+    }
+  }
+  if (left[3] === right[3]) {
+    return 0;
+  }
+  if (left[3] === "") {
+    return 1;
+  }
+  if (right[3] === "") {
+    return -1;
+  }
   return left[3] < right[3] ? -1 : 1;
 }
 
 function acceptsVersion(version, requested) {
   const actual = parseVersion(version);
-  if (actual === undefined) return false;
+  if (actual === undefined) {
+    return false;
+  }
   const alternatives = requested.split("||").map((part) => part.trim());
   return alternatives.some((alternative) => {
-    if (alternative === "*" || alternative === "latest") return true;
+    if (alternative === "*" || alternative === "latest") {
+      return true;
+    }
     const exact = parseVersion(alternative);
-    if (exact !== undefined) return compareVersion(actual, exact) === 0;
+    if (exact !== undefined) {
+      return compareVersion(actual, exact) === 0;
+    }
     const shorthand = /^(\^|~)(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/u.exec(alternative);
     if (shorthand !== null) {
       const lower = parseVersion(shorthand[2]);
@@ -448,7 +526,9 @@ function acceptsVersion(version, requested) {
     const comparators = alternative.split(/\s+/u).filter(Boolean);
     return comparators.length > 0 && comparators.every((comparator) => {
       const match = /^(>=|<=|>|<|=)?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/u.exec(comparator);
-      if (match === null) return false;
+      if (match === null) {
+        return false;
+      }
       const difference = compareVersion(actual, parseVersion(match[2]));
       return match[1] === ">=" ? difference >= 0 : match[1] === "<=" ? difference <= 0 :
         match[1] === ">" ? difference > 0 : match[1] === "<" ? difference < 0 : difference === 0;
@@ -459,7 +539,9 @@ function acceptsVersion(version, requested) {
 function requestedVersion(specifier, packageName, catalogVersions) {
   if (specifier === "catalog:") {
     const version = catalogVersions.get(packageName);
-    if (version === undefined) throw new Error(`Workspace catalog has no exact version for ${packageName}.`);
+    if (version === undefined) {
+      throw new Error(`Workspace catalog has no exact version for ${packageName}.`);
+    }
     return version;
   }
   return specifier;
@@ -480,7 +562,9 @@ async function materializeExternalPackage(source, destination, context) {
       if (context.physicalInternalRoots.some((internalRoot) => isInternalSourcePath(internalRoot, candidate))) {
         throw new Error(`External dependency tree reaches an internal source-workspace package: ${sourcePath}.`);
       }
-      if (metadata.isDirectory()) await assertNoInternalResolutionFromAncestors(candidate, context.internalPackageNames);
+      if (metadata.isDirectory()) {
+        await assertNoInternalResolutionFromAncestors(candidate, context.internalPackageNames);
+      }
     },
   });
   const sourceManifest = await readBoundedStableJson(join(destination, "package.json"), "External dependency manifest");
@@ -494,7 +578,9 @@ async function materializeExternalPackage(source, destination, context) {
     throw new Error(`External dependency tree carries internal package ${sourceManifest.name}.`);
   }
   const identity = process.platform === "win32" ? physical.toLowerCase() : physical;
-  if (context.ancestors.has(identity)) throw new Error(`External dependency cycle includes ${sourceManifest.name}.`);
+  if (context.ancestors.has(identity)) {
+    throw new Error(`External dependency cycle includes ${sourceManifest.name}.`);
+  }
   const ancestors = new Set(context.ancestors).add(identity);
   for (const [dependencyName, dependencySpecifier] of [...runtimeDependencyRequests(sourceManifest)].toSorted()) {
     if (context.internalPackageNames.has(dependencyName)) {
@@ -525,10 +611,14 @@ async function materializeDeclaredExternalNodeModules(
   const sourceNodeModules = join(sourceRoot, "node_modules");
   const stagedNodeModules = join(stagedRoot, "node_modules");
   await mkdir(stagedNodeModules, { recursive: true });
-  if (!(await pathExists(sourceNodeModules))) return;
+  if (!(await pathExists(sourceNodeModules))) {
+    return;
+  }
   const state = { bytes: 0, entries: 0 };
   for (const [packageName, specifier] of [...buildDependencyRequests(manifest)].toSorted()) {
-    if (internalPackageNames.has(packageName)) continue;
+    if (internalPackageNames.has(packageName)) {
+      continue;
+    }
     const source = join(sourceNodeModules, ...packageName.split("/"));
     if (!(await pathExists(source))) {
       if (Object.hasOwn(manifest.dependencies ?? {}, packageName) ||
@@ -570,10 +660,16 @@ function workspaceCatalogVersions(bytes) {
   let inCatalog = false;
   for (const line of bytes.toString("utf8").split(/\r?\n/u)) {
     if (/^catalog:\s*$/u.test(line)) { inCatalog = true; continue; }
-    if (inCatalog && /^\S/u.test(line)) break;
-    if (!inCatalog) continue;
+    if (inCatalog && /^\S/u.test(line)) {
+      break;
+    }
+    if (!inCatalog) {
+      continue;
+    }
     const match = /^  (["']?)([^"':]+|@[^"']+)\1:\s*([0-9][0-9A-Za-z.-]*)\s*$/u.exec(line);
-    if (match !== null) versions.set(match[2], match[3]);
+    if (match !== null) {
+      versions.set(match[2], match[3]);
+    }
   }
   return versions;
 }
@@ -581,7 +677,9 @@ function workspaceCatalogVersions(bytes) {
 function releaseManifestIdentity(manifest) {
   const identity = {};
   for (const key of ["name", "version", "type", "bin", "exports", "files", "scripts"]) {
-    if (Object.hasOwn(manifest, key)) identity[key] = manifest[key];
+    if (Object.hasOwn(manifest, key)) {
+      identity[key] = manifest[key];
+    }
   }
   return JSON.stringify(identity);
 }
@@ -599,7 +697,9 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
     if (metadata.isFile()) {
       const { bytes } = await readStableRegularFile(absolute, state, "Packed payload authority");
       entries.add(`package/${relativePath}`);
-      if (relativePath !== "package.json") fileDigests.set(`package/${relativePath}`, sha256(bytes));
+      if (relativePath !== "package.json") {
+        fileDigests.set(`package/${relativePath}`, sha256(bytes));
+      }
       return;
     }
     entries.add(`package/${relativePath}/`);
@@ -608,7 +708,9 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
     }
   }
   if (Array.isArray(manifest.files)) {
-    for (const path of manifest.files) await visit(join(packageRoot, path), path);
+    for (const path of manifest.files) {
+      await visit(join(packageRoot, path), path);
+    }
   } else {
     for (const path of requiredArtifactPaths ?? []) {
       entries.add(`package/${path}`);
@@ -638,7 +740,9 @@ export async function createCleanBuildStage(input, label) {
   const internalPackageNames = new Set([...Object.keys(dependencyDeclarations), ...stagedPackagesByName.keys()]);
   const physicalInternalRoots = [];
   for (const root of input.authoritativePackageRoots ?? input.stagePackages.map((entry) => entry.sourceRoot)) {
-    if (typeof root === "string") physicalInternalRoots.push(await realpath(root));
+    if (typeof root === "string") {
+      physicalInternalRoots.push(await realpath(root));
+    }
   }
   const manifestsByName = new Map();
   const workspace = await readStableRegularFile(
@@ -683,11 +787,15 @@ export async function createCleanBuildStage(input, label) {
     });
   }
   const packageRoot = stagedPackagesByName.get(input.packageName);
-  if (packageRoot === undefined) throw new Error(`Clean stage has no target package ${input.packageName}.`);
+  if (packageRoot === undefined) {
+    throw new Error(`Clean stage has no target package ${input.packageName}.`);
+  }
   await writeFile(join(stageRoot, "pnpm-workspace.yaml"), workspace.bytes, { flag: "wx", mode: workspace.mode });
   for (const packageName of input.buildPackageNames ?? [input.packageName]) {
     const buildRoot = stagedPackagesByName.get(packageName);
-    if (buildRoot === undefined) throw new Error(`Clean stage build order names unstaged package ${packageName}.`);
+    if (buildRoot === undefined) {
+      throw new Error(`Clean stage build order names unstaged package ${packageName}.`);
+    }
     await input.runBuild(buildRoot, Object.freeze({ packageName, stageRoot, stagedPackagesByName }));
   }
   const sourceManifest = manifestsByName.get(input.packageName);
@@ -706,7 +814,9 @@ async function createArtifact(input, stage) {
   const state = { entries: 0 };
   const archives = (await boundedDirectoryEntries(destination, "Pack destination", state))
     .map(({ name }) => name).filter((name) => name.endsWith(".tgz"));
-  if (archives.length !== 1) throw new Error(`pnpm pack produced ${archives.length} tarballs; expected exactly one.`);
+  if (archives.length !== 1) {
+    throw new Error(`pnpm pack produced ${archives.length} tarballs; expected exactly one.`);
+  }
   return { archiveName: archives[0], archivePath: join(destination, archives[0]) };
 }
 
@@ -728,7 +838,9 @@ function parsedArchiveListings(inspection) {
 
 function assertExactArchiveManifest(inspection, expectedManifest) {
   const manifests = inspection.entries.filter(({ name, type }) => name === "package/package.json" && type === "0");
-  if (manifests.length !== 1) throw new Error("Package tar must contain exactly one regular package/package.json.");
+  if (manifests.length !== 1) {
+    throw new Error("Package tar must contain exactly one regular package/package.json.");
+  }
   let manifest;
   try { manifest = JSON.parse(manifests[0].data.toString("utf8")); } catch (error) {
     throw new Error(`Packed package manifest is not valid JSON: ${error.message}`, { cause: error });
@@ -756,9 +868,13 @@ function assertExactPackedEntries(inspection, listing, expected) {
 async function extractVerifiedArchive(inspection, extractedRoot) {
   await mkdir(extractedRoot, { recursive: false });
   for (const { data, name, type } of inspection.entries) {
-    if (type === "x" || type === "g") continue;
+    if (type === "x" || type === "g") {
+      continue;
+    }
     const destination = join(extractedRoot, ...name.split("/"));
-    if (!containsPhysicalPath(extractedRoot, destination)) throw new Error(`Unsafe extraction path: ${name}.`);
+    if (!containsPhysicalPath(extractedRoot, destination)) {
+      throw new Error(`Unsafe extraction path: ${name}.`);
+    }
     if (type === "5") {
       await mkdir(destination, { recursive: true });
     } else if (type === "0") {

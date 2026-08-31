@@ -166,7 +166,9 @@ async function inspectLocalModeEvidence(
     try {
       for (;;) {
         const entry = await directory.read();
-        if (entry === null) {break;}
+        if (entry === null) {
+          break;
+        }
         entries.push(entry.name);
         if (entries.length > maximumStateDirectoryEntries) {
           throw new Error("Foundation local-mode state enumeration budget exceeded.");
@@ -255,9 +257,15 @@ function assertEnvelopeDigests(envelope: Record<string, unknown>): void {
 }
 
 function normalizeLegacyScaffoldingValue(value: unknown): unknown {
-  if (typeof value === "number") {return Object.is(value, -0) ? 0 : value;}
-  if (typeof value === "string") {return value.replace(/[\uD800-\uDFFF]/gu, "\uFFFD");}
-  if (Array.isArray(value)) {return value.map(normalizeLegacyScaffoldingValue);}
+  if (typeof value === "number") {
+    return Object.is(value, -0) ? 0 : value;
+  }
+  if (typeof value === "string") {
+    return value.replace(/[\uD800-\uDFFF]/gu, "\uFFFD");
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeLegacyScaffoldingValue);
+  }
   if (isRecord(value)) {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [
       key, normalizeLegacyScaffoldingValue(item)
@@ -268,7 +276,9 @@ function normalizeLegacyScaffoldingValue(value: unknown): unknown {
 
 function assertLegacyScaffoldingJournal(journal: Record<string, unknown>): void {
   const plan = journal["plan"];
-  if (!isRecord(plan)) {throw new Error("Legacy scaffolding Plan binding is invalid.");}
+  if (!isRecord(plan)) {
+    throw new Error("Legacy scaffolding Plan binding is invalid.");
+  }
   const { planDigest, ...body } = plan;
   if (planDigest !== legacyFoundationEnvelopeSha256Json(body)) {
     throw new Error("Legacy scaffolding Plan digest is invalid.");

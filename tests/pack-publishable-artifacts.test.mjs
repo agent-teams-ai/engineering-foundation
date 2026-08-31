@@ -300,7 +300,9 @@ test("clean stage exposes only directly declared internal packages", async (t) =
     repositoryRoot,
     runBuild: async (packageRoot, { packageName }) => {
       const requireFromPackage = createRequire(join(packageRoot, "probe.cjs"));
-      if (packageName === "@fixture/b") assert.equal(requireFromPackage("@fixture/c"), "c");
+      if (packageName === "@fixture/b") {
+        assert.equal(requireFromPackage("@fixture/c"), "c");
+      }
       if (packageName === "@fixture/a") {
         assert.equal(requireFromPackage("@fixture/b"), "b");
         assert.throws(() => requireFromPackage.resolve("@fixture/c"), /Cannot find module/u);

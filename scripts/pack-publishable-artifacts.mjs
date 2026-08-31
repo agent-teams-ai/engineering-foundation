@@ -18,7 +18,7 @@ function fail(message) {
 }
 
 function portableSegmentIdentity(segment, source) {
-  if (/[\0-\x1f\x7f<>:"|?*]/u.test(segment) || /[. ]$/u.test(segment)) {
+  if (/[\u0000-\u001f\u007f<>:"|?*]/u.test(segment) || /[. ]$/u.test(segment)) {
     fail(`${source} is not portable across supported filesystems`);
   }
   const identity = segment.normalize("NFKC").toUpperCase();
@@ -33,7 +33,9 @@ async function readBoundedManifest(path, label) {
   const handle = await open(path, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
   try {
     const before = await handle.stat();
-    if (!before.isFile() || before.size > 1024 * 1024) fail(`${label} is not a bounded regular manifest`);
+    if (!before.isFile() || before.size > 1024 * 1024) {
+      fail(`${label} is not a bounded regular manifest`);
+    }
     const bytes = Buffer.alloc(before.size);
     const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
     const overflow = Buffer.alloc(1);
@@ -55,10 +57,16 @@ function manifestReleaseTargets(manifest) {
   const targets = new Set();
   const visit = (value) => {
     if (typeof value === "string") {
-      if (value.startsWith("./") && !value.includes("*") && value !== "./package.json") targets.add(value.slice(2));
+      if (value.startsWith("./") && !value.includes("*") && value !== "./package.json") {
+        targets.add(value.slice(2));
+      }
       return;
     }
-    if (value !== null && typeof value === "object") for (const child of Object.values(value)) visit(child);
+    if (value !== null && typeof value === "object") {
+      for (const child of Object.values(value)) {
+        visit(child);
+      }
+    }
   };
   visit(manifest.bin);
   visit(manifest.exports);
@@ -168,16 +176,26 @@ function deriveBuildClosures(packages, dependencyDeclarations, byName) {
     fail("dependency declarations must be the manifest-derived projection");
   }
   for (const name of Object.keys(dependencyDeclarations)) {
-    if (!byName.has(name)) fail(`dependency declarations name unknown package ${name}`);
+    if (!byName.has(name)) {
+      fail(`dependency declarations name unknown package ${name}`);
+    }
   }
   const state = new Map();
   const closures = new Map();
   const visit = (name, trail) => {
-    if (!byName.has(name)) fail(`unresolved internal support package ${name}`);
-    if (state.get(name) === "visiting") fail(`internal dependency cycle includes ${[...trail, name].join(" -> ")}`);
-    if (state.get(name) === "visited") return closures.get(name);
+    if (!byName.has(name)) {
+      fail(`unresolved internal support package ${name}`);
+    }
+    if (state.get(name) === "visiting") {
+      fail(`internal dependency cycle includes ${[...trail, name].join(" -> ")}`);
+    }
+    if (state.get(name) === "visited") {
+      return closures.get(name);
+    }
     const declarations = dependencyDeclarations[name];
-    if (!Array.isArray(declarations)) fail(`dependency declarations are missing package ${name}`);
+    if (!Array.isArray(declarations)) {
+      fail(`dependency declarations are missing package ${name}`);
+    }
     state.set(name, "visiting");
     const closure = new Set([name]);
     for (const declaration of declarations) {
@@ -185,13 +203,17 @@ function deriveBuildClosures(packages, dependencyDeclarations, byName) {
           typeof declaration.section !== "string") {
         fail(`${name} has a malformed internal dependency declaration`);
       }
-      for (const dependency of visit(declaration.name, [...trail, name])) closure.add(dependency);
+      for (const dependency of visit(declaration.name, [...trail, name])) {
+        closure.add(dependency);
+      }
     }
     state.set(name, "visited");
     closures.set(name, closure);
     return closure;
   };
-  for (const { name } of packages) visit(name, []);
+  for (const { name } of packages) {
+    visit(name, []);
+  }
   const order = new Map(packages.map(({ name }, index) => [name, index]));
   for (const { name } of packages) {
     for (const { name: dependencyName } of dependencyDeclarations[name]) {
@@ -225,7 +247,9 @@ export function derivePublishableArtifactPlan({
 }
 
 export async function packPublishableArtifacts(input) {
-  if (input === null || typeof input !== "object") fail("input must be an object");
+  if (input === null || typeof input !== "object") {
+    fail("input must be an object");
+  }
   const inputKeys = Object.keys(input);
   const acceptedKeys = new Set(["temporaryRoot"]);
   if (inputKeys.some((key) => !acceptedKeys.has(key))) {
@@ -268,9 +292,13 @@ export async function packPublishableArtifacts(input) {
             fail(`${entry.manifestPath} package files path must be a regular file or directory`);
           }
           allowed.push(path);
-          if (metadata.isFile() && !["README.md", "CHANGELOG.md", "LICENSE"].includes(path)) required.add(path);
+          if (metadata.isFile() && !["README.md", "CHANGELOG.md", "LICENSE"].includes(path)) {
+            required.add(path);
+          }
         } catch (error) {
-          if (error?.code !== "ENOENT" || path !== "LICENSE") throw error;
+          if (error?.code !== "ENOENT" || path !== "LICENSE") {
+            throw error;
+          }
           allowed.push(path);
         }
       }

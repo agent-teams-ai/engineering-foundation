@@ -211,6 +211,11 @@
       "id": "ADR-0042",
       "path": "docs/decisions/0042-first-publish-default-tag-quarantine.md",
       "immutableDigest": "sha256:9e24c40d4b9422eec450868e885c597d66a624579f40dc4ef37094d43dce20d2"
+    },
+    {
+      "id": "ADR-0043",
+      "path": "docs/decisions/0043-new-only-portable-documentation-package-boundary.md",
+      "immutableDigest": "sha256:a4fe160b2fdf397ee9e398f1a0462332a178db595dbf8a3b176ed15791907e55"
     }
   ]
 }

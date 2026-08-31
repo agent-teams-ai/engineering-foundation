@@ -356,12 +356,31 @@ test("clean removes incremental state and permits a full rebuild", async () => {
     );
     packageConfig.compilerOptions.types = [];
 
+    const fixturePackages = [
+      ["engineering-foundation", "@agent-teams/engineering-foundation", {}],
+      ["docs-protocol", "@agent-teams/docs-protocol", {
+        "@agent-teams/engineering-foundation": "workspace:*",
+      }],
+      ["docs-protocol-mcp", "@agent-teams/docs-protocol-mcp", {
+        "@agent-teams/docs-protocol": "workspace:*",
+      }],
+      ["docs-protocol-agent-teams", "@agent-teams/docs-protocol-agent-teams", {
+        "@agent-teams/docs-protocol": "workspace:*",
+        "@agent-teams/engineering-foundation": "workspace:*",
+      }],
+    ];
+    await Promise.all(fixturePackages.map(([slug]) =>
+      mkdir(join(fixtureRoot, "packages", slug), { recursive: true })));
     await mkdir(sourceRoot, { recursive: true });
     await mkdir(dirname(cleanScript), { recursive: true });
     await Promise.all([
       writeFile(join(sourceRoot, "index.ts"), "export const built = true;\n", "utf8"),
       writeFile(join(packageRoot, "LICENSE"), "generated", "utf8"),
-      writeFile(join(packageRoot, "package.json"), '{"type":"module"}\n', "utf8"),
+      ...fixturePackages.map(([slug, name, dependencies]) => writeFile(
+        join(fixtureRoot, "packages", slug, "package.json"),
+        `${JSON.stringify({ dependencies, name, type: "module" })}\n`,
+        "utf8",
+      )),
       writeFile(tsconfigPath, `${JSON.stringify(packageConfig)}\n`, "utf8"),
       writeFile(
         cleanScript,

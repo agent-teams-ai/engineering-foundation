@@ -9,6 +9,9 @@
     },
     {
       "path": "./packages/docs-protocol-mcp"
+    },
+    {
+      "path": "./packages/docs-protocol-agent-teams"
     }
   ]
 }

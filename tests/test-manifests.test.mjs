@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  testRoots,
+  testRootsForPackages,
   validateTestManifestData,
   validateTestManifests,
 } from "../scripts/check-test-manifests.mjs";
+import { builtTestArguments } from "../scripts/run-built-tests.mjs";
 
 function fixture() {
   return {
@@ -44,10 +47,24 @@ function fixture() {
 
 test("repository test manifests cover every top-level test exactly once", async () => {
   const result = await validateTestManifests();
-  assert.equal(result.testCount, 160);
+  assert.equal(result.tests.length, result.testCount);
+  assert.ok(result.tests.includes("packages/docs-protocol-agent-teams/tests/qualification.test.mjs"));
+  assert.ok(testRoots.includes("packages/docs-protocol-agent-teams/tests"));
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
-  assert.equal([...result.shards.values()].flat().length, 136);
-  assert.equal([...result.coverageShards.values()].flat().length, 160);
+  assert.equal([...result.coverageShards.values()].flat().length, result.testCount);
+});
+
+test("built test runner consumes the validated inventory without shell globs", () => {
+  assert.deepEqual(builtTestArguments({ tests: [
+    "tests/a.test.mjs",
+    "packages/example/tests/b.test.mjs",
+  ] }), [
+    "--test",
+    "--test-concurrency=1",
+    "tests/a.test.mjs",
+    "packages/example/tests/b.test.mjs",
+  ]);
+  assert.throws(() => builtTestArguments({ tests: [] }), /non-empty validated test inventory/u);
 });
 
 test("test manifests fail closed for missing, duplicate, and nonexistent coverage tests", () => {
@@ -96,6 +113,13 @@ test("test manifests reject non-portable and traversal paths", () => {
     data.shardManifest.shards[0].tests = [hostilePath];
     assert.throws(() => validateTestManifestData(data), /portable top-level/u);
   }
+});
+
+test("package test root discovery rejects traversal", () => {
+  assert.throws(
+    () => testRootsForPackages([{ root: "packages/../outside" }]),
+    /not bounded and portable/u,
+  );
 });
 
 test("test manifests reject Windows-reserved filenames", () => {

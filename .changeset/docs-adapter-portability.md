@@ -1,6 +1,6 @@
 ---
 "@agent-teams/docs-protocol-agent-teams": minor
-"@agent-teams/docs-protocol": patch
+"@agent-teams/docs-protocol": minor
 ---
 
 Register the initial public API for the Agent Teams managed adapter and retain

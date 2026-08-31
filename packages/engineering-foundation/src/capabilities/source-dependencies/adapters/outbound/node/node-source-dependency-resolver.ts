@@ -1,20 +1,21 @@
 import { lstatSync, realpathSync } from "node:fs";
 import { builtinModules } from "node:module";
-import { join, relative, sep } from "node:path";
-import { posix } from "node:path";
+import { join, posix, relative, sep } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type {
   DependencyDeclaration,
   WorkspacePackage
 } from "../../../../../workspace-inventory/application/model/workspace-inventory.js";
-import { packageExportMatches } from "../../../../../workspace-inventory/application/policies/package-export-matcher.js";
+import { selectedPackageExport } from "../../../../../workspace-inventory/application/policies/package-export-matcher.js";
 import type {
   ResolvedSourceDependency
 } from "../../../application/model/source-workspace.js";
 import {
   normalizeRepositoryPath,
-  pathIsInside
+  pathIsInside,
+  portableRepositoryPathIdentity,
+  portableRepositoryPathProblem
 } from "../../../application/model/repository-path.js";
 import type {
   ResolveSourceDependencyInput,
@@ -114,14 +115,7 @@ function subpathExported(target: WorkspacePackage, subpath: string): boolean {
   if (!target.exportSurface.explicit) {
     return false;
   }
-  const matching = target.exportSurface.entries
-    .filter((entry) => packageExportMatches(entry, subpath))
-    .toSorted((left, right) => {
-      const leftExact = left.subpath.includes("*") ? 0 : 1;
-      const rightExact = right.subpath.includes("*") ? 0 : 1;
-      return rightExact - leftExact || right.subpath.length - left.subpath.length;
-    });
-  return matching[0]?.availability === "available";
+  return selectedPackageExport(target.exportSurface.entries, subpath)?.availability === "available";
 }
 
 function safeExistingGeneratedAncestors(
@@ -136,12 +130,18 @@ function safeExistingGeneratedAncestors(
   for (const segment of ["", ...relation.split(sep).filter(Boolean)]) {
     current = segment === "" ? current : join(current, segment);
     try {
-      if (lstatSync(current).isSymbolicLink()) return false;
+      if (lstatSync(current).isSymbolicLink()) {
+        return false;
+      }
       const canonical = realpathSync(current);
       const containment = relative(absoluteDist, canonical);
-      if (containment === ".." || containment.startsWith(`..${sep}`)) return false;
+      if (containment === ".." || containment.startsWith(`..${sep}`)) {
+        return false;
+      }
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return true;
+      }
       return false;
     }
   }
@@ -162,7 +162,9 @@ function generatedOutputCandidate(
   }
   const segments = raw.split("/");
   let index = 0;
-  while (segments[index] === "." || segments[index] === "..") index += 1;
+  while (segments[index] === "." || segments[index] === "..") {
+    index += 1;
+  }
   const output = segments.slice(index);
   if (
     index === 0 ||
@@ -170,6 +172,12 @@ function generatedOutputCandidate(
     output.length < 2 ||
     output.some(
       (segment) => segment === "" || segment === "." || segment === ".."
+    ) ||
+    output.some(
+      (segment) =>
+        portableRepositoryPathProblem(segment) !== undefined ||
+        portableRepositoryPathIdentity(segment) !==
+          segment.toLocaleLowerCase("en-US")
     ) ||
     !/[.]((?:m|c)?js)$/u.test(output.at(-1) ?? "")
   ) {
@@ -267,7 +275,9 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
 
 export class NodeSourceDependencyResolver implements SourceDependencyResolver {
   resolve(input: ResolveSourceDependencyInput): ResolvedSourceDependency {
-    if (!input.reference.specifier.startsWith(".")) return resolvePackage(input);
+    if (!input.reference.specifier.startsWith(".")) {
+      return resolvePackage(input);
+    }
     const resolved = resolveLocal(input);
     return resolved.kind === "unresolved"
       ? generatedOutputCandidate(input) ?? resolved

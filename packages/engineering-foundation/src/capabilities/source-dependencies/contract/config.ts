@@ -213,6 +213,29 @@ function normalizePolicyPaths(
   );
 }
 
+function normalizePackageExports(value: unknown, field: string): readonly string[] {
+  const exports = sortedStrings(value, field);
+  const identities = new Set<string>();
+  for (const subpath of exports) {
+    if (subpath === ".") {
+      continue;
+    }
+    const repositoryPath = subpath.startsWith("./") ? subpath.slice(2) : subpath;
+    const identity = portableRepositoryPathIdentity(repositoryPath);
+    if (
+      !subpath.startsWith("./") ||
+      subpath.includes("*") ||
+      repositoryPath !== repositoryPath.normalize("NFC") ||
+      portableRepositoryPathProblem(repositoryPath) !== undefined ||
+      identities.has(identity)
+    ) {
+      inputError(`${field} must contain unique exact portable package subpaths.`);
+    }
+    identities.add(identity);
+  }
+  return exports;
+}
+
 function validatePackageRootOverlap(policy: SourceArchitecturePolicy): void {
   if (policy.schemaVersion !== 2) {
     return;
@@ -375,7 +398,7 @@ function mapBoundary(
     id,
     dependencyMode,
     packageExports: version === 2
-      ? sortedStrings(boundary["packageExports"] ?? [], `${field}.packageExports`)
+      ? normalizePackageExports(boundary["packageExports"] ?? [], `${field}.packageExports`)
       : Object.freeze([]),
     roots: normalizePolicyPaths(
       boundary["roots"],

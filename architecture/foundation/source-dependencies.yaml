@@ -1047,6 +1047,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/workspace-inventory/application/model/workspace-inventory.ts
       - packages/engineering-foundation/src/workspace-inventory/application/ports/workspace-inventory-reader.ts
+      - packages/engineering-foundation/src/workspace-inventory/application/policies/package-export-matcher.ts
   - id: foundation.source-inventory.application
     roots:
       - packages/engineering-foundation/src/source-inventory/application

@@ -4,20 +4,23 @@ import { CapabilityInputError } from "../../../../capability-runtime.js";
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 import type { SourceTreeReader } from "../../../../source-inventory/application/ports/source-tree-reader.js";
-import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
+import type {
+  WorkspaceInventory,
+  WorkspacePackage
+} from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type { WorkspaceInventoryReader } from "../../../../workspace-inventory/application/ports/workspace-inventory-reader.js";
-import type { WorkspaceInventory } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import { exactAvailablePackageExport } from "../../../../workspace-inventory/application/policies/package-export-matcher.js";
 import type {
   ArchitectureBoundaryPolicy,
   ClassifiedSourceFile,
+  ObservedSourceGraph,
   SourceArchitecturePolicy
 } from "../model/source-workspace.js";
-import type { ObservedSourceGraph } from "../model/source-workspace.js";
 import {
   normalizeRepositoryPath,
   pathIsInside,
-  portablePathIsInside
+  portablePathIsInside,
+  portableRepositoryPathIdentity
 } from "../model/repository-path.js";
 import type { SourceDependencyParser } from "../ports/source-dependency-parser.js";
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
@@ -183,16 +186,23 @@ function buildPackageExportBoundaries(
   inventory: WorkspaceInventory,
   graph: ObservedSourceGraph
 ): ReadonlyMap<string, ReadonlyMap<string, string>> {
-  if (policy.schemaVersion !== 2) return new Map();
+  if (policy.schemaVersion !== 2) {
+    return new Map();
+  }
   const packageNamesByBoundary = new Map<string, Set<string>>();
   for (const node of graph.nodes) {
     const names = packageNamesByBoundary.get(node.boundaryId) ?? new Set<string>();
     names.add(node.workspacePackageName);
     packageNamesByBoundary.set(node.boundaryId, names);
   }
+  const nodesByPortablePath = new Map(
+    graph.nodes.map((node) => [portableRepositoryPathIdentity(node.path), node])
+  );
   const mutable = new Map<string, Map<string, string>>();
   for (const boundary of policy.boundaries) {
-    if (boundary.packageExports.length === 0) continue;
+    if (boundary.packageExports.length === 0) {
+      continue;
+    }
     const names = [...(packageNamesByBoundary.get(boundary.id) ?? [])];
     if (names.length !== 1) {
       throw new CapabilityInputError({
@@ -222,7 +232,9 @@ function buildPackageExportBoundaries(
         const targetPath = normalizeRepositoryPath(
           `${workspacePackage.rootPath}/${target.slice(2)}`
         );
-        const observedOwner = graph.nodes.find((node) => node.path === targetPath);
+        const observedOwner = nodesByPortablePath.get(
+          portableRepositoryPathIdentity(targetPath)
+        );
         if (observedOwner !== undefined && observedOwner.boundaryId !== boundary.id) {
           throw new CapabilityInputError({ code: "SOURCE_EXPORT_BOUNDARY_INVALID", message: `Package export claim contradicts observed source ownership: ${packageName}:${subpath}.`, phase: "source-boundary-classification", retryable: false });
         }

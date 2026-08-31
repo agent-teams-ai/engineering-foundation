@@ -9,13 +9,13 @@ import {
   readContainedRegularFile
 } from "../../../../filesystem-path-safety.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
-import type {
-  DependencyDeclaration,
-  PackageExportEntry,
-  PackageExportSurface,
-  WorkspacePackage
+import {
+  DEPENDENCY_SECTIONS,
+  type DependencyDeclaration,
+  type PackageExportEntry,
+  type PackageExportSurface,
+  type WorkspacePackage
 } from "../../../application/model/workspace-inventory.js";
-import { DEPENDENCY_SECTIONS } from "../../../application/model/workspace-inventory.js";
 
 const MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
 const READ_CONCURRENCY = 32;
@@ -105,9 +105,15 @@ function targetAvailability(value: unknown, field: string): "available" | "block
 }
 
 function exportTargetPaths(value: unknown): readonly string[] {
-  if (typeof value === "string") return value.startsWith("./") ? [value] : [];
-  if (Array.isArray(value)) return value.flatMap(exportTargetPaths);
-  if (isRecord(value)) return Object.values(value).flatMap(exportTargetPaths);
+  if (typeof value === "string") {
+    return value.startsWith("./") ? [value] : [];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap(exportTargetPaths);
+  }
+  if (isRecord(value)) {
+    return Object.values(value).flatMap(exportTargetPaths);
+  }
   return [];
 }
 

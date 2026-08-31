@@ -159,7 +159,10 @@ consumer-owned claims classify public package subpaths to source boundaries;
 they do not describe compiler or bundler provenance. Claims must name an exact
 available manifest export, have one package and boundary owner, and agree with
 any directly observed source target. Wildcards, stale or duplicate claims fail
-closed. Runtime and type-only imports of a package containing development source
+closed. Exact dotted subpaths such as `./qualification.js` and `./package.json`
+remain valid under the same portable path rules. Manifest wildcard selection
+uses Node's longest-prefix, then longest-key priority and rejects empty captures.
+Runtime and type-only imports of a package containing development source
 require an exact claim owned by a runtime boundary. Version 1 retains its
 conservative mixed-package rejection.
 

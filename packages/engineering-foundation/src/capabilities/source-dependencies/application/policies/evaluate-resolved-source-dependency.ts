@@ -314,15 +314,28 @@ function evaluateLocalFileDependency(input: EvaluationInput & {
   ];
 }
 
+interface WorkspacePackageDependencyEvaluationInput {
+  readonly boundariesById: ReadonlyMap<string, ArchitectureBoundaryPolicy>;
+  readonly developmentBoundariesByPackage: ReadonlyMap<string, readonly string[]>;
+  readonly edge: ObservedSourceDependencyEdge;
+  readonly packageExportBoundaries: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  readonly policy: SourceArchitecturePolicy;
+  readonly resolution: ResolutionOfKind<"workspace-package">;
+  readonly sourceBoundary: ArchitectureBoundaryPolicy;
+}
+
 function evaluateWorkspacePackageDependency(
-  edge: ObservedSourceDependencyEdge,
-  resolution: ResolutionOfKind<"workspace-package">,
-  sourceBoundary: ArchitectureBoundaryPolicy,
-  developmentBoundariesByPackage: ReadonlyMap<string, readonly string[]>,
-  packageExportBoundaries: ReadonlyMap<string, ReadonlyMap<string, string>>,
-  boundariesById: ReadonlyMap<string, ArchitectureBoundaryPolicy>,
-  policy: SourceArchitecturePolicy
+  input: WorkspacePackageDependencyEvaluationInput
 ): readonly FoundationDiagnostic[] {
+  const {
+    boundariesById,
+    developmentBoundariesByPackage,
+    edge,
+    packageExportBoundaries,
+    policy,
+    resolution,
+    sourceBoundary
+  } = input;
   if (resolution.workspacePackageName === edge.fromWorkspacePackageName) {
     return selfPackageImportDiagnostics({
       edge,
@@ -457,14 +470,14 @@ export function evaluateResolvedSourceDependency(
     case "unresolved":
       return [unclassifiedResolutionDiagnostic(input.edge, resolution)];
     case "workspace-package":
-      return evaluateWorkspacePackageDependency(
-        input.edge,
+      return evaluateWorkspacePackageDependency({
+        boundariesById: input.boundariesById,
+        developmentBoundariesByPackage: input.developmentBoundariesByPackage,
+        edge: input.edge,
+        packageExportBoundaries: input.packageExportBoundaries ?? new Map(),
+        policy: input.policy,
         resolution,
-        sourceBoundary,
-        input.developmentBoundariesByPackage,
-        input.packageExportBoundaries ?? new Map(),
-        input.boundariesById,
-        input.policy
-      );
+        sourceBoundary
+      });
   }
 }

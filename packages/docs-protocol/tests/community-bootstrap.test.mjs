@@ -13,7 +13,7 @@ import {
 import {
   applyKnownFileTransaction,
   compileKnownFileTransactionPlan
-} from "../../engineering-foundation/dist/mutation/index.js";
+} from "@agent-teams/engineering-foundation/mutation";
 import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
 import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspector.js";
 import { DOCS_ADOPTION_MAX_ROUTING_BYTES } from "../dist/domain/model.js";

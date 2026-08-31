@@ -115,7 +115,6 @@ function invoke(root, args) {
   const { GITHUB_REPOSITORY: _repository, GITHUB_REPOSITORY_ID: _repositoryId, ...environment } = process.env;
   const result = spawnSync(process.execPath, [
     join(import.meta.dirname, "..", "dist", "cli.js"),
-    "consumer",
     ...args,
     "--consumer",
     root,

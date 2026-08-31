@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { access, cp, lstat, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { planDocumentationDocument } from "../../engineering-foundation/dist/document-authoring/index.js";
-import { applyNodeDocumentationPlanPrivately } from "../../engineering-foundation/dist/document-authoring/composition/node-document-writing-private.js";
+import { planDocumentationDocument } from "@agent-teams/engineering-foundation/document-authoring";
 import { DocsProtocol } from "../dist/application/docs-protocol.js";
 import { NodeCodeAnchorMatcher } from "../dist/adapters/node-code-anchor-matcher.js";
 import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspector.js";
@@ -162,7 +161,7 @@ test("qualification cleans its inputs after a crash-child spawn error", async ()
 
 const requiresStrictDirectoryDurability = process.platform === "win32" ? test.skip : test;
 
-requiresStrictDirectoryDurability("recovery uses persisted transaction authority after both mutable profiles are corrupted", async () => {
+requiresStrictDirectoryDurability("recovery uses durable PUBLISHING authority after both mutable profiles are corrupted", async () => {
   const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-corrupt-profile-"));
   const consumerRoot = join(temporary, "consumer");
   try {
@@ -182,17 +181,25 @@ requiresStrictDirectoryDurability("recovery uses persisted transaction authority
     });
     assert.equal(plan.schemaVersion, 2);
     assert.deepEqual(plan.parentMaterialization.missingDirectories, ["docs/decisions/generated"]);
-    const interrupted = await applyNodeDocumentationPlanPrivately(
-      { consumerRoot, plan },
-      {
-        faultInjector(point) {
-          if (point.phase === "after-published-journal-durable") {
-            throw new Error("simulated process crash after durable publication state");
-          }
-        }
-      }
+    const packageScope = join(consumerRoot, "node_modules", "@agent-teams");
+    await mkdir(packageScope, { recursive: true });
+    await symlink(
+      new URL("../../engineering-foundation", import.meta.url).pathname,
+      join(packageScope, "engineering-foundation"),
+      process.platform === "win32" ? "junction" : "dir"
     );
-    assert.equal(interrupted.outcome, "recovery-required");
+    await writeFile(
+      join(consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json"),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        kind: "agent-teams-document-authoring-qualification-fixture",
+        consumerRoot: await realpath(consumerRoot)
+      })}\n`,
+      "utf8"
+    );
+    await crashAtDurablePublishing(consumerRoot, plan);
+    // The later owner-only after-published checkpoint remains covered by
+    // tests/document-authoring-writer-crash.test.mjs in the owning Foundation suite.
     await writeFile(join(consumerRoot, "docs.config.yaml"), "not: [valid\n", "utf8");
     await writeFile(join(consumerRoot, ".docs-protocol/document-authoring.yaml"), "not: [valid\n", "utf8");
 

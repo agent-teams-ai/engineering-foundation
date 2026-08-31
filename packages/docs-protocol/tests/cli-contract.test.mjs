@@ -71,8 +71,12 @@ test("portable CLI rejects every former managed route", async () => {
       (error) => {
         assert.equal(error.code, 2);
         const envelope = JSON.parse(error.stdout);
+        assert.equal(envelope.command, "docs.info");
         assert.equal(envelope.outcome, "invalid-input");
-        assert.match(envelope.diagnostics[0].message, /Expected one command/u);
+        assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.invalid-input.validation");
+        assert.equal(envelope.diagnostics[0].phase, "input");
+        assert.equal(envelope.diagnostics[0].message, "Documentation command input is invalid.");
+        assert.doesNotMatch(error.stdout, /Expected one command/u);
         return true;
       }
     );

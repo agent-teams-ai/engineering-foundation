@@ -51,8 +51,15 @@ test("direct portable and managed install graphs resolve without duplicate imple
   assert.equal(await realpath(managedRequire.resolve("@agent-teams/docs-protocol-agent-teams/package.json")),
     await realpath(join(adapterRoot, "package.json")));
 
-  assert.deepEqual((await readdir(join(coreRoot, "src", "consumer-integration"), { recursive: true }))
-    .filter((path) => path.endsWith(".ts")), []);
+  let portableManagedSources = [];
+  try {
+    portableManagedSources = (await readdir(join(coreRoot, "src", "consumer-integration"), {
+      recursive: true
+    })).filter((path) => path.endsWith(".ts"));
+  } catch (error) {
+    if (error?.code !== "ENOENT") {throw error;}
+  }
+  assert.deepEqual(portableManagedSources, []);
 });
 
 test("managed implementation retains fail-closed transaction boundaries", async () => {

@@ -139,7 +139,7 @@ snapshots:
 
 test("consumer JSON mode survives bounded argv failures without accepting aliases", () => {
   const cliPath = join(import.meta.dirname, "..", "dist", "cli.js");
-  const invoke = (args) => spawnSync(process.execPath, [cliPath, "consumer", ...args], {
+  const invoke = (args) => spawnSync(process.execPath, [cliPath, ...args], {
     encoding: "utf8",
     env: { ...process.env, NO_PROXY: "*" },
   });
@@ -156,6 +156,13 @@ test("consumer JSON mode survives bounded argv failures without accepting aliase
   const ambiguous = invoke(["check", "--json=true"]);
   assert.equal(ambiguous.status, 2, ambiguous.stderr);
   assert.match(ambiguous.stdout, /^consumer\.check: blocked\n/u);
+
+  const formerPrefix = invoke(["consumer", "check", "--json"]);
+  assert.equal(formerPrefix.status, 2, formerPrefix.stderr);
+  const formerPrefixEnvelope = JSON.parse(formerPrefix.stdout);
+  assert.equal(formerPrefixEnvelope.command, "consumer.check");
+  assert.equal(formerPrefixEnvelope.outcome, "blocked");
+  assert.equal(formerPrefixEnvelope.issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
 });
 
 test("plans, applies, verifies, and repeats the full consumer lifecycle offline", async () => {
@@ -226,7 +233,7 @@ test("plans, applies, verifies, and repeats the full consumer lifecycle offline"
 
   const cli = spawnSync(process.execPath, [
     join(import.meta.dirname, "..", "dist", "cli.js"),
-    "consumer", "check", "--consumer", root, "--json"
+    "check", "--consumer", root, "--json"
   ], { encoding: "utf8", env: { ...process.env, NO_PROXY: "*" } });
   assert.equal(cli.status, 0, cli.stderr);
   assert.equal(cli.stderr, "");
@@ -234,7 +241,7 @@ test("plans, applies, verifies, and repeats the full consumer lifecycle offline"
 
   const wrongRepository = spawnSync(process.execPath, [
     join(import.meta.dirname, "..", "dist", "cli.js"),
-    "consumer", "check", "--consumer", root, "--json"
+    "check", "--consumer", root, "--json"
   ], {
     encoding: "utf8",
     env: {
@@ -252,21 +259,21 @@ test("plans, applies, verifies, and repeats the full consumer lifecycle offline"
 
   const duplicateJson = spawnSync(process.execPath, [
     join(import.meta.dirname, "..", "dist", "cli.js"),
-    "consumer", "check", "--consumer", root, "--json", "--json"
+    "check", "--consumer", root, "--json", "--json"
   ], { encoding: "utf8", env: { ...process.env, NO_PROXY: "*" } });
   assert.equal(duplicateJson.status, 2, duplicateJson.stderr);
   assert.equal(JSON.parse(duplicateJson.stdout).issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
 
   const invalidFlag = spawnSync(process.execPath, [
     join(import.meta.dirname, "..", "dist", "cli.js"),
-    "consumer", "check", "--consumer", root, "--unknown", "--json"
+    "check", "--consumer", root, "--unknown", "--json"
   ], { encoding: "utf8", env: { ...process.env, NO_PROXY: "*" } });
   assert.equal(invalidFlag.status, 2, invalidFlag.stderr);
   assert.equal(JSON.parse(invalidFlag.stdout).issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
 
   const missingRoot = spawnSync(process.execPath, [
     join(import.meta.dirname, "..", "dist", "cli.js"),
-    "consumer", "check", "--consumer", join(root, "missing"), "--json"
+    "check", "--consumer", join(root, "missing"), "--json"
   ], { encoding: "utf8", env: { ...process.env, NO_PROXY: "*" } });
   assert.equal(missingRoot.status, 3, missingRoot.stderr);
   const missingRootIssue = JSON.parse(missingRoot.stdout).issues[0];

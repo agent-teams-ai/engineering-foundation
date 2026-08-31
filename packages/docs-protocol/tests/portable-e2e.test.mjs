@@ -9,8 +9,7 @@ import test from "node:test";
 import {
   applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
-} from "../../engineering-foundation/dist/mutation/index.js";
-import { acquireFoundationOperationLock } from "../../engineering-foundation/dist/local-mode/service.js";
+} from "@agent-teams/engineering-foundation/mutation";
 import { assertDocsCommandEnvelopeSchema } from "../dist/adapters/docs-command-envelope-schema-validator.js";
 
 const execute = promisify(execFile);
@@ -248,7 +247,9 @@ test("init dry-run reports an oversized AGENTS route as a schema-valid conflict 
 
 test("init apply waits for an active operation instead of prescribing recovery", async () => {
   const root = await mkdtemp(join(tmpdir(), "docs-protocol-init-active-lock-e2e-"));
-  let release;
+  const barrierAcquired = Promise.withResolvers();
+  const releaseBarrier = Promise.withResolvers();
+  let activeOperation;
   try {
     const initArguments = [
       "init",
@@ -257,7 +258,29 @@ test("init apply waits for an active operation instead of prescribing recovery",
       "--owner", "docs/platform",
     ];
     const preview = await runJson([...initArguments, "--dry-run"]);
-    release = await acquireFoundationOperationLock(root);
+    const activePlan = compileKnownFileTransactionPlan({ operations: [{
+      path: "active-operation-fixture.txt",
+      precondition: { state: "absent" },
+      postimage: { bytes: Buffer.from("active operation\n", "utf8") },
+    }] });
+    if (process.platform === "win32") {
+      await assert.rejects(
+        applyKnownFileTransaction({ consumerRoot: root, plan: activePlan }),
+        (error) => error?.code === "KNOWN_FILE_APPLY_UNSUPPORTED"
+      );
+      return;
+    }
+    activeOperation = applyKnownFileTransaction({
+      consumerRoot: root,
+      plan: activePlan,
+      async faultInjector(point) {
+        if (point.phase === "after-barrier-acquired") {
+          barrierAcquired.resolve();
+          await releaseBarrier.promise;
+        }
+      },
+    });
+    await barrierAcquired.promise;
     const beforeApply = await snapshotTree(root);
     const blocked = await runJsonFailure([
       ...initArguments,
@@ -286,7 +309,8 @@ test("init apply waits for an active operation instead of prescribing recovery",
     assert.doesNotMatch(recoverBlocked.envelope.diagnostics[0].message, /run .*--recover/iu);
     assert.deepEqual(await snapshotTree(root), beforeApply, "active-lock recover must not mutate");
   } finally {
-    await release?.();
+    releaseBarrier.resolve();
+    await activeOperation;
     await rm(root, { recursive: true, force: true });
   }
 });

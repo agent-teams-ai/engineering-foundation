@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -67,6 +67,16 @@ test("generic persisted envelopes reject malformed, unbounded, and tampered evid
   });
   assert.throws(() => compileRepositoryMutationEnvelope(executable), /unknown or missing/u);
   assert.equal(invoked, false);
+  const payloadArray = ["safe"];
+  Object.defineProperty(payloadArray, "0", {
+    enumerable: true,
+    get() {invoked = true; return "unsafe";}
+  });
+  assert.throws(
+    () => compileRepositoryMutationEnvelope(genericEnvelopeInput(payloadArray)),
+    /enumerable data properties/u
+  );
+  assert.equal(invoked, false);
   assert.throws(
     () => compileRepositoryMutationEnvelope(genericEnvelopeInput(Object.create({ inherited: true }))),
     /plain or null prototype/u
@@ -109,7 +119,7 @@ test("artifact binding checks all owner and kernel identity fields", () => {
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "repository-mutation-lease-"));
-  t.after(async () => { await import("node:fs/promises").then(({ rm }) => rm(root, { recursive: true, force: true })); });
+  t.after(async () => {await rm(root, { recursive: true, force: true });});
   return root;
 }
 
@@ -166,6 +176,28 @@ test("rejects reused and wrong-root claims before effects", async (t) => {
       /consumed/u
     );
   } finally {
+    await releaseMutationLease(lease);
+  }
+});
+
+test("binds an external claim to the acquired physical repository root", async (t) => {
+  const root = await fixture(t);
+  const displaced = `${root}.displaced`;
+  t.after(async () => {await rm(displaced, { force: true, recursive: true });});
+  const selectedPlan = plan();
+  const lease = await acquireMutationLease(root);
+  const claim = await validClaim(lease, selectedPlan);
+  await rename(root, displaced);
+  await mkdir(root);
+  try {
+    await assert.rejects(
+      applyKnownFileTransaction({ consumerRoot: root, plan: selectedPlan, claim }),
+      /physical lease|repository root changed/u
+    );
+    await assert.rejects(readFile(join(root, "owned.txt")), { code: "ENOENT" });
+  } finally {
+    await rm(root, { force: true, recursive: true });
+    await rename(displaced, root);
     await releaseMutationLease(lease);
   }
 });
@@ -344,6 +376,7 @@ test("revalidates common evidence before an already-satisfied no-op", async (t) 
 
 for (const residue of [
   "Scaffolding-transaction.json",
+  "Scaffolding-transaction.json.completed-known-file-evidence",
   "scaffolding-transaction.json.unknown-owner",
   "foundation-transaction.cleanup-residue.fixture"
 ]) {

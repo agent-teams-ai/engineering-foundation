@@ -18,6 +18,7 @@ import test from "node:test";
 
 import { NodeScaffoldJournalStore } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-store.js";
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
+import { assertNoOwnedCleanupResidue } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-operation-state.js";
 import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
@@ -554,6 +555,22 @@ test("replace commit-then-throw exposes committed after clean retirement", async
     assert.equal(observation.outcome, "committed");
     assert.equal(observation.stored.journal.operations[0].state, "publishing");
   });
+});
+
+test("bounds cleanup-residue enumeration before whole-directory allocation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "scaffold-operation-state-bounds-"));
+  try {
+    const parent = join(root, "managed");
+    await mkdir(parent);
+    await Promise.all(Array.from({ length: 1025 }, (_, index) =>
+      writeFile(join(parent, "entry-" + index), "")));
+    await assert.rejects(assertNoOwnedCleanupResidue(root, {
+      planDigest: "sha256:" + "0".repeat(64),
+      operations: [{ id: "fixture", path: "managed/output.txt" }]
+    }), /too many entries/u);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test("bounded state scan fails closed after 1024 entries", async () => {

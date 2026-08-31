@@ -10,10 +10,8 @@ import {
   inspectPortableBootstrap,
   recoverPortableBootstrap
 } from "../dist/community/bootstrap/index.js";
-import {
-  applyKnownFileTransaction,
-  compileKnownFileTransactionPlan
-} from "@agent-teams/repository-mutation";
+import { compileKnownFileTransactionPlan } from "@agent-teams/repository-mutation";
+import { applyKnownFileTransaction } from "@agent-teams/repository-mutation/qualification";
 import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
 import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspector.js";
 import { DOCS_ADOPTION_MAX_ROUTING_BYTES } from "../dist/domain/model.js";

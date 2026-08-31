@@ -2,7 +2,7 @@ import {
   constants,
   lstat,
   open,
-  readdir,
+  opendir,
   rmdir,
   unlink,
   type FileHandle
@@ -44,6 +44,26 @@ export function knownFileCapturePaths(options: {
     directory,
     retired: join(directory, "retired")
   };
+}
+
+async function boundedCaptureEntries(path: string): Promise<readonly string[]> {
+  const directory = await opendir(path);
+  const entries: string[] = [];
+  try {
+    for (;;) {
+      const entry = await directory.read();
+      if (entry === null) {return entries.toSorted();}
+      entries.push(entry.name);
+      if (entries.length > 2) {
+        throw new KnownFileTransactionError(
+          "KNOWN_FILE_RECOVERY_CONFLICT",
+          "Transaction capture directory contains excess foreign evidence."
+        );
+      }
+    }
+  } finally {
+    await directory.close();
+  }
 }
 
 async function assertCaptureDirectoryIdentity(
@@ -124,7 +144,7 @@ export async function cleanupCommittedKnownFileCaptures(
       operation.path
     );
     if (!directoryExists) {continue;}
-    const entries = (await readdir(paths.directory)).toSorted();
+    const entries = await boundedCaptureEntries(paths.directory);
     if (entries.length === 0) {
       await rmdir(paths.directory);
       await syncDirectoryStrictly(parent);

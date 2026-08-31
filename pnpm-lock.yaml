@@ -120,6 +120,9 @@ importers:
       '@agent-teams/engineering-foundation':
         specifier: workspace:*
         version: link:packages/engineering-foundation
+      '@agent-teams/repository-mutation':
+        specifier: workspace:*
+        version: link:packages/repository-mutation
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
         version: 0.18.5
@@ -183,6 +186,9 @@ importers:
       '@agent-teams/engineering-foundation':
         specifier: workspace:*
         version: link:../engineering-foundation
+      '@agent-teams/repository-mutation':
+        specifier: workspace:*
+        version: link:../repository-mutation
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -211,6 +217,9 @@ importers:
       '@agent-teams/engineering-foundation':
         specifier: workspace:*
         version: link:../engineering-foundation
+      '@agent-teams/repository-mutation':
+        specifier: workspace:*
+        version: link:../repository-mutation
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -246,6 +255,9 @@ importers:
 
   packages/engineering-foundation:
     dependencies:
+      '@agent-teams/repository-mutation':
+        specifier: workspace:*
+        version: link:../repository-mutation
       '@microsoft/api-extractor':
         specifier: 'catalog:'
         version: 7.58.12(@types/node@24.13.3)
@@ -291,6 +303,8 @@ importers:
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
+
+  packages/repository-mutation: {}
 
   spikes/source-dependency-parser:
     devDependencies:

@@ -12,6 +12,8 @@ export interface ResolvedPackageExport {
 
 const INVALID_SEGMENT = /(^|[\\/])((?:[.]|%2e){1,2}|node_modules)(?:[\\/]|$)/iu;
 const ENCODED_SEPARATOR = /%2f|%5c/iu;
+const MAX_EXPORT_TARGET_DEPTH = 64;
+const MAX_EXPORT_TARGET_NODES = 10_000;
 
 function patternKeyCompare(left: string, right: string): number {
   const leftStar = left.indexOf("*");
@@ -111,8 +113,14 @@ function resolveStringTarget(target: string, capture: string): TargetResolution 
 function resolveTarget(
   target: PackageExportTarget,
   capture: string,
-  conditions: ReadonlySet<string>
+  conditions: ReadonlySet<string>,
+  budget: { nodes: number },
+  depth: number
 ): TargetResolution {
+  budget.nodes += 1;
+  if (depth > MAX_EXPORT_TARGET_DEPTH || budget.nodes > MAX_EXPORT_TARGET_NODES) {
+    return { kind: "invalid" };
+  }
   if (typeof target === "string") {
     return resolveStringTarget(target, capture);
   }
@@ -122,7 +130,7 @@ function resolveTarget(
   if (isTargetArray(target)) {
     let last: TargetResolution = { kind: "blocked" };
     for (const candidate of target) {
-      const resolved = resolveTarget(candidate, capture, conditions);
+      const resolved = resolveTarget(candidate, capture, conditions, budget, depth + 1);
       if (resolved.kind === "available") {
         return resolved;
       }
@@ -135,7 +143,7 @@ function resolveTarget(
   }
   for (const [condition, candidate] of Object.entries(target)) {
     if (condition === "default" || conditions.has(condition)) {
-      const resolved = resolveTarget(candidate, capture, conditions);
+      const resolved = resolveTarget(candidate, capture, conditions, budget, depth + 1);
       if (resolved.kind !== "undefined") {
         return resolved;
       }
@@ -162,7 +170,9 @@ export function resolvePackageExport(
     targetCapture(selected, subpath),
     typeOnly
       ? new Set([condition, "types", "node"])
-      : new Set(["node", "node-addons", "module-sync", condition])
+      : new Set(["node", "node-addons", "module-sync", condition]),
+    { nodes: 0 },
+    0
   );
   return resolved.kind === "available"
     ? { available: true, targetPath: resolved.path }
@@ -191,8 +201,15 @@ export function exactPackageExportTargetPaths(
     return selected.targetPaths ?? [];
   }
   return [...new Set(
-    (["import", "require"] as const)
-      .map((condition) => resolvePackageExport(entries, subpath, condition).targetPath)
+    ([
+      ["import", false],
+      ["require", false],
+      ["import", true],
+      ["require", true]
+    ] as const)
+      .map(([condition, typeOnly]) =>
+        resolvePackageExport(entries, subpath, condition, typeOnly).targetPath
+      )
       .filter((target): target is string => target !== undefined)
   )];
 }

@@ -21,6 +21,8 @@ import { resolvePackageExport } from "../../../application/policies/package-expo
 
 const MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
 const READ_CONCURRENCY = 32;
+const MAX_EXPORT_TARGET_DEPTH = 64;
+const MAX_EXPORT_TARGET_NODES = 10_000;
 
 function inputError(code: string, message: string, phase: string): never {
   throw new CapabilityInputError({ code, message, phase, retryable: false });
@@ -64,7 +66,20 @@ function optionalStringArray(value: unknown, field: string): readonly string[] {
   return value as readonly string[];
 }
 
-function normalizedExportTarget(value: unknown, field: string): PackageExportTarget {
+function normalizedExportTarget(
+  value: unknown,
+  field: string,
+  budget: { nodes: number },
+  depth: number
+): PackageExportTarget {
+  budget.nodes += 1;
+  if (depth > MAX_EXPORT_TARGET_DEPTH || budget.nodes > MAX_EXPORT_TARGET_NODES) {
+    inputError(
+      "PACKAGE_EXPORTS_INVALID",
+      `${field} export target exceeds the bounded structure budget.`,
+      "package-manifest"
+    );
+  }
   if (value === null) {
     return null;
   }
@@ -72,7 +87,9 @@ function normalizedExportTarget(value: unknown, field: string): PackageExportTar
     return value;
   }
   if (Array.isArray(value)) {
-    return Object.freeze(value.map((entry) => normalizedExportTarget(entry, field)));
+    return Object.freeze(value.map((entry, index) =>
+      normalizedExportTarget(entry, `${field}[${index}]`, budget, depth + 1)
+    ));
   }
   if (isRecord(value)) {
     const entries = Object.entries(value);
@@ -87,7 +104,7 @@ function normalizedExportTarget(value: unknown, field: string): PackageExportTar
     }
     return Object.freeze(Object.fromEntries(entries.map(([condition, target]) => [
       condition,
-      normalizedExportTarget(target, `${field}.${condition}`)
+      normalizedExportTarget(target, `${field}.${condition}`, budget, depth + 1)
     ])));
   }
   inputError(
@@ -98,7 +115,7 @@ function normalizedExportTarget(value: unknown, field: string): PackageExportTar
 }
 
 function retainedTarget(value: unknown, field: string): PackageExportTarget {
-  return normalizedExportTarget(value, field);
+  return normalizedExportTarget(value, field, { nodes: 0 }, 0);
 }
 
 function packageExportEntry(

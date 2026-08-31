@@ -59,6 +59,7 @@ function isAmbiguousCommonEvidence(entry: string): boolean {
     FOUNDATION_TRANSACTION_FILE,
     FOUNDATION_TRANSACTION_TEMPORARY_FILE,
     `${FOUNDATION_TRANSACTION_FILE}.known-file.tmp`,
+    `${FOUNDATION_TRANSACTION_FILE}.completed-known-file-evidence`,
     `${FOUNDATION_TRANSACTION_FILE}.completed-document-evidence`,
     `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
   ];

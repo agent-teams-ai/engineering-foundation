@@ -40,10 +40,16 @@ export type MutationIntent =
 
 interface LeaseState {
   readonly root: string;
+  readonly rootIdentity: PhysicalRootIdentity;
   readonly release: (options?: { readonly retainTransactionBarrier?: boolean }) => Promise<void>;
   released: boolean;
   retained: boolean;
   sequence: number;
+}
+interface PhysicalRootIdentity {
+  readonly birthtimeNs: bigint;
+  readonly dev: bigint;
+  readonly ino: bigint;
 }
 interface ObservationState {
   readonly lease: MutationLease;
@@ -77,6 +83,9 @@ function portableStateName(name: string): string {
 function isSuspiciousCommonEvidenceName(name: string): boolean {
   const portable = portableStateName(name);
   const transaction = portableStateName(TRANSACTION_FILE);
+  const terminalKnownFileEvidenceName =
+    `${TRANSACTION_FILE}.completed-known-file-evidence`;
+  const terminalKnownFileEvidence = portableStateName(terminalKnownFileEvidenceName);
   const terminalEvidence = new RegExp(
     `^${transaction.replaceAll(".", "\\.")}\\.completed-[a-z0-9-]+-evidence$`,
     "u"
@@ -84,7 +93,8 @@ function isSuspiciousCommonEvidenceName(name: string): boolean {
   return commonEvidenceNames.some((expected) =>
     portable === portableStateName(expected) && name !== expected) ||
     (portable.startsWith(`${transaction}.`) &&
-      !terminalEvidence.test(portable) &&
+      (portable !== terminalKnownFileEvidence || name !== terminalKnownFileEvidenceName) &&
+      (!terminalEvidence.test(portable) || name !== portable) &&
       !commonEvidenceNames.includes(name as (typeof commonEvidenceNames)[number])) ||
     portable.includes("cleanup-residue");
 }
@@ -124,6 +134,33 @@ function leaseState(lease: MutationLease): LeaseState {
 function isMissing(error: unknown): boolean {
   return error instanceof Error && "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT";
+}
+
+async function physicalRootIdentity(root: string): Promise<PhysicalRootIdentity> {
+  const metadata = await lstat(root, { bigint: true });
+  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+    invalid("MUTATION_LEASE_INVALID", "Mutation repository root is not one physical directory.");
+  }
+  return {
+    birthtimeNs: metadata.birthtimeNs,
+    dev: metadata.dev,
+    ino: metadata.ino
+  };
+}
+
+async function assertPhysicalRoot(state: LeaseState): Promise<void> {
+  let current: PhysicalRootIdentity;
+  try {
+    current = await physicalRootIdentity(state.root);
+  } catch (error) {
+    if (error instanceof RepositoryMutationError) {throw error;}
+    invalid("MUTATION_LEASE_INVALID", "Mutation repository root cannot be revalidated.");
+  }
+  if (current.birthtimeNs !== state.rootIdentity.birthtimeNs ||
+    current.dev !== state.rootIdentity.dev || current.ino !== state.rootIdentity.ino) {
+    state.retained = true;
+    invalid("MUTATION_LEASE_INVALID", "Mutation repository root changed after the physical lease was acquired.");
+  }
 }
 
 async function boundedStateSnapshot(root: string): Promise<{
@@ -259,14 +296,29 @@ function snapshotIntent(intent: MutationIntent): MutationIntent {
 
 export async function acquireMutationLease(root: string): Promise<MutationLease> {
   const canonicalRoot = await realpath(resolve(root));
+  const rootIdentity = await physicalRootIdentity(canonicalRoot);
   const release = await new NodeMutationOperationLock(canonicalRoot).acquire();
+  const currentIdentity = await physicalRootIdentity(canonicalRoot);
+  if (currentIdentity.birthtimeNs !== rootIdentity.birthtimeNs ||
+    currentIdentity.dev !== rootIdentity.dev || currentIdentity.ino !== rootIdentity.ino) {
+    await release({ retainTransactionBarrier: true });
+    invalid("MUTATION_LEASE_INVALID", "Mutation repository root changed while its physical lease was acquired.");
+  }
   const lease = Object.freeze({}) as MutationLease;
-  leases.set(lease as object, { root: canonicalRoot, release, released: false, retained: false, sequence: 0 });
+  leases.set(lease as object, {
+    root: canonicalRoot,
+    rootIdentity,
+    release,
+    released: false,
+    retained: false,
+    sequence: 0
+  });
   return lease;
 }
 
 export async function observeMutationState(lease: MutationLease): Promise<MutationObservation> {
   const state = leaseState(lease);
+  await assertPhysicalRoot(state);
   const snapshot = await stateSnapshot(state.root);
   const observation = Object.freeze({}) as MutationObservation;
   observations.set(observation as object, {
@@ -284,6 +336,7 @@ export async function claimMutation(
   intent: MutationIntent
 ): Promise<MutationClaim> {
   const state = leaseState(lease);
+  await assertPhysicalRoot(state);
   const observed = observations.get(observation as object);
   if (observed === undefined || observed.lease !== lease || observed.sequence !== state.sequence) {
     invalid("MUTATION_CLAIM_INVALID", "Mutation observation is forged, stale, or belongs to another lease.");
@@ -321,6 +374,7 @@ export async function consumeMutationClaim(
     invalid("MUTATION_CLAIM_INVALID", "Mutation claim is forged, consumed, or has the wrong intent.");
   }
   const state = leaseState(claimState.lease);
+  await assertPhysicalRoot(state);
   if (claimState.sequence !== state.sequence) {
     invalid("MUTATION_CLAIM_INVALID", "Mutation claim generation became stale before consumption.");
   }

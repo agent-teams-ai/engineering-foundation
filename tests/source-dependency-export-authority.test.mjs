@@ -17,6 +17,7 @@ const mixedPackageRule =
   "architecture.source-dependencies.runtime-boundary-imports-development-workspace-package";
 const exportRule = "architecture.source-dependencies.package-subpath-not-exported";
 const unresolvedRule = "architecture.source-dependencies.unresolved-local-import";
+const unsupportedRule = "architecture.source-dependencies.unsupported-import-specifier";
 const undeclaredExternalRule =
   "architecture.source-dependencies.undeclared-external-dependency";
 
@@ -416,17 +417,17 @@ test("full capability follows ordered Node runtime export targets", async () => 
     assert.deepEqual(ruleIds(report.diagnostics), [exportRule, mixedPackageRule]);
   }
 
-  const unreachableTypes = await mixedReport({
-    exports: {
-      ".": { types: "./src/development/index.ts", default: "./dist/index.js" },
-    },
-    runtimeClaims: ["."],
-  });
-  assert.equal(unreachableTypes.outcome, "passed", reportDetails(unreachableTypes));
+  const unreachableTypes = await mixedReport({ exports: {
+    ".": { types: "./src/development/index.ts", default: "./dist/index.js" },
+  }, runtimeClaims: ["."] });
+  assert.equal(unreachableTypes.problem?.code, "SOURCE_EXPORT_BOUNDARY_INVALID", reportDetails(unreachableTypes));
 
-  const typesOnly = await mixedReport({
-    exports: { ".": { types: "./src/development/index.ts" } },
-  });
+  const defaultPrecedesTypes = await mixedReport({ exports: {
+    ".": { default: "./dist/index.js", types: "./src/development/index.ts" },
+  }, runtimeClaims: ["."] });
+  assert.equal(defaultPrecedesTypes.outcome, "passed", reportDetails(defaultPrecedesTypes));
+
+  const typesOnly = await mixedReport({ exports: { ".": { types: "./src/development/index.ts" } } });
   assert.deepEqual(ruleIds(typesOnly.diagnostics), [exportRule, mixedPackageRule]);
 });
 
@@ -531,6 +532,36 @@ test("full capability uses importer package type for static TypeScript exports",
       }
     });
   }
+});
+
+test("full capability uses the nearest containing package scope for static TypeScript exports", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    await mkdir(join(consumerRoot, "packages", "app", "src", "esm"), { recursive: true });
+    await writeFile(join(consumerRoot, "packages", "app", "src", "esm", "package.json"), '{"type":"module"}\n', "utf8");
+    await configureMixedPackage(consumerRoot, {
+      appFile: "esm/index.ts",
+      exports: { ".": { import: null, require: "./dist/index.cjs" } },
+    });
+    const report = await runSourceCapability(consumerRoot);
+    assert.equal(ruleIds(report.diagnostics).includes(exportRule), true, reportDetails(report));
+  });
+});
+
+test("full capability rejects package subpath traversal before package classification", async () => {
+  for (const appSpecifier of ["@fixture/core/../evil", "@fixture/core/./evil",
+    "@fixture/core/%2e%2e/evil", "@fixture/core/%2fhidden", "@fixture/core/..\\evil"]) {
+    const report = await mixedReport({ appSpecifier });
+    assert.deepEqual(ruleIds(report.diagnostics), [unsupportedRule], reportDetails(report));
+  }
+});
+
+test("full capability rejects export targets beyond the deterministic structure budget", async () => {
+  let target = "./dist/index.js";
+  for (let index = 0; index < 80; index += 1) {
+    target = [target];
+  }
+  const report = await mixedReport({ exports: { ".": target } });
+  assert.deepEqual(problemPhaseCode(report.problem), { code: "PACKAGE_EXPORTS_INVALID", phase: "package-manifest" });
 });
 
 test("full capability follows ordered TypeScript types export targets", async () => {

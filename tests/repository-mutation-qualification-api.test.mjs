@@ -39,7 +39,7 @@ test("publishes only the new Repository Mutation qualification seam", async () =
 });
 
 test("production known-file APIs reject runtime excess and accessor properties", async () => {
-  const { applyKnownFileTransaction, recoverKnownFileTransaction } = await import(
+  const { applyKnownFileTransaction, compileKnownFileTransactionPlan, recoverKnownFileTransaction } = await import(
     "../packages/repository-mutation/dist/index.js"
   );
   let invoked = false;
@@ -55,6 +55,24 @@ test("production known-file APIs reject runtime excess and accessor properties",
     get() { invoked = true; return null; }
   });
   await assert.rejects(recoverKnownFileTransaction(recoveryOptions), /unknown, missing, or executable/u);
+  const compileInput = {};
+  Object.defineProperty(compileInput, "operations", {
+    enumerable: true,
+    get() {invoked = true; return [];}
+  });
+  assert.throws(
+    () => compileKnownFileTransactionPlan(compileInput),
+    /plain operations record|at most/u
+  );
+  const operationArray = [];
+  Object.defineProperty(operationArray, "0", {
+    enumerable: true,
+    get() {invoked = true; return null;}
+  });
+  assert.throws(
+    () => compileKnownFileTransactionPlan({ operations: operationArray }),
+    /enumerable data properties/u
+  );
   assert.equal(invoked, false);
 });
 

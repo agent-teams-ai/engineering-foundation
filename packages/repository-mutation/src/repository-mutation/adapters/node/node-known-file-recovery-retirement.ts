@@ -1,4 +1,4 @@
-import { lstat, mkdir, readdir, rename, rmdir, unlink } from "node:fs/promises";
+import { lstat, mkdir, opendir, rename, rmdir, unlink } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import type { KnownFileTransactionPlanV1 } from "../../application/model/known-file-transaction.js";
@@ -44,6 +44,15 @@ interface RetirementPaths {
   readonly captured: string;
   readonly directory: string;
   readonly source: string;
+}
+
+async function retirementDirectoryIsEmpty(path: string): Promise<boolean> {
+  const directory = await opendir(path);
+  try {
+    return await directory.read() === null;
+  } finally {
+    await directory.close();
+  }
 }
 
 function clearOperationRetirement(
@@ -269,7 +278,7 @@ async function removeRetirementEvidence(
       `Authorized retirement capture became foreign: ${operation.path}.`
     );
   }
-  if ((await readdir(paths.directory)).length !== 0) {
+  if (!(await retirementDirectoryIsEmpty(paths.directory))) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
       `Retirement directory contains foreign evidence: ${operation.path}.`

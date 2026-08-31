@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -410,6 +410,20 @@ test("generated output candidates require canonical same-package dist literals",
   try {
     await mkdir(join(consumerRoot, "packages", "app"), { recursive: true });
     assert.equal(resolve("../dist/index.js").kind, "generated-output-candidate");
+    const originalPackageRoot = await stat(join(consumerRoot, "packages", "app"), { bigint: true });
+    const originalIdentity = { device: String(originalPackageRoot.dev), inode: String(originalPackageRoot.ino) };
+    assert.equal(
+      resolve("../dist/index.js", { workspacePackageRootIdentity: originalIdentity }).kind,
+      "generated-output-candidate",
+    );
+    await rename(join(consumerRoot, "packages", "app"), join(consumerRoot, "packages", "app-original"));
+    await mkdir(join(consumerRoot, "packages", "app"));
+    assert.notEqual(
+      resolve("../dist/index.js", { workspacePackageRootIdentity: originalIdentity }).kind,
+      "generated-output-candidate",
+    );
+    await rm(join(consumerRoot, "packages", "app"), { recursive: true });
+    await rename(join(consumerRoot, "packages", "app-original"), join(consumerRoot, "packages", "app"));
     assert.notEqual(
       resolve("../dist/index.js", {
         consumerRootIdentity: { device: "replaced", inode: "ancestor" },
@@ -455,14 +469,11 @@ test("v2 package-name imports require governed root topology", async () => {
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
     const appManifestPath = join(consumerRoot, "packages", "app", "package.json");
     const appManifest = JSON.parse(await readFile(appManifestPath, "utf8"));
-    appManifest.dependencies = { "@fixture/repository-v2": "workspace:*" };
+    appManifest.dependencies = { "@fixture/repository-v2": "^1.0.0" };
     await Promise.all([
       writeFile(appManifestPath, `${JSON.stringify(appManifest, null, 2)}\n`, "utf8"),
-      writeFile(
-        join(consumerRoot, "packages", "app", "src", "index.ts"),
-        'import root from "@fixture/repository-v2";\nexport { root };\n',
-        "utf8",
-      ),
+      writeFile(join(consumerRoot, "pnpm-workspace.yaml"), 'packages:\n  - "packages/*"\nlinkWorkspacePackages: true\n', "utf8"),
+      writeFile(join(consumerRoot, "packages", "app", "src", "index.ts"), 'import root from "@fixture/repository-v2";\nexport { root };\n', "utf8"),
     ]);
     const configPath = sourceConfigPath(consumerRoot);
     const config = await readFile(configPath, "utf8");
@@ -481,31 +492,17 @@ test("v2 package-name imports require governed root topology", async () => {
 test("v2 honors workspace packages intentionally rooted below dist or coverage", async () => {
   for (const collection of ["dist", "coverage"]) {
     await withCopiedFixture("v2-valid", async (consumerRoot) => {
-      const toolRoot = join(consumerRoot, collection, "tool");
+      const toolRoot = join(consumerRoot, "packages", collection);
       await mkdir(join(toolRoot, "src"), { recursive: true });
       await Promise.all([
-        writeFile(
-          join(toolRoot, "package.json"),
-          `${JSON.stringify({ name: `@fixture/${collection}-tool`, version: "0.0.0", private: true, type: "module" })}\n`,
-          "utf8",
-        ),
+        writeFile(join(toolRoot, "package.json"), `${JSON.stringify({ name: `@fixture/${collection}-tool`, version: "0.0.0", private: true, type: "module" })}\n`, "utf8"),
         writeFile(join(toolRoot, "src", "index.ts"), "export const value = 1;\n", "utf8"),
-        writeFile(
-          join(consumerRoot, "pnpm-workspace.yaml"),
-          `packages:\n  - "packages/*"\n  - "${collection}/*"\n`,
-          "utf8",
-        ),
       ]);
       const configPath = sourceConfigPath(consumerRoot);
       const config = await readFile(configPath, "utf8");
-      await writeFile(
-        configPath,
-        config
-          .replace("packageRoots:\n  - packages\n", `packageRoots:\n  - packages\n  - ${collection}\n`)
-          .replace("governedRoots:\n", `governedRoots:\n  - ${collection}/tool/src\n`)
-          .concat(`  - id: ${collection}.tool\n    roots:\n      - ${collection}/tool/src\n    entrypoints:\n      - ${collection}/tool/src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`),
-        "utf8",
-      );
+      await writeFile(configPath, config
+        .replace("governedRoots:\n", `governedRoots:\n  - packages/${collection}/src\n`)
+        .concat(`  - id: ${collection}.tool\n    roots:\n      - packages/${collection}/src\n    entrypoints:\n      - packages/${collection}/src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`), "utf8");
       assert.equal((await runSourceCapability(consumerRoot)).outcome, "passed");
     });
   }

@@ -134,10 +134,11 @@ function appendCanonicalArray(
     fail("Repository Mutation payload contains a noncanonical array.");
   }
   for (let index = candidate.length - 1; index >= 0; index -= 1) {
-    if (!Object.hasOwn(candidate, index)) {
-      fail("Repository Mutation payload arrays must be dense.");
+    const descriptor = Object.getOwnPropertyDescriptor(candidate, String(index));
+    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) {
+      fail("Repository Mutation payload arrays must contain only dense enumerable data properties.");
     }
-    pending.push({ value: candidate[index], depth: depth + 1 });
+    pending.push({ value: descriptor.value, depth: depth + 1 });
   }
   return candidate.length;
 }
@@ -203,8 +204,20 @@ function canonicalPayload(value: unknown): CanonicalJsonValue {
 
 function clone(value: CanonicalJsonValue): CanonicalJsonValue {
   if (value === null || typeof value !== "object") {return value;}
-  if (Array.isArray(value)) {return value.map((item) => clone(item));}
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, clone(item)]));
+  if (Array.isArray(value)) {
+    const result: CanonicalJsonValue[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index))!;
+      result.push(clone(descriptor.value as CanonicalJsonValue));
+    }
+    return result;
+  }
+  const result: Record<string, CanonicalJsonValue> = {};
+  for (const key of Object.keys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+    result[key] = clone(descriptor.value as CanonicalJsonValue);
+  }
+  return result;
 }
 
 function deepFreeze<T>(value: T): T {

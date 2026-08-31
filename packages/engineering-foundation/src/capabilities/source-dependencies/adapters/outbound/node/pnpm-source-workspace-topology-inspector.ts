@@ -79,6 +79,7 @@ export class PnpmSourceWorkspaceTopologyInspector
       consumerRootSnapshot,
       discovered,
       inventory,
+      packageTypeScopes,
       selectedManifestPaths,
       selectedPackages
     } = await capturePnpmSourceWorkspaceSnapshot({
@@ -142,11 +143,27 @@ export class PnpmSourceWorkspaceTopologyInspector
         `Selected workspace source cannot contain symbolic links: ${symbolicLink}.`
       );
     }
+    const packageRootIdentities = new Map(
+      packageRoots.map((root) => [
+        root.repositoryPath,
+        Object.freeze({
+          device: String(root.canonicalMetadata.dev),
+          inode: String(root.canonicalMetadata.ino)
+        })
+      ])
+    );
     const packages = buildSelectedPackageSourceTopology(
       selectedPackages,
       discovered.sourcePaths,
       selectedManifestPaths
-    );
+    ).map((workspacePackage) => Object.freeze({
+      ...workspacePackage,
+      filesystemIdentity: packageRootIdentities.get(workspacePackage.rootPath) ??
+        inputError(
+          "SOURCE_FILESYSTEM_CHANGED",
+          `Workspace package root identity is missing: ${workspacePackage.rootPath}.`
+        )
+    }));
     const unownedSourcePath = discovered.sourcePaths.find((path) =>
       rootOutsideSelectedPackages(path, selectedPackages, selectedManifestPaths)
     );
@@ -189,6 +206,7 @@ export class PnpmSourceWorkspaceTopologyInspector
         inode: String(consumerRootSnapshot.canonicalMetadata.ino)
       }),
       inventory,
+      packageTypeScopes,
       packages,
       sourceFiles
     });

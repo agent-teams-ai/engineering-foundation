@@ -200,7 +200,7 @@ async function readStableDirectoryEntries(
   const entries: Dirent[] = [];
   let completed = false;
   try {
-    while (true) {
+    for (;;) {
       assertNotCancelled(input.signal);
       let result: IteratorResult<Dirent>;
       try {
@@ -271,6 +271,7 @@ export async function discoverSourceWorkspacePaths(
   canonicalConsumerRoot: string,
   options: {
     readonly repositoryRoots: readonly string[];
+    readonly selectedPackageRoots?: readonly string[];
     readonly fileSystem?: Partial<SourceWorkspaceFileSystem>;
     readonly hooks?: SourceWorkspaceDiscoveryHooks;
     readonly limits?: Partial<SourceWorkspaceDiscoveryLimits>;
@@ -285,6 +286,15 @@ export async function discoverSourceWorkspacePaths(
   const sourcePaths = new Set<string>();
   const symbolicLinkPaths = new Set<string>();
   const directorySnapshots: StableRepositoryPath[] = [];
+  const selectedPackageRootIdentities = new Set(
+    (options.selectedPackageRoots ?? []).map(portableRepositoryPathIdentity)
+  );
+  const isSelectedPackageRootOrAncestor = (repositoryPath: string): boolean => {
+    const identity = portableRepositoryPathIdentity(repositoryPath);
+    return [...selectedPackageRootIdentities].some(
+      (selected) => selected === identity || selected.startsWith(`${identity}/`)
+    );
+  };
   const directories: DirectoryCursor[] = options.repositoryRoots
     .toSorted(compareBinaryStrings)
     .toReversed()
@@ -317,15 +327,16 @@ export async function discoverSourceWorkspacePaths(
     const childDirectories: DirectoryCursor[] = [];
     for (const entry of entries) {
       assertNotCancelled(options.signal);
-      if (IGNORED_DIRECTORY_NAMES.has(entry.name)) {
+      const repositoryPath = childRepositoryPath(cursor.repositoryPath, entry.name);
+      if (
+        IGNORED_DIRECTORY_NAMES.has(entry.name) &&
+        !isSelectedPackageRootOrAncestor(repositoryPath)
+      ) {
         if (entry.name === "dist" && entry.isSymbolicLink()) {
-          symbolicLinkPaths.add(
-            childRepositoryPath(cursor.repositoryPath, entry.name)
-          );
+          symbolicLinkPaths.add(repositoryPath);
         }
         continue;
       }
-      const repositoryPath = childRepositoryPath(cursor.repositoryPath, entry.name);
       assertSafeRepositoryPath(repositoryPath);
       const absolutePath = join(cursor.absolutePath, entry.name);
       if (entry.isSymbolicLink()) {
@@ -407,7 +418,7 @@ function owningPackage(
   ownershipRoots: ReadonlySet<string>
 ): WorkspacePackage | undefined {
   let candidate = portableRepositoryPathIdentity(path);
-  while (true) {
+  for (;;) {
     if (ownershipRoots.has(candidate)) {
       return packagesByRoot.get(candidate);
     }
@@ -423,7 +434,7 @@ export function buildSelectedPackageSourceTopology(
   packages: readonly WorkspacePackage[],
   sourcePaths: readonly string[],
   allManifestPaths: readonly string[]
-): readonly SourceWorkspacePackageTopology[] {
+): readonly Omit<SourceWorkspacePackageTopology, "filesystemIdentity">[] {
   const packagesByRoot = packageByPortableRoot(packages);
   const ownershipRoots = packageRootIdentities(allManifestPaths);
   const pathsByRoot = new Map<string, string[]>();

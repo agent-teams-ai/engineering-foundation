@@ -1,5 +1,6 @@
-import { glob } from "node:fs/promises";
-import { isAbsolute, posix, sep } from "node:path";
+import type { Dirent } from "node:fs";
+import { opendir } from "node:fs/promises";
+import { isAbsolute, join, posix, sep } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../capability-runtime.js";
@@ -15,10 +16,8 @@ import type { WorkspaceInventoryReader } from "../../../application/ports/worksp
 import { readPnpmPackageManifestSnapshots } from "./pnpm-package-manifest-snapshot-reader.js";
 
 const MAX_WORKSPACE_PACKAGES = 5_000;
-const IGNORED_GLOBS = [
-  "**/.git/**",
-  "**/node_modules/**"
-];
+const MAX_WORKSPACE_DISCOVERY_ENTRIES = 500_000;
+const IGNORED_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
 
 function inputError(code: string, message: string, phase: string): never {
   throw new CapabilityInputError({ code, message, phase, retryable: false });
@@ -152,31 +151,122 @@ function selectedByPatterns(directory: string, patterns: readonly string[]): boo
   );
 }
 
+function assertSafeDirectoryEntry(entry: Dirent): void {
+  if (
+    entry.name.length === 0 ||
+    entry.name === "." ||
+    entry.name === ".." ||
+    entry.name.includes("/") ||
+    entry.name.includes("\\")
+  ) {
+    inputError(
+      "WORKSPACE_GLOB_CANDIDATE_INVALID",
+      "Workspace discovery returned an unsafe directory entry.",
+      "workspace-discovery"
+    );
+  }
+}
+
+async function readDirectoryEntries(
+  absolutePath: string,
+  repositoryPath: string,
+  budget: { entries: number },
+  signal?: AbortSignal
+): Promise<readonly Dirent[]> {
+  let handle: Awaited<ReturnType<typeof opendir>>;
+  try {
+    handle = await opendir(absolutePath);
+  } catch {
+    assertNotCancelled(signal);
+    inputError(
+      "WORKSPACE_DISCOVERY_UNAVAILABLE",
+      `Workspace discovery could not inspect ${repositoryPath}.`,
+      "workspace-discovery"
+    );
+  }
+  assertNotCancelled(signal);
+  const entries: Dirent[] = [];
+  try {
+    for await (const entry of handle) {
+      assertNotCancelled(signal);
+      budget.entries += 1;
+      if (budget.entries > MAX_WORKSPACE_DISCOVERY_ENTRIES) {
+        inputError(
+          "WORKSPACE_DISCOVERY_LIMIT_EXCEEDED",
+          `Workspace discovery exceeds ${MAX_WORKSPACE_DISCOVERY_ENTRIES} filesystem entries.`,
+          "workspace-discovery"
+        );
+      }
+      assertSafeDirectoryEntry(entry);
+      entries.push(entry);
+    }
+  } finally {
+    await handle.close().catch(() => {});
+  }
+  assertNotCancelled(signal);
+  return entries.toSorted((left, right) =>
+    compareBinaryStrings(left.name, right.name)
+  );
+}
+
+function recordSelectedManifest(
+  manifests: Set<string>,
+  patterns: readonly string[],
+  repositoryPath: string
+): void {
+  const manifestPath = validatedGlobManifestPath(repositoryPath);
+  if (!selectedByPatterns(posix.dirname(manifestPath), patterns)) {
+    return;
+  }
+  manifests.add(manifestPath);
+  if (manifests.size > MAX_WORKSPACE_PACKAGES) {
+    inputError(
+      "WORKSPACE_LIMIT_EXCEEDED",
+      `Workspace contains more than ${MAX_WORKSPACE_PACKAGES} package manifests.`,
+      "workspace-discovery"
+    );
+  }
+}
+
 async function discoverManifestPaths(
   consumerRoot: string,
   patterns: readonly string[],
   signal?: AbortSignal
 ): Promise<readonly string[]> {
   const manifests = new Set<string>(["package.json"]);
-  for await (const candidate of glob("**/package.json", {
-    cwd: consumerRoot,
-    exclude: IGNORED_GLOBS
-  })) {
+  const directories: { readonly absolutePath: string; readonly repositoryPath: string }[] = [
+    { absolutePath: consumerRoot, repositoryPath: "." }
+  ];
+  const budget = { entries: 0 };
+  while (directories.length > 0) {
     assertNotCancelled(signal);
-    // Treat filesystem glob output as untrusted. No candidate reaches a path
-    // resolver or filesystem metadata call before this lexical qualification.
-    const manifestPath = validatedGlobManifestPath(candidate);
-    if (selectedByPatterns(posix.dirname(manifestPath), patterns)) {
-      manifests.add(manifestPath);
-      if (manifests.size > MAX_WORKSPACE_PACKAGES) {
-        inputError(
-          "WORKSPACE_LIMIT_EXCEEDED",
-          `Workspace contains more than ${MAX_WORKSPACE_PACKAGES} package manifests.`,
-          "workspace-discovery"
-        );
+    const directory = directories.pop();
+    if (directory === undefined) {
+      break;
+    }
+    const entries = await readDirectoryEntries(
+      directory.absolutePath,
+      directory.repositoryPath,
+      budget,
+      signal
+    );
+    for (const entry of entries.toReversed()) {
+      const repositoryPath = directory.repositoryPath === "."
+        ? entry.name
+        : posix.join(directory.repositoryPath, entry.name);
+      if (entry.isDirectory()) {
+        if (!IGNORED_DIRECTORY_NAMES.has(entry.name)) {
+          directories.push({
+            absolutePath: join(directory.absolutePath, entry.name),
+            repositoryPath
+          });
+        }
+      } else if (entry.isFile() && entry.name === "package.json") {
+        recordSelectedManifest(manifests, patterns, repositoryPath);
       }
     }
   }
+  assertNotCancelled(signal);
   const manifestPaths = [...manifests].toSorted();
   const caseFoldedPaths = new Map<string, string>();
   for (const manifestPath of manifestPaths) {

@@ -264,7 +264,7 @@ export async function analyzeSourceDependencies(
       ),
       ...(input.signal === undefined ? {} : { signal: input.signal })
     });
-    const { inventory, sourceFiles } = topology;
+    const { inventory, packageTypeScopes, sourceFiles } = topology;
     assertInventoryUsable(inventory.packages);
     const coverageDiagnostics = evaluateSourceWorkspaceCoverage(
       input.policy,
@@ -282,12 +282,19 @@ export async function analyzeSourceDependencies(
       consumerRootIdentity: topology.consumerRootIdentity,
       enforceWorkspaceBindings: true,
       inventory,
+      packageTypeScopes,
       governedWorkspacePackageManifestPaths: new Set(
         topology.packages.map(({ manifestPath }) => manifestPath)
       ),
       allSourceFiles: sourceFiles,
       classifiedFiles,
       resolver: dependencies.resolver,
+      workspacePackageRootIdentities: new Map(
+        topology.packages.map(({ filesystemIdentity, manifestPath }) => [
+          manifestPath,
+          filesystemIdentity
+        ])
+      ),
       ...(input.signal === undefined ? {} : { signal: input.signal })
     });
     return [

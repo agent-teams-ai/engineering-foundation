@@ -294,7 +294,7 @@ test("common coordinator discovers every operation-neutral transition residue af
   }
 });
 
-test("nearby transition-like state names remain inert", async () => {
+test("unknown common transaction-like state names block without deletion", async () => {
   const root = await createRoot();
   try {
     const state = dirname(slotPath(root));
@@ -309,7 +309,7 @@ test("nearby transition-like state names remain inert", async () => {
       installedVersion: version,
       installedBuildIdentity: buildIdentity,
     }).inspect();
-    assert.equal(status.state, "idle");
+    assert.equal(status.state, "manual-recovery-required");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

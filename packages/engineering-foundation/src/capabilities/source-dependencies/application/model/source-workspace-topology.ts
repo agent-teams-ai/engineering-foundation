@@ -2,6 +2,10 @@ import type { SourceFileSnapshot } from "../../../../source-inventory/applicatio
 import type { WorkspaceInventory } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 
 export interface SourceWorkspacePackageTopology {
+  readonly filesystemIdentity: {
+    readonly device: string;
+    readonly inode: string;
+  };
   readonly name: string;
   readonly rootPath: string;
   readonly manifestPath: string;
@@ -15,6 +19,10 @@ export interface SourceWorkspaceTopology {
     readonly inode: string;
   };
   readonly inventory: WorkspaceInventory;
+  readonly packageTypeScopes: readonly {
+    readonly moduleType: "commonjs" | "module";
+    readonly rootPath: string;
+  }[];
   readonly packages: readonly SourceWorkspacePackageTopology[];
   /**
    * The stable snapshots for the exact, filtered topology paths that fall

@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { opendir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 import {
@@ -39,6 +39,28 @@ export type FilesystemPublicationFaultInjector = (
 interface FilesystemPublicationOptions {
   readonly cleanupTransition: OwnedTemporaryCleanupTransitionPort;
   readonly faultInjector?: FilesystemPublicationFaultInjector;
+}
+
+const maximumDirectoryEntries = 1024;
+
+async function boundedDirectoryNames(parent: string): Promise<readonly string[]> {
+  const directory = await opendir(parent);
+  const names: string[] = [];
+  try {
+    for (;;) {
+      const entry = await directory.read();
+      if (entry === null) {return names;}
+      names.push(entry.name);
+      if (names.length > maximumDirectoryEntries) {
+        throw new ScaffoldError(
+          "SCAFFOLD_RECOVERY_REQUIRED",
+          "Scaffolding directory contains too many entries to inspect cleanup evidence safely."
+        );
+      }
+    }
+  } finally {
+    await directory.close();
+  }
 }
 
 function postimage(operation: MaterializeFileOperation) {
@@ -88,7 +110,7 @@ export async function assertNoOwnedCleanupResidue(
     const prefix = ownedTemporaryCleanupResiduePrefix(temporary);
     let entries: string[];
     try {
-      entries = await readdir(parent);
+      entries = [...await boundedDirectoryNames(parent)];
     } catch (error) {
       if (
         error instanceof Error &&

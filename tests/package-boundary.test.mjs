@@ -10,7 +10,9 @@ import { createSourceDependenciesCapability } from "../packages/engineering-foun
 import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
+const repositoryMutationName = "@agent-teams/repository-mutation";
 const foundationName = "@agent-teams/engineering-foundation";
+const docsProtocolAgentTeamsName = "@agent-teams/docs-protocol-agent-teams";
 const openSourceDocsRelease = JSON.parse(await readFile(
   join(repositoryRoot, "architecture/foundation/open-source-docs-release.json"),
   "utf8",
@@ -157,10 +159,18 @@ function reverseDependencyReferences(foundation, workspace = {}) {
 test("publishable package catalog and manifests preserve one-way layering", async () => {
   assert.deepEqual(
     PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
-    [foundationName, docsProtocolName, docsProtocolMcpName],
+    [
+      repositoryMutationName,
+      foundationName,
+      docsProtocolName,
+      docsProtocolAgentTeamsName,
+      docsProtocolMcpName,
+    ],
   );
+  const repositoryMutation = await json("packages/repository-mutation/package.json");
   const foundation = await json("packages/engineering-foundation/package.json");
   const docsProtocol = await json("packages/docs-protocol/package.json");
+  const docsProtocolAgentTeams = await json("packages/docs-protocol-agent-teams/package.json");
   const docsProtocolMcp = await json("packages/docs-protocol-mcp/package.json");
   const workspace = await json("package.json");
   assert.equal(docsProtocol.private, undefined);
@@ -175,8 +185,30 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     "Docs Protocol must retain an exact semver version after Changesets promotes the bootstrap manifest",
   );
   assert.deepEqual(reverseDependencyReferences(foundation, workspace), []);
+  for (const section of dependencySections) {
+    assert.equal(
+      repositoryMutation[section]?.[foundationName],
+      undefined,
+      `Repository Mutation cannot depend on Foundation through ${section}`,
+    );
+  }
+  assert.equal(foundation.dependencies?.[repositoryMutationName], "workspace:*");
+  assert.equal(docsProtocol.dependencies?.[repositoryMutationName], "workspace:*");
   assert.equal(docsProtocol.dependencies?.[foundationName], "workspace:*");
+  assert.equal(docsProtocol.dependencies?.[docsProtocolAgentTeamsName], undefined);
   assert.equal(docsProtocol.dependencies?.[docsProtocolMcpName], undefined);
+  assert.equal(docsProtocolAgentTeams.dependencies?.[docsProtocolName], "workspace:*");
+  assert.equal(docsProtocolAgentTeams.dependencies?.[foundationName], "workspace:*");
+  assert.equal(docsProtocolAgentTeams.dependencies?.[repositoryMutationName], "workspace:*");
+  for (const manifest of [repositoryMutation, foundation, docsProtocol]) {
+    for (const section of dependencySections) {
+      assert.equal(
+        manifest[section]?.[docsProtocolAgentTeamsName],
+        undefined,
+        `${manifest.name} cannot create a reverse dependency on the Agent Teams adapter`,
+      );
+    }
+  }
   assert.equal(docsProtocolMcp.dependencies?.[docsProtocolName], "workspace:*");
   assert.equal(docsProtocolMcp.dependencies?.[foundationName], undefined);
   assert.match(
@@ -216,7 +248,7 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
   });
   for (const entry of packageDirectories.filter((candidate) => candidate.isDirectory())) {
     const manifest = await json(`packages/${entry.name}/package.json`);
-    if (manifest.name !== docsProtocolName) {
+    if (![docsProtocolName, docsProtocolAgentTeamsName].includes(manifest.name)) {
       assert.equal(
         manifest.dependencies?.[foundationName],
         undefined,
@@ -288,6 +320,22 @@ test("Foundation source and source-boundary authority cannot import Docs Protoco
   assert.ok(foundationBoundaries.length > 0);
   for (const boundary of foundationBoundaries) {
     assert.ok(!boundary.allow.packages.includes(docsProtocolName), boundary.id);
+    assert.ok(!boundary.allow.packages.includes(docsProtocolAgentTeamsName), boundary.id);
+  }
+  const foundationLocalMode = policy.boundaries.find(({ id }) => id === "foundation.local-mode");
+  assert.deepEqual(foundationLocalMode.allow.builtins, [
+    "node:fs/promises",
+    "node:module",
+    "node:path",
+    "node:url",
+    "node:util",
+  ]);
+  const repositoryMutationBoundaries = policy.boundaries.filter((boundary) =>
+    boundary.roots.some((root) => root.startsWith("packages/repository-mutation/")),
+  );
+  assert.ok(repositoryMutationBoundaries.length > 0);
+  for (const boundary of repositoryMutationBoundaries) {
+    assert.ok(!boundary.allow.packages.includes(foundationName), boundary.id);
   }
   const docsBoundaries = policy.boundaries.filter((boundary) =>
     boundary.roots.some((root) => root.startsWith("packages/docs-protocol/src/")),
@@ -333,7 +381,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "docs-protocol.domain": {
       roots: ["packages/docs-protocol/src/domain"],
       boundaries: [],
-      packages: [foundationName],
+      packages: [foundationName, repositoryMutationName],
       builtins: ["node:path"],
       entrypoints: [
         "packages/docs-protocol/src/domain/document-semantics.ts",
@@ -346,15 +394,15 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "docs-protocol.application": {
       roots: ["packages/docs-protocol/src/application"],
       boundaries: ["docs-protocol.community.context", "docs-protocol.domain"],
-      packages: [foundationName, "yaml"],
+      packages: [foundationName, repositoryMutationName, "yaml"],
       builtins: [],
       entrypoints: ["packages/docs-protocol/src/application/docs-protocol.ts"],
     },
     "docs-protocol.adapters": {
       roots: ["packages/docs-protocol/src/adapters"],
       boundaries: ["docs-protocol.application", "docs-protocol.domain"],
-      packages: [foundationName, "ajv", "ajv-formats", "yaml"],
-      builtins: ["node:fs", "node:fs/promises", "node:module", "node:path", "node:url"],
+      packages: [foundationName, repositoryMutationName, "ajv", "ajv-formats", "yaml"],
+      builtins: ["node:fs", "node:fs/promises", "node:path", "node:url"],
       entrypoints: [
         "packages/docs-protocol/src/adapters/docs-command-envelope-schema-validator.ts",
         "packages/docs-protocol/src/adapters/foundation-docs-port.ts",
@@ -375,7 +423,6 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
         "docs-protocol.application",
         "docs-protocol.community.bootstrap",
         "docs-protocol.community.context",
-        "docs-protocol.consumer-integration.composition",
         "docs-protocol.domain",
         "docs-protocol.qualification",
       ],
@@ -396,18 +443,19 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "docs-protocol.community.bootstrap": {
       roots: ["packages/docs-protocol/src/community/bootstrap"],
       boundaries: ["docs-protocol.domain"],
-      packages: [foundationName],
+      packages: [foundationName, repositoryMutationName],
       builtins: ["node:crypto", "node:fs", "node:fs/promises", "node:path"],
-      entrypoints: ["packages/docs-protocol/src/community/bootstrap/index.ts"],
+      entrypoints: [
+        "packages/docs-protocol/src/community/bootstrap/index.ts",
+        "packages/docs-protocol/src/community/bootstrap/portable-bootstrap-assets.ts",
+      ],
     },
     "docs-protocol.qualification": {
       roots: ["packages/docs-protocol/src/qualification"],
       boundaries: [
         "docs-protocol.adapters",
         "docs-protocol.application",
-        "docs-protocol.consumer-integration.adapters",
-        "docs-protocol.consumer-integration.composition",
-        "docs-protocol.consumer-integration.domain",
+        "docs-protocol.community.bootstrap",
         "docs-protocol.domain",
       ],
       packages: [foundationName, "ajv"],
@@ -433,6 +481,7 @@ test("Docs Protocol MCP retains one governed read-only package boundary", async 
   const boundary = policy.boundaries.find(({ id }) => id === "docs-protocol-mcp.surface");
   assert.deepEqual(boundary, {
     id: "docs-protocol-mcp.surface",
+    packageExports: ["."],
     roots: ["packages/docs-protocol-mcp/src"],
     allow: {
       boundaries: [],
@@ -473,8 +522,9 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
     ]);
     const layers = ["domain", "application", "adapters", "composition"];
     const fixturePolicy = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
+      packageRoots: ["packages"],
       governedRoots: ["packages/docs-protocol/src"],
       boundaries: policy.boundaries
         .filter(({ id }) => layerIds.has(id))
@@ -511,6 +561,7 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
         version: "0.0.0",
         private: true,
         type: "module",
+        exports: { ".": "./src/composition/index.ts" },
       }, null, 2)}\n`),
       writeFile(
         join(temporaryRoot, "architecture/foundation/source-dependencies.yaml"),
@@ -561,95 +612,72 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
   }
 });
 
-test("Docs Protocol consumer integration retains its golden internal dependency fence", async () => {
+test("Agent Teams consumer integration is absent from Core and owned by its adapter", async () => {
   const policy = parseYaml(await readFile(join(
     repositoryRoot,
     "architecture/foundation/source-dependencies.yaml",
   ), "utf8"));
-  const boundaries = Object.fromEntries(policy.boundaries
-    .filter(({ id }) => id.startsWith("docs-protocol.consumer-integration."))
-    .map(({ id, roots, allow, entrypoints }) => [id, {
-      roots,
-      boundaries: allow.boundaries,
-      packages: allow.packages,
-      builtins: allow.builtins,
-      entrypoints,
-    }]));
-  assert.deepEqual(boundaries, {
-    "docs-protocol.consumer-integration.domain": {
-      roots: ["packages/docs-protocol/src/consumer-integration/domain"],
-      boundaries: [], packages: [], builtins: [],
-      entrypoints: ["packages/docs-protocol/src/consumer-integration/domain/model.ts"],
-    },
-    "docs-protocol.consumer-integration.generated-assets": {
-      roots: ["packages/docs-protocol/src/consumer-integration/generated"],
-      boundaries: [], packages: [], builtins: [],
-      entrypoints: ["packages/docs-protocol/src/consumer-integration/generated/canonical-assets.ts"],
-    },
-    "docs-protocol.consumer-integration.application": {
-      roots: ["packages/docs-protocol/src/consumer-integration/application"],
+  const coreBoundaries = policy.boundaries.filter((boundary) =>
+    boundary.roots.some((root) => root.startsWith("packages/docs-protocol/src/")),
+  );
+  for (const boundary of coreBoundaries) {
+    assert.ok(
+      boundary.roots.every((root) => !root.includes("/consumer-integration/")),
+      boundary.id,
+    );
+    assert.ok(!boundary.allow.packages.includes(docsProtocolAgentTeamsName), boundary.id);
+    assert.ok(
+      boundary.allow.boundaries.every((id) => !id.startsWith("docs-protocol-agent-teams.")),
+      boundary.id,
+    );
+  }
+
+  const adapterBoundary = policy.boundaries.find(
+    ({ id }) => id === "docs-protocol-agent-teams.adapters",
+  );
+  assert.deepEqual(adapterBoundary, {
+    id: "docs-protocol-agent-teams.adapters",
+    roots: ["packages/docs-protocol-agent-teams/src/consumer-integration/adapters"],
+    allow: {
       boundaries: [
-        "docs-protocol.consumer-integration.domain",
-        "docs-protocol.consumer-integration.generated-assets",
+        "docs-protocol-agent-teams.application",
+        "docs-protocol-agent-teams.domain",
       ],
-      packages: [foundationName],
-      builtins: ["node:crypto"],
-      entrypoints: [
-        "packages/docs-protocol/src/consumer-integration/application/model/consumer-integration-execution.ts",
-        "packages/docs-protocol/src/consumer-integration/application/model/consumer-upgrade-execution.ts",
-        "packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-assets.ts",
-        "packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-desired-state.ts",
-        "packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts",
-        "packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-planners.ts",
-        "packages/docs-protocol/src/consumer-integration/application/ports/consumer-upgrade.ts",
-        "packages/docs-protocol/src/consumer-integration/application/use-cases/plan-consumer-integration.ts",
-        "packages/docs-protocol/src/consumer-integration/application/use-cases/run-consumer-integration.ts",
-        "packages/docs-protocol/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts",
+      packages: [
+        foundationName,
+        repositoryMutationName,
+        "ajv",
+        "ajv-formats",
+        "jsonc-parser",
+        "yaml",
       ],
-    },
-    "docs-protocol.consumer-integration.adapters": {
-      roots: ["packages/docs-protocol/src/consumer-integration/adapters"],
-      boundaries: [
-        "docs-protocol.consumer-integration.application",
-        "docs-protocol.consumer-integration.domain",
-      ],
-      packages: [foundationName, "ajv", "ajv-formats", "jsonc-parser", "yaml"],
       builtins: [
-        "node:child_process", "node:crypto", "node:fs", "node:fs/promises", "node:os", "node:path",
+        "node:child_process",
+        "node:crypto",
+        "node:fs",
+        "node:fs/promises",
+        "node:os",
+        "node:path",
       ],
-      entrypoints: [
-        "packages/docs-protocol/src/consumer-integration/adapters/agents-route-adapter-v1.ts",
-        "packages/docs-protocol/src/consumer-integration/adapters/consumer-integration-schema-validator.ts",
-        "packages/docs-protocol/src/consumer-integration/adapters/foundation-known-file-transaction.ts",
-        "packages/docs-protocol/src/consumer-integration/adapters/github-cohort-authority-reader.ts",
-        "packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
-        "packages/docs-protocol/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts",
-        "packages/docs-protocol/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
-        "packages/docs-protocol/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts",
-      ],
+      runtimeReferences: [],
     },
-    "docs-protocol.consumer-integration.composition": {
-      roots: [
-        "packages/docs-protocol/src/consumer-integration/composition",
-        "packages/docs-protocol/src/consumer-integration/index.ts",
-      ],
-      boundaries: [
-        "docs-protocol.consumer-integration.adapters",
-        "docs-protocol.consumer-integration.application",
-        "docs-protocol.consumer-integration.domain",
-      ],
-      packages: [], builtins: [],
-      entrypoints: [
-        "packages/docs-protocol/src/consumer-integration/composition/canonical-docs-skill-v2.ts",
-        "packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts",
-        "packages/docs-protocol/src/consumer-integration/index.ts",
-      ],
-    },
+    entrypoints: [
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-schema-validator.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts",
+      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v1.ts",
+    ],
   });
 
   const applicationSources = await sourceFiles(join(
     repositoryRoot,
-    "packages/docs-protocol/src/consumer-integration/application",
+    "packages/docs-protocol-agent-teams/src/consumer-integration/application",
   ));
   for (const path of applicationSources) {
     const source = await readFile(path, "utf8");
@@ -658,7 +686,7 @@ test("Docs Protocol consumer integration retains its golden internal dependency 
   }
 });
 
-test("Docs Protocol boundary policy classifies new application files and rejects adapter imports", async () => {
+test("Agent Teams adapter policy classifies new application files and rejects adapter imports", async () => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "docs-consumer-boundary-"));
   try {
     const policy = parseYaml(await readFile(join(
@@ -666,42 +694,43 @@ test("Docs Protocol boundary policy classifies new application files and rejects
       "architecture/foundation/source-dependencies.yaml",
     ), "utf8"));
     const relevantBoundaryIds = new Set([
-      "docs-protocol.consumer-integration.adapters",
-      "docs-protocol.consumer-integration.application",
-      "docs-protocol.consumer-integration.domain",
-      "docs-protocol.consumer-integration.generated-assets",
+      "docs-protocol-agent-teams.adapters",
+      "docs-protocol-agent-teams.application",
+      "docs-protocol-agent-teams.domain",
+      "docs-protocol-agent-teams.generated-assets",
     ]);
     const fixturePolicy = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
-      governedRoots: ["packages/docs-protocol/src/consumer-integration"],
+      packageRoots: ["packages"],
+      governedRoots: ["packages/docs-protocol-agent-teams/src/consumer-integration"],
       boundaries: policy.boundaries
         .filter(({ id }) => relevantBoundaryIds.has(id))
         .map((boundary) => ({
           ...boundary,
           entrypoints: boundary.id.endsWith(".adapters")
-            ? ["packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts"]
+            ? ["packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts"]
             : boundary.id.endsWith(".domain")
-              ? ["packages/docs-protocol/src/consumer-integration/domain/model.ts"]
+              ? ["packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts"]
               : [],
         })),
     };
     const paths = {
       application: join(
         temporaryRoot,
-        "packages/docs-protocol/src/consumer-integration/application/use-cases/new-use-case.ts",
+        "packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/new-use-case.ts",
       ),
       adapter: join(
         temporaryRoot,
-        "packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
+        "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
       ),
       domain: join(
         temporaryRoot,
-        "packages/docs-protocol/src/consumer-integration/domain/model.ts",
+        "packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts",
       ),
       generated: join(
         temporaryRoot,
-        "packages/docs-protocol/src/consumer-integration/generated",
+        "packages/docs-protocol-agent-teams/src/consumer-integration/generated",
       ),
     };
     await Promise.all([
@@ -720,8 +749,8 @@ test("Docs Protocol boundary policy classifies new application files and rejects
         packageManager: "pnpm@11.20.0",
       }, null, 2)}\n`),
       writeFile(join(temporaryRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n"),
-      writeFile(join(temporaryRoot, "packages/docs-protocol/package.json"), `${JSON.stringify({
-        name: docsProtocolName,
+      writeFile(join(temporaryRoot, "packages/docs-protocol-agent-teams/package.json"), `${JSON.stringify({
+        name: docsProtocolAgentTeamsName,
         version: "0.0.0",
         private: true,
         type: "module",

@@ -1,30 +1,41 @@
 import assert from "node:assert/strict";
-import {
-  lstat,
-  mkdir,
-  mkdtemp,
-  opendir,
-  readFile,
-  realpath,
-  rm,
-  stat,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, opendir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import {
-  addWorkspacePackage,
-  configProblem,
-  inspectV2Topology,
-  runSourceCapability,
-  sourceArchitectureConfig,
-  sourceConfigPath,
-  withCopiedFixture,
-  withTemporaryDirectory,
-} from "./helpers/source-dependency-v2-fixture.mjs";
+import { addWorkspacePackage, configProblem, inspectV2Topology, PnpmWorkspaceInventoryReader, runSourceCapability, sourceArchitectureConfig, sourceConfigPath, withCopiedFixture, withTemporaryDirectory } from "./helpers/source-dependency-v2-fixture.mjs";
+
+test("pnpm inventory cancellation observes manifest-free excluded traversal", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    let current = join(consumerRoot, "manifest-free-excluded");
+    for (let index = 0; index < 20; index += 1) {
+      current = join(current, `level-${index}`);
+      await mkdir(current, { recursive: true });
+    }
+    let observations = 0;
+    const signal = new Proxy(new AbortController().signal, {
+      get(target, property) {
+        if (property === "aborted") {
+          observations += 1;
+          return observations > 12;
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const reader = new PnpmWorkspaceInventoryReader();
+    await assert.rejects(
+      () => reader.discoverManifestPathsFromManifest(
+        consumerRoot,
+        { packages: ["packages/*"] },
+        signal,
+      ),
+      (error) => error?.problem?.code === "EXECUTION_CANCELLED",
+    );
+    assert.equal(observations > 12, true);
+  });
+});
 
 async function addPackageSourceFiles(consumerRoot, paths) {
   for (const path of paths) {

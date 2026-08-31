@@ -47,6 +47,7 @@ const [
 ]);
 
 export const loadCapabilityConfig = loadSourceDependencyCapabilityConfig;
+export { PnpmWorkspaceInventoryReader };
 
 export function ruleIds(values) {
   return values.map(({ ruleId }) => ruleId).toSorted();

@@ -63,6 +63,10 @@ function legacySha256Bytes(value: Uint8Array): string {
 function legacySha256Json(value: LegacyJson): string {
   return legacySha256Bytes(Buffer.from(legacyCanonicalJson(value), "utf8"));
 }
+export function legacyFoundationEnvelopeSha256Json(value: unknown): string {
+  return legacySha256Json(value as LegacyJson);
+}
+
 
 function assertKeys(
   value: Record<string, unknown>,

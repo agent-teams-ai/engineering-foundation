@@ -27,11 +27,19 @@ export interface BuildObservedSourceGraphInput {
   };
   readonly enforceWorkspaceBindings?: boolean;
   readonly inventory: WorkspaceInventory;
+  readonly packageTypeScopes?: readonly {
+    readonly moduleType: "commonjs" | "module";
+    readonly rootPath: string;
+  }[];
   readonly governedWorkspacePackageManifestPaths?: ReadonlySet<string>;
   readonly allSourceFiles: readonly SourceFileSnapshot[];
   readonly classifiedFiles: readonly ClassifiedSourceFile[];
   readonly resolver: SourceDependencyResolver;
   readonly signal?: AbortSignal;
+  readonly workspacePackageRootIdentities?: ReadonlyMap<string, {
+    readonly device: string;
+    readonly inode: string;
+  }>;
 }
 
 function inputError(code: string, message: string): never {
@@ -265,6 +273,9 @@ export function buildObservedSourceGraph(
     }
     for (const reference of file.parsed.references) {
       assertNotCancelled(input.signal);
+      const workspacePackageRootIdentity = input.workspacePackageRootIdentities?.get(
+        file.workspacePackage.manifestPath
+      );
       edges.push(
         Object.freeze({
           fromPath: node.path,
@@ -292,7 +303,13 @@ export function buildObservedSourceGraph(
                       input.governedWorkspacePackageManifestPaths
                   }),
               inventory: input.inventory,
-              reference
+              ...(input.packageTypeScopes === undefined
+                ? {}
+                : { packageTypeScopes: input.packageTypeScopes }),
+              reference,
+              ...(workspacePackageRootIdentity === undefined
+                ? {}
+                : { workspacePackageRootIdentity })
             }),
             governedFilePaths,
             nodesByPath

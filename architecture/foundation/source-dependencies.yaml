@@ -96,7 +96,6 @@ boundaries:
       builtins:
         - node:fs
         - node:fs/promises
-        - node:module
         - node:path
         - node:url
       runtimeReferences: []
@@ -1243,6 +1242,7 @@ boundaries:
         - foundation.workspace-inventory.application
       packages: []
       builtins:
+        - node:fs
         - node:fs/promises
         - node:path
       runtimeReferences: []

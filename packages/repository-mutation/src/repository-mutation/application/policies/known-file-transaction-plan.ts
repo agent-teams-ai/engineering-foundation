@@ -21,6 +21,7 @@ const MAXIMUM_FILE_BYTES = 8 * 1024 * 1024;
 // Keep the canonical Base64 journal comfortably below its separate 32 MiB
 // serialized limit. Raw transaction evidence expands by at least 4/3.
 const MAXIMUM_TRANSACTION_BYTES = 16 * 1024 * 1024;
+const MAXIMUM_BASE64_FILE_LENGTH = 4 * Math.ceil(MAXIMUM_FILE_BYTES / 3);
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 
 export class KnownFileTransactionPlanError extends Error {
@@ -32,6 +33,42 @@ export class KnownFileTransactionPlanError extends Error {
 
 function binaryCompare(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function assertInertInputGraph(value: unknown, subject: string, depth = 0): void {
+  if (depth > 8) {
+    throw new KnownFileTransactionPlanError(`${subject} is too deeply nested.`);
+  }
+  if (value instanceof Uint8Array || value === null || typeof value !== "object") {return;}
+  if (!Array.isArray(value) && ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+    throw new KnownFileTransactionPlanError(`${subject} must contain only plain data.`);
+  }
+  const keys = Reflect.ownKeys(value);
+  for (const key of keys) {
+    if (typeof key !== "string" || (Array.isArray(value) && key === "length")) {continue;}
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) {
+      throw new KnownFileTransactionPlanError(`${subject} must contain only enumerable data properties.`);
+    }
+    assertInertInputGraph(descriptor.value, subject, depth + 1);
+  }
+}
+
+function inertInputOperations(input: CompileKnownFileTransactionPlanInput): readonly KnownFileTransactionOperationInput[] {
+  if (typeof input !== "object" || input === null || Array.isArray(input) ||
+    ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
+    Reflect.ownKeys(input).length !== 1) {
+    throw new KnownFileTransactionPlanError("Known-file transaction input is not one plain operations record.");
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(input, "operations");
+  if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable ||
+    !Array.isArray(descriptor.value) || descriptor.value.length > MAXIMUM_OPERATION_COUNT) {
+    throw new KnownFileTransactionPlanError(
+      `A transaction supports at most ${MAXIMUM_OPERATION_COUNT} operations.`
+    );
+  }
+  assertInertInputGraph(descriptor.value, "Known-file transaction operations");
+  return descriptor.value as readonly KnownFileTransactionOperationInput[];
 }
 
 function assertMode(mode: number, subject: string): void {
@@ -166,12 +203,8 @@ function planBody(operations: readonly KnownFileTransactionOperationV1[]) {
 export function compileKnownFileTransactionPlan(
   input: CompileKnownFileTransactionPlanInput
 ): KnownFileTransactionPlanV1 {
-  if (!Array.isArray(input.operations) || input.operations.length > MAXIMUM_OPERATION_COUNT) {
-    throw new KnownFileTransactionPlanError(
-      `A transaction supports at most ${MAXIMUM_OPERATION_COUNT} operations.`
-    );
-  }
-  const operations = input.operations.map(compileOperation).toSorted((left, right) =>
+  const inputOperations = inertInputOperations(input);
+  const operations = inputOperations.map(compileOperation).toSorted((left, right) =>
     binaryCompare(left.path, right.path)
   );
   const collision = findPortableRepositoryPathCollision(
@@ -290,10 +323,13 @@ function readImage(
   const size: unknown = Reflect.get(value, "size");
   if (
     typeof contentBase64 !== "string" ||
+    contentBase64.length > MAXIMUM_BASE64_FILE_LENGTH ||
     typeof digest !== "string" ||
     !SHA256.test(digest) ||
     typeof mode !== "number" ||
-    typeof size !== "number"
+    typeof size !== "number" ||
+    !Number.isSafeInteger(size) ||
+    size < 0 || size > MAXIMUM_FILE_BYTES
   ) {
     throw new KnownFileTransactionPlanError(`${subject} is invalid.`);
   }

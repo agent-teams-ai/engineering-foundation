@@ -11,7 +11,10 @@ import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspec
 import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
 import { NodeFoundationDocsPort } from "../dist/adapters/foundation-docs-port.js";
 import { runDocsProtocolQualification } from "../dist/qualification/index.js";
-import { crashAtDurablePublishing } from "../dist/qualification/crash-driver.js";
+import {
+  crashAfterDurablePublication,
+  crashAtDurablePublishing
+} from "../dist/qualification/crash-driver.js";
 import {
   fileSnapshot,
   isQualificationEvidenceExcludedPath,
@@ -161,7 +164,7 @@ test("qualification cleans its inputs after a crash-child spawn error", async ()
 
 const requiresStrictDirectoryDurability = process.platform === "win32" ? test.skip : test;
 
-requiresStrictDirectoryDurability("recovery uses durable PUBLISHING authority after both mutable profiles are corrupted", async () => {
+async function withCorruptedProfileCrash(crash, callback) {
   const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-corrupt-profile-"));
   const consumerRoot = join(temporary, "consumer");
   try {
@@ -197,18 +200,45 @@ requiresStrictDirectoryDurability("recovery uses durable PUBLISHING authority af
       })}\n`,
       "utf8"
     );
-    await crashAtDurablePublishing(consumerRoot, plan);
-    // The later owner-only after-published checkpoint remains covered by
-    // tests/document-authoring-writer-crash.test.mjs in the owning Foundation suite.
+    await crash(consumerRoot, plan);
     await writeFile(join(consumerRoot, "docs.config.yaml"), "not: [valid\n", "utf8");
     await writeFile(join(consumerRoot, ".docs-protocol/document-authoring.yaml"), "not: [valid\n", "utf8");
-
-    const protocol = new DocsProtocol({
+    await callback({ consumerRoot, plan, protocol: new DocsProtocol({
       adoption: new NodeDocsAdoptionInspector(),
       anchors: new NodeCodeAnchorMatcher(),
       foundation: new NodeFoundationDocsPort(),
       profiles: new NodeDocsProfileReader()
+    }) });
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+}
+
+requiresStrictDirectoryDurability("before durable publication, corrupted mutable profiles require recovery and preserve evidence", async () => {
+  await withCorruptedProfileCrash(crashAtDurablePublishing, async ({ consumerRoot, plan, protocol }) => {
+    const journalPath = join(consumerRoot, ".agent-teams-local", "scaffolding-transaction.json");
+    const evidenceBefore = await readFile(journalPath);
+    await assert.rejects(access(join(consumerRoot, plan.destination)), (error) => error?.code === "ENOENT");
+    const recovered = await protocol.recoverV2({
+      consumerRoot,
+      profilePath: "docs.config.yaml"
     });
+    assert.equal(recovered.exitCode, 1, JSON.stringify(recovered.envelope));
+    assert.equal(recovered.envelope.outcome, "recovery-required");
+    assert.equal(recovered.envelope.result.transactionState, "recovery-required");
+    assert.equal(recovered.envelope.result.writeState, "unchanged");
+    assert.equal(recovered.envelope.diagnostics[0].ruleId, "document.transaction.recovery-authority");
+    assert.deepEqual(await readFile(journalPath), evidenceBefore);
+    await assert.rejects(access(join(consumerRoot, plan.destination)), (error) => error?.code === "ENOENT");
+  });
+});
+
+requiresStrictDirectoryDurability("after durable publication, recovery uses persisted authority when both mutable profiles are corrupted", async () => {
+  await withCorruptedProfileCrash(crashAfterDurablePublication, async ({ consumerRoot, plan, protocol }) => {
+    assert.equal(
+      await readFile(join(consumerRoot, plan.destination), "utf8"),
+      Buffer.from(plan.output.contentBase64, "base64").toString("utf8")
+    );
     const recovered = await protocol.recoverV2({
       consumerRoot,
       profilePath: "docs.config.yaml"
@@ -216,7 +246,5 @@ requiresStrictDirectoryDurability("recovery uses durable PUBLISHING authority af
     assert.equal(recovered.exitCode, 0, JSON.stringify(recovered.envelope));
     assert.equal(recovered.envelope.result.transactionState, "recovered");
     await lstat(join(consumerRoot, plan.destination));
-  } finally {
-    await rm(temporary, { recursive: true, force: true });
-  }
+  });
 });

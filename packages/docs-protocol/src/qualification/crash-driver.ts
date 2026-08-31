@@ -2,11 +2,21 @@ import { spawn } from "node:child_process";
 import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-const crashCheckpoint = '{"schemaVersion":1,"event":"document-authoring-qualification-crash-point","crashPoint":"after-publishing-journal-durable"}\n';
+type QualificationCrashPoint =
+  | "after-publishing-journal-durable"
+  | "after-published-journal-durable";
 
-export async function crashAtDurablePublishing(
+const workerInvocation: Readonly<Record<QualificationCrashPoint, string>> = Object.freeze({
+  "after-publishing-journal-durable":
+    'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-publishing-journal-durable" });',
+  "after-published-journal-durable":
+    'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-published-journal-durable" });'
+});
+
+async function crashAtDurableCheckpoint(
   consumerRoot: string,
   plan: unknown,
+  crashPoint: QualificationCrashPoint,
   signal?: AbortSignal
 ): Promise<void> {
   signal?.throwIfAborted();
@@ -18,7 +28,7 @@ export async function crashAtDurablePublishing(
     'import { runDocumentAuthoringCrashQualification } from "@agent-teams/engineering-foundation/document-authoring/qualification";',
     "const [consumerRoot, planPath] = process.argv.slice(2);",
     'const plan = JSON.parse(await readFile(planPath, "utf8"));',
-    'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-publishing-journal-durable" });',
+    workerInvocation[crashPoint],
     ""
   ].join("\n"), "utf8");
   const child = spawn(process.execPath, [workerPath, consumerRoot, planPath], {
@@ -27,6 +37,11 @@ export async function crashAtDurablePublishing(
   });
   let stderr = "";
   let stdout = "";
+  const crashCheckpoint = `${JSON.stringify({
+    schemaVersion: 1,
+    event: "document-authoring-qualification-crash-point",
+    crashPoint
+  })}\n`;
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk: string) => { stderr += chunk; });
   const terminated = new Promise<{ readonly code: number | null; readonly signal: NodeJS.Signals | null }>((resolve) => {
@@ -42,7 +57,7 @@ export async function crashAtDurablePublishing(
   if (signal?.aborted === true) {abort();}
   try {
     await new Promise<void>((resolve, reject) => {
-      const deadline = setTimeout(() => { reject(new Error(`Qualification crash driver did not reach durable PUBLISHING: ${stderr}`)); }, 30_000);
+      const deadline = setTimeout(() => { reject(new Error(`Qualification crash driver did not reach ${crashPoint}: ${stderr}`)); }, 30_000);
       const cancelled = () => {
         clearTimeout(deadline);
         reject(signal?.reason instanceof Error
@@ -89,4 +104,30 @@ export async function crashAtDurablePublishing(
     await rm(workerPath, { force: true });
     await rm(planPath, { force: true });
   }
+}
+
+export async function crashAtDurablePublishing(
+  consumerRoot: string,
+  plan: unknown,
+  signal?: AbortSignal
+): Promise<void> {
+  return crashAtDurableCheckpoint(
+    consumerRoot,
+    plan,
+    "after-publishing-journal-durable",
+    signal
+  );
+}
+
+export async function crashAfterDurablePublication(
+  consumerRoot: string,
+  plan: unknown,
+  signal?: AbortSignal
+): Promise<void> {
+  return crashAtDurableCheckpoint(
+    consumerRoot,
+    plan,
+    "after-published-journal-durable",
+    signal
+  );
 }

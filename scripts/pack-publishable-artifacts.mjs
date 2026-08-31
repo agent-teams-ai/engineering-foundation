@@ -18,7 +18,7 @@ function fail(message) {
 }
 
 function portableSegmentIdentity(segment, source) {
-  if (/[\u0000-\u001f\u007f<>:"|?*]/u.test(segment) || /[. ]$/u.test(segment)) {
+  if (/[\p{Cc}<>:"|?*]/u.test(segment) || /[. ]$/u.test(segment)) {
     fail(`${source} is not portable across supported filesystems`);
   }
   const identity = segment.normalize("NFKC").toUpperCase();
@@ -246,6 +246,73 @@ export function derivePublishableArtifactPlan({
   })));
 }
 
+async function loadManifestPolicy(repositoryRoot, entry) {
+  const manifest = await readBoundedManifest(resolve(repositoryRoot, entry.manifestPath), entry.manifestPath);
+  if (manifest.name !== entry.name || typeof manifest.version !== "string" ||
+      !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/u.test(manifest.version)) {
+    fail(`${entry.manifestPath} has an unexpected package identity or version`);
+  }
+  if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
+    fail(`${entry.manifestPath} must own a non-empty package files allowlist`);
+  }
+  if (typeof manifest.scripts?.build !== "string" || manifest.scripts.build.trim() === "") {
+    fail(`${entry.manifestPath} must own a package build contract`);
+  }
+  const allowed = [];
+  const required = manifestReleaseTargets(manifest);
+  for (const path of manifest.files) {
+    if (typeof path !== "string" || !PORTABLE_ARTIFACT_PATH.test(path)) {
+      fail(`${entry.manifestPath} contains an unsafe package files path`);
+    }
+    if (path !== "dist" && await isRequiredManifestFile(repositoryRoot, entry, path)) {
+      required.add(path);
+    }
+    allowed.push(path);
+  }
+  return { allowed, manifest, required };
+}
+
+async function isRequiredManifestFile(repositoryRoot, entry, path) {
+  try {
+    const metadata = await lstat(resolve(repositoryRoot, entry.root, path));
+    if (metadata.isSymbolicLink() || (!metadata.isFile() && !metadata.isDirectory())) {
+      fail(`${entry.manifestPath} package files path must be a regular file or directory`);
+    }
+    return metadata.isFile() && !["README.md", "CHANGELOG.md", "LICENSE"].includes(path);
+  } catch (error) {
+    if (error?.code === "ENOENT" && path === "LICENSE") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function loadPublishableManifestPolicies(repositoryRoot) {
+  const manifests = new Map();
+  const requiredArtifactPaths = {};
+  const allowedArtifactPaths = {};
+  const manifestFilePolicies = {};
+  for (const entry of PUBLISHABLE_PACKAGES) {
+    const { allowed, manifest, required } = await loadManifestPolicy(repositoryRoot, entry);
+    manifests.set(entry.name, Object.freeze(structuredClone(manifest)));
+    allowedArtifactPaths[entry.name] = [...new Set(allowed)].toSorted();
+    requiredArtifactPaths[entry.name] = [...required].toSorted();
+    manifestFilePolicies[entry.name] = [...new Set(manifest.files)].toSorted();
+  }
+  return { allowedArtifactPaths, manifestFilePolicies, manifests, requiredArtifactPaths };
+}
+
+function assertRequiredPathsAllowed(plan, manifestFilePolicies) {
+  for (const item of plan) {
+    for (const requiredPath of item.requiredArtifactPaths) {
+      if (!manifestFilePolicies[item.package.name].some((allowed) =>
+        requiredPath === allowed || requiredPath.startsWith(`${allowed}/`))) {
+        fail(`required artifact ${requiredPath} for ${item.package.name} is outside its manifest files allowlist`);
+      }
+    }
+  }
+}
+
 export async function packPublishableArtifacts(input) {
   if (input === null || typeof input !== "object") {
     fail("input must be an object");
@@ -259,69 +326,15 @@ export async function packPublishableArtifacts(input) {
     fail("temporaryRoot must be an absolute path");
   }
   const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-  const manifests = new Map();
-  const requiredArtifactPaths = {};
-  const allowedArtifactPaths = {};
-  const manifestFilePolicies = {};
-  for (const entry of PUBLISHABLE_PACKAGES) {
-    const manifestPath = resolve(repositoryRoot, entry.manifestPath);
-    const manifest = await readBoundedManifest(manifestPath, entry.manifestPath);
-    if (manifest.name !== entry.name || typeof manifest.version !== "string" ||
-        !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/u.test(manifest.version)) {
-      fail(`${entry.manifestPath} has an unexpected package identity or version`);
-    }
-    if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
-      fail(`${entry.manifestPath} must own a non-empty package files allowlist`);
-    }
-    if (typeof manifest.scripts?.build !== "string" || manifest.scripts.build.trim() === "") {
-      fail(`${entry.manifestPath} must own a package build contract`);
-    }
-    const allowed = [];
-    const required = manifestReleaseTargets(manifest);
-    for (const path of manifest.files) {
-      if (typeof path !== "string" || !PORTABLE_ARTIFACT_PATH.test(path)) {
-        fail(`${entry.manifestPath} contains an unsafe package files path`);
-      }
-      const sourcePath = resolve(repositoryRoot, entry.root, path);
-      if (path === "dist") {
-        allowed.push(path);
-      } else {
-        try {
-          const metadata = await lstat(sourcePath);
-          if (metadata.isSymbolicLink() || (!metadata.isFile() && !metadata.isDirectory())) {
-            fail(`${entry.manifestPath} package files path must be a regular file or directory`);
-          }
-          allowed.push(path);
-          if (metadata.isFile() && !["README.md", "CHANGELOG.md", "LICENSE"].includes(path)) {
-            required.add(path);
-          }
-        } catch (error) {
-          if (error?.code !== "ENOENT" || path !== "LICENSE") {
-            throw error;
-          }
-          allowed.push(path);
-        }
-      }
-    }
-    manifests.set(entry.name, Object.freeze(structuredClone(manifest)));
-    allowedArtifactPaths[entry.name] = [...new Set(allowed)].toSorted();
-    requiredArtifactPaths[entry.name] = [...required].toSorted();
-    manifestFilePolicies[entry.name] = [...new Set(manifest.files)].toSorted();
-  }
+  const { allowedArtifactPaths, manifestFilePolicies, manifests, requiredArtifactPaths } =
+    await loadPublishableManifestPolicies(repositoryRoot);
   const plan = derivePublishableArtifactPlan({
     dependencyDeclarations: PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS,
     packages: PUBLISHABLE_PACKAGES,
     repositoryRoot,
     requiredArtifactPaths,
   });
-  for (const item of plan) {
-    for (const requiredPath of item.requiredArtifactPaths) {
-      if (!manifestFilePolicies[item.package.name].some((allowed) =>
-        requiredPath === allowed || requiredPath.startsWith(`${allowed}/`))) {
-        fail(`required artifact ${requiredPath} for ${item.package.name} is outside its manifest files allowlist`);
-      }
-    }
-  }
+  assertRequiredPathsAllowed(plan, manifestFilePolicies);
   await assertPhysicalPublishablePackageRoots(repositoryRoot, PUBLISHABLE_PACKAGES);
   const authoritativePackageRoots = PUBLISHABLE_PACKAGES.map((entry) => resolve(repositoryRoot, entry.root));
   const runPnpm = createPnpmRunner();

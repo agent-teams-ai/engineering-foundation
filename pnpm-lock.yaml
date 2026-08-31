@@ -189,12 +189,34 @@ importers:
       ajv-formats:
         specifier: 'catalog:'
         version: 3.0.1(ajv@8.20.0)
-      jsonc-parser:
-        specifier: 'catalog:'
-        version: 3.3.1
       minisearch:
         specifier: 'catalog:'
         version: 7.2.0
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  packages/docs-protocol-agent-teams:
+    dependencies:
+      '@agent-teams/docs-protocol':
+        specifier: workspace:*
+        version: link:../docs-protocol
+      '@agent-teams/engineering-foundation':
+        specifier: workspace:*
+        version: link:../engineering-foundation
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
       yaml:
         specifier: 'catalog:'
         version: 2.9.0

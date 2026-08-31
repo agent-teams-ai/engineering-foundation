@@ -32,7 +32,7 @@ import {
   recoverFilesystemScaffold,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
-import { readBoundedRegularFile } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-bounded-regular-file.js";
+import { readBoundedRegularFile } from "../packages/repository-mutation/dist/qualification/index.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const coordinatorModulePath = join(
@@ -783,7 +783,7 @@ test(
       holder = await startTransactionHolder(root, "scaffolding");
       await assert.rejects(
         second.acquire({ requestedMutation: "document-authoring" }),
-        /operation is active or its lock is not safely recoverable/u,
+        /operation is active or its shared mutation lock is not safely recoverable/u,
       );
       await stopTransactionHolder(holder);
       const nextLease = await second.acquire({

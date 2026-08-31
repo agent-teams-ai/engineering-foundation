@@ -15,7 +15,7 @@ import { dirname, isAbsolute, join, relative, resolve as resolvePath, sep } from
 
 import type {
   KnownFileTransactionOperationInput
-} from "@agent-teams/engineering-foundation/mutation";
+} from "@agent-teams/repository-mutation";
 
 import type {
   ConsumerUpgradeSandboxPort,

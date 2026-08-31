@@ -28,14 +28,6 @@
       "types": "./dist/local-mode/index.d.ts",
       "import": "./dist/local-mode/index.js"
     },
-    "./mutation": {
-      "types": "./dist/mutation/index.d.ts",
-      "import": "./dist/mutation/index.js"
-    },
-    "./mutation/qualification": {
-      "types": "./dist/mutation/qualification/index.d.ts",
-      "import": "./dist/mutation/qualification/index.js"
-    },
     "./scaffolding": {
       "types": "./dist/scaffolding/index.d.ts",
       "import": "./dist/scaffolding/index.js"
@@ -81,8 +73,6 @@
     "schemas/foundation-transaction-envelope/v5.schema.json",
     "schemas/governance-architecture-decision-baseline/v1.schema.json",
     "schemas/governance-architecture-decisions/v1.schema.json",
-    "schemas/known-file-transaction-plan/v1.schema.json",
-    "schemas/known-file-transaction-receipt/v1.schema.json",
     "schemas/package-public-api-baseline/v1.schema.json",
     "schemas/package-public-api-compatibility/v1.schema.json",
     "schemas/quality-executable-specification-catalog/v1.schema.json",
@@ -131,6 +121,7 @@
     ]
   },
   "dependencies": {
+    "@agent-teams/repository-mutation": "workspace:*",
     "@microsoft/api-extractor": "catalog:",
     "@microsoft/api-extractor-model": "catalog:",
     "ajv": "catalog:",

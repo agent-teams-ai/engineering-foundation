@@ -7,10 +7,10 @@ import test from "node:test";
 
 import {
   assertTemporaryPathsAbsent,
-  classifyExactFilePostimage,
-  publishAbsentFile
-} from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-absent-file-publication.js";
-import { readBoundedRegularFile } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-bounded-regular-file.js";
+  classifyExactFilePostimage
+} from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-absent-file-publication.js";
+import { publishAbsentFile } from "../packages/repository-mutation/dist/qualification/index.js";
+import { readBoundedRegularFile } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-bounded-regular-file.js";
 
 const bytes = Buffer.from("exact postimage\n");
 const postimage = {

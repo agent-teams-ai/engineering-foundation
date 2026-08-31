@@ -21,5 +21,8 @@
     "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../engineering-foundation" }]
+  "references": [
+    { "path": "../engineering-foundation" },
+    { "path": "../repository-mutation" }
+  ]
 }

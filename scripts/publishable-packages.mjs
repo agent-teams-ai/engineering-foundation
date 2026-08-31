@@ -12,6 +12,12 @@ const DEPENDENCY_SECTIONS = Object.freeze([
 // This is qualification membership, not a dependency graph or release order.
 export const PUBLISHABLE_PACKAGE_CATALOG = Object.freeze([
   Object.freeze({
+    changelogPath: "packages/repository-mutation/CHANGELOG.md",
+    manifestPath: "packages/repository-mutation/package.json",
+    name: "@agent-teams/repository-mutation",
+    root: "packages/repository-mutation",
+  }),
+  Object.freeze({
     changelogPath: "packages/engineering-foundation/CHANGELOG.md",
     manifestPath: "packages/engineering-foundation/package.json",
     name: "@agent-teams/engineering-foundation",

@@ -27,7 +27,7 @@ import type {
   InternalFoundationTransactionStatus
 } from "../../application/model/internal-transaction-status.js";
 import type { FoundationTransactionSlot } from "../../application/ports/foundation-transaction-slot.js";
-import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+import { readBoundedRegularFile } from "@agent-teams/repository-mutation";
 import {
   assertLegacyDocumentEnvelope,
   isKnownLegacyDocumentEnvelope

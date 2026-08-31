@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   assertKnownFileTransactionPlan,
   compileKnownFileTransactionPlan
-} from "../packages/engineering-foundation/dist/mutation/index.js";
+} from "../packages/repository-mutation/dist/index.js";
 
 const bytes = (value) => Buffer.from(value, "utf8");
 const compile = (operations) => compileKnownFileTransactionPlan({ operations });

@@ -2,17 +2,19 @@ import { readdir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 import {
+  AbsentFilePublicationError,
   assertTemporaryPathsAbsent,
   classifyExactFilePostimage,
+  ownedTemporaryCleanupResiduePrefix,
   publishAbsentFile,
-  type AbsentFilePublicationFaultPoint
-} from "../../../repository-mutation/adapters/node/node-absent-file-publication.js";
-import { AbsentFilePublicationError } from "../../../repository-mutation/application/model/exact-postimage.js";
-import { ownedTemporaryCleanupResiduePrefix } from "../../../repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
+  type OwnedTemporaryCleanupTransitionPort
+} from "@agent-teams/repository-mutation";
+import {
+  publishAbsentFile as publishAbsentFileWithFaults
+} from "@agent-teams/repository-mutation/qualification";
 import type { MaterializeFileOperation } from "../../contract/scaffold-contract.js";
 import { sha256Text } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import type { OwnedTemporaryCleanupTransitionPort } from "../../../repository-mutation/application/ports/owned-temporary-cleanup-transition.js";
 import {
   assertSafeExistingAncestors,
   ensureSafeParent,
@@ -22,7 +24,10 @@ import {
 export type FilesystemOperationState = "absent" | "after" | "conflict";
 
 interface FilesystemPublicationFaultPoint {
-  readonly phase: AbsentFilePublicationFaultPoint["phase"];
+  readonly phase:
+    | "after-hard-link"
+    | "after-temporary-synced"
+    | "after-temporary-written";
   readonly operationIndex: number;
   readonly operationPath: string;
 }
@@ -236,26 +241,26 @@ export async function publishFilesystemOperation(
     transactionTemporaryName(planDigest, operation)
   );
   try {
-    const outcome = await publishAbsentFile({
+    const publication = {
       allowUnsupportedDirectoryDurability: true,
       destinationPath: destination,
       displayPath: operation.path,
-      ...(faultInjector === undefined
-        ? {}
-        : {
-            faultInjector: async (point: AbsentFilePublicationFaultPoint) =>
-              faultInjector({
-                ...point,
-                operationIndex,
-                operationPath: operation.path
-              })
-          }),
       postimage: postimage(operation),
       temporaryPath: temporary,
       ...(cleanupTransition === undefined
         ? {}
         : { transition: cleanupTransition })
-    });
+    };
+    const outcome = faultInjector === undefined
+      ? await publishAbsentFile(publication)
+      : await publishAbsentFileWithFaults({
+          ...publication,
+          faultInjector: async (point) => faultInjector({
+            ...point,
+            operationIndex,
+            operationPath: operation.path
+          })
+        });
     return outcome === "published" ? "applied" : "already-satisfied";
   } catch (error) {
     translatePublicationError(error, operation);

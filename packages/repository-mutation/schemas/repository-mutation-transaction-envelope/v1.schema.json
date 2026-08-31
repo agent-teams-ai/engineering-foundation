@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/repository-mutation-transaction-envelope/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "format", "operationKind", "recoveryHandler",
+    "ownerArtifact", "kernelArtifact", "adapterContractVersion", "payloadKind",
+    "state", "journal", "payloadDigest", "envelopeDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 6 },
+    "format": { "const": "agent-teams.repository-mutation.transaction-envelope/v1" },
+    "operationKind": { "const": "known-file-transaction" },
+    "recoveryHandler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "const": "agent-teams.repository-mutation.known-file/v1" },
+        "contractVersion": { "const": 1 }
+      }
+    },
+    "ownerArtifact": { "$ref": "#/$defs/artifact" },
+    "kernelArtifact": { "$ref": "#/$defs/artifact" },
+    "adapterContractVersion": { "const": 1 },
+    "payloadKind": { "const": "agent-teams.repository-mutation.known-file-journal/v1" },
+    "state": { "enum": ["APPLYING", "COMMITTED"] },
+    "journal": { "type": "object" },
+    "payloadDigest": { "$ref": "#/$defs/sha256" },
+    "envelopeDigest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "buildIdentity"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "buildIdentity": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

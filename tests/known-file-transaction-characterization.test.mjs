@@ -5,14 +5,13 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
-  applyKnownFileTransaction,
   canonicalKnownFileTransactionReceipt,
-  compileKnownFileTransactionPlan,
-  recoverKnownFileTransaction
-} from "../packages/engineering-foundation/dist/mutation/index.js";
+  compileKnownFileTransactionPlan
+} from "../packages/repository-mutation/dist/index.js";
+import { applyKnownFileTransaction, recoverKnownFileTransaction } from "../packages/repository-mutation/dist/qualification/index.js";
 import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { classifyKnownFileRecoveryTransition } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js";
-import { compileKnownFileTransactionEnvelope } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
+import { classifyKnownFileRecoveryTransition } from "../packages/repository-mutation/dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js";
+import { compileKnownFileTransactionEnvelope } from "../packages/repository-mutation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 
 const posixTest = process.platform === "win32" ? test.skip : test;
@@ -82,9 +81,11 @@ async function readJournal(root) {
   assert.deepEqual(Object.keys(envelope).toSorted(), [
     "adapterContractVersion",
     "envelopeDigest",
-    "foundation",
+    "format",
     "journal",
+    "kernelArtifact",
     "operationKind",
+    "ownerArtifact",
     "payloadDigest",
     "payloadKind",
     "recoveryHandler",
@@ -100,7 +101,8 @@ async function readJournal(root) {
   ]);
   assert.deepEqual(
     compileKnownFileTransactionEnvelope({
-      foundation: envelope.foundation,
+      ownerArtifact: envelope.ownerArtifact,
+      kernelArtifact: envelope.kernelArtifact,
       journal: envelope.journal,
       state: envelope.state
     }),
@@ -129,7 +131,10 @@ posixTest("keeps applied receipt bytes canonical and deterministic", async (cont
 function classifyStoredEnvelope(envelope) {
   return classifyKnownFileRecoveryTransition({
     envelope,
-    installedBuild: envelope.foundation
+    installedBuild: {
+      ownerArtifact: envelope.ownerArtifact,
+      kernelArtifact: envelope.kernelArtifact
+    }
   });
 }
 
@@ -142,17 +147,20 @@ test("goldens top-level known-file v1 recovery transitions without changing enve
     authorizedDirectories: [],
     createdDirectories: []
   };
-  const foundation = {
+  const artifact = {
+    name: "@agent-teams/repository-mutation",
     version: "0.17.0",
     buildIdentity: `sha256:${"1".repeat(64)}`
   };
   const applying = compileKnownFileTransactionEnvelope({
-    foundation,
+    ownerArtifact: artifact,
+    kernelArtifact: artifact,
     journal,
     state: "APPLYING"
   });
   const committed = compileKnownFileTransactionEnvelope({
-    foundation,
+    ownerArtifact: artifact,
+    kernelArtifact: artifact,
     journal,
     state: "COMMITTED"
   });
@@ -160,36 +168,39 @@ test("goldens top-level known-file v1 recovery transitions without changing enve
     {
       label: "exact APPLYING journal rolls back",
       envelope: applying,
-      installedBuild: foundation,
+      installedBuild: { ownerArtifact: artifact, kernelArtifact: artifact },
       expected: { action: "rollback-applying" }
     },
     {
       label: "exact COMMITTED journal resumes terminal cleanup",
       envelope: committed,
-      installedBuild: foundation,
+      installedBuild: { ownerArtifact: artifact, kernelArtifact: artifact },
       expected: { action: "resume-committed-cleanup" }
     },
     {
       label: "different version rejects before APPLYING rollback",
       envelope: applying,
-      installedBuild: { ...foundation, version: "0.17.1" },
+      installedBuild: {
+        ownerArtifact: { ...artifact, version: "0.17.1" },
+        kernelArtifact: artifact
+      },
       expected: {
         action: "reject",
         code: "KNOWN_FILE_EXACT_BUILD_REQUIRED",
-        message: "The exact Foundation build that created this journal must recover it."
+        message: "The exact owner and kernel artifacts that created this journal must recover it."
       }
     },
     {
       label: "different build rejects before COMMITTED cleanup",
       envelope: committed,
       installedBuild: {
-        ...foundation,
-        buildIdentity: `sha256:${"2".repeat(64)}`
+        ownerArtifact: artifact,
+        kernelArtifact: { ...artifact, buildIdentity: `sha256:${"2".repeat(64)}` }
       },
       expected: {
         action: "reject",
         code: "KNOWN_FILE_EXACT_BUILD_REQUIRED",
-        message: "The exact Foundation build that created this journal must recover it."
+        message: "The exact owner and kernel artifacts that created this journal must recover it."
       }
     }
   ];
@@ -206,7 +217,7 @@ test("goldens top-level known-file v1 recovery transitions without changing enve
 
 test("keeps the top-level recovery classifier free of Node and process adapters", async () => {
   const source = await readFile(new URL(
-    "../packages/engineering-foundation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts",
+    "../packages/repository-mutation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts",
     import.meta.url
   ), "utf8");
   assert.doesNotMatch(source, /(?:node:|adapters\/node|\bprocess\b)/u);

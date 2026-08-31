@@ -24,5 +24,6 @@
   },
   "include": [
     "src/**/*.ts"
-  ]
+  ],
+  "references": [{ "path": "../repository-mutation" }]
 }

@@ -1,4 +1,4 @@
-import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+import { readBoundedRegularFile } from "@agent-teams/repository-mutation";
 
 function isMissing(error: unknown): boolean {
   return error instanceof Error && "code" in error &&

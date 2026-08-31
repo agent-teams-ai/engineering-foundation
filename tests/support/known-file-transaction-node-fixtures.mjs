@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { compileKnownFileTransactionPlan } from "../../packages/engineering-foundation/dist/mutation/index.js";
+import { compileKnownFileTransactionPlan } from "../../packages/repository-mutation/dist/index.js";
 
 export const posixTest = process.platform === "win32" ? test.skip : test;
 export const windowsTest = process.platform === "win32" ? test : test.skip;

@@ -4,10 +4,10 @@ import { join } from "node:path";
 import {
   assertNoPortableNameCollision,
   assertSafeExistingRepositoryAncestors,
-  ExistingRepositoryAncestorError
-} from "../../../repository-mutation/adapters/node/node-existing-repository-ancestors.js";
-import { syncDirectoryDurably } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
-import { isLexicallyContainedPath } from "../../../repository-mutation/adapters/node/node-repository-path.js";
+  ExistingRepositoryAncestorError,
+  isLexicallyContainedPath,
+  syncDirectoryDurably
+} from "@agent-teams/repository-mutation";
 import { legacyScaffoldingRepositoryPathProblem } from "../../application/policies/legacy-scaffolding-repository-path.js";
 import type { ScaffoldPlan } from "../../contract/scaffold-contract.js";
 import { ScaffoldError } from "../../scaffold-error.js";

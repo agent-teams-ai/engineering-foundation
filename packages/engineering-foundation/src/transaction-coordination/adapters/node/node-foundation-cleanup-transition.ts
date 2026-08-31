@@ -10,17 +10,15 @@ import { join } from "node:path";
 import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../../foundation-state-contract.js";
 import type {
   OwnedTemporaryCleanupTransition,
-  OwnedTemporaryCleanupTransitionPort
-} from "../../../repository-mutation/application/ports/owned-temporary-cleanup-transition.js";
-import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
-import {
-  captureFileHandleIdentity,
-  readBoundedRegularFile
-} from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+  OwnedTemporaryCleanupTransitionPort,
+  PortablePathIdentity
+} from "@agent-teams/repository-mutation";
 import {
   assertTerminalEvidenceDirectory,
-  ensureTerminalEvidenceDirectory
-} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
+  captureFileHandleIdentity,
+  ensureTerminalEvidenceDirectory,
+  readBoundedRegularFile
+} from "@agent-teams/repository-mutation";
 import {
   ensureFoundationStateDirectory,
   syncFoundationStateDirectoryStrictly

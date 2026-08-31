@@ -9,7 +9,7 @@ import test from "node:test";
 import {
   applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
-} from "@agent-teams/engineering-foundation/mutation";
+} from "@agent-teams/repository-mutation";
 import { assertDocsCommandEnvelopeSchema } from "../dist/adapters/docs-command-envelope-schema-validator.js";
 
 const execute = promisify(execFile);

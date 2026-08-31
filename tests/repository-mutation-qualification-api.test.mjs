@@ -2,40 +2,61 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { NodeProcessRunner as LegacyNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/index.js";
-import { NodeProcessRunner } from "../packages/engineering-foundation/dist/mutation/qualification/index.js";
-
-const sourceRoot = new URL("../packages/engineering-foundation/src/", import.meta.url);
-
-test("publishes one canonical repository-mutation qualification facade", async () => {
-  assert.equal(NodeProcessRunner, LegacyNodeProcessRunner);
-
-  const manifest = JSON.parse(
-    await readFile(new URL("../packages/engineering-foundation/package.json", import.meta.url), "utf8"),
-  );
-  assert.deepEqual(manifest.exports["./mutation/qualification"], {
-    types: "./dist/mutation/qualification/index.d.ts",
-    import: "./dist/mutation/qualification/index.js",
+test("publishes only the new Repository Mutation qualification seam", async () => {
+  const [leaf, foundation, qualification, publicIndex] = await Promise.all([
+    readFile(new URL("../packages/repository-mutation/package.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../packages/engineering-foundation/package.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../packages/repository-mutation/src/qualification/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../packages/repository-mutation/src/index.ts", import.meta.url), "utf8")
+  ]);
+  assert.deepEqual(leaf.exports["./qualification"], {
+    types: "./dist/qualification/index.d.ts",
+    import: "./dist/qualification/index.js"
   });
-
-  const facade = await readFile(new URL("mutation/qualification/index.ts", sourceRoot), "utf8");
-  assert.match(facade, /export \{ NodeProcessRunner \}/u);
-  assert.match(facade, /KnownFileRecoveryFaultInjector/u);
-  assert.match(facade, /KnownFileTransactionFaultInjector/u);
+  assert.equal(Object.hasOwn(foundation.exports, "./mutation"), false);
+  assert.equal(Object.hasOwn(foundation.exports, "./mutation/qualification"), false);
+  assert.match(qualification, /KnownFileRecoveryFaultInjector/u);
+  assert.match(qualification, /KnownFileTransactionFaultInjector/u);
+  assert.match(qualification, /NodeMutationOperationLock/u);
+  assert.match(qualification, /readBoundedRegularFileWithFaults/u);
+  assert.match(qualification, /prepareExactSiblingTemporaryWithFaults/u);
+  assert.match(qualification, /publishPreparedAbsentFileWithFaults/u);
+  assert.match(qualification, /publishAbsentFileWithFaults/u);
+  assert.doesNotMatch(publicIndex, /FaultInjector|FaultPoint/u);
 });
 
-test("retains reviewed aliases with explicit migration deprecations", async () => {
-  const [root, localMode, mutation, authoring] = await Promise.all([
-    readFile(new URL("index.ts", sourceRoot), "utf8"),
-    readFile(new URL("local-mode/index.ts", sourceRoot), "utf8"),
-    readFile(new URL("mutation/index.ts", sourceRoot), "utf8"),
-    readFile(new URL("document-authoring/index.ts", sourceRoot), "utf8"),
-  ]);
+test("keeps production mutation signatures free of executable fault callbacks", async () => {
+  const sources = await Promise.all([
+    "node-known-file-transaction.ts",
+    "node-known-file-transaction-recovery.ts",
+    "node-bounded-regular-file.ts",
+    "node-prepare-exact-sibling-temporary.ts",
+    "node-publish-prepared-absent-file.ts",
+    "node-absent-file-publication.ts"
+  ].map((name) => readFile(new URL(
+    `../packages/repository-mutation/src/repository-mutation/adapters/node/${name}`,
+    import.meta.url
+  ), "utf8")));
+  const functionNames = [
+    "applyKnownFileTransaction",
+    "recoverKnownFileTransaction",
+    "readBoundedRegularFile",
+    "prepareExactSiblingTemporary",
+    "publishPreparedAbsentFile",
+    "publishAbsentFile"
+  ];
+  for (let index = 0; index < sources.length; index += 1) {
+    const source = sources[index];
+    const marker = `export function ${functionNames[index]}(`;
+    const start = source.indexOf(marker);
+    assert.notEqual(start, -1, marker);
+    const end = source.indexOf("): Promise", start);
+    assert.notEqual(end, -1, marker);
+    assert.doesNotMatch(source.slice(start, end), /faultInjector|FaultInjector/u);
+  }
+});
 
-  assert.match(root, /@deprecated[^\n]*local-mode/u);
-  assert.match(root, /@deprecated[^\n]*mutation/u);
-  assert.match(localMode, /@deprecated[\s\S]*NodeProcessRunner/u);
-  assert.match(mutation, /@deprecated[\s\S]*KnownFileRecoveryFaultInjector/u);
-  assert.match(mutation, /@deprecated[\s\S]*KnownFileTransactionFaultInjector/u);
-  assert.match(authoring, /@deprecated[\s\S]*DocumentParentMaterializationPlanV2/u);
+test("removes the obsolete Foundation root mutation namespace", async () => {
+  const root = await readFile(new URL("../packages/engineering-foundation/src/index.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(root, /as mutation|\.\/mutation\/index/u);
 });

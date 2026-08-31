@@ -16,7 +16,7 @@ import {
   createAndBindOneDirectory,
   projectDirectoryMaterialization,
   recaptureExactDirectoryIdentity,
-} from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-directory-materialization.js";
+} from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-directory-materialization.js";
 
 const strictDirectoryDurabilityTest = process.platform === "win32" ? test.skip : test;
 const windowsTest = process.platform === "win32" ? test : test.skip;

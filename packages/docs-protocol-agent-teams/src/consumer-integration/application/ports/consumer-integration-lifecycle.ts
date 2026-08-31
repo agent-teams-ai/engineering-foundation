@@ -2,7 +2,7 @@ import type {
   KnownFileTransactionBarrierInspection,
   KnownFileTransactionPlanV1,
   KnownFileTransactionReceiptV1
-} from "@agent-teams/engineering-foundation/mutation";
+} from "@agent-teams/repository-mutation";
 
 import type { ConsumerAssetCatalogV1 } from "../policies/consumer-integration-assets.js";
 import type {

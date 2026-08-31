@@ -2,7 +2,7 @@ import {
   applyKnownFileTransaction,
   inspectKnownFileTransactionBarrier,
   recoverKnownFileTransaction
-} from "@agent-teams/engineering-foundation/mutation";
+} from "@agent-teams/repository-mutation";
 
 import type {
   ConsumerIntegrationTransactionPort

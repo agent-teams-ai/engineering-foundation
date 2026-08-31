@@ -64,6 +64,7 @@
   },
   "devDependencies": {
     "@agent-teams/engineering-foundation": "workspace:*",
+    "@agent-teams/repository-mutation": "workspace:*",
     "@ast-grep/cli": "catalog:",
     "@arethetypeswrong/cli": "catalog:",
     "@changesets/changelog-github": "catalog:",

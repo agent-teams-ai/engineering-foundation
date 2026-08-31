@@ -1,29 +1,29 @@
 # Docs Portable Boundary Delivery and Evidence
 
-Status: Draft phase-0 documentation checkpoint recorded; integration review,
-accepted-decision baseline promotion, gates, implementation, qualification,
-publication, and consumer rollout pending.
+Status: Repository Mutation extraction checkpoint implemented in a disposable
+sandbox; independent integration review, API-authority registration, complete
+qualification, Authoring extraction, publication, and consumer rollout remain pending.
 
 The accepted target and sole manually maintained package DAG are in
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md).
 This document tracks delivery dependencies and evidence; it does not redefine
 the architecture or duplicate release order.
 
-## Phase-0 evidence snapshot
+## Repository Mutation checkpoint evidence
 
 Measured in the disposable documentation worktree on 2026-08-31:
 
 | Evidence | State | Observation |
 | --- | --- | --- |
-| Exact base/HEAD | Measured | Base and current HEAD are `676ddcb7e09b70fe06ce7518e37cc459cf87df6c`; this patch is uncommitted |
-| Current public manifests | Measured | Only Engineering Foundation, Docs Protocol, and Docs Protocol MCP manifests exist; the target split is not implemented |
+| Exact base/HEAD | Pending integration | The extraction is an uncommitted linked-worktree patch; integration owns exact-head qualification |
+| Current public manifests | Measured | The catalog projects five packages, including Repository Mutation and Docs Protocol Agent Teams; Authoring remains in Engineering Foundation |
 | Git lock creation | Measured | Denied by the read-only linked-worktree Git directory; no retry and no history change |
-| Installs, builds, packages, providers, network, or real projects | Not run | Prohibited for this phase-0 worker |
-| `pnpm check:changed`, `pnpm check:fast`, `pnpm verify` | Not run | Deferred to integration; no passing claim |
+| Build and focused tests | Measured | Pinned direct TypeScript build, lint, graph projections, manifests, and focused mutation tests pass in the disposable sandbox |
+| Installs, packages, providers, network, or real projects | Not run | Prohibited for this extraction worker |
+| `pnpm check:changed`, `pnpm check:fast`, `pnpm verify` | Blocked | The sandbox cannot open pnpm's database; direct pinned build and fast-check components pass, but no pnpm-gate claim is made |
 
-Documentation inspection and lightweight local path/diff checks are the only
-evidence this patch may add. A checked item below requires new exact-head
-evidence; phase-0 prose is not implementation proof.
+This checkpoint evidence is not exact-head release proof. A checked item below
+requires its own current, authoritative evidence rather than this prose.
 
 ## Delivery checklist
 
@@ -50,13 +50,22 @@ evidence; phase-0 prose is not implementation proof.
 
 ### 3. Mutation and authoring extraction
 
-- [ ] Extract Repository Mutation and Document Authoring at the ADR-0043
-  boundaries with exact public API, package-content, and parity evidence.
+- [x] Extract the first coherent Repository Mutation leaf at the ADR-0043
+  boundary, directly rewire current generic callers, and remove the Foundation
+  mutation facade. Document Authoring remains in Foundation for the next lane.
+- [ ] Extract Document Authoring with exact public API, package-content, and
+  parity evidence.
 - [ ] Preserve canonical Markdown/YAML, data-only profiles, disposable
   projections, exact-preimage application, bounded journals, and distinct
   Plans/Receipts/recovery handlers.
 - [ ] Retain exact-build recovery for every admitted in-flight transaction;
   incompatible or ambiguous evidence must block mutation without rewriting it.
+
+Repository Mutation protects the cooperative common lock and journal evidence.
+A standalone portable caller does not classify an unaccompanied Foundation
+orphan backup; full Foundation local-mode admission remains in Foundation's
+composition wrapper. This ownership limit does not permit unknown common
+journals to be ignored or treated as idle.
 
 ### 4. Derived package release qualification
 

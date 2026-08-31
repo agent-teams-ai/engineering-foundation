@@ -12,7 +12,7 @@ import { syncDirectory } from "./filesystem-path-guard.js";
 import {
   assertTerminalEvidenceDirectory,
   ensureTerminalEvidenceDirectory
-} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
+} from "@agent-teams/repository-mutation";
 import {
   createPrivateScaffoldJournalEvidencePath,
   observeScaffoldJournalAuthority,

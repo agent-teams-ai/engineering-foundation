@@ -6,7 +6,7 @@ export {
 } from "./inspection.js";
 /**
  * @deprecated Qualification-only concrete adapter. Import from
- * `@agent-teams/engineering-foundation/mutation/qualification` and keep
+ * `@agent-teams/repository-mutation/qualification` and keep
  * production integrations on the ProcessRunner port.
  */
 export { NodeProcessRunner } from "./process-runner.js";

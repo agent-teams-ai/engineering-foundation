@@ -25,7 +25,7 @@ import {
 import {
   applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
-} from "../packages/engineering-foundation/dist/mutation/index.js";
+} from "../packages/repository-mutation/dist/index.js";
 import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
 
 function NodeProcessRunner() {
@@ -453,7 +453,7 @@ test("status JSON remains one parseable object when transaction recovery is requ
   }
 });
 
-strictDirectoryDurabilityTest("status preserves the exact known-file recovery route", async () => {
+strictDirectoryDurabilityTest("Foundation status preserves leaf known-file evidence for explicit recovery", async () => {
   const fixture = await createFixture();
   try {
     const plan = compileKnownFileTransactionPlan({
@@ -478,28 +478,10 @@ strictDirectoryDurabilityTest("status preserves the exact known-file recovery ro
 
     const status = await inspectFoundationMode(fixture.consumerRoot);
     assert.equal(status.mode, "INVALID");
-    assert.deepEqual(
-      {
-        state: status.transaction?.state,
-        operationKind: status.transaction?.operationKind,
-        format: status.transaction?.format,
-        foundationVersion: status.transaction?.foundationVersion,
-        foundationBuildIdentity: status.transaction?.foundationBuildIdentity,
-        recovery: status.transaction?.recovery,
-      },
-      {
-        state: "pending",
-        operationKind: "known-file-transaction",
-        format: "known-file-transaction-envelope-v1",
-        foundationVersion: status.transaction?.foundationVersion,
-        foundationBuildIdentity: status.transaction?.foundationBuildIdentity,
-        recovery: {
-          commandId: "replace-known-file-recover",
-          exactFoundationVersion: status.transaction?.foundationVersion,
-          exactFoundationBuildIdentity: status.transaction?.foundationBuildIdentity,
-        },
-      },
-    );
+    assert.equal(status.transaction?.state, "manual-recovery-required");
+    assert.equal(status.transaction?.reason, "unsupported-schema");
+    assert.equal(status.transaction?.recovery, undefined);
+    await readFile(join(fixture.consumerRoot, ".agent-teams-local", "scaffolding-transaction.json"));
   } finally {
     await rm(fixture.root, { force: true, recursive: true });
   }
@@ -520,7 +502,7 @@ test("serializes concurrent attaches before writing the local ignore rule", asyn
     );
     await assert.rejects(
       secondAttach,
-      /operation is active or its lock is not safely recoverable/u
+      /operation is active or its shared mutation lock is not safely recoverable/u
     );
 
     fixture.runner.releaseExcludeLookup();

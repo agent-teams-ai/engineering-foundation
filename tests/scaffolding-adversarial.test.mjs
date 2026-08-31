@@ -31,7 +31,7 @@ import {
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
 import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
 import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-plan-authority.js";
-import { ownedTemporaryCleanupResiduePrefix } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
+import { ownedTemporaryCleanupResiduePrefix } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 
 test("legacy journal retirement rejects a pre-existing link without escaping state", async () => {
   const root = await createConsumer();
@@ -596,7 +596,7 @@ test(
   "rejects a Unix socket journal through the typed recovery path",
   { skip: process.platform === "win32", timeout: 10_000 },
   async () => {
-    const root = await mkdtemp("/tmp/foundation-socket-");
+    const root = await mkdtemp(join(tmpdir(), "foundation-socket-"));
     await cp(fixtureRoot, root, { recursive: true });
     const path = journalPath(root);
     const server = createServer();

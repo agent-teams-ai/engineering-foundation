@@ -55,6 +55,7 @@
   "dependencies": {
     "@agent-teams/docs-protocol": "workspace:*",
     "@agent-teams/engineering-foundation": "workspace:*",
+    "@agent-teams/repository-mutation": "workspace:*",
     "ajv": "catalog:",
     "jsonc-parser": "catalog:",
     "yaml": "catalog:"

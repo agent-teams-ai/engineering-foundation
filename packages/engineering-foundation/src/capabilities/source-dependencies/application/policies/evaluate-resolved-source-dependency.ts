@@ -23,6 +23,7 @@ interface EvaluationInput {
   readonly policy: SourceArchitecturePolicy;
   readonly boundariesById: ReadonlyMap<string, ArchitectureBoundaryPolicy>;
   readonly developmentBoundariesByPackage: ReadonlyMap<string, readonly string[]>;
+  readonly packageExportBoundaries?: ReadonlyMap<string, ReadonlyMap<string, string>>;
 }
 
 function diagnostic(input: {
@@ -317,7 +318,10 @@ function evaluateWorkspacePackageDependency(
   edge: ObservedSourceDependencyEdge,
   resolution: ResolutionOfKind<"workspace-package">,
   sourceBoundary: ArchitectureBoundaryPolicy,
-  developmentBoundariesByPackage: ReadonlyMap<string, readonly string[]>
+  developmentBoundariesByPackage: ReadonlyMap<string, readonly string[]>,
+  packageExportBoundaries: ReadonlyMap<string, ReadonlyMap<string, string>>,
+  boundariesById: ReadonlyMap<string, ArchitectureBoundaryPolicy>,
+  policy: SourceArchitecturePolicy
 ): readonly FoundationDiagnostic[] {
   if (resolution.workspacePackageName === edge.fromWorkspacePackageName) {
     return selfPackageImportDiagnostics({
@@ -333,7 +337,14 @@ function evaluateWorkspacePackageDependency(
   );
   const developmentPackageDiagnostics =
     sourceBoundary.dependencyMode === "runtime" &&
-    developmentBoundaryIds !== undefined
+    developmentBoundaryIds !== undefined &&
+    (policy.schemaVersion === 1 ||
+      !resolution.exported ||
+      boundariesById.get(
+        packageExportBoundaries
+          .get(resolution.workspacePackageName)
+          ?.get(resolution.subpath) ?? ""
+      )?.dependencyMode !== "runtime")
       ? [
           diagnostic({
             rule: SOURCE_DEPENDENCY_RULES.runtimeBoundaryImportsDevelopmentWorkspacePackage,
@@ -374,6 +385,24 @@ function evaluateWorkspacePackageDependency(
   ];
 }
 
+function evaluateGeneratedOutputCandidate(
+  edge: ObservedSourceDependencyEdge,
+  resolution: ResolutionOfKind<"generated-output-candidate">,
+  sourceBoundary: ArchitectureBoundaryPolicy,
+  policy: SourceArchitecturePolicy
+): readonly FoundationDiagnostic[] {
+  if (
+    policy.schemaVersion === 2 &&
+    sourceBoundary.dependencyMode === "development" &&
+    resolution.workspacePackageName === edge.fromWorkspacePackageName &&
+    resolution.workspacePackageManifestPath === edge.fromWorkspacePackageManifestPath
+  ) return [];
+  return [unclassifiedResolutionDiagnostic(edge, {
+    kind: "unresolved",
+    reason: "generated output reference is not admitted by this boundary"
+  })];
+}
+
 function unclassifiedResolutionDiagnostic(
   edge: ObservedSourceDependencyEdge,
   resolution: ResolutionOfKind<"unsupported"> | ResolutionOfKind<"unresolved">
@@ -408,6 +437,13 @@ export function evaluateResolvedSourceDependency(
       return evaluateExternalPackageDependency(input.edge, resolution, sourceBoundary);
     case "local-file":
       return evaluateLocalFileDependency({ ...input, resolution, sourceBoundary });
+    case "generated-output-candidate":
+      return evaluateGeneratedOutputCandidate(
+        input.edge,
+        resolution,
+        sourceBoundary,
+        input.policy
+      );
     case "self-workspace-package":
       return selfPackageImportDiagnostics({
         edge: input.edge,
@@ -417,6 +453,7 @@ export function evaluateResolvedSourceDependency(
         subpath: resolution.subpath
       });
     case "unsupported":
+      return [unclassifiedResolutionDiagnostic(input.edge, resolution)];
     case "unresolved":
       return [unclassifiedResolutionDiagnostic(input.edge, resolution)];
     case "workspace-package":
@@ -424,7 +461,10 @@ export function evaluateResolvedSourceDependency(
         input.edge,
         resolution,
         sourceBoundary,
-        input.developmentBoundariesByPackage
+        input.developmentBoundariesByPackage,
+        input.packageExportBoundaries ?? new Map(),
+        input.boundariesById,
+        input.policy
       );
   }
 }

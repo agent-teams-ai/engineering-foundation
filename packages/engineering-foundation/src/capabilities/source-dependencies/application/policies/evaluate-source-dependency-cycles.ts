@@ -131,6 +131,7 @@ function logicalEdge(
     case "builtin":
     case "external-package":
     case "self-workspace-package":
+    case "generated-output-candidate":
     case "unresolved":
     case "unsupported":
       return undefined;

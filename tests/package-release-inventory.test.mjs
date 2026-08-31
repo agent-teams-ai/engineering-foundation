@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, opendir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+
+import { parse as parseYaml } from "yaml";
 
 import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
@@ -29,6 +31,89 @@ function assertMcpBaselineMatchesManifest(baseline, manifest) {
   assert.equal(baseline.packageName, manifest.name);
   assert.equal(baseline.packageVersion, manifest.version);
 }
+
+function authorityPackageNames(values, authority) {
+  const names = values.map(({ name }) => name).toSorted();
+  assert.equal(
+    new Set(names).size,
+    names.length,
+    `${authority} must contain unique package names`,
+  );
+  return names;
+}
+
+function assertPublicWorkspacePackageAuthorities({
+  publicWorkspacePackages,
+  publicApiPackages,
+  releasePackages,
+  qualificationPackages,
+}) {
+  const expected = authorityPackageNames(publicWorkspacePackages, "workspace package inventory");
+  for (const [authority, values] of [
+    ["public API", publicApiPackages],
+    ["release", releasePackages],
+    ["package qualification", qualificationPackages],
+  ]) {
+    const observed = authorityPackageNames(values, authority);
+    const missing = expected.filter((name) => !observed.includes(name));
+    const stale = observed.filter((name) => !expected.includes(name));
+    if (missing.length > 0 || stale.length > 0) {
+      throw new Error(
+        `${authority} package authority does not match public workspace packages; ` +
+          `missing=[${missing.join(", ")}], stale=[${stale.join(", ")}].`,
+      );
+    }
+  }
+}
+
+async function discoverPublicWorkspacePackages() {
+  const packagesRoot = new URL("../packages/", import.meta.url);
+  const directory = await opendir(packagesRoot);
+  const packages = [];
+  for await (const entry of directory) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const manifest = JSON.parse(
+      await readFile(new URL(`${entry.name}/package.json`, packagesRoot), "utf8"),
+    );
+    if (manifest.private !== true) {
+      packages.push({ name: manifest.name });
+    }
+  }
+  return packages;
+}
+
+test("every public workspace package has API, release, and qualification authority", async () => {
+  const publicApiConfig = parseYaml(
+    await readFile(
+      new URL("../architecture/foundation/public-api-compatibility.yaml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const authorities = {
+    publicWorkspacePackages: await discoverPublicWorkspacePackages(),
+    publicApiPackages: publicApiConfig.packages.map(({ packageName: name }) => ({ name })),
+    releasePackages: PUBLISHABLE_PACKAGES,
+    qualificationPackages: registryQualificationPackages(PUBLISHABLE_PACKAGES),
+  };
+  assert.doesNotThrow(() => assertPublicWorkspacePackageAuthorities(authorities));
+
+  assert.throws(
+    () => assertPublicWorkspacePackageAuthorities({
+      ...authorities,
+      qualificationPackages: authorities.qualificationPackages.slice(0, -1),
+    }),
+    /package qualification.*missing=\[@agent-teams\/docs-protocol-mcp\]/u,
+  );
+  assert.throws(
+    () => assertPublicWorkspacePackageAuthorities({
+      ...authorities,
+      publicApiPackages: [...authorities.publicApiPackages, { name: "@fixture/retired" }],
+    }),
+    /public API.*stale=\[@fixture\/retired\]/u,
+  );
+});
 
 test("registry qualification includes Docs Protocol exactly once across bootstrap promotion", () => {
   const foundation = {

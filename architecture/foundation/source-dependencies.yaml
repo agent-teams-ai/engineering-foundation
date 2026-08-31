@@ -1,11 +1,16 @@
-schemaVersion: 1
+schemaVersion: 2
 workspace:
   kind: pnpm
   manifest: pnpm-workspace.yaml
+packageRoots:
+  - packages
 governedRoots:
   - packages/engineering-foundation/src
+  - packages/docs-protocol/scripts
   - packages/docs-protocol/src
+  - packages/docs-protocol/tests
   - packages/docs-protocol-mcp/src
+  - packages/docs-protocol-mcp/tests
 boundaries:
   - id: docs-protocol.community.context
     roots:
@@ -92,6 +97,8 @@ boundaries:
       - packages/docs-protocol/src/adapters/node-profile-reader.ts
       - packages/docs-protocol/src/adapters/node-profile-discovery.ts
   - id: docs-protocol.composition
+    packageExports:
+      - "."
     roots:
       - packages/docs-protocol/src/composition
       - packages/docs-protocol/src/index.ts
@@ -128,7 +135,75 @@ boundaries:
     entrypoints:
       - packages/docs-protocol-mcp/src/index.ts
       - packages/docs-protocol-mcp/src/cli.ts
+  - id: docs-protocol-mcp.tests
+    dependencyMode: development
+    roots:
+      - packages/docs-protocol-mcp/tests
+    allow:
+      boundaries:
+        - docs-protocol-mcp.surface
+      packages:
+        - "@modelcontextprotocol/server"
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:util
+      runtimeReferences: []
+    entrypoints: []
+  - id: docs-protocol.tests
+    dependencyMode: development
+    roots:
+      - packages/docs-protocol/tests
+    allow:
+      boundaries:
+        - docs-protocol.adapters
+        - docs-protocol.application
+        - docs-protocol.community.bootstrap
+        - docs-protocol.community.context
+        - docs-protocol.composition
+        - docs-protocol.consumer-integration.adapters
+        - docs-protocol.consumer-integration.application
+        - docs-protocol.consumer-integration.composition
+        - docs-protocol.consumer-integration.domain
+        - docs-protocol.consumer-integration.generated-assets
+        - docs-protocol.domain
+        - docs-protocol.qualification
+      packages:
+        - ajv
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:util
+      runtimeReferences: []
+    entrypoints: []
+  - id: docs-protocol.scripts
+    dependencyMode: development
+    roots:
+      - packages/docs-protocol/scripts
+    allow:
+      boundaries:
+        - docs-protocol.consumer-integration.application
+        - docs-protocol.consumer-integration.domain
+        - docs-protocol.consumer-integration.generated-assets
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints: []
   - id: docs-protocol.qualification
+    packageExports:
+      - "./qualification"
     roots:
       - packages/docs-protocol/src/qualification
     allow:
@@ -627,7 +702,21 @@ boundaries:
       - packages/engineering-foundation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
   - id: foundation.repository-mutation.node-adapters
     roots:
-      - packages/engineering-foundation/src/repository-mutation/adapters/node
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-durability.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-materialization.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-repository-path.ts
+      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
     allow:
       boundaries:
         - foundation.canonical-json
@@ -1013,9 +1102,11 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/repository-path.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-workspace-topology.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-workspace.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-dependency-parser.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-dependency-resolver.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-workspace-topology-inspector.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/rules.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/analyze-source-dependencies.ts
   - id: capability.public-api-compatibility.application
@@ -1154,6 +1245,7 @@ boundaries:
     allow:
       boundaries:
         - capability.source-dependencies.application
+        - foundation.cancellation
         - foundation.core
         - foundation.repository-input
         - foundation.schema-validation
@@ -1169,17 +1261,20 @@ boundaries:
       boundaries:
         - capability.source-dependencies.application
         - foundation.core
+        - foundation.repository-input
         - foundation.source-inventory.application
         - foundation.workspace-inventory.application
       packages:
         - oxc-parser
       builtins:
+        - node:fs
         - node:fs/promises
         - node:module
         - node:path
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/pnpm-source-workspace-topology-inspector.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/oxc/oxc-source-dependency-parser.ts
   - id: capability.source-dependencies.composition
     roots:

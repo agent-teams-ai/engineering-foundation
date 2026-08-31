@@ -1,0 +1,31 @@
+schemaVersion: 2
+workspace:
+  kind: pnpm
+  manifest: pnpm-workspace.yaml
+packageRoots:
+  - packages
+governedRoots:
+  - packages/app/src
+  - packages/core/src
+boundaries:
+  - id: app.surface
+    roots:
+      - packages/app/src
+    entrypoints:
+      - packages/app/src/index.ts
+    allow:
+      boundaries: []
+      packages:
+        - "@fixture/core"
+      builtins: []
+      runtimeReferences: []
+  - id: core.surface
+    roots:
+      - packages/core/src
+    entrypoints:
+      - packages/core/src/index.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []

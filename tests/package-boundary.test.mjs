@@ -290,7 +290,7 @@ test("Foundation source and source-boundary authority cannot import Docs Protoco
     assert.ok(!boundary.allow.packages.includes(docsProtocolName), boundary.id);
   }
   const docsBoundaries = policy.boundaries.filter((boundary) =>
-    boundary.roots.some((root) => root.startsWith("packages/docs-protocol/")),
+    boundary.roots.some((root) => root.startsWith("packages/docs-protocol/src/")),
   );
   const docsSources = await sourceFiles(join(repositoryRoot, "packages/docs-protocol/src"));
   const specifiers = (await Promise.all(docsSources.map((path) => readFile(path, "utf8"))))

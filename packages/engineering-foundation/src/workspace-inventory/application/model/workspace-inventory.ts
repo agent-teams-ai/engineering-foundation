@@ -18,6 +18,7 @@ export interface DependencyDeclaration {
 export interface PackageExportEntry {
   readonly subpath: string;
   readonly availability: "available" | "blocked";
+  readonly targetPaths?: readonly string[];
 }
 
 export interface PackageExportSurface {

@@ -20,6 +20,7 @@ import type {
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 
 export interface BuildObservedSourceGraphInput {
+  readonly consumerRoot?: string;
   readonly inventory: WorkspaceInventory;
   readonly allSourceFiles: readonly SourceFileSnapshot[];
   readonly classifiedFiles: readonly ClassifiedSourceFile[];
@@ -86,6 +87,8 @@ function resolutionKey(resolution: ObservedSourceDependencyResolution): string {
       return `${resolution.kind}:${resolution.packageName}:${resolution.declaration}`;
     case "local-file":
       return `${resolution.kind}:${resolution.path}:${resolution.targetBoundaryId ?? ""}`;
+    case "generated-output-candidate":
+      return `${resolution.kind}:${resolution.path}:${resolution.workspacePackageName}`;
     case "self-workspace-package":
       return `${resolution.kind}:${resolution.workspacePackageName}:${resolution.subpath}`;
     case "unsupported":
@@ -151,6 +154,13 @@ function normalizeResolution(
         targetBoundaryId: targetNode?.boundaryId ?? null
       });
     }
+    case "generated-output-candidate":
+      return Object.freeze({
+        kind: resolved.kind,
+        path: normalizeRepositoryPath(resolved.path),
+        workspacePackageName: resolved.workspacePackage.name,
+        workspacePackageManifestPath: resolved.workspacePackage.manifestPath
+      });
     case "self-workspace-package":
       return Object.freeze({
         kind: resolved.kind,
@@ -262,6 +272,7 @@ export function buildObservedSourceGraph(
           end: reference.end,
           resolution: normalizeResolution(
             input.resolver.resolve({
+              consumerRoot: input.consumerRoot ?? ".",
               file,
               governedFilePaths,
               inventory: input.inventory,

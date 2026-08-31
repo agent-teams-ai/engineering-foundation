@@ -210,6 +210,7 @@
   },
   "schemaFiles": [
     "schemas/architecture-source-dependencies/v1.schema.json",
+    "schemas/architecture-source-dependencies/v2.schema.json",
     "schemas/contract-json-schema-release-baseline/v1.schema.json",
     "schemas/contract-json-schema-releases/v1.schema.json",
     "schemas/contract-protobuf-breaking-qualification/v1.schema.json",

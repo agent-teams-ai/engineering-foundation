@@ -158,6 +158,21 @@ typecheck. The source dependency capability configuration remains consumer-owned
 it declares opaque boundary IDs and allowed edges while package manifests remain
 authoritative for package identities, dependencies, and exports.
 
+Schema version 2 additionally requires explicit `packageRoots`. Each configured
+path selects its own package manifest, when present, and the package manifests of
+its direct child directories. Selection is independent of pnpm workspace globs.
+All selected package source is closed-world, and one boundary cannot span two
+package roots. Version 1 remains loadable for existing consumers; moving to
+version 2 is a reviewed consumer-owned policy activation.
+
+Version 2 development boundaries may reference relative generated `dist`
+artifacts for built-output tests; generated output remains outside the observed
+source graph. Runtime boundaries and all other unresolved imports still fail.
+An exported workspace subpath in v2 remains subject to both the importing
+manifest declaration and the boundary package allowlist even when the target
+package also contains development-only source. Version 1 keeps the conservative
+mixed-package rule described below.
+
 Source boundaries default to `dependencyMode: runtime`. A boundary containing
 only test, specification, generator, or other development tooling may declare
 `dependencyMode: development`; this admits runtime imports from that package's

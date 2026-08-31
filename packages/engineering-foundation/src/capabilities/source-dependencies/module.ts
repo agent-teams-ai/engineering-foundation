@@ -7,6 +7,7 @@ import {
 import { FilesystemSourceTreeReader } from "../../source-inventory/adapters/outbound/filesystem/filesystem-source-tree-reader.js";
 import { PnpmWorkspaceInventoryReader } from "../../workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
 import { NodeSourceDependencyResolver } from "./adapters/outbound/node/node-source-dependency-resolver.js";
+import { PnpmSourceWorkspaceTopologyInspector } from "./adapters/outbound/node/pnpm-source-workspace-topology-inspector.js";
 import { OxcSourceDependencyParser } from "./adapters/outbound/oxc/oxc-source-dependency-parser.js";
 import { analyzeSourceDependencies } from "./application/use-cases/analyze-source-dependencies.js";
 import { SOURCE_DEPENDENCY_RULES_BY_ID } from "./application/rules.js";
@@ -19,25 +20,31 @@ import {
 export { SOURCE_DEPENDENCY_RULES_BY_ID };
 
 export function createSourceDependenciesCapability(): CapabilityDefinition {
+  const inventoryReader = new PnpmWorkspaceInventoryReader();
   const dependencies = Object.freeze({
-    inventoryReader: new PnpmWorkspaceInventoryReader(),
+    inventoryReader,
     parser: new OxcSourceDependencyParser(),
     resolver: new NodeSourceDependencyResolver(),
-    sourceReader: new FilesystemSourceTreeReader()
+    sourceReader: new FilesystemSourceTreeReader(),
+    topologyInspector: new PnpmSourceWorkspaceTopologyInspector({ inventoryReader })
   });
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     async run(invocation: CapabilityInvocation) {
+      let requestedSchemaVersion: 1 | 2 = CAPABILITY_CONFIG_SCHEMA_VERSION;
       try {
         const policy = await loadCapabilityConfig(
           invocation.consumerRoot,
           invocation.configPath,
-          invocation.signal
+          invocation.signal,
+          (schemaVersion) => {
+            requestedSchemaVersion = schemaVersion;
+          }
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
-          capabilityConfigSchemaVersion: policy.schemaVersion,
+          capabilityConfigSchemaVersion: requestedSchemaVersion,
           diagnostics: await analyzeSourceDependencies(
             {
               consumerRoot: invocation.consumerRoot,
@@ -52,7 +59,7 @@ export function createSourceDependenciesCapability(): CapabilityDefinition {
       } catch (error) {
         return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
-          capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
+          capabilityConfigSchemaVersion: requestedSchemaVersion,
           error,
           phase: "source-dependency-execution"
         });

@@ -23,7 +23,10 @@ const documentParentMaterializationV2Path =
   "schemas/document-parent-materialization/v2.schema.json";
 const documentPlanV2Path = "schemas/document-plan/v2.schema.json";
 const documentReceiptV2Path = "schemas/document-receipt/v2.schema.json";
+const sourceDependenciesV2Path =
+  "schemas/architecture-source-dependencies/v2.schema.json";
 const acceptedNonV1SchemaPaths = [
+  sourceDependenciesV2Path,
   documentAuthoringProfileV2Path,
   documentAuthoringProfileV3Path,
   documentCommandEnvelopeV2Path,
@@ -147,6 +150,8 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
   const versionedContractLiterals =
     /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
   const acceptedVersionedSourceLiterals = {
+    "src/capabilities/source-dependencies/application/model/source-workspace.ts": [2],
+    "src/capabilities/source-dependencies/contract/config.ts": [2],
     "src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts": [2, 3, 2],
     "src/document-authoring/adapters/node/node-document-parent-materializer.ts": [2],
     "src/document-authoring/application/model/document-authoring-profile-description.ts": [2, 3],
@@ -189,7 +194,7 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
   assert.deepEqual(
     observedVersionedSourceLiterals,
     acceptedVersionedSourceLiterals,
-    "only the accepted additive document contracts may use newer numeric discriminators",
+    "only accepted additive contracts may use newer numeric discriminators",
   );
 
   const packageManifest = JSON.parse(

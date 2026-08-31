@@ -1,12 +1,14 @@
+import { lstatSync, realpathSync } from "node:fs";
 import { builtinModules } from "node:module";
+import { join, relative, sep } from "node:path";
 import { posix } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type {
   DependencyDeclaration,
-  PackageExportEntry,
   WorkspacePackage
 } from "../../../../../workspace-inventory/application/model/workspace-inventory.js";
+import { packageExportMatches } from "../../../../../workspace-inventory/application/policies/package-export-matcher.js";
 import type {
   ResolvedSourceDependency
 } from "../../../application/model/source-workspace.js";
@@ -108,32 +110,89 @@ function containingPackage(
     )[0];
 }
 
-function matchesExport(entry: PackageExportEntry, subpath: string): boolean {
-  if (!entry.subpath.includes("*")) {
-    return entry.subpath === subpath;
-  }
-  const [prefix, suffix] = entry.subpath.split("*");
-  return (
-    prefix !== undefined &&
-    suffix !== undefined &&
-    subpath.startsWith(prefix) &&
-    subpath.endsWith(suffix) &&
-    subpath.length >= prefix.length + suffix.length
-  );
-}
-
 function subpathExported(target: WorkspacePackage, subpath: string): boolean {
   if (!target.exportSurface.explicit) {
     return false;
   }
   const matching = target.exportSurface.entries
-    .filter((entry) => matchesExport(entry, subpath))
+    .filter((entry) => packageExportMatches(entry, subpath))
     .toSorted((left, right) => {
       const leftExact = left.subpath.includes("*") ? 0 : 1;
       const rightExact = right.subpath.includes("*") ? 0 : 1;
       return rightExact - leftExact || right.subpath.length - left.subpath.length;
     });
   return matching[0]?.availability === "available";
+}
+
+function safeExistingGeneratedAncestors(
+  consumerRoot: string,
+  packageRoot: string,
+  target: string
+): boolean {
+  const absolutePackage = join(consumerRoot, ...packageRoot.split("/"));
+  const absoluteDist = join(absolutePackage, "dist");
+  const relation = relative(absoluteDist, join(consumerRoot, ...target.split("/")));
+  let current = absoluteDist;
+  for (const segment of ["", ...relation.split(sep).filter(Boolean)]) {
+    current = segment === "" ? current : join(current, segment);
+    try {
+      if (lstatSync(current).isSymbolicLink()) return false;
+      const canonical = realpathSync(current);
+      const containment = relative(absoluteDist, canonical);
+      if (containment === ".." || containment.startsWith(`..${sep}`)) return false;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+      return false;
+    }
+  }
+  return true;
+}
+
+function generatedOutputCandidate(
+  input: ResolveSourceDependencyInput
+): ResolvedSourceDependency | undefined {
+  const raw = input.reference.specifier;
+  if (
+    raw.includes("\\") ||
+    raw.includes("?") ||
+    raw.includes("#") ||
+    raw.includes("%")
+  ) {
+    return undefined;
+  }
+  const segments = raw.split("/");
+  let index = 0;
+  while (segments[index] === "." || segments[index] === "..") index += 1;
+  const output = segments.slice(index);
+  if (
+    index === 0 ||
+    output[0] !== "dist" ||
+    output.length < 2 ||
+    output.some(
+      (segment) => segment === "" || segment === "." || segment === ".."
+    ) ||
+    !/[.]((?:m|c)?js)$/u.test(output.at(-1) ?? "")
+  ) {
+    return undefined;
+  }
+  const targetPath = normalizeRepositoryPath(posix.join(posix.dirname(input.file.path), raw));
+  const expectedDist = posix.join(input.file.workspacePackage.rootPath, "dist");
+  if (!pathInside(targetPath, expectedDist) || targetPath === expectedDist) {
+    return undefined;
+  }
+  const owner = containingPackage(targetPath, input.inventory.packages);
+  if (
+    owner?.name !== input.file.workspacePackage.name ||
+    owner.manifestPath !== input.file.workspacePackage.manifestPath ||
+    !safeExistingGeneratedAncestors(input.consumerRoot, owner.rootPath, targetPath)
+  ) {
+    return undefined;
+  }
+  return {
+    kind: "generated-output-candidate",
+    path: targetPath,
+    workspacePackage: owner
+  };
 }
 
 function resolveLocal(input: ResolveSourceDependencyInput): ResolvedSourceDependency {
@@ -208,8 +267,10 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
 
 export class NodeSourceDependencyResolver implements SourceDependencyResolver {
   resolve(input: ResolveSourceDependencyInput): ResolvedSourceDependency {
-    return input.reference.specifier.startsWith(".")
-      ? resolveLocal(input)
-      : resolvePackage(input);
+    if (!input.reference.specifier.startsWith(".")) return resolvePackage(input);
+    const resolved = resolveLocal(input);
+    return resolved.kind === "unresolved"
+      ? generatedOutputCandidate(input) ?? resolved
+      : resolved;
   }
 }

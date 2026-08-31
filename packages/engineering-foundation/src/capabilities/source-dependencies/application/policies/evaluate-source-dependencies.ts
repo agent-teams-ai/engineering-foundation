@@ -16,6 +16,7 @@ import {
 interface EvaluationInput {
   readonly policy: SourceArchitecturePolicy;
   readonly graph: ObservedSourceGraph;
+  readonly packageExportBoundaries?: ReadonlyMap<string, ReadonlyMap<string, string>>;
 }
 
 function diagnostic(input: {
@@ -134,7 +135,8 @@ export function evaluateSourceDependencies(
         edge,
         policy: input.policy,
         boundariesById,
-        developmentBoundariesByPackage
+        developmentBoundariesByPackage,
+        packageExportBoundaries: input.packageExportBoundaries ?? new Map()
       })
     );
   }

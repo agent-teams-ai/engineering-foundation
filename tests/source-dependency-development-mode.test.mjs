@@ -1,23 +1,28 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const foundationPackageRoot = join(repositoryRoot, "packages", "engineering-foundation");
 const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
+  foundationPackageRoot,
   "dist",
 );
-const { evaluateSourceDependencies } = await import(
-  pathToFileURL(
-    join(
-      distRoot,
-      "capabilities/source-dependencies/application/policies/evaluate-source-dependencies.js",
-    ),
-  ).href
-);
+const [{ evaluateSourceDependencies }, { NodeSourceDependencyResolver }] = await Promise.all([
+  import(
+    pathToFileURL(
+      join(distRoot, "capabilities/source-dependencies/application/policies/evaluate-source-dependencies.js"),
+    ).href
+  ),
+  import(
+    pathToFileURL(
+      join(distRoot, "capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.js"),
+    ).href
+  ),
+]);
 
 function boundary(dependencyMode, allowedPackages) {
   return {
@@ -160,6 +165,36 @@ function workspacePackageDiagnostics(sourceBoundary, targetBoundaries, mode = "r
   });
 }
 
+function v2WorkspacePackageDiagnostics(sourceBoundary, targetBoundaries, options = {}) {
+  const targetName = "@fixture/target";
+  const importedSubpath = options.subpath ?? ".";
+  const observedEdge = workspacePackageEdge(sourceBoundary, targetName, options.mode);
+  observedEdge.specifier = importedSubpath === "." ? targetName : `${targetName}${importedSubpath.slice(1)}`;
+  observedEdge.resolution.subpath = importedSubpath;
+  return evaluateSourceDependencies({
+    policy: {
+      schemaVersion: 2,
+      workspaceManifestPath: "pnpm-workspace.yaml",
+      packageRoots: ["packages"],
+      governedRoots: ["packages"],
+      boundaries: [sourceBoundary, ...targetBoundaries],
+    },
+    graph: {
+      nodes: targetBoundaries.map((target, index) => ({
+        path: `${target.roots[0]}/file-${index}.ts`,
+        boundaryId: target.id,
+        workspacePackageName: targetName,
+        workspacePackageManifestPath: "packages/target/package.json",
+      })),
+      edges: [observedEdge],
+      parseFailures: [],
+      unclassifiedSourcePaths: [],
+      unresolvedRuntimeReferences: [],
+    },
+    packageExportBoundaries: options.authority,
+  });
+}
+
 test("runtime boundary rejects a runtime import from devDependencies", () => {
   assert.deepEqual(
     ruleIds(diagnostics(boundary("runtime", ["fixture-tool"]), [edge("fixture-tool", "development")])),
@@ -266,4 +301,131 @@ test("a runtime wrapper cannot hide a development boundary in its package", () =
   assert.deepEqual(ruleIds(workspacePackageDiagnostics(source, [wrapper, development])), [
     "architecture.source-dependencies.runtime-boundary-imports-development-workspace-package",
   ]);
+});
+
+test("v2 mixed packages require exact runtime export-boundary authority", () => {
+  const source = localBoundary("application", "runtime", []);
+  source.allowedPackages = ["@fixture/target"];
+  const runtime = localBoundary("target-runtime", "runtime", []);
+  const development = localBoundary("target-development", "development", []);
+  const rootRuntimeAuthority = new Map([
+    ["@fixture/target", new Map([[".", runtime.id]])],
+  ]);
+  assert.deepEqual(
+    v2WorkspacePackageDiagnostics(source, [runtime, development], {
+      authority: rootRuntimeAuthority,
+    }),
+    [],
+  );
+  assert.deepEqual(ruleIds(v2WorkspacePackageDiagnostics(source, [runtime, development], {
+    authority: new Map([["@fixture/target", new Map([[".", development.id]])]]),
+  })), ["architecture.source-dependencies.runtime-boundary-imports-development-workspace-package"]);
+  assert.deepEqual(ruleIds(v2WorkspacePackageDiagnostics(source, [runtime, development], {
+    authority: rootRuntimeAuthority,
+    subpath: "./qualification",
+  })), ["architecture.source-dependencies.runtime-boundary-imports-development-workspace-package"]);
+});
+
+test("v2 admits only structured same-package development output candidates", () => {
+  const sourceBoundary = boundary("development", []);
+  const unresolved = {
+    ...edge("../dist/index.js", "runtime"),
+    specifier: "../dist/index.js",
+    resolution: {
+      kind: "generated-output-candidate",
+      path: "packages/app/dist/index.js",
+      workspacePackageName: "@fixture/app",
+      workspacePackageManifestPath: "packages/app/package.json",
+    },
+  };
+  const graph = {
+    nodes: [],
+    edges: [unresolved],
+    parseFailures: [],
+    unclassifiedSourcePaths: [],
+    unresolvedRuntimeReferences: [],
+  };
+  assert.deepEqual(evaluateSourceDependencies({
+    policy: {
+      schemaVersion: 2,
+      workspaceManifestPath: "pnpm-workspace.yaml",
+      packageRoots: ["packages"],
+      governedRoots: ["packages"],
+      boundaries: [sourceBoundary],
+    },
+    graph,
+  }), []);
+  assert.deepEqual(ruleIds(evaluateSourceDependencies({
+    policy: {
+      schemaVersion: 2,
+      workspaceManifestPath: "pnpm-workspace.yaml",
+      packageRoots: ["packages"],
+      governedRoots: ["packages"],
+      boundaries: [{ ...sourceBoundary, dependencyMode: "runtime" }],
+    },
+    graph,
+  })), ["architecture.source-dependencies.unresolved-local-import"]);
+  assert.deepEqual(ruleIds(evaluateSourceDependencies({
+    policy: {
+      schemaVersion: 1,
+      workspaceManifestPath: "pnpm-workspace.yaml",
+      governedRoots: ["packages"],
+      boundaries: [sourceBoundary],
+    },
+    graph,
+  })), ["architecture.source-dependencies.unresolved-local-import"]);
+});
+
+test("generated output candidates require canonical same-package dist literals", async () => {
+  const consumerRoot = await mkdtemp(join(tmpdir(), "foundation-generated-output-"));
+  const workspacePackage = {
+    name: "@fixture/app",
+    rootPath: "packages/app",
+    manifestPath: "packages/app/package.json",
+    dependencies: [],
+    bundledDependencies: [],
+    exportSurface: { explicit: false, entries: [] },
+  };
+  const resolver = new NodeSourceDependencyResolver();
+  const resolve = (specifier) => resolver.resolve({
+    consumerRoot,
+    file: {
+      path: "packages/app/src/index.ts",
+      workspacePackage,
+      boundary: boundary("development", []),
+      parsed: { parseErrorCount: 0, references: [], unresolved: [] },
+      bytes: Buffer.from(""),
+    },
+    governedFilePaths: new Set(["packages/app/src/index.ts"]),
+    inventory: { catalogs: [], packages: [workspacePackage] },
+    reference: { kind: "static", specifier, start: 0, end: specifier.length },
+  });
+  try {
+    assert.equal(resolve("../dist/index.js").kind, "generated-output-candidate");
+    for (const specifier of [
+      "../../private/dist/secret.js",
+      "../../private/dist/../src/secret.js",
+      "../dist/../src/secret.js",
+      "../dist/%69ndex.js",
+      "..\\dist\\index.js",
+      "../dist//index.js",
+      "../dist/./index.js",
+      "../output/dist/index.js",
+      "../dist/index.ts",
+    ]) {
+      assert.notEqual(resolve(specifier).kind, "generated-output-candidate", specifier);
+    }
+    await mkdir(join(consumerRoot, "packages", "app"), { recursive: true });
+    await symlink(tmpdir(), join(consumerRoot, "packages", "app", "dist"), "dir");
+    assert.notEqual(resolve("../dist/index.js").kind, "generated-output-candidate");
+    await rm(join(consumerRoot, "packages", "app", "dist"));
+    await mkdir(join(consumerRoot, "packages", "app", "dist"));
+    await symlink(tmpdir(), join(consumerRoot, "packages", "app", "dist", "nested"), "dir");
+    assert.notEqual(
+      resolve("../dist/nested/index.js").kind,
+      "generated-output-candidate",
+    );
+  } finally {
+    await rm(consumerRoot, { recursive: true, force: true });
+  }
 });

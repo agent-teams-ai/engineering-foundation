@@ -102,6 +102,12 @@ creating any GitHub release. The short interval where only Foundation's final
 tag has moved is non-authoritative: consumer admission starts only after the
 exact package graph receives its external qualification.
 
+A repository gate discovers every non-private direct package under `packages/`
+and requires the same package names in the existing public API compatibility,
+publishable-package, and registry-qualification authorities. The gate reads
+those owners directly; it is a completeness contract, not another package list
+or release dependency graph.
+
 The ordered publisher also owns idempotent Git tag and GitHub release
 reconciliation. The Changesets action's built-in GitHub release creation is
 disabled because concurrent workspace publication is not retry-safe. Existing refs and

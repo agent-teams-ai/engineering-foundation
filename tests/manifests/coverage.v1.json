@@ -8,11 +8,13 @@
   "include": [
     "packages/engineering-foundation/dist/**/*.js",
     "packages/docs-protocol/dist/**/*.js",
+    "packages/docs-protocol-agent-teams/dist/**/*.js",
     "packages/docs-protocol-mcp/dist/**/*.js"
   ],
   "exclude": [
     "packages/engineering-foundation/dist/**/*.d.ts",
     "packages/docs-protocol/dist/**/*.d.ts",
+    "packages/docs-protocol-agent-teams/dist/**/*.d.ts",
     "packages/docs-protocol-mcp/dist/**/*.d.ts"
   ],
   "additionalTestsByShard": {

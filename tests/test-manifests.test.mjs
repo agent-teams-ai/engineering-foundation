@@ -9,8 +9,13 @@ import {
 } from "../scripts/check-test-manifests.mjs";
 import { builtTestArguments } from "../scripts/run-built-tests.mjs";
 
-function fixture() {
+const examplePackages = Object.freeze([
+  Object.freeze({ root: "packages/example" }),
+]);
+
+function fixture(packages = examplePackages) {
   return {
+    packages,
     shardManifest: {
       schemaVersion: 1,
       source: {
@@ -52,6 +57,9 @@ test("repository test manifests cover every top-level test exactly once", async 
   assert.ok(testRoots.includes("packages/docs-protocol-agent-teams/tests"));
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
   assert.equal([...result.coverageShards.values()].flat().length, result.testCount);
+  assert.ok(result.coverageConfig.include.includes(
+    "packages/docs-protocol-agent-teams/dist/**/*.js",
+  ));
 });
 
 test("built test runner consumes the validated inventory without shell globs", () => {
@@ -100,6 +108,69 @@ test("coverage manifest pins its merger and bounded thresholds", () => {
     data.coverageManifest.evidenceThresholds.lines = invalidThreshold;
     assert.throws(() => validateTestManifestData(data), /integer from 1 through 100/u);
   }
+});
+
+test("coverage arrays are exact projections of publishable package roots", () => {
+  const missing = fixture([
+    ...examplePackages,
+    { root: "packages/missing-example" },
+  ]);
+  assert.throws(
+    () => validateTestManifestData(missing),
+    /missing=\[packages\/missing-example\/dist\/\*\*\/\*\.js\]/u,
+  );
+
+  for (const unexpected of [
+    "packages/stale/dist/**/*.js",
+    "outside/dist/**/*.js",
+    "packages/**/dist/**/*.js",
+  ]) {
+    const data = fixture();
+    data.coverageManifest.include = [unexpected];
+    assert.throws(
+      () => validateTestManifestData(data),
+      /must exactly project publishable package roots.*missing=.*packages\/example.*unexpected=/u,
+    );
+  }
+
+  const duplicate = fixture();
+  duplicate.coverageManifest.include.push(duplicate.coverageManifest.include[0]);
+  assert.throws(
+    () => validateTestManifestData(duplicate),
+    /coverage include contains a duplicate/u,
+  );
+
+  const reordered = fixture([
+    { root: "packages/example" },
+    { root: "packages/first-example" },
+  ]);
+  reordered.coverageManifest.include.unshift("packages/first-example/dist/**/*.js");
+  reordered.coverageManifest.exclude.unshift("packages/first-example/dist/**/*.d.ts");
+  assert.throws(
+    () => validateTestManifestData(reordered),
+    /coverage include must exactly project.*order differs/u,
+  );
+});
+
+test("coverage projections change when injected package membership changes", () => {
+  const packages = [
+    ...examplePackages,
+    { root: "packages/fifth-example" },
+  ];
+  const staleProjection = fixture(packages);
+  assert.throws(
+    () => validateTestManifestData(staleProjection),
+    /missing=\[packages\/fifth-example\/dist\/\*\*\/\*\.js\]/u,
+  );
+
+  const completeProjection = fixture(packages);
+  completeProjection.coverageManifest.include.push(
+    "packages/fifth-example/dist/**/*.js",
+  );
+  completeProjection.coverageManifest.exclude.push(
+    "packages/fifth-example/dist/**/*.d.ts",
+  );
+  assert.doesNotThrow(() => validateTestManifestData(completeProjection));
 });
 
 test("test manifests reject non-portable and traversal paths", () => {

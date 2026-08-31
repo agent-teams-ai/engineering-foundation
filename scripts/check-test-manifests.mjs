@@ -12,20 +12,25 @@ const portablePackageRoot = /^packages\/[a-z0-9][a-z0-9.-]*$/u;
 const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
-export function testRootsForPackages(packages) {
+function packageRootsForPackages(packages) {
   if (!Array.isArray(packages)) {
     fail("publishable packages must be an array");
   }
-  const roots = ["tests"];
+  const roots = [];
   for (const entry of packages) {
     if (typeof entry?.root !== "string" || !portablePackageRoot.test(entry.root)) {
       fail(`publishable package root is not bounded and portable: ${String(entry?.root)}`);
     }
-    roots.push(`${entry.root}/tests`);
+    roots.push(entry.root);
   }
   if (new Set(roots).size !== roots.length) {
-    fail("publishable package test roots must be unique");
+    fail("publishable package roots must be unique");
   }
+  return roots;
+}
+
+export function testRootsForPackages(packages) {
+  const roots = ["tests", ...packageRootsForPackages(packages).map((root) => `${root}/tests`)];
   return Object.freeze(roots);
 }
 
@@ -52,9 +57,9 @@ function compareDirectoryEntries(left, right) {
   return leftPath < rightPath ? -1 : leftPath > rightPath ? 1 : 0;
 }
 
-function validatePath(path, label) {
+function validatePath(path, label, allowedTestRoots) {
   const relativeRoot = typeof path === "string"
-    ? testRoots.find((candidate) => path.startsWith(`${candidate}/`))
+    ? allowedTestRoots.find((candidate) => path.startsWith(`${candidate}/`))
     : undefined;
   const filename = relativeRoot === undefined ? undefined : path.slice(relativeRoot.length + 1);
   if (filename === undefined || filename.includes("/") || !portableTestFilename.test(filename)) {
@@ -64,7 +69,7 @@ function validatePath(path, label) {
     fail(`${label} uses a Windows-reserved filename: ${path}`);
   }
   const absolute = resolve(repositoryRoot, ...path.split("/"));
-  const allowedRoots = testRoots.map((root) =>
+  const allowedRoots = allowedTestRoots.map((root) =>
     `${resolve(repositoryRoot, ...root.split("/"))}${sep}`);
   if (!allowedRoots.some((root) => absolute.startsWith(root))) {
     fail(`${label} escapes the allowed test directories: ${path}`);
@@ -91,7 +96,7 @@ function validateShardHeader(shardManifest) {
   }
 }
 
-function validateCoverageAdditionalTests(value, shardIds) {
+function validateCoverageAdditionalTests(value, shardIds, allowedTestRoots) {
   assertExactKeys(value, shardIds, "coverage additionalTestsByShard");
   const additionalTests = new Map();
   for (const shardId of shardIds) {
@@ -100,14 +105,46 @@ function validateCoverageAdditionalTests(value, shardIds) {
       fail(`coverage additionalTestsByShard.${shardId} must be an array`);
     }
     for (const path of tests) {
-      validatePath(path, `coverage shard ${shardId} addition`);
+      validatePath(path, `coverage shard ${shardId} addition`, allowedTestRoots);
     }
     additionalTests.set(shardId, Object.freeze([...tests]));
   }
   return additionalTests;
 }
 
-function validateCoverageManifest(coverageManifest, testPaths, shardIds) {
+function validateCoverageProjection(coverageManifest, packages) {
+  const packageRoots = packageRootsForPackages(packages);
+  for (const [key, extension] of [["include", "js"], ["exclude", "d.ts"]]) {
+    const actual = coverageManifest[key];
+    if (!Array.isArray(actual) || actual.length === 0) {
+      fail(`coverage ${key} must be a non-empty array`);
+    }
+    if (actual.some((value) => typeof value !== "string" || value === "")) {
+      fail(`coverage ${key} entries must be non-empty strings`);
+    }
+    if (new Set(actual).size !== actual.length) {
+      fail(`coverage ${key} contains a duplicate`);
+    }
+
+    // Validated publishable-package order is the canonical stored projection
+    // order, so a membership change cannot be hidden by another package list.
+    const expected = packageRoots.map((root) => `${root}/dist/**/*.${extension}`);
+    if (actual.join("\0") !== expected.join("\0")) {
+      const actualSet = new Set(actual);
+      const expectedSet = new Set(expected);
+      const missing = expected.filter((pattern) => !actualSet.has(pattern));
+      const unexpected = actual.filter((pattern) => !expectedSet.has(pattern));
+      const orderDiffers = missing.length === 0 && unexpected.length === 0;
+      fail(
+        `coverage ${key} must exactly project publishable package roots in canonical order; ` +
+        `missing=[${missing.join(", ")}], unexpected=[${unexpected.join(", ")}]` +
+        (orderDiffers ? ", order differs" : ""),
+      );
+    }
+  }
+}
+
+function validateCoverageManifest(coverageManifest, testPaths, shardIds, packages, allowedTestRoots) {
   assertExactKeys(
     coverageManifest,
     [
@@ -133,20 +170,11 @@ function validateCoverageManifest(coverageManifest, testPaths, shardIds) {
   if (coverageManifest.processBootstrap !== "scripts/coverage-process-bootstrap.mjs") {
     fail("coverage processBootstrap must pin the test-process boundary");
   }
-  for (const key of ["include", "exclude"]) {
-    if (!Array.isArray(coverageManifest[key]) || coverageManifest[key].length === 0) {
-      fail(`coverage ${key} must be a non-empty array`);
-    }
-    if (coverageManifest[key].some((value) => typeof value !== "string" || value === "")) {
-      fail(`coverage ${key} entries must be non-empty strings`);
-    }
-    if (new Set(coverageManifest[key]).size !== coverageManifest[key].length) {
-      fail(`coverage ${key} contains a duplicate`);
-    }
-  }
+  validateCoverageProjection(coverageManifest, packages);
   const additionalTests = validateCoverageAdditionalTests(
     coverageManifest.additionalTestsByShard,
     shardIds,
+    allowedTestRoots,
   );
   for (const authority of ["thresholds", "evidenceThresholds"]) {
     assertExactKeys(
@@ -168,7 +196,7 @@ function validateCoverageManifest(coverageManifest, testPaths, shardIds) {
   }
   const testSet = new Set(testPaths);
   for (const path of coverageManifest.legacyTests) {
-    validatePath(path, "legacy coverage test");
+    validatePath(path, "legacy coverage test", allowedTestRoots);
     if (!testSet.has(path)) {
       fail(`legacy coverage test does not exist: ${path}`);
     }
@@ -176,7 +204,13 @@ function validateCoverageManifest(coverageManifest, testPaths, shardIds) {
   return additionalTests;
 }
 
-export function validateTestManifestData({ shardManifest, coverageManifest, testPaths }) {
+export function validateTestManifestData({
+  shardManifest,
+  coverageManifest,
+  testPaths,
+  packages = PUBLISHABLE_PACKAGES,
+}) {
+  const allowedTestRoots = testRootsForPackages(packages);
   validateShardHeader(shardManifest);
 
   const expectedShardIds = ["1", "2", "3", "4"];
@@ -192,7 +226,7 @@ export function validateTestManifestData({ shardManifest, coverageManifest, test
       fail(`shard ${String(shard.id)} must contain tests`);
     }
     for (const path of shard.tests) {
-      validatePath(path, `shard ${String(shard.id)}`);
+      validatePath(path, `shard ${String(shard.id)}`, allowedTestRoots);
       assigned.push(path);
     }
   }
@@ -203,6 +237,8 @@ export function validateTestManifestData({ shardManifest, coverageManifest, test
     coverageManifest,
     testPaths,
     expectedShardIds,
+    packages,
+    allowedTestRoots,
   );
   for (const tests of additionalTests.values()) {
     assigned.push(...tests);
@@ -277,6 +313,7 @@ export async function validateTestManifests() {
     shardManifest: await readJson(shardManifestPath),
     coverageManifest: await readJson(coverageManifestPath),
     testPaths,
+    packages: PUBLISHABLE_PACKAGES,
   });
   return result;
 }

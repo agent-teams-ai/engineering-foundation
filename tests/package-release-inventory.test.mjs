@@ -205,7 +205,7 @@ test("Docs Protocol MCP API baseline supports the initial release transition", (
   ));
 });
 
-test("reviewed catalog and initial API baseline follow the public Agent Teams adapter manifest", async () => {
+test("reviewed catalog and API baseline follow the public Agent Teams adapter manifest", async () => {
   const entries = PUBLISHABLE_PACKAGES.filter(
     ({ name }) => name === "@agent-teams/docs-protocol-agent-teams",
   );
@@ -220,7 +220,7 @@ test("reviewed catalog and initial API baseline follow the public Agent Teams ad
   const manifest = JSON.parse(
     await readFile(new URL("../packages/docs-protocol-agent-teams/package.json", import.meta.url), "utf8"),
   );
-  assert.equal(manifest.version, "0.0.0");
+  assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
   assert.equal(manifest.private, undefined);
   assert.deepEqual(Object.keys(manifest.exports).toSorted(), [
     ".",
@@ -232,6 +232,35 @@ test("reviewed catalog and initial API baseline follow the public Agent Teams ad
     await readFile(new URL("../architecture/public-api/docs-protocol-agent-teams.json", import.meta.url), "utf8"),
   );
   assertInitialBaselineMatchesManifest(baseline, manifest);
+});
+
+test("Agent Teams adapter API baseline supports the initial release transition", () => {
+  for (const version of ["0.0.0", "0.1.0"]) {
+    assert.doesNotThrow(() => assertInitialBaselineMatchesManifest(
+      { packageName: "@agent-teams/docs-protocol-agent-teams", packageVersion: version },
+      { name: "@agent-teams/docs-protocol-agent-teams", version },
+    ));
+  }
+  assert.throws(() => assertInitialBaselineMatchesManifest(
+    { packageName: "@agent-teams/docs-protocol-agent-teams", packageVersion: "0.0.0" },
+    { name: "@agent-teams/docs-protocol-agent-teams", version: "0.1.0" },
+  ));
+});
+
+test("Agent Teams adapter declarations close the managed qualification public types", async () => {
+  const declarations = await Promise.all([
+    readFile(new URL("../packages/docs-protocol-agent-teams/dist/index.d.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../packages/docs-protocol-agent-teams/dist/qualification/index.d.ts", import.meta.url),
+      "utf8",
+    ),
+  ]);
+  for (const source of declarations) {
+    assert.match(source, /DocsProtocolQualificationContractV2/u);
+    assert.match(source, /DocsProtocolQualificationReceiptV2/u);
+    assert.match(source, /DocsProtocolQualificationScenarioV2/u);
+    assert.match(source, /DocsProtocolQualificationV2Request/u);
+  }
 });
 
 test("release manifest exactly follows the package self-check allowlist", async () => {

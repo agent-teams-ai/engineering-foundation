@@ -11,7 +11,7 @@ import { NodeFoundationDocsPort } from "../adapters/foundation-docs-port.js";
 import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { DocsProtocol } from "../application/docs-protocol.js";
 import { normalizeCodeAnchors, normalizeDocumentIds } from "../domain/document-semantics.js";
-import type { DocsNewRequest } from "../domain/model.js";
+import type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
 import { crashAtDurablePublishing } from "./crash-driver.js";
 import { portableBootstrapDesiredFiles } from "../community/bootstrap/portable-bootstrap-assets.js";
 
@@ -144,10 +144,122 @@ export function createProtocol(): DocsProtocol {
   });
 }
 
-export type PortableQualificationProtocol = Pick<
-  DocsProtocol,
-  "checkV2" | "doctorV2" | "findV2" | "infoV2" | "newDocumentV2" | "recoverV2"
->;
+export interface PortableQualificationProtocol {
+  readonly checkV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: { readonly result: { readonly kind: "check" } };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly doctorV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: {
+      readonly outcome:
+        | "authority-stale"
+        | "cancelled"
+        | "conflict"
+        | "execution-failure"
+        | "invalid-input"
+        | "recovery-required"
+        | "success"
+        | "violation";
+      readonly result: {
+        readonly environment: {
+          readonly installedFoundationBuildIdentity: string;
+          readonly installedFoundationVersion: string;
+        };
+        readonly kind: "doctor";
+        readonly transaction:
+          | { readonly state: "idle" }
+          | { readonly state: "recoverable" }
+          | { readonly state: "manual-recovery-required" };
+      };
+    };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly findV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly query: DocsFindQuery;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: {
+      readonly result: {
+        readonly kind: "find";
+        readonly documents: readonly { readonly id: string }[];
+      };
+    };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly infoV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: {
+      readonly result: {
+        readonly kind: "info";
+        readonly projectId: string;
+        readonly types: readonly { readonly type: string }[];
+      };
+    };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly newDocumentV2: (input: DocsNewRequest) => Promise<{
+    readonly envelope: { readonly result: { readonly kind: "new" } };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly recoverV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: {
+      readonly result:
+        | {
+            readonly kind: "recover";
+            readonly transactionState: "no-pending-transaction";
+            readonly writeState: "unchanged";
+          }
+        | {
+            readonly kind: "recover";
+            readonly transactionState: "manual-required";
+            readonly writeState: "unknown";
+          }
+        | {
+            readonly kind: "recover";
+            readonly transactionState: "recovered" | "recovery-required";
+            readonly writeState: "committed" | "published-recovery-required" | "unchanged" | "unknown";
+            readonly receiptDigest: `sha256:${string}`;
+            readonly receipt: {
+              readonly commit: {
+                readonly publication: "none" | "preexisting-exact" | "published" | "unknown";
+                readonly state: "committed" | "manual-recovery-required" | "not-published" | "recovery-required";
+              };
+              readonly directoryMaterialization?: {
+                readonly observedCreatedDirectories: readonly string[];
+                readonly state: "none-created" | "created-and-retained" | "preserved-unknown";
+              };
+              readonly outcome:
+                | "applied"
+                | "already-applied"
+                | "authority-stale"
+                | "cancelled"
+                | "failed-before-publication"
+                | "manual-recovery-required"
+                | "recovery-required"
+                | "rejected";
+            };
+          };
+    };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+}
 
 function qualificationMetadata(
   base: Omit<DocsNewRequest, "apply">,

@@ -156,6 +156,7 @@
         "tests/registry-docs-protocol-mcp-e2e.test.mjs",
         "tests/registry-install-policy.test.mjs",
         "tests/repository-mutation-owned-temporary-cleanup.test.mjs",
+        "tests/root-package-projections.test.mjs",
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
         "tests/scorecard-workflow.test.mjs",
         "tests/test-manifests.test.mjs",

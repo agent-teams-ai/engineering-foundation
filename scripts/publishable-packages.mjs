@@ -207,7 +207,7 @@ function loadManifests(catalog) {
     try {
       return [entry.name, JSON.parse(readFileSync(new URL(`../${entry.manifestPath}`, import.meta.url), "utf8"))];
     } catch (error) {
-      fail(`cannot load ${entry.manifestPath}: ${error instanceof Error ? error.message : String(error)}`);
+      return fail(`cannot load ${entry.manifestPath}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }));
 }

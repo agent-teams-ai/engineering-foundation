@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import test from "node:test";
+import { promisify } from "node:util";
 
 import { publishablePackageCheckPlan } from "../scripts/check-publishable-packages.mjs";
 import { releaseGraphProjectionDiagnostics } from "../scripts/check-release-graph-projections.mjs";
@@ -10,6 +15,8 @@ import {
 } from "../scripts/publishable-packages.mjs";
 import { builtTestArguments } from "../scripts/run-built-tests.mjs";
 import { testRootsForPackages } from "../scripts/check-test-manifests.mjs";
+
+const execFileAsync = promisify(execFile);
 
 function entry(name) {
   const slug = name.split("/").at(-1);
@@ -26,9 +33,21 @@ function projection(catalog, dependencyEntries = {}) {
     catalog,
     manifestsByName: new Map(catalog.map(({ name }) => [name, {
       name,
-      ...(dependencyEntries[name] ?? {}),
+      ...dependencyEntries[name],
     }])),
   });
+}
+
+async function isIgnored(repository, path) {
+  try {
+    await execFileAsync("git", ["-C", repository, "check-ignore", "--quiet", path]);
+    return true;
+  } catch (error) {
+    if (error?.code === 1) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 test("manifest edges determine stable publication order independently of catalog order", () => {
@@ -112,6 +131,38 @@ test("qualified package test roots are explicit and reject traversal", () => {
     () => testRootsForPackages([{ root: "packages/../outside" }]),
     /not bounded and portable/u,
   );
+});
+
+test("qualified package outputs are ignored without hiding package inputs", async (t) => {
+  const repository = await mkdtemp(join(tmpdir(), "root-package-projection-ignore-"));
+  t.after(() => rm(repository, { recursive: true, force: true }));
+  await execFileAsync("git", ["-C", repository, "init", "--quiet"]);
+  await writeFile(
+    join(repository, ".gitignore"),
+    await readFile(new URL("../.gitignore", import.meta.url), "utf8"),
+  );
+
+  const packageRoot = join(repository, "packages", "qualified-adapter");
+  const observableFiles = [
+    "package.json",
+    "src/index.ts",
+    "schemas/contract.schema.json",
+    "assets/prompt.md",
+    "fixtures/example.json",
+  ];
+  const generatedFiles = ["dist/index.js", "LICENSE"];
+  for (const path of [...observableFiles, ...generatedFiles]) {
+    const target = join(packageRoot, path);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, "fixture\n");
+  }
+
+  for (const path of generatedFiles) {
+    assert.equal(await isIgnored(repository, `packages/qualified-adapter/${path}`), true);
+  }
+  for (const path of observableFiles) {
+    assert.equal(await isIgnored(repository, `packages/qualified-adapter/${path}`), false);
+  }
 });
 
 test("tsconfig projection compares membership as sets and manifest-derived edges", () => {

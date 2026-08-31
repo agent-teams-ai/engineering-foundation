@@ -75,14 +75,14 @@ export function releaseGraphProjectionDiagnostics({
       diagnostics.push(`${releasePackage.name} manifest-derived dependencies are missing`);
       continue;
     }
-    const expectedReferences = dependencyNames.map((dependencyName) => {
+    const expectedReferences = dependencyNames.flatMap((dependencyName) => {
       const dependency = packageByName.get(dependencyName);
       if (dependency === undefined) {
         diagnostics.push(`${releasePackage.name} has unknown projected dependency ${dependencyName}`);
-        return undefined;
+        return [];
       }
-      return portableRelativePath(releasePackage.root, dependency.root);
-    }).filter((path) => path !== undefined);
+      return [portableRelativePath(releasePackage.root, dependency.root)];
+    });
     const actualReferences = referencePaths(
       tsconfig,
       `${releasePackage.name} tsconfig`,

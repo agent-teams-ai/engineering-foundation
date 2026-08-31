@@ -2,8 +2,7 @@ import {
   canonicalJson as canonicalRepositoryMutationJson,
   sha256Bytes as sha256RepositoryMutationBytes,
   sha256Json as sha256RepositoryMutationJson,
-  sha256Text as sha256RepositoryMutationText,
-  type CanonicalJsonValue
+  sha256Text as sha256RepositoryMutationText
 } from "@agent-teams/repository-mutation";
 
 import type { JsonValue, Sha256Digest } from "../contract/types.js";
@@ -23,7 +22,7 @@ function mapCanonicalFailure<T>(operation: () => T): T {
 }
 
 export function canonicalJson(value: JsonValue): string {
-  return mapCanonicalFailure(() => canonicalRepositoryMutationJson(value as CanonicalJsonValue));
+  return mapCanonicalFailure(() => canonicalRepositoryMutationJson(value));
 }
 
 export function sha256Bytes(value: Uint8Array): Sha256Digest {
@@ -35,5 +34,5 @@ export function sha256Text(value: string): Sha256Digest {
 }
 
 export function sha256Json(value: JsonValue): Sha256Digest {
-  return mapCanonicalFailure(() => sha256RepositoryMutationJson(value as CanonicalJsonValue));
+  return mapCanonicalFailure(() => sha256RepositoryMutationJson(value));
 }

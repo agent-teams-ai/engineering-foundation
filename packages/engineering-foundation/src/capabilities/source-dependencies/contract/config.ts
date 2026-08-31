@@ -91,7 +91,7 @@ function priorAncestor<T>(
   valuesByPath: ReadonlyMap<string, T>
 ): T | undefined {
   let candidate = path;
-  while (true) {
+  for (;;) {
     const value = valuesByPath.get(candidate);
     if (value !== undefined) {
       return value;

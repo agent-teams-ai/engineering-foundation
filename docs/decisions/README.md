@@ -38,6 +38,7 @@ No proposed decisions.
 - [ADR-0038: Approve Docs Consumer Upgrade API](0038-approve-docs-consumer-upgrade-api.md)
 - [ADR-0039: Open-Source Documentation Protocol](0039-open-source-documentation-protocol.md)
 - [ADR-0042: First-Publish Default-Tag Quarantine](0042-first-publish-default-tag-quarantine.md)
+- [ADR-0043: New-Only Portable Documentation Package Boundary](0043-new-only-portable-documentation-package-boundary.md)
 
 ## Superseded
 

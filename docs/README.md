@@ -21,9 +21,11 @@ not repeat their rules.
 | Scaffolding recovery | [Scoped recovery API](reference/scaffolding-recovery.md) | Immutable v1 scoped overload implemented; one-argument API and CLI retained |
 | Document authoring | [Document authoring protocol](architecture/document-authoring-protocol.md) | Catalog, Plan compiler, create-only writer, doctor, and exact-version recovery released in Docs Protocol 0.1.2 |
 | Unified documentation UX | [ADR-0026](decisions/0026-retain-only-document-directory-materialization.md#carried-forward-adr-0025-decisions) | Stable Docs Protocol cohort adopted by current consumers; legacy compatibility retirement remains evidence-gated |
-| Open-source documentation | [Open-source Docs Protocol](reference/open-source-docs-protocol.md) | Portable workflow implemented; exact public registry resolution remains the availability gate |
-| Managed consumer upgrades | [Managed Docs Protocol consumer integration](architecture/managed-docs-consumer-integration.md) | Qualified Cohort authority, pins, lockfile, assets, activation, and rollback are one staged command |
-| Managed consumer integration | [Consumer integration](architecture/managed-docs-consumer-integration.md) | Implemented and release-qualified; consumer rollout remains explicit |
+| Portable package boundary | [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md) | Accepted target; implementation and qualification pending |
+| Portable boundary delivery | [Delivery and evidence contract](development/docs-portable-boundary-delivery.md) | Draft phase-0 checkpoint; review, baseline promotion, gates, implementation, publication, and rollout pending |
+| Open-source documentation | [Open-source Docs Protocol](reference/open-source-docs-protocol.md) | Current workflow implemented in the original package placement; ADR-0043 cutover pending |
+| Managed consumer upgrades | [Managed Docs Protocol consumer integration](architecture/managed-docs-consumer-integration.md) | Current integration implemented; direct adapter relocation pending |
+| Managed consumer integration | [Consumer integration](architecture/managed-docs-consumer-integration.md) | Current integration release-qualified; target adapter and consumer rollout pending |
 | Document authoring security | [Cooperative writer threat model](security/document-authoring-threat-model.md) | Cooperative-writer boundary implemented and released; registry qualification complete |
 | Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |

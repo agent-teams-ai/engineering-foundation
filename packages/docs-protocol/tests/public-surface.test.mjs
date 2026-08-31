@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const publicApi = await import("@agent-teams/docs-protocol");
-const qualificationApi = await import("@agent-teams/docs-protocol/qualification");
+const publicApi = await import("../dist/index.js");
+const qualificationApi = await import("../dist/qualification/index.js");
+const packageManifest = JSON.parse(
+  await readFile(new URL("../package.json", import.meta.url), "utf8")
+);
 
 const FORBIDDEN_MANAGED_EXPORTS = [
   "CANONICAL_DOCS_SKILL",
@@ -25,6 +29,16 @@ const FORBIDDEN_LEGACY_ROOT_EXPORTS = [
   "docsRecover",
   "renderDocsHuman"
 ];
+
+test("package exports map the tested runtime barrels without private subpath exports", () => {
+  assert.equal(packageManifest.exports["."].import, "./dist/index.js");
+  assert.equal(
+    packageManifest.exports["./qualification"].import,
+    "./dist/qualification/index.js"
+  );
+  assert.equal(packageManifest.exports["./dist/index.js"], undefined);
+  assert.equal(packageManifest.exports["./dist/qualification/index.js"], undefined);
+});
 
 test("portable public surface exposes generic commands, recovery, and MCP-facing APIs", () => {
   for (const name of [

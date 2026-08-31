@@ -14,8 +14,10 @@ import {
   type DependencyDeclaration,
   type PackageExportEntry,
   type PackageExportSurface,
+  type PackageExportTarget,
   type WorkspacePackage
 } from "../../../application/model/workspace-inventory.js";
+import { resolvePackageExport } from "../../../application/policies/package-export-matcher.js";
 
 const MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
 const READ_CONCURRENCY = 32;
@@ -62,40 +64,31 @@ function optionalStringArray(value: unknown, field: string): readonly string[] {
   return value as readonly string[];
 }
 
-function targetAvailability(value: unknown, field: string): "available" | "blocked" {
+function normalizedExportTarget(value: unknown, field: string): PackageExportTarget {
   if (value === null) {
-    return "blocked";
+    return null;
   }
   if (typeof value === "string") {
-    return "available";
+    return value;
   }
   if (Array.isArray(value)) {
-    if (value.length === 0) {
-      inputError(
-        "PACKAGE_EXPORTS_INVALID",
-        `${field} export target array cannot be empty.`,
-        "package-manifest"
-      );
-    }
-    return value.some((entry) => targetAvailability(entry, field) === "available")
-      ? "available"
-      : "blocked";
+    return Object.freeze(value.map((entry) => normalizedExportTarget(entry, field)));
   }
   if (isRecord(value)) {
     const entries = Object.entries(value);
-    if (entries.length === 0 || entries.some(([condition]) => condition.length === 0)) {
+    if (
+      entries.some(([condition]) => condition.length === 0 || /^(?:0|[1-9][0-9]*)$/u.test(condition))
+    ) {
       inputError(
         "PACKAGE_EXPORTS_INVALID",
         `${field} conditional export target is invalid.`,
         "package-manifest"
       );
     }
-    return entries.some(
-      ([condition, target]) =>
-        condition !== "" && targetAvailability(target, `${field}.${condition}`) === "available"
-    )
-      ? "available"
-      : "blocked";
+    return Object.freeze(Object.fromEntries(entries.map(([condition, target]) => [
+      condition,
+      normalizedExportTarget(target, `${field}.${condition}`)
+    ])));
   }
   inputError(
     "PACKAGE_EXPORTS_INVALID",
@@ -104,17 +97,37 @@ function targetAvailability(value: unknown, field: string): "available" | "block
   );
 }
 
-function exportTargetPaths(value: unknown): readonly string[] {
-  if (typeof value === "string") {
-    return value.startsWith("./") ? [value] : [];
-  }
-  if (Array.isArray(value)) {
-    return value.flatMap(exportTargetPaths);
-  }
-  if (isRecord(value)) {
-    return Object.values(value).flatMap(exportTargetPaths);
-  }
-  return [];
+function retainedTarget(value: unknown, field: string): PackageExportTarget {
+  return normalizedExportTarget(value, field);
+}
+
+function packageExportEntry(
+  subpath: string,
+  value: unknown,
+  field: string
+): PackageExportEntry {
+  const target = retainedTarget(value, field);
+  const provisional: PackageExportEntry = {
+    subpath,
+    availability: "blocked",
+    target
+  };
+  const resolutions = (["import", "require"] as const).map((condition) =>
+    resolvePackageExport([provisional], subpath, condition)
+  );
+  return {
+    ...provisional,
+    availability: resolutions.some(({ available }) => available)
+      ? "available"
+      : "blocked",
+    targetPaths: Object.freeze(
+      [...new Set(
+        resolutions
+          .map(({ targetPath }) => targetPath)
+          .filter((path): path is string => path !== undefined)
+      )].toSorted(compareBinaryStrings)
+    )
+  };
 }
 
 function normalizeExportSurface(value: unknown, manifestPath: string): PackageExportSurface {
@@ -154,25 +167,17 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
             "package-manifest"
           );
         }
-        entries.push({
+        entries.push(packageExportEntry(
           subpath,
-          availability: targetAvailability(value[subpath], `${manifestPath} exports.${subpath}`),
-          targetPaths: Object.freeze(exportTargetPaths(value[subpath]).toSorted(compareBinaryStrings))
-        });
+          value[subpath],
+          `${manifestPath} exports.${subpath}`
+        ));
       }
     } else {
-      entries.push({
-        subpath: ".",
-        availability: targetAvailability(value, `${manifestPath} exports`),
-        targetPaths: Object.freeze(exportTargetPaths(value).toSorted(compareBinaryStrings))
-      });
+      entries.push(packageExportEntry(".", value, `${manifestPath} exports`));
     }
   } else {
-    entries.push({
-      subpath: ".",
-      availability: targetAvailability(value, `${manifestPath} exports`),
-      targetPaths: Object.freeze(exportTargetPaths(value).toSorted(compareBinaryStrings))
-    });
+    entries.push(packageExportEntry(".", value, `${manifestPath} exports`));
   }
   return {
     explicit: true,
@@ -266,6 +271,7 @@ async function readJsonManifest(
     name: packageName,
     rootPath: posix.dirname(manifestPath),
     manifestPath,
+    moduleType: input["type"] === "module" ? "module" : "commonjs",
     ...(typeof input["packageManager"] === "string"
       ? { packageManager: input["packageManager"] }
       : {}),

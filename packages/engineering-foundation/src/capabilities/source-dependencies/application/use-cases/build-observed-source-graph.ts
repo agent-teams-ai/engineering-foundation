@@ -21,7 +21,13 @@ import type { SourceDependencyResolver } from "../ports/source-dependency-resolv
 
 export interface BuildObservedSourceGraphInput {
   readonly consumerRoot?: string;
+  readonly consumerRootIdentity?: {
+    readonly device: string;
+    readonly inode: string;
+  };
+  readonly enforceWorkspaceBindings?: boolean;
   readonly inventory: WorkspaceInventory;
+  readonly governedWorkspacePackageManifestPaths?: ReadonlySet<string>;
   readonly allSourceFiles: readonly SourceFileSnapshot[];
   readonly classifiedFiles: readonly ClassifiedSourceFile[];
   readonly resolver: SourceDependencyResolver;
@@ -273,8 +279,18 @@ export function buildObservedSourceGraph(
           resolution: normalizeResolution(
             input.resolver.resolve({
               consumerRoot: input.consumerRoot ?? ".",
+              ...(input.consumerRootIdentity === undefined
+                ? {}
+                : { consumerRootIdentity: input.consumerRootIdentity }),
+              enforceWorkspaceBindings: input.enforceWorkspaceBindings ?? false,
               file,
               governedFilePaths,
+              ...(input.governedWorkspacePackageManifestPaths === undefined
+                ? {}
+                : {
+                    governedWorkspacePackageManifestPaths:
+                      input.governedWorkspacePackageManifestPaths
+                  }),
               inventory: input.inventory,
               reference
             }),

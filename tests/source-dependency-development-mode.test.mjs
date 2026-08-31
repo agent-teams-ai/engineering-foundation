@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+
+import {
+  runSourceCapability,
+  sourceConfigPath,
+  withCopiedFixture,
+} from "./helpers/source-dependency-v2-fixture.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const foundationPackageRoot = join(repositoryRoot, "packages", "engineering-foundation");
@@ -387,8 +393,9 @@ test("generated output candidates require canonical same-package dist literals",
     exportSurface: { explicit: false, entries: [] },
   };
   const resolver = new NodeSourceDependencyResolver();
-  const resolve = (specifier) => resolver.resolve({
+  const resolve = (specifier, extra = {}) => resolver.resolve({
     consumerRoot,
+    ...extra,
     file: {
       path: "packages/app/src/index.ts",
       workspacePackage,
@@ -401,7 +408,14 @@ test("generated output candidates require canonical same-package dist literals",
     reference: { kind: "static", specifier, start: 0, end: specifier.length },
   });
   try {
+    await mkdir(join(consumerRoot, "packages", "app"), { recursive: true });
     assert.equal(resolve("../dist/index.js").kind, "generated-output-candidate");
+    assert.notEqual(
+      resolve("../dist/index.js", {
+        consumerRootIdentity: { device: "replaced", inode: "ancestor" },
+      }).kind,
+      "generated-output-candidate",
+    );
     for (const specifier of [
       "../../private/dist/secret.js",
       "../../private/dist/../src/secret.js",
@@ -423,7 +437,6 @@ test("generated output candidates require canonical same-package dist literals",
     ]) {
       assert.notEqual(resolve(specifier).kind, "generated-output-candidate", specifier);
     }
-    await mkdir(join(consumerRoot, "packages", "app"), { recursive: true });
     await symlink(tmpdir(), join(consumerRoot, "packages", "app", "dist"), "dir");
     assert.notEqual(resolve("../dist/index.js").kind, "generated-output-candidate");
     await rm(join(consumerRoot, "packages", "app", "dist"));
@@ -436,4 +449,86 @@ test("generated output candidates require canonical same-package dist literals",
   } finally {
     await rm(consumerRoot, { recursive: true, force: true });
   }
+});
+
+test("v2 package-name imports require governed root topology", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    const appManifestPath = join(consumerRoot, "packages", "app", "package.json");
+    const appManifest = JSON.parse(await readFile(appManifestPath, "utf8"));
+    appManifest.dependencies = { "@fixture/repository-v2": "workspace:*" };
+    await Promise.all([
+      writeFile(appManifestPath, `${JSON.stringify(appManifest, null, 2)}\n`, "utf8"),
+      writeFile(
+        join(consumerRoot, "packages", "app", "src", "index.ts"),
+        'import root from "@fixture/repository-v2";\nexport { root };\n',
+        "utf8",
+      ),
+    ]);
+    const configPath = sourceConfigPath(consumerRoot);
+    const config = await readFile(configPath, "utf8");
+    await writeFile(
+      configPath,
+      config.replace('        - "@fixture/core"', '        - "@fixture/repository-v2"'),
+      "utf8",
+    );
+    assert.deepEqual(
+      (await runSourceCapability(consumerRoot)).diagnostics.map(({ ruleId }) => ruleId),
+      ["architecture.source-dependencies.undeclared-external-dependency"],
+    );
+  });
+});
+
+test("v2 honors workspace packages intentionally rooted below dist or coverage", async () => {
+  for (const collection of ["dist", "coverage"]) {
+    await withCopiedFixture("v2-valid", async (consumerRoot) => {
+      const toolRoot = join(consumerRoot, collection, "tool");
+      await mkdir(join(toolRoot, "src"), { recursive: true });
+      await Promise.all([
+        writeFile(
+          join(toolRoot, "package.json"),
+          `${JSON.stringify({ name: `@fixture/${collection}-tool`, version: "0.0.0", private: true, type: "module" })}\n`,
+          "utf8",
+        ),
+        writeFile(join(toolRoot, "src", "index.ts"), "export const value = 1;\n", "utf8"),
+        writeFile(
+          join(consumerRoot, "pnpm-workspace.yaml"),
+          `packages:\n  - "packages/*"\n  - "${collection}/*"\n`,
+          "utf8",
+        ),
+      ]);
+      const configPath = sourceConfigPath(consumerRoot);
+      const config = await readFile(configPath, "utf8");
+      await writeFile(
+        configPath,
+        config
+          .replace("packageRoots:\n  - packages\n", `packageRoots:\n  - packages\n  - ${collection}\n`)
+          .replace("governedRoots:\n", `governedRoots:\n  - ${collection}/tool/src\n`)
+          .concat(`  - id: ${collection}.tool\n    roots:\n      - ${collection}/tool/src\n    entrypoints:\n      - ${collection}/tool/src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`),
+        "utf8",
+      );
+      assert.equal((await runSourceCapability(consumerRoot)).outcome, "passed");
+    });
+  }
+});
+
+test("v2 rejects portable directory aliases across manifest and source trees", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    await mkdir(join(consumerRoot, "Packages", "app"), { recursive: true });
+    await Promise.all([
+      writeFile(
+        join(consumerRoot, "Packages", "app", "package.json"),
+        '{"name":"@fixture/alias","version":"0.0.0"}\n',
+        "utf8",
+      ),
+      writeFile(join(consumerRoot, "pnpm-workspace.yaml"), 'packages:\n  - "Packages/*"\n', "utf8"),
+    ]);
+    assert.equal((await runSourceCapability(consumerRoot)).problem?.code, "PACKAGE_PATH_CASE_COLLISION");
+  });
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    await Promise.all([
+      mkdir(join(consumerRoot, "packages", "app", "src", "caf\u00e9"), { recursive: true }),
+      mkdir(join(consumerRoot, "packages", "app", "src", "cafe\u0301"), { recursive: true }),
+    ]);
+    assert.equal((await runSourceCapability(consumerRoot)).problem?.code, "SOURCE_PATH_CASE_COLLISION");
+  });
 });

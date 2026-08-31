@@ -4,6 +4,7 @@ workspace:
   manifest: pnpm-workspace.yaml
 packageRoots:
   - packages
+  - spikes
 governedRoots:
   - packages/engineering-foundation/src
   - packages/docs-protocol/src
@@ -13,6 +14,7 @@ governedRoots:
   - packages/docs-protocol-agent-teams/tests
   - packages/docs-protocol-mcp/src
   - packages/docs-protocol-mcp/tests
+  - spikes/source-dependency-parser
 boundaries:
   - id: docs-protocol.community.context
     roots:
@@ -2052,3 +2054,18 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/property-testing-standard/contract/deterministic-seed-bank.ts
+  - id: spike.source-dependency-parser
+    dependencyMode: development
+    roots:
+      - spikes/source-dependency-parser
+    allow:
+      boundaries: []
+      packages:
+        - oxc-parser
+        - typescript
+      builtins:
+        - node:assert/strict
+        - node:perf_hooks
+      runtimeReferences: []
+    entrypoints:
+      - spikes/source-dependency-parser/run.mjs

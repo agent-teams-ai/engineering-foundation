@@ -17,9 +17,7 @@ import { readPnpmPackageManifestSnapshots } from "./pnpm-package-manifest-snapsh
 const MAX_WORKSPACE_PACKAGES = 5_000;
 const IGNORED_GLOBS = [
   "**/.git/**",
-  "**/node_modules/**",
-  "**/dist/**",
-  "**/coverage/**"
+  "**/node_modules/**"
 ];
 
 function inputError(code: string, message: string, phase: string): never {
@@ -231,6 +229,25 @@ export async function readPnpmWorkspaceInventoryFromManifestPaths(
 }
 
 export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
+  discoverManifestPathsFromManifest(
+    consumerRoot: string,
+    workspaceManifest: unknown,
+    signal?: AbortSignal
+  ): Promise<readonly string[]> {
+    if (!isRecord(workspaceManifest)) {
+      inputError(
+        "PNPM_WORKSPACE_INVALID",
+        "pnpm-workspace.yaml must contain an object.",
+        "workspace-manifest"
+      );
+    }
+    return discoverManifestPaths(
+      consumerRoot,
+      validateWorkspacePatterns(workspaceManifest["packages"]),
+      signal
+    );
+  }
+
   readFromManifestPaths(
     consumerRoot: string,
     workspaceManifest: unknown,
@@ -263,11 +280,7 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
         "workspace-manifest"
       );
     }
-    return discoverManifestPaths(
-      consumerRoot,
-      validateWorkspacePatterns(input["packages"]),
-      signal
-    );
+    return this.discoverManifestPathsFromManifest(consumerRoot, input, signal);
   }
 
   async read(
@@ -288,8 +301,11 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
         "workspace-manifest"
       );
     }
-    const patterns = validateWorkspacePatterns(input["packages"]);
-    const manifestPaths = await discoverManifestPaths(consumerRoot, patterns, signal);
+    const manifestPaths = await this.discoverManifestPathsFromManifest(
+      consumerRoot,
+      input,
+      signal
+    );
     return readPnpmWorkspaceInventoryFromManifestPaths(
       consumerRoot,
       input,

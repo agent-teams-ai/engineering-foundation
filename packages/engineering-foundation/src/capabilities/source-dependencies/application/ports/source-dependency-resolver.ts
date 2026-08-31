@@ -7,8 +7,14 @@ import type {
 
 export interface ResolveSourceDependencyInput {
   readonly consumerRoot: string;
+  readonly consumerRootIdentity?: {
+    readonly device: string;
+    readonly inode: string;
+  };
+  readonly enforceWorkspaceBindings?: boolean;
   readonly file: ClassifiedSourceFile;
   readonly governedFilePaths: ReadonlySet<string>;
+  readonly governedWorkspacePackageManifestPaths?: ReadonlySet<string>;
   readonly inventory: WorkspaceInventory;
   readonly reference: SourceDependencyReference;
 }

@@ -182,6 +182,15 @@ export class PnpmSourceWorkspaceTopologyInspector
       ],
       ...(input.signal === undefined ? {} : { signal: input.signal })
     });
-    return Object.freeze({ inventory, packages, sourceFiles });
+    return Object.freeze({
+      canonicalConsumerRoot,
+      consumerRootIdentity: Object.freeze({
+        device: String(consumerRootSnapshot.canonicalMetadata.dev),
+        inode: String(consumerRootSnapshot.canonicalMetadata.ino)
+      }),
+      inventory,
+      packages,
+      sourceFiles
+    });
   }
 }

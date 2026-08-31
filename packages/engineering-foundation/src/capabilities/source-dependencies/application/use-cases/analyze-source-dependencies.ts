@@ -9,7 +9,10 @@ import type {
   WorkspacePackage
 } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type { WorkspaceInventoryReader } from "../../../../workspace-inventory/application/ports/workspace-inventory-reader.js";
-import { exactAvailablePackageExport } from "../../../../workspace-inventory/application/policies/package-export-matcher.js";
+import {
+  exactAvailablePackageExport,
+  exactPackageExportTargetPaths
+} from "../../../../workspace-inventory/application/policies/package-export-matcher.js";
 import type {
   ArchitectureBoundaryPolicy,
   ClassifiedSourceFile,
@@ -225,10 +228,10 @@ function buildPackageExportBoundaries(
       if (bySubpath.has(subpath)) {
         throw new CapabilityInputError({ code: "SOURCE_EXPORT_BOUNDARY_INVALID", message: `Package export has duplicate boundary ownership: ${packageName}:${subpath}.`, phase: "source-boundary-classification", retryable: false });
       }
-      const exportEntry = workspacePackage.exportSurface.entries.find(
-        (entry) => entry.subpath === subpath
-      );
-      for (const target of exportEntry?.targetPaths ?? []) {
+      for (const target of exactPackageExportTargetPaths(
+        workspacePackage.exportSurface.entries,
+        subpath
+      )) {
         const targetPath = normalizeRepositoryPath(
           `${workspacePackage.rootPath}/${target.slice(2)}`
         );
@@ -275,8 +278,13 @@ export async function analyzeSourceDependencies(
       input.signal
     );
     const graph = buildObservedSourceGraph({
-      consumerRoot: input.consumerRoot,
+      consumerRoot: topology.canonicalConsumerRoot,
+      consumerRootIdentity: topology.consumerRootIdentity,
+      enforceWorkspaceBindings: true,
       inventory,
+      governedWorkspacePackageManifestPaths: new Set(
+        topology.packages.map(({ manifestPath }) => manifestPath)
+      ),
       allSourceFiles: sourceFiles,
       classifiedFiles,
       resolver: dependencies.resolver,

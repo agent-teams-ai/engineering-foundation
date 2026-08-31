@@ -7,7 +7,7 @@ import type {
   DependencyDeclaration,
   WorkspacePackage
 } from "../../../../../workspace-inventory/application/model/workspace-inventory.js";
-import { selectedPackageExport } from "../../../../../workspace-inventory/application/policies/package-export-matcher.js";
+import { resolvePackageExport } from "../../../../../workspace-inventory/application/policies/package-export-matcher.js";
 import type {
   ResolvedSourceDependency
 } from "../../../application/model/source-workspace.js";
@@ -50,7 +50,13 @@ function packageNameFromSpecifier(specifier: string): string | undefined {
   return name === undefined || name.length === 0 ? undefined : name;
 }
 
-function declarationKind(
+function isWorkspaceBinding(specifier: string): boolean {
+  const value = specifier.slice("workspace:".length);
+  return specifier.startsWith("workspace:") &&
+    /^(?:[*^~]|[~^]?(?:0|[1-9][0-9]*)(?:[.](?:0|[1-9][0-9]*|[xX*])){0,2}(?:-[0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?(?:[+][0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?)$/u.test(value);
+}
+
+function declarationKindV1(
   declarations: readonly DependencyDeclaration[],
   packageName: string
 ): "development" | "runtime" | "undeclared" {
@@ -70,6 +76,58 @@ function declarationKind(
   return matching.some((declaration) => declaration.section === "devDependencies")
     ? "development"
     : "undeclared";
+}
+
+function declarationKind(
+  declarations: readonly DependencyDeclaration[],
+  packageName: string
+): "development" | "runtime" | "undeclared" {
+  const matching = declarations.filter(
+    (declaration) => declaration.dependencyName === packageName
+  );
+  if (matching.length === 0 || matching.some(({ specifier }) => !isWorkspaceBinding(specifier))) {
+    return "undeclared";
+  }
+  return declarationKindV1(matching, packageName);
+}
+
+function catalogTarget(
+  specifier: string,
+  packageName: string,
+  inventory: ResolveSourceDependencyInput["inventory"]
+): string | undefined {
+  if (!specifier.startsWith("catalog:")) {
+    return undefined;
+  }
+  const catalogName = specifier.slice("catalog:".length) || "default";
+  return inventory.catalogs.find(
+    (entry) =>
+      entry.catalogName === catalogName && entry.dependencyName === packageName
+  )?.version;
+}
+
+function isLocalIdentitySpecifier(
+  specifier: string,
+  packageName: string,
+  inventory: ResolveSourceDependencyInput["inventory"]
+): boolean {
+  const effective = catalogTarget(specifier, packageName, inventory) ?? specifier;
+  return /^(?:workspace|link|file):/u.test(effective);
+}
+
+function externalDeclarationKind(
+  declarations: readonly DependencyDeclaration[],
+  packageName: string,
+  inventory: ResolveSourceDependencyInput["inventory"]
+): "development" | "runtime" | "undeclared" {
+  const matching = declarations.filter(
+    (declaration) => declaration.dependencyName === packageName
+  );
+  return matching.some(({ specifier }) =>
+    isLocalIdentitySpecifier(specifier, packageName, inventory)
+  )
+    ? "undeclared"
+    : declarationKindV1(matching, packageName);
 }
 
 function candidateLocalPaths(importerPath: string, specifier: string): readonly string[] {
@@ -111,26 +169,148 @@ function containingPackage(
     )[0];
 }
 
-function subpathExported(target: WorkspacePackage, subpath: string): boolean {
+function subpathExported(
+  target: WorkspacePackage,
+  subpath: string,
+  reference: ResolveSourceDependencyInput["reference"],
+  importer: WorkspacePackage,
+  importerPath: string
+): boolean {
   if (!target.exportSurface.explicit) {
     return false;
   }
-  return selectedPackageExport(target.exportSurface.entries, subpath)?.availability === "available";
+  const extension = posix.extname(importerPath).toLocaleLowerCase("en-US");
+  const importerCommonJs =
+    extension === ".cts" ||
+    extension === ".cjs" ||
+    ((extension === ".ts" ||
+      extension === ".tsx" ||
+      extension === ".js" ||
+      extension === ".jsx") &&
+      (importer.moduleType ?? "commonjs") === "commonjs");
+  const staticLike =
+    reference.kind === "static" ||
+    reference.kind === "static-type" ||
+    reference.kind === "export" ||
+    reference.kind === "export-type" ||
+    reference.kind === "type-query";
+  const condition =
+    reference.kind === "commonjs" ||
+    reference.kind.startsWith("import-equals") ||
+    (staticLike && importerCommonJs)
+    ? "require"
+    : "import";
+  const typeOnly =
+    reference.kind === "static-type" ||
+    reference.kind === "export-type" ||
+    reference.kind === "import-equals-type" ||
+    reference.kind === "type-query";
+  return resolvePackageExport(
+    target.exportSurface.entries,
+    subpath,
+    condition,
+    typeOnly
+  ).available;
+}
+
+interface GeneratedConsumerRootSnapshot {
+  readonly canonicalRoot: string;
+  readonly device: string;
+  readonly inode: string;
+}
+
+function generatedConsumerRootSnapshot(
+  consumerRoot: string,
+  expected: ResolveSourceDependencyInput["consumerRootIdentity"]
+): GeneratedConsumerRootSnapshot | undefined {
+  try {
+    const canonicalRoot = realpathSync(consumerRoot);
+    const metadata = lstatSync(canonicalRoot);
+    const snapshot = {
+      canonicalRoot,
+      device: String(metadata.dev),
+      inode: String(metadata.ino)
+    };
+    if (
+      !metadata.isDirectory() ||
+      metadata.isSymbolicLink() ||
+      (expected !== undefined &&
+        (snapshot.device !== expected.device || snapshot.inode !== expected.inode))
+    ) {
+      return undefined;
+    }
+    return snapshot;
+  } catch {
+    return undefined;
+  }
+}
+
+function generatedConsumerRootIsStable(
+  snapshot: GeneratedConsumerRootSnapshot
+): boolean {
+  try {
+    const metadata = lstatSync(snapshot.canonicalRoot);
+    return String(metadata.dev) === snapshot.device &&
+      String(metadata.ino) === snapshot.inode;
+  } catch {
+    return false;
+  }
+}
+
+function safeExistingPackageAncestors(
+  canonicalRoot: string,
+  packageRoot: string
+): boolean {
+  let current = canonicalRoot;
+  for (const segment of packageRoot.split("/").filter((value) => value !== ".")) {
+    current = join(current, segment);
+    try {
+      const metadata = lstatSync(current);
+      const canonical = realpathSync(current);
+      const containment = relative(canonicalRoot, canonical);
+      if (
+        metadata.isSymbolicLink() ||
+        !metadata.isDirectory() ||
+        containment === ".." ||
+        containment.startsWith(`..${sep}`)
+      ) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 function safeExistingGeneratedAncestors(
   consumerRoot: string,
+  expectedRootIdentity: ResolveSourceDependencyInput["consumerRootIdentity"],
   packageRoot: string,
   target: string
 ): boolean {
-  const absolutePackage = join(consumerRoot, ...packageRoot.split("/"));
+  const root = generatedConsumerRootSnapshot(consumerRoot, expectedRootIdentity);
+  if (
+    root === undefined ||
+    !safeExistingPackageAncestors(root.canonicalRoot, packageRoot)
+  ) {
+    return false;
+  }
+  const { canonicalRoot } = root;
+  const absolutePackage = join(canonicalRoot, ...packageRoot.split("/"));
   const absoluteDist = join(absolutePackage, "dist");
-  const relation = relative(absoluteDist, join(consumerRoot, ...target.split("/")));
+  const absoluteTarget = join(canonicalRoot, ...target.split("/"));
+  const relation = relative(absoluteDist, absoluteTarget);
   let current = absoluteDist;
   for (const segment of ["", ...relation.split(sep).filter(Boolean)]) {
     current = segment === "" ? current : join(current, segment);
     try {
-      if (lstatSync(current).isSymbolicLink()) {
+      const metadata = lstatSync(current);
+      if (metadata.isSymbolicLink()) {
+        return false;
+      }
+      const terminal = current === absoluteTarget;
+      if ((terminal && !metadata.isFile()) || (!terminal && !metadata.isDirectory())) {
         return false;
       }
       const canonical = realpathSync(current);
@@ -139,13 +319,14 @@ function safeExistingGeneratedAncestors(
         return false;
       }
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-        return true;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT" &&
+          (error as NodeJS.ErrnoException).syscall?.includes("realpath") !== true) {
+        return generatedConsumerRootIsStable(root);
       }
       return false;
     }
   }
-  return true;
+  return generatedConsumerRootIsStable(root);
 }
 
 function generatedOutputCandidate(
@@ -192,7 +373,12 @@ function generatedOutputCandidate(
   if (
     owner?.name !== input.file.workspacePackage.name ||
     owner.manifestPath !== input.file.workspacePackage.manifestPath ||
-    !safeExistingGeneratedAncestors(input.consumerRoot, owner.rootPath, targetPath)
+    !safeExistingGeneratedAncestors(
+      input.consumerRoot,
+      input.consumerRootIdentity,
+      owner.rootPath,
+      targetPath
+    )
   ) {
     return undefined;
   }
@@ -245,13 +431,25 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
   if (packageName === undefined) {
     return { kind: "unsupported", reason: "invalid package specifier" };
   }
-  const target = input.inventory.packages.find(
+  const inventoryTarget = input.inventory.packages.find(
     (workspacePackage) => workspacePackage.name === packageName
   );
-  const declaration = declarationKind(
-    input.file.workspacePackage.dependencies,
-    packageName
-  );
+  const target =
+    input.enforceWorkspaceBindings === true &&
+    inventoryTarget !== undefined &&
+    input.governedWorkspacePackageManifestPaths !== undefined &&
+    !input.governedWorkspacePackageManifestPaths.has(inventoryTarget.manifestPath)
+      ? undefined
+      : inventoryTarget;
+  const declaration = input.enforceWorkspaceBindings === true
+    ? target === undefined
+      ? externalDeclarationKind(
+          input.file.workspacePackage.dependencies,
+          packageName,
+          input.inventory
+        )
+      : declarationKind(input.file.workspacePackage.dependencies, packageName)
+    : declarationKindV1(input.file.workspacePackage.dependencies, packageName);
   if (target === undefined) {
     return { kind: "external-package", packageName, declaration };
   }
@@ -260,7 +458,13 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
     return {
       kind: "self-workspace-package",
       workspacePackage: target,
-      exported: subpathExported(target, subpath),
+      exported: subpathExported(
+        target,
+        subpath,
+        input.reference,
+        input.file.workspacePackage,
+        input.file.path
+      ),
       subpath
     };
   }
@@ -268,7 +472,13 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
     kind: "workspace-package",
     workspacePackage: target,
     declaration,
-    exported: subpathExported(target, subpath),
+    exported: subpathExported(
+      target,
+      subpath,
+      input.reference,
+      input.file.workspacePackage,
+      input.file.path
+    ),
     subpath
   };
 }

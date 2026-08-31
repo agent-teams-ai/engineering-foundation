@@ -100,6 +100,33 @@ function assertPackageRootsContainPackages(
   }
 }
 
+function assertPortableDiscoveryAgreement(
+  workspaceManifestPaths: readonly string[],
+  discovered: DiscoveredSourceWorkspacePaths
+): void {
+  const discoveredDirectories = new Map(
+    discovered.directorySnapshots.map(({ repositoryPath }) => [
+      portableCanonicalIdentity(repositoryPath),
+      repositoryPath
+    ])
+  );
+  for (const manifestPath of workspaceManifestPaths) {
+    const manifestRoot = packageRootForManifest(manifestPath);
+    const discoveredDirectory = discoveredDirectories.get(
+      portableCanonicalIdentity(manifestRoot)
+    );
+    if (
+      discoveredDirectory !== undefined &&
+      discoveredDirectory !== manifestRoot
+    ) {
+      inputError(
+        "PACKAGE_PATH_CASE_COLLISION",
+        `Workspace manifest and source directory paths differ only by portable identity: ${manifestRoot} and ${discoveredDirectory}.`
+      );
+    }
+  }
+}
+
 export async function capturePnpmSourceWorkspaceSnapshot(
   snapshotInput: CapturePnpmSourceWorkspaceSnapshotInput
 ): Promise<PnpmSourceWorkspaceSnapshot> {
@@ -146,6 +173,26 @@ export async function capturePnpmSourceWorkspaceSnapshot(
     ...(snapshotInput.hooks === undefined ? {} : { hooks: snapshotInput.hooks }),
     ...(input.signal === undefined ? {} : { signal: input.signal })
   });
+  const workspaceManifestPaths = await snapshotInput.inventoryReader
+    .discoverManifestPathsFromManifest(
+      canonicalConsumerRoot,
+      workspaceManifest,
+      input.signal
+    );
+  assertPortableDiscoveryAgreement(workspaceManifestPaths, discovered);
+  const unclassifiedWorkspaceManifest = workspaceManifestPaths.find(
+    (manifestPath) =>
+      manifestPath !== "package.json" &&
+      !input.packageRoots.some((packageRoot) =>
+        manifestSelectedByPackageRoot(manifestPath, packageRoot)
+      )
+  );
+  if (unclassifiedWorkspaceManifest !== undefined) {
+    inputError(
+      "WORKSPACE_PACKAGE_OUTSIDE_PACKAGE_ROOTS",
+      `pnpm workspace package is outside the closed schema v2 packageRoots contract: ${unclassifiedWorkspaceManifest}.`
+    );
+  }
   const selectedManifestPaths = Object.freeze(
     discovered.manifestPaths.filter((manifestPath) =>
       input.packageRoots.some((packageRoot) =>

@@ -21,6 +21,12 @@ export interface InspectSourceWorkspaceTopologyInput {
  * discovery. Keeping this operation separate prevents a second manifest read.
  */
 export interface SourceWorkspaceInventorySnapshotReader {
+  discoverManifestPathsFromManifest(
+    consumerRoot: string,
+    workspaceManifest: unknown,
+    signal?: AbortSignal
+  ): Promise<readonly string[]>;
+
   readFromManifestPaths(
     consumerRoot: string,
     workspaceManifest: unknown,

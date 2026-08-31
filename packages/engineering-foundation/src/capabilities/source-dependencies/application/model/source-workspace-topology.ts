@@ -9,6 +9,11 @@ export interface SourceWorkspacePackageTopology {
 }
 
 export interface SourceWorkspaceTopology {
+  readonly canonicalConsumerRoot: string;
+  readonly consumerRootIdentity: {
+    readonly device: string;
+    readonly inode: string;
+  };
   readonly inventory: WorkspaceInventory;
   readonly packages: readonly SourceWorkspacePackageTopology[];
   /**

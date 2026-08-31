@@ -257,7 +257,7 @@ function assertPortablePaths(paths: readonly string[], kind: string): void {
     const existing = identities.get(identity);
     if (existing !== undefined && existing !== path) {
       inputError(
-        kind === "source"
+        kind.startsWith("source")
           ? "SOURCE_PATH_CASE_COLLISION"
           : "PACKAGE_PATH_CASE_COLLISION",
         `${kind} paths differ only by portable identity: ${existing} and ${path}.`
@@ -358,6 +358,8 @@ export async function discoverSourceWorkspacePaths(
   const manifests = [...manifestPaths].toSorted(compareBinaryStrings);
   const sources = [...sourcePaths].toSorted(compareBinaryStrings);
   const symbolicLinks = [...symbolicLinkPaths].toSorted(compareBinaryStrings);
+  const directoryPaths = directorySnapshots.map(({ repositoryPath }) => repositoryPath);
+  assertPortablePaths(directoryPaths, "source directory");
   assertPortablePaths(manifests, "Workspace package manifest");
   assertPortablePaths(sources, "source");
   assertPortablePaths(symbolicLinks, "source");

@@ -137,6 +137,7 @@ test("v2 retains the root manifest as inventory evidence without governing it", 
         "packages/core/src/index.ts",
       ],
     );
+
   });
 });
 
@@ -165,6 +166,112 @@ test("v2 package roots are independent of pnpm workspace glob selection", async 
       );
     });
   }
+});
+
+test("v2 rejects pnpm-selected workspace packages outside closed packageRoots", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    await mkdir(join(consumerRoot, "tools", "core"), { recursive: true });
+    await writeFile(
+      join(consumerRoot, "tools", "core", "package.json"),
+      '{"name":"@fixture/core","version":"1.0.0"}\n',
+      "utf8",
+    );
+    await writeFile(
+      join(consumerRoot, "pnpm-workspace.yaml"),
+      'packages:\n  - "packages/*"\n  - "tools/*"\n',
+      "utf8",
+    );
+    const configuredCoreManifest = join(consumerRoot, "packages", "core", "package.json");
+    const configuredCore = JSON.parse(await readFile(configuredCoreManifest, "utf8"));
+    configuredCore.name = "@fixture/configured-core";
+    await writeFile(
+      configuredCoreManifest,
+      `${JSON.stringify(configuredCore, null, 2)}\n`,
+      "utf8",
+    );
+    const appManifestPath = join(consumerRoot, "packages", "app", "package.json");
+    const appManifest = JSON.parse(await readFile(appManifestPath, "utf8"));
+    appManifest.dependencies = { "@fixture/core": "^1.0.0" };
+    await writeFile(appManifestPath, `${JSON.stringify(appManifest, null, 2)}\n`, "utf8");
+
+    const report = await runSourceCapability(consumerRoot);
+    assert.deepEqual(
+      { code: report.problem?.code, phase: report.problem?.phase },
+      {
+        code: "WORKSPACE_PACKAGE_OUTSIDE_PACKAGE_ROOTS",
+        phase: "source-workspace-topology",
+      },
+    );
+  });
+});
+
+test("v2 honors pnpm negative patterns and preserves true external dependencies", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    await mkdir(join(consumerRoot, "tools", "excluded"), { recursive: true });
+    await writeFile(
+      join(consumerRoot, "tools", "excluded", "package.json"),
+      '{"name":"external-tool","version":"1.0.0"}\n',
+      "utf8",
+    );
+    await writeFile(
+      join(consumerRoot, "pnpm-workspace.yaml"),
+      'packages:\n  - "packages/*"\n  - "tools/*"\n  - "!tools/*"\n',
+      "utf8",
+    );
+    const appManifestPath = join(consumerRoot, "packages", "app", "package.json");
+    const appManifest = JSON.parse(await readFile(appManifestPath, "utf8"));
+    appManifest.dependencies = { "external-tool": "1.0.0" };
+    await writeFile(appManifestPath, `${JSON.stringify(appManifest, null, 2)}\n`, "utf8");
+    await writeFile(
+      join(consumerRoot, "packages", "app", "src", "index.ts"),
+      'import tool from "external-tool";\nexport { tool };\n',
+      "utf8",
+    );
+    const configPath = sourceConfigPath(consumerRoot);
+    const config = await readFile(configPath, "utf8");
+    await writeFile(
+      configPath,
+      config.replace(
+        '        - "@fixture/core"',
+        '        - "@fixture/core"\n        - external-tool',
+      ),
+      "utf8",
+    );
+
+    const report = await runSourceCapability(consumerRoot);
+    assert.equal(report.outcome, "passed", JSON.stringify(report, null, 2));
+  });
+});
+
+test("v2 bounds pnpm-selected workspace closure discovery", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    const toolsRoot = join(consumerRoot, "tools");
+    await mkdir(toolsRoot);
+    for (let offset = 0; offset < 5_000; offset += 100) {
+      await Promise.all(
+        Array.from({ length: 100 }, async (_, index) => {
+          const packageRoot = join(toolsRoot, `tool-${offset + index}`);
+          await mkdir(packageRoot);
+          await writeFile(
+            join(packageRoot, "package.json"),
+            `${JSON.stringify({ name: `tool-${offset + index}`, version: "1.0.0" })}\n`,
+            "utf8",
+          );
+        }),
+      );
+    }
+    await writeFile(
+      join(consumerRoot, "pnpm-workspace.yaml"),
+      'packages:\n  - "packages/*"\n  - "tools/*"\n',
+      "utf8",
+    );
+
+    const report = await runSourceCapability(consumerRoot);
+    assert.deepEqual(
+      { code: report.problem?.code, phase: report.problem?.phase },
+      { code: "WORKSPACE_LIMIT_EXCEEDED", phase: "workspace-discovery" },
+    );
+  });
 });
 
 test("v2 source closure prunes fixed non-source directories", async () => {

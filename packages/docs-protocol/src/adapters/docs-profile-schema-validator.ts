@@ -5,28 +5,28 @@ import addFormats from "ajv-formats";
 
 import { DocsProfileError } from "../domain/profile-policy.js";
 
-const validatorPromises = new Map<number, Promise<ValidateFunction>>();
+let validatorPromise: Promise<ValidateFunction> | undefined;
 
-async function validator(version: 1 | 2 | 3): Promise<ValidateFunction> {
-  const existing = validatorPromises.get(version);
-  if (existing !== undefined) {return existing;}
-  const loading = (async () => {
-    const schemaUrl = new URL(`../../schemas/docs-protocol-profile/v${version}.schema.json`, import.meta.url);
+async function validator(): Promise<ValidateFunction> {
+  if (validatorPromise !== undefined) {return validatorPromise;}
+  validatorPromise = (async () => {
+    const schemaUrl = new URL("../../schemas/docs-protocol-profile/v3.schema.json", import.meta.url);
     const schema = JSON.parse(await readFile(schemaUrl, "utf8")) as object;
     const ajv = new Ajv2020({ allErrors: true, strict: true });
     addFormats.default(ajv);
     return ajv.compile(schema);
   })();
-  validatorPromises.set(version, loading);
-  return loading;
+  return validatorPromise;
 }
 
 export async function assertDocsProtocolProfileSchema(value: unknown): Promise<void> {
   const declared = typeof value === "object" && value !== null && "schemaVersion" in value
     ? (value as { schemaVersion?: unknown }).schemaVersion
     : undefined;
-  const version = declared === 2 ? 2 : declared === 3 ? 3 : 1;
-  const validate = await validator(version);
+  if (declared !== 3) {
+    throw new DocsProfileError("Portable profile must declare docs-protocol-profile/v3.");
+  }
+  const validate = await validator();
   if (validate(value)) {
     return;
   }
@@ -35,5 +35,5 @@ export async function assertDocsProtocolProfileSchema(value: unknown): Promise<v
     .map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`)
     .join("; ")
     .slice(0, 1000);
-  throw new DocsProfileError(`Profile does not match docs-protocol-profile/v${version}: ${problems}`);
+  throw new DocsProfileError(`Profile does not match docs-protocol-profile/v3: ${problems}`);
 }

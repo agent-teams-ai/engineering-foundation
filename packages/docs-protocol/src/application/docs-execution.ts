@@ -2,14 +2,12 @@ import {
   DOCS_PROTOCOL_ID,
   DOCS_PROTOCOL_VERSION,
   type DocsCommandOutcome,
-  type DocsDiagnostic,
-  type DocsProtocolProfile
+  type DocsDiagnostic
 } from "../domain/model.js";
 import type {
   DocsCommandEnvelopeV2,
   DocsCommandV2,
   DocsExecutionV2,
-  DocsProtocolProfileV2,
   NormalizedDocsProtocolProfile
 } from "../domain/model-v2.js";
 import type {
@@ -51,20 +49,14 @@ export function executionV3<Result>(command: DocsCommandV3, outcome: DocsCommand
   return Object.freeze({ envelope: commandEnvelope, exitCode: exitCode(outcome) });
 }
 
-export function compatibleProfileV2(profile: NormalizedDocsProtocolProfile): DocsProtocolProfile | DocsProtocolProfileV2 {
-  return profile.foundationProfile.schemaVersion === 2
-    ? Object.freeze({
-        schemaVersion: 1,
-        protocol: profile.protocol,
-        foundationProfile: profile.foundationProfile,
-        agentWorkflow: Object.freeze({ skillPath: profile.agentWorkflow.skillPath }),
-        semanticValidatorIds: profile.semanticValidatorIds
-      })
-    : Object.freeze({
-        schemaVersion: 2,
-        protocol: profile.protocol,
-        foundationProfile: profile.foundationProfile,
-        agentWorkflow: Object.freeze({ skillPath: profile.agentWorkflow.skillPath }),
-        semanticValidatorIds: profile.semanticValidatorIds
-      });
+export function compatibleProfileV2(profile: NormalizedDocsProtocolProfile): Pick<
+  NormalizedDocsProtocolProfile,
+  "agentWorkflow" | "foundationProfile" | "protocol" | "semanticValidatorIds"
+> {
+  return Object.freeze({
+    protocol: profile.protocol,
+    foundationProfile: profile.foundationProfile,
+    agentWorkflow: profile.agentWorkflow,
+    semanticValidatorIds: profile.semanticValidatorIds
+  });
 }

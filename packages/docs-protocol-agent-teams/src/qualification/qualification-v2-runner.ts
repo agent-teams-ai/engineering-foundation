@@ -1,37 +1,45 @@
 import { constants } from "node:fs";
-import { cp, lstat, mkdtemp, open, readFile, realpath, rm } from "node:fs/promises";
+import { cp, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative, resolve as resolvePath, sep } from "node:path";
+import { dirname, join, relative, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
+
+import {
+  docsCheckV2,
+  docsDoctorV2,
+  docsFindV2,
+  docsInfoV2,
+  docsNewV2,
+  docsRecoverV2,
+  type DocsNewRequest
+} from "@agent-teams/docs-protocol";
+import {
+  applyReachability,
+  bootstrapQualificationInstallation,
+  changedPaths,
+  digest,
+  documentResult,
+  fileSnapshot,
+  interruptAndRecover,
+  isQualificationEvidenceExcludedPath,
+  portableQualificationSkill,
+  qualificationEvidencePolicy,
+  readContainedBoundedFile,
+  requireSuccess,
+  signalOption,
+  snapshot,
+  type PortableQualificationProtocol,
+  type QualificationEvidenceEntryKind,
+  type QualificationEvidencePolicy
+} from "@agent-teams/docs-protocol/qualification";
 
 import { assertConsumerIntegrationProfileSchema } from "../consumer-integration/adapters/consumer-integration-schema-validator.js";
 import {
   checkConsumerIntegration,
   type ConsumerIntegrationDesiredStateV1
 } from "../consumer-integration/index.js";
-import type { DocsNewRequest } from "../domain/model.js";
-import {
-  applyReachability,
-  changedPaths,
-  fileSnapshot,
-  isQualificationEvidenceExcludedPath,
-  qualificationEvidencePolicy,
-  type QualificationEvidenceEntryKind,
-  type QualificationEvidencePolicy,
-  snapshot
-} from "./filesystem-evidence.js";
-import {
-  bootstrapQualificationInstallation,
-  createProtocol,
-  digest,
-  documentResult,
-  interruptAndRecover,
-  readContainedBoundedFile,
-  requireSuccess,
-  signalOption
-} from "./qualification-runtime.js";
 import type {
   DocsProtocolQualificationContractV2,
   DocsProtocolQualificationReceiptV2,
@@ -101,10 +109,53 @@ async function copyDisposableConsumer(
   });
 }
 
+async function bootstrapManagedQualificationInstallation(
+  consumerRoot: string,
+  rewriteManifest: boolean
+): Promise<{
+  readonly adapterVersion: string;
+  readonly docsVersion: string;
+  readonly foundationVersion: string;
+}> {
+  const portable = await bootstrapQualificationInstallation(consumerRoot, rewriteManifest);
+  const adapterManifestPath = fileURLToPath(new URL("../../package.json", import.meta.url));
+  const [adapterManifest, consumerManifestSource] = await Promise.all([
+    readFile(adapterManifestPath, "utf8").then((source) => JSON.parse(source) as { readonly version: string }),
+    readFile(join(consumerRoot, "package.json"), "utf8")
+  ]);
+  const consumerManifest = JSON.parse(consumerManifestSource) as Record<string, unknown>;
+  const existingDevDependencies = typeof consumerManifest["devDependencies"] === "object" &&
+    consumerManifest["devDependencies"] !== null
+    ? consumerManifest["devDependencies"] as Record<string, unknown>
+    : {};
+  if (rewriteManifest) {
+    await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify({
+      ...consumerManifest,
+      devDependencies: {
+        ...existingDevDependencies,
+        "@agent-teams/docs-protocol-agent-teams": adapterManifest.version
+      }
+    }, null, 2)}\n`, "utf8");
+  } else if (existingDevDependencies["@agent-teams/docs-protocol-agent-teams"] !== adapterManifest.version) {
+    throw new Error("Managed qualification requires the exact executing Agent Teams adapter in devDependencies.");
+  }
+  const scope = join(consumerRoot, "node_modules", "@agent-teams");
+  await mkdir(scope, { recursive: true });
+  await symlink(
+    dirname(adapterManifestPath),
+    join(scope, "docs-protocol-agent-teams"),
+    process.platform === "win32" ? "junction" : "dir"
+  );
+  return Object.freeze({
+    ...portable,
+    adapterVersion: adapterManifest.version
+  });
+}
+
 export async function overlayLocalDevelopmentSkill(consumerRoot: string, skillPath: string, enabled: boolean): Promise<void> {
   if (!enabled) {return;}
   const target = join(consumerRoot, skillPath);
-  const canonicalSkill = await readFile(new URL("../../skills/docs/SKILL.md", import.meta.url));
+  const canonicalSkill = portableQualificationSkill();
   let handle;
   try {
     handle = await open(target, constants.O_WRONLY |
@@ -202,7 +253,7 @@ async function qualifyScenarios(input: {
   readonly base: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal };
   readonly contract: DocsProtocolQualificationContractV2;
   readonly evidencePolicy: QualificationEvidencePolicy;
-  readonly protocol: ReturnType<typeof createProtocol>;
+  readonly protocol: PortableQualificationProtocol;
 }): Promise<readonly { readonly id: string; readonly type: string; readonly documentPath: string; readonly outputDigest: string }[]> {
   const receipts: { id: string; type: string; documentPath: string; outputDigest: string }[] = [];
   for (const [index, scenario] of input.contract.scenarios.entries()) {
@@ -300,13 +351,23 @@ export async function runDocsProtocolQualificationV2(
   try {
     request.signal?.throwIfAborted();
     await copyDisposableConsumer(sourceRoot, consumerRoot, evidencePolicy);
-    const executingPackages = await bootstrapQualificationInstallation(consumerRoot, request.localDevelopment === true);
+    const executingPackages = await bootstrapManagedQualificationInstallation(
+      consumerRoot,
+      request.localDevelopment === true
+    );
     await overlayLocalDevelopmentSkill(consumerRoot, qualifiedIntegration.skillPath, request.localDevelopment === true);
     const manifest = JSON.parse(await readFile(join(consumerRoot, "package.json"), "utf8")) as { readonly scripts?: Readonly<Record<string, unknown>> };
     if (typeof manifest.scripts?.["docs:protocol:check"] !== "string") {
       throw new Error(`Managed qualification gate ${qualifiedIntegration.qualification.gateCommand} must resolve to a package script; it is never executed by qualification.`);
     }
-    const protocol = createProtocol();
+    const protocol: PortableQualificationProtocol = {
+      checkV2: docsCheckV2,
+      doctorV2: docsDoctorV2,
+      findV2: docsFindV2,
+      infoV2: docsInfoV2,
+      newDocumentV2: docsNewV2,
+      recoverV2: docsRecoverV2
+    };
     const base = { consumerRoot, profilePath: qualifiedIntegration.profilePath, ...signalOption(request.signal) };
     const info = await protocol.infoV2(base);
     requireSuccess("info", info);

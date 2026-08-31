@@ -24,14 +24,18 @@ export async function readRealRegularText(path: string, maximumBytes: number): P
   const handle = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
     const before = await handle.stat({ bigint: true });
-    if (!before.isFile() || before.size > BigInt(maximumBytes)) {throw new AdoptionInputError(`Input must be a regular file of at most ${maximumBytes} bytes.`);}
+    if (!before.isFile() || before.nlink !== 1n || before.size > BigInt(maximumBytes)) {
+      throw new AdoptionInputError(`Input must be one non-hardlinked regular file of at most ${maximumBytes} bytes.`);
+    }
     const bytes = await handle.readFile();
     const [after, pathState, finalPath] = await Promise.all([
       handle.stat({ bigint: true }),
       lstat(absolute, { bigint: true }),
       realpath(absolute)
     ]);
-    if (!stable(before, after) || pathState.dev !== after.dev || pathState.ino !== after.ino || finalPath !== absolute || bytes.byteLength !== Number(after.size)) {
+    if (after.nlink !== 1n || pathState.nlink !== 1n || !stable(before, after) ||
+      pathState.dev !== after.dev || pathState.ino !== after.ino || finalPath !== absolute ||
+      bytes.byteLength !== Number(after.size)) {
       throw new AdoptionInputError("Input path or contents changed while it was read.");
     }
     let source: string;

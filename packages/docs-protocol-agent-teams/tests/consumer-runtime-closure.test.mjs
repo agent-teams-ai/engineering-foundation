@@ -132,3 +132,12 @@ test("detects reachable SRI drift and rejects alias edges", () => {
       /bounded registry|non-registry or aliased/u.test(error.message)
   );
 });
+
+test("rejects a partial managed lock graph with a missing reachable snapshot", () => {
+  const partial = structuredClone(runtimeClosureGoldenLock());
+  delete partial.snapshots["@agent-teams/engineering-foundation@0.18.0-rc.0"];
+  assert.throws(
+    () => computePnpmRuntimeClosureDigestV1(partial, cohort()),
+    (error) => error?.code === "DOCS_CONSUMER_RUNTIME_CLOSURE_MISMATCH"
+  );
+});

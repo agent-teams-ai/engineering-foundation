@@ -1,11 +1,14 @@
-import { assertDocsCommandEnvelopeSchema } from "../adapters/docs-command-envelope-schema-validator.js";
 import {
   DOCS_PROTOCOL_ID,
   DOCS_PROTOCOL_VERSION
-} from "../domain/model.js";
-import type { DocsCommandEnvelopeV2, DocsExecutionV2 } from "../domain/model-v2.js";
+} from "@agent-teams/docs-protocol";
+
+import {
+  assertManagedQualificationEnvelopeSchema,
+  type ManagedQualificationEnvelope
+} from "../qualification/managed-command-envelope-validator.js";
 import { runDocsProtocolQualificationV2, type DocsProtocolQualificationReceiptV2 } from "../qualification/index.js";
-import { Arguments, CliInputError } from "./cli-input.js";
+import { Arguments, CliInputError } from "./managed-cli-input.js";
 
 class QualificationOutputError extends Error {
   constructor() {
@@ -15,7 +18,7 @@ class QualificationOutputError extends Error {
 }
 
 interface QualificationFailure {
-  readonly envelope: DocsCommandEnvelopeV2<Readonly<Record<string, never>>>;
+  readonly envelope: ManagedQualificationEnvelope<Readonly<Record<string, never>>>;
   readonly exitCode: 1 | 2 | 3 | 130;
   readonly message: string;
 }
@@ -64,10 +67,13 @@ function qualificationFailure(error: unknown): QualificationFailure {
 }
 
 function qualificationHelpText(): string {
-  return "Usage: agent-teams-docs qualify [--consumer PATH] [--integration PATH] [--local-development] [--json]\nRuns only the package-owned suite in an owned disposable copy; the declared consumer gate is never executed. --local-development overlays the current package canonical Skill only in that copy and emits evidence that is not cohort-admissible.\n";
+  return "Usage: agent-teams-docs-managed qualify [--consumer PATH] [--integration PATH] [--local-development] [--json]\nRuns only the adapter-owned managed suite in an owned disposable copy; the declared consumer gate is never executed. --local-development overlays the portable qualification Skill only in that copy and emits evidence that is not cohort-admissible.\n";
 }
 
-async function qualificationSuccess(args: Arguments, signal: AbortSignal): Promise<DocsExecutionV2<DocsProtocolQualificationReceiptV2>> {
+async function qualificationSuccess(args: Arguments, signal: AbortSignal): Promise<{
+  readonly envelope: ManagedQualificationEnvelope<DocsProtocolQualificationReceiptV2>;
+  readonly exitCode: 0;
+}> {
   const localDevelopment = args.flag("--local-development");
   const consumerRoot = args.one("--consumer") ?? ".";
   const integrationPath = args.one("--integration");
@@ -86,7 +92,10 @@ async function qualificationSuccess(args: Arguments, signal: AbortSignal): Promi
   };
 }
 
-function renderQualificationSuccess(execution: DocsExecutionV2<DocsProtocolQualificationReceiptV2>, json: boolean): string {
+function renderQualificationSuccess(
+  execution: { readonly envelope: ManagedQualificationEnvelope<DocsProtocolQualificationReceiptV2> },
+  json: boolean
+): string {
   if (json) {return `${JSON.stringify(execution.envelope)}\n`;}
   const receipt = execution.envelope.result;
   return `docs.qualify: success\nProject: ${receipt.projectId}\nScenarios: ${receipt.scenarios.length}\nEvidence: ${receipt.evidenceClass}\n`;
@@ -107,14 +116,14 @@ export async function runQualificationCli(values: readonly string[]): Promise<nu
     json = args.flag("--json");
     const execution = await qualificationSuccess(args, controller.signal);
     if (json) {
-      try {await assertDocsCommandEnvelopeSchema(execution.envelope);}
+      try {await assertManagedQualificationEnvelopeSchema(execution.envelope);}
       catch {throw new QualificationOutputError();}
     }
     process.stdout.write(renderQualificationSuccess(execution, json));
     return 0;
   } catch (error) {
     const failure = qualificationFailure(error);
-    if (json) {await assertDocsCommandEnvelopeSchema(failure.envelope);}
+    if (json) {await assertManagedQualificationEnvelopeSchema(failure.envelope);}
     process.stdout.write(json ? `${JSON.stringify(failure.envelope)}\n` : `docs.qualify: ${failure.envelope.outcome}\n${failure.message}\n`);
     return failure.exitCode;
   } finally {

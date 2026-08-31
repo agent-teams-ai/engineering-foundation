@@ -8,19 +8,9 @@ async function validator(version: 1 | 2 | 3): Promise<ValidateFunction> {
   const existing = validatorPromises.get(version);
   if (existing !== undefined) {return existing;}
   const loading = (async () => {
-    const schemaUrl = new URL(`../../schemas/docs-protocol-command-envelope/v${version}.schema.json`, import.meta.url);
+    const schemaUrl = new URL(`../../schemas/docs-protocol-portable-command-envelope/v${version}.schema.json`, import.meta.url);
     const schema = JSON.parse(await readFile(schemaUrl, "utf8")) as object;
     const ajv = new Ajv2020({ allErrors: true, strict: true });
-    if (version === 2 || version === 3) {
-      const [receiptSource, integrationSource] = await Promise.all([
-        readFile(new URL("../../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"),
-        readFile(new URL("../../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8")
-      ]);
-      const receiptSchema = JSON.parse(receiptSource) as object;
-      const integrationSchema = JSON.parse(integrationSource) as object;
-      ajv.addSchema(integrationSchema);
-      ajv.addSchema(receiptSchema);
-    }
     return ajv.compile(schema);
   })();
   validatorPromises.set(version, loading);
@@ -41,5 +31,5 @@ export async function assertDocsCommandEnvelopeSchema(value: unknown): Promise<v
     .map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`)
     .join("; ")
     .slice(0, 1000);
-  throw new TypeError(`Command output does not match docs-protocol-command-envelope/v${version}: ${problems}`);
+  throw new TypeError(`Command output does not match docs-protocol-portable-command-envelope/v${version}: ${problems}`);
 }

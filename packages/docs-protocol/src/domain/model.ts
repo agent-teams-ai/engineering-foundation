@@ -100,8 +100,7 @@ export interface DocsProtocolProfile {
 
 export interface DocsAdoptionInspector {
   inspect(input: {
-    /** Omitted by legacy callers; the managed policy remains the compatibility default. */
-    readonly policy?: "agent-teams-managed-v1" | "portable-v1";
+    readonly policy: "portable-v1";
     readonly authorityPaths: readonly string[];
     readonly consumerRoot: string;
     readonly profilePath: string;

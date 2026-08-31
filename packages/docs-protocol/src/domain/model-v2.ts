@@ -24,7 +24,6 @@ export type DocsCommandV2 =
   | "docs.find"
   | "docs.info"
   | "docs.new"
-  | "docs.qualify"
   | "docs.recover";
 
 export type DocsJsonValueV2 =
@@ -52,21 +51,6 @@ export interface DocsExecutionV2<Result> {
   readonly exitCode: 0 | 1 | 2 | 3 | 130;
 }
 
-export interface DocsProtocolProfileV2 {
-  readonly schemaVersion: 2;
-  readonly protocol: {
-    readonly id: typeof DOCS_PROTOCOL_ID;
-    readonly version: typeof DOCS_PROTOCOL_VERSION;
-  };
-  readonly foundationProfile: {
-    readonly metadataSidecarPolicy: "foundation-profile-v3-strict-merge";
-    readonly path: string;
-    readonly schemaVersion: 3;
-  };
-  readonly agentWorkflow: { readonly skillPath: string };
-  readonly semanticValidatorIds: readonly string[];
-}
-
 export interface DocsProtocolProfileV3 {
   readonly schemaVersion: 3;
   readonly protocol: {
@@ -85,16 +69,9 @@ export interface DocsProtocolProfileV3 {
   readonly semanticValidatorIds: readonly string[];
 }
 
-export type NormalizedDocsProtocolProfile =
-  | (import("./model.js").DocsProtocolProfile & {
-      readonly adoptionPolicy: "agent-teams-managed-v1";
-    })
-  | (DocsProtocolProfileV2 & {
-      readonly adoptionPolicy: "agent-teams-managed-v1";
-    })
-  | (DocsProtocolProfileV3 & {
-      readonly adoptionPolicy: "portable-v1";
-    });
+export type NormalizedDocsProtocolProfile = DocsProtocolProfileV3 & {
+  readonly adoptionPolicy: "portable-v1";
+};
 
 export interface DocsCompiledDocumentV1 {
   readonly schemaVersion: 1;

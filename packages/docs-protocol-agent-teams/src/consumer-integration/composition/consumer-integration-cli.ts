@@ -128,9 +128,9 @@ function human(execution: ConsumerExecution): string {
   for (const issue of execution.issues) {
     lines.push(`${issue.severity.toUpperCase()} ${issue.code} [${issue.subject}]: ${issue.message}`);
     lines.push(issue.code === "DOCS_CONSUMER_STALE_PLAN"
-      ? "Next: run consumer plan again and review the new digest."
+      ? "Next: run agent-teams-docs-managed plan again and review the new digest."
       : issue.code.includes("RECOVERY") || issue.code.startsWith("KNOWN_FILE")
-        ? "Next: run consumer recover, then repeat check and plan."
+        ? "Next: run agent-teams-docs-managed recover, then repeat check and plan."
         : "Next: fix the reported authority or conflict, then repeat check and plan.");
   }
   return `${lines.join("\n")}\n`;
@@ -156,8 +156,8 @@ function requestsJsonOutput(argv: readonly string[]): boolean {
   return argv.some((value) => value === "--json");
 }
 
-export function consumerIntegrationHelp(): string {
-  return `Usage: agent-teams-docs consumer <command> [options]
+export function managedDocsHelp(): string {
+  return `Usage: agent-teams-docs-managed <command> [options]
 
 Commands:
   check                         Verify the selected Cohort without writing
@@ -168,7 +168,6 @@ Commands:
 
 Options:
   --consumer PATH               Git repository root (default: .)
-  --integration-profile PATH    V1 fixed integration profile path
   --authority-revision SHA      Optional exact protected .github revision
   --json                        Emit one bounded versioned JSON envelope
   --help                        Show this help
@@ -176,7 +175,7 @@ Options:
 }
 
 // oxlint-disable-next-line complexity
-export async function runConsumerIntegrationCli(argv: readonly string[]): Promise<number> {
+export async function runManagedConsumerCommand(argv: readonly string[]): Promise<number> {
   let command = "";
   const jsonRequested = requestsJsonOutput(argv);
   let execution: ConsumerExecution;
@@ -187,41 +186,26 @@ export async function runConsumerIntegrationCli(argv: readonly string[]): Promis
       const helpArgs = new Arguments(argv.slice(1));
       if (argv[1] === "--help") {helpArgs.flag("--help");}
       helpArgs.assertConsumed();
-      process.stdout.write(consumerIntegrationHelp());
+      process.stdout.write(managedDocsHelp());
       return 0;
     }
     const args = new Arguments(argv.slice(1));
     args.flag("--json");
     const consumerRoot = args.one("--consumer") ?? ".";
-    const integrationProfilePath = args.one("--integration-profile");
     if (command === "check") {
       args.assertConsumed();
-      execution = await checkConsumerIntegration({
-        consumerRoot,
-        ...(integrationProfilePath === undefined ? {} : { integrationProfilePath })
-      });
+      execution = await checkConsumerIntegration({ consumerRoot });
     } else if (command === "plan") {
       const to = args.one("--to", true)!;
       if (!COHORT_ID.test(to)) {throw new ConsumerCliInputError("--to must be one exact Cohort ID.");}
       args.assertConsumed();
-      execution = await planNodeConsumerIntegration({
-        consumerRoot,
-        to,
-        ...(integrationProfilePath === undefined ? {} : { integrationProfilePath })
-      });
+      execution = await planNodeConsumerIntegration({ consumerRoot, to });
     } else if (command === "apply") {
       const expect = args.one("--expect", true)!;
       if (!SHA256.test(expect)) {throw new ConsumerCliInputError("--expect must be one sha256 Plan digest.");}
       args.assertConsumed();
-      execution = await applyConsumerIntegration({
-        consumerRoot,
-        expect,
-        ...(integrationProfilePath === undefined ? {} : { integrationProfilePath })
-      });
+      execution = await applyConsumerIntegration({ consumerRoot, expect });
     } else if (command === "upgrade") {
-      if (integrationProfilePath !== undefined) {
-        throw new ConsumerCliInputError("consumer upgrade uses the fixed integration profile path.");
-      }
       const to = args.one("--to", true)!;
       if (!COHORT_ID.test(to)) {throw new ConsumerCliInputError("--to must be one exact Cohort ID.");}
       const authorityRevision = args.one("--authority-revision");
@@ -235,9 +219,6 @@ export async function runConsumerIntegrationCli(argv: readonly string[]): Promis
         ...(authorityRevision === undefined ? {} : { authorityRevision })
       });
     } else if (command === "recover") {
-      if (integrationProfilePath !== undefined) {
-        throw new ConsumerCliInputError("consumer recover does not read an integration profile.");
-      }
       args.assertConsumed();
       execution = await recoverConsumerIntegration({ consumerRoot });
     } else {

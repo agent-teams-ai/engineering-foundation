@@ -1,0 +1,8 @@
+{
+  "name": "portable-docs-protocol-qualification-fixture",
+  "private": true,
+  "devDependencies": {
+    "@agent-teams/docs-protocol": "0.0.0",
+    "@agent-teams/engineering-foundation": "0.0.0"
+  }
+}

@@ -1,0 +1,23 @@
+schemaVersion: 3
+projectId: docs-protocol-qualification
+catalog:
+  metadataSchemaPath: .docs-protocol/metadata.schema.json
+  ownerCatalog: {path: .docs-protocol/owners.yaml, contract: foundation.owner-map/v1}
+  collections:
+    - {kind: markdown-tree, root: docs/decisions}
+  excludedPrefixes: [.docs-protocol/templates]
+authoring:
+  mode: create-only
+  ownerSets:
+    schemaVersion: 1
+    sets:
+      architecture-docs: [architecture/tooling]
+  artifactTypes:
+    - type: adr
+      initialStatus: proposed
+      identity: {kind: explicit, format: adr-four-digits}
+      placement: {kind: collection, directory: docs/decisions/generated, filename: numeric-id-slug}
+      template: {kind: fenced-markdown-body, path: .docs-protocol/templates/adr.md}
+      heading: {kind: id-colon-title}
+      reachability: {kind: manual-fixed-index, indexPath: docs/decisions/README.md}
+      ownerSetId: architecture-docs

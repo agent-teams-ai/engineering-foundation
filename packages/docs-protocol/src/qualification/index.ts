@@ -12,15 +12,32 @@ import {
   requireSuccess
 } from "./qualification-runtime.js";
 
+export {
+  applyReachability,
+  changedPaths,
+  fileSnapshot,
+  isQualificationEvidenceExcludedPath,
+  qualificationEvidencePolicy,
+  snapshot
+} from "./filesystem-evidence.js";
+export type {
+  QualificationEvidenceEntryKind,
+  QualificationEvidencePolicy
+} from "./filesystem-evidence.js";
+export {
+  bootstrapQualificationInstallation,
+  digest,
+  documentResult,
+  interruptAndRecover,
+  portableQualificationSkill,
+  readContainedBoundedFile,
+  requireSuccess,
+  signalOption
+} from "./qualification-runtime.js";
+export type { PortableQualificationProtocol } from "./qualification-runtime.js";
+
 export type { DocumentJsonValue } from "@agent-teams/engineering-foundation/document-authoring";
 export type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
-export { runDocsProtocolQualificationV2 } from "./qualification-v2-runner.js";
-export type {
-  DocsProtocolQualificationContractV2,
-  DocsProtocolQualificationReceiptV2,
-  DocsProtocolQualificationScenarioV2,
-  DocsProtocolQualificationV2Request
-} from "./v2-contract.js";
 
 export interface DocsProtocolQualificationScenario {
   readonly find: {
@@ -68,7 +85,7 @@ export async function runDocsProtocolQualification(request: DocsProtocolQualific
   const before = await snapshot(sourceRoot);
   const temporary = await realpath(await mkdtemp(join(tmpdir(), "atd-q-")));
   const consumerRoot = join(temporary, "consumer");
-  const profilePath = request.profilePath ?? "architecture/foundation/docs-protocol.yaml";
+  const profilePath = request.profilePath ?? "docs.config.yaml";
   try {
     request.signal?.throwIfAborted();
     await cp(sourceRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });

@@ -15,7 +15,6 @@ import { validatePortableRepositoryPath } from "../dist/index.js";
 import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
 import {
   discoverDocsProfilePath,
-  LEGACY_AGENT_TEAMS_PROFILE_PATH,
   PORTABLE_DOCS_PROFILE_PATH
 } from "../dist/adapters/node-profile-discovery.js";
 
@@ -23,17 +22,17 @@ const fixture = new URL("./fixtures/valid-profile.yaml", import.meta.url);
 const execute = promisify(execFile);
 
 const profileObject = {
-  schemaVersion: 1,
+  schemaVersion: 3,
   protocol: { id: "agent-teams.docs-protocol", version: 1 },
-  foundationProfile: { path: "architecture/foundation/document-authoring.yaml", schemaVersion: 2, metadataSidecarPolicy: "foundation-profile-v2-strict-merge" },
-  agentWorkflow: { skillPath: ".agents/skills/docs-authoring/SKILL.md" },
+  foundationProfile: { path: ".docs-protocol/document-authoring.yaml", schemaVersion: 3, metadataSidecarPolicy: "foundation-profile-v3-strict-merge" },
+  agentWorkflow: { adoption: "portable-v1", skillPath: ".agents/skills/docs-authoring/SKILL.md" },
   semanticValidatorIds: ["documentation.domain-semantics"]
 };
 
 test("profile is data-only, versioned, and binary-normalized", async () => {
   const profile = parseDocsProtocolProfile(profileObject);
-  assert.equal(profile.foundationProfile.schemaVersion, 2);
-  assert.equal(profile.foundationProfile.metadataSidecarPolicy, "foundation-profile-v2-strict-merge");
+  assert.equal(profile.foundationProfile.schemaVersion, 3);
+  assert.equal(profile.foundationProfile.metadataSidecarPolicy, "foundation-profile-v3-strict-merge");
   assert.deepEqual(profile.semanticValidatorIds, ["documentation.domain-semantics"]);
 });
 
@@ -53,19 +52,7 @@ test("public portable repository path validator enforces canonical cross-platfor
 });
 
 test("portable profile v3 selects only the closed portable adoption policy", () => {
-  const portableProfile = {
-    ...profileObject,
-    schemaVersion: 3,
-    foundationProfile: {
-      path: ".docs-protocol/document-authoring.yaml",
-      schemaVersion: 3,
-      metadataSidecarPolicy: "foundation-profile-v3-strict-merge"
-    },
-    agentWorkflow: {
-      adoption: "portable-v1",
-      skillPath: ".agents/skills/docs-authoring/SKILL.md"
-    }
-  };
+  const portableProfile = profileObject;
   const profile = parseDocsProtocolProfile(portableProfile);
   assert.equal(profile.adoptionPolicy, "portable-v1");
   assert.equal(profile.agentWorkflow.adoption, "portable-v1");
@@ -78,15 +65,13 @@ test("portable profile v3 selects only the closed portable adoption policy", () 
   );
 });
 
-test("profile discovery is backward compatible and rejects ambiguous authority", async () => {
+test("profile discovery selects only portable authority or an explicit override", async () => {
   const root = await mkdtemp(join(tmpdir(), "docs-protocol-discovery-"));
   try {
     assert.equal(await discoverDocsProfilePath({ consumerRoot: root }), PORTABLE_DOCS_PROFILE_PATH);
     await mkdir(join(root, "architecture", "foundation"), { recursive: true });
-    await writeFile(join(root, LEGACY_AGENT_TEAMS_PROFILE_PATH), "legacy\n");
-    assert.equal(await discoverDocsProfilePath({ consumerRoot: root }), LEGACY_AGENT_TEAMS_PROFILE_PATH);
-    await writeFile(join(root, PORTABLE_DOCS_PROFILE_PATH), "portable\n");
-    await assert.rejects(discoverDocsProfilePath({ consumerRoot: root }), /select one explicitly/u);
+    await writeFile(join(root, "architecture/foundation/docs-protocol.yaml"), "legacy\n");
+    assert.equal(await discoverDocsProfilePath({ consumerRoot: root }), PORTABLE_DOCS_PROFILE_PATH);
     assert.equal(
       await discoverDocsProfilePath({ consumerRoot: root, explicitProfilePath: "custom/docs.yaml" }),
       "custom/docs.yaml"
@@ -127,31 +112,12 @@ test("node reader uses only a real contained disposable profile", async () => {
     await mkdir(join(root, "docs"));
     await writeFile(join(root, "docs", "docs-protocol.yaml"), await readFile(fixture));
     const profile = await new NodeDocsProfileReader().read({ consumerRoot: root, profilePath: "docs/docs-protocol.yaml" });
-    assert.equal(profile.foundationProfile.schemaVersion, 2);
-    await writeFile(join(root, "docs", "portable.yaml"), [
-      "schemaVersion: 3",
-      "protocol:",
-      "  id: agent-teams.docs-protocol",
-      "  version: 1",
-      "foundationProfile:",
-      "  path: .docs-protocol/document-authoring.yaml",
-      "  schemaVersion: 3",
-      "  metadataSidecarPolicy: foundation-profile-v3-strict-merge",
-      "agentWorkflow:",
-      "  adoption: portable-v1",
-      "  skillPath: .agents/skills/docs-authoring/SKILL.md",
-      "semanticValidatorIds: []",
-      ""
-    ].join("\n"));
-    const portable = await new NodeDocsProfileReader().read({
-      consumerRoot: root,
-      profilePath: "docs/portable.yaml"
-    });
-    assert.equal(portable.adoptionPolicy, "portable-v1");
+    assert.equal(profile.foundationProfile.schemaVersion, 3);
+    assert.equal(profile.adoptionPolicy, "portable-v1");
     await writeFile(join(root, "docs", "unknown-key.yaml"), `${await readFile(fixture, "utf8")}hooks: [unsafe]\n`);
     await assert.rejects(
       new NodeDocsProfileReader().read({ consumerRoot: root, profilePath: "docs/unknown-key.yaml" }),
-      /does not match docs-protocol-profile\/v1/u
+      /does not match docs-protocol-profile\/v3/u
     );
     await assert.rejects(
       new NodeDocsProfileReader().read({ consumerRoot: root, profilePath: "../outside.json" }),

@@ -409,7 +409,9 @@ function evaluateGeneratedOutputCandidate(
     sourceBoundary.dependencyMode === "development" &&
     resolution.workspacePackageName === edge.fromWorkspacePackageName &&
     resolution.workspacePackageManifestPath === edge.fromWorkspacePackageManifestPath
-  ) return [];
+  ) {
+    return [];
+  }
   return [unclassifiedResolutionDiagnostic(edge, {
     kind: "unresolved",
     reason: "generated output reference is not admitted by this boundary"

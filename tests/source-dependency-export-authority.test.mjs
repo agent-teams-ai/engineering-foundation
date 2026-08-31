@@ -17,11 +17,33 @@ const mixedPackageRule =
 const exportRule = "architecture.source-dependencies.package-subpath-not-exported";
 const unresolvedRule = "architecture.source-dependencies.unresolved-local-import";
 
-function boundaryYaml({ claims = [], dependencyMode = "runtime", id, root }) {
+function boundaryYaml({
+  allowedPackages = [],
+  claims = [],
+  dependencyMode = "runtime",
+  entrypoint,
+  id,
+  root,
+}) {
   const packageExports = claims.length === 0
     ? ""
     : `    packageExports:\n${claims.map((claim) => `      - ${JSON.stringify(claim)}`).join("\n")}\n`;
-  return `  - id: ${id}\n    dependencyMode: ${dependencyMode}\n${packageExports}    roots:\n      - ${root}\n    entrypoints:\n      - ${root}\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`;
+  const packages = allowedPackages.length === 0
+    ? "[]"
+    : `\n${allowedPackages.map((packageName) => `        - ${JSON.stringify(packageName)}`).join("\n")}`;
+  return `  - id: ${id}\n    dependencyMode: ${dependencyMode}\n${packageExports}    roots:\n      - ${root}\n    entrypoints:\n      - ${entrypoint}\n    allow:\n      boundaries: []\n      packages: ${packages}\n      builtins: []\n      runtimeReferences: []\n`;
+}
+
+function reportDetails(report) {
+  return JSON.stringify({
+    diagnostics: report.diagnostics,
+    outcome: report.outcome,
+    problem: report.problem,
+  }, null, 2);
+}
+
+function problemPhaseCode(problem) {
+  return { code: problem?.code, phase: problem?.phase };
 }
 
 async function configureMixedPackage(consumerRoot, options = {}) {
@@ -50,17 +72,26 @@ async function configureMixedPackage(consumerRoot, options = {}) {
     ),
   ]);
   const boundaries = [
-    boundaryYaml({ id: "app.surface", root: "packages/app/src/index.ts" }),
+    boundaryYaml({
+      allowedPackages: ["@fixture/core"],
+      entrypoint: "packages/app/src/index.ts",
+      id: "app.surface",
+      root: "packages/app/src",
+    }),
     ...(options.developmentOnly
       ? []
       : [boundaryYaml({
           claims: options.runtimeClaims,
+          entrypoint: "packages/core/src/index.ts",
           id: "core.runtime",
           root: "packages/core/src/index.ts",
         })]),
     boundaryYaml({
       claims: options.developmentClaims,
       dependencyMode: "development",
+      entrypoint: options.developmentOnly
+        ? "packages/core/src/index.ts"
+        : "packages/core/src/development/index.ts",
       id: "core.development",
       root: options.developmentOnly
         ? "packages/core/src"
@@ -82,7 +113,8 @@ async function mixedReport(options) {
 }
 
 test("full capability requires exact runtime export ownership for mixed packages", async () => {
-  assert.equal((await mixedReport({ runtimeClaims: ["."] })).outcome, "passed");
+  const runtimeClaim = await mixedReport({ runtimeClaims: ["."] });
+  assert.equal(runtimeClaim.outcome, "passed", reportDetails(runtimeClaim));
   assert.deepEqual(ruleIds((await mixedReport({})).diagnostics), [mixedPackageRule]);
   assert.deepEqual(
     ruleIds((await mixedReport({ developmentClaims: ["."] })).diagnostics),
@@ -106,7 +138,7 @@ test("full capability requires exact runtime export ownership for mixed packages
     })).diagnostics),
     [mixedPackageRule],
   );
-  assert.equal((await mixedReport({
+  const conditionalClaim = await mixedReport({
     appSpecifier: "@fixture/core/qualification.js",
     exports: {
       ".": "./dist/index.js",
@@ -116,7 +148,8 @@ test("full capability requires exact runtime export ownership for mixed packages
       },
     },
     runtimeClaims: ["./qualification.js"],
-  })).outcome, "passed");
+  });
+  assert.equal(conditionalClaim.outcome, "passed", reportDetails(conditionalClaim));
 });
 
 test("full capability rejects duplicate, stale, wildcard, hidden, and nonportable claims", async () => {
@@ -127,13 +160,20 @@ test("full capability rejects duplicate, stale, wildcard, hidden, and nonportabl
     assert.equal((await mixedReport(options)).problem?.code, "SOURCE_EXPORT_BOUNDARY_INVALID");
   }
   const wildcard = await mixedReport({ runtimeClaims: ["./feature/*"] });
-  assert.equal(wildcard.problem?.code, "SOURCE_ARCHITECTURE_CONFIG_INVALID");
+  assert.deepEqual(problemPhaseCode(wildcard.problem), {
+    code: "SCHEMA_INVALID",
+    phase: "source-architecture-config",
+  });
   const hidden = await mixedReport({ appSpecifier: "@fixture/core/hidden.js", runtimeClaims: ["."] });
   assert.deepEqual(ruleIds(hidden.diagnostics), [exportRule, mixedPackageRule]);
 
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
     const config = await readFile(sourceConfigPath(consumerRoot), "utf8");
-    for (const claim of ["./con.js", "./name.js:payload", "./cafe\u0301.js"]) {
+    for (const [claim, expectedCode] of [
+      ["./con.js", "SOURCE_ARCHITECTURE_CONFIG_INVALID"],
+      ["./name.js:payload", "SCHEMA_INVALID"],
+      ["./cafe\u0301.js", "SCHEMA_INVALID"],
+    ]) {
       const candidate = config.replace(
         "  - id: core.surface\n",
         `  - id: core.surface\n    packageExports:\n      - ${JSON.stringify(claim)}\n`,
@@ -141,7 +181,13 @@ test("full capability rejects duplicate, stale, wildcard, hidden, and nonportabl
       await writeFile(sourceConfigPath(consumerRoot), candidate, "utf8");
       await assert.rejects(
         () => loadCapabilityConfig(consumerRoot, "architecture/foundation/source-dependencies.yaml"),
-        (error) => error?.problem?.code === "SOURCE_ARCHITECTURE_CONFIG_INVALID",
+        (error) => {
+          assert.deepEqual(problemPhaseCode(error?.problem), {
+            code: expectedCode,
+            phase: "source-architecture-config",
+          });
+          return true;
+        },
       );
     }
   });
@@ -161,7 +207,8 @@ test("v2 dotted claims load while direct source targets honor portable identity"
       consumerRoot,
       "architecture/foundation/source-dependencies.yaml",
     )).boundaries.find(({ id }) => id === "core.runtime").packageExports[0], "./package.json");
-    assert.equal((await runSourceCapability(consumerRoot)).outcome, "passed");
+    const report = await runSourceCapability(consumerRoot);
+    assert.equal(report.outcome, "passed", reportDetails(report));
   });
 
   for (const target of [
@@ -231,7 +278,15 @@ async function configureGeneratedOutput(consumerRoot, schemaVersion, dependencyM
 }
 
 test("full capability admits only canonical missing development output without cycle edges", async () => {
-  for (const specifier of ["../dist/index.js:payload.js", "../dist/con.js"]) {
+  for (const specifier of [
+    "../dist/index.js:payload.js",
+    "../dist/con.js",
+    "../dist/bad*.js",
+    "../dist/bad<.js",
+    "../dist/bad>.js",
+    "../dist/bad|.js",
+    "../dist/bad\".js",
+  ]) {
     await withCopiedFixture("v2-valid", async (consumerRoot) => {
       await configureGeneratedOutput(consumerRoot, 2, "development", specifier);
       assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [unresolvedRule]);
@@ -283,6 +338,7 @@ test("full capability rejects root and nested dist symlinks but keeps ordinary l
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
     await configureGeneratedOutput(consumerRoot, 2, "development", "./local.js");
     await writeFile(join(consumerRoot, "packages", "app", "src", "local.ts"), "export default 1;\n", "utf8");
-    assert.equal((await runSourceCapability(consumerRoot)).outcome, "passed");
+    const report = await runSourceCapability(consumerRoot);
+    assert.equal(report.outcome, "passed", reportDetails(report));
   });
 });

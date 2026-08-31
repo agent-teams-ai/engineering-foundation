@@ -83,6 +83,7 @@ export function portableRepositoryPathProblem(path: string): string | undefined 
         segment.length === 0 ||
         segment === "." ||
         segment === ".." ||
+        /[<>"|?*]/u.test(segment) ||
         segment.endsWith(".") ||
         segment.endsWith(" ") ||
         WINDOWS_RESERVED_SEGMENT.test(segment)

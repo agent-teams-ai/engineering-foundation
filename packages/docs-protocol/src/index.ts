@@ -40,6 +40,7 @@ export type {
   DocsDiagnostic,
   DocsFindDocument,
   DocsFindQuery,
+  DocsNewResult,
   DocsNewRequest,
   DocsTypeProfile,
   ReachabilityAction

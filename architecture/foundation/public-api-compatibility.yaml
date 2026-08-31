@@ -77,3 +77,19 @@ packages:
     tsconfigPath: packages/docs-protocol-mcp/tsconfig.json
     releasedBaselinePath: architecture/public-api/docs-protocol-mcp.json
     approvedBreakingChanges: []
+  - packageName: "@agent-teams/docs-protocol-agent-teams"
+    packageRoot: packages/docs-protocol-agent-teams
+    manifestPath: packages/docs-protocol-agent-teams/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/docs-protocol-agent-teams/dist/index.d.ts
+      - exportPath: "./qualification"
+        declarationEntryPoint: packages/docs-protocol-agent-teams/dist/qualification/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/docs-protocol-agent-teams/tsconfig.json
+    releasedBaselinePath: architecture/public-api/docs-protocol-agent-teams.json
+    approvedBreakingChanges: []

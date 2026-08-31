@@ -11,6 +11,7 @@ test("portable declarations retain generic result contracts without managed root
   ]);
   assert.match(api, /docsNewV2\(input: DocsNewRequest\): Promise<DocsExecutionV2<DocsNewResultV2>>/u);
   assert.match(application, /newDocumentV2\(request: DocsNewRequest\): Promise<DocsExecutionV2<DocsNewResultV2>>/u);
+  assert.match(root, /DocsNewResult, DocsNewRequest/u);
   assert.match(root, /DocsNewResultV2/u);
   assert.match(qualification, /runDocsProtocolQualification/u);
   for (const source of [root, qualification]) {

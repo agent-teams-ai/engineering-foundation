@@ -82,17 +82,17 @@ async function readJournal(root) {
     "adapterContractVersion",
     "envelopeDigest",
     "format",
-    "journal",
     "kernelArtifact",
     "operationKind",
     "ownerArtifact",
+    "payload",
     "payloadDigest",
     "payloadKind",
     "recoveryHandler",
     "schemaVersion",
     "state"
   ]);
-  assert.deepEqual(Object.keys(envelope.journal).toSorted(), [
+  assert.deepEqual(Object.keys(envelope.payload).toSorted(), [
     "authorizedDirectories",
     "createdDirectories",
     "operations",
@@ -103,7 +103,7 @@ async function readJournal(root) {
     compileKnownFileTransactionEnvelope({
       ownerArtifact: envelope.ownerArtifact,
       kernelArtifact: envelope.kernelArtifact,
-      journal: envelope.journal,
+      journal: envelope.payload,
       state: envelope.state
     }),
     envelope,
@@ -413,8 +413,8 @@ for (const characterization of replacementApplyCases) {
     assert.deepEqual(classifyStoredEnvelope(envelope), characterization.envelopeState === "COMMITTED"
       ? { action: "resume-committed-cleanup" }
       : { action: "rollback-applying" });
-    assert.equal(envelope.journal.plan.planDigest, plan.planDigest);
-    assertOperationShape(envelope.journal.operations[0], characterization.operation);
+    assert.equal(envelope.payload.plan.planDigest, plan.planDigest);
+    assertOperationShape(envelope.payload.operations[0], characterization.operation);
     await assertDestinationState(root, characterization.destination);
     if (characterization.captureEntries !== undefined) {
       await assertCaptureEntries(root, characterization.captureEntries);
@@ -465,15 +465,15 @@ for (const characterization of [
     crash.assertConsumed();
 
     const envelope = await readJournal(root);
-    assert.deepEqual(envelope.journal.authorizedDirectories, characterization.authorizedDirectories);
+    assert.deepEqual(envelope.payload.authorizedDirectories, characterization.authorizedDirectories);
     assert.deepEqual(
-      envelope.journal.createdDirectories.map(({ path }) => path),
+      envelope.payload.createdDirectories.map(({ path }) => path),
       characterization.createdDirectories
     );
-    for (const directory of envelope.journal.createdDirectories) {
+    for (const directory of envelope.payload.createdDirectories) {
       assertIdentityShape(directory.identity, "created directory identity");
     }
-    assertOperationShape(envelope.journal.operations[0], {
+    assertOperationShape(envelope.payload.operations[0], {
       keys: ["path", "state"],
       state: "pending"
     });
@@ -590,7 +590,7 @@ for (const characterization of replacementRecoveryCases) {
     const envelope = await readJournal(root);
     assert.equal(envelope.state, "APPLYING");
     assert.deepEqual(classifyStoredEnvelope(envelope), { action: "rollback-applying" });
-    assertOperationShape(envelope.journal.operations[0], characterization.operation);
+    assertOperationShape(envelope.payload.operations[0], characterization.operation);
     await assertDestinationState(root, characterization.destination);
 
     const recovered = await recoverKnownFileTransaction({ consumerRoot: root });

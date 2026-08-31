@@ -128,7 +128,7 @@ async function createRetirementAuthority(
   await persistRecoveryJournal(
     options.store,
     options.stored,
-    replaceRecoveryOperation(options.stored.envelope.journal, options.operationIndex, updated)
+    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated)
   );
   await options.faultInjector?.({
     phase: "after-retirement-directory-bound",
@@ -162,7 +162,7 @@ async function reconcileRetirementDirectory(
       options.store,
       options.stored,
       replaceRecoveryOperation(
-        options.stored.envelope.journal,
+        options.stored.envelope.payload,
         options.operationIndex,
         clearOperationRetirement(journalOperation)
       )
@@ -211,7 +211,7 @@ async function captureRetirementPath(
   await persistRecoveryJournal(
     options.store,
     options.stored,
-    replaceRecoveryOperation(options.stored.envelope.journal, options.operationIndex, updated)
+    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated)
   );
   await options.faultInjector?.({
     phase: "after-retirement-captured",
@@ -242,7 +242,7 @@ async function authorizeRetirementUnlink(
   await persistRecoveryJournal(
     options.store,
     options.stored,
-    replaceRecoveryOperation(options.stored.envelope.journal, options.operationIndex, updated)
+    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated)
   );
   await options.faultInjector?.({
     phase: "after-retirement-unlink-authorized",
@@ -281,7 +281,7 @@ async function removeRetirementEvidence(
     options.store,
     options.stored,
     replaceRecoveryOperation(
-      options.stored.envelope.journal,
+      options.stored.envelope.payload,
       options.operationIndex,
       clearOperationRetirement(journalOperation)
     )
@@ -289,16 +289,16 @@ async function removeRetirementEvidence(
 }
 
 export async function retireJournalBoundPath(options: RetirementExecutionOptions): Promise<void> {
-  const operation = options.stored.envelope.journal.plan.operations[options.operationIndex]!;
+  const operation = options.stored.envelope.payload.plan.operations[options.operationIndex]!;
   const parent = dirname(join(options.root, ...operation.path.split("/")));
   const paths = retirementPath({
     kind: options.kind,
     operation,
     operationIndex: options.operationIndex,
     parent,
-    planDigest: options.stored.envelope.journal.plan.planDigest
+    planDigest: options.stored.envelope.payload.plan.planDigest
   });
-  const initial = options.stored.envelope.journal.operations[options.operationIndex]!;
+  const initial = options.stored.envelope.payload.operations[options.operationIndex]!;
   if (!("temporaryIdentity" in initial)) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_JOURNAL_INVALID",

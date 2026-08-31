@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { opendir } from "node:fs/promises";
 
 import {
   FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX,
@@ -6,6 +6,7 @@ import {
   FOUNDATION_TRANSACTION_TEMPORARY_FILE
 } from "../../../foundation-state-contract.js";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
+import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation";
 
 export { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../../foundation-state-contract.js";
 
@@ -51,12 +52,47 @@ function isTransitionResidue(entry: string): boolean {
     entry.startsWith(FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX);
 }
 
+function isAmbiguousCommonEvidence(entry: string): boolean {
+  const portable = portableRepositoryPathIdentity(entry);
+  const transaction = portableRepositoryPathIdentity(FOUNDATION_TRANSACTION_FILE);
+  const exactNames = [
+    FOUNDATION_TRANSACTION_FILE,
+    FOUNDATION_TRANSACTION_TEMPORARY_FILE,
+    `${FOUNDATION_TRANSACTION_FILE}.known-file.tmp`,
+    `${FOUNDATION_TRANSACTION_FILE}.completed-document-evidence`,
+    `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
+  ];
+  if (exactNames.some((name) =>
+    portable === portableRepositoryPathIdentity(name) && entry !== name)) {
+    return true;
+  }
+  return portable.startsWith(`${transaction}.`) &&
+    !exactNames.includes(entry) && !isTransitionResidue(entry);
+}
+
+async function boundedStateEntries(stateDirectory: string): Promise<readonly string[]> {
+  const directory = await opendir(stateDirectory);
+  const entries: string[] = [];
+  try {
+    for (;;) {
+      const entry = await directory.read();
+      if (entry === null) {return entries;}
+      entries.push(entry.name);
+      if (entries.length > maximumStateDirectoryEntries) {
+        throw new Error("Foundation state directory enumeration budget exceeded.");
+      }
+    }
+  } finally {
+    await directory.close();
+  }
+}
+
 export async function inspectFoundationTransitionEvidence(
   stateDirectory: string
 ): Promise<InternalFoundationTransactionStatus | undefined> {
-  let entries: string[];
+  let entries: readonly string[];
   try {
-    entries = await readdir(stateDirectory);
+    entries = await boundedStateEntries(stateDirectory);
   } catch (error) {
     return isMissing(error)
       ? undefined
@@ -65,16 +101,13 @@ export async function inspectFoundationTransitionEvidence(
           "Foundation transaction transition evidence cannot be inspected safely."
         );
   }
-  if (entries.length > maximumStateDirectoryEntries) {
+  const ambiguousEntries = entries.filter(
+    (entry) => isTransitionResidue(entry) || isAmbiguousCommonEvidence(entry)
+  );
+  if (ambiguousEntries.length !== 0) {
     return manual(
       "journal-transition-residue",
-      "Foundation state contains too many entries to inspect transaction transitions safely."
-    );
-  }
-  if (entries.some(isTransitionResidue)) {
-    return manual(
-      "journal-transition-residue",
-      "An incomplete Foundation transaction transition was preserved and requires recovery before another Foundation mutation can start."
+      `An incomplete Foundation transaction transition was preserved and requires recovery before another Foundation mutation can start (${ambiguousEntries.join(", ")}).`
     );
   }
   return entries.includes(FOUNDATION_TRANSACTION_TEMPORARY_FILE)

@@ -13,6 +13,10 @@ test("publishes only the new Repository Mutation qualification seam", async () =
     types: "./dist/qualification/index.d.ts",
     import: "./dist/qualification/index.js"
   });
+  assert.deepEqual(leaf.exports["./node"], {
+    types: "./dist/node.d.ts",
+    import: "./dist/node.js"
+  });
   assert.equal(Object.hasOwn(foundation.exports, "./mutation"), false);
   assert.equal(Object.hasOwn(foundation.exports, "./mutation/qualification"), false);
   assert.match(qualification, /KnownFileRecoveryFaultInjector/u);
@@ -23,6 +27,35 @@ test("publishes only the new Repository Mutation qualification seam", async () =
   assert.match(qualification, /publishPreparedAbsentFileWithFaults/u);
   assert.match(qualification, /publishAbsentFileWithFaults/u);
   assert.doesNotMatch(publicIndex, /FaultInjector|FaultPoint/u);
+  for (const lowLevel of [
+    "acquireMutationLease",
+    "createAndBindNodeDirectory",
+    "prepareExactSiblingTemporary",
+    "publishPreparedAbsentFile",
+    "syncMutationStateDirectory"
+  ]) {
+    assert.doesNotMatch(publicIndex, new RegExp(`\\b${lowLevel}\\b`, "u"));
+  }
+});
+
+test("production known-file APIs reject runtime excess and accessor properties", async () => {
+  const { applyKnownFileTransaction, recoverKnownFileTransaction } = await import(
+    "../packages/repository-mutation/dist/index.js"
+  );
+  let invoked = false;
+  const applyOptions = {
+    consumerRoot: "/unused",
+    plan: null,
+    faultInjector() { invoked = true; }
+  };
+  await assert.rejects(applyKnownFileTransaction(applyOptions), /unknown, missing, or executable/u);
+  const recoveryOptions = { consumerRoot: "/unused" };
+  Object.defineProperty(recoveryOptions, "claim", {
+    enumerable: true,
+    get() { invoked = true; return null; }
+  });
+  await assert.rejects(recoverKnownFileTransaction(recoveryOptions), /unknown, missing, or executable/u);
+  assert.equal(invoked, false);
 });
 
 test("keeps production mutation signatures free of executable fault callbacks", async () => {

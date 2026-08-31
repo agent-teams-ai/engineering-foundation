@@ -23,7 +23,7 @@ test("keeps Repository Mutation a zero-monorepo-dependency packed closure", asyn
   assert.equal(manifest.version, "0.0.0");
   assert.equal(manifest.dependencies, undefined);
   assert.deepEqual(Object.keys(manifest.exports).toSorted(), [
-    ".", "./package.json", "./qualification", "./schemas/*"
+    ".", "./node", "./package.json", "./qualification", "./schemas/*"
   ]);
 
   const files = (await filesBelow(packageRoot)).filter((path) =>

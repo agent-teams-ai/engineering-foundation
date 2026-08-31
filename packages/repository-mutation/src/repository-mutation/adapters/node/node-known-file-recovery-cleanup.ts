@@ -28,8 +28,8 @@ async function cleanupOperationTemporaries(options: {
   readonly store: NodeKnownFileTransactionJournalStore;
   readonly stored: StoredRecoveryJournal;
 }): Promise<void> {
-  const operation = options.stored.envelope.journal.plan.operations[options.operationIndex]!;
-  const journalOperation = options.stored.envelope.journal.operations[options.operationIndex]!;
+  const operation = options.stored.envelope.payload.plan.operations[options.operationIndex]!;
+  const journalOperation = options.stored.envelope.payload.operations[options.operationIndex]!;
   const parent = dirname(join(options.root, ...operation.path.split("/")));
   const candidates: readonly {
     readonly identity: ReturnType<typeof deserializeKnownFileIdentity> | undefined;
@@ -47,7 +47,7 @@ async function cleanupOperationTemporaries(options: {
       authorizedWithoutIdentity: journalOperation.state === "temporary-authorized",
       path: join(parent, knownFileTemporaryName(
         operation.path,
-        options.stored.envelope.journal.plan.planDigest,
+        options.stored.envelope.payload.plan.planDigest,
         options.operationIndex
       ))
     },
@@ -195,8 +195,8 @@ export async function rollbackKnownFileRecovery(options: {
   readonly store: NodeKnownFileTransactionJournalStore;
   readonly stored: StoredRecoveryJournal;
 }): Promise<void> {
-  for (let index = options.stored.envelope.journal.operations.length - 1; index >= 0; index -= 1) {
-    let journalOperation = options.stored.envelope.journal.operations[index]!;
+  for (let index = options.stored.envelope.payload.operations.length - 1; index >= 0; index -= 1) {
+    let journalOperation = options.stored.envelope.payload.operations[index]!;
     if (journalOperation.retirement !== undefined) {
       await retireJournalBoundPath({
         expectedIdentity: deserializeKnownFileIdentity(journalOperation.retirement.pathIdentity),
@@ -207,11 +207,11 @@ export async function rollbackKnownFileRecovery(options: {
         store: options.store,
         stored: options.stored
       });
-      journalOperation = options.stored.envelope.journal.operations[index]!;
+      journalOperation = options.stored.envelope.payload.operations[index]!;
     }
     if (journalOperation.state === "capture-authorized") {
       await cleanupAuthorizedCapture({
-        journal: options.stored.envelope.journal,
+        journal: options.stored.envelope.payload,
         operationIndex: index,
         root: options.root
       });
@@ -223,7 +223,7 @@ export async function rollbackKnownFileRecovery(options: {
     ].includes(journalOperation.state)) {continue;}
     await restorePreimage({
       ...(options.faultInjector === undefined ? {} : { faultInjector: options.faultInjector }),
-      operation: options.stored.envelope.journal.plan.operations[index]!,
+      operation: options.stored.envelope.payload.plan.operations[index]!,
       operationIndex: index,
       root: options.root,
       store: options.store,
@@ -236,8 +236,8 @@ export async function rollbackKnownFileRecovery(options: {
       stored: options.stored
     });
   }
-  for (let index = options.stored.envelope.journal.operations.length - 1; index >= 0; index -= 1) {
-    const journal = options.stored.envelope.journal;
+  for (let index = options.stored.envelope.payload.operations.length - 1; index >= 0; index -= 1) {
+    const journal = options.stored.envelope.payload;
     if (![
       "capture-ready", "preimage-captured", "destination-retired",
       "publishing", "published", "rollback-restored"
@@ -250,7 +250,7 @@ export async function rollbackKnownFileRecovery(options: {
       });
     }
   }
-  const journal = options.stored.envelope.journal;
+  const journal = options.stored.envelope.payload;
   await removeCreatedDirectories(options.root, journal.createdDirectories);
   await removeAuthorizedDirectories(options.root, journal.authorizedDirectories);
 }

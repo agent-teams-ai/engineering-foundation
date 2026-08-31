@@ -1,4 +1,4 @@
-import { readBoundedRegularFile } from "@agent-teams/repository-mutation";
+import { readBoundedRegularFile } from "@agent-teams/repository-mutation/node";
 
 function isMissing(error: unknown): boolean {
   return error instanceof Error && "code" in error &&

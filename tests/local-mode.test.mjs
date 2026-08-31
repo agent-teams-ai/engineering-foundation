@@ -23,9 +23,9 @@ import {
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
 } from "../packages/engineering-foundation/dist/package-self-check.js";
 import {
-  applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
 } from "../packages/repository-mutation/dist/index.js";
+import { applyKnownFileTransaction } from "../packages/repository-mutation/dist/qualification/index.js";
 import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
 
 function NodeProcessRunner() {
@@ -478,9 +478,10 @@ strictDirectoryDurabilityTest("Foundation status preserves leaf known-file evide
 
     const status = await inspectFoundationMode(fixture.consumerRoot);
     assert.equal(status.mode, "INVALID");
-    assert.equal(status.transaction?.state, "manual-recovery-required");
-    assert.equal(status.transaction?.reason, "unsupported-schema");
-    assert.equal(status.transaction?.recovery, undefined);
+    assert.equal(status.transaction?.state, "pending");
+    assert.equal(status.transaction?.operationKind, "known-file-transaction");
+    assert.equal(status.transaction?.format, "known-file-transaction-envelope-v1");
+    assert.equal(status.transaction?.recovery.commandId, "replace-known-file-recover");
     await readFile(join(fixture.consumerRoot, ".agent-teams-local", "scaffolding-transaction.json"));
   } finally {
     await rm(fixture.root, { force: true, recursive: true });

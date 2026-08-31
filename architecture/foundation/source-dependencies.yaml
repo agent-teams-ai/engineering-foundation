@@ -761,6 +761,7 @@ boundaries:
       - packages/repository-mutation/src/canonical-json.ts
       - packages/repository-mutation/src/errors.ts
       - packages/repository-mutation/src/package-version.ts
+      - packages/repository-mutation/src/repository-mutation-envelope.ts
       - packages/repository-mutation/src/state-contract.ts
       - packages/repository-mutation/src/strict-json.ts
     allow:
@@ -771,11 +772,13 @@ boundaries:
         - node:fs/promises
         - node:path
         - node:url
+        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/canonical-json.ts
       - packages/repository-mutation/src/errors.ts
       - packages/repository-mutation/src/package-version.ts
+      - packages/repository-mutation/src/repository-mutation-envelope.ts
       - packages/repository-mutation/src/state-contract.ts
       - packages/repository-mutation/src/strict-json.ts
   - id: repository-mutation.application
@@ -919,6 +922,21 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/index.ts
+  - id: repository-mutation.node-api
+    packageExports:
+      - "./node"
+    roots:
+      - packages/repository-mutation/src/node.ts
+    allow:
+      boundaries:
+        - repository-mutation.application
+        - repository-mutation.node-adapters
+        - repository-mutation.transaction-coordination
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/node.ts
   - id: repository-mutation.qualification
     packageExports:
       - "./qualification"
@@ -940,6 +958,7 @@ boundaries:
       - packages/repository-mutation/tests
     allow:
       boundaries:
+        - repository-mutation.node-api
         - repository-mutation.public-api
       packages: []
       builtins:
@@ -992,6 +1011,7 @@ boundaries:
         - node:util
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/foundation-scaffold-envelope.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-build-identity.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-operation-lock.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-cleanup-transition.ts

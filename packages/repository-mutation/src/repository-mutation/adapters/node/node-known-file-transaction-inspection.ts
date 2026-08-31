@@ -36,9 +36,15 @@ export async function inspectKnownFileTransactionBarrier(options: {
 }): Promise<KnownFileTransactionBarrierInspection> {
   const root = await canonicalKnownFileRoot(options.consumerRoot);
   const hasOperationLock = await operationLockExists(root);
+  const [version, buildIdentity] = await Promise.all([
+    installedRepositoryMutationVersion(), installedRepositoryMutationBuildIdentity()
+  ]);
+  const artifact = { name: REPOSITORY_MUTATION_PACKAGE_NAME, version, buildIdentity };
   let observed;
   try {
-    observed = await new NodeKnownFileTransactionJournalStore(join(root, LOCAL_STATE_DIRECTORY)).read();
+    observed = await new NodeKnownFileTransactionJournalStore(
+      join(root, LOCAL_STATE_DIRECTORY), artifact, artifact
+    ).read();
   } catch {
     return Object.freeze({
       state: "recovery-required",
@@ -48,16 +54,10 @@ export async function inspectKnownFileTransactionBarrier(options: {
     });
   }
   if (observed !== undefined) {
-    const [version, buildIdentity] = await Promise.all([
-      installedRepositoryMutationVersion(), installedRepositoryMutationBuildIdentity()
-    ]);
-    const exact = [observed.envelope.ownerArtifact, observed.envelope.kernelArtifact].every((artifact) =>
-      artifact.name === REPOSITORY_MUTATION_PACKAGE_NAME && artifact.version === version && artifact.buildIdentity === buildIdentity);
     return Object.freeze({
       state: "recovery-required", code: "KNOWN_FILE_RECOVERY_REQUIRED",
-      recoverableByInstalledBuild: exact,
-      message: exact ? "A known-file transaction must be recovered before another mutation."
-        : "The exact owner and kernel artifacts that created the transaction must recover it."
+      recoverableByInstalledBuild: true,
+      message: "A known-file transaction must be recovered before another mutation."
     });
   }
   if (hasOperationLock) {

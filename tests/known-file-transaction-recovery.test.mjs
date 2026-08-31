@@ -148,13 +148,13 @@ posixTest("journal policy rejects created and authorized paths outside operation
   ));
   for (const journal of [
     {
-      ...envelope.journal,
+      ...envelope.payload,
       createdDirectories: [{
         path: "../outside",
         identity: { birthtimeNs: "1", dev: "1", ino: "1" }
       }]
     },
-    { ...envelope.journal, authorizedDirectories: ["unrelated"] }
+    { ...envelope.payload, authorizedDirectories: ["unrelated"] }
   ]) {
     assert.throws(() => compileKnownFileTransactionEnvelope({
       ownerArtifact: envelope.ownerArtifact,
@@ -182,7 +182,7 @@ posixTest("recovery requires the exact owner and kernel builds before touching f
       buildIdentity: `sha256:${"0".repeat(64)}`
     },
     kernelArtifact: envelope.kernelArtifact,
-    journal: envelope.journal,
+    journal: envelope.payload,
     state: envelope.state
   });
   await writeFile(journalPath, `${canonicalJson(foreignBuild)}\n`, "utf8");

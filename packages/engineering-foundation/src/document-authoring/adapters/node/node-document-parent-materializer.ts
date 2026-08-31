@@ -4,7 +4,7 @@ import { join } from "node:path";
 import {
   createAndBindNodeDirectory,
   syncDirectoryStrictly
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 import {
   assertNonzeroDocumentPhysicalIdentity,
   type DocumentPhysicalIdentity

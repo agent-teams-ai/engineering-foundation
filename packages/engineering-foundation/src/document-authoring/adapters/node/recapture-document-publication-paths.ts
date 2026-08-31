@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 
-import { OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER } from "@agent-teams/repository-mutation";
+import { OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER } from "@agent-teams/repository-mutation/node";
 import type { PortablePathIdentity } from "@agent-teams/repository-mutation";
 import {
   captureNodeRepositoryPathAuthority,

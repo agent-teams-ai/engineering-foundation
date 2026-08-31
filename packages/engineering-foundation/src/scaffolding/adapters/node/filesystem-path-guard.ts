@@ -7,7 +7,7 @@ import {
   ExistingRepositoryAncestorError,
   isLexicallyContainedPath,
   syncDirectoryDurably
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 import { legacyScaffoldingRepositoryPathProblem } from "../../application/policies/legacy-scaffolding-repository-path.js";
 import type { ScaffoldPlan } from "../../contract/scaffold-contract.js";
 import { ScaffoldError } from "../../scaffold-error.js";

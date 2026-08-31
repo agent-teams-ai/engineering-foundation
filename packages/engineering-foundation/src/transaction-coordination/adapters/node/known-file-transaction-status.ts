@@ -37,6 +37,19 @@ export function inspectKnownFileTransactionStatus(options: {
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
 }): InternalFoundationTransactionStatus | undefined {
+  if (options.schemaVersion === 6) {
+    const owner = options.value["ownerArtifact"];
+    if (typeof owner !== "object" || owner === null || Array.isArray(owner)) {return undefined;}
+    const identity = owner as Record<string, unknown>;
+    if (typeof identity["version"] !== "string" ||
+      typeof identity["buildIdentity"] !== "string") {return undefined;}
+    return pendingKnownFileTransaction({
+      foundationVersion: identity["version"],
+      foundationBuildIdentity: identity["buildIdentity"],
+      installedVersion: options.installedVersion,
+      installedBuildIdentity: options.installedBuildIdentity
+    });
+  }
   if (options.schemaVersion !== 5) {return undefined;}
   try {
     const foundation = options.value["foundation"];

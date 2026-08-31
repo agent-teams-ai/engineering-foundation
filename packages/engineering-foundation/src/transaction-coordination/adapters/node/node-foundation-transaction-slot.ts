@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { opendir } from "node:fs/promises";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
@@ -27,7 +27,8 @@ import type {
   InternalFoundationTransactionStatus
 } from "../../application/model/internal-transaction-status.js";
 import type { FoundationTransactionSlot } from "../../application/ports/foundation-transaction-slot.js";
-import { readBoundedRegularFile } from "@agent-teams/repository-mutation";
+import { readBoundedRegularFile } from "@agent-teams/repository-mutation/node";
+import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation";
 import {
   assertLegacyDocumentEnvelope,
   isKnownLegacyDocumentEnvelope
@@ -39,6 +40,7 @@ import {
 import { inspectFoundationTransitionEvidence } from "./foundation-transition-evidence.js";
 import { inspectKnownFileTransactionStatus } from "./known-file-transaction-status.js";
 import { pendingDocumentTransaction } from "./document-transaction-status.js";
+import { inspectSchema6TransactionStatus } from "./schema6-transaction-status.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
@@ -82,7 +84,7 @@ function recoveryRoute(exactFoundationVersion: string): FoundationRecoveryRoute 
 
 function pending(options: {
   readonly operationKind: "scaffolding";
-  readonly format: "legacy-scaffolding-v1";
+  readonly format: "foundation-scaffolding-envelope-v6" | "legacy-scaffolding-v1";
   readonly foundationVersion: string;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
@@ -158,9 +160,21 @@ function parseLinkPhase(value: unknown): "ATTACHING" | "DETACHING" | "LOCAL" {
 async function inspectLocalModeEvidence(
   stateDirectory: string
 ): Promise<InternalFoundationTransactionStatus> {
-  let entries: string[];
+  let entries: string[] = [];
   try {
-    entries = await readdir(stateDirectory);
+    const directory = await opendir(stateDirectory);
+    try {
+      for (;;) {
+        const entry = await directory.read();
+        if (entry === null) {break;}
+        entries.push(entry.name);
+        if (entries.length > maximumStateDirectoryEntries) {
+          throw new Error("Foundation local-mode state enumeration budget exceeded.");
+        }
+      }
+    } finally {
+      await directory.close();
+    }
   } catch (error) {
     if (isMissing(error)) {
       return { state: "idle", diagnostics: [] };
@@ -170,10 +184,14 @@ async function inspectLocalModeEvidence(
       "Foundation local-mode recovery evidence cannot be inspected safely."
     );
   }
-  if (entries.length > maximumStateDirectoryEntries) {
+  const linkIdentity = portableRepositoryPathIdentity(FOUNDATION_LINK_STATE_FILE);
+  const backupIdentity = portableRepositoryPathIdentity(FOUNDATION_REGISTRY_BACKUP);
+  if (entries.some((entry) =>
+    (portableRepositoryPathIdentity(entry) === linkIdentity && entry !== FOUNDATION_LINK_STATE_FILE) ||
+    (portableRepositoryPathIdentity(entry) === backupIdentity && entry !== FOUNDATION_REGISTRY_BACKUP))) {
     return manual(
       "local-mode-evidence-invalid",
-      "Foundation local-mode state contains too many entries."
+      "Foundation local-mode state contains a case or Unicode alias."
     );
   }
   if (
@@ -266,6 +284,18 @@ function transactionSchemaVersion(value: Record<string, unknown>): number {
   return typeof schemaVersion === "number" ? schemaVersion : Number.NaN;
 }
 
+function inspectUnsupportedTransaction(options: {
+  readonly value: Record<string, unknown>;
+  readonly schemaVersion: number;
+  readonly installedVersion: string;
+  readonly installedBuildIdentity: string;
+}): InternalFoundationTransactionStatus {
+  return inspectKnownFileTransactionStatus(options) ?? manual(
+    "unsupported-schema",
+    `Foundation transaction schema version ${String(options.schemaVersion)} is unsupported and was preserved.`
+  );
+}
+
 async function inspectParsedTransaction(
   value: unknown,
   installedVersion: string,
@@ -299,6 +329,13 @@ async function inspectParsedTransaction(
         format: "document-authoring-envelope-v4"
       })
     });
+  case 6: {
+    return inspectSchema6TransactionStatus({
+      value,
+      installedFoundationVersion: installedVersion,
+      installedFoundationBuildIdentity: installedBuildIdentity
+    });
+  }
   case 2: {
     const legacyDocumentEnvelope = isKnownLegacyDocumentEnvelope(value);
     if (legacyDocumentEnvelope) {
@@ -369,15 +406,12 @@ async function inspectParsedTransaction(
     };
   }
   default:
-    return inspectKnownFileTransactionStatus({
+    return inspectUnsupportedTransaction({
       value,
       schemaVersion,
       installedVersion,
       installedBuildIdentity
-    }) ?? manual(
-      "unsupported-schema",
-      `Foundation transaction schema version ${String(schemaVersion)} is unsupported and was preserved.`
-    );
+    });
   }
 }
 

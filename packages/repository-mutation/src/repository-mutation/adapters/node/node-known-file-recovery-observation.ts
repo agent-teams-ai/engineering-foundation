@@ -33,7 +33,14 @@ export interface KnownFileRecoveryEvidence {
 export async function observeKnownFileRecoveryEvidence(
   root: string
 ): Promise<KnownFileRecoveryEvidence> {
-  const store = new NodeKnownFileTransactionJournalStore(join(root, LOCAL_STATE_DIRECTORY));
+  const [version, buildIdentity] = await Promise.all([
+    installedRepositoryMutationVersion(),
+    installedRepositoryMutationBuildIdentity()
+  ]);
+  const artifact = { name: REPOSITORY_MUTATION_PACKAGE_NAME, buildIdentity, version };
+  const store = new NodeKnownFileTransactionJournalStore(
+    join(root, LOCAL_STATE_DIRECTORY), artifact, artifact
+  );
   await store.canonicalizeTemporary();
   const observed = await store.read();
   if (observed === undefined) {
@@ -42,14 +49,10 @@ export async function observeKnownFileRecoveryEvidence(
       "Known-file recovery journal disappeared."
     );
   }
-  const [version, buildIdentity] = await Promise.all([
-    installedRepositoryMutationVersion(),
-    installedRepositoryMutationBuildIdentity()
-  ]);
   return {
     installedBuild: {
-      ownerArtifact: { name: REPOSITORY_MUTATION_PACKAGE_NAME, buildIdentity, version },
-      kernelArtifact: { name: REPOSITORY_MUTATION_PACKAGE_NAME, buildIdentity, version }
+      ownerArtifact: artifact,
+      kernelArtifact: artifact
     },
     store,
     stored: observed

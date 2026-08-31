@@ -1,4 +1,4 @@
-import { lstat, realpath } from "node:fs/promises";
+import { lstat, opendir, realpath } from "node:fs/promises";
 import { resolve, join } from "node:path";
 
 import { sha256Json, type CanonicalJsonValue } from "../canonical-json.js";
@@ -68,6 +68,48 @@ const commonEvidenceNames = Object.freeze([
   TRANSACTION_TEMPORARY_FILE,
   KNOWN_FILE_TRANSACTION_TEMPORARY_FILE
 ]);
+const maximumStateDirectoryEntries = 1024;
+
+function portableStateName(name: string): string {
+  return name.normalize("NFC").toLowerCase();
+}
+
+function isSuspiciousCommonEvidenceName(name: string): boolean {
+  const portable = portableStateName(name);
+  const transaction = portableStateName(TRANSACTION_FILE);
+  const terminalEvidence = new RegExp(
+    `^${transaction.replaceAll(".", "\\.")}\\.completed-[a-z0-9-]+-evidence$`,
+    "u"
+  );
+  return commonEvidenceNames.some((expected) =>
+    portable === portableStateName(expected) && name !== expected) ||
+    (portable.startsWith(`${transaction}.`) &&
+      !terminalEvidence.test(portable) &&
+      !commonEvidenceNames.includes(name as (typeof commonEvidenceNames)[number])) ||
+    portable.includes("cleanup-residue");
+}
+
+async function boundedSuspiciousStateNames(directory: string): Promise<readonly string[]> {
+  const handle = await opendir(directory);
+  const suspicious: string[] = [];
+  let entries = 0;
+  try {
+    for (;;) {
+      const entry = await handle.read();
+      if (entry === null) {return suspicious.toSorted();}
+      entries += 1;
+      if (entries > maximumStateDirectoryEntries) {
+        invalid(
+          "MUTATION_CLAIM_INVALID",
+          "Mutation state contains too many entries to classify common evidence safely."
+        );
+      }
+      if (isSuspiciousCommonEvidenceName(entry.name)) {suspicious.push(entry.name);}
+    }
+  } finally {
+    await handle.close();
+  }
+}
 
 function invalid(code: "MUTATION_CLAIM_INVALID" | "MUTATION_LEASE_INVALID", message: string): never {
   throw new RepositoryMutationError(code, message);
@@ -100,8 +142,10 @@ async function boundedStateSnapshot(root: string): Promise<{
     return { fingerprint: "invalid-state-directory", commonEvidence: true };
   }
 
+  const suspiciousNames = await boundedSuspiciousStateNames(directory);
+  const observedNames = [...new Set([...commonEvidenceNames, ...suspiciousNames])].toSorted();
   const records: CanonicalJsonValue[] = [];
-  for (const name of commonEvidenceNames) {
+  for (const name of observedNames) {
     try {
       const entry = await lstat(join(directory, name), { bigint: true });
       records.push({

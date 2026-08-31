@@ -3,7 +3,7 @@ import {
   releaseMutationLease,
   retainMutationBarrier,
   type MutationLease
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 
 import type {
   FoundationOperationLock,

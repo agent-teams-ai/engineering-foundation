@@ -80,25 +80,25 @@ async function executeKnownFileApply(options: {
   readonly store: NodeKnownFileTransactionJournalStore;
   readonly stored: KnownFileApplyState;
 }): Promise<KnownFileTransactionReceiptV1> {
-  for (let index = 0; index < options.stored.envelope.journal.plan.operations.length; index += 1) {
+  for (let index = 0; index < options.stored.envelope.payload.plan.operations.length; index += 1) {
     await executeKnownFileOperation({ ...options, index });
   }
-  await verifyApplyingKnownFilePostimages(options.root, options.stored.envelope.journal);
+  await verifyApplyingKnownFilePostimages(options.root, options.stored.envelope.payload);
   await persistKnownFileApplyState(
     options.store,
     options.stored,
-    options.stored.envelope.journal,
+    options.stored.envelope.payload,
     "COMMITTED"
   );
   await options.faultInjector?.({ phase: "after-journal-committed" });
-  await verifyCommittedKnownFilePostimages(options.root, options.stored.envelope.journal);
+  await verifyCommittedKnownFilePostimages(options.root, options.stored.envelope.payload);
   await cleanupCommittedKnownFileCaptures(
     options.root,
-    options.stored.envelope.journal,
+    options.stored.envelope.payload,
     options.faultInjector
   );
-  await verifyCommittedKnownFilePostimages(options.root, options.stored.envelope.journal);
-  return compileKnownFileTransactionReceipt(options.stored.envelope.journal, "applied");
+  await verifyCommittedKnownFilePostimages(options.root, options.stored.envelope.payload);
+  return compileKnownFileTransactionReceipt(options.stored.envelope.payload, "applied");
 }
 
 async function refreshBarrierRetention(
@@ -228,7 +228,11 @@ export async function applyKnownFileTransactionWithFaults(options: {
       journal,
       state: "APPLYING"
     });
-    store = new NodeKnownFileTransactionJournalStore(await ensureMutationStateDirectory(root));
+    store = new NodeKnownFileTransactionJournalStore(
+      await ensureMutationStateDirectory(root),
+      mutationArtifact,
+      mutationArtifact
+    );
     const stored: KnownFileApplyState = {
       authority: await store.create(envelope),
       envelope
@@ -268,7 +272,33 @@ export function applyKnownFileTransaction(options: {
   readonly plan: KnownFileTransactionPlanV1;
   readonly claim?: MutationClaim;
 }): Promise<KnownFileTransactionReceiptV1> {
-  return applyKnownFileTransactionWithFaults(options);
+  const keys = typeof options === "object" && options !== null
+    ? Reflect.ownKeys(options)
+    : [];
+  const expectedKeys = keys.includes("claim")
+    ? ["claim", "consumerRoot", "plan"]
+    : ["consumerRoot", "plan"];
+  if (typeof options !== "object" || options === null || Array.isArray(options) ||
+    ![Object.prototype, null].includes(Object.getPrototypeOf(options)) ||
+    keys.some((key) => typeof key !== "string") ||
+    (keys as string[]).toSorted().join("\0") !== expectedKeys.toSorted().join("\0") ||
+    keys.some((key) => {
+      const descriptor = Object.getOwnPropertyDescriptor(options, key);
+      return descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable;
+    })) {
+    return Promise.reject(new KnownFileTransactionError(
+      "KNOWN_FILE_PLAN_INVALID",
+      "Known-file apply options contain unknown, missing, or executable properties."
+    ));
+  }
+  const values = Object.fromEntries(keys.map((key) => [
+    key as string,
+    (Object.getOwnPropertyDescriptor(options, key)! as PropertyDescriptor & { value: unknown }).value
+  ]));
+  const input = Object.hasOwn(values, "claim")
+    ? { consumerRoot: values["consumerRoot"] as string, plan: values["plan"] as KnownFileTransactionPlanV1, claim: values["claim"] as MutationClaim }
+    : { consumerRoot: values["consumerRoot"] as string, plan: values["plan"] as KnownFileTransactionPlanV1 };
+  return applyKnownFileTransactionWithFaults(input);
 }
 
 export function canonicalKnownFileTransactionReceipt(

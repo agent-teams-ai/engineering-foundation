@@ -16,7 +16,7 @@ import { sha256Bytes } from "../../kernel/canonical-json.js";
 import {
   assertTerminalEvidenceDirectory,
   ensureTerminalEvidenceDirectory
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 
 export const SCAFFOLD_JOURNAL_FILE = FOUNDATION_TRANSACTION_FILE;
 export const SCAFFOLD_JOURNAL_QUARANTINE_PREFIX =

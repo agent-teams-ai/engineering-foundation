@@ -810,7 +810,6 @@ test("document authoring public surface exposes no directory rollback capability
     );
   }
 });
-
 test("production and generic directory adapters share the internal bind kernel", async () => {
   const production = await readFile(join(
     repositoryRoot,
@@ -818,15 +817,15 @@ test("production and generic directory adapters share the internal bind kernel",
   ), "utf8");
   const generic = await readFile(join(
     repositoryRoot,
-    "packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-materialization.ts",
+    "packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts",
   ), "utf8");
+  assert.match(production, /@agent-teams\/repository-mutation\/node/iu); assert.match(generic, /node-create-and-bind-directory\.js/iu);
   for (const source of [production, generic]) {
-    assert.match(source, /node-create-and-bind-directory\.js/iu);
     assert.match(source, /createAndBindNodeDirectory\s*\(/u);
   }
   const publicMutationBarrel = await readFile(join(
     repositoryRoot,
-    "packages/engineering-foundation/src/mutation/index.ts",
+    "packages/repository-mutation/src/index.ts",
   ), "utf8");
   assert.doesNotMatch(publicMutationBarrel, /createAndBindNodeDirectory/u);
 });

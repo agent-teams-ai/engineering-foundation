@@ -45,9 +45,9 @@ async function transitionAndCheckpoint(
   transition: Parameters<typeof transitionKnownFileOperation>[2],
   phase: Parameters<NonNullable<KnownFileTransactionFaultInjector>>[0]["phase"]
 ): Promise<void> {
-  const operation = context.stored.envelope.journal.plan.operations[context.index]!;
+  const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   const journal = transitionKnownFileOperation(
-    context.stored.envelope.journal,
+    context.stored.envelope.payload,
     context.index,
     transition
   );
@@ -63,7 +63,7 @@ async function publishPreparedLink(
   context: OperationContext,
   replacement: boolean
 ): Promise<void> {
-  const operation = context.stored.envelope.journal.plan.operations[context.index]!;
+  const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   await transitionAndCheckpoint(context, { state: "publishing" }, "after-operation-publishing");
   await publishKnownFileLink({
     destination: context.destination,
@@ -82,13 +82,13 @@ async function publishPreparedLink(
 async function prepareCapture(
   context: OperationContext
 ): Promise<KnownFileCapture> {
-  const operation = context.stored.envelope.journal.plan.operations[context.index]!;
+  const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   await transitionAndCheckpoint(context, { state: "capture-authorized" }, "after-capture-authorized");
   const capture = await prepareKnownFileCapture({
     operation,
     operationIndex: context.index,
     parent: context.parent,
-    planDigest: context.stored.envelope.journal.plan.planDigest
+    planDigest: context.stored.envelope.payload.plan.planDigest
   });
   await context.faultInjector?.({
     phase: "after-capture-created-unbound",
@@ -103,7 +103,7 @@ async function prepareCapture(
 }
 
 async function executeKnownFileReplacement(context: OperationContext): Promise<void> {
-  const operation = context.stored.envelope.journal.plan.operations[context.index]!;
+  const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   if (operation.precondition.state !== "known-file") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_JOURNAL_INVALID",
@@ -150,7 +150,7 @@ async function executeKnownFileReplacement(context: OperationContext): Promise<v
 }
 
 async function verifyPublishedPostimage(context: OperationContext): Promise<void> {
-  const operation = context.stored.envelope.journal.plan.operations[context.index]!;
+  const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   await syncDirectoryStrictly(context.parent);
   const published = await observeKnownFile(context.root, operation.path, operation.postimage.size);
   if (!matchesKnownFileImage(published, operation.postimage) || published.identity === undefined ||
@@ -170,8 +170,8 @@ export async function executeKnownFileOperation(options: {
   readonly store: NodeKnownFileTransactionJournalStore;
   readonly stored: KnownFileApplyState;
 }): Promise<void> {
-  const operation = options.stored.envelope.journal.plan.operations[options.index]!;
-  const journalOperation = options.stored.envelope.journal.operations[options.index]!;
+  const operation = options.stored.envelope.payload.plan.operations[options.index]!;
+  const journalOperation = options.stored.envelope.payload.operations[options.index]!;
   if (journalOperation.state === "already-satisfied" || journalOperation.state === "published") {
     return;
   }
@@ -191,7 +191,7 @@ export async function executeKnownFileOperation(options: {
     parent
   };
   const authorized = transitionKnownFileOperation(
-    options.stored.envelope.journal,
+    options.stored.envelope.payload,
     options.index,
     { state: "temporary-authorized" }
   );
@@ -205,7 +205,7 @@ export async function executeKnownFileOperation(options: {
     operation,
     operationIndex: options.index,
     parent,
-    planDigest: options.stored.envelope.journal.plan.planDigest
+    planDigest: options.stored.envelope.payload.plan.planDigest
   });
   await options.faultInjector?.({
     phase: "after-temporary-created-unbound",
@@ -213,7 +213,7 @@ export async function executeKnownFileOperation(options: {
     path: operation.path
   });
   const ready = transitionKnownFileOperation(
-    options.stored.envelope.journal,
+    options.stored.envelope.payload,
     options.index,
     { state: "temporary-ready", temporaryIdentity: serializeKnownFileIdentity(temporary.identity) }
   );

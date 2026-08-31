@@ -100,5 +100,31 @@ export function recoverKnownFileTransaction(options: {
   readonly consumerRoot: string;
   readonly claim?: MutationClaim;
 }): Promise<KnownFileTransactionReceiptV1> {
-  return recoverKnownFileTransactionWithFaults(options);
+  const keys = typeof options === "object" && options !== null
+    ? Reflect.ownKeys(options)
+    : [];
+  const expectedKeys = keys.includes("claim")
+    ? ["claim", "consumerRoot"]
+    : ["consumerRoot"];
+  if (typeof options !== "object" || options === null || Array.isArray(options) ||
+    ![Object.prototype, null].includes(Object.getPrototypeOf(options)) ||
+    keys.some((key) => typeof key !== "string") ||
+    (keys as string[]).toSorted().join("\0") !== expectedKeys.toSorted().join("\0") ||
+    keys.some((key) => {
+      const descriptor = Object.getOwnPropertyDescriptor(options, key);
+      return descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable;
+    })) {
+    return Promise.reject(new KnownFileTransactionError(
+      "KNOWN_FILE_RECOVERY_CONFLICT",
+      "Known-file recovery options contain unknown, missing, or executable properties."
+    ));
+  }
+  const values = Object.fromEntries(keys.map((key) => [
+    key as string,
+    (Object.getOwnPropertyDescriptor(options, key)! as PropertyDescriptor & { value: unknown }).value
+  ]));
+  const input = Object.hasOwn(values, "claim")
+    ? { consumerRoot: values["consumerRoot"] as string, claim: values["claim"] as MutationClaim }
+    : { consumerRoot: values["consumerRoot"] as string };
+  return recoverKnownFileTransactionWithFaults(input);
 }

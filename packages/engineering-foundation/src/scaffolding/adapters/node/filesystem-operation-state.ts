@@ -8,7 +8,7 @@ import {
   ownedTemporaryCleanupResiduePrefix,
   publishAbsentFile,
   type OwnedTemporaryCleanupTransitionPort
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 import {
   publishAbsentFile as publishAbsentFileWithFaults
 } from "@agent-teams/repository-mutation/qualification";

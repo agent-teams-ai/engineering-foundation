@@ -6,27 +6,27 @@
   "required": [
     "schemaVersion", "format", "operationKind", "recoveryHandler",
     "ownerArtifact", "kernelArtifact", "adapterContractVersion", "payloadKind",
-    "state", "journal", "payloadDigest", "envelopeDigest"
+    "state", "payload", "payloadDigest", "envelopeDigest"
   ],
   "properties": {
     "schemaVersion": { "const": 6 },
     "format": { "const": "agent-teams.repository-mutation.transaction-envelope/v1" },
-    "operationKind": { "const": "known-file-transaction" },
+    "operationKind": { "type": "string", "minLength": 1, "maxLength": 256 },
     "recoveryHandler": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "contractVersion"],
       "properties": {
-        "id": { "const": "agent-teams.repository-mutation.known-file/v1" },
-        "contractVersion": { "const": 1 }
+        "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "contractVersion": { "type": "integer", "minimum": 1 }
       }
     },
     "ownerArtifact": { "$ref": "#/$defs/artifact" },
     "kernelArtifact": { "$ref": "#/$defs/artifact" },
-    "adapterContractVersion": { "const": 1 },
-    "payloadKind": { "const": "agent-teams.repository-mutation.known-file-journal/v1" },
-    "state": { "enum": ["APPLYING", "COMMITTED"] },
-    "journal": { "type": "object" },
+    "adapterContractVersion": { "type": "integer", "minimum": 1 },
+    "payloadKind": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "state": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "payload": {},
     "payloadDigest": { "$ref": "#/$defs/sha256" },
     "envelopeDigest": { "$ref": "#/$defs/sha256" }
   },
@@ -37,8 +37,8 @@
       "additionalProperties": false,
       "required": ["name", "version", "buildIdentity"],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "version": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "version": { "type": "string", "minLength": 1, "maxLength": 1024 },
         "buildIdentity": { "$ref": "#/$defs/sha256" }
       }
     }

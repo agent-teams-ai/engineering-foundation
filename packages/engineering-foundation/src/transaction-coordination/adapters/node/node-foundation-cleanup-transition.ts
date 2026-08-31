@@ -12,13 +12,13 @@ import type {
   OwnedTemporaryCleanupTransition,
   OwnedTemporaryCleanupTransitionPort,
   PortablePathIdentity
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 import {
   assertTerminalEvidenceDirectory,
   captureFileHandleIdentity,
   ensureTerminalEvidenceDirectory,
   readBoundedRegularFile
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 import {
   ensureFoundationStateDirectory,
   syncFoundationStateDirectoryStrictly

@@ -1,14 +1,17 @@
 import { createHash } from "node:crypto";
 import { open, rename, unlink, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
-import { TextDecoder } from "node:util";
 
 import { canonicalJson, type CanonicalJsonValue } from "../../../canonical-json.js";
+import {
+  assertRepositoryMutationArtifactBindings,
+  parseRepositoryMutationEnvelope,
+  type RepositoryMutationArtifactIdentity
+} from "../../../repository-mutation-envelope.js";
 import {
   FOUNDATION_TRANSACTION_FILE,
   KNOWN_FILE_TRANSACTION_TEMPORARY_FILE
 } from "../../../state-contract.js";
-import { parseStrictJson } from "../../../strict-json.js";
 import type { KnownFileTransactionEnvelopeV1 } from "../../application/model/known-file-transaction-journal.js";
 import { assertKnownFileTransactionEnvelope } from "../../application/policies/known-file-transaction-envelope.js";
 import {
@@ -20,7 +23,6 @@ import { cleanupIdentityMatchingOwnedTemporary } from "./node-cleanup-owned-temp
 import { syncDirectoryDurably, syncDirectoryStrictly } from "./node-directory-durability.js";
 
 const MAXIMUM_JOURNAL_BYTES = 32 * 1024 * 1024;
-const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 
 export interface KnownFileJournalAuthority {
   readonly digest: `sha256:${string}`;
@@ -49,7 +51,11 @@ function bytes(envelope: KnownFileTransactionEnvelopeV1): Buffer {
   return result;
 }
 
-async function readEnvelope(path: string): Promise<{
+async function readEnvelope(
+  path: string,
+  expectedOwner: RepositoryMutationArtifactIdentity,
+  expectedKernel: RepositoryMutationArtifactIdentity
+): Promise<{
   readonly authority: KnownFileJournalAuthority;
   readonly envelope: KnownFileTransactionEnvelopeV1;
 } | undefined> {
@@ -65,7 +71,9 @@ async function readEnvelope(path: string): Promise<{
   if (observed.outcome !== "read") {
     throw new Error("Known-file transaction journal is not one stable regular file.");
   }
-  const parsed = parseStrictJson(strictUtf8.decode(observed.bytes));
+  const generic = parseRepositoryMutationEnvelope(observed.bytes);
+  assertRepositoryMutationArtifactBindings(generic, expectedOwner, expectedKernel);
+  const parsed = generic as unknown as KnownFileTransactionEnvelopeV1;
   assertKnownFileTransactionEnvelope(parsed);
   if (!observed.bytes.equals(bytes(parsed))) {
     throw new Error("Known-file transaction journal bytes are not canonical.");
@@ -88,19 +96,27 @@ export class NodeKnownFileTransactionJournalStore {
   readonly #journalPath: string;
   readonly #parent: string;
   readonly #temporaryPath: string;
+  readonly #expectedOwner: RepositoryMutationArtifactIdentity;
+  readonly #expectedKernel: RepositoryMutationArtifactIdentity;
 
-  public constructor(stateDirectory: string) {
+  public constructor(
+    stateDirectory: string,
+    expectedOwner: RepositoryMutationArtifactIdentity,
+    expectedKernel: RepositoryMutationArtifactIdentity
+  ) {
     this.#parent = stateDirectory;
     this.#journalPath = join(stateDirectory, FOUNDATION_TRANSACTION_FILE);
     this.#temporaryPath = join(stateDirectory, KNOWN_FILE_TRANSACTION_TEMPORARY_FILE);
+    this.#expectedOwner = expectedOwner;
+    this.#expectedKernel = expectedKernel;
   }
 
   public async read(): Promise<Awaited<ReturnType<typeof readEnvelope>>> {
-    const canonical = await readEnvelope(this.#journalPath);
+    const canonical = await readEnvelope(this.#journalPath, this.#expectedOwner, this.#expectedKernel);
     if (canonical !== undefined) {
       return canonical;
     }
-    return readEnvelope(this.#temporaryPath);
+    return readEnvelope(this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
   }
 
   async #writeTemporary(envelope: KnownFileTransactionEnvelopeV1): Promise<KnownFileJournalAuthority> {
@@ -110,7 +126,7 @@ export class NodeKnownFileTransactionJournalStore {
       handle = await open(this.#temporaryPath, "wx", 0o600);
     } catch (error) {
       if (errorCode(error) === "EEXIST") {
-        const stale = await readEnvelope(this.#temporaryPath);
+        const stale = await readEnvelope(this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
         if (stale === undefined) {
           throw error;
         }
@@ -132,7 +148,7 @@ export class NodeKnownFileTransactionJournalStore {
   }
 
   public async create(envelope: KnownFileTransactionEnvelopeV1): Promise<KnownFileJournalAuthority> {
-    if (await readEnvelope(this.#journalPath) !== undefined) {
+    if (await readEnvelope(this.#journalPath, this.#expectedOwner, this.#expectedKernel) !== undefined) {
       throw new Error("Foundation transaction slot is already occupied.");
     }
     const authority = await this.#writeTemporary(envelope);
@@ -164,7 +180,7 @@ export class NodeKnownFileTransactionJournalStore {
   }
 
   public async canonicalizeTemporary(): Promise<void> {
-    const canonical = await readEnvelope(this.#journalPath);
+    const canonical = await readEnvelope(this.#journalPath, this.#expectedOwner, this.#expectedKernel);
     if (canonical !== undefined) {
       // The canonical envelope remains authoritative during replacement. A
       // crash can leave an unbound candidate torn or foreign; recovery must
@@ -199,7 +215,7 @@ export class NodeKnownFileTransactionJournalStore {
       }
       return;
     }
-    const temporary = await readEnvelope(this.#temporaryPath);
+    const temporary = await readEnvelope(this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
     if (temporary === undefined) {
       throw new Error("Known-file recovery journal is absent.");
     }

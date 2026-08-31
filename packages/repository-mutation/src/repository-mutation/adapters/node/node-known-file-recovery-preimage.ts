@@ -229,8 +229,8 @@ async function restoreUncapturedPreimage(options: RestorePreimageOptions & {
       rollbackTemporaryIdentity: serializeKnownFileIdentity(rollbackIdentity)
     });
     await persistRecoveryJournal(options.store, options.stored, Object.freeze({
-      ...options.stored.envelope.journal,
-      operations: Object.freeze(options.stored.envelope.journal.operations.with(
+      ...options.stored.envelope.payload,
+      operations: Object.freeze(options.stored.envelope.payload.operations.with(
         options.operationIndex,
         journalOperation
       ))
@@ -293,7 +293,7 @@ async function restoreUncapturedPreimage(options: RestorePreimageOptions & {
 
 export async function restorePreimage(options: RestorePreimageOptions): Promise<void> {
   const operation = options.operation;
-  const journalOperation = options.stored.envelope.journal.operations[options.operationIndex]!;
+  const journalOperation = options.stored.envelope.payload.operations[options.operationIndex]!;
   const destination = join(options.root, ...operation.path.split("/"));
   const parent = dirname(destination);
   if (operation.precondition.state === "absent") {
@@ -322,7 +322,7 @@ export async function restorePreimage(options: RestorePreimageOptions): Promise<
       > & { readonly captureDirectoryIdentity: NonNullable<typeof journalOperation.captureDirectoryIdentity> },
       operation: { ...operation, precondition: operation.precondition },
       operationIndex: options.operationIndex,
-      planDigest: options.stored.envelope.journal.plan.planDigest,
+      planDigest: options.stored.envelope.payload.plan.planDigest,
       root: options.root,
       store: options.store,
       stored: options.stored

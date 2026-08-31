@@ -52,7 +52,7 @@ export type FoundationTransactionStatus =
   | {
       readonly state: "pending";
       readonly operationKind: "scaffolding";
-      readonly format: "legacy-scaffolding-v1";
+      readonly format: "foundation-scaffolding-envelope-v6" | "legacy-scaffolding-v1";
       readonly foundationVersion: string;
       readonly recovery: FoundationRecoveryRoute;
       readonly diagnostics: readonly FoundationTransactionDiagnostic[];

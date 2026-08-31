@@ -6,12 +6,16 @@ import {
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE
 } from "../../../foundation-state-contract.js";
-import type { AuthorityScaffoldJournal } from "../../contract/types.js";
+import type { AuthorityScaffoldJournal, JsonValue } from "../../contract/types.js";
 import { assertAuthorityScaffoldJournal } from "../../kernel/authority-journal-validation.js";
-import { sha256Bytes } from "../../kernel/canonical-json.js";
+import { canonicalJson, sha256Bytes } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { parseStrictJson } from "../../../strict-json.js";
+import {
+  compileFoundationScaffoldEnvelope,
+  parseFoundationScaffoldEnvelope
+} from "../../../transaction-coordination/adapters/node/foundation-scaffold-envelope.js";
 import {
   pathMatchesFileIdentity,
   readBoundedRegularFile,
@@ -91,7 +95,11 @@ export async function serializeScaffoldJournal(
       error
     );
   }
-  const bytes = Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8");
+  const envelope = await compileFoundationScaffoldEnvelope(journal);
+  const bytes = Buffer.from(
+    `${canonicalJson(envelope as unknown as JsonValue)}\n`,
+    "utf8"
+  );
   if (bytes.byteLength > MAX_SCAFFOLD_PLAN_BYTES) {
     throw scaffoldJournalRecoveryRequired(
       "Scaffolding journal exceeds its bounded size limit."
@@ -141,25 +149,36 @@ export async function readStoredScaffoldJournal(
     let journal: AuthorityScaffoldJournal;
     try {
       const value = parseStrictJson(strictUtf8.decode(observed.bytes));
-      await assertSchema(
-        "scaffold-recovery-journal/v1",
-        value,
-        "scaffold-recovery-journal"
-      );
-      journal = value as AuthorityScaffoldJournal;
-      await assertSchema(
-        "scaffold-plan/v1",
-        journal.plan,
-        "scaffold-recovery-journal"
-      );
-      assertAuthorityScaffoldJournal(journal);
+      if (typeof value === "object" && value !== null &&
+        Reflect.get(value, "schemaVersion") === 6) {
+        ({ journal } = await parseFoundationScaffoldEnvelope(observed.bytes));
+      } else {
+        await assertSchema(
+          "scaffold-recovery-journal/v1",
+          value,
+          "scaffold-recovery-journal"
+        );
+        journal = value as AuthorityScaffoldJournal;
+        await assertSchema(
+          "scaffold-plan/v1",
+          journal.plan,
+          "scaffold-recovery-journal"
+        );
+        assertAuthorityScaffoldJournal(journal);
+      }
     } catch (error) {
       throw scaffoldJournalRecoveryRequired(
         "Scaffolding journal contains invalid strict JSON or contract data.",
         error
       );
     }
-    if (!observed.bytes.equals(await serializeScaffoldJournal(journal))) {
+    const parsedValue = parseStrictJson(strictUtf8.decode(observed.bytes));
+    const isSchema6 = typeof parsedValue === "object" && parsedValue !== null &&
+      Reflect.get(parsedValue, "schemaVersion") === 6;
+    const expectedBytes = isSchema6
+      ? await serializeScaffoldJournal(journal)
+      : Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8");
+    if (!observed.bytes.equals(expectedBytes)) {
       throw scaffoldJournalRecoveryRequired(
         "Scaffolding journal bytes are not in the historical canonical form."
       );

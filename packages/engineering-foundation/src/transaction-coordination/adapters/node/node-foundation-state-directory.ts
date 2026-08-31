@@ -3,7 +3,7 @@ import {
   pruneMutationStateDirectory,
   syncMutationStateDirectory,
   syncMutationStateDirectoryStrictly
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 
 export const ensureFoundationStateDirectory = ensureMutationStateDirectory;
 export const pruneFoundationStateDirectory = pruneMutationStateDirectory;

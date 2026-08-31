@@ -1,8 +1,8 @@
+import { canonicalJson, type CanonicalJsonValue } from "../../../canonical-json.js";
 import {
-  canonicalJson,
-  sha256Json,
-  type CanonicalJsonValue
-} from "../../../canonical-json.js";
+  compileRepositoryMutationEnvelope,
+  parseRepositoryMutationEnvelope
+} from "../../../repository-mutation-envelope.js";
 import type {
   KnownFileTransactionEnvelopeV1,
   KnownFileTransactionJournalV1
@@ -12,12 +12,11 @@ import type { KnownFileTransactionPlanV1 } from "../model/known-file-transaction
 import { portableRepositoryPathProblem } from "../model/repository-path.js";
 import { assertKnownFileTransactionPlan } from "./known-file-transaction-plan.js";
 
-const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const POSITIVE_INTEGER = /^[1-9][0-9]*$/u;
 
 class KnownFileTransactionEnvelopeError extends Error {
-  public constructor(message: string) {
-    super(message);
+  public constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "KnownFileTransactionEnvelopeError";
   }
 }
@@ -221,31 +220,6 @@ function assertJournal(value: unknown): asserts value is KnownFileTransactionJou
   }
 }
 
-function body(input: {
-  readonly ownerArtifact: KnownFileTransactionEnvelopeV1["ownerArtifact"];
-  readonly kernelArtifact: KnownFileTransactionEnvelopeV1["kernelArtifact"];
-  readonly journal: KnownFileTransactionJournalV1;
-  readonly state: KnownFileTransactionEnvelopeV1["state"];
-}) {
-  const payloadDigest = sha256Json(input.journal as unknown as CanonicalJsonValue);
-  return {
-    schemaVersion: 6 as const,
-    format: "agent-teams.repository-mutation.transaction-envelope/v1" as const,
-    operationKind: "known-file-transaction" as const,
-    recoveryHandler: {
-      id: "agent-teams.repository-mutation.known-file/v1" as const,
-      contractVersion: 1 as const
-    },
-    ownerArtifact: input.ownerArtifact,
-    kernelArtifact: input.kernelArtifact,
-    adapterContractVersion: 1 as const,
-    payloadKind: "agent-teams.repository-mutation.known-file-journal/v1" as const,
-    state: input.state,
-    journal: input.journal,
-    payloadDigest
-  };
-}
-
 export function compileKnownFileTransactionEnvelope(input: {
   readonly ownerArtifact: KnownFileTransactionEnvelopeV1["ownerArtifact"];
   readonly kernelArtifact: KnownFileTransactionEnvelopeV1["kernelArtifact"];
@@ -253,55 +227,42 @@ export function compileKnownFileTransactionEnvelope(input: {
   readonly state: KnownFileTransactionEnvelopeV1["state"];
 }): KnownFileTransactionEnvelopeV1 {
   assertJournal(input.journal);
-  for (const artifact of [input.ownerArtifact, input.kernelArtifact]) {
-    if (!SHA256.test(artifact.buildIdentity) || artifact.name.length === 0 || artifact.version.length === 0) {
-      throw new KnownFileTransactionEnvelopeError("Known-file transaction artifact identity is invalid.");
-    }
-  }
-  const envelopeBody = body(input);
-  return Object.freeze({
-    ...envelopeBody,
-    envelopeDigest: sha256Json(envelopeBody as unknown as CanonicalJsonValue)
-  });
+  return compileRepositoryMutationEnvelope({
+    operationKind: "known-file-transaction",
+    recoveryHandler: {
+      id: "agent-teams.repository-mutation.known-file/v1",
+      contractVersion: 1
+    },
+    ownerArtifact: input.ownerArtifact,
+    kernelArtifact: input.kernelArtifact,
+    adapterContractVersion: 1,
+    payloadKind: "agent-teams.repository-mutation.known-file-journal/v1",
+    state: input.state,
+    payload: input.journal as unknown as CanonicalJsonValue
+  }) as unknown as KnownFileTransactionEnvelopeV1;
 }
 
 export function assertKnownFileTransactionEnvelope(
   value: unknown
 ): asserts value is KnownFileTransactionEnvelopeV1 {
-  const envelope = record(value, "Known-file transaction envelope");
-  exactKeys(envelope, [
-    "adapterContractVersion", "envelopeDigest", "format", "journal", "kernelArtifact",
-    "operationKind", "ownerArtifact", "payloadDigest", "payloadKind", "recoveryHandler",
-    "schemaVersion", "state"
-  ], "Known-file transaction envelope");
-  const ownerArtifact = record(envelope["ownerArtifact"], "Known-file owner artifact identity");
-  const kernelArtifact = record(envelope["kernelArtifact"], "Known-file kernel artifact identity");
-  const recovery = record(envelope["recoveryHandler"], "Known-file recovery handler");
-  exactKeys(ownerArtifact, ["buildIdentity", "name", "version"], "Known-file owner artifact identity");
-  exactKeys(kernelArtifact, ["buildIdentity", "name", "version"], "Known-file kernel artifact identity");
-  exactKeys(recovery, ["contractVersion", "id"], "Known-file recovery handler");
-  if (envelope["schemaVersion"] !== 6 ||
-    envelope["format"] !== "agent-teams.repository-mutation.transaction-envelope/v1" ||
-    envelope["operationKind"] !== "known-file-transaction" ||
-    envelope["adapterContractVersion"] !== 1 ||
-    envelope["payloadKind"] !== "agent-teams.repository-mutation.known-file-journal/v1" ||
-    !["APPLYING", "COMMITTED"].includes(String(envelope["state"])) ||
-    recovery["id"] !== "agent-teams.repository-mutation.known-file/v1" ||
-    recovery["contractVersion"] !== 1 ||
-    [ownerArtifact, kernelArtifact].some((artifact) =>
-      typeof artifact["name"] !== "string" || typeof artifact["version"] !== "string" ||
-      !SHA256.test(String(artifact["buildIdentity"])))) {
+  let envelope;
+  try {
+    envelope = parseRepositoryMutationEnvelope(
+      Buffer.from(canonicalJson(value as CanonicalJsonValue), "utf8")
+    );
+  } catch (error) {
+    throw new KnownFileTransactionEnvelopeError(
+      "Known-file transaction envelope is noncanonical or tampered.",
+      { cause: error }
+    );
+  }
+  if (envelope.operationKind !== "known-file-transaction" ||
+    envelope.adapterContractVersion !== 1 ||
+    envelope.payloadKind !== "agent-teams.repository-mutation.known-file-journal/v1" ||
+    !["APPLYING", "COMMITTED"].includes(envelope.state) ||
+    envelope.recoveryHandler.id !== "agent-teams.repository-mutation.known-file/v1" ||
+    envelope.recoveryHandler.contractVersion !== 1) {
     throw new KnownFileTransactionEnvelopeError("Known-file transaction envelope binding is invalid.");
   }
-  assertJournal(envelope["journal"]);
-  const reconstructed = compileKnownFileTransactionEnvelope({
-    ownerArtifact: ownerArtifact as unknown as KnownFileTransactionEnvelopeV1["ownerArtifact"],
-    kernelArtifact: kernelArtifact as unknown as KnownFileTransactionEnvelopeV1["kernelArtifact"],
-    journal: envelope["journal"],
-    state: envelope["state"] as KnownFileTransactionEnvelopeV1["state"]
-  });
-  if (canonicalJson(reconstructed as unknown as CanonicalJsonValue) !==
-    canonicalJson(value as CanonicalJsonValue)) {
-    throw new KnownFileTransactionEnvelopeError("Known-file transaction envelope is non-canonical or tampered.");
-  }
+  assertJournal(envelope.payload);
 }

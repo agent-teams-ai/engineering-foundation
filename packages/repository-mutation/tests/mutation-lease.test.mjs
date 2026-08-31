@@ -1,20 +1,111 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import {
-  acquireMutationLease,
   applyKnownFileTransaction,
-  claimMutation,
+  compileRepositoryMutationEnvelope,
   compileKnownFileTransactionPlan,
   installedRepositoryMutationBuildIdentity,
   installedRepositoryMutationVersion,
-  observeMutationState,
-  releaseMutationLease,
+  parseRepositoryMutationEnvelope,
+  assertRepositoryMutationArtifactBindings,
   REPOSITORY_MUTATION_PACKAGE_NAME
 } from "../dist/index.js";
+import {
+  acquireMutationLease,
+  claimMutation,
+  observeMutationState,
+  releaseMutationLease
+} from "../dist/node.js";
+
+function genericEnvelopeInput(payload = { entries: ["one", { nested: true }] }) {
+  const identity = {
+    name: "fixture-owner",
+    version: "1.0.0",
+    buildIdentity: `sha256:${"1".repeat(64)}`
+  };
+  return {
+    operationKind: "fixture-operation",
+    recoveryHandler: { id: "fixture-handler/v1", contractVersion: 1 },
+    ownerArtifact: identity,
+    kernelArtifact: identity,
+    adapterContractVersion: 1,
+    payloadKind: "fixture-payload/v1",
+    state: "PREPARED",
+    payload
+  };
+}
+
+test("generic persisted envelopes round-trip as deeply immutable library data", () => {
+  const input = genericEnvelopeInput();
+  const envelope = compileRepositoryMutationEnvelope(input);
+  input.payload.entries[1].nested = false;
+  assert.equal(envelope.payload.entries[1].nested, true);
+  assert.ok(Object.isFrozen(envelope));
+  assert.ok(Object.isFrozen(envelope.payload));
+  assert.ok(Object.isFrozen(envelope.payload.entries));
+  assert.ok(Object.isFrozen(envelope.payload.entries[1]));
+  assert.deepEqual(
+    parseRepositoryMutationEnvelope(Buffer.from(JSON.stringify(envelope), "utf8")),
+    envelope
+  );
+});
+
+test("generic persisted envelopes reject malformed, unbounded, and tampered evidence", () => {
+  assert.throws(
+    () => compileRepositoryMutationEnvelope({ ...genericEnvelopeInput(), extra: true }),
+    /unknown or missing/u
+  );
+  let invoked = false;
+  const executable = genericEnvelopeInput();
+  Object.defineProperty(executable, "state", {
+    enumerable: true,
+    get() {invoked = true; return "PREPARED";}
+  });
+  assert.throws(() => compileRepositoryMutationEnvelope(executable), /unknown or missing/u);
+  assert.equal(invoked, false);
+  assert.throws(
+    () => compileRepositoryMutationEnvelope(genericEnvelopeInput(Object.create({ inherited: true }))),
+    /plain or null prototype/u
+  );
+  let deep = "leaf";
+  for (let index = 0; index < 66; index += 1) {deep = [deep];}
+  assert.throws(
+    () => compileRepositoryMutationEnvelope(genericEnvelopeInput(deep)),
+    /too deep/u
+  );
+  const tampered = JSON.parse(JSON.stringify(compileRepositoryMutationEnvelope(genericEnvelopeInput())));
+  tampered.payload.entries[0] = "changed";
+  assert.throws(
+    () => parseRepositoryMutationEnvelope(Buffer.from(JSON.stringify(tampered), "utf8")),
+    /digest/u
+  );
+  assert.throws(
+    () => parseRepositoryMutationEnvelope(Buffer.from('{"schemaVersion":6,"schemaVersion":6}', "utf8")),
+    /strict UTF-8 JSON/u
+  );
+});
+
+test("artifact binding checks all owner and kernel identity fields", () => {
+  const envelope = compileRepositoryMutationEnvelope(genericEnvelopeInput());
+  assert.doesNotThrow(() => assertRepositoryMutationArtifactBindings(
+    envelope, envelope.ownerArtifact, envelope.kernelArtifact
+  ));
+  for (const side of ["owner", "kernel"]) {
+    const drifted = { ...envelope[`${side}Artifact`], buildIdentity: `sha256:${"2".repeat(64)}` };
+    assert.throws(
+      () => assertRepositoryMutationArtifactBindings(
+        envelope,
+        side === "owner" ? drifted : envelope.ownerArtifact,
+        side === "kernel" ? drifted : envelope.kernelArtifact
+      ),
+      /exact owner and kernel artifacts/u
+    );
+  }
+});
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "repository-mutation-lease-"));
@@ -250,3 +341,21 @@ test("revalidates common evidence before an already-satisfied no-op", async (t) 
     /transaction-barrier/u
   );
 });
+
+for (const residue of [
+  "Scaffolding-transaction.json",
+  "scaffolding-transaction.json.unknown-owner",
+  "foundation-transaction.cleanup-residue.fixture"
+]) {
+  test(`fails closed on common evidence residue ${residue}`, async (t) => {
+    const root = await fixture(t);
+    const state = join(root, ".agent-teams-local");
+    await mkdir(state);
+    await writeFile(join(state, residue), "preserved\n");
+    await assert.rejects(
+      applyKnownFileTransaction({ consumerRoot: root, plan: plan() }),
+      /Common transaction evidence|recovered before apply/u
+    );
+    await assert.rejects(readFile(join(root, "owned.txt")), { code: "ENOENT" });
+  });
+}

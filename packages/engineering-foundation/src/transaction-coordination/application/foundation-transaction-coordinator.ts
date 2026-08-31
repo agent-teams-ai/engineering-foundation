@@ -114,7 +114,9 @@ export class FoundationTransactionCoordinator {
       const scaffoldingRecoveryAllowed =
         status.state === "pending" &&
         status.operationKind === "scaffolding" &&
-        observedStatusFormat(status) === "legacy-scaffolding-v1" &&
+        ["foundation-scaffolding-envelope-v6", "legacy-scaffolding-v1"].includes(
+          String(observedStatusFormat(status))
+        ) &&
         options.allowRecoveryOf === status.operationKind &&
         options.requestedMutation === status.operationKind &&
         !status.diagnostics.some(

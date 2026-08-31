@@ -19,7 +19,7 @@ import {
   pathMatchesRegularFileIdentity,
   readBoundedRegularFile,
   syncDirectoryStrictly, type PortablePathIdentity
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 import { parseStrictJson } from "../../../strict-json.js";
 import type { NodeDocumentJournalFaultInjector } from "./node-document-journal-store-faults.js";
 import { documentJournalSlotExists } from "./node-document-journal-slot.js";

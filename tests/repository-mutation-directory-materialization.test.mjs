@@ -6,6 +6,7 @@ import {
   rename,
   rm,
   symlink,
+  writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -76,6 +77,24 @@ test("rejects portable case and NFC aliases during read-only projection", async 
         repositoryRoot: subject.root,
       }),
       (error) => error?.code === "ALIAS_COLLISION",
+    );
+  } finally {
+    await subject.dispose();
+  }
+});
+
+test("bounds directory enumeration while observing portable aliases", async () => {
+  const subject = await fixture();
+  try {
+    await Promise.all(Array.from({ length: 1025 }, (_unused, index) =>
+      writeFile(join(subject.root, `entry-${index}`), "fixture\n")));
+    await assert.rejects(
+      projectDirectoryMaterialization({
+        createPolicy: "allow",
+        repositoryPath: "docs/api",
+        repositoryRoot: subject.root,
+      }),
+      /too many entries/u,
     );
   } finally {
     await subject.dispose();

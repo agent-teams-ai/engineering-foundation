@@ -1,4 +1,4 @@
-import { lstat, mkdir, readdir, realpath } from "node:fs/promises";
+import { lstat, mkdir, opendir, realpath } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import type {
@@ -33,6 +33,28 @@ interface DirectoryCreationFaultPoint {
 export type DirectoryCreationFaultInjector = (
   point: DirectoryCreationFaultPoint
 ) => Promise<void> | void;
+
+const maximumDirectoryEntries = 1024;
+
+async function boundedDirectoryNames(path: string): Promise<readonly string[]> {
+  const directory = await opendir(path);
+  const names: string[] = [];
+  try {
+    for (;;) {
+      const entry = await directory.read();
+      if (entry === null) {return names;}
+      names.push(entry.name);
+      if (names.length > maximumDirectoryEntries) {
+        throw new DirectoryMutationError(
+          "CONCURRENT_CHANGE",
+          "Repository directory contains too many entries to inspect portable aliases safely."
+        );
+      }
+    }
+  } finally {
+    await directory.close();
+  }
+}
 
 function errorCode(error: unknown): string | undefined {
   return error instanceof Error && "code" in error
@@ -141,7 +163,7 @@ async function assertNoAlias(
   requestedName: string
 ): Promise<boolean> {
   const requestedIdentity = portableRepositoryPathIdentity(requestedName);
-  const entries = await readdir(parent);
+  const entries = await boundedDirectoryNames(parent);
   const aliases = entries.filter(
     (entry) => portableRepositoryPathIdentity(entry) === requestedIdentity
   );

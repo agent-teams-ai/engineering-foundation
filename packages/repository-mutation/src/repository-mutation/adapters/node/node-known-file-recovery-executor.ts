@@ -21,15 +21,15 @@ export async function executeCommittedKnownFileRecovery(options: {
   readonly store: NodeKnownFileTransactionJournalStore;
   readonly stored: StoredRecoveryJournal;
 }): Promise<KnownFileTransactionReceiptV1> {
-  await verifyCommittedKnownFilePostimages(options.root, options.stored.envelope.journal);
+  await verifyCommittedKnownFilePostimages(options.root, options.stored.envelope.payload);
   await cleanupCommittedKnownFileCaptures(
     options.root,
-    options.stored.envelope.journal,
+    options.stored.envelope.payload,
     options.faultInjector
   );
-  await verifyCommittedKnownFilePostimages(options.root, options.stored.envelope.journal);
+  await verifyCommittedKnownFilePostimages(options.root, options.stored.envelope.payload);
   const result = compileKnownFileTransactionReceipt(
-    options.stored.envelope.journal,
+    options.stored.envelope.payload,
     "applied"
   );
   await options.store.remove(options.stored.authority);
@@ -43,8 +43,8 @@ export async function executeApplyingKnownFileRollback(options: {
   readonly stored: StoredRecoveryJournal;
 }): Promise<KnownFileTransactionReceiptV1> {
   await rollbackKnownFileRecovery(options);
-  await verifyRolledBackKnownFileState(options.root, options.stored.envelope.journal);
-  const result = compileRolledBackReceipt(options.stored.envelope.journal);
+  await verifyRolledBackKnownFileState(options.root, options.stored.envelope.payload);
+  const result = compileRolledBackReceipt(options.stored.envelope.payload);
   await options.store.remove(options.stored.authority);
   return result;
 }

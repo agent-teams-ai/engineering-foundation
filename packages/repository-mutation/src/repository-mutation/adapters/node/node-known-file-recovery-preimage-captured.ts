@@ -122,7 +122,7 @@ async function restoreUnboundCapturedPreimage(
     options.store,
     options.stored,
     replaceRecoveryOperation(
-      options.stored.envelope.journal,
+      options.stored.envelope.payload,
       options.operationIndex,
       restoredOperation
     )
@@ -225,8 +225,8 @@ async function acceptForeignExactPreimage(
     state: "rollback-restored" as const
   });
   await persistRecoveryJournal(options.store, options.stored, Object.freeze({
-    ...options.stored.envelope.journal,
-    operations: Object.freeze(options.stored.envelope.journal.operations.with(
+    ...options.stored.envelope.payload,
+    operations: Object.freeze(options.stored.envelope.payload.operations.with(
       options.operationIndex,
       restoredJournalOperation
     ))
@@ -323,8 +323,8 @@ async function completeCapturedRollback(
     );
   }
   await persistRecoveryJournal(options.store, options.stored, Object.freeze({
-    ...options.stored.envelope.journal,
-    operations: Object.freeze(options.stored.envelope.journal.operations.with(
+    ...options.stored.envelope.payload,
+    operations: Object.freeze(options.stored.envelope.payload.operations.with(
       options.operationIndex,
       Object.freeze({ ...options.journalOperation, state: "rollback-restored" as const })
     ))

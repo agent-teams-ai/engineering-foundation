@@ -9,7 +9,7 @@ import {
   readBoundedRegularFile,
   syncDirectoryDurably,
   syncDirectoryStrictly
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/node";
 import type { PortablePathIdentity } from "@agent-teams/repository-mutation";
 import {
   assertDocumentPhysicalIdentity,

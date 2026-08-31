@@ -64,9 +64,9 @@ export async function ensureKnownFileParentDirectories(options: {
     const repositoryPath = traversed.join("/");
     if (await knownFileAliasEntry(current, segment) === undefined) {
       const authorized = Object.freeze({
-        ...options.stored.envelope.journal,
+        ...options.stored.envelope.payload,
         authorizedDirectories: Object.freeze([
-          ...options.stored.envelope.journal.authorizedDirectories,
+          ...options.stored.envelope.payload.authorizedDirectories,
           repositoryPath
         ])
       });
@@ -96,14 +96,14 @@ export async function ensureKnownFileParentDirectories(options: {
         path: repositoryPath
       });
       const journal = Object.freeze({
-        ...options.stored.envelope.journal,
+        ...options.stored.envelope.payload,
         authorizedDirectories: Object.freeze(
-          options.stored.envelope.journal.authorizedDirectories.filter(
+          options.stored.envelope.payload.authorizedDirectories.filter(
             (path) => path !== repositoryPath
           )
         ),
         createdDirectories: Object.freeze([
-          ...options.stored.envelope.journal.createdDirectories,
+          ...options.stored.envelope.payload.createdDirectories,
           Object.freeze({ path: repositoryPath, identity })
         ])
       });
@@ -292,7 +292,7 @@ export async function prepareKnownFileRollback(options: {
     );
   }
   const journal = transitionKnownFileOperation(
-    options.stored.envelope.journal,
+    options.stored.envelope.payload,
     options.index,
     { rollbackTemporaryIdentity: serializeKnownFileIdentity(rollbackIdentity) }
   );

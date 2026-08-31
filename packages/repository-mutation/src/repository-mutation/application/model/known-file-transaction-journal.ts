@@ -78,7 +78,7 @@ export interface KnownFileTransactionEnvelopeV1 {
   readonly adapterContractVersion: 1;
   readonly payloadKind: "agent-teams.repository-mutation.known-file-journal/v1";
   readonly state: "APPLYING" | "COMMITTED";
-  readonly journal: KnownFileTransactionJournalV1;
+  readonly payload: KnownFileTransactionJournalV1;
   readonly payloadDigest: KnownFileDigest;
   readonly envelopeDigest: KnownFileDigest;
 }

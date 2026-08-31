@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, readdir, realpath } from "node:fs/promises";
+import { lstat, opendir, realpath } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
 import type {
@@ -18,6 +18,7 @@ import {
 import { isLexicallyContainedPath } from "./node-repository-path.js";
 
 const MAXIMUM_MANAGED_FILE_BYTES = 8 * 1024 * 1024;
+const MAXIMUM_DIRECTORY_ENTRIES = 1024;
 
 export class KnownFileTransactionError extends Error {
   readonly code: string;
@@ -97,9 +98,27 @@ export async function knownFileAliasEntry(
   requested: string
 ): Promise<string | undefined> {
   const identity = portableRepositoryPathIdentity(requested);
-  const matches = (await readdir(parent)).filter(
-    (entry) => portableRepositoryPathIdentity(entry) === identity
-  );
+  const directory = await opendir(parent);
+  const matches: string[] = [];
+  let entries = 0;
+  try {
+    for (;;) {
+      const entry = await directory.read();
+      if (entry === null) {break;}
+      entries += 1;
+      if (entries > MAXIMUM_DIRECTORY_ENTRIES) {
+        throw new KnownFileTransactionError(
+          "KNOWN_FILE_PATH_ALIAS",
+          `Directory enumeration budget was exceeded while checking ${requested}.`
+        );
+      }
+      if (portableRepositoryPathIdentity(entry.name) === identity) {
+        matches.push(entry.name);
+      }
+    }
+  } finally {
+    await directory.close();
+  }
   if (matches.some((entry) => entry !== requested)) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_PATH_ALIAS",

@@ -62,6 +62,13 @@ const FAKE_ABSOLUTE_SYSTEM_ROOT = String.raw`C:\Windows`;
 const MISSING_WINDOWS_SYSTEM_ROOT = String.raw`C:\foundation-missing-system-root-${process.pid}`;
 const FAKE_WINDOWS_POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
 
+function withOnlySystemRoot(environment, systemRoot) {
+  return Object.fromEntries([
+    ...Object.entries(environment).filter(([name]) => name.toLowerCase() !== "systemroot"),
+    ["SystemRoot", systemRoot]
+  ]);
+}
+
 async function removeNewWindowsControlRoots(previousRoots) {
   const currentRoots = await windowsControlRoots();
   await Promise.all([...currentRoots]
@@ -376,11 +383,17 @@ test("contains asynchronous control cleanup failures and permits an idempotent r
   let child;
   try {
     await withFailingSynchronousControlCleanup(context.mock, async (cleanupError) => {
+      const launcherEnvironment = withOnlySystemRoot({
+        ...process.env, SYSTEMROOT: "shadow", systemroot: "shadow"
+      }, missingSystemRoot);
+      assert.deepEqual(Object.keys(launcherEnvironment)
+        .filter((name) => name.toLowerCase() === "systemroot"), ["SystemRoot"]);
+      assert.equal(launcherEnvironment.SystemRoot, missingSystemRoot);
       child = spawnWindowsManagedProcess({
         command: process.execPath,
         args: ["-e", "process.exit()"],
         cwd: root,
-        launcherEnvironment: { ...process.env, SystemRoot: missingSystemRoot }
+        launcherEnvironment
       });
       const closed = new Promise((resolve) => {
         child.once("close", resolve);

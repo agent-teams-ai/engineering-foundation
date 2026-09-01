@@ -667,14 +667,9 @@ test("attacker-controlled packed manifest cannot forge qualification identity", 
 });
 
 test("archive identity comparison ignores unavailable filesystem identity", () => {
-  assert.equal(sameAuthoritativeFileIdentity({ dev: 0, ino: 0 }, { dev: 0, ino: 0 }), false);
-  assert.equal(sameAuthoritativeFileIdentity({ dev: 0, ino: 11 }, { dev: 0, ino: 11 }), false);
-  assert.equal(sameAuthoritativeFileIdentity({ dev: 7, ino: 0 }, { dev: 7, ino: 0 }), false);
-  assert.equal(sameAuthoritativeFileIdentity({ dev: undefined, ino: undefined }, {
-    dev: undefined, ino: undefined,
-  }), false);
-  assert.equal(sameAuthoritativeFileIdentity({ dev: 7, ino: 11 }, { dev: 7, ino: 11 }), true);
-  assert.equal(sameAuthoritativeFileIdentity({ dev: 7n, ino: 11n }, { dev: 7n, ino: 12n }), false);
+  assert.deepEqual([
+    sameAuthoritativeFileIdentity({ dev: 0, ino: 0 }, { dev: 0, ino: 0 }), sameAuthoritativeFileIdentity({ dev: 0, ino: 11 }, { dev: 0, ino: 11 }), sameAuthoritativeFileIdentity({ dev: 7, ino: 0 }, { dev: 7, ino: 0 }), sameAuthoritativeFileIdentity({}, {}), sameAuthoritativeFileIdentity({ dev: 7, ino: 11 }, { dev: 7, ino: 11 }), sameAuthoritativeFileIdentity({ dev: 7n, ino: 11n }, { dev: 7n, ino: 12n }),
+  ], [false, false, false, false, true, false]);
 });
 
 test("same-identity manifest substitution and injected payloads fail closed", async (t) => {

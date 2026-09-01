@@ -11,7 +11,6 @@ import { CapabilityInputError } from "../../../../../capability-runtime.js";
 import { readContainedRegularFile } from "../../../../../filesystem-path-safety.js";
 import { assertNotCancelled } from "../../../../../strict-yaml.js";
 import {
-  portableRepositoryPathIdentity,
   portableRepositoryPathProblem
 } from "../../../application/model/repository-path.js";
 
@@ -44,7 +43,6 @@ export interface SourceWorkspaceFileSystem {
 export interface StableRepositoryPath {
   readonly absolutePath: string;
   readonly canonicalMetadata: SourceFilesystemMetadata;
-  readonly canonicalPath: string;
   readonly lexicalMetadata: SourceFilesystemMetadata;
   readonly repositoryPath: string;
   readonly traversesSymbolicLink: boolean;
@@ -220,7 +218,6 @@ export async function captureStableRepositoryPath(
   return Object.freeze({
     absolutePath,
     canonicalMetadata,
-    canonicalPath,
     lexicalMetadata,
     repositoryPath,
     traversesSymbolicLink
@@ -248,8 +245,6 @@ export async function revalidateStableRepositoryPath(
     }
     const canonicalMetadata = await operations.stat(canonicalPath);
     if (
-      portableRepositoryPathIdentity(canonicalPath) !==
-        portableRepositoryPathIdentity(captured.canonicalPath) ||
       traversesSymbolicLink !== captured.traversesSymbolicLink ||
       !sameFilesystemSnapshot(lexicalMetadata, captured.lexicalMetadata) ||
       !sameFilesystemSnapshot(canonicalMetadata, captured.canonicalMetadata)

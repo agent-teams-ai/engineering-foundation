@@ -33,8 +33,8 @@ function inputError(code: string, message: string): never {
   });
 }
 
-function portableCanonicalIdentity(path: string): string {
-  return path.normalize("NFC").toLocaleLowerCase("en-US");
+function filesystemIdentity(path: StableRepositoryPath): string {
+  return `${String(path.canonicalMetadata.dev)}:${String(path.canonicalMetadata.ino)}`;
 }
 
 export async function inspectUniqueRoots(
@@ -50,12 +50,12 @@ export async function inspectUniqueRoots(
       input.operations,
       input.signal
     );
-    const identity = portableCanonicalIdentity(root.canonicalPath);
+    const identity = filesystemIdentity(root);
     const existing = identities.get(identity);
     if (existing !== undefined) {
       inputError(
         "SOURCE_ROOT_REALPATH_DUPLICATE",
-        `${input.label} share a canonical or portable filesystem identity: ${existing} and ${repositoryPath}.`
+        `${input.label} share one physical filesystem identity: ${existing} and ${repositoryPath}.`
       );
     }
     identities.set(identity, repositoryPath);

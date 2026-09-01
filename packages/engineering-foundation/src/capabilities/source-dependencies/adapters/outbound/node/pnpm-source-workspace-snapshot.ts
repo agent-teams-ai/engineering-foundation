@@ -7,6 +7,7 @@ import {
   loadStrictYamlFile
 } from "../../../../../strict-yaml.js";
 import type { WorkspaceInventory } from "../../../../../workspace-inventory/application/model/workspace-inventory.js";
+import { portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
 import type {
   InspectSourceWorkspaceTopologyInput,
   SourceWorkspaceInventorySnapshotReader
@@ -56,10 +57,6 @@ function inputError(code: string, message: string): never {
     phase: "source-workspace-topology",
     retryable: false
   });
-}
-
-function portableCanonicalIdentity(path: string): string {
-  return path.normalize("NFC").toLocaleLowerCase("en-US");
 }
 
 async function readPackageTypeScopes(
@@ -114,10 +111,10 @@ function manifestSelectedByPackageRoot(
 ): boolean {
   const manifestRoot = packageRootForManifest(manifestPath);
   return (
-    portableCanonicalIdentity(manifestRoot) ===
-      portableCanonicalIdentity(packageRoot) ||
-    portableCanonicalIdentity(posix.dirname(manifestRoot)) ===
-      portableCanonicalIdentity(packageRoot)
+    portableRepositoryPathIdentity(manifestRoot) ===
+      portableRepositoryPathIdentity(packageRoot) ||
+    portableRepositoryPathIdentity(posix.dirname(manifestRoot)) ===
+      portableRepositoryPathIdentity(packageRoot)
   );
 }
 
@@ -126,9 +123,9 @@ function assertPackageRootsContainPackages(
   manifestPaths: readonly string[]
 ): void {
   for (const packageRoot of packageRoots) {
-    const identity = portableCanonicalIdentity(packageRoot);
+    const identity = portableRepositoryPathIdentity(packageRoot);
     const hasManifest = manifestPaths.some((manifestPath) => {
-      const manifestRoot = portableCanonicalIdentity(
+      const manifestRoot = portableRepositoryPathIdentity(
         packageRootForManifest(manifestPath)
       );
       return (
@@ -152,14 +149,14 @@ function assertPortableDiscoveryAgreement(
 ): void {
   const discoveredDirectories = new Map(
     discovered.directorySnapshots.map(({ repositoryPath }) => [
-      portableCanonicalIdentity(repositoryPath),
+      portableRepositoryPathIdentity(repositoryPath),
       repositoryPath
     ])
   );
   for (const manifestPath of workspaceManifestPaths) {
     const manifestRoot = packageRootForManifest(manifestPath);
     const discoveredDirectory = discoveredDirectories.get(
-      portableCanonicalIdentity(manifestRoot)
+      portableRepositoryPathIdentity(manifestRoot)
     );
     if (
       discoveredDirectory !== undefined &&
@@ -212,12 +209,33 @@ export async function capturePnpmSourceWorkspaceSnapshot(
     ...(input.signal === undefined ? {} : { signal: input.signal }),
     symbolicLinkCode: "PACKAGE_ROOT_SYMLINK_PROHIBITED"
   });
-  const workspaceManifestPaths = await snapshotInput.inventoryReader
-    .discoverManifestPathsFromManifest(
-      canonicalConsumerRoot,
-      workspaceManifest,
-      input.signal
-    );
+  let workspaceManifestPaths: readonly string[];
+  try {
+    workspaceManifestPaths = await snapshotInput.inventoryReader
+      .discoverManifestPathsFromManifest(
+        canonicalConsumerRoot,
+        workspaceManifest,
+        input.signal
+      );
+  } catch (error) {
+    if (
+      error instanceof CapabilityInputError &&
+      error.problem.code === "PACKAGE_PATH_CASE_COLLISION"
+    ) {
+      // Workspace glob discovery necessarily observes non-package directories.
+      // Give the source topology owner the opportunity to classify an alias in
+      // the configured source closure before retaining the package diagnostic.
+      // This keeps logical repository identities separate by evidence role.
+      await discoverSourceWorkspacePaths(canonicalConsumerRoot, {
+        repositoryRoots: input.packageRoots,
+        fileSystem,
+        limits: snapshotInput.limits,
+        ...(snapshotInput.hooks === undefined ? {} : { hooks: snapshotInput.hooks }),
+        ...(input.signal === undefined ? {} : { signal: input.signal })
+      });
+    }
+    throw error;
+  }
   const selectedWorkspacePackageRoots = workspaceManifestPaths
     .filter(
       (manifestPath) =>

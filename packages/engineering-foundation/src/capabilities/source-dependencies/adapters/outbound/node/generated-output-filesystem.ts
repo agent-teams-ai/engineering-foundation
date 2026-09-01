@@ -1,5 +1,5 @@
 import { lstatSync, realpathSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 
 export interface GeneratedFilesystemIdentity {
   readonly device: string;
@@ -7,7 +7,6 @@ export interface GeneratedFilesystemIdentity {
 }
 
 interface GeneratedPathSnapshot extends GeneratedFilesystemIdentity {
-  readonly canonicalPath: string;
   readonly kind: "directory" | "file";
   readonly lexicalPath: string;
 }
@@ -68,6 +67,7 @@ function pathSnapshot(
     if (
       containment === ".." ||
       containment.startsWith(`..${sep}`) ||
+      isAbsolute(containment) ||
       String(lexical.dev) !== String(canonical.dev) ||
       String(lexical.ino) !== String(canonical.ino) ||
       (kind === "directory" ? !canonical.isDirectory() : !canonical.isFile())
@@ -75,7 +75,6 @@ function pathSnapshot(
       return undefined;
     }
     return {
-      canonicalPath,
       device: String(lexical.dev),
       inode: String(lexical.ino),
       kind,
@@ -92,7 +91,6 @@ function pathIsStable(
 ): boolean {
   const current = pathSnapshot(canonicalRoot, snapshot.lexicalPath, snapshot.kind);
   return current !== undefined &&
-    current.canonicalPath === snapshot.canonicalPath &&
     current.device === snapshot.device &&
     current.inode === snapshot.inode;
 }

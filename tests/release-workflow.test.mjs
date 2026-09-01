@@ -304,7 +304,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.equal(releaseJob["timeout-minutes"], 30);
   const attestationIndex = attestationSteps.indexOf(attestation);
   const attestationPnpmSetupIndex = attestationSteps.findIndex(
-    ({ uses }) => uses?.startsWith("pnpm/action-setup@"),
+    ({ uses }) => uses?.startsWith("pnpm/setup@"),
   );
   const attestationNodeSetupIndex = attestationSteps.findIndex(
     ({ uses }) => uses?.startsWith("actions/setup-node@"),
@@ -339,7 +339,11 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.ok(attestationIndex > attestationInstallIndex);
   assert.equal(
     attestationSteps[attestationPnpmSetupIndex].uses,
-    "pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9",
+    "pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b",
+  );
+  assert.deepEqual(
+    attestationSteps[attestationPnpmSetupIndex].with,
+    { install: false },
   );
   assert.equal(
     attestationSteps[attestationNodeSetupIndex].uses,

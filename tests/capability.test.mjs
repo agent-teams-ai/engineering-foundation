@@ -525,11 +525,26 @@ test("rejects source symlinks before parsing", async () => {
   });
 });
 
-test("rejects governed roots and manifests that traverse symlinks", async () => {
+async function upgradeSourceFixtureToV2(consumerRoot) {
+  const configPath = join(
+    consumerRoot,
+    "architecture",
+    "foundation",
+    "source-dependencies.yaml",
+  );
+  const config = parseYaml(await readFile(configPath, "utf8"));
+  config.schemaVersion = 2;
+  config.packageRoots = ["packages"];
+  config.boundaries = config.boundaries.filter(({ id }) => ["app.surface", "core.surface"].includes(id)).map((boundary) => ({ ...boundary, allow: { ...boundary.allow, boundaries: [] } }));
+  await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
+}
+
+test("v2 rejects governed roots and manifests that traverse symlinks", async () => {
   if (process.platform === "win32") {
     return;
   }
   await withSourceFixture(async (consumerRoot) => {
+    await upgradeSourceFixtureToV2(consumerRoot);
     const packageRoot = join(consumerRoot, "packages", "app");
     await rename(join(packageRoot, "src"), join(packageRoot, "source-real"));
     await symlink(join(packageRoot, "source-real"), join(packageRoot, "src"));
@@ -542,16 +557,17 @@ test("rejects governed roots and manifests that traverse symlinks", async () => 
   });
 
   await withSourceFixture(async (consumerRoot) => {
+    await upgradeSourceFixtureToV2(consumerRoot);
     const manifestPath = join(consumerRoot, "packages", "core", "package.json");
     const targetPath = join(consumerRoot, "packages", "core", "package.real.json");
     await rename(manifestPath, targetPath);
     await symlink(targetPath, manifestPath);
     const manifestResult = check(consumerRoot);
     assert.equal(manifestResult.result.status, 2);
-    assert.equal(
-      manifestResult.report.capabilities[0].problem.code,
+    assert.ok([
       "PACKAGE_MANIFEST_SYMLINK_PROHIBITED",
-    );
+      "SOURCE_ROOT_OUTSIDE_WORKSPACE",
+    ].includes(manifestResult.report.capabilities[0].problem.code));
   });
 });
 

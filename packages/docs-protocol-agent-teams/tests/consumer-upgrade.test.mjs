@@ -47,6 +47,7 @@ import {
   lockfileFor,
   packageRoot,
   runGit,
+  cleanupOneCommandSandbox,
   sourceCohort,
   sourceManifest
 } from "./consumer-upgrade-e2e-fixtures.mjs";
@@ -56,6 +57,9 @@ const REPOSITORY = {
   id: "999999999",
   nameWithOwner: "agent-teams-ai/docs-upgrade-sandbox"
 };
+const coreRoot = join(packageRoot, "..", "docs-protocol");
+const repositoryMutationRoot = join(packageRoot, "..", "repository-mutation");
+
 
 function fileObservation(bytes) {
   return { state: "file", bytes, mode: 0o644 };
@@ -432,13 +436,13 @@ minimumReleaseAgeExclude:
   runGit(consumerRoot, ["add", "--all"]);
   runGit(consumerRoot, ["commit", "-qm", "test: seed disposable docs consumer"]);
 
-  const originalPath = process.env.PATH;
-  const originalDocs = process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE;
-  const originalFoundation = process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE;
+  const originalPath = process.env.PATH, originalDocs = process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE, originalFoundation = process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE, originalManaged = process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE, originalRepositoryMutation = process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE;
   const restoreGitHubIdentity = useGitHubRepositoryIdentity(REPOSITORY);
   process.env.PATH = `${fakeBin}:${originalPath ?? ""}`;
-  process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE = packageRoot;
+  process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE = coreRoot;
   process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE = foundationRoot;
+  process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE = packageRoot;
+  process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE = repositoryMutationRoot;
   try {
     const upgrade = createConsumerUpgradeUseCase({
       assets: packageConsumerAssetCatalogReader,
@@ -459,8 +463,10 @@ minimumReleaseAgeExclude:
       consumerRoot,
       to: target.cohortId
     });
-    assert.equal(execution.outcome, "upgraded");
-    assert.equal(execution.authority.revision, authority.revision);
+    assert.deepEqual(
+      [execution.outcome, execution.authority.revision],
+      ["upgraded", authority.revision]
+    );
     const [profile, manifest, lockfile, workspace] = await Promise.all([
       readFile(profilePath, "utf8").then(JSON.parse),
       readFile(join(consumerRoot, "package.json"), "utf8").then(JSON.parse),
@@ -500,10 +506,6 @@ minimumReleaseAgeExclude:
     assert.equal(repeated.outcome, "current");
     assert.equal(authorityReads, 0);
   } finally {
-    restoreEnvironment("PATH", originalPath);
-    restoreEnvironment("DOCS_UPGRADE_TEST_DOCS_PACKAGE", originalDocs);
-    restoreEnvironment("DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE", originalFoundation);
-    restoreGitHubIdentity();
-    await rm(disposable, { force: true, recursive: true });
+      await cleanupOneCommandSandbox({ disposable, originalPath, originalDocs, originalFoundation, originalManaged, originalRepositoryMutation, restoreGitHubIdentity });
   }
 });

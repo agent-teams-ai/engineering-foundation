@@ -8,6 +8,7 @@ import test from "node:test";
 const adapterRoot = new URL("..", import.meta.url).pathname;
 const packagesRoot = dirname(adapterRoot);
 const coreRoot = join(packagesRoot, "docs-protocol");
+const repositoryMutationRoot = join(packagesRoot, "repository-mutation");
 const adapterManifest = JSON.parse(await readFile(join(adapterRoot, "package.json"), "utf8"));
 
 async function disposableInstall(packages) {
@@ -26,6 +27,7 @@ test("adapter alone owns the managed command and depends on the core public pack
   });
   assert.equal(adapterManifest.bin["agent-teams-docs"], undefined);
   assert.equal(adapterManifest.dependencies["@agent-teams/docs-protocol"], "workspace:*");
+  assert.equal(adapterManifest.dependencies["@agent-teams/repository-mutation"], "workspace:*");
 
   const runner = await readFile(join(adapterRoot, "src/qualification/qualification-v2-runner.ts"), "utf8");
   assert.match(runner, /from "@agent-teams\/docs-protocol";/u);
@@ -44,12 +46,15 @@ test("direct portable and managed install graphs resolve without duplicate imple
 
   const managed = await disposableInstall([
     ["docs-protocol", coreRoot],
-    ["docs-protocol-agent-teams", adapterRoot]
+    ["docs-protocol-agent-teams", adapterRoot],
+    ["repository-mutation", repositoryMutationRoot]
   ]);
   t.after(() => rm(managed, { recursive: true, force: true }));
   const managedRequire = createRequire(join(managed, "entry.cjs"));
   assert.equal(await realpath(managedRequire.resolve("@agent-teams/docs-protocol-agent-teams/package.json")),
     await realpath(join(adapterRoot, "package.json")));
+  assert.equal(await realpath(managedRequire.resolve("@agent-teams/repository-mutation/package.json")),
+    await realpath(join(repositoryMutationRoot, "package.json")));
 
   let portableManagedSources = [];
   try {
@@ -78,10 +83,11 @@ test("managed implementation retains fail-closed transaction boundaries", async 
   assert.match(source, /symbolic|symlink|O_NOFOLLOW/iu);
   assert.match(source, /nlink|hardlink/iu);
   assert.match(source, /normalize\("NFC"\)|NFC/iu);
-  assert.match(source, /@agent-teams\/engineering-foundation\/mutation/iu);
+  assert.match(source, /@agent-teams\/repository-mutation/iu);
+  assert.doesNotMatch(source, /@agent-teams\/engineering-foundation\/mutation/iu);
 });
 
-test("managed publication keeps the Foundation Windows read-only transaction policy", async () => {
+test("managed publication uses the repository-mutation transaction owner", async () => {
   const transactionAdapter = await readFile(join(
     adapterRoot,
     "src/consumer-integration/adapters/foundation-known-file-transaction.ts"
@@ -89,5 +95,6 @@ test("managed publication keeps the Foundation Windows read-only transaction pol
   assert.match(transactionAdapter, /applyKnownFileTransaction/u);
   assert.match(transactionAdapter, /inspectKnownFileTransactionBarrier/u);
   assert.match(transactionAdapter, /recoverKnownFileTransaction/u);
-  assert.match(transactionAdapter, /from "@agent-teams\/engineering-foundation\/mutation"/u);
+  assert.match(transactionAdapter, /from "@agent-teams\/repository-mutation"/u);
+  assert.doesNotMatch(transactionAdapter, /@agent-teams\/engineering-foundation\/mutation/u);
 });

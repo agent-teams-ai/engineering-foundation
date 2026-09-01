@@ -161,7 +161,7 @@ async function invokeInstalledDocs(
     root,
     "node_modules",
     "@agent-teams",
-    "docs-protocol",
+    "docs-protocol-agent-teams",
     "dist",
     "cli.js"
   );
@@ -174,7 +174,7 @@ async function invokeInstalledDocs(
   }
   const result = await execute(
     process.execPath,
-    [cli, "consumer", ...args, "--consumer", root, "--json"],
+    [cli, ...args, "--consumer", root, "--json"],
     root,
     [0, 1]
   );

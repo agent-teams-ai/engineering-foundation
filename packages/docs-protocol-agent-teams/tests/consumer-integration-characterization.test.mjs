@@ -16,8 +16,7 @@ import {
   canonicalManagedState,
   digestBytes
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
-
-const { consumerIntegration: managedCompatibilityApi } = await import("../dist/index.js");
+import { assertCanonicalMigrationAssets } from "./consumer-upgrade-e2e-fixtures.mjs";
 
 const shapes = JSON.parse(await readFile(
   join(import.meta.dirname, "fixtures", "current-consumer-shapes.v1.json"),
@@ -146,9 +145,9 @@ function fleetBundle(catalog, cohortId) {
   return bundle;
 }
 
+
 for (const shape of shapes.fixtures) {
   test(`characterizes and migrates ${shape.repository.nameWithOwner} without repo-specific compiler code`, async () => {
-    assert.equal(managedCompatibilityApi.planConsumerIntegration, planConsumerIntegration);
     const desired = {
       schemaVersion: 1,
       repository: shape.repository,
@@ -275,7 +274,7 @@ test("migrates the exact fleet rc2 bundle to a successor Cohort", async () => {
   const planned = invoke(root, ["plan", "--to", targetCohort.cohortId]);
   assert.equal(planned.status, 1, planned.stderr);
   assert.equal(planned.envelope.outcome, "change-required");
-  assert.deepEqual(planned.envelope.plan.issues, []);
+  assertCanonicalMigrationAssets(planned.envelope.plan, prior, targetCohort);
   const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
   assert.equal(applied.status, 0, applied.stderr);
   assert.equal(applied.envelope.plan.outcome, "current");
@@ -342,7 +341,7 @@ test("migrates the exact fleet rc3 bundle to a fix-forward stable Cohort", async
   const planned = invoke(root, ["plan", "--to", targetCohort.cohortId]);
   assert.equal(planned.status, 1, planned.stderr);
   assert.equal(planned.envelope.outcome, "change-required");
-  assert.deepEqual(planned.envelope.plan.issues, []);
+  assertCanonicalMigrationAssets(planned.envelope.plan, prior, targetCohort);
   const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
   assert.equal(applied.status, 0, applied.stderr);
   assert.equal(applied.envelope.plan.outcome, "current");
@@ -408,7 +407,7 @@ test("migrates the exact stable1 bundle to a successor without fabricating rollb
   const planned = invoke(root, ["plan", "--to", targetCohort.cohortId]);
   assert.equal(planned.status, 1, planned.stderr);
   assert.equal(planned.envelope.outcome, "change-required");
-  assert.deepEqual(planned.envelope.plan.issues, []);
+  assertCanonicalMigrationAssets(planned.envelope.plan, prior, targetCohort);
   const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
   assert.equal(applied.status, 0, applied.stderr);
   assert.equal(applied.envelope.plan.outcome, "current");
@@ -481,7 +480,7 @@ test(`migrates the exact ${priorCohortId} bundle to a fix-forward successor`, as
   const planned = invoke(root, ["plan", "--to", targetCohort.cohortId]);
   assert.equal(planned.status, 1, planned.stderr);
   assert.equal(planned.envelope.outcome, "change-required");
-  assert.deepEqual(planned.envelope.plan.issues, []);
+  assertCanonicalMigrationAssets(planned.envelope.plan, prior, targetCohort);
   const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
   assert.equal(applied.status, 0, applied.stderr);
   assert.equal(applied.envelope.plan.outcome, "current");

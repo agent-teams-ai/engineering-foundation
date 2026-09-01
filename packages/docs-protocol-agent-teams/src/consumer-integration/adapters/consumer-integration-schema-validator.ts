@@ -19,7 +19,7 @@ async function validator(
           import.meta.url
         ), "utf8"),
         readFile(new URL(
-          "../../../../engineering-foundation/schemas/known-file-transaction-receipt/v1.schema.json",
+          "../../../../repository-mutation/schemas/known-file-transaction-receipt/v1.schema.json",
           import.meta.url
         ), "utf8")
       ]);

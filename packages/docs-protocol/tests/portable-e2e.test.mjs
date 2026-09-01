@@ -10,10 +10,19 @@ import {
   applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
 } from "@agent-teams/repository-mutation";
+import {
+  applyKnownFileTransaction as applyKnownFileTransactionWithFaults,
+} from "@agent-teams/repository-mutation/qualification";
 import { assertDocsCommandEnvelopeSchema } from "../dist/adapters/docs-command-envelope-schema-validator.js";
 
 const execute = promisify(execFile);
 const cli = new URL("../dist/cli.js", import.meta.url);
+const ignoredSnapshotPaths = new Set([
+  ".agent-teams-local/foundation-operation-lock.completed-evidence",
+]);
+const ignoredSnapshotPrefixes = [
+  ".agent-teams-local/foundation-operation-lock.completed-evidence/",
+];
 
 async function runJson(arguments_) {
   const result = await execute(process.execPath, [cli.pathname, ...arguments_, "--json"]);
@@ -44,6 +53,12 @@ async function snapshotTree(root, relative = "") {
   const snapshot = [];
   for (const entry of entries) {
     const path = relative === "" ? entry.name : `${relative}/${entry.name}`;
+    if (
+      ignoredSnapshotPaths.has(path) ||
+      ignoredSnapshotPrefixes.some((prefix) => path.startsWith(prefix))
+    ) {
+      continue;
+    }
     const stats = await lstat(join(root, path));
     if (stats.isDirectory()) {
       snapshot.push({ path, type: "directory" });
@@ -175,7 +190,7 @@ test("init apply reports an interrupted transaction as recoverable before mutati
       postimage: { bytes: Buffer.from("must-not-publish\n", "utf8") },
     }] });
     await assert.rejects(
-      applyKnownFileTransaction({
+      applyKnownFileTransactionWithFaults({
         consumerRoot: root,
         plan: interruptedPlan,
         faultInjector(point) {
@@ -270,7 +285,7 @@ test("init apply waits for an active operation instead of prescribing recovery",
       );
       return;
     }
-    activeOperation = applyKnownFileTransaction({
+    activeOperation = applyKnownFileTransactionWithFaults({
       consumerRoot: root,
       plan: activePlan,
       async faultInjector(point) {

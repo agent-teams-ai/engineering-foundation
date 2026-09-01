@@ -150,7 +150,9 @@ test("consumer JSON mode survives bounded argv failures without accepting aliase
   ]) {
     const result = invoke(args);
     assert.equal(result.status, 2, result.stderr);
-    assert.equal(JSON.parse(result.stdout).issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
+    const envelope = JSON.parse(result.stdout);
+    assert.equal(envelope.outcome, "blocked");
+    assert.equal(envelope.issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
   }
 
   const ambiguous = invoke(["check", "--json=true"]);

@@ -339,9 +339,13 @@ test("coverage keeps cross-platform shards complete and adds package evidence", 
     false,
   );
   assert.equal(coverageTests.length, testManifest.testCount);
-  assert.equal(
-    coverageTests.filter((path) => path.startsWith("packages/docs-protocol/tests/")).length,
-    21,
+  assert.deepEqual(
+    coverageTests
+      .filter((path) => path.startsWith("packages/docs-protocol/tests/"))
+      .toSorted(),
+    testManifest.coverageTests.filter(
+      (path) => path.startsWith("packages/docs-protocol/tests/"),
+    ).toSorted(),
   );
   assert.equal(
     coverageTests.filter((path) => path.startsWith("packages/docs-protocol-mcp/tests/")).length,

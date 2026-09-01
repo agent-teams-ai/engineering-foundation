@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -15,6 +15,11 @@ import {
 export const packageRoot = join(import.meta.dirname, "..");
 export const foundationRoot = join(packageRoot, "..", "engineering-foundation");
 const INTEGRITY = `sha512-${"A".repeat(86)}==`;
+
+function restoreEnvironment(name, value) {
+  if (value === undefined) { delete process.env[name]; }
+  else { process.env[name] = value; }
+}
 
 export function runGit(root, args) {
   const result = spawnSync("git", args, { cwd: root, encoding: "utf8" });
@@ -66,6 +71,24 @@ export function sourceManifest(cohort, profilePath) {
     },
     untouched: { retained: true }
   };
+}
+
+export async function cleanupOneCommandSandbox({
+  disposable,
+  originalPath,
+  originalDocs,
+  originalFoundation,
+  originalManaged,
+  originalRepositoryMutation,
+  restoreGitHubIdentity
+}) {
+  restoreEnvironment("PATH", originalPath);
+  restoreEnvironment("DOCS_UPGRADE_TEST_DOCS_PACKAGE", originalDocs);
+  restoreEnvironment("DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE", originalFoundation);
+  restoreEnvironment("DOCS_UPGRADE_TEST_MANAGED_PACKAGE", originalManaged);
+  restoreEnvironment("DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE", originalRepositoryMutation);
+  restoreGitHubIdentity();
+  await rm(disposable, { force: true, recursive: true });
 }
 
 export function fakeCorepackSource() {
@@ -137,7 +160,9 @@ const scope = join(root, "node_modules", "@agent-teams");
 mkdirSync(scope, { recursive: true });
 for (const [name, source] of [
   ["docs-protocol", process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE],
-  ["engineering-foundation", process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE]
+  ["engineering-foundation", process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE],
+  ["docs-protocol-agent-teams", process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE],
+  ["repository-mutation", process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE]
 ]) {
   if (typeof source !== "string" || source === "") { throw new Error("missing package path"); }
   const target = join(scope, name);
@@ -145,6 +170,14 @@ for (const [name, source] of [
   symlinkSync(source, target, "dir");
 }
 `;
+}
+
+export function assertCanonicalMigrationAssets(plan, prior, target) {
+  const expected = [["managed-state", "replace"]];
+  if (digestBytes(prior.skill) !== target.assets.skillDigest) { expected.unshift(["skill", "replace"]); }
+  if (digestBytes(prior.callerWorkflow) !== target.assets.callerWorkflowDigest) { expected.splice(expected.length - 1, 0, ["caller-workflow", "replace"]); }
+  assert.deepEqual(plan.issues, []);
+  assert.deepEqual(plan.assets.filter(({ action }) => action !== "none").map(({ id, action }) => [id, action]), expected);
 }
 
 export async function sourceCohort() {

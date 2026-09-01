@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -18,6 +19,9 @@ const REPOSITORY = {
   id: "999999999",
   nameWithOwner: "agent-teams-ai/docs-upgrade-sandbox"
 };
+const repositoryMutationReceiptSchema = JSON.parse(await readFile(new URL(
+  import.meta.resolve("@agent-teams/repository-mutation/schemas/known-file-transaction-receipt/v1.schema.json")
+), "utf8"));
 
 function centralRegistry(cohort) {
   return {
@@ -114,6 +118,11 @@ test("rejects ambiguous lifecycle sequencing and closes the upgrade envelope", a
     repository: REPOSITORY,
     revision: "8".repeat(40)
   }), (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+
+  assert.equal(
+    repositoryMutationReceiptSchema.properties.protocol.const,
+    "agent-teams.repository-mutation.known-file/v1"
+  );
 
   await assertConsumerUpgradeExecutionSchema({
     schemaVersion: 1,

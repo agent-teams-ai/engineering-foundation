@@ -16,6 +16,35 @@ import {
   assertWindowsDocsRecoveryInspection,
   verifyWindowsDocsRecoveryQualification
 } from "../scripts/registry-document-authoring-policy.mjs";
+import {
+  writeDocsProtocolProfileFixture
+} from "../scripts/registry-document-authoring-e2e.mjs";
+import {
+  NodeDocsProfileReader
+} from "../packages/docs-protocol/dist/adapters/node-profile-reader.js";
+
+test("registry Docs Profile fixture satisfies the current portable profile policy", async (context) => {
+  const consumerRoot = await mkdtemp(join(tmpdir(), "registry-docs-profile-"));
+  context.after(() => rm(consumerRoot, { force: true, recursive: true }));
+  await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
+
+  await writeDocsProtocolProfileFixture(consumerRoot);
+
+  const profile = await new NodeDocsProfileReader().read({
+    consumerRoot,
+    profilePath: "architecture/foundation/docs-protocol.yaml"
+  });
+  assert.equal(profile.schemaVersion, 3);
+  assert.deepEqual(profile.agentWorkflow, {
+    adoption: "portable-v1",
+    skillPath: ".agents/skills/docs-authoring/SKILL.md"
+  });
+  assert.equal(profile.foundationProfile.schemaVersion, 3);
+  assert.equal(
+    profile.foundationProfile.metadataSidecarPolicy,
+    "foundation-profile-v3-strict-merge"
+  );
+});
 
 test("canonical package boundaries use platform path semantics", () => {
   const root = join("registry-root", "node_modules", "@agent-teams", "engineering-foundation");

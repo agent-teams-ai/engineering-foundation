@@ -9,7 +9,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, delimiter, extname, join, resolve } from "node:path";
+import { basename, delimiter, dirname, extname, join, resolve } from "node:path";
 import test from "node:test";
 
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
@@ -77,7 +77,14 @@ async function canonicalExecutable(candidate) {
       return undefined;
     }
     await access(candidate, constants.X_OK);
-    return await realpath(candidate);
+    const canonical = await realpath(candidate);
+    if (
+      process.platform === "win32" &&
+      windowsShellEntrypointPattern.test(canonical)
+    ) {
+      return undefined;
+    }
+    return canonical;
   } catch (error) {
     if (["EACCES", "ENOENT", "ENOTDIR"].includes(error?.code)) {
       return undefined;
@@ -217,7 +224,18 @@ const canonicalizeNpmExecPath = (entrypoint) => {
   if (typeof entrypoint !== "string" || entrypoint === "") {
     throw new Error("Installed pnpm child did not report npm_execpath.");
   }
-  if (basename(entrypoint) !== entrypoint) return realpathSync(entrypoint);
+  const canonicalExecutable = (candidate) => {
+    const canonical = realpathSync(candidate);
+    if (process.platform === "win32" && /\\.(?:bat|cmd|ps1)$/iu.test(canonical)) {
+      return undefined;
+    }
+    return canonical;
+  };
+  if (basename(entrypoint) !== entrypoint) {
+    const canonical = canonicalExecutable(entrypoint);
+    if (canonical !== undefined) return canonical;
+    throw new Error("Installed pnpm child resolved to a shell entrypoint.");
+  }
   const path = environmentValue("PATH");
   if (typeof path !== "string") {
     throw new Error("Installed pnpm child reported a command name without PATH.");
@@ -238,7 +256,8 @@ const canonicalizeNpmExecPath = (entrypoint) => {
       try {
         if (!statSync(candidate).isFile()) continue;
         accessSync(candidate, constants.X_OK);
-        return realpathSync(candidate);
+        const canonical = canonicalExecutable(candidate);
+        if (canonical !== undefined) return canonical;
       } catch (error) {
         if (["EACCES", "ENOENT", "ENOTDIR"].includes(error?.code)) continue;
         throw error;
@@ -369,6 +388,7 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
           AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE: "verify",
         }),
         npmExecPath: installedPnpmEntrypoint,
+        pathValue: dirname(installedPnpmEntrypoint),
       }),
       projectId: "quality-gate-real-pnpm-lifecycle",
     });

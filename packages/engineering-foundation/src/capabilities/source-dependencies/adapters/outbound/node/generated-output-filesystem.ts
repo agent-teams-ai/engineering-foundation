@@ -21,7 +21,7 @@ function consumerRootSnapshot(
 ): GeneratedConsumerRootSnapshot | undefined {
   try {
     const canonicalRoot = realpathSync(consumerRoot);
-    const metadata = lstatSync(canonicalRoot);
+    const metadata = lstatSync(canonicalRoot, { bigint: true });
     const snapshot = {
       canonicalRoot,
       device: String(metadata.dev),
@@ -40,7 +40,7 @@ function consumerRootSnapshot(
 
 function consumerRootIsStable(snapshot: GeneratedConsumerRootSnapshot): boolean {
   try {
-    const metadata = lstatSync(snapshot.canonicalRoot);
+    const metadata = lstatSync(snapshot.canonicalRoot, { bigint: true });
     return String(metadata.dev) === snapshot.device &&
       String(metadata.ino) === snapshot.inode;
   } catch {
@@ -54,7 +54,7 @@ function pathSnapshot(
   kind: "directory" | "file"
 ): GeneratedPathSnapshot | undefined {
   try {
-    const lexical = lstatSync(lexicalPath);
+    const lexical = lstatSync(lexicalPath, { bigint: true });
     if (
       lexical.isSymbolicLink() ||
       (kind === "directory" ? !lexical.isDirectory() : !lexical.isFile())
@@ -63,7 +63,7 @@ function pathSnapshot(
     }
     const canonicalPath = realpathSync(lexicalPath);
     const containment = relative(canonicalRoot, canonicalPath);
-    const canonical = lstatSync(canonicalPath);
+    const canonical = lstatSync(canonicalPath, { bigint: true });
     if (
       containment === ".." ||
       containment.startsWith(`..${sep}`) ||

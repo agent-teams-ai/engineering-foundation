@@ -410,8 +410,20 @@ test("generated output candidates require canonical same-package dist literals",
   try {
     await mkdir(join(consumerRoot, "packages", "app"), { recursive: true });
     assert.equal(resolve("../dist/index.js").kind, "generated-output-candidate");
+    const originalConsumerRoot = await stat(consumerRoot, { bigint: true });
+    const originalRootIdentity = {
+      device: String(originalConsumerRoot.dev),
+      inode: String(originalConsumerRoot.ino),
+    };
     const originalPackageRoot = await stat(join(consumerRoot, "packages", "app"), { bigint: true });
     const originalIdentity = { device: String(originalPackageRoot.dev), inode: String(originalPackageRoot.ino) };
+    assert.equal(
+      resolve("../dist/index.js", {
+        consumerRootIdentity: originalRootIdentity,
+        workspacePackageRootIdentity: originalIdentity,
+      }).kind,
+      "generated-output-candidate",
+    );
     assert.equal(
       resolve("../dist/index.js", { workspacePackageRootIdentity: originalIdentity }).kind,
       "generated-output-candidate",

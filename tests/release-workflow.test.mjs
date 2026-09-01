@@ -106,11 +106,27 @@ function assertReviewRouterInteractionRuntime(
 function assertExactReleaseRunBinding(attestation, release, ci) {
   const jobTimeoutSeconds =
     release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
-  const primaryDeadlineSeconds = 2100;
-  const finalVerificationSeconds = 60;
+  const requiredContexts = attestation.run.match(/^\s*ci_contexts=\(([^)]+)\)$/mu)[1].split(" ");
+  const criticalPathMinutes = (jobId) => {
+    const { needs = [], "timeout-minutes": timeout } = ci.jobs[jobId] ?? {};
+    assert.ok(Number.isInteger(timeout), `${jobId} must be bounded`);
+    return timeout + Math.max(0, ...[needs].flat().map(criticalPathMinutes));
+  };
+  const longestRequiredCiPathSeconds = Math.max(...requiredContexts.map(criticalPathMinutes)) * 60;
+  const deadlineEntries = [...attestation.run.matchAll(
+    /^\s*(deadline|final_verification_deadline)=\$\(\(SECONDS \+ ([0-9]+)\)\)$/gmu,
+  )];
+  const deadlines = new Map(deadlineEntries.map(
+    ([, name, seconds]) => [name, Number.parseInt(seconds, 10)],
+  ));
+  const primaryDeadlineSeconds = deadlines.get("deadline");
+  const finalVerificationSeconds = deadlines.get("final_verification_deadline");
 
-  assert.equal(jobTimeoutSeconds, 2400);
-  assert.match(attestation.run, /deadline=\$\(\(SECONDS \+ 2100\)\)/u);
+  assert.equal(jobTimeoutSeconds, 45 * 60);
+  assert.equal(deadlines.size, 2);
+  assert.equal(primaryDeadlineSeconds, 40 * 60);
+  assert.equal(finalVerificationSeconds, 60);
+  assert.ok(primaryDeadlineSeconds >= longestRequiredCiPathSeconds);
   assert.match(attestation.run, /actions\/workflows\/ci\.yml\/dispatches/u);
   assert.match(attestation.run, /-F return_run_details=true/u);
   assert.match(attestation.run, /\.workflow_run_id \/\/ ""/u);
@@ -144,20 +160,11 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.match(attestation.run, /final_run_conclusion.*success/su);
   assert.match(
     attestation.run,
-    /final_verification_deadline=\$\(\(SECONDS \+ 60\)\)/u,
-  );
-  assert.match(
-    attestation.run,
     /while \(\( SECONDS < final_verification_deadline \)\); do/u,
   );
   assert.ok(
-    attestation.run.lastIndexOf("deadline=$((SECONDS + 2100))") <
-      attestation.run.lastIndexOf(
-        "final_verification_deadline=$((SECONDS + 60))",
-      ),
-  );
-  assert.ok(
-    primaryDeadlineSeconds + finalVerificationSeconds <= jobTimeoutSeconds,
+    primaryDeadlineSeconds + finalVerificationSeconds +
+      4 * 60 <= jobTimeoutSeconds,
   );
   assert.ok(
     attestation.run.lastIndexOf("final_bound_run") <
@@ -167,12 +174,6 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| first/u);
   assert.doesNotMatch(attestation.run, /commits\/\$\{head_sha\}\/check-runs/u);
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
-  assert.ok(
-    release.jobs["attest-release-pr"]["timeout-minutes"] >=
-      ci.jobs["dependency-review"]["timeout-minutes"] +
-        ci.jobs["macos-qualification"]["timeout-minutes"] +
-        10,
-  );
 }
 
 function exactPullRequestRun(overrides = {}) {

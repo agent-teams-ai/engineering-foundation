@@ -14,6 +14,7 @@ import {
   inspectCompressedTarArchive,
   packAndInspectArtifact,
   readVerifiedArchive,
+  sameAuthoritativeFileIdentity,
   snapshotVerifiedArtifact,
 } from "../scripts/pack-artifact-e2e.mjs";
 import {
@@ -663,6 +664,17 @@ test("attacker-controlled packed manifest cannot forge qualification identity", 
       name: "@fixture/qualified", root: "packages/qualified", sourceRoot: fixture.packageRoot, version: "1.2.3",
     }],
   }), /manifest identity does not match/u);
+});
+
+test("archive identity comparison ignores unavailable filesystem identity", () => {
+  assert.equal(sameAuthoritativeFileIdentity({ dev: 0, ino: 0 }, { dev: 0, ino: 0 }), false);
+  assert.equal(sameAuthoritativeFileIdentity({ dev: 0, ino: 11 }, { dev: 0, ino: 11 }), false);
+  assert.equal(sameAuthoritativeFileIdentity({ dev: 7, ino: 0 }, { dev: 7, ino: 0 }), false);
+  assert.equal(sameAuthoritativeFileIdentity({ dev: undefined, ino: undefined }, {
+    dev: undefined, ino: undefined,
+  }), false);
+  assert.equal(sameAuthoritativeFileIdentity({ dev: 7, ino: 11 }, { dev: 7, ino: 11 }), true);
+  assert.equal(sameAuthoritativeFileIdentity({ dev: 7n, ino: 11n }, { dev: 7n, ino: 12n }), false);
 });
 
 test("same-identity manifest substitution and injected payloads fail closed", async (t) => {

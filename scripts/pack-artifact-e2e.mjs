@@ -12,6 +12,16 @@ export {
 
 const verifiedArchiveBytes = new WeakMap();
 
+function hasAuthoritativeFileIdentity(metadata) {
+  return (typeof metadata.dev === "bigint" ? metadata.dev > 0n : Number.isSafeInteger(metadata.dev) && metadata.dev > 0) &&
+    (typeof metadata.ino === "bigint" ? metadata.ino > 0n : Number.isSafeInteger(metadata.ino) && metadata.ino > 0);
+}
+
+export function sameAuthoritativeFileIdentity(first, second) {
+  return hasAuthoritativeFileIdentity(first) && hasAuthoritativeFileIdentity(second) &&
+    first.dev === second.dev && first.ino === second.ino;
+}
+
 function describeArchiveDifference(firstBytes, secondBytes) {
   let firstEntries;
   let secondEntries;
@@ -301,7 +311,7 @@ export async function packAndInspectArtifact(input) {
     realpath(first.archivePath), realpath(second.archivePath),
   ]);
   const [firstStat, secondStat] = await Promise.all([lstat(first.archivePath), lstat(second.archivePath)]);
-  if (firstPhysicalPath === secondPhysicalPath || (firstStat.dev === secondStat.dev && firstStat.ino === secondStat.ino)) {
+  if (firstPhysicalPath === secondPhysicalPath || sameAuthoritativeFileIdentity(firstStat, secondStat)) {
     throw new Error("Two clean package builds must produce distinct archive files.");
   }
   const [firstBytes, secondBytes] = await Promise.all([

@@ -59,6 +59,7 @@ const CANCELLATION_DEADLINE_MS = process.platform === "win32" ? 45_000 : 5_000;
 const TEST_TIMEOUT_MS = process.platform === "win32" ? 65_000 : 10_000;
 const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
 const FAKE_ABSOLUTE_SYSTEM_ROOT = String.raw`C:\Windows`;
+const MISSING_WINDOWS_SYSTEM_ROOT = String.raw`C:\foundation-missing-system-root-${process.pid}`;
 const FAKE_WINDOWS_POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
 
 async function removeNewWindowsControlRoots(previousRoots) {
@@ -364,8 +365,13 @@ test("preserves a synchronous PowerShell launch failure when control cleanup fai
   }
 });
 
-test("contains asynchronous control cleanup failures and permits an idempotent retry", async (context) => {
+test("contains asynchronous control cleanup failures and permits an idempotent retry", {
+  timeout: 10_000
+}, async (context) => {
   const root = await mkdtemp(join(tmpdir(), "foundation-windows-async-launch-failure-"));
+  const missingSystemRoot = process.platform === "win32" ?
+    join(root, "missing-system-root") :
+    MISSING_WINDOWS_SYSTEM_ROOT;
   const previousControls = await windowsControlRoots();
   let child;
   try {
@@ -373,8 +379,8 @@ test("contains asynchronous control cleanup failures and permits an idempotent r
       child = spawnWindowsManagedProcess({
         command: process.execPath,
         args: ["-e", "process.exit()"],
-        cwd: join(root, "missing-working-directory"),
-        launcherEnvironment: { ...process.env, SystemRoot: FAKE_ABSOLUTE_SYSTEM_ROOT }
+        cwd: root,
+        launcherEnvironment: { ...process.env, SystemRoot: missingSystemRoot }
       });
       const closed = new Promise((resolve) => {
         child.once("close", resolve);

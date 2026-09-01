@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { lstat, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 import test from "node:test";
 import { gzipSync } from "node:zlib";
 
@@ -28,6 +28,16 @@ import {
 } from "./pack-publishable-artifacts-support.mjs";
 
 import { derivePublishablePackageProjection } from "../scripts/publishable-packages.mjs";
+
+async function isPhysicallyContainedPath(root, candidate) {
+  const [canonicalRoot, canonicalCandidate] = await Promise.all([
+    realpath(root),
+    realpath(candidate),
+  ]);
+  const relation = relative(canonicalRoot, canonicalCandidate);
+  return relation === "" ||
+    (relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation));
+}
 
 function syntheticProjection(catalogOrder) {
   const names = {
@@ -270,8 +280,8 @@ test("clean stage resolves internal imports to freshly built staged copies", asy
     temporaryRoot,
   }, "a");
 
-  assert(resolvedInternalPath.startsWith(await realpath(stage.stageRoot)));
-  assert(!resolvedInternalPath.startsWith(sourceB));
+  assert(await isPhysicallyContainedPath(stage.stageRoot, resolvedInternalPath));
+  assert(!(await isPhysicallyContainedPath(sourceB, resolvedInternalPath)));
   assert.equal(
     await realpath(join(stage.packageRoot, "node_modules", "@fixture", "b")),
     await realpath(join(stage.stageRoot, "packages", "b")),

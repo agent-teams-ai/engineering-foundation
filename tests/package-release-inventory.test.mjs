@@ -47,12 +47,14 @@ function assertPublicWorkspacePackageAuthorities({
   publicApiPackages,
   releasePackages,
   qualificationPackages,
+  securityPackages,
 }) {
   const expected = authorityPackageNames(publicWorkspacePackages, "workspace package inventory");
   for (const [authority, values] of [
     ["public API", publicApiPackages],
     ["release", releasePackages],
     ["package qualification", qualificationPackages],
+    ["repository security", securityPackages],
   ]) {
     const observed = authorityPackageNames(values, authority);
     const missing = expected.filter((name) => !observed.includes(name));
@@ -64,6 +66,17 @@ function assertPublicWorkspacePackageAuthorities({
       );
     }
   }
+}
+
+async function resolveManifestAuthorityPackages(manifestPaths) {
+  return Promise.all(
+    manifestPaths.map(async (manifestPath) => {
+      const manifest = JSON.parse(
+        await readFile(new URL(`../${manifestPath}`, import.meta.url), "utf8"),
+      );
+      return { name: manifest.name };
+    }),
+  );
 }
 
 async function discoverPublicWorkspacePackages() {
@@ -84,10 +97,16 @@ async function discoverPublicWorkspacePackages() {
   return packages;
 }
 
-test("every public workspace package has API, release, and qualification authority", async () => {
+test("every public workspace package has API, release, qualification, and security authority", async () => {
   const publicApiConfig = parseYaml(
     await readFile(
       new URL("../architecture/foundation/public-api-compatibility.yaml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const repositorySecurityConfig = parseYaml(
+    await readFile(
+      new URL("../architecture/foundation/repository-security-baseline.yaml", import.meta.url),
       "utf8",
     ),
   );
@@ -96,6 +115,9 @@ test("every public workspace package has API, release, and qualification authori
     publicApiPackages: publicApiConfig.packages.map(({ packageName: name }) => ({ name })),
     releasePackages: PUBLISHABLE_PACKAGES,
     qualificationPackages: registryQualificationPackages(PUBLISHABLE_PACKAGES),
+    securityPackages: await resolveManifestAuthorityPackages(
+      repositorySecurityConfig.publishablePackageManifests,
+    ),
   };
   assert.doesNotThrow(() => assertPublicWorkspacePackageAuthorities(authorities));
 
@@ -112,6 +134,13 @@ test("every public workspace package has API, release, and qualification authori
       publicApiPackages: [...authorities.publicApiPackages, { name: "@fixture/retired" }],
     }),
     /public API.*stale=\[@fixture\/retired\]/u,
+  );
+  assert.throws(
+    () => assertPublicWorkspacePackageAuthorities({
+      ...authorities,
+      securityPackages: authorities.securityPackages.slice(1),
+    }),
+    /repository security.*missing=\[@agent-teams\/repository-mutation\]/u,
   );
 });
 

@@ -96,6 +96,8 @@ privilegedJobs:
       contents: read
       security-events: write
 publishablePackageManifests:
+  - packages/repository-mutation/package.json
   - packages/engineering-foundation/package.json
   - packages/docs-protocol/package.json
+  - packages/docs-protocol-agent-teams/package.json
   - packages/docs-protocol-mcp/package.json

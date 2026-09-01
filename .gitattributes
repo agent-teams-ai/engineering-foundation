@@ -1,6 +1,8 @@
 architecture/public-api/*.json text eol=lf
 packages/docs-protocol/assets/** text eol=lf
 packages/docs-protocol/skills/** text eol=lf
+packages/docs-protocol-agent-teams/assets/** text eol=lf
+packages/docs-protocol-agent-teams/skills/** text eol=lf
 packages/docs-protocol-agent-teams/src/consumer-integration/generated/canonical-assets.ts text eol=lf
 packages/engineering-foundation/schemas/**/*.json text eol=lf
 tests/fixtures/document-authoring-contracts/*.json text eol=lf

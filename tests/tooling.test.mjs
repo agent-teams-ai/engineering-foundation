@@ -7,7 +7,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { runCommand } from "../scripts/pack-test-support.mjs";
+import {
+  createPnpmRunner,
+  runCommand,
+  runNpmCommand,
+} from "../scripts/pack-test-support.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const requireFromRepository = createRequire(import.meta.url);
@@ -237,6 +241,19 @@ ${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}
     const tests = runMaintainabilityLint(projectRoot, maintainabilityTestsPreset);
     assert.equal(tests.status, 0, `${tests.stdout}${tests.stderr}`);
   });
+});
+
+test("packaging package-manager runners ignore executable environment overrides", async () => {
+  const environment = {
+    ...process.env,
+    ComSpec: join(repositoryRoot, "attacker-cmd.exe"),
+    npm_execpath: join(repositoryRoot, "attacker-pnpm.cjs"),
+    PATH: join(repositoryRoot, "attacker-bin"),
+  };
+  const pnpm = await createPnpmRunner()(["--version"], repositoryRoot, { environment });
+  const npm = await runNpmCommand(["--version"], repositoryRoot, { environment });
+  assert.match(pnpm.stdout, /^11\.20\.0\s*$/u);
+  assert.match(npm.stdout, /^11\./u);
 });
 
 test("packaging subprocesses have a bounded deadline", async () => {

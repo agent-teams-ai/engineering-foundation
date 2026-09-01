@@ -74,7 +74,7 @@ async function canonicalExecutable(candidate) {
   try {
     const candidateStat = await stat(candidate);
     if (!candidateStat.isFile()) {
-      return undefined;
+      return null;
     }
     await access(candidate, constants.X_OK);
     const canonical = await realpath(candidate);
@@ -82,12 +82,12 @@ async function canonicalExecutable(candidate) {
       process.platform === "win32" &&
       windowsShellEntrypointPattern.test(canonical)
     ) {
-      return undefined;
+      return null;
     }
     return canonical;
   } catch (error) {
     if (["EACCES", "ENOENT", "ENOTDIR"].includes(error?.code)) {
-      return undefined;
+      return null;
     }
     throw error;
   }
@@ -104,7 +104,7 @@ async function resolveCommand(command, environment = process.env) {
     const directory = pathDirectory(segment);
     for (const name of commandNames(command, environment)) {
       const executable = await canonicalExecutable(resolve(directory, name));
-      if (executable !== undefined) {
+      if (executable !== null) {
         return executable;
       }
     }

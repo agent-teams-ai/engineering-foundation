@@ -42,7 +42,7 @@ function createInjectedSpawnHarness() {
     },
     deadlines,
     invocations,
-    spawnChild(command, arguments_, options) {
+    spawnChild(command, commandArguments, options) {
       const child = new EventEmitter();
       Object.assign(child, {
         exitCode: null,
@@ -51,7 +51,7 @@ function createInjectedSpawnHarness() {
         stderr: new PassThrough(),
         stdout: new PassThrough(),
       });
-      invocations.push({ arguments_, child, command, options });
+      invocations.push({ arguments: commandArguments, child, command, options });
       return child;
     },
     async terminateTree(child) {
@@ -64,18 +64,18 @@ function createInjectedSpawnHarness() {
 }
 
 test("bounded CLI spawn shapes share managed tree termination", async (context) => {
-  const arguments_ = ["gate", "run", "verify"];
+  const commandArguments = ["gate", "run", "verify"];
   const nativePath = join(tmpdir(), "native pnpm fixture", "pnpm executable");
   const cases = [
     {
-      expectedArguments: [cliPath, ...arguments_],
+      expectedArguments: [cliPath, ...commandArguments],
       expectedCommand: process.execPath,
       name: "JavaScript entrypoint",
       nodeEntrypoint: true,
       path: cliPath,
     },
     {
-      expectedArguments: arguments_,
+      expectedArguments: commandArguments,
       expectedCommand: nativePath,
       name: "native executable with spaces",
       nodeEntrypoint: false,
@@ -86,7 +86,7 @@ test("bounded CLI spawn shapes share managed tree termination", async (context) 
   for (const candidate of cases) {
     await context.test(candidate.name, async () => {
       const harness = createInjectedSpawnHarness();
-      const execution = startBoundedCli(candidate.path, arguments_, {
+      const execution = startBoundedCli(candidate.path, commandArguments, {
         createDeadline: harness.createDeadline,
         nodeEntrypoint: candidate.nodeEntrypoint,
         spawnChild: harness.spawnChild,
@@ -95,7 +95,7 @@ test("bounded CLI spawn shapes share managed tree termination", async (context) 
 
       assert.equal(harness.invocations.length, 1);
       assert.equal(harness.invocations[0].command, candidate.expectedCommand);
-      assert.deepEqual(harness.invocations[0].arguments_, candidate.expectedArguments);
+      assert.deepEqual(harness.invocations[0].arguments, candidate.expectedArguments);
 
       await execution.stop();
       assert.deepEqual(harness.terminations, [execution.command]);

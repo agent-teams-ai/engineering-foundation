@@ -3,14 +3,8 @@ import { lstat, mkdir, mkdtemp, opendir, readFile, realpath, rm, stat, symlink, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { pathToFileURL } from "node:url";
 
-import { addWorkspacePackage, configProblem, foundationPackageRoot, inspectV2Topology, PnpmWorkspaceInventoryReader, runSourceCapability, sourceArchitectureConfig, sourceConfigPath, withCopiedFixture, withTemporaryDirectory } from "./helpers/source-dependency-v2-fixture.mjs";
-
-const sourceWorkspaceFilesystem = await import(pathToFileURL(join(
-  process.env.FOUNDATION_DIST_ROOT ?? join(foundationPackageRoot, "dist"),
-  "capabilities/source-dependencies/adapters/outbound/node/source-workspace-filesystem.js",
-)).href);
+import { addWorkspacePackage, configProblem, inspectV2Topology, PnpmWorkspaceInventoryReader, runSourceCapability, sourceArchitectureConfig, sourceConfigPath, withCopiedFixture, withTemporaryDirectory } from "./helpers/source-dependency-v2-fixture.mjs";
 
 test("pnpm inventory cancellation observes manifest-free excluded traversal", async () => {
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
@@ -403,35 +397,6 @@ function changedIdentity(metadata) {
     isSymbolicLink: () => metadata.isSymbolicLink(),
   };
 }
-
-test("v2 revalidation treats canonical absolute spellings as physical evidence", async () => {
-  const metadata = {
-    ctimeMs: 1n,
-    dev: 2n,
-    ino: 3n,
-    mode: 4n,
-    mtimeMs: 5n,
-    size: 6n,
-    isDirectory: () => true,
-    isFile: () => false,
-    isSymbolicLink: () => false,
-  };
-  await sourceWorkspaceFilesystem.revalidateStableRepositoryPath(
-    "/physical/repository",
-    {
-      absolutePath: "/physical/repository/packages/app",
-      canonicalMetadata: metadata,
-      lexicalMetadata: metadata,
-      repositoryPath: "packages/app",
-      traversesSymbolicLink: false,
-    },
-    {
-      lstat: async () => metadata,
-      realpath: async () => "/physical/repository/mounted-volume/packages/app",
-      stat: async () => metadata,
-    },
-  );
-});
 
 test("v2 uses one workspace snapshot and enforces bounded cancellable discovery", async () => {
   await withCopiedFixture("v2-valid", async (consumerRoot) => {

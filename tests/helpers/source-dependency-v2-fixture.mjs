@@ -19,6 +19,7 @@ const [
   { createSourceDependenciesCapability },
   { PnpmSourceWorkspaceTopologyInspector },
   { PnpmWorkspaceInventoryReader },
+  { revalidateStableRepositoryPath },
 ] = await Promise.all([
   import(
     pathToFileURL(
@@ -44,10 +45,19 @@ const [
       ),
     ).href
   ),
+  import(
+    pathToFileURL(
+      join(
+        distRoot,
+        "capabilities/source-dependencies/adapters/outbound/node/source-workspace-filesystem.js",
+      ),
+    ).href
+  ),
 ]);
 
 export const loadCapabilityConfig = loadSourceDependencyCapabilityConfig;
 export { PnpmWorkspaceInventoryReader };
+export { revalidateStableRepositoryPath };
 
 export function ruleIds(values) {
   return values.map(({ ruleId }) => ruleId).toSorted();

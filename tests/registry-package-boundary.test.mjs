@@ -5,10 +5,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
-  isCanonicalPathInside,
-  isSameCanonicalPath,
   readInstalledPortableDocsSkill
-} from "../scripts/registry-document-authoring-e2e.mjs";
+} from "../scripts/registry-installed-docs-skill.mjs";
+import {
+  isCanonicalPathInside,
+  isSameCanonicalPath
+} from "../scripts/registry-package-paths.mjs";
 import {
   assertWindowsDocsApplyRecovery,
   assertWindowsDocsRecoveryInspection,

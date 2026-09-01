@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { isAbsolute, join, relative, sep } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   captureFailure,
@@ -10,44 +10,19 @@ import {
 } from "./pack-test-support.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyWindowsDocsRecoveryQualification } from "./registry-document-authoring-policy.mjs";
+import { readInstalledPortableDocsSkill } from "./registry-installed-docs-skill.mjs";
+import {
+  isCanonicalPathInside,
+  isSameCanonicalPath
+} from "./registry-package-paths.mjs";
 
 const packageName = "@agent-teams/engineering-foundation", docsPackageName = "@agent-teams/docs-protocol";
 const timeoutMs = 120_000, runPnpm = createPnpmRunner();
-const maximumPortableSkillBytes = 1024 * 1024;
 
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
-}
-
-export function isSameCanonicalPath(left, right) {
-  return relative(left, right) === "";
-}
-
-export function isCanonicalPathInside(root, candidate) {
-  const relation = relative(root, candidate);
-  return relation !== "" && relation !== ".." &&
-    !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
-}
-
-export async function readInstalledPortableDocsSkill(installedDocsRoot) {
-  const canonicalRoot = await realpath(installedDocsRoot);
-  const manifest = JSON.parse(await readFile(join(canonicalRoot, "package.json"), "utf8"));
-  const qualificationExport = manifest.exports?.["./qualification"]?.import;
-  assert(typeof qualificationExport === "string" && qualificationExport.startsWith("./"),
-    "Installed Docs Protocol does not declare its qualification import export.");
-  const qualificationPath = await realpath(join(canonicalRoot, qualificationExport));
-  assert(isCanonicalPathInside(canonicalRoot, qualificationPath),
-    "Installed Docs Protocol qualification export escapes its package root.");
-  const qualification = await import(pathToFileURL(qualificationPath).href);
-  assert(typeof qualification.portableQualificationSkill === "function",
-    "Installed Docs Protocol qualification does not expose its portable Skill authority.");
-  const skill = qualification.portableQualificationSkill();
-  assert(skill instanceof Uint8Array && skill.byteLength > 0 &&
-    skill.byteLength <= maximumPortableSkillBytes,
-  "Installed Docs Protocol returned an invalid portable Skill asset.");
-  return Buffer.from(skill);
 }
 
 async function runBin(consumerRoot, args) {

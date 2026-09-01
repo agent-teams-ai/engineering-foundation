@@ -10,6 +10,7 @@ import {
   configProblem,
   foundationPackageRoot,
   loadCapabilityConfig,
+  revalidateStableRepositoryPath,
   ruleIds,
   runSourceCapability,
   signalThatFailsAfterConfiguration,
@@ -18,6 +19,35 @@ import {
   withCopiedFixture,
   withTemporaryDirectory,
 } from "./helpers/source-dependency-v2-fixture.mjs";
+
+test("v2 revalidation treats canonical absolute spellings as physical evidence", async () => {
+  const metadata = {
+    ctimeMs: 1n,
+    dev: 2n,
+    ino: 3n,
+    mode: 4n,
+    mtimeMs: 5n,
+    size: 6n,
+    isDirectory: () => true,
+    isFile: () => false,
+    isSymbolicLink: () => false,
+  };
+  await revalidateStableRepositoryPath(
+    "/physical/repository",
+    {
+      absolutePath: "/physical/repository/packages/app",
+      canonicalMetadata: metadata,
+      lexicalMetadata: metadata,
+      repositoryPath: "packages/app",
+      traversesSymbolicLink: false,
+    },
+    {
+      lstat: async () => metadata,
+      realpath: async () => "/physical/repository/mounted-volume/packages/app",
+      stat: async () => metadata,
+    },
+  );
+});
 
 test("source architecture schema v2 is strict and explicit while v1 stays loadable", async () => {
   const schema = JSON.parse(

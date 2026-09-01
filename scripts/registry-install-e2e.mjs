@@ -504,6 +504,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry) {
       consumerRoot,
       docsVersion: docsTarget.manifest.version,
       featureImports: FOUNDATION_FEATURE_IMPORTS,
+      installedDocsRoot,
       installedRoot: installedFoundationRoot,
       repositoryRoot,
       verifyInstalledBufQualifier,

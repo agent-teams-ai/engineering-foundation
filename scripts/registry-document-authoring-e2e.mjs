@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   captureFailure,
@@ -13,6 +13,7 @@ import { verifyWindowsDocsRecoveryQualification } from "./registry-document-auth
 
 const packageName = "@agent-teams/engineering-foundation", docsPackageName = "@agent-teams/docs-protocol";
 const timeoutMs = 120_000, runPnpm = createPnpmRunner();
+const maximumPortableSkillBytes = 1024 * 1024;
 
 function assert(condition, message) {
   if (!condition) {
@@ -28,6 +29,25 @@ export function isCanonicalPathInside(root, candidate) {
   const relation = relative(root, candidate);
   return relation !== "" && relation !== ".." &&
     !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
+}
+
+export async function readInstalledPortableDocsSkill(installedDocsRoot) {
+  const canonicalRoot = await realpath(installedDocsRoot);
+  const manifest = JSON.parse(await readFile(join(canonicalRoot, "package.json"), "utf8"));
+  const qualificationExport = manifest.exports?.["./qualification"]?.import;
+  assert(typeof qualificationExport === "string" && qualificationExport.startsWith("./"),
+    "Installed Docs Protocol does not declare its qualification import export.");
+  const qualificationPath = await realpath(join(canonicalRoot, qualificationExport));
+  assert(isCanonicalPathInside(canonicalRoot, qualificationPath),
+    "Installed Docs Protocol qualification export escapes its package root.");
+  const qualification = await import(pathToFileURL(qualificationPath).href);
+  assert(typeof qualification.portableQualificationSkill === "function",
+    "Installed Docs Protocol qualification does not expose its portable Skill authority.");
+  const skill = qualification.portableQualificationSkill();
+  assert(skill instanceof Uint8Array && skill.byteLength > 0 &&
+    skill.byteLength <= maximumPortableSkillBytes,
+  "Installed Docs Protocol returned an invalid portable Skill asset.");
+  return Buffer.from(skill);
 }
 
 async function runBin(consumerRoot, args) {
@@ -118,6 +138,8 @@ async function assertInstalledBoundary(input) {
     await realpath(join(input.consumerRoot, "node_modules")), await realpath(docsRoot)
   ),
     "Installed Docs Protocol escaped the clean consumer node_modules tree.");
+  assert(isSameCanonicalPath(await realpath(input.installedDocsRoot), await realpath(docsRoot)),
+    "Document E2E received a different installed Docs Protocol package root.");
   const foundationManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert(typeof foundationManifest.exports?.["./document-authoring/qualification"] === "object",
     "Packed Foundation does not declare its closed document-authoring qualification export.");
@@ -206,10 +228,7 @@ async function prepareDocsProtocolFixture(input) {
   };
   await writeFile(metadataSchemaPath, `${JSON.stringify(metadataSchema, null, 2)}\n`, "utf8");
   await mkdir(join(input.consumerRoot, ".agents", "skills", "docs-authoring"), { recursive: true });
-  const installedDocsSkill = await readFile(join(
-    input.consumerRoot,
-    "node_modules", "@agent-teams", "docs-protocol", "skills", "docs", "SKILL.md"
-  ));
+  const installedDocsSkill = await readInstalledPortableDocsSkill(input.installedDocsRoot);
   await writeFile(
     join(input.consumerRoot, ".agents", "skills", "docs-authoring", "SKILL.md"),
     installedDocsSkill

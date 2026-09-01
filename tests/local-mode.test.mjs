@@ -503,7 +503,7 @@ test("serializes concurrent attaches before writing the local ignore rule", asyn
     );
     await assert.rejects(
       secondAttach,
-      /operation is active or its shared mutation lock is not safely recoverable/u
+      /operation is active or its lock is not safely recoverable/u
     );
 
     fixture.runner.releaseExcludeLookup();

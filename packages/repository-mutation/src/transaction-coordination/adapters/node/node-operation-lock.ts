@@ -49,7 +49,7 @@ interface OwnedLock {
   readonly identity: PortablePathIdentity;
 }
 
-interface OperationLockOperations {
+export interface OperationLockOperations {
   readonly faultInjector?: (point: {
     readonly path: string;
     readonly phase: "after-release-retirement";
@@ -459,7 +459,7 @@ export class NodeMutationOperationLock {
     } catch (error) {
       throw new RepositoryMutationError(
         "MUTATION_LEASE_INVALID",
-        "Another foundation operation is active or its lock is not safely recoverable.",
+        "Another repository mutation operation is active or its lock is not safely recoverable.",
         { cause: error }
       );
     }

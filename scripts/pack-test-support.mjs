@@ -55,8 +55,8 @@ export async function readJson(path) {
 export function createPnpmRunner() {
   const entrypoint = process.env.npm_execpath;
   const executable = entrypoint === undefined ? "pnpm" : process.execPath;
-  return async (args, cwd) =>
-    runCommand(executable, entrypoint === undefined ? args : [entrypoint, ...args], cwd);
+  return async (args, cwd, options = {}) =>
+    runCommand(executable, entrypoint === undefined ? args : [entrypoint, ...args], cwd, options);
 }
 
 export function runNpmCommand(args, cwd, options = {}) {
@@ -190,13 +190,13 @@ async function cleanUpAfterNormalExit(child, windowsManagedProcess) {
   }
 }
 
-function spawnCommand(command, args, cwd, windowsManagedProcess) {
+function spawnCommand(command, args, cwd, environment, windowsManagedProcess) {
   return process.platform === "win32"
     ? windowsManagedProcess.spawnWindowsManagedProcess({
-        command, args, cwd, environment: process.env
+        command, args, cwd, environment
       })
     : spawn(command, args, {
-        cwd, detached: true, stdio: ["ignore", "pipe", "pipe"], windowsHide: true
+        cwd, detached: true, env: environment, stdio: ["ignore", "pipe", "pipe"], windowsHide: true
       });
 }
 
@@ -240,12 +240,13 @@ export async function runCommand(command, args, cwd, options = {}) {
     });
   }
   const windowsManagedProcess = await windowsProcessSpawner();
+  const environment = options.environment ?? process.env;
   let resolveForcedTermination;
   const forcedTermination = new Promise((_resolve) => {
     resolveForcedTermination = _resolve;
   });
   return new Promise((resolve, reject) => {
-    const child = spawnCommand(command, args, cwd, windowsManagedProcess);
+    const child = spawnCommand(command, args, cwd, environment, windowsManagedProcess);
     const stdout = [];
     const stderr = [];
     let stdoutBytes = 0;

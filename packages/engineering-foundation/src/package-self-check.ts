@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { lstat, readFile } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -33,8 +33,6 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "dist/document-authoring/qualification/index.js",
   "dist/local-mode/index.d.ts",
   "dist/local-mode/index.js",
-  "dist/mutation/index.d.ts",
-  "dist/mutation/index.js",
   "dist/scaffolding/index.d.ts",
   "dist/scaffolding/index.js",
   ...FOUNDATION_REQUIRED_PRESET_PATHS,
@@ -194,6 +192,10 @@ function importUnknown(specifier: string): Promise<unknown> {
   return import(specifier) as Promise<unknown>;
 }
 
+function isImportOnlyPackageResolution(error: unknown): boolean {
+  return isRecord(error) && error.code === "ERR_PACKAGE_PATH_NOT_EXPORTED";
+}
+
 async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> {
   const [rootExports, documentAuthoringExports, localModeExports, scaffoldingExports] =
     await Promise.all([
@@ -306,10 +308,6 @@ export async function inspectFoundationPackage(
     types: "./dist/document-authoring/qualification/index.d.ts",
     import: "./dist/document-authoring/qualification/index.js"
   });
-  validateExport(manifest.exports, "./mutation", {
-    types: "./dist/mutation/index.d.ts",
-    import: "./dist/mutation/index.js"
-  });
   validateExport(manifest.exports, "./scaffolding", {
     types: "./dist/scaffolding/index.d.ts",
     import: "./dist/scaffolding/index.js"
@@ -338,11 +336,16 @@ export async function inspectFoundationPackage(
     manifest.dependencies,
     "dependencies"
   );
-  const requireFromTarget = createRequire(join(packageRoot, "package.json"));
+  const requireFromTarget = createRequire(
+    join(await realpath(packageRoot), "package.json")
+  );
   for (const dependencyName of Object.keys(runtimeDependencies)) {
     try {
       requireFromTarget.resolve(dependencyName);
     } catch (error) {
+      if (isImportOnlyPackageResolution(error)) {
+        continue;
+      }
       throw new FoundationError(
         "PACKAGE_INVALID",
         `Foundation target runtime dependency cannot be resolved: ${dependencyName}.`,

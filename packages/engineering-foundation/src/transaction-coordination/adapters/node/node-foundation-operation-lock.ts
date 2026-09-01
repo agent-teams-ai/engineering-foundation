@@ -4,6 +4,7 @@ import {
   retainMutationBarrier,
   type MutationLease
 } from "@agent-teams/repository-mutation/node";
+import { RepositoryMutationError } from "@agent-teams/repository-mutation";
 
 import type {
   FoundationOperationLock,
@@ -25,7 +26,9 @@ export class NodeFoundationOperationLock implements FoundationOperationLock {
     } catch (error) {
       throw new FoundationError(
         "LOCAL_STATE_INVALID",
-        "Another Foundation operation is active or its shared mutation lock is not safely recoverable.",
+        error instanceof RepositoryMutationError
+          ? error.message
+          : "Another Foundation operation is active or its shared mutation lock is not safely recoverable.",
         { cause: error }
       );
     }

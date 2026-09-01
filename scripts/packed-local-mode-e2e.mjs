@@ -31,7 +31,7 @@ async function createLocalModeConsumer(input) {
   });
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": "${input.archiveFileSpecifier}"\n`,
+    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": ${JSON.stringify(input.archiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\n`,
     "utf8"
   );
   const siblingRoot = join(input.consumerRoot, "packages", "sibling");

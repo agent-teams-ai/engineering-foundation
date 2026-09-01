@@ -50,9 +50,6 @@ const SCHEMA_DEPENDENCIES: Partial<
     "document-plan/v2",
     "foundation-transaction-envelope/v3"
   ],
-  "foundation-transaction-envelope/v5": [
-    "known-file-transaction-plan/v1"
-  ],
   "scaffold-recovery-journal/v1": ["scaffold-plan/v1"]
 };
 

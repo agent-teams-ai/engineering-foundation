@@ -355,9 +355,13 @@ test("clean removes incremental state and permits a full rebuild", async () => {
       ),
     );
     packageConfig.compilerOptions.types = [];
+    packageConfig.references = [];
 
     const fixturePackages = [
-      ["engineering-foundation", "@agent-teams/engineering-foundation", {}],
+      ["repository-mutation", "@agent-teams/repository-mutation", {}],
+      ["engineering-foundation", "@agent-teams/engineering-foundation", {
+        "@agent-teams/repository-mutation": "workspace:*",
+      }],
       ["docs-protocol", "@agent-teams/docs-protocol", {
         "@agent-teams/engineering-foundation": "workspace:*",
       }],
@@ -366,7 +370,7 @@ test("clean removes incremental state and permits a full rebuild", async () => {
       }],
       ["docs-protocol-agent-teams", "@agent-teams/docs-protocol-agent-teams", {
         "@agent-teams/docs-protocol": "workspace:*",
-        "@agent-teams/engineering-foundation": "workspace:*",
+        "@agent-teams/repository-mutation": "workspace:*",
       }],
     ];
     await Promise.all(fixturePackages.map(([slug]) =>

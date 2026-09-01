@@ -5,6 +5,10 @@
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
   "scripts": { "build": "tsc --build tsconfig.json --pretty false" },
   "exports": {
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },

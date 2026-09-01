@@ -317,10 +317,28 @@ test("clean checkout package stages materialize the repository license", async (
 
     const stage = await createCleanBuildStage({
       artifactLabel: "clean-checkout",
+      authoritativePackageRoots: [supportRoot, packageRoot],
+      buildPackageNames: ["qualified-package"],
+      dependencyDeclarations: {
+        "qualified-package": [],
+        "support-package": [],
+      },
+      packageName: "qualified-package",
       packageRoot,
       repositoryRoot: root,
       runBuild: async () => {},
-      supportPackageRoots: [supportRoot],
+      stagePackages: [
+        {
+          name: "support-package",
+          root: "packages/support-package",
+          sourceRoot: supportRoot,
+        },
+        {
+          name: "qualified-package",
+          root: "packages/qualified-package",
+          sourceRoot: packageRoot,
+        },
+      ],
       temporaryRoot,
     }, "a");
 

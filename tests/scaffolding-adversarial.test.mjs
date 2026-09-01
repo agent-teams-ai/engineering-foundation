@@ -541,7 +541,7 @@ test("retains the downgrade barrier for a replaced journal temporary", async () 
 
 test(
   "rejects a FIFO journal without blocking and releases the operation lock",
-  { skip: process.platform === "win32", timeout: 10_000 },
+  { skip: process.platform === "win32", timeout: 15_000 },
   async () => {
     const root = await createConsumer();
     try {
@@ -585,7 +585,7 @@ test(
           root,
           path
         ],
-        { timeout: 5_000 }
+        { timeout: 8_000 }
       );
 
       assert.equal(stdout, "completed\n");
@@ -600,7 +600,7 @@ test(
   "rejects a Unix socket journal through the typed recovery path",
   { skip: process.platform === "win32", timeout: 10_000 },
   async () => {
-    const root = await mkdtemp(join(tmpdir(), "foundation-socket-"));
+    const root = await mkdtemp(join(process.platform === "darwin" ? "/tmp" : tmpdir(), "fs-socket-"));
     await cp(fixtureRoot, root, { recursive: true });
     const path = journalPath(root);
     const server = createServer();

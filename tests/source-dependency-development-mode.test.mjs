@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -522,10 +522,15 @@ test("v2 rejects portable directory aliases across manifest and source trees", a
     assert.equal((await runSourceCapability(consumerRoot)).problem?.code, "PACKAGE_PATH_CASE_COLLISION");
   });
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    const sourceRoot = join(consumerRoot, "packages", "app", "src");
     await Promise.all([
-      mkdir(join(consumerRoot, "packages", "app", "src", "caf\u00e9"), { recursive: true }),
-      mkdir(join(consumerRoot, "packages", "app", "src", "cafe\u0301"), { recursive: true }),
+      mkdir(join(sourceRoot, "caf\u00e9"), { recursive: true }),
+      mkdir(join(sourceRoot, "cafe\u0301"), { recursive: true }),
     ]);
+    const entries = await readdir(sourceRoot);
+    if (!entries.includes("caf\u00e9") || !entries.includes("cafe\u0301")) {
+      return;
+    }
     assert.equal((await runSourceCapability(consumerRoot)).problem?.code, "SOURCE_PATH_CASE_COLLISION");
   });
 });

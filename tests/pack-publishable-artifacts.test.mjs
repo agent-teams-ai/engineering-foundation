@@ -21,6 +21,7 @@ import {
   derivePublishableArtifactPlan,
   packPublishableArtifacts,
 } from "../scripts/pack-publishable-artifacts.mjs";
+import { boundedDirectoryEntries } from "../scripts/pack-artifact-stage-support.mjs";
 import { assertSecretCanaryAbsent } from "../scripts/pack-test-support.mjs";
 import {
   catalogEntry, compressedTar, createPackFixture, qualifiedArchive, tarArchive, tarHeader,
@@ -256,7 +257,7 @@ test("clean stage resolves internal imports to freshly built staged copies", asy
     temporaryRoot,
   }, "a");
 
-  assert(resolvedInternalPath.startsWith(stage.stageRoot));
+  assert(resolvedInternalPath.startsWith(await realpath(stage.stageRoot)));
   assert(!resolvedInternalPath.startsWith(sourceB));
   assert.equal(
     await realpath(join(stage.packageRoot, "node_modules", "@fixture", "b")),
@@ -395,27 +396,14 @@ test("external manifests are version-bound and only runtime closure is reconstru
   }, "wrong-version"), /does not satisfy exact request/u);
 });
 
-test("external dependency enumeration is bounded before materialization", async (t) => {
-  const repositoryRoot = await mkdtemp(join(tmpdir(), "pack-wide-external-"));
-  t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
-  const rootA = join(repositoryRoot, "packages", "a");
-  const wideRoot = join(rootA, "node_modules", "wide", "payload");
-  await mkdir(wideRoot, { recursive: true });
-  await mkdir(join(repositoryRoot, "temporary"), { recursive: true });
-  await writeFile(join(repositoryRoot, "LICENSE"), "fixture license\n");
-  await writeFile(join(repositoryRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
-  await writeFile(join(rootA, "package.json"), JSON.stringify({ dependencies: { wide: "1.0.0" }, name: "@fixture/a" }));
-  await writeFile(join(rootA, "node_modules", "wide", "package.json"), JSON.stringify({ name: "wide" }));
-  for (let offset = 0; offset < 10_001; offset += 500) {
-    await Promise.all(Array.from({ length: Math.min(500, 10_001 - offset) }, (_, index) =>
-      writeFile(join(wideRoot, `${offset + index}.txt`), "")));
-  }
-  await assert.rejects(createCleanBuildStage({
-    dependencyDeclarations: { "@fixture/a": [] }, packageName: "@fixture/a", repositoryRoot,
-    runBuild: async () => {},
-    stagePackages: [{ name: "@fixture/a", root: "packages/a", sourceRoot: rootA }],
-    temporaryRoot: join(repositoryRoot, "temporary"),
-  }, "wide"), /bounded entry limit/u);
+test("stage directory enumeration fails closed at its aggregate entry bound", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "pack-wide-external-"));
+  t.after(() => rm(root, { force: true, recursive: true }));
+  await Promise.all([writeFile(join(root, "a"), ""), writeFile(join(root, "b"), "")]);
+  await assert.rejects(
+    boundedDirectoryEntries(root, "External dependency tree", { entries: 49_999 }),
+    /bounded entry limit/u,
+  );
 });
 
 test("external dependency trees carrying nested workspace links are rejected", async (t) => {
@@ -684,11 +672,9 @@ test("same-identity manifest substitution and injected payloads fail closed", as
     { data: Buffer.from("attack\n"), name: "package/dist/attacker.js" },
   ]);
   const substitutedContentBytes = tarArchive([
-    { name: "package/", type: "5" },
     { data: await readFile(join(fixture.packageRoot, "package.json")), name: "package/package.json" },
     { data: Buffer.from("fixture license\n"), name: "package/LICENSE" },
     { data: Buffer.from("# Fixture\n"), name: "package/README.md" },
-    { name: "package/dist/", type: "5" },
     { data: Buffer.from("attack();\n"), name: "package/dist/index.js" },
   ]);
   for (const [bytes, expected] of [

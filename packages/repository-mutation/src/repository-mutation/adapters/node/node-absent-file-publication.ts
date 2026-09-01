@@ -35,7 +35,7 @@ export type AbsentFilePublicationFaultInjector = (
   point: AbsentFilePublicationFaultPoint
 ) => Promise<void> | void;
 
-interface AbsentFilePublicationOperations {
+export interface AbsentFilePublicationOperations {
   readonly link: typeof link;
   readonly open: (
     path: string,

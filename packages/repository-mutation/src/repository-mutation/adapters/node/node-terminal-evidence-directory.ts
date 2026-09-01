@@ -3,7 +3,7 @@ import { basename, dirname, join } from "node:path";
 
 import type { PortablePathIdentity } from "../../application/model/path-identity.js";
 
-interface TerminalEvidenceDirectoryStat {
+export interface TerminalEvidenceDirectoryStat {
   readonly birthtimeNs: bigint;
   readonly dev: bigint;
   readonly ino: bigint;
@@ -11,7 +11,7 @@ interface TerminalEvidenceDirectoryStat {
   readonly isSymbolicLink: () => boolean;
 }
 
-interface TerminalEvidenceDirectoryOperations {
+export interface TerminalEvidenceDirectoryOperations {
   readonly lstat: (path: string) => Promise<TerminalEvidenceDirectoryStat>;
   readonly mkdir: typeof mkdir;
   readonly realpath: typeof realpath;

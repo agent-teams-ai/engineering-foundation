@@ -191,14 +191,6 @@
         "types": "./dist/local-mode/index.d.ts",
         "import": "./dist/local-mode/index.js"
       },
-      "./mutation": {
-        "types": "./dist/mutation/index.d.ts",
-        "import": "./dist/mutation/index.js"
-      },
-      "./mutation/qualification": {
-        "types": "./dist/mutation/qualification/index.d.ts",
-        "import": "./dist/mutation/qualification/index.js"
-      },
       "./scaffolding": {
         "types": "./dist/scaffolding/index.d.ts",
         "import": "./dist/scaffolding/index.js"
@@ -232,11 +224,8 @@
     "schemas/foundation-config/v1.schema.json",
     "schemas/foundation-transaction-envelope/v2.schema.json",
     "schemas/foundation-transaction-envelope/v4.schema.json",
-    "schemas/foundation-transaction-envelope/v5.schema.json",
     "schemas/governance-architecture-decision-baseline/v1.schema.json",
     "schemas/governance-architecture-decisions/v1.schema.json",
-    "schemas/known-file-transaction-plan/v1.schema.json",
-    "schemas/known-file-transaction-receipt/v1.schema.json",
     "schemas/package-public-api-baseline/v1.schema.json",
     "schemas/package-public-api-compatibility/v1.schema.json",
     "schemas/quality-executable-specification-catalog/v1.schema.json",
@@ -254,7 +243,7 @@
     "schemas/workspace-dependency-declarations/v1.schema.json"
   ],
   "packedE2e": {
-    "packageCheckBuilt": "node scripts/prepare-package.mjs && publint packages/engineering-foundation && publint packages/docs-protocol && publint packages/docs-protocol-mcp && attw --pack --profile esm-only packages/engineering-foundation && attw --pack --profile esm-only packages/docs-protocol && attw --pack --profile esm-only packages/docs-protocol-mcp && node scripts/pack-test.mjs",
+    "packageCheckBuilt": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs",
     "registryInstallBuilt": "node scripts/registry-install-e2e.mjs"
   }
 }

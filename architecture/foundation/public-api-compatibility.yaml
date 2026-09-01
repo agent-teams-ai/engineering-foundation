@@ -3,6 +3,24 @@ changesetDirectory: .changeset
 acceptedDecisionBaselinePath: architecture/decisions/accepted-decisions.json
 governanceConfigPath: architecture/foundation/governance-architecture-decisions.yaml
 packages:
+  - packageName: "@agent-teams/repository-mutation"
+    packageRoot: packages/repository-mutation
+    manifestPath: packages/repository-mutation/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/repository-mutation/dist/index.d.ts
+      - exportPath: "./node"
+        declarationEntryPoint: packages/repository-mutation/dist/node.d.ts
+      - exportPath: "./qualification"
+        declarationEntryPoint: packages/repository-mutation/dist/qualification/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/repository-mutation/tsconfig.json
+    releasedBaselinePath: architecture/public-api/repository-mutation.json
+    approvedBreakingChanges: []
   - packageName: "@agent-teams/engineering-foundation"
     packageRoot: packages/engineering-foundation
     manifestPath: packages/engineering-foundation/package.json
@@ -27,7 +45,7 @@ packages:
     tsconfigPath: packages/engineering-foundation/tsconfig.json
     releasedBaselinePath: architecture/public-api/engineering-foundation.json
     approvedBreakingChanges:
-      - fingerprint: sha256:082a118c2e071395ed2c1b83954d4ad0c350dc8a32117c69c7a534c2990260c7
+      - fingerprint: sha256:b08385a793df8ea8604e90f0f636f3b394e2486b127179ce05e41da0b7fd003b
         decisionId: ADR-0043
       - fingerprint: sha256:d53672af4035cdb2a8500756f521795eec32c98c628b06df94f1c95642b9ac99
         decisionId: ADR-0035

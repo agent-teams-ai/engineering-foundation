@@ -9,12 +9,12 @@ export class StrictDirectoryDurabilityError extends Error {
   }
 }
 
-interface DirectorySyncHandle {
+export interface DirectorySyncHandle {
   close(): Promise<void>;
   sync(): Promise<void>;
 }
 
-interface DirectoryDurabilityOperations {
+export interface DirectoryDurabilityOperations {
   readonly open: (path: string) => Promise<DirectorySyncHandle>;
   readonly platform: NodeJS.Platform;
 }

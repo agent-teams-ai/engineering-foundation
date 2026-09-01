@@ -2,11 +2,89 @@ import { constants as fsConstants } from "node:fs";
 import { lstat, mkdir, open, opendir, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 
-const MAX_STAGE_ENTRIES = 10_000;
-const MAX_STAGE_BYTES = 64 * 1024 * 1024;
-const MAX_MEMBER_BYTES = 16 * 1024 * 1024;
+// A clean stage includes the full isolated dependency closure needed to build
+// each package. Keep traversal bounded while allowing the current workspace
+// toolchain and foundation runtime closure to coexist in one stage.
+const MAX_STAGE_ENTRIES = 50_000;
+// Toolchain dependencies are part of the disposable build stage, not the
+// published archive. Keep this aggregate bound separate from archive limits.
+const MAX_STAGE_BYTES = 256 * 1024 * 1024;
+// Clean build stages may materialize compiler toolchains such as TypeScript's
+// native binary, which is larger than the final package-member limit. Keep the
+// stage bounded while allowing that supported build-time dependency.
+const MAX_MEMBER_BYTES = 32 * 1024 * 1024;
 const MAX_MANIFEST_BYTES = 1024 * 1024;
+const dependencySections = ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"];
 export const generatedPackageEntries = new Set(["dist", "node_modules", "tsconfig.tsbuildinfo"]);
+
+function compareCodePoints([left], [right]) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function exactPublishSpecifier(packageName, specifier, context) {
+  if (specifier === "workspace:*") {
+    const version = context.internalPackageVersions.get(packageName);
+    if (typeof version !== "string" || parseVersion(version) === undefined) {
+      throw new Error(`Staged publish manifest cannot resolve exact workspace version for ${packageName}.`);
+    }
+    return version;
+  }
+  if (specifier.startsWith("workspace:")) {
+    throw new Error(`Staged publish manifest requires workspace:* for ${packageName}.`);
+  }
+  if (specifier === "catalog:") {
+    const version = context.catalogVersions.get(packageName);
+    if (typeof version !== "string" || parseVersion(version) === undefined) {
+      throw new Error(`Staged publish manifest cannot resolve exact catalog version for ${packageName}.`);
+    }
+    return version;
+  }
+  if (specifier.startsWith("catalog:")) {
+    throw new Error(`Staged publish manifest only supports the default catalog for ${packageName}.`);
+  }
+  return specifier;
+}
+
+export function canonicalPublishManifest(manifest, context) {
+  if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error("Staged publish manifest must be a JSON object.");
+  }
+  if (!(context?.catalogVersions instanceof Map) || !(context?.internalPackageVersions instanceof Map)) {
+    throw new Error("Staged publish manifest requires exact catalog and workspace version maps.");
+  }
+  if (manifest.publishConfig !== undefined && (manifest.publishConfig === null ||
+      typeof manifest.publishConfig !== "object" || Array.isArray(manifest.publishConfig))) {
+    throw new Error("Package manifest has malformed publishConfig.");
+  }
+  if (manifest.publishConfig?.directory !== undefined) {
+    throw new Error("Staged publish manifest cannot use publishConfig.directory.");
+  }
+  const canonical = { ...manifest };
+  for (const section of dependencySections) {
+    if (!Object.hasOwn(manifest, section)) {
+      continue;
+    }
+    const declarations = manifest[section];
+    if (declarations === null || typeof declarations !== "object" || Array.isArray(declarations)) {
+      throw new Error(`Package manifest has malformed ${section}.`);
+    }
+    canonical[section] = Object.fromEntries(Object.entries(declarations)
+      .map(([name, specifier]) => {
+        if (typeof specifier !== "string" || specifier === "") {
+          throw new Error(`Package manifest has malformed ${section} request for ${name}.`);
+        }
+        return [name, exactPublishSpecifier(name, specifier, context)];
+      })
+      .toSorted(compareCodePoints));
+  }
+  return canonical;
+}
+
+export function publishDependencyIdentity(manifest) {
+  return JSON.stringify(Object.fromEntries(dependencySections
+    .filter((section) => Object.hasOwn(manifest, section))
+    .map((section) => [section, manifest[section]])));
+}
 
 export async function pathExists(path) {
   try { await lstat(path); return true; } catch (error) {
@@ -394,4 +472,3 @@ export async function wireStagedPackageDependencies(input) {
     await symlink(dependencyRoot, join(linkRoot, leaf), process.platform === "win32" ? "junction" : "dir");
   }
 }
-

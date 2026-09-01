@@ -11,8 +11,6 @@ const transactionEnvelopeV3Path =
   "schemas/foundation-transaction-envelope/v3.schema.json";
 const transactionEnvelopeV4Path =
   "schemas/foundation-transaction-envelope/v4.schema.json";
-const transactionEnvelopeV5Path =
-  "schemas/foundation-transaction-envelope/v5.schema.json";
 const documentAuthoringProfileV2Path =
   "schemas/document-authoring-profile/v2.schema.json";
 const documentAuthoringProfileV3Path =
@@ -36,13 +34,11 @@ const acceptedNonV1SchemaPaths = [
   transactionEnvelopeV2Path,
   transactionEnvelopeV3Path,
   transactionEnvelopeV4Path,
-  transactionEnvelopeV5Path,
 ];
 const acceptedTransactionEnvelopePaths = [
   transactionEnvelopeV2Path,
   transactionEnvelopeV3Path,
   transactionEnvelopeV4Path,
-  transactionEnvelopeV5Path,
 ];
 
 async function filesBelow(root) {
@@ -119,11 +115,6 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
       const envelopeVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
       assert.equal(schema.$id.endsWith(`/v${envelopeVersion}`), true);
       assert.equal(schema.properties.schemaVersion.const, envelopeVersion);
-      if (relativePath === transactionEnvelopeV5Path) {
-        assert.equal(schema.properties.recoveryHandler.properties.contractVersion.const, 1);
-        assert.equal(schema.properties.payloadKind.const, "known-file-transaction-journal/v1");
-        continue;
-      }
       assert.equal(
         schema.properties.recoveryHandler.properties.contractVersion.const,
         envelopeVersion - 1,
@@ -177,8 +168,7 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
     "src/document-authoring/application/use-cases/recover-document-transaction.ts": [2, 2],
     "src/document-authoring/composition/describe-document-authoring-profile-v2.ts": [2, 3],
     "src/document-authoring/composition/inspect-document-transaction.ts": [2, 2, 2, 2],
-    "src/repository-mutation/application/model/known-file-transaction-journal.ts": [5],
-    "src/repository-mutation/application/policies/known-file-transaction-envelope.ts": [5],
+    "src/transaction-coordination/adapters/node/schema6-transaction-status.ts": [6],
   };
   const observedVersionedSourceLiterals = {};
   for (const path of sourceFiles) {

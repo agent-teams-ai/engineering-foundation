@@ -89,10 +89,15 @@ function rollbackFixtureRuntimeLock(cohort) {
   };
 }
 
-async function createRollbackFixturePackage(docsArtifact, foundationArtifact) {
+async function createRollbackFixturePackage(
+  adapterArtifact,
+  docsArtifact,
+  foundationArtifact,
+  mutationArtifact
+) {
   const root = join(temporaryRoot, "docs-rollback-package-fixture");
   await mkdir(root, { recursive: true });
-  await runCommand("tar", ["-xzf", docsArtifact.archivePath, "-C", root], temporaryRoot);
+  await runCommand("tar", ["-xzf", adapterArtifact.archivePath, "-C", root], temporaryRoot);
   const extractedPackageRoot = join(root, "package");
   const api = await import(`${pathToFileURL(join(
     extractedPackageRoot,
@@ -103,8 +108,11 @@ async function createRollbackFixturePackage(docsArtifact, foundationArtifact) {
     "dist", "consumer-integration", "adapters", "pnpm-runtime-closure-v1.js"
   )).href}?rollback-fixture=1`);
   const packageManifest = JSON.parse(await readFile(join(extractedPackageRoot, "package.json"), "utf8"));
+  packageManifest.dependencies["@agent-teams/docs-protocol"] = docsArtifact.archiveFileSpecifier;
   packageManifest.dependencies["@agent-teams/engineering-foundation"] =
     foundationArtifact.archiveFileSpecifier;
+  packageManifest.dependencies["@agent-teams/repository-mutation"] =
+    mutationArtifact.archiveFileSpecifier;
   await writeFile(
     join(extractedPackageRoot, "package.json"),
     `${JSON.stringify(packageManifest, null, 2)}\n`
@@ -240,7 +248,7 @@ async function createRollbackFixturePackage(docsArtifact, foundationArtifact) {
     join(extractedPackageRoot, "assets", "transition-catalog.json"),
     transitionCatalogBytes
   );
-  const archivePath = join(temporaryRoot, "agent-teams-docs-protocol-rollback-fixture.tgz");
+  const archivePath = join(temporaryRoot, "agent-teams-docs-protocol-agent-teams-rollback-fixture.tgz");
   await runCommand("tar", ["-czf", archivePath, "package"], root);
   return {
     archiveFileSpecifier: `file:${archivePath.replaceAll("\\", "/")}`,
@@ -258,11 +266,23 @@ async function verifyPackedDocsConsumerIntegration(input) {
     private: true,
     packageManager: packageManagerVersion(),
     devDependencies: {
+      "@agent-teams/docs-protocol-agent-teams": input.adapter.archiveFileSpecifier,
       "@agent-teams/docs-protocol": input.docs.archiveFileSpecifier,
-      "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier
+      "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier,
+      "@agent-teams/repository-mutation": input.mutation.archiveFileSpecifier
     }
   };
   await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify(installedManifest, null, 2)}\n`);
+  const localArtifactOverrides = {
+    "@agent-teams/docs-protocol": input.docs.archiveFileSpecifier,
+    "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier,
+    "@agent-teams/repository-mutation": input.mutation.archiveFileSpecifier
+  };
+  await writeFile(
+    join(consumerRoot, "pnpm-workspace.yaml"),
+    `overrides:\n${Object.entries(localArtifactOverrides).map(([name, specifier]) =>
+      `  ${JSON.stringify(name)}: ${JSON.stringify(specifier)}`).join("\n")}\n`
+  );
   await writeFile(join(consumerRoot, ".node-version"), `${process.versions.node}\n`);
   await runPnpm(["install", "--ignore-scripts"], consumerRoot);
   await rm(join(consumerRoot, "node_modules"), { force: true, recursive: true });
@@ -271,7 +291,7 @@ async function verifyPackedDocsConsumerIntegration(input) {
     consumerRoot
   );
 
-  let cohort = input.docs.sourceB;
+  let cohort = input.adapter.sourceB;
   const desired = {
     schemaVersion: 1,
     repository: { provider: "github", id: "999999999", nameWithOwner: "agent-teams-ai/packed-docs-consumer-e2e" },
@@ -288,6 +308,7 @@ async function verifyPackedDocsConsumerIntegration(input) {
   const writeAuthority = async () => {
     desired.cohort = cohort;
     installedManifest.devDependencies = {
+      ...installedManifest.devDependencies,
       "@agent-teams/docs-protocol": cohort.packages.docsProtocol.version,
       "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version
     };
@@ -319,12 +340,19 @@ snapshots:
 `);
   };
   await writeAuthority();
-  const cli = join(consumerRoot, "node_modules", "@agent-teams", "docs-protocol", "dist", "cli.js");
+  const cli = join(
+    consumerRoot,
+    "node_modules",
+    "@agent-teams",
+    "docs-protocol-agent-teams",
+    "dist",
+    "cli.js"
+  );
   const invoke = async (args) => {
     try {
       const result = await runCommand(
         process.execPath,
-        [cli, "consumer", ...args, "--consumer", consumerRoot, "--json"],
+        [cli, ...args, "--consumer", consumerRoot, "--json"],
         consumerRoot
       );
       return parseDocsExecution(result.stdout);
@@ -367,7 +395,7 @@ snapshots:
       await readFile(join(consumerRoot, "package.json"), "utf8")
     ).scripts;
 
-    cohort = input.docs.targetA;
+    cohort = input.adapter.targetA;
     await writeAuthority();
     const rollbackPlan = await invoke(["plan", "--to", cohort.cohortId]);
     if (rollbackPlan.outcome !== "change-required") {
@@ -396,20 +424,27 @@ snapshots:
 try {
   const artifacts = await packPublishableArtifacts({ temporaryRoot });
   const artifact = artifacts["@agent-teams/engineering-foundation"];
+  const mutationArtifact = artifacts["@agent-teams/repository-mutation"];
   const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
+  const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
   const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
   const rollbackFixtureArtifact = await createRollbackFixturePackage(
+    docsProtocolAdapterArtifact,
     docsProtocolArtifact,
-    artifact
+    artifact,
+    mutationArtifact
   );
   await verifyPackedDocsConsumerIntegration({
-    docs: rollbackFixtureArtifact,
-    foundation: artifact
+    adapter: rollbackFixtureArtifact,
+    docs: docsProtocolArtifact,
+    foundation: artifact,
+    mutation: mutationArtifact
   });
   process.stdout.write(`Packed Docs consumer adoption and B-to-A source rollback verified: ${docsProtocolArtifact.archiveName}.\n`);
   const fixture = await createPackedConsumerFixture({
     archiveFileSpecifier: artifact.archiveFileSpecifier,
     consumerRoot: join(temporaryRoot, "consumer"),
+    mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
     packageManager: packageManagerVersion(),
     runPnpm,
     toolingVersions: await toolingVersions()
@@ -422,6 +457,7 @@ try {
     packageManager: packageManagerVersion(),
     repositoryRoot,
     runPnpm,
+    mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
     temporaryRoot
   });
   await testPackedAgentWorkflow({

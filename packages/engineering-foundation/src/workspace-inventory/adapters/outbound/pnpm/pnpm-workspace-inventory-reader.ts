@@ -58,6 +58,47 @@ function portablePathIdentity(path: string): string {
   return path.normalize("NFC").toLocaleLowerCase("en-US");
 }
 
+function assertPatternDirectoryIdentity(
+  patterns: readonly string[],
+  directoriesByIdentity: ReadonlyMap<string, string>
+): void {
+  for (const pattern of patterns) {
+    const segments = (pattern.startsWith("!") ? pattern.slice(1) : pattern).split("/");
+    const literalSegments: string[] = [];
+    for (const segment of segments) {
+      if (/[*?[\]{}()]/u.test(segment)) {
+        break;
+      }
+      literalSegments.push(segment);
+      const literalPath = literalSegments.join("/");
+      const discovered = directoriesByIdentity.get(portablePathIdentity(literalPath));
+      if (discovered !== undefined && discovered !== literalPath) {
+        inputError(
+          "PACKAGE_PATH_CASE_COLLISION",
+          `Workspace pattern and package directory paths differ only by portable identity: ${literalPath} and ${discovered}.`,
+          "workspace-discovery"
+        );
+      }
+    }
+  }
+}
+
+function recordWorkspaceDirectory(
+  directoriesByIdentity: Map<string, string>,
+  repositoryPath: string
+): void {
+  const identity = portablePathIdentity(repositoryPath);
+  const existing = directoriesByIdentity.get(identity);
+  if (existing !== undefined && existing !== repositoryPath) {
+    inputError(
+      "PACKAGE_PATH_CASE_COLLISION",
+      `Workspace package directories differ only by portable identity: ${existing} and ${repositoryPath}.`,
+      "workspace-discovery"
+    );
+  }
+  directoriesByIdentity.set(identity, repositoryPath);
+}
+
 function validateWorkspacePatterns(value: unknown): readonly string[] {
   if (value === undefined) {
     return [];
@@ -234,6 +275,7 @@ async function discoverManifestPaths(
   signal?: AbortSignal
 ): Promise<readonly string[]> {
   const manifests = new Set<string>(["package.json"]);
+  const directoriesByIdentity = new Map<string, string>();
   const directories: { readonly absolutePath: string; readonly repositoryPath: string }[] = [
     { absolutePath: consumerRoot, repositoryPath: "." }
   ];
@@ -256,6 +298,7 @@ async function discoverManifestPaths(
         : posix.join(directory.repositoryPath, entry.name);
       if (entry.isDirectory()) {
         if (!IGNORED_DIRECTORY_NAMES.has(entry.name)) {
+          recordWorkspaceDirectory(directoriesByIdentity, repositoryPath);
           directories.push({
             absolutePath: join(directory.absolutePath, entry.name),
             repositoryPath
@@ -267,6 +310,7 @@ async function discoverManifestPaths(
     }
   }
   assertNotCancelled(signal);
+  assertPatternDirectoryIdentity(patterns, directoriesByIdentity);
   const manifestPaths = [...manifests].toSorted();
   const caseFoldedPaths = new Map<string, string>();
   for (const manifestPath of manifestPaths) {

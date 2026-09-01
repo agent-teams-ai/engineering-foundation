@@ -1,0 +1,2599 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@agent-teams/repository-mutation",
+  "packageVersion": "0.0.0",
+  "extractorVersion": "7.58.12",
+  "entrypoints": [
+    {
+      "exportPath": ".",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!BoundDirectoryCreation#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!BoundDirectoryCreation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: \"created-and-bound\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!BoundDirectoryCreation#parentIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!BoundDirectoryCreation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parentIdentity: PortablePathIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!BoundDirectoryCreation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface BoundDirectoryCreation extends CapturedDirectory"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CanonicalJsonError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class CanonicalJsonError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CanonicalJsonError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!CanonicalJsonError:class",
+          "parentKind": "Class",
+          "signature": "constructor(message: string);"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CanonicalJsonPrimitive:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type CanonicalJsonPrimitive = boolean | null | number | string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CanonicalJsonValue:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type CanonicalJsonValue = CanonicalJsonPrimitive | readonly CanonicalJsonValue[] | {\n    readonly [key: string]: CanonicalJsonValue;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CapturedDirectory#identity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!CapturedDirectory:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identity: PortablePathIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CapturedDirectory:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CapturedDirectory extends ProjectedDirectory"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CompileKnownFileTransactionPlanInput#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!CompileKnownFileTransactionPlanInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly KnownFileTransactionOperationInput[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CompileKnownFileTransactionPlanInput:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CompileKnownFileTransactionPlanInput"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!CompileRepositoryMutationEnvelopeInput:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type CompileRepositoryMutationEnvelopeInput = Omit<RepositoryMutationEnvelope, \"envelopeDigest\" | \"format\" | \"payloadDigest\" | \"schemaVersion\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryCreatePolicy:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DirectoryCreatePolicy = \"allow\" | \"forbid\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection#anchor:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly anchor: CapturedDirectory;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection#createPolicy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly createPolicy: DirectoryCreatePolicy;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection#finalParent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly finalParent: ProjectedDirectory;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection#missingDirectories:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly missingDirectories: readonly ProjectedDirectory[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection#repositoryRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repositoryRoot: CapturedDirectory;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryMaterializationProjection:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DirectoryMaterializationProjection"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryMutationErrorCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DirectoryMutationErrorCode = \"ALIAS_COLLISION\" | \"AMBIGUOUS_CREATION\" | \"CONCURRENT_CHANGE\" | \"CREATE_FORBIDDEN\" | \"IDENTITY_UNAVAILABLE\" | \"INVALID_PATH\" | \"NOT_DIRECTORY\" | \"OUTSIDE_ROOT\" | \"SYMLINK\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!InstalledArtifactClosure#packageRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!InstalledArtifactClosure:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!InstalledArtifactClosure#roots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!InstalledArtifactClosure:interface",
+          "parentKind": "Interface",
+          "signature": "readonly roots: readonly (\"assets\" | \"contract\" | \"dist\" | \"presets\" | \"schemas\")[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!InstalledArtifactClosure:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface InstalledArtifactClosure"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!InstalledArtifactDigest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type InstalledArtifactDigest = `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileDigest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileDigest = `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1#contentBase64:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly contentBase64: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1#mode:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mode: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1#size:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly size: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileImageV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFilePreconditionV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFilePreconditionV1 = {\n    readonly state: \"absent\";\n} | {\n    readonly state: \"known-file\";\n    readonly acceptedPreimages: readonly KnownFileImageV1[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionBarrierInspection:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionBarrierInspection = {\n    readonly state: \"idle\";\n} | {\n    readonly state: \"recovery-required\";\n    readonly code: \"KNOWN_FILE_OPERATION_ACTIVE\" | \"KNOWN_FILE_RECOVERY_REQUIRED\";\n    readonly recoverableByInstalledBuild: boolean;\n    readonly message: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#adapterContractVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapterContractVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#envelopeDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly envelopeDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#format:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly format: \"agent-teams.repository-mutation.transaction-envelope/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#kernelArtifact:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kernelArtifact: {\n        readonly name: string;\n        readonly version: string;\n        readonly buildIdentity: KnownFileDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#operationKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operationKind: \"known-file-transaction\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#ownerArtifact:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ownerArtifact: {\n        readonly name: string;\n        readonly version: string;\n        readonly buildIdentity: KnownFileDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#payload:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payload: KnownFileTransactionJournalV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#payloadDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#payloadKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadKind: \"agent-teams.repository-mutation.known-file-journal/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#recoveryHandler:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"agent-teams.repository-mutation.known-file/v1\";\n        readonly contractVersion: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 6;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#state:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly state: \"APPLYING\" | \"COMMITTED\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionEnvelopeV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionError#code:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionError:class",
+          "parentKind": "Class",
+          "signature": "readonly code: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class KnownFileTransactionError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionError:class",
+          "parentKind": "Class",
+          "signature": "constructor(code: string, message: string, options?: ErrorOptions);"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalOperationV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionJournalOperationV1 = {\n    readonly path: string;\n    readonly state: \"already-satisfied\" | \"pending\" | \"temporary-authorized\";\n    readonly matchedPreimage?: number;\n    readonly rollbackTemporaryIdentity?: never;\n    readonly captureDirectoryIdentity?: never;\n    readonly capturedPreimageIdentity?: never;\n    readonly retirement?: never;\n} | {\n    readonly path: string;\n    readonly state: \"temporary-ready\" | \"capture-authorized\" | \"capture-ready\" | \"preimage-captured\" | \"destination-retired\" | \"publishing\" | \"published\" | \"rollback-restored\";\n    readonly matchedPreimage?: number;\n    readonly rollbackTemporaryIdentity?: KnownFileTransactionPortableIdentityV1;\n    readonly temporaryIdentity: KnownFileTransactionPortableIdentityV1;\n    readonly captureDirectoryIdentity?: KnownFileTransactionPortableIdentityV1;\n    readonly capturedPreimageIdentity?: KnownFileTransactionPortableIdentityV1;\n    readonly retirement?: KnownFileTransactionRetirementV1;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1#authorizedDirectories:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authorizedDirectories: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1#createdDirectories:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly createdDirectories: readonly {\n        readonly path: string;\n        readonly identity: KnownFileTransactionPortableIdentityV1;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly KnownFileTransactionJournalOperationV1[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: KnownFileTransactionPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionJournalV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationInput:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionOperationInput = {\n    readonly path: string;\n    readonly precondition: {\n        readonly state: \"absent\";\n    };\n    readonly postimage: {\n        readonly bytes: Uint8Array;\n        readonly mode?: number;\n    };\n} | {\n    readonly path: string;\n    readonly precondition: {\n        readonly state: \"known-file\";\n        readonly acceptedPreimages: readonly {\n            readonly bytes: Uint8Array;\n            readonly mode: number;\n        }[];\n    };\n    readonly postimage: {\n        readonly bytes: Uint8Array;\n        readonly mode: number;\n    };\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionOperationOutcome = \"already-satisfied\" | \"created\" | \"replaced\" | \"rolled-back-to-absent\" | \"rolled-back-to-preimage\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: KnownFileImageV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1#precondition:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly precondition: KnownFilePreconditionV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionOperationV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class KnownFileTransactionPlanError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanError:class",
+          "parentKind": "Class",
+          "signature": "constructor(message: string);"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly KnownFileTransactionOperationV1[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1#protocol:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocol: \"agent-teams.repository-mutation.known-file/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionPlanV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPortableIdentityV1#birthtimeNs:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPortableIdentityV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly birthtimeNs: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPortableIdentityV1#dev:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPortableIdentityV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly dev: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPortableIdentityV1#ino:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPortableIdentityV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ino: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPortableIdentityV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionPortableIdentityV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly {\n        readonly path: string;\n        readonly outcome: KnownFileTransactionOperationOutcome;\n        readonly resultDigest?: KnownFileDigest;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: \"already-satisfied\" | \"applied\" | \"rolled-back\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#protocol:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocol: \"agent-teams.repository-mutation.known-file/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionReceiptV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1#directoryIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly directoryIdentity: KnownFileTransactionPortableIdentityV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: \"destination\" | \"rollback-temporary\" | \"temporary\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1#pathIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly pathIdentity: KnownFileTransactionPortableIdentityV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1#state:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly state: \"ready\" | \"captured\" | \"unlink-authorized\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionRetirementV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionRetirementV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationClaim#[claimBrand]:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationClaim:interface",
+          "parentKind": "Interface",
+          "signature": "readonly [claimBrand]: true;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationClaim:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MutationClaim"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#birthtimeNs:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly birthtimeNs: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#dev:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly dev: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#ino:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ino: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PortablePathIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortableRepositoryPathProblem:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type PortableRepositoryPathProblem = \"absolute\" | \"backslash\" | \"control-character\" | \"empty-segment\" | \"invalid-character\" | \"invalid-segment\" | \"path-too-long\" | \"reserved-name\" | \"segment-too-long\" | \"trailing-dot\" | \"trailing-space\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ProjectedDirectory#absolutePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ProjectedDirectory:interface",
+          "parentKind": "Interface",
+          "signature": "readonly absolutePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ProjectedDirectory#repositoryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ProjectedDirectory:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repositoryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ProjectedDirectory:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ProjectedDirectory"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!REPOSITORY_MUTATION_ENVELOPE_FORMAT:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "REPOSITORY_MUTATION_ENVELOPE_FORMAT: \"agent-teams.repository-mutation.transaction-envelope/v1\""
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!REPOSITORY_MUTATION_PACKAGE_NAME:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "REPOSITORY_MUTATION_PACKAGE_NAME: \"@agent-teams/repository-mutation\""
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity#buildIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly buildIdentity: `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity#name:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly name: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity#version:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly version: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface RepositoryMutationArtifactIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#adapterContractVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapterContractVersion: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#envelopeDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly envelopeDigest: `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#format:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly format: typeof REPOSITORY_MUTATION_ENVELOPE_FORMAT;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#kernelArtifact:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kernelArtifact: RepositoryMutationArtifactIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#operationKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operationKind: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#ownerArtifact:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ownerArtifact: RepositoryMutationArtifactIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#payload:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payload: CanonicalJsonValue;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#payloadDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadDigest: `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#payloadKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadKind: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#recoveryHandler:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoveryHandler: {\n        readonly id: string;\n        readonly contractVersion: number;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 6;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#state:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly state: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface RepositoryMutationEnvelope"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelopeError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class RepositoryMutationEnvelopeError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelopeError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelopeError:class",
+          "parentKind": "Class",
+          "signature": "constructor(message: string, options?: ErrorOptions);"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationError#code:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationError:class",
+          "parentKind": "Class",
+          "signature": "readonly code: RepositoryMutationErrorCode;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class RepositoryMutationError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!RepositoryMutationError:class",
+          "parentKind": "Class",
+          "signature": "constructor(code: RepositoryMutationErrorCode, message: string, options?: ErrorOptions);"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationErrorCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RepositoryMutationErrorCode = \"MUTATION_CLAIM_INVALID\" | \"MUTATION_LEASE_INVALID\" | \"MUTATION_STATE_INVALID\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!StrictJsonError#failure:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!StrictJsonError:class",
+          "parentKind": "Class",
+          "signature": "readonly failure: StrictJsonFailure;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!StrictJsonError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class StrictJsonError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!StrictJsonError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!StrictJsonError:class",
+          "parentKind": "Class",
+          "signature": "constructor(failure: StrictJsonFailure);"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!StrictJsonFailure:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type StrictJsonFailure = \"duplicate-key\" | \"syntax\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!UnboundDirectoryCreationRecovery:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type UnboundDirectoryCreationRecovery = {\n    readonly outcome: \"not-created\";\n} | {\n    readonly observedIdentity: PortablePathIdentity;\n    readonly outcome: \"ambiguous-manual\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!applyKnownFileTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function applyKnownFileTransaction(options: {\n    readonly consumerRoot: string;\n    readonly plan: KnownFileTransactionPlanV1;\n    readonly claim?: MutationClaim;\n}): Promise<KnownFileTransactionReceiptV1>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!assertKnownFileTransactionEnvelope:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertKnownFileTransactionEnvelope(value: unknown): asserts value is KnownFileTransactionEnvelopeV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!assertKnownFileTransactionPlan:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertKnownFileTransactionPlan(value: unknown): asserts value is KnownFileTransactionPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!assertRepositoryMutationArtifactBindings:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertRepositoryMutationArtifactBindings(envelope: RepositoryMutationEnvelope, expectedOwner: RepositoryMutationArtifactIdentity, expectedKernel: RepositoryMutationArtifactIdentity): void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!canonicalJson:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function canonicalJson(value: CanonicalJsonValue): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!canonicalKnownFileTransactionReceipt:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function canonicalKnownFileTransactionReceipt(value: KnownFileTransactionReceiptV1): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!compileKnownFileTransactionPlan:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function compileKnownFileTransactionPlan(input: CompileKnownFileTransactionPlanInput): KnownFileTransactionPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!compileRepositoryMutationEnvelope:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function compileRepositoryMutationEnvelope(input: CompileRepositoryMutationEnvelopeInput): RepositoryMutationEnvelope;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!computeInstalledArtifactBuildIdentity:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function computeInstalledArtifactBuildIdentity(declaration: InstalledArtifactClosure, limits?: {\n    readonly maximumVisitedEntries?: number;\n}): Promise<InstalledArtifactDigest>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!inspectKnownFileTransactionBarrier:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function inspectKnownFileTransactionBarrier(options: {\n    readonly consumerRoot: string;\n}): Promise<KnownFileTransactionBarrierInspection>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!installedRepositoryMutationBuildIdentity:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function installedRepositoryMutationBuildIdentity(): Promise<InstalledArtifactDigest>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!installedRepositoryMutationVersion:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function installedRepositoryMutationVersion(): Promise<string>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!parseRepositoryMutationEnvelope:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function parseRepositoryMutationEnvelope(bytes: Uint8Array): RepositoryMutationEnvelope;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!parseStrictJson:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function parseStrictJson(source: string): unknown;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!portableRepositoryPathIdentity:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function portableRepositoryPathIdentity(repositoryPath: string): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!portableRepositoryPathProblem:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function portableRepositoryPathProblem(repositoryPath: string): PortableRepositoryPathProblem | undefined;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!recoverKnownFileTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function recoverKnownFileTransaction(options: {\n    readonly consumerRoot: string;\n    readonly claim?: MutationClaim;\n}): Promise<KnownFileTransactionReceiptV1>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!sha256Bytes:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function sha256Bytes(value: Uint8Array): `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!sha256Json:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function sha256Json(value: CanonicalJsonValue): `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!sha256Text:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function sha256Text(value: string): `sha256:${string}`;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./node",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationError#cleanupError:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationError:class",
+          "parentKind": "Class",
+          "signature": "readonly cleanupError: unknown;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationError#code:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationError:class",
+          "parentKind": "Class",
+          "signature": "readonly code: AbsentFilePublicationErrorCode;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class AbsentFilePublicationError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationError:class",
+          "parentKind": "Class",
+          "signature": "constructor(code: AbsentFilePublicationErrorCode, message: string, options?: ErrorOptions & {\n        readonly cleanupError?: unknown;\n    });"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationErrorCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type AbsentFilePublicationErrorCode = \"CLEANUP_FAILED\" | \"CONFLICT\" | \"INVALID_ERROR\" | \"INVALID_POSTIMAGE\" | \"PUBLICATION_INVALID\" | \"PUBLICATION_INCOMPLETE\" | \"PUBLICATION_UNSUPPORTED\" | \"TEMPORARY_EXISTS\" | \"TEMPORARY_REPLACED\" | \"VERIFICATION_FAILED\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#allowUnsupportedDirectoryDurability:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly allowUnsupportedDirectoryDurability?: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#destinationPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destinationPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#displayPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly displayPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: ExactFilePostimage;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#temporaryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly temporaryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#transition:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly transition?: OwnedTemporaryCleanupTransitionPort;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface AbsentFilePublicationOptions"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type AbsentFilePublicationOutcome = \"already-satisfied\" | \"published\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!BoundedRegularFileRead:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type BoundedRegularFileRead = {\n    readonly outcome: \"read\";\n    readonly bytes: Buffer;\n    readonly identity: PortablePathIdentity;\n    readonly linkCount: bigint;\n    readonly mode: number;\n} | {\n    readonly outcome: \"changed\";\n} | {\n    readonly outcome: \"invalid\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryDurability:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DirectoryDurability = \"durable\" | \"unsupported\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations#open:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly open: (path: string) => Promise<DirectorySyncHandle>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations#platform:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly platform: NodeJS.Platform;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DirectoryDurabilityOperations"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectorySyncHandle#close:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectorySyncHandle:interface",
+          "parentKind": "Interface",
+          "signature": "close(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectorySyncHandle#sync:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectorySyncHandle:interface",
+          "parentKind": "Interface",
+          "signature": "sync(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectorySyncHandle:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DirectorySyncHandle"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage#bytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly bytes: Uint8Array;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage#mode:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mode: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage#size:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly size: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ExactFilePostimage"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimageState:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ExactFilePostimageState = \"absent\" | \"conflict\" | \"exact\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError#existingName:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError:class",
+          "parentKind": "Class",
+          "signature": "readonly existingName: string | undefined;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError#problem:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError:class",
+          "parentKind": "Class",
+          "signature": "readonly problem: ExistingRepositoryAncestorProblem;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError#requestedName:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError:class",
+          "parentKind": "Class",
+          "signature": "readonly requestedName: string | undefined;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class ExistingRepositoryAncestorError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError:class",
+          "parentKind": "Class",
+          "signature": "constructor(problem: ExistingRepositoryAncestorProblem, options?: {\n        readonly existingName?: string;\n        readonly requestedName?: string;\n    });"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorProblem:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ExistingRepositoryAncestorProblem = \"name-collision\" | \"not-directory\" | \"outside-root\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationArtifactIdentity#buildIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationArtifactIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly buildIdentity: `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationArtifactIdentity#name:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationArtifactIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly name: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationArtifactIdentity#version:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationArtifactIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly version: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationArtifactIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MutationArtifactIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationClaim#[claimBrand]:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationClaim:interface",
+          "parentKind": "Interface",
+          "signature": "readonly [claimBrand]: true;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationClaim:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MutationClaim"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationIntent:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type MutationIntent = {\n    readonly kind: \"apply-known-file\";\n    readonly planDigest: `sha256:${string}`;\n    readonly ownerArtifact: MutationArtifactIdentity;\n    readonly kernelArtifact: MutationArtifactIdentity;\n} | {\n    readonly kind: \"recover-known-file\";\n    readonly ownerArtifact: MutationArtifactIdentity;\n    readonly kernelArtifact: MutationArtifactIdentity;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationLease#[leaseBrand]:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationLease:interface",
+          "parentKind": "Interface",
+          "signature": "readonly [leaseBrand]: true;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationLease:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MutationLease"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationObservation#[observationBrand]:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly [observationBrand]: true;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MutationObservation"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations#ambiguousError:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ambiguousError: (error: unknown) => Error;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations#bind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly bind: (bound: Bound) => Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations#captureParent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly captureParent: () => Promise<Parent>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations#createAndObserve:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly createAndObserve: (parent: Parent, markCreated: () => void) => Promise<Observed>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations#recapture:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recapture: (parent: Parent, observed: Observed) => Promise<Bound>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations#syncParent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly syncParent: (parent: Parent) => Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface NodeDirectoryCreateAndBindOperations<Parent, Observed, Bound>"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER = \".foundation-owned-cleanup-\""
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransition#complete:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransition:interface",
+          "parentKind": "Interface",
+          "signature": "complete(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransition:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface OwnedTemporaryCleanupTransition"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransitionPort#begin:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransitionPort:interface",
+          "parentKind": "Interface",
+          "signature": "begin(): Promise<OwnedTemporaryCleanupTransition>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransitionPort:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface OwnedTemporaryCleanupTransitionPort"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PathIdentityMatch:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type PathIdentityMatch = \"different\" | \"match\" | \"missing\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#birthtimeNs:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly birthtimeNs: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#dev:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly dev: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#ino:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ino: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PortablePathIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#displayPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly displayPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#onIdentityCaptured:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly onIdentityCaptured: (identity: PortablePathIdentity) => void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#open:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly open: (path: string, flags: \"wx\", mode: number) => Promise<FileHandle>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: ExactFilePostimage;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#temporaryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly temporaryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#validateOpenedPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly validateOpenedPath?: (identity: PortablePathIdentity) => Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PrepareExactSiblingTemporaryOptions"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#allowUnsupportedDirectoryDurability:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly allowUnsupportedDirectoryDurability: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#classifyBoundedRegularFile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly classifyBoundedRegularFile: typeof readBoundedRegularFile;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#destinationPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destinationPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#displayPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly displayPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#expectedIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly expectedIdentity: PortablePathIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#link:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly link: (source: string, destination: string) => Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#parent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parent: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: ExactFilePostimage;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#readBoundedRegularFile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly readBoundedRegularFile: typeof readBoundedRegularFile;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#syncDirectory:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly syncDirectory: (path: string) => Promise<DirectoryDurability>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#temporaryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly temporaryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PublishPreparedAbsentFileOptions"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryAuthority#identity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identity: PortablePathIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryAuthority#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryAuthority:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface TerminalEvidenceDirectoryAuthority"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryOperations#lstat:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lstat: (path: string) => Promise<TerminalEvidenceDirectoryStat>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryOperations#mkdir:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mkdir: typeof mkdir;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryOperations#realpath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly realpath: typeof realpath;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryOperations:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface TerminalEvidenceDirectoryOperations"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat#birthtimeNs:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat:interface",
+          "parentKind": "Interface",
+          "signature": "readonly birthtimeNs: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat#dev:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat:interface",
+          "parentKind": "Interface",
+          "signature": "readonly dev: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat#ino:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ino: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat#isDirectory:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat:interface",
+          "parentKind": "Interface",
+          "signature": "readonly isDirectory: () => boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat#isSymbolicLink:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat:interface",
+          "parentKind": "Interface",
+          "signature": "readonly isSymbolicLink: () => boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryStat:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface TerminalEvidenceDirectoryStat"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!acquireMutationLease:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function acquireMutationLease(root: string): Promise<MutationLease>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!assertNoPortableNameCollision:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertNoPortableNameCollision(parent: string, requestedName: string, pathIdentity?: (path: string) => string, ordering?: \"binary\" | \"filesystem\", readEntries?: (path: string) => Promise<string[]>): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!assertSafeExistingRepositoryAncestors:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertSafeExistingRepositoryAncestors(root: string, repositoryPath: string, pathIdentity?: (path: string) => string, ordering?: \"binary\" | \"filesystem\"): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!assertTemporaryPathsAbsent:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertTemporaryPathsAbsent(entries: readonly {\n    readonly displayPath: string;\n    readonly temporaryPath: string;\n}[]): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!assertTerminalEvidenceDirectory:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertTerminalEvidenceDirectory(authority: TerminalEvidenceDirectoryAuthority, operationOverrides?: Partial<TerminalEvidenceDirectoryOperations>): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!captureFileHandleIdentity:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function captureFileHandleIdentity(handle: FileHandle): Promise<PortablePathIdentity>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!claimMutation:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function claimMutation(lease: MutationLease, observation: MutationObservation, intent: MutationIntent): Promise<MutationClaim>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!classifyExactFilePostimage:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function classifyExactFilePostimage(destinationPath: string, postimage: ExactFilePostimage): Promise<ExactFilePostimageState>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!cleanupIdentityMatchingOwnedTemporary:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function cleanupIdentityMatchingOwnedTemporary(options: {\n    readonly allowUnsupportedDirectoryDurability: boolean;\n    readonly displayPath: string;\n    readonly expectedIdentity: PortablePathIdentity;\n    readonly parent: string;\n    readonly rm: (path: string) => Promise<void>;\n    readonly syncDirectory: (path: string) => Promise<DirectoryDurability>;\n    readonly temporaryPath: string;\n    readonly transition?: OwnedTemporaryCleanupTransitionPort;\n    readonly operations?: {\n        readonly beforeLogicalRetirement?: (path: string) => Promise<void> | void;\n        readonly mkdir?: typeof mkdir;\n        readonly link?: typeof link;\n        readonly pathMatchesRegularFileIdentity?: typeof pathMatchesRegularFileIdentity;\n        readonly quarantineToken?: () => string;\n        readonly rename?: typeof rename;\n    };\n}): Promise<\"different\" | \"missing\" | \"removed\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!createAndBindNodeDirectory:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function createAndBindNodeDirectory<Parent, Observed, Bound>(operations: NodeDirectoryCreateAndBindOperations<Parent, Observed, Bound>): Promise<Bound>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ensureMutationStateDirectory:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function ensureMutationStateDirectory(consumerRoot: string): Promise<string>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ensureTerminalEvidenceDirectory:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function ensureTerminalEvidenceDirectory(path: string, operationOverrides?: Partial<TerminalEvidenceDirectoryOperations>): Promise<TerminalEvidenceDirectoryAuthority>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!isLexicallyContainedPath:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function isLexicallyContainedPath(root: string, candidate: string): boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!observeMutationState:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function observeMutationState(lease: MutationLease): Promise<MutationObservation>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ownedTemporaryCleanupResiduePrefix:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function ownedTemporaryCleanupResiduePrefix(temporaryPath: string): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!pathMatchesRegularFileIdentity:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function pathMatchesRegularFileIdentity(path: string, expected: PortablePathIdentity): Promise<PathIdentityMatch>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!prepareExactSiblingTemporary:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function prepareExactSiblingTemporary(options: PrepareExactSiblingTemporaryOptions): Promise<PortablePathIdentity>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!pruneMutationStateDirectory:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function pruneMutationStateDirectory(consumerRoot: string): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!publishAbsentFile:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function publishAbsentFile(options: AbsentFilePublicationOptions): Promise<AbsentFilePublicationOutcome>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!publishPreparedAbsentFile:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function publishPreparedAbsentFile(options: PublishPreparedAbsentFileOptions): Promise<\"already-satisfied\" | \"published\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!readBoundedRegularFile:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function readBoundedRegularFile(path: string, maximumBytes: number): Promise<BoundedRegularFileRead>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!releaseMutationLease:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function releaseMutationLease(lease: MutationLease): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!retainMutationBarrier:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function retainMutationBarrier(lease: MutationLease): void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!syncDirectoryDurably:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function syncDirectoryDurably(path: string, operations?: DirectoryDurabilityOperations): Promise<DirectoryDurability>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!syncDirectoryStrictly:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function syncDirectoryStrictly(path: string): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!syncMutationStateDirectory:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function syncMutationStateDirectory(path: string): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!syncMutationStateDirectoryStrictly:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function syncMutationStateDirectoryStrictly(path: string): Promise<void>;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./qualification",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type AbsentFilePublicationFaultInjector = (point: AbsentFilePublicationFaultPoint) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationFaultPoint#phase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationFaultPoint:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phase: \"after-hard-link\" | \"after-temporary-synced\" | \"after-temporary-written\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationFaultPoint:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface AbsentFilePublicationFaultPoint"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations#link:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly link: typeof link;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations#open:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly open: (path: string, flags: \"wx\", mode: number) => Promise<FileHandle>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations#readBoundedRegularFile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly readBoundedRegularFile: typeof readBoundedRegularFile;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations#rm:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly rm: (path: string) => Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations#syncDirectory:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly syncDirectory: typeof syncDirectoryDurably;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOperations:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface AbsentFilePublicationOperations"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#allowUnsupportedDirectoryDurability:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly allowUnsupportedDirectoryDurability?: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#destinationPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destinationPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#displayPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly displayPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: ExactFilePostimage;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#temporaryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly temporaryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions#transition:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly transition?: OwnedTemporaryCleanupTransitionPort;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOptions:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface AbsentFilePublicationOptions"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type AbsentFilePublicationOutcome = \"already-satisfied\" | \"published\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!BoundedRegularFileRead:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type BoundedRegularFileRead = {\n    readonly outcome: \"read\";\n    readonly bytes: Buffer;\n    readonly identity: PortablePathIdentity;\n    readonly linkCount: bigint;\n    readonly mode: number;\n} | {\n    readonly outcome: \"changed\";\n} | {\n    readonly outcome: \"invalid\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!BoundedRegularFileReadFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type BoundedRegularFileReadFaultInjector = (point: {\n    readonly phase: \"before-stability-check\";\n    readonly path: string;\n}) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryDurability:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DirectoryDurability = \"durable\" | \"unsupported\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations#open:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly open: (path: string) => Promise<DirectorySyncHandle>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations#platform:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly platform: NodeJS.Platform;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectoryDurabilityOperations:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DirectoryDurabilityOperations"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectorySyncHandle#close:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectorySyncHandle:interface",
+          "parentKind": "Interface",
+          "signature": "close(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectorySyncHandle#sync:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!DirectorySyncHandle:interface",
+          "parentKind": "Interface",
+          "signature": "sync(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!DirectorySyncHandle:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DirectorySyncHandle"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage#bytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly bytes: Uint8Array;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage#mode:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mode: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage#size:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly size: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!ExactFilePostimage:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ExactFilePostimage"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileDigest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileDigest = `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1#contentBase64:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly contentBase64: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1#mode:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mode: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1#size:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly size: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileImageV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileImageV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFilePreconditionV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFilePreconditionV1 = {\n    readonly state: \"absent\";\n} | {\n    readonly state: \"known-file\";\n    readonly acceptedPreimages: readonly KnownFileImageV1[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileRecoveryFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileRecoveryFaultInjector = (point: {\n    readonly phase: \"after-committed-capture-unlinked\" | \"after-destination-retired\" | \"after-rollback-linked\" | \"after-rollback-capture-unlinked\" | \"after-retirement-directory-bound\" | \"after-retirement-captured\" | \"after-retirement-unlink-authorized\";\n    readonly operationIndex: number;\n    readonly path: string;\n}) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionFaultInjector = (point: KnownFileTransactionFaultPoint) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionFaultPoint:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionFaultPoint = {\n    readonly phase: \"after-barrier-acquired\" | \"after-journal-created\" | \"after-journal-committed\" | \"after-journal-retired\";\n} | {\n    readonly phase: \"after-directory-created\" | \"after-directory-created-unbound\" | \"after-directory-authorized\" | \"after-temporary-authorized\" | \"after-temporary-synced\" | \"after-temporary-created-unbound\" | \"after-capture-ready\" | \"after-capture-created-unbound\" | \"after-capture-authorized\" | \"after-preimage-captured\" | \"after-preimage-linked-unbound\" | \"after-rollback-temporary-created-unbound\" | \"after-rollback-temporary-ready\" | \"after-destination-captured\" | \"after-destination-retired\" | \"after-operation-publishing\" | \"after-postimage-linked\" | \"after-operation-published\" | \"after-committed-capture-unlinked\";\n    readonly operationIndex: number;\n    readonly path: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type KnownFileTransactionOperationOutcome = \"already-satisfied\" | \"created\" | \"replaced\" | \"rolled-back-to-absent\" | \"rolled-back-to-preimage\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: KnownFileImageV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1#precondition:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly precondition: KnownFilePreconditionV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionOperationV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionOperationV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly KnownFileTransactionOperationV1[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1#protocol:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocol: \"agent-teams.repository-mutation.known-file/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionPlanV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionPlanV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#operations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operations: readonly {\n        readonly path: string;\n        readonly outcome: KnownFileTransactionOperationOutcome;\n        readonly resultDigest?: KnownFileDigest;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: \"already-satisfied\" | \"applied\" | \"rolled-back\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#protocol:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocol: \"agent-teams.repository-mutation.known-file/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: KnownFileDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface KnownFileTransactionReceiptV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationClaim#[claimBrand]:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationClaim:interface",
+          "parentKind": "Interface",
+          "signature": "readonly [claimBrand]: true;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationClaim:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MutationClaim"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationOperationReleaseOptions#retainTransactionBarrier:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!MutationOperationReleaseOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly retainTransactionBarrier?: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!MutationOperationReleaseOptions:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MutationOperationReleaseOptions"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeMutationOperationLock#acquire:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/repository-mutation!NodeMutationOperationLock:class",
+          "parentKind": "Class",
+          "signature": "acquire(): Promise<(options?: MutationOperationReleaseOptions) => Promise<void>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeMutationOperationLock:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class NodeMutationOperationLock"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeMutationOperationLock:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!NodeMutationOperationLock:class",
+          "parentKind": "Class",
+          "signature": "constructor(consumerRoot: string, operations?: OperationLockOperations);"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OperationLockOperations#faultInjector:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!OperationLockOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly faultInjector?: (point: {\n        readonly path: string;\n        readonly phase: \"after-release-retirement\";\n    }) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OperationLockOperations#retirementToken:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!OperationLockOperations:interface",
+          "parentKind": "Interface",
+          "signature": "readonly retirementToken?: () => string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OperationLockOperations:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface OperationLockOperations"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransition#complete:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransition:interface",
+          "parentKind": "Interface",
+          "signature": "complete(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransition:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface OwnedTemporaryCleanupTransition"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransitionPort#begin:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransitionPort:interface",
+          "parentKind": "Interface",
+          "signature": "begin(): Promise<OwnedTemporaryCleanupTransition>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransitionPort:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface OwnedTemporaryCleanupTransitionPort"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#birthtimeNs:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly birthtimeNs: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#dev:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly dev: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity#ino:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ino: bigint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PortablePathIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PortablePathIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#displayPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly displayPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#onIdentityCaptured:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly onIdentityCaptured: (identity: PortablePathIdentity) => void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#open:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly open: (path: string, flags: \"wx\", mode: number) => Promise<FileHandle>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: ExactFilePostimage;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#temporaryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly temporaryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions#validateOpenedPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly validateOpenedPath?: (identity: PortablePathIdentity) => Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PrepareExactSiblingTemporaryOptions:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PrepareExactSiblingTemporaryOptions"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#allowUnsupportedDirectoryDurability:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly allowUnsupportedDirectoryDurability: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#classifyBoundedRegularFile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly classifyBoundedRegularFile: typeof readBoundedRegularFile;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#destinationPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destinationPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#displayPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly displayPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#expectedIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly expectedIdentity: PortablePathIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#link:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly link: (source: string, destination: string) => Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#parent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parent: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#postimage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly postimage: ExactFilePostimage;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#readBoundedRegularFile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly readBoundedRegularFile: typeof readBoundedRegularFile;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#syncDirectory:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly syncDirectory: (path: string) => Promise<DirectoryDurability>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions#temporaryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly temporaryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!PublishPreparedAbsentFileOptions:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PublishPreparedAbsentFileOptions"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!applyKnownFileTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function applyKnownFileTransactionWithFaults(options: {\n    readonly consumerRoot: string;\n    readonly plan: KnownFileTransactionPlanV1;\n    readonly claim?: MutationClaim;\n    readonly faultInjector?: KnownFileTransactionFaultInjector;\n}): Promise<KnownFileTransactionReceiptV1>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!prepareExactSiblingTemporary:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function prepareExactSiblingTemporaryWithFaults(options: PrepareExactSiblingTemporaryOptions & {\n    readonly faultInjector?: (point: {\n        readonly phase: \"after-temporary-written\";\n    }) => Promise<void> | void;\n}): Promise<PortablePathIdentity>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!publishAbsentFile:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function publishAbsentFileWithFaults(options: AbsentFilePublicationOptions & {\n    readonly faultInjector?: AbsentFilePublicationFaultInjector;\n    readonly operations?: Partial<AbsentFilePublicationOperations>;\n}): Promise<AbsentFilePublicationOutcome>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!publishPreparedAbsentFile:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function publishPreparedAbsentFileWithFaults(options: PublishPreparedAbsentFileOptions & {\n    readonly faultInjector?: (point: {\n        readonly phase: \"after-hard-link\";\n    }) => Promise<void> | void;\n}): Promise<\"already-satisfied\" | \"published\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!readBoundedRegularFile:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function readBoundedRegularFileWithFaults(path: string, maximumBytes: number, faultInjector?: BoundedRegularFileReadFaultInjector): Promise<BoundedRegularFileRead>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!readBoundedRegularFileRuntime:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function readBoundedRegularFile(path: string, maximumBytes: number): Promise<BoundedRegularFileRead>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!recoverKnownFileTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function recoverKnownFileTransactionWithFaults(options: {\n    readonly consumerRoot: string;\n    readonly claim?: MutationClaim;\n    readonly faultInjector?: KnownFileRecoveryFaultInjector;\n}): Promise<KnownFileTransactionReceiptV1>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!releaseKnownFileTransactionLeaseWith:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function releaseKnownFileTransactionLeaseWith(options: {\n    readonly jointFailureMessage: string;\n    readonly primaryFailure?: {\n        readonly reason: unknown;\n    };\n    readonly release: () => Promise<void>;\n}): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!syncDirectoryDurably:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function syncDirectoryDurably(path: string, operations?: DirectoryDurabilityOperations): Promise<DirectoryDurability>;"
+        }
+      ]
+    }
+  ]
+}

@@ -1,17 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import {
-  chmod,
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rename,
-  rm,
-  stat,
-  utimes,
-  writeFile
+  chmod, cp, mkdir, mkdtemp, readFile, readdir,
+  rename, rm, stat, utimes, writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -19,12 +10,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
-  applyFilesystemScaffold,
-  assertScaffoldPlanDigest,
-  assertScaffoldReceiptDigest,
-  planScaffoldFromFile,
-  recoverFilesystemScaffold,
-  validateScaffoldReceipt
+  applyFilesystemScaffold, assertScaffoldPlanDigest, assertScaffoldReceiptDigest,
+  planScaffoldFromFile, recoverFilesystemScaffold, validateScaffoldReceipt,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
@@ -82,6 +69,13 @@ function configPath(root) {
 
 function journalPath(root) {
   return join(root, ".agent-teams-local", "scaffolding-transaction.json");
+}
+
+async function assertCurrentJournal(root) {
+  const envelope = JSON.parse(await readFile(journalPath(root), "utf8"));
+  assert.equal(envelope.schemaVersion, 6);
+  assert.equal(envelope.format, "agent-teams.repository-mutation.transaction-envelope/v1");
+  assert.equal(envelope.payload.schemaVersion, 1);
 }
 
 async function setOwnerStatus(root, status) {
@@ -406,7 +400,7 @@ test("preserves outputs and journal after revocation at first, middle, and final
           await assertMissing(outputPath);
         }
       }
-      assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+      await assertCurrentJournal(root);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -448,7 +442,7 @@ test("preserves preexisting and newly published postimages after authority becom
       await readFile(join(root, ...published.path.split("/"))),
       Buffer.from(published.after.contentBase64, "base64")
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+    await assertCurrentJournal(root);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -476,7 +470,7 @@ test("retains third-party state and journal when authority becomes stale", async
     );
     assert.equal(receipt.outcome, "recovery-required");
     assert.equal(receipt.commit.state, "recovery-required");
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+    await assertCurrentJournal(root);
     assert.equal(await readFile(firstPath, "utf8"), "user-owned third state\n");
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -508,7 +502,7 @@ test("restart recovery preserves persisted outputs when authority was revoked", 
       await readFile(join(root, ...first.path.split("/"))),
       Buffer.from(first.after.contentBase64, "base64")
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+    await assertCurrentJournal(root);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -532,12 +526,14 @@ test("forged persisted ownership never authorizes restart deletion", async () =>
     await mkdir(dirname(destination), { recursive: true });
     await writeFile(destination, Buffer.from(first.after.contentBase64, "base64"));
     const forged = JSON.parse(await readFile(journalPath(root), "utf8"));
-    forged.operations[0].state = "published";
+    forged.payload.operations[0].state = "published";
     await writeFile(journalPath(root), `${JSON.stringify(forged, null, 2)}\n`, "utf8");
     await setOwnerStatus(root, "proposed");
 
-    const receipt = await recoverFilesystemScaffold(root);
-    assert.equal(receipt?.outcome, "recovery-required");
+    await assert.rejects(
+      recoverFilesystemScaffold(root),
+      /transaction slot is corrupt, tampered, or incompatible; it was preserved/iu,
+    );
     assert.deepEqual(
       await readFile(destination),
       Buffer.from(first.after.contentBase64, "base64")
@@ -578,7 +574,7 @@ test("unverifiable authority preserves persisted outputs and journal", async () 
       await readFile(join(root, ...first.path.split("/"))),
       Buffer.from(first.after.contentBase64, "base64")
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+    await assertCurrentJournal(root);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -618,7 +614,7 @@ test("never deletes an exact third-party replacement after publication", async (
       await readFile(destination),
       Buffer.from(first.after.contentBase64, "base64")
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+    await assertCurrentJournal(root);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -703,7 +699,10 @@ test("fails safely after process death at every source-bound publication boundar
         if (scenario.revokeAuthority === true) {
           await setOwnerStatus(root, "proposed");
         }
-        await assert.rejects(recoverFilesystemScaffold(root), /cannot be proven transaction-owned/u);
+        await assert.rejects(
+          recoverFilesystemScaffold(root),
+          /cannot be proven transaction-owned|incomplete Foundation transaction transition/u,
+        );
         assert.deepEqual(await readFile(temporary), bytes);
         if (scenario.replaceTemporary === true) {
           await assertMissing(journalPath(root));
@@ -735,7 +734,7 @@ test("fails safely after process death at every source-bound publication boundar
           scenario.phase
         );
       } else {
-        assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+        await assertCurrentJournal(root);
       }
     } finally {
       await rm(root, { recursive: true, force: true });

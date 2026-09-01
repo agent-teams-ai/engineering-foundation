@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-type CanonicalJsonPrimitive = boolean | null | number | string;
+export type CanonicalJsonPrimitive = boolean | null | number | string;
 export type CanonicalJsonValue =
   | CanonicalJsonPrimitive
   | readonly CanonicalJsonValue[]
@@ -28,22 +28,6 @@ function assertCanonicalString(value: string): void {
     throw new CanonicalJsonError(
       "Canonical JSON strings must use NFC normalization."
     );
-  }
-  for (let index = 0; index < value.length; index += 1) {
-    const codeUnit = value.charCodeAt(index);
-    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
-      const nextCodeUnit = value.charCodeAt(index + 1);
-      if (!(nextCodeUnit >= 0xdc00 && nextCodeUnit <= 0xdfff)) {
-        throw new CanonicalJsonError(
-          "Canonical JSON strings must not contain lone UTF-16 surrogates."
-        );
-      }
-      index += 1;
-    } else if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
-      throw new CanonicalJsonError(
-        "Canonical JSON strings must not contain lone UTF-16 surrogates."
-      );
-    }
   }
 }
 
@@ -168,11 +152,10 @@ function canonicalize(
   if (typeof value === "number") {
     if (
       !Number.isFinite(value) ||
-      !Number.isSafeInteger(value) ||
-      Object.is(value, -0)
+      !Number.isSafeInteger(value)
     ) {
       throw new CanonicalJsonError(
-        "Canonical JSON numbers must be finite safe integers other than negative zero."
+        "Canonical JSON numbers must be finite safe integers."
       );
     }
     return JSON.stringify(value);

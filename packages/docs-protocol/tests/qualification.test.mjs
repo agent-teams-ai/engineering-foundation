@@ -165,7 +165,9 @@ test("qualification cleans its inputs after a crash-child spawn error", async ()
 const requiresStrictDirectoryDurability = process.platform === "win32" ? test.skip : test;
 
 async function withCorruptedProfileCrash(crash, callback) {
-  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-corrupt-profile-"));
+  const temporary = await realpath(
+    await mkdtemp(join(tmpdir(), "agent-teams-docs-corrupt-profile-")),
+  );
   const consumerRoot = join(temporary, "consumer");
   try {
     await cp(fixtureRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });

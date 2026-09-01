@@ -5,12 +5,39 @@ import { assertSecretCanaryAbsent } from "./pack-test-support.mjs";
 import {
   assertArchiveSafety, inspectCompressedTarArchive, portableEntryIdentity, readRegularArchive, sha256,
 } from "./pack-artifact-archive.mjs";
-import { boundedDirectoryEntries, containsPhysicalPath, generatedPackageEntries, materializeStableTree, pathExists, readBoundedStableJson, readStableRegularFile, wireStagedPackageDependencies } from "./pack-artifact-stage-support.mjs";
+import { boundedDirectoryEntries, canonicalPublishManifest, containsPhysicalPath, generatedPackageEntries, materializeStableTree, pathExists, publishDependencyIdentity, readBoundedStableJson, readStableRegularFile, wireStagedPackageDependencies } from "./pack-artifact-stage-support.mjs";
 export {
   assertArchiveListing, assertArchiveSafety, assertNoSpecialTarEntries, inspectCompressedTarArchive, readVerifiedArchive,
 } from "./pack-artifact-archive.mjs";
 
 const verifiedArchiveBytes = new WeakMap();
+
+function describeArchiveDifference(firstBytes, secondBytes) {
+  let firstEntries;
+  let secondEntries;
+  try {
+    firstEntries = inspectCompressedTarArchive(firstBytes).entries;
+    secondEntries = inspectCompressedTarArchive(secondBytes).entries;
+  } catch (error) {
+    return `archive structure inspection failed: ${error instanceof Error ? error.message : "unknown error"}`;
+  }
+  if (firstEntries.length !== secondEntries.length) {
+    return `entry counts differ (${firstEntries.length} != ${secondEntries.length})`;
+  }
+  for (let index = 0; index < firstEntries.length; index += 1) {
+    const first = firstEntries[index];
+    const second = secondEntries[index];
+    if (first.name !== second.name || first.type !== second.type || first.size !== second.size) {
+      return `entry ${index} metadata differs (${first.name}:${first.type}:${first.size} != ${second.name}:${second.type}:${second.size})`;
+    }
+    const firstDigest = sha256(first.data);
+    const secondDigest = sha256(second.data);
+    if (firstDigest !== secondDigest) {
+      return `entry ${first.name} content differs (${firstDigest} != ${secondDigest})`;
+    }
+  }
+  return "payload entries match; tar headers or gzip metadata differ";
+}
 
 function workspaceCatalogVersions(bytes) {
   const versions = new Map();
@@ -46,7 +73,7 @@ function packageSourceRoot(entry, repositoryRoot) {
 }
 
 async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPaths) {
-  const entries = new Set(["package/", "package/package.json", "package/LICENSE", "package/README.md"]);
+  const entries = new Set(["package/package.json", "package/LICENSE", "package/README.md"]);
   const fileDigests = new Map();
   const state = { bytes: 0, entries: 0 };
   async function visit(absolute, relativePath) {
@@ -63,7 +90,6 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
       }
       return;
     }
-    entries.add(`package/${relativePath}/`);
     for (const entry of await boundedDirectoryEntries(absolute, "Packed payload authority", state)) {
       await visit(join(absolute, entry.name), `${relativePath}/${entry.name}`);
     }
@@ -75,11 +101,6 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
   } else {
     for (const path of requiredArtifactPaths ?? []) {
       entries.add(`package/${path}`);
-      let boundary = path.lastIndexOf("/");
-      while (boundary >= 0) {
-        entries.add(`package/${path.slice(0, boundary)}/`);
-        boundary = path.lastIndexOf("/", boundary - 1);
-      }
     }
   }
   for (const path of ["LICENSE", "README.md"]) {
@@ -164,14 +185,25 @@ export async function createCleanBuildStage(input, label) {
   if (releaseManifestIdentity(packedManifest) !== releaseManifestIdentity(sourceManifest)) {
     throw new Error(`Package build changed release manifest identity for ${input.packageName}.`);
   }
+  const publishManifest = canonicalPublishManifest(sourceManifest, {
+    catalogVersions,
+    internalPackageVersions: new Map([...manifestsByName].map(([name, manifest]) => [name, manifest.version])),
+  });
+  await writeFile(join(packageRoot, "package.json"), `${JSON.stringify(publishManifest, null, 2)}\n`);
   const expectedEntries = await expectedPackedEntries(packageRoot, sourceManifest, input.requiredArtifactPaths);
-  return Object.freeze({ expectedEntries, packageRoot, sourceManifest, stageRoot });
+  return Object.freeze({ expectedEntries, packageRoot, publishManifest, sourceManifest, stageRoot });
 }
 
 async function createArtifact(input, stage) {
   const destination = join(stage.stageRoot, "pack");
   await mkdir(destination, { recursive: true });
-  await input.runPnpm(["pack", "--pack-destination", destination], stage.packageRoot);
+  await input.runPnpm(["pack", "--pack-destination", destination], stage.packageRoot, {
+    environment: {
+      ...process.env,
+      pnpm_config_ignore_pnpmfile: "true",
+      pnpm_config_ignore_scripts: "true",
+    },
+  });
   const state = { entries: 0 };
   const archives = (await boundedDirectoryEntries(destination, "Pack destination", state))
     .map(({ name }) => name).filter((name) => name.endsWith(".tgz"));
@@ -210,6 +242,12 @@ function assertExactArchiveManifest(inspection, expectedManifest) {
     throw new Error(
       `Packed package manifest identity does not match ${expectedManifest.name}@${expectedManifest.version}.`,
     );
+  }
+  const packedPublishManifest = canonicalPublishManifest(manifest, {
+    catalogVersions: new Map(), internalPackageVersions: new Map(),
+  });
+  if (publishDependencyIdentity(packedPublishManifest) !== publishDependencyIdentity(expectedManifest)) {
+    throw new Error("Packed package dependency manifest differs from the sealed publish authority.");
   }
 }
 
@@ -270,10 +308,13 @@ export async function packAndInspectArtifact(input) {
     readRegularArchive(first.archivePath), readRegularArchive(second.archivePath),
   ]);
   if (sha256(firstBytes) !== sha256(secondBytes)) {
-    throw new Error("Two clean package builds did not produce byte-identical tarballs.");
+    throw new Error(
+      `Two clean package builds did not produce byte-identical tarballs for ${input.packageName}: ` +
+      `${sha256(firstBytes)} != ${sha256(secondBytes)}; ${describeArchiveDifference(firstBytes, secondBytes)}.`,
+    );
   }
   const inspection = inspectCompressedTarArchive(firstBytes);
-  assertExactArchiveManifest(inspection, firstStage.sourceManifest);
+  assertExactArchiveManifest(inspection, firstStage.publishManifest);
   const { listing, verboseListing } = parsedArchiveListings(inspection);
   assertArchiveSafety({
     allowedArtifactPaths: input.allowedArtifactPaths,

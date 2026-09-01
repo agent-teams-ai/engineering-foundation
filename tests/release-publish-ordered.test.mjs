@@ -33,9 +33,29 @@ const source = {
   workflow: ".github/workflows/release.yml",
   isTrustedCommit: async (commit) => commit === "a".repeat(40),
 };
-const foundation = artifact(FOUNDATION_PACKAGE, "1.2.3", {});
-const docs = artifact(DOCS_PACKAGE, "2.0.0", { [FOUNDATION_PACKAGE]: foundation.version });
+const MUTATION_PACKAGE = "@agent-teams/repository-mutation";
+const DOCS_ADAPTER_PACKAGE = "@agent-teams/docs-protocol-agent-teams";
+const mutation = artifact(MUTATION_PACKAGE, "0.1.0", {});
+const foundation = artifact(FOUNDATION_PACKAGE, "1.2.3", {
+  [MUTATION_PACKAGE]: mutation.version,
+});
+const docs = artifact(DOCS_PACKAGE, "2.0.0", {
+  [FOUNDATION_PACKAGE]: foundation.version,
+  [MUTATION_PACKAGE]: mutation.version,
+});
+const docsAdapter = artifact(DOCS_ADAPTER_PACKAGE, "0.1.0", {
+  [DOCS_PACKAGE]: docs.version,
+  [FOUNDATION_PACKAGE]: foundation.version,
+  [MUTATION_PACKAGE]: mutation.version,
+});
 const docsMcp = artifact(DOCS_MCP_PACKAGE, "0.1.0", { [DOCS_PACKAGE]: docs.version });
+const RELEASE_TIMESTAMPS = new Map([
+  [MUTATION_PACKAGE, "2026-01-01T00:00:00.000Z"],
+  [FOUNDATION_PACKAGE, "2026-01-01T00:00:01.000Z"],
+  [DOCS_PACKAGE, "2026-01-01T00:00:02.000Z"],
+  [DOCS_ADAPTER_PACKAGE, "2026-01-01T00:00:03.000Z"],
+  [DOCS_MCP_PACKAGE, "2026-01-01T00:00:04.000Z"],
+]);
 
 function artifact(name, version, dependencies) {
   const manifest = { dependencies, name, version };
@@ -106,6 +126,13 @@ function present(value, publishedAt, tag = "latest") {
   };
 }
 
+function publishedState(...values) {
+  return Object.fromEntries(values.map((value) => [
+    value.name,
+    present(value, RELEASE_TIMESTAMPS.get(value.name)),
+  ]));
+}
+
 function harness(initial = {}) {
   const calls = [];
   const states = new Map(Object.entries(initial));
@@ -122,11 +149,7 @@ function harness(initial = {}) {
     },
     publish: async (value, tag) => {
       calls.push(`publish:${value.name}:${tag}`);
-      const timestamp = new Map([
-        [FOUNDATION_PACKAGE, "2026-01-01T00:00:00.000Z"],
-        [DOCS_PACKAGE, "2026-01-01T00:00:01.000Z"],
-        [DOCS_MCP_PACKAGE, "2026-01-01T00:00:02.000Z"],
-      ]).get(value.name);
+      const timestamp = RELEASE_TIMESTAMPS.get(value.name);
       const published = present(value, timestamp, tag);
       states.set(value.name, published);
     },
@@ -140,7 +163,7 @@ function harness(initial = {}) {
 
 async function run(runtime, overrides = {}) {
   return await orderedRelease({
-    artifacts: [docsMcp, docs, foundation],
+    artifacts: [docsMcp, docsAdapter, docs, foundation, mutation],
     attempts: 2,
     finalTag: "latest",
     retryDelayMilliseconds: 0,
@@ -164,35 +187,45 @@ test("bounds idempotent GitHub release reconciliation during transient outages",
   );
 });
 
-test("publishes the exact Foundation, Docs, MCP dependency graph in order", async () => {
+test("publishes the exact derived five-package dependency graph in order", async () => {
   const runtime = harness();
   await run(runtime);
+  const mutationPublish = runtime.calls.indexOf(`publish:${MUTATION_PACKAGE}:latest`);
+  const mutationSignature = runtime.calls.indexOf(`signature:${MUTATION_PACKAGE}`);
   const foundationPublish = runtime.calls.indexOf(`publish:${FOUNDATION_PACKAGE}:latest`);
   const foundationSignature = runtime.calls.indexOf(`signature:${FOUNDATION_PACKAGE}`);
   const docsPublish = runtime.calls.indexOf(`publish:${DOCS_PACKAGE}:latest`);
   const docsSignature = runtime.calls.indexOf(`signature:${DOCS_PACKAGE}`);
+  const adapterPublish = runtime.calls.indexOf(`publish:${DOCS_ADAPTER_PACKAGE}:latest`);
+  const adapterSignature = runtime.calls.indexOf(`signature:${DOCS_ADAPTER_PACKAGE}`);
   const mcpPublish = runtime.calls.indexOf(`publish:${DOCS_MCP_PACKAGE}:latest`);
   const mcpSignature = runtime.calls.indexOf(`signature:${DOCS_MCP_PACKAGE}`);
   const firstRelease = runtime.calls.indexOf(`release:${FOUNDATION_PACKAGE}`);
   const foundationFinalInspect = runtime.calls.lastIndexOf(`inspect:${FOUNDATION_PACKAGE}`);
   const docsFinalInspect = runtime.calls.lastIndexOf(`inspect:${DOCS_PACKAGE}`);
-  assert.ok(foundationPublish >= 0 && foundationPublish < docsPublish);
+  assert.ok(mutationPublish >= 0 && mutationPublish < mutationSignature);
+  assert.ok(mutationSignature < foundationPublish && foundationPublish < docsPublish);
   assert.ok(foundationPublish < foundationSignature && foundationSignature < docsPublish);
   assert.ok(docsPublish < docsSignature);
-  assert.ok(docsSignature < mcpPublish && mcpPublish < mcpSignature);
+  assert.ok(docsSignature < adapterPublish && adapterPublish < adapterSignature);
+  assert.ok(adapterSignature < mcpPublish && mcpPublish < mcpSignature);
   assert.ok(docsSignature < foundationFinalInspect && foundationFinalInspect < docsFinalInspect);
   assert.ok(docsFinalInspect < firstRelease);
   assert.equal(runtime.calls.some((entry) => /^(?:tag|untag):/u.test(entry)), false);
 });
 
-test("publishes an RC pair directly on rc without moving latest", async () => {
+test("publishes an RC wave directly on rc without moving latest", async () => {
   const runtime = harness();
   await run(runtime, { finalTag: "rc" });
+  assert.equal(runtime.states.get(MUTATION_PACKAGE).distTags.rc, mutation.version);
   assert.equal(runtime.states.get(FOUNDATION_PACKAGE).distTags.rc, foundation.version);
   assert.equal(runtime.states.get(DOCS_PACKAGE).distTags.rc, docs.version);
+  assert.equal(runtime.states.get(DOCS_ADAPTER_PACKAGE).distTags.rc, docsAdapter.version);
   assert.equal(runtime.states.get(DOCS_MCP_PACKAGE).distTags.rc, docsMcp.version);
+  assert.equal(runtime.states.get(MUTATION_PACKAGE).distTags.latest, undefined);
   assert.equal(runtime.states.get(FOUNDATION_PACKAGE).distTags.latest, undefined);
   assert.equal(runtime.states.get(DOCS_PACKAGE).distTags.latest, undefined);
+  assert.equal(runtime.states.get(DOCS_ADAPTER_PACKAGE).distTags.latest, undefined);
   assert.equal(runtime.states.get(DOCS_MCP_PACKAGE).distTags.latest, undefined);
 });
 
@@ -370,22 +403,21 @@ test("current runbook isolates the one-time token bootstrap from ordinary OIDC r
   const releaseDocs = await readFile(new URL("../docs/release.md", import.meta.url), "utf8");
   assert.match(
     releaseDocs,
-    /All ordinary Foundation, Docs Protocol, and Docs Protocol MCP releases use npm\s+Trusted Publishing/u,
+    /All ordinary Repository Mutation, Foundation, Docs Protocol, Agent Teams\s+adapter, and Docs Protocol MCP releases use npm Trusted Publishing/u,
   );
   assert.match(releaseDocs, /sole exception is the reviewed one-time MCP\s+namespace bootstrap/u);
   assert.match(releaseDocs, /expires within 24 hours/u);
   assert.match(releaseDocs, /revoke the token immediately/u);
   assert.match(releaseDocs, /never creates or moves those tags explicitly/u);
   assert.match(releaseDocs, /final required phase resolves the canonical public Docs Protocol coordinates/u);
-  assert.match(releaseDocs, /missing downstream suffix\s+of `Foundation -> Docs Protocol -> Docs Protocol MCP`/u);
+  assert.match(releaseDocs, /exact\s+five-package dependency DAG/u);
+  assert.match(releaseDocs, /missing dependency-closed set in\s+reviewed topological order/u);
   assert.match(releaseDocs, /published package whose required\s+upstream dependency is missing is quarantined/u);
   assert.doesNotMatch(releaseDocs, /long-lived npm credentials|npm login|NPM_TOKEN/iu);
 });
 
 test("resumes a Foundation-only prior publish without republishing it", async () => {
-  const runtime = harness({
-    [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:00.000Z"),
-  });
+  const runtime = harness(publishedState(mutation, foundation));
   const released = await run(runtime);
   assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)), false);
   assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), true);
@@ -393,9 +425,7 @@ test("resumes a Foundation-only prior publish without republishing it", async ()
 });
 
 test("later protected main may publish missing Docs against a verified reusable Foundation", async () => {
-  const runtime = harness({
-    [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:00.000Z"),
-  });
+  const runtime = harness(publishedState(mutation, foundation));
   const currentCommit = "b".repeat(40);
   const laterSource = {
     ...source,
@@ -418,14 +448,13 @@ test("later protected main may publish missing Docs against a verified reusable 
   assert.equal(
     changesetsReleaseOutput(released),
     `New tag: ${DOCS_PACKAGE}@${docs.version}\n` +
+      `New tag: ${DOCS_ADAPTER_PACKAGE}@${docsAdapter.version}\n` +
       `New tag: ${DOCS_MCP_PACKAGE}@${docsMcp.version}\n`,
   );
 });
 
 test("reused Foundation cannot publish missing Docs after protected main advances", async () => {
-  const runtime = harness({
-    [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:00.000Z"),
-  });
+  const runtime = harness(publishedState(mutation, foundation));
   const currentCommit = "b".repeat(40);
   runtime.authorizePublish = () => {
     throw new Error("protected main advanced");
@@ -453,16 +482,16 @@ test("Docs-only ancestor state is quarantined before any Foundation npm write", 
   };
   await assert.rejects(run(runtime, { source: laterSource }), /quarantine before releasing/u);
   assert.deepEqual(runtime.calls, [
+    `inspect:${MUTATION_PACKAGE}`,
     `inspect:${FOUNDATION_PACKAGE}`,
     `inspect:${DOCS_PACKAGE}`,
+    `inspect:${DOCS_ADAPTER_PACKAGE}`,
     `inspect:${DOCS_MCP_PACKAGE}`,
   ]);
 });
 
 test("fails when raw registry provenance disagrees with the verified npm audit bundle", async () => {
-  const runtime = harness({
-    [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:00.000Z"),
-  });
+  const runtime = harness(publishedState(mutation, foundation));
   const currentCommit = "b".repeat(40);
   runtime.verifySignature = async (value) => artifactProvenance(value, currentCommit);
   await assert.rejects(
@@ -565,16 +594,13 @@ test("retries signature verification without republishing Foundation", async () 
 });
 
 test("later unrelated main verifies a trusted ancestor release with zero writes and no action output", async () => {
-  const foundationState = present(foundation, "2026-01-01T00:00:00.000Z");
-  const docsState = present(docs, "2026-01-01T00:00:01.000Z");
-  const mcpState = present(docsMcp, "2026-01-01T00:00:02.000Z");
-  foundationState.distTags.latest = foundation.version;
-  docsState.distTags.latest = docs.version;
-  const runtime = harness({
-    [DOCS_PACKAGE]: docsState,
-    [DOCS_MCP_PACKAGE]: mcpState,
-    [FOUNDATION_PACKAGE]: foundationState,
-  });
+  const runtime = harness(publishedState(
+    mutation,
+    foundation,
+    docs,
+    docsAdapter,
+    docsMcp,
+  ));
   const laterSource = {
     ...source,
     commit: "b".repeat(40),
@@ -588,18 +614,10 @@ test("later unrelated main verifies a trusted ancestor release with zero writes 
 });
 
 test("emits only the package released by the current commit when Foundation is an older ancestor", async () => {
-  const foundationState = present(foundation, "2026-01-01T00:00:00.000Z");
-  const docsState = present(docs, "2026-01-01T00:00:01.000Z");
-  const mcpState = present(docsMcp, "2026-01-01T00:00:02.000Z");
+  const initial = publishedState(mutation, foundation, docs, docsAdapter, docsMcp);
   const currentCommit = "b".repeat(40);
-  docsState.provenance.commit = currentCommit;
-  foundationState.distTags.latest = foundation.version;
-  docsState.distTags.latest = docs.version;
-  const runtime = harness({
-    [DOCS_PACKAGE]: docsState,
-    [DOCS_MCP_PACKAGE]: mcpState,
-    [FOUNDATION_PACKAGE]: foundationState,
-  });
+  initial[DOCS_PACKAGE].provenance.commit = currentCommit;
+  const runtime = harness(initial);
   const mixedSource = {
     ...source,
     commit: currentCommit,
@@ -630,8 +648,14 @@ test("reconciles a partial GitHub release boundary exactly once per package", as
   };
   await assert.rejects(run(runtime), /GitHub release response lost/u);
   await run(runtime);
-  assert.deepEqual(writes, [FOUNDATION_PACKAGE, DOCS_PACKAGE, DOCS_MCP_PACKAGE]);
-  assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 3);
+  assert.deepEqual(writes, [
+    MUTATION_PACKAGE,
+    FOUNDATION_PACKAGE,
+    DOCS_PACKAGE,
+    DOCS_ADAPTER_PACKAGE,
+    DOCS_MCP_PACKAGE,
+  ]);
+  assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 5);
 });
 
 test("production GitHub reconciliation repairs a lost release response idempotently", async () => {
@@ -762,10 +786,9 @@ test("rejects immutable-version mismatch and requires quarantine/new version", a
 });
 
 test("rejects Docs published before Foundation without reconciling GitHub releases", async () => {
-  const runtime = harness({
-    [DOCS_PACKAGE]: present(docs, "2026-01-01T00:00:00.000Z"),
-    [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:01.000Z"),
-  });
+  const initial = publishedState(mutation, foundation, docs);
+  initial[DOCS_PACKAGE].publishedAt = "2026-01-01T00:00:00.500Z";
+  const runtime = harness(initial);
   await assert.rejects(run(runtime), /docs-protocol.*published before/iu);
   assert.equal(runtime.calls.some((entry) => entry.startsWith("release:")), false);
 });
@@ -781,15 +804,14 @@ test("refuses an existing immutable version when the final tag no longer targets
 test("rejects local and published Docs manifests without the exact Foundation dependency", async () => {
   const badDocs = artifact(DOCS_PACKAGE, docs.version, { [FOUNDATION_PACKAGE]: "^1.2.3" });
   await assert.rejects(
-    run(harness(), { artifacts: [foundation, badDocs, docsMcp] }),
+    run(harness(), { artifacts: [mutation, foundation, badDocs, docsAdapter, docsMcp] }),
     /docs-protocol.*exact.*engineering-foundation/iu,
   );
 
   const publishedDocs = present(docs, "2026-01-01T00:00:01.000Z");
   publishedDocs.manifest.dependencies[FOUNDATION_PACKAGE] = "^1.2.3";
-  const runtime = harness({
-    [DOCS_PACKAGE]: publishedDocs,
-    [FOUNDATION_PACKAGE]: present(foundation, "2026-01-01T00:00:00.000Z"),
-  });
+  const initial = publishedState(mutation, foundation);
+  initial[DOCS_PACKAGE] = publishedDocs;
+  const runtime = harness(initial);
   await assert.rejects(run(runtime), /different packed manifest/iu);
 });

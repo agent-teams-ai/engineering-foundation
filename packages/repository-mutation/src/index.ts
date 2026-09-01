@@ -1,5 +1,5 @@
 export { canonicalJson, sha256Bytes, sha256Json, sha256Text, CanonicalJsonError } from "./canonical-json.js";
-export type { CanonicalJsonValue } from "./canonical-json.js";
+export type { CanonicalJsonPrimitive, CanonicalJsonValue } from "./canonical-json.js";
 export { parseStrictJson, StrictJsonError } from "./strict-json.js";
 export type { StrictJsonFailure } from "./strict-json.js";
 export {
@@ -16,6 +16,7 @@ export type {
 } from "./repository-mutation-envelope.js";
 export { RepositoryMutationError } from "./errors.js";
 export type { RepositoryMutationErrorCode } from "./errors.js";
+export type { MutationClaim } from "./transaction-coordination/mutation-lease.js";
 export { computeInstalledArtifactBuildIdentity, installedRepositoryMutationBuildIdentity } from "./installed-artifact-identity.js";
 export type { InstalledArtifactClosure, InstalledArtifactDigest } from "./installed-artifact-identity.js";
 export { installedRepositoryMutationVersion, REPOSITORY_MUTATION_PACKAGE_NAME } from "./package-version.js";
@@ -36,6 +37,13 @@ export type {
   KnownFileTransactionOperationOutcome, KnownFileTransactionOperationV1,
   KnownFileTransactionPlanV1, KnownFileTransactionReceiptV1
 } from "./repository-mutation/application/model/known-file-transaction.js";
+export type {
+  KnownFileTransactionEnvelopeV1,
+  KnownFileTransactionJournalOperationV1,
+  KnownFileTransactionJournalV1,
+  KnownFileTransactionPortableIdentityV1,
+  KnownFileTransactionRetirementV1,
+} from "./repository-mutation/application/model/known-file-transaction-journal.js";
 
 export { portableRepositoryPathIdentity, portableRepositoryPathProblem } from "./repository-mutation/application/model/repository-path.js";
 export type { PortableRepositoryPathProblem } from "./repository-mutation/application/model/repository-path.js";

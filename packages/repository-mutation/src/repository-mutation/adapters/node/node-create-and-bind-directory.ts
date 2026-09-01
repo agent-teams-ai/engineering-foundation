@@ -1,4 +1,4 @@
-interface NodeDirectoryCreateAndBindOperations<Parent, Observed, Bound> {
+export interface NodeDirectoryCreateAndBindOperations<Parent, Observed, Bound> {
   readonly ambiguousError: (error: unknown) => Error;
   readonly bind: (bound: Bound) => Promise<void>;
   readonly captureParent: () => Promise<Parent>;

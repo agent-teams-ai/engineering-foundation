@@ -44,11 +44,9 @@ export function compressedTar(name, declaredSize, payload = Buffer.alloc(0)) {
 }
 export function qualifiedArchive(manifest, extraEntries = []) {
   return tarArchive([
-    { name: "package/", type: "5" },
     { data: Buffer.from(JSON.stringify(manifest)), name: "package/package.json" },
     { data: Buffer.from("fixture license\n"), name: "package/LICENSE" },
     { data: Buffer.from("# Fixture\n"), name: "package/README.md" },
-    { name: "package/dist/", type: "5" },
     { data: Buffer.from("export {};\n"), name: "package/dist/index.js" },
     ...extraEntries,
   ]);

@@ -10,7 +10,7 @@ export interface KnownFileTransactionPortableIdentityV1 {
   readonly ino: string;
 }
 
-interface KnownFileTransactionRetirementV1 {
+export interface KnownFileTransactionRetirementV1 {
   readonly kind: "destination" | "rollback-temporary" | "temporary";
   readonly state: "ready" | "captured" | "unlink-authorized";
   readonly directoryIdentity: KnownFileTransactionPortableIdentityV1;

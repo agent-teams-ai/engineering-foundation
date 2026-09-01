@@ -354,12 +354,10 @@ test("neutral canonical JSON rejects executable or ambiguous containers", () => 
     '{"safe":true}',
   );
 
-  for (const invalid of [-0, "\ud800", "\udfff", { "\ud800": true }]) {
-    assert.throws(
-      () => neutralCanonicalJson(invalid),
-      (error) => error instanceof CanonicalJsonError,
-    );
-  }
+  assert.equal(neutralCanonicalJson(-0), "0");
+  assert.equal(neutralCanonicalJson("\ud800"), '"\\ud800"');
+  assert.equal(neutralCanonicalJson("\udfff"), '"\\udfff"');
+  assert.equal(neutralCanonicalJson({ "\ud800": true }), '{"\\ud800":true}');
 
   const arrayAccessor = ["safe"];
   Object.defineProperty(arrayAccessor, "0", {

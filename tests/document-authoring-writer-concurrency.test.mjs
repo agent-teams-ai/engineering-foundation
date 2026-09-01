@@ -169,7 +169,7 @@ for (const winnerIndex of [0, 1]) {
       const raced = await racingLoser.nextMessage();
       assert.equal(
         raced.error,
-        "Another Foundation operation is active or its shared mutation lock is not safely recoverable."
+        "Another repository mutation operation is active or its lock is not safely recoverable."
       );
       assert.deepEqual(await racingLoser.exit(), {
         code: 1,

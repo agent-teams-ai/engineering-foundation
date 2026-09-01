@@ -91,6 +91,7 @@ test("manifest projection rejects cycles, unknown workspace targets, and malform
 
 test("current projection qualifies the adapter and retains current Foundation edges", () => {
   assert.deepEqual(PUBLISHABLE_PACKAGES.map(({ name }) => name), [
+    "@agent-teams/repository-mutation",
     "@agent-teams/engineering-foundation",
     "@agent-teams/docs-protocol",
     "@agent-teams/docs-protocol-agent-teams",
@@ -98,7 +99,11 @@ test("current projection qualifies the adapter and retains current Foundation ed
   ]);
   assert.deepEqual(
     PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol-agent-teams"],
-    ["@agent-teams/docs-protocol", "@agent-teams/engineering-foundation"].toSorted(),
+    [
+      "@agent-teams/docs-protocol",
+      "@agent-teams/engineering-foundation",
+      "@agent-teams/repository-mutation",
+    ].toSorted(),
   );
 });
 

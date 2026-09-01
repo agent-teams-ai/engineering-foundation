@@ -943,6 +943,7 @@ boundaries:
       - packages/repository-mutation/src/qualification
     allow:
       boundaries:
+        - repository-mutation.application
         - repository-mutation.known-file-composition
         - repository-mutation.node-adapters
         - repository-mutation.transaction-coordination

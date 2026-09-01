@@ -783,7 +783,7 @@ test(
       holder = await startTransactionHolder(root, "scaffolding");
       await assert.rejects(
         second.acquire({ requestedMutation: "document-authoring" }),
-        /operation is active or its shared mutation lock is not safely recoverable/u,
+        /operation is active or its lock is not safely recoverable/u,
       );
       await stopTransactionHolder(holder);
       const nextLease = await second.acquire({

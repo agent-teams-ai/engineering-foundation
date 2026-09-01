@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
+import { constants } from "node:fs";
 import {
+  access,
   mkdir,
   mkdtemp,
   realpath,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, delimiter, extname, join, resolve } from "node:path";
 import test from "node:test";
 
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
@@ -24,6 +27,83 @@ import {
 const roles = ["parent", "descendant"];
 const noOp = () => {};
 const fixtureEnvironmentPattern = /^QGR_FIXTURE_/iu;
+const javaScriptEntrypointPattern = /\.(?:c|m)?js$/iu;
+const windowsShellEntrypointPattern = /\.(?:bat|cmd|ps1)$/iu;
+const defaultWindowsExecutableExtensions = ".COM;.EXE;.BAT;.CMD";
+
+function environmentValue(environment, name) {
+  const exactValue = environment[name];
+  if (exactValue !== undefined) {
+    return exactValue;
+  }
+  const matchingKey = Object.keys(environment).find(
+    (key) => key.toUpperCase() === name,
+  );
+  return matchingKey === undefined ? undefined : environment[matchingKey];
+}
+
+function commandNames(command, environment) {
+  if (process.platform !== "win32" || extname(command) !== "") {
+    return [command];
+  }
+  const pathExt = environmentValue(environment, "PATHEXT") ??
+    defaultWindowsExecutableExtensions;
+  const extensions = pathExt
+    .split(delimiter)
+    .filter((extension) => extension !== "")
+    .map((extension) => extension.startsWith(".") ? extension : `.${extension}`);
+  return [command, ...extensions.map((extension) => `${command}${extension}`)];
+}
+
+function pathDirectory(segment) {
+  if (segment === "") {
+    return process.cwd();
+  }
+  if (
+    process.platform === "win32" &&
+    segment.length >= 2 &&
+    segment.startsWith('"') &&
+    segment.endsWith('"')
+  ) {
+    return segment.slice(1, -1);
+  }
+  return segment;
+}
+
+async function canonicalExecutable(candidate) {
+  try {
+    const candidateStat = await stat(candidate);
+    if (!candidateStat.isFile()) {
+      return undefined;
+    }
+    await access(candidate, constants.X_OK);
+    return await realpath(candidate);
+  } catch (error) {
+    if (["EACCES", "ENOENT", "ENOTDIR"].includes(error?.code)) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+async function resolveCommand(command, environment = process.env) {
+  const path = environmentValue(environment, "PATH");
+  assert.equal(
+    typeof path,
+    "string",
+    `Cannot resolve ${JSON.stringify(command)} without PATH.`,
+  );
+  for (const segment of path.split(delimiter)) {
+    const directory = pathDirectory(segment);
+    for (const name of commandNames(command, environment)) {
+      const executable = await canonicalExecutable(resolve(directory, name));
+      if (executable !== undefined) {
+        return executable;
+      }
+    }
+  }
+  assert.fail(`Could not resolve ${JSON.stringify(command)} through PATH.`);
+}
 
 function fixtureEnvironmentSnapshot(environment = process.env) {
   return new Map(
@@ -66,9 +146,23 @@ async function resolveInstalledPnpm() {
     process.env.npm_config_user_agent ?? "",
   )?.groups?.version;
   assert.notEqual(version, undefined, "Installed pnpm did not report its exact version.");
-  const entrypoint = await realpath(process.env.npm_execpath);
-  assert.match(entrypoint, /\.(?:c|m)?js$/u);
-  return { entrypoint, version };
+  assert.notEqual(process.env.npm_execpath, "", "Installed pnpm reported an empty entrypoint.");
+  const entrypoint = basename(process.env.npm_execpath) === process.env.npm_execpath
+    ? await resolveCommand(process.env.npm_execpath)
+    : await realpath(process.env.npm_execpath);
+  const nodeEntrypoint = javaScriptEntrypointPattern.test(entrypoint);
+  assert.equal(
+    process.platform === "win32" &&
+      !nodeEntrypoint &&
+      windowsShellEntrypointPattern.test(entrypoint),
+    false,
+    "Installed pnpm resolved to a shell entrypoint instead of JavaScript or a native executable.",
+  );
+  return {
+    entrypoint,
+    nodeEntrypoint,
+    version,
+  };
 }
 
 async function writeConsumer(root, version) {
@@ -108,15 +202,57 @@ void (async () => {
 `;
   await writeFile(join(root, "real-pnpm-parent.cjs"), `const { spawn } = require("node:child_process");
 const { once } = require("node:events");
-const { realpathSync, writeFileSync } = require("node:fs");
+const { accessSync, constants, realpathSync, statSync, writeFileSync } = require("node:fs");
+const { basename, delimiter, extname, resolve } = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 const { connect } = require("./fixture-boundary-client.cjs");
+
+const environmentValue = (name) => {
+  const exactValue = process.env[name];
+  if (exactValue !== undefined) return exactValue;
+  const matchingKey = Object.keys(process.env).find((key) => key.toUpperCase() === name);
+  return matchingKey === undefined ? undefined : process.env[matchingKey];
+};
+const canonicalizeNpmExecPath = (entrypoint) => {
+  if (typeof entrypoint !== "string" || entrypoint === "") {
+    throw new Error("Installed pnpm child did not report npm_execpath.");
+  }
+  if (basename(entrypoint) !== entrypoint) return realpathSync(entrypoint);
+  const path = environmentValue("PATH");
+  if (typeof path !== "string") {
+    throw new Error("Installed pnpm child reported a command name without PATH.");
+  }
+  const pathExt = environmentValue("PATHEXT") ?? ${JSON.stringify(defaultWindowsExecutableExtensions)};
+  const extensions = process.platform === "win32" && extname(entrypoint) === ""
+    ? ["", ...pathExt.split(delimiter).filter((extension) => extension !== "")]
+    : [""];
+  for (const segment of path.split(delimiter)) {
+    const unquoted = process.platform === "win32" && segment.length >= 2 &&
+      segment.startsWith('"') && segment.endsWith('"')
+      ? segment.slice(1, -1)
+      : segment;
+    const directory = unquoted === "" ? process.cwd() : unquoted;
+    for (const extension of extensions) {
+      const suffix = extension === "" || extension.startsWith(".") ? extension : "." + extension;
+      const candidate = resolve(directory, entrypoint + suffix);
+      try {
+        if (!statSync(candidate).isFile()) continue;
+        accessSync(candidate, constants.X_OK);
+        return realpathSync(candidate);
+      } catch (error) {
+        if (["EACCES", "ENOENT", "ENOTDIR"].includes(error?.code)) continue;
+        throw error;
+      }
+    }
+  }
+  throw new Error("Installed pnpm child command could not be resolved through PATH.");
+};
 
 void (async () => {
 if (process.env.npm_lifecycle_event !== "slow") {
   throw new Error("Installed pnpm did not set npm_lifecycle_event=slow.");
 }
-const canonicalNpmExecPath = realpathSync(process.env.npm_execpath);
+const canonicalNpmExecPath = canonicalizeNpmExecPath(process.env.npm_execpath);
 if (canonicalNpmExecPath !== ${JSON.stringify(installedPnpmEntrypoint)}) {
   throw new Error("Installed pnpm child npm_execpath was not the expected entrypoint.");
 }
@@ -155,6 +291,7 @@ async function prepareCase(root) {
   ], {
     cwd: root,
     env: { ...process.env, npm_config_store_dir: fixtureStore },
+    nodeEntrypoint: installed.nodeEntrypoint,
   });
   await awaitQgrSetupBeforeTransfer(setupExecution, (setupResult) => {
     assert.equal(setupResult.status, 0, JSON.stringify(setupResult));

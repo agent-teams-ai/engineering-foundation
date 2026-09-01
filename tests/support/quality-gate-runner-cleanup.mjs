@@ -272,6 +272,7 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
   const shutdownGraceMs = options.shutdownGraceMs ?? TEST_HARNESS_SHUTDOWN_GRACE_MS;
   const watchdogMs = options.watchdogMs ?? TEST_HARNESS_WATCHDOG_MS;
   const createDeadline = options.createDeadline ?? defaultDeadline;
+  const nodeEntrypoint = options.nodeEntrypoint ?? true;
   const spawnChild = options.spawnChild ?? ((command, args, spawnOptions) => (
     spawnNodeManagedProcess({
       command,
@@ -284,15 +285,19 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
     options.spawnChild === undefined ? terminateNodeManagedProcess : undefined
   );
   const managedProcessGroups = new Set();
-  const command = spawnChild(process.execPath, [cliPath, ...arguments_], {
-    ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
-    env: sanitizedChildEnvironment(
-      options.env ?? process.env,
-      options.fixtureBoundary,
-      options.fixtureRole,
-    ),
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const command = spawnChild(
+    nodeEntrypoint ? process.execPath : cliPath,
+    nodeEntrypoint ? [cliPath, ...arguments_] : arguments_,
+    {
+      ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+      env: sanitizedChildEnvironment(
+        options.env ?? process.env,
+        options.fixtureBoundary,
+        options.fixtureRole,
+      ),
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
   let stderr = "";
   let stdout = "";
   command.stderr.setEncoding("utf8");

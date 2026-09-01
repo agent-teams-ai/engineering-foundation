@@ -8,3 +8,4 @@ tests/fixtures/document-authoring-contracts/orchestrator-golden-v1/*.md text eol
 tests/fixtures/document-planning/**/*.md text eol=lf
 tests/fixtures/document-planning/**/*.json text eol=lf
 tests/fixtures/document-planning/**/*.yaml text eol=lf
+tests/fixtures/source-dependencies/** text eol=lf

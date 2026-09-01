@@ -93,6 +93,10 @@ test("published compatibility callsites share one install policy", async () => {
   assert.match(entrypoint, /verifyOldFoundationTransactionBarrier\(\{ currentCliPath, installPackage \}\)/u);
   assert.match(entrypoint, /verifyPublishedDocumentTransactionCompatibility\(\{[\s\S]*installPackage,/u);
   assert.match(entrypoint, /verifyPublishedScaffoldingCompatibility\(\{[\s\S]*installPackage,/u);
+  assert.match(
+    entrypoint,
+    /currentRuntimePackageRoot: resolve\("packages", "repository-mutation"\)/u,
+  );
   assert.doesNotMatch(publishedInstall, /runNpmCommand/u);
   assert.match(publishedInstall, /await installPackage\(/u);
   assert.doesNotMatch(scaffolding, /runNpmCommand/u);

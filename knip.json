@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreBinaries": ["mkfifo"],
-  "ignoreDependencies": ["@arethetypeswrong/cli", "@openai/codex", "c8", "publint"],
+  "ignoreDependencies": ["@arethetypeswrong/cli", "@openai/codex", "c8", "publint", "vfile"],
   "workspaces": {
     ".": {
       "entry": [

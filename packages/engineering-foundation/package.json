@@ -139,6 +139,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/proper-lockfile": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vfile": "catalog:"
   }
 }

@@ -38,6 +38,7 @@ try {
   });
   await verifyPublishedScaffoldingCompatibility({
     currentPackageRoot: resolve("packages", "engineering-foundation"),
+    currentRuntimePackageRoot: resolve("packages", "repository-mutation"),
     installPackage,
     temporaryRoot,
   });

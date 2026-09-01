@@ -102,6 +102,9 @@ catalogs:
     verdaccio:
       specifier: 6.9.2
       version: 6.9.2
+    vfile:
+      specifier: 6.0.3
+      version: 6.0.3
     yaml:
       specifier: 2.9.0
       version: 2.9.0
@@ -304,6 +307,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vfile:
+        specifier: 'catalog:'
+        version: 6.0.3
 
   packages/repository-mutation:
     devDependencies:

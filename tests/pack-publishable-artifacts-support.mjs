@@ -1,7 +1,17 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { gzipSync } from "node:zlib";
+
+export async function isPhysicallyContainedPath(root, candidate) {
+  const [canonicalRoot, canonicalCandidate] = await Promise.all([
+    realpath(root),
+    realpath(candidate),
+  ]);
+  const relation = relative(canonicalRoot, canonicalCandidate);
+  return relation === "" ||
+    (relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation));
+}
 
 export function catalogEntry(name) {
   const leaf = name.slice(name.lastIndexOf("/") + 1);

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { lstat, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
 import { gzipSync } from "node:zlib";
 
@@ -24,20 +24,11 @@ import {
 import { boundedDirectoryEntries } from "../scripts/pack-artifact-stage-support.mjs";
 import { assertSecretCanaryAbsent } from "../scripts/pack-test-support.mjs";
 import {
-  catalogEntry, compressedTar, createPackFixture, qualifiedArchive, tarArchive, tarHeader,
+  catalogEntry, compressedTar, createPackFixture, isPhysicallyContainedPath,
+  qualifiedArchive, tarArchive, tarHeader,
 } from "./pack-publishable-artifacts-support.mjs";
 
 import { derivePublishablePackageProjection } from "../scripts/publishable-packages.mjs";
-
-async function isPhysicallyContainedPath(root, candidate) {
-  const [canonicalRoot, canonicalCandidate] = await Promise.all([
-    realpath(root),
-    realpath(candidate),
-  ]);
-  const relation = relative(canonicalRoot, canonicalCandidate);
-  return relation === "" ||
-    (relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation));
-}
 
 function syntheticProjection(catalogOrder) {
   const names = {

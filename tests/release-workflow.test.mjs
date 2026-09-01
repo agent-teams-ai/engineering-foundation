@@ -122,11 +122,11 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   const primaryDeadlineSeconds = deadlines.get("deadline");
   const finalVerificationSeconds = deadlines.get("final_verification_deadline");
 
-  assert.equal(jobTimeoutSeconds, 45 * 60);
+  assert.equal(jobTimeoutSeconds, 60 * 60);
   assert.equal(deadlines.size, 2);
-  assert.equal(primaryDeadlineSeconds, 40 * 60);
+  assert.equal(primaryDeadlineSeconds, 55 * 60);
   assert.equal(finalVerificationSeconds, 60);
-  assert.ok(primaryDeadlineSeconds >= longestRequiredCiPathSeconds);
+  assert.equal(primaryDeadlineSeconds - longestRequiredCiPathSeconds, 3 * 60);
   assert.match(attestation.run, /actions\/workflows\/ci\.yml\/dispatches/u);
   assert.match(attestation.run, /-F return_run_details=true/u);
   assert.match(attestation.run, /\.workflow_run_id \/\/ ""/u);
@@ -162,9 +162,9 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
     attestation.run,
     /while \(\( SECONDS < final_verification_deadline \)\); do/u,
   );
-  assert.ok(
-    primaryDeadlineSeconds + finalVerificationSeconds +
-      4 * 60 <= jobTimeoutSeconds,
+  assert.equal(
+    jobTimeoutSeconds - primaryDeadlineSeconds - finalVerificationSeconds,
+    4 * 60,
   );
   assert.ok(
     attestation.run.lastIndexOf("final_bound_run") <
@@ -511,7 +511,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     ci.jobs["windows-package"].steps.at(-1).run,
     "pnpm package:check",
   );
-  assert.equal(ci.jobs["windows-package"]["timeout-minutes"], 30);
+  assert.equal(ci.jobs["windows-package"]["timeout-minutes"], 45);
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
   assert.equal(

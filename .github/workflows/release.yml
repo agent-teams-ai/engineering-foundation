@@ -158,7 +158,7 @@ jobs:
       pull-requests: read
       statuses: write
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -318,7 +318,7 @@ jobs:
             fail_attestation "Release PR CI did not resolve to one exact run"
           fi
 
-          deadline=$((SECONDS + 2400))
+          deadline=$((SECONDS + 3300))
           bound_run_attempt=""
           all_completed=0
           while (( SECONDS < deadline )); do

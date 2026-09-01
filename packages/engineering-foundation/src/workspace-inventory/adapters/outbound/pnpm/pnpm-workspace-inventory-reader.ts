@@ -328,7 +328,7 @@ async function discoverManifestPaths(
   return manifestPaths;
 }
 
-export async function readPnpmWorkspaceInventoryFromManifestPaths(
+async function readPnpmWorkspaceInventoryFromManifestPaths(
   consumerRoot: string,
   workspaceManifest: unknown,
   manifestPaths: readonly string[],

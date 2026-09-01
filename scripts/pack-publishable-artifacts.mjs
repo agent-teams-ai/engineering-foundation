@@ -138,7 +138,7 @@ function validateProjectedPackages(repositoryRoot, packages) {
     if (!containsPath(repositoryRoot, absoluteRoot) || absoluteRoot === repositoryRoot) {
       fail(`${entry.name} package root escapes the repository`);
     }
-    const identity = pathIdentity(absoluteRoot);
+    const identity = pathIdentity(entry.root);
     for (const { identity: otherIdentity, name } of stageRoots) {
       const nested = identity === otherIdentity || identity.startsWith(`${otherIdentity}/`) ||
         otherIdentity.startsWith(`${identity}/`);
@@ -160,7 +160,7 @@ export async function assertPhysicalPublishablePackageRoots(repositoryRoot, pack
     if (physicalRoot === physicalRepositoryRoot || !containsPath(physicalRepositoryRoot, physicalRoot)) {
       fail(`${entry.name} package root physically escapes the repository`);
     }
-    const identity = pathIdentity(physicalRoot);
+    const identity = pathIdentity(relative(physicalRepositoryRoot, physicalRoot));
     for (const other of roots) {
       if (identity === other.identity || identity.startsWith(`${other.identity}/`) ||
         other.identity.startsWith(`${identity}/`)) {

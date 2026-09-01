@@ -6,7 +6,7 @@ import { RepositoryMutationError } from "../errors.js";
 import {
   KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
   LOCAL_STATE_DIRECTORY,
-  TRANSACTION_FILE,
+  FOUNDATION_TRANSACTION_FILE,
   TRANSACTION_TEMPORARY_FILE
 } from "../state-contract.js";
 import { NodeMutationOperationLock } from "./adapters/node/node-operation-lock.js";
@@ -70,7 +70,7 @@ const leases = new WeakMap<object, LeaseState>();
 const observations = new WeakMap<object, ObservationState>();
 const claims = new WeakMap<object, ClaimState>();
 const commonEvidenceNames = Object.freeze([
-  TRANSACTION_FILE,
+  FOUNDATION_TRANSACTION_FILE,
   TRANSACTION_TEMPORARY_FILE,
   KNOWN_FILE_TRANSACTION_TEMPORARY_FILE
 ]);
@@ -82,9 +82,9 @@ function portableStateName(name: string): string {
 
 function isSuspiciousCommonEvidenceName(name: string): boolean {
   const portable = portableStateName(name);
-  const transaction = portableStateName(TRANSACTION_FILE);
+  const transaction = portableStateName(FOUNDATION_TRANSACTION_FILE);
   const terminalKnownFileEvidenceName =
-    `${TRANSACTION_FILE}.completed-known-file-evidence`;
+    `${FOUNDATION_TRANSACTION_FILE}.completed-known-file-evidence`;
   const terminalKnownFileEvidence = portableStateName(terminalKnownFileEvidenceName);
   const terminalEvidence = new RegExp(
     `^${transaction.replaceAll(".", "\\.")}\\.completed-[a-z0-9-]+-evidence$`,
@@ -428,9 +428,3 @@ export async function releaseMutationLease(lease: MutationLease): Promise<void> 
   await state.release({ retainTransactionBarrier: state.retained });
   state.released = true;
 }
-
-export function mutationLeaseRoot(lease: MutationLease): string {
-  return leaseState(lease).root;
-}
-
-export const COMMON_TRANSACTION_FILE = TRANSACTION_FILE;

@@ -41,7 +41,7 @@ export interface SourceWorkspaceDiscoveryLimits {
   readonly maxTotalSourceBytes: number;
 }
 
-export const DEFAULT_SOURCE_WORKSPACE_DISCOVERY_LIMITS = Object.freeze({
+const DEFAULT_SOURCE_WORKSPACE_DISCOVERY_LIMITS = Object.freeze({
   maxDirectoryEntries: 500_000,
   maxManifestFiles: 5_000,
   maxSourceFileBytes: 4 * 1024 * 1024,
@@ -464,18 +464,6 @@ export function buildSelectedPackageSourceTopology(
           )
         })
       )
-  );
-}
-
-export function selectedPackageSymbolicLink(
-  symbolicLinkPaths: readonly string[],
-  packages: readonly WorkspacePackage[],
-  allManifestPaths: readonly string[]
-): string | undefined {
-  const packagesByRoot = packageByPortableRoot(packages);
-  const ownershipRoots = packageRootIdentities(allManifestPaths);
-  return symbolicLinkPaths.find(
-    (path) => owningPackage(path, packagesByRoot, ownershipRoots) !== undefined
   );
 }
 

@@ -21,7 +21,7 @@ function patternKeyCompare(left: string, right: string): number {
   return rightStar - leftStar || right.length - left.length;
 }
 
-export function packageExportMatches(
+function packageExportMatches(
   entry: PackageExportEntry,
   subpath: string
 ): boolean {
@@ -34,7 +34,7 @@ export function packageExportMatches(
     subpath.length > prefix.length + suffix.length;
 }
 
-export function selectedPackageExport(
+function selectedPackageExport(
   entries: readonly PackageExportEntry[],
   subpath: string
 ): PackageExportEntry | undefined {

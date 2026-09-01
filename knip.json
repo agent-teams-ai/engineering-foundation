@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreBinaries": ["mkfifo"],
-  "ignoreDependencies": ["@openai/codex", "c8"],
+  "ignoreDependencies": ["@arethetypeswrong/cli", "@openai/codex", "c8", "publint"],
   "workspaces": {
     ".": {
       "entry": [
@@ -28,7 +28,13 @@
     "packages/docs-protocol": {
       "project": ["src/**/*.ts"]
     },
+    "packages/docs-protocol-agent-teams": {
+      "project": ["src/**/*.ts"]
+    },
     "packages/docs-protocol-mcp": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/repository-mutation": {
       "project": ["src/**/*.ts"]
     },
     "spikes/source-dependency-parser": {

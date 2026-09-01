@@ -29,7 +29,7 @@ export type PackageExportTarget =
   | readonly PackageExportTarget[]
   | PackageExportConditions;
 
-export interface PackageExportConditions {
+interface PackageExportConditions {
   readonly [condition: string]: PackageExportTarget;
 }
 

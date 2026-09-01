@@ -4,7 +4,7 @@ import {
 } from "../consumer-integration/composition/consumer-integration-cli.js";
 import { runQualificationCli } from "./qualification-cli.js";
 
-export function managedHelp(): string {
+function managedHelp(): string {
   return `${managedDocsHelp().replace("\nOptions:", "  qualify                       Run managed qualification in a disposable copy\n\nOptions:")}`;
 }
 

@@ -89,6 +89,19 @@ test("manifest projection drives deterministic transitive build support closure"
     Object.isFrozen(buildPackageNames) && Object.isFrozen(stagePackages)));
 });
 
+test("logical package portability does not reject the host volume path", () => {
+  const { projection } = syntheticProjection(["a", "b", "c", "d", "unrelated"]);
+  const repositoryRoot = process.platform === "win32"
+    ? "D:\\fixture\\repository"
+    : "/fixture/host:volume/repository";
+  assert.doesNotThrow(() => derivePublishableArtifactPlan({
+    dependencyDeclarations: projection.declarations,
+    packages: projection.packages,
+    repositoryRoot,
+    requiredArtifactPaths: requiredPolicy(projection.packages),
+  }));
+});
+
 test("production orchestration rejects catalog, graph, and packer injection", async () => {
   for (const override of [
     "packages", "dependencyDeclarations", "packArtifact", "runBuild", "runPnpm",

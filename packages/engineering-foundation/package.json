@@ -126,7 +126,6 @@
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
     "github-slugger": "catalog:",
-    "jsonc-parser": "catalog:",
     "mdast-util-to-string": "catalog:",
     "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",
@@ -140,7 +139,6 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/proper-lockfile": "catalog:",
-    "typescript": "catalog:",
-    "vfile": "catalog:"
+    "typescript": "catalog:"
   }
 }

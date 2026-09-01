@@ -64,7 +64,6 @@
   },
   "devDependencies": {
     "@agent-teams/engineering-foundation": "workspace:*",
-    "@agent-teams/repository-mutation": "workspace:*",
     "@ast-grep/cli": "catalog:",
     "@arethetypeswrong/cli": "catalog:",
     "@changesets/changelog-github": "catalog:",
@@ -72,7 +71,6 @@
     "@modelcontextprotocol/server": "catalog:",
     "@openai/codex": "catalog:",
     "@types/node": "catalog:",
-    "@types/proper-lockfile": "catalog:",
     "ajv": "catalog:",
     "c8": "catalog:",
     "fast-check": "catalog:",

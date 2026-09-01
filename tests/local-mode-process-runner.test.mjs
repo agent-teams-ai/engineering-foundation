@@ -574,7 +574,12 @@ test(
 );
 
 test("Windows cancellation protocol proves containment across Job assignment", async () => {
-  const [nodeAdapterSource, windowsManagedProcessSource] = await Promise.all([
+  const [
+    nodeAdapterSource,
+    windowsManagedProcessSource,
+    managedLauncherSource,
+    processHostSource
+  ] = await Promise.all([
     readFile(join(
       process.cwd(),
       "packages/engineering-foundation/src/process-execution/node-process-runner.ts"
@@ -582,8 +587,35 @@ test("Windows cancellation protocol proves containment across Job assignment", a
     readFile(join(
       process.cwd(),
       "packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs"
+    ), "utf8"),
+    readFile(join(
+      process.cwd(),
+      "packages/engineering-foundation/src/process-execution/windows-managed-process.ts"
+    ), "utf8"),
+    readFile(join(
+      process.cwd(),
+      "packages/engineering-foundation/src/process-execution/windows-process-host.ts"
     ), "utf8")
   ]);
+
+  assert.match(
+    managedLauncherSource,
+    /writeFileSync\(control\.requestPath, serializedRequest/u
+  );
+  assert.match(
+    managedLauncherSource,
+    /assertWindowsCommandLineFits\(process\.execPath, \[\s*PROCESS_HOST_PATH,\s*control\.requestPath\s*\]\)/u
+  );
+  assert.match(
+    managedLauncherSource,
+    /hostWorkingDirectory: win32\.dirname\(PROCESS_HOST_PATH\)/u
+  );
+  assert.doesNotMatch(managedLauncherSource, /encodedRequest/u);
+  assert.match(processHostSource, /JSON\.parse\(readFileSync\(requestPath, "utf8"\)\)/u);
+  assert.match(
+    windowsManagedProcessSource,
+    /BuildCommandLine\(\s*executable, new\[\] \{ hostPath, requestPath \}\)/u
+  );
 
   const updateJobList = windowsManagedProcessSource.indexOf(
     "if (!UpdateProcThreadAttribute("

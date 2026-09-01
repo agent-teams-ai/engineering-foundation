@@ -116,8 +116,11 @@ windowsTest(
       "plain",
       "space separated",
       String.raw`trailing\\`,
+      'embedded"quote',
       String.raw`embedded\"quote`,
+      "PowerShell $&;|<>(){}[]`^",
       "unicode-雪",
+      "emoji-😀",
       "x".repeat(20_000)
     ];
     const source = [
@@ -151,16 +154,28 @@ windowsTest(
   }
 );
 
-windowsTest("rejects a native Windows command line that cannot fit", { timeout: TEST_TIMEOUT_MS }, () => {
-  assert.throws(
-    () => spawnWindowsManagedProcess({
+windowsTest(
+  "fails closed when the requested Windows command line cannot fit",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const previousRoots = await windowsControlRoots();
+    const child = spawnWindowsManagedProcess({
       command: process.execPath,
       args: ["x".repeat(32_767)],
       cwd: process.cwd()
-    }),
-    /exceeds 32766 characters/u
-  );
-});
+    });
+    let stderr = "";
+    child.stderr?.setEncoding("utf8");
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    const [exitCode] = await once(child, "exit");
+    assert.notEqual(exitCode, 0, stderr);
+    assert.match(stderr, /Managed command could not be started:/u);
+    await waitForWindowsManagedProcessContainment(child);
+    await assertNoNewWindowsControlRoots(previousRoots);
+  }
+);
 
 windowsTest("rejects a non-absolute SystemRoot without leaking controls", { timeout: TEST_TIMEOUT_MS }, async () => {
   const previousRoots = await windowsControlRoots();

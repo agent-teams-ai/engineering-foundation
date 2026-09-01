@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
@@ -36,6 +36,7 @@ interface WindowsProcessControl {
   readonly cancellationPath: string;
   readonly confirmationPath: string;
   readonly launchPath: string;
+  readonly requestPath: string;
   readonly root: string;
 }
 
@@ -47,6 +48,7 @@ function createControl(): WindowsProcessControl {
     cancellationPath: join(root, "cancel"),
     confirmationPath: join(root, "contained"),
     launchPath: join(root, "launched"),
+    requestPath: join(root, "request.json"),
     root
   };
 }
@@ -147,8 +149,9 @@ function assertWindowsCommandLineFits(executable: string, args: readonly string[
 
 /**
  * Starts the packaged PowerShell bootstrap with a fixed, short command line.
- * The request crosses the PowerShell boundary only as JSON on stdin. The
- * native helper atomically creates the Node process host in its Job Object;
+ * The request is stored in the private control root for the contained host to
+ * read; only fixed bootstrap metadata crosses PowerShell as JSON on stdin. The
+ * native helper atomically creates the Node process host in its Job Object, and
  * only that contained host can launch the requested command.
  */
 export function spawnWindowsManagedProcess(
@@ -160,15 +163,23 @@ export function spawnWindowsManagedProcess(
     request.environment ?? launcherEnvironment,
     launcherEnvironment
   );
-  const encodedRequest = Buffer.from(JSON.stringify({
+  const serializedRequest = JSON.stringify({
     schemaVersion: 1,
     command: request.command,
     args: [...request.args],
     cwd: request.cwd,
     launchPath: control.launchPath
-  })).toString("base64url");
+  });
   try {
-    assertWindowsCommandLineFits(process.execPath, [PROCESS_HOST_PATH, encodedRequest]);
+    writeFileSync(control.requestPath, serializedRequest, {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 0o600
+    });
+    assertWindowsCommandLineFits(process.execPath, [
+      PROCESS_HOST_PATH,
+      control.requestPath
+    ]);
   } catch (error) {
     removeControlRootBestEffort(control.root);
     throw error;
@@ -187,7 +198,7 @@ export function spawnWindowsManagedProcess(
         WINDOWS_BOOTSTRAP_PATH
       ],
       {
-        cwd: request.cwd,
+        cwd: win32.dirname(WINDOWS_BOOTSTRAP_PATH),
         env: launcherEnvironment,
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true
@@ -217,8 +228,8 @@ export function spawnWindowsManagedProcess(
     schemaVersion: 1,
     nodeExecutable: process.execPath,
     processHostPath: PROCESS_HOST_PATH,
-    encodedRequest,
-    cwd: request.cwd,
+    requestPath: control.requestPath,
+    hostWorkingDirectory: win32.dirname(PROCESS_HOST_PATH),
     environmentEntries: Object.entries(commandEnvironment)
       .filter((entry): entry is [string, string] => entry[1] !== undefined)
       .map(([key, value]) => `${key}=${value}`),

@@ -336,13 +336,13 @@ namespace AgentTeams.Foundation
         }
 
         public static int Run(
-            string executable, string hostPath, string encodedRequest,
+            string executable, string hostPath, string requestPath,
             string currentDirectory,
             string[] environmentEntries,
             string cancellationPath, string confirmationPath, string launchPath)
         {
             var commandLine = BuildCommandLine(
-                executable, new[] { hostPath, encodedRequest });
+                executable, new[] { hostPath, requestPath });
             var job = IntPtr.Zero;
             var environmentBlock = IntPtr.Zero;
             var attributeList = IntPtr.Zero;

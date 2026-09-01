@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 interface HostRequest {
   readonly schemaVersion: 1;
@@ -28,15 +28,15 @@ function isHostRequest(value: unknown): value is HostRequest {
 }
 
 function readRequest(): HostRequest {
-  const encoded = process.argv[2];
-  if (encoded === undefined) {
+  const requestPath = process.argv[2];
+  if (requestPath === undefined) {
     throw new Error("The managed Windows process host did not receive a request.");
   }
   let input: unknown;
   try {
-    input = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as unknown;
+    input = JSON.parse(readFileSync(requestPath, "utf8")) as unknown;
   } catch {
-    throw new Error("The managed Windows process host received invalid request encoding.");
+    throw new Error("The managed Windows process host could not read a valid request.");
   }
   if (!isHostRequest(input)) {
     throw new Error("The managed Windows process host received an invalid request.");

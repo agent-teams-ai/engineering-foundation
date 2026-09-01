@@ -10,8 +10,8 @@ try {
   $exitCode = [AgentTeams.Foundation.WindowsManagedProcess]::Run(
     [string]$bootstrapRequest.nodeExecutable,
     [string]$bootstrapRequest.processHostPath,
-    [string]$bootstrapRequest.encodedRequest,
-    [string]$bootstrapRequest.cwd,
+    [string]$bootstrapRequest.requestPath,
+    [string]$bootstrapRequest.hostWorkingDirectory,
     [string[]]$bootstrapRequest.environmentEntries,
     [string]$bootstrapRequest.cancellationPath,
     [string]$bootstrapRequest.confirmationPath,

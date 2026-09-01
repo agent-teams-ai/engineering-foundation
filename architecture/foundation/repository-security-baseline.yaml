@@ -41,7 +41,7 @@ allowedUses:
     transitiveUses: []
   - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc
     transitiveUses: []
-  - uses: pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9
+  - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
     transitiveUses: []
   - uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030
     transitiveUses: []

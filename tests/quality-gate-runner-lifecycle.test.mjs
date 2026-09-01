@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import {
   mkdir,
   mkdtemp,
@@ -6,6 +7,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -24,6 +26,95 @@ const cliPath = join(repositoryRoot, "packages", "engineering-foundation", "dist
 function startCli(arguments_, options = {}) {
   return startBoundedCli(cliPath, arguments_, options);
 }
+
+function createInjectedSpawnHarness() {
+  const deadlines = [];
+  const invocations = [];
+  const terminations = [];
+  return {
+    createDeadline(milliseconds, label) {
+      const deadline = { cancelled: false, label, milliseconds };
+      deadlines.push(deadline);
+      return {
+        cancel() { deadline.cancelled = true; },
+        promise: new Promise(() => {}),
+      };
+    },
+    deadlines,
+    invocations,
+    spawnChild(command, arguments_, options) {
+      const child = new EventEmitter();
+      Object.assign(child, {
+        exitCode: null,
+        pid: 42_424,
+        signalCode: null,
+        stderr: new PassThrough(),
+        stdout: new PassThrough(),
+      });
+      invocations.push({ arguments_, child, command, options });
+      return child;
+    },
+    async terminateTree(child) {
+      terminations.push(child);
+      child.signalCode = "SIGTERM";
+      queueMicrotask(() => { child.emit("close", null, "SIGTERM"); });
+    },
+    terminations,
+  };
+}
+
+test("bounded CLI spawn shapes share managed tree termination", async (context) => {
+  const arguments_ = ["gate", "run", "verify"];
+  const nativePath = join(tmpdir(), "native pnpm fixture", "pnpm executable");
+  const cases = [
+    {
+      expectedArguments: [cliPath, ...arguments_],
+      expectedCommand: process.execPath,
+      name: "JavaScript entrypoint",
+      nodeEntrypoint: true,
+      path: cliPath,
+    },
+    {
+      expectedArguments: arguments_,
+      expectedCommand: nativePath,
+      name: "native executable with spaces",
+      nodeEntrypoint: false,
+      path: nativePath,
+    },
+  ];
+
+  for (const candidate of cases) {
+    await context.test(candidate.name, async () => {
+      const harness = createInjectedSpawnHarness();
+      const execution = startBoundedCli(candidate.path, arguments_, {
+        createDeadline: harness.createDeadline,
+        nodeEntrypoint: candidate.nodeEntrypoint,
+        spawnChild: harness.spawnChild,
+        terminateTree: harness.terminateTree,
+      });
+
+      assert.equal(harness.invocations.length, 1);
+      assert.equal(harness.invocations[0].command, candidate.expectedCommand);
+      assert.deepEqual(harness.invocations[0].arguments_, candidate.expectedArguments);
+
+      await execution.stop();
+      assert.deepEqual(harness.terminations, [execution.command]);
+      assert.deepEqual(
+        harness.deadlines.map(({ cancelled, label }) => ({ cancelled, label })),
+        [
+          { cancelled: true, label: "Retained CLI close after tree termination" },
+          { cancelled: true, label: "Retained CLI final close" },
+        ],
+      );
+      assert.deepEqual(await execution.result, {
+        signal: "SIGTERM",
+        status: null,
+        stderr: "",
+        stdout: "",
+      });
+    });
+  }
+});
 
 async function writeFixturePnpm(root, taskAuthorities = {}) {
   await writeFixtureBoundaryClient(root);

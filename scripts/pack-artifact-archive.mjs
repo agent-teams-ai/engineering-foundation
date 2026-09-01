@@ -218,22 +218,40 @@ function sameFileState(left, right) {
 }
 
 export async function readRegularArchive(path) {
-  const before = await lstat(path);
-  if (!before.isFile() || before.isSymbolicLink() || before.size > MAX_ARCHIVE_BYTES) {
-    throw new Error(`Package archive is not a bounded regular file: ${path}.`);
-  }
-  const handle = await open(path, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+  return readRegularArchiveWithSymlinkError(path);
+}
+
+async function readRegularArchiveWithSymlinkError(path, symlinkError) {
+  let handle;
   try {
-    const opened = await handle.stat();
-    if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino || opened.size !== before.size) {
+    handle = await open(
+      path,
+      fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0),
+    );
+  } catch (error) {
+    if (error?.code === "ELOOP") {
+      throw new Error(symlinkError ?? `Package archive is not a bounded regular file: ${path}.`, { cause: error });
+    }
+    throw error;
+  }
+  try {
+    const [opened, pathnameBefore] = await Promise.all([handle.stat(), lstat(path)]);
+    if (pathnameBefore.isSymbolicLink()) {
+      throw new Error(symlinkError ?? `Package archive is not a bounded regular file: ${path}.`);
+    }
+    if (!opened.isFile() || !pathnameBefore.isFile() || opened.size > MAX_ARCHIVE_BYTES) {
+      throw new Error(`Package archive is not a bounded regular file: ${path}.`);
+    }
+    if (!sameFileState(opened, pathnameBefore)) {
       throw new Error(`Package archive changed before verification: ${path}.`);
     }
     const bytes = Buffer.alloc(opened.size);
     const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
     const overflow = Buffer.alloc(1);
     const { bytesRead: overflowBytes } = await handle.read(overflow, 0, 1, bytes.length);
-    const after = await handle.stat();
-    if (bytesRead !== bytes.length || overflowBytes !== 0 || !sameFileState(opened, after)) {
+    const [after, pathnameAfter] = await Promise.all([handle.stat(), lstat(path)]);
+    if (bytesRead !== bytes.length || overflowBytes !== 0 || !sameFileState(opened, after) ||
+        !sameFileState(opened, pathnameAfter)) {
       throw new Error(`Package archive changed during verification: ${path}.`);
     }
     return bytes;
@@ -245,11 +263,10 @@ export async function readRegularArchive(path) {
 export function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 
 export async function readVerifiedArchive(path, expectedSha256) {
-  const metadata = await lstat(path);
-  if (metadata.isSymbolicLink()) {
-    throw new Error(`Verified package archive was replaced by a symlink: ${path}.`);
-  }
-  const bytes = await readRegularArchive(path);
+  const bytes = await readRegularArchiveWithSymlinkError(
+    path,
+    `Verified package archive was replaced by a symlink: ${path}.`,
+  );
   if (sha256(bytes) !== expectedSha256) {
     throw new Error(`Verified package archive digest changed: ${path}.`);
   }

@@ -5,6 +5,7 @@ import {
   cp,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   readdir,
   rename,
@@ -407,11 +408,24 @@ test("preserves an exact replacement before cleanup transition authority", async
           );
           assert.ok(temporaryName);
           const temporary = join(parent, temporaryName);
-          const bytes = await readFile(temporary);
-          const ownedIdentity = await stat(temporary, { bigint: true });
           const originalPath = `${temporary}.original`;
           await rename(temporary, originalPath);
-          await writeFile(temporary, bytes);
+          const original = await open(originalPath, "r");
+          let bytes;
+          let ownedIdentity;
+          try {
+            [bytes, ownedIdentity] = await Promise.all([
+              original.readFile(), original.stat({ bigint: true }),
+            ]);
+          } finally {
+            await original.close();
+          }
+          const replacement = await open(temporary, "wx", 0o644);
+          try {
+            await replacement.writeFile(bytes);
+          } finally {
+            await replacement.close();
+          }
           if (process.platform !== "win32") {
             await chmod(temporary, 0o644);
           }

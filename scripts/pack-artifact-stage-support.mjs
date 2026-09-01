@@ -101,30 +101,39 @@ function sameFileState(left, right) {
 }
 
 export async function readStableRegularFile(path, state, label, expected, maximumBytes = MAX_MEMBER_BYTES) {
-  const pathnameBefore = await lstat(path);
   const physical = await realpath(path);
-  const before = await lstat(physical);
-  if (expected !== undefined && (expected.physical !== physical ||
-      !sameFileState(expected.pathname, pathnameBefore) || !sameFileState(expected.metadata, before))) {
-    throw new Error(`${label} changed before its proved identity was read: ${path}.`);
-  }
-  if (!before.isFile() || before.size > maximumBytes || state.bytes + before.size > MAX_STAGE_BYTES) {
-    throw new Error(`${label} contains a non-regular or oversized file: ${path}.`);
-  }
-  const handle = await open(physical, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+  const handle = await open(
+    physical,
+    fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0),
+  );
   try {
-    const opened = await handle.stat();
-    if (!sameFileState(before, opened)) {
+    if (expected !== undefined && expected.physical !== physical) {
+      throw new Error(`${label} changed before its proved identity was read: ${path}.`);
+    }
+    const [pathnameBefore, physicalBefore, handleState] = await Promise.all([
+      lstat(path), lstat(physical), handle.stat(),
+    ]);
+    const opened = handleState;
+    if (expected !== undefined && (!sameFileState(expected.pathname, pathnameBefore) ||
+        !sameFileState(expected.metadata, opened))) {
+      throw new Error(`${label} changed before its proved identity was read: ${path}.`);
+    }
+    if (!sameFileState(physicalBefore, opened)) {
       throw new Error(`${label} changed before staging: ${path}.`);
+    }
+    if (!opened.isFile() || opened.size > maximumBytes || state.bytes + opened.size > MAX_STAGE_BYTES) {
+      throw new Error(`${label} contains a non-regular or oversized file: ${path}.`);
     }
     const bytes = Buffer.alloc(opened.size);
     const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
     const overflow = Buffer.alloc(1);
     const { bytesRead: overflowBytes } = await handle.read(overflow, 0, 1, bytes.length);
-    const after = await handle.stat();
-    const pathnameAfter = await lstat(path);
+    const [after, pathnameAfter, physicalAfter, resolvedAfter] = await Promise.all([
+      handle.stat(), lstat(path), lstat(physical), realpath(path),
+    ]);
     if (bytesRead !== bytes.length || overflowBytes !== 0 || !sameFileState(opened, after) ||
-        !sameFileState(pathnameBefore, pathnameAfter) || await realpath(path) !== physical) {
+        !sameFileState(pathnameBefore, pathnameAfter) || !sameFileState(opened, physicalAfter) ||
+        resolvedAfter !== physical) {
       throw new Error(`${label} changed during staging: ${path}.`);
     }
     state.bytes += bytes.length;

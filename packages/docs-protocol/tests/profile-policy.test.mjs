@@ -167,3 +167,20 @@ test("node reader uses only a real contained disposable profile", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("node reader accepts a Windows case alias for the same contained profile", {
+  skip: process.platform !== "win32" && "Windows path semantics are required"
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "docs-protocol-profile-case-"));
+  try {
+    await mkdir(join(root, "CanonicalDocs"));
+    await writeFile(join(root, "CanonicalDocs", "Profile.yaml"), await readFile(fixture));
+    const profile = await new NodeDocsProfileReader().read({
+      consumerRoot: root,
+      profilePath: "canonicaldocs/profile.yaml"
+    });
+    assert.equal(profile.adoptionPolicy, "portable-v1");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

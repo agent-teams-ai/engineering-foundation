@@ -448,6 +448,8 @@ try {
   const fixture = await createPackedConsumerFixture({
     archiveFileSpecifier: artifact.archiveFileSpecifier,
     consumerRoot: join(temporaryRoot, "consumer"),
+    documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
+    documentAuthoringVersion: documentAuthoringArtifact.packageVersion,
     mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
     packageManager: packageManagerVersion(),
     runPnpm,
@@ -461,6 +463,7 @@ try {
     packageManager: packageManagerVersion(),
     repositoryRoot,
     runPnpm,
+    documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
     mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
     temporaryRoot
   });

@@ -13,9 +13,10 @@ import { writeExecutableSpecificationFixture } from "./packed-consumer-executabl
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 
 const foundationPackage = "@agent-teams/engineering-foundation";
+const documentAuthoringPackage = "@agent-teams/document-authoring";
 const identitySource = "export function identity(value: string): string {\n  return value;\n}\n";
 
-function consumerManifest(foundationVersion, packageManager) {
+function consumerManifest(foundationVersion, documentAuthoringVersion, packageManager) {
   return {
     name: "foundation-pack-consumer",
     version: "0.0.0",
@@ -29,6 +30,7 @@ function consumerManifest(foundationVersion, packageManager) {
     },
     devDependencies: {
       [foundationPackage]: foundationVersion,
+      [documentAuthoringPackage]: documentAuthoringVersion,
       "jsonc-parser": "catalog:",
       oxlint: "catalog:",
       "oxlint-tsgolint": "catalog:",
@@ -40,11 +42,15 @@ function consumerManifest(foundationVersion, packageManager) {
 async function writeInstallManifests(input) {
   await writeJson(
     join(input.consumerRoot, "package.json"),
-    consumerManifest(input.foundationVersion, input.packageManager)
+    consumerManifest(
+      input.foundationVersion,
+      input.documentAuthoringVersion,
+      input.packageManager
+    )
   );
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
+    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/document-authoring": ${JSON.stringify(input.documentAuthoringArchiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
     "utf8"
   );
 }
@@ -70,7 +76,11 @@ async function installPackedPackage(input) {
   }
   await writeJson(
     join(input.consumerRoot, "package.json"),
-    consumerManifest(packedManifest.version, input.packageManager)
+    consumerManifest(
+      packedManifest.version,
+      input.documentAuthoringVersion,
+      input.packageManager
+    )
   );
   return packedManifest;
 }

@@ -10,7 +10,6 @@ import {
 } from "./pack-test-support.mjs";
 import { writePackedConsumerProtobufFixture } from "./packed-consumer-protobuf-fixture.mjs";
 import { writeExecutableSpecificationFixture } from "./packed-consumer-executable-specification-fixture.mjs";
-import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 
 const foundationPackage = "@agent-teams/engineering-foundation";
 const identitySource = "export function identity(value: string): string {\n  return value;\n}\n";
@@ -474,7 +473,6 @@ export async function createPackedConsumerFixture(input) {
   const toolEntrypoints = resolveConsumerToolEntrypoints(input.consumerRoot);
   await writeFoundationConfiguration(input.consumerRoot);
   await writeDocumentationFixture(input.consumerRoot);
-  await writePackedConsumerDocumentAuthoringFixture(input.consumerRoot);
   const jsonContract = await writeJsonContractFixture(input.consumerRoot);
   await mkdir(join(input.consumerRoot, "src"), { recursive: true });
   await writeExecutableSpecificationFixture(input.consumerRoot, jsonContract);

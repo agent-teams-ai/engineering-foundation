@@ -10,6 +10,7 @@ import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs
 import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
 import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
+import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
 import {
@@ -292,6 +293,7 @@ async function verifyPackedDocsConsumerIntegration(input) {
     ["install", "--offline", "--frozen-lockfile", "--ignore-scripts"],
     consumerRoot
   );
+  await writePackedConsumerDocumentAuthoringFixture(consumerRoot);
   const authoringProbe = [
     "const module = await import('@agent-teams/document-authoring');",
     "if (typeof module.buildDocumentationCatalog !== 'function') process.exit(2);",
@@ -309,6 +311,27 @@ async function verifyPackedDocsConsumerIntegration(input) {
     resolvedAuthoring.pathname.includes("/.worktrees/")
   ) {
     throw new Error("Packed document-authoring export resolved outside the installed package.");
+  }
+  const docsCli = join(
+    consumerRoot,
+    "node_modules",
+    "@agent-teams",
+    "docs-protocol",
+    "dist",
+    "cli.js"
+  );
+  const found = parseDocsExecution((await runCommand(
+    process.execPath,
+    [docsCli, "find", "hermetic search marker", "--consumer", consumerRoot, "--json"],
+    consumerRoot
+  )).stdout);
+  if (
+    found.command !== "docs.find" ||
+    found.outcome !== "success" ||
+    found.result?.matches !== 1 ||
+    found.result?.documents?.[0]?.id !== "guide.packaged"
+  ) {
+    throw new Error("Packed Docs Protocol find did not return the deterministic catalog match.");
   }
 
   let cohort = input.adapter.sourceB;

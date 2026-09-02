@@ -443,25 +443,6 @@ async function assertSelfCheck(fixture) {
   }
 }
 
-async function assertDocumentFind(fixture) {
-  const result = await runFoundationJson(fixture, [
-    "docs",
-    "find",
-    "hermetic search marker",
-    "--consumer",
-    fixture.consumerRoot,
-    "--json"
-  ]);
-  if (
-    result.command !== "docs.find" ||
-    result.outcome !== "success" ||
-    result.result?.matches !== 1 ||
-    result.result?.documents?.[0]?.id !== "guide.packaged"
-  ) {
-    throw new Error("Packed docs find did not return the deterministic catalog match.");
-  }
-}
-
 export async function verifyPackedConsumer(input) {
   const fixture = input.fixture;
   await assertRemovedFoundationPackagePathsRejected(fixture);
@@ -479,7 +460,6 @@ export async function verifyPackedConsumer(input) {
   await assertBasePresets(fixture);
   await assertMaintainabilityPresets(fixture);
   await assertTypeAwarePreset(fixture);
-  await assertDocumentFind(fixture);
   await assertSelfCheck(fixture);
   await assertCapabilityCheck(fixture);
 }

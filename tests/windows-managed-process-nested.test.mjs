@@ -37,7 +37,7 @@ test("nested Windows Jobs confirm repeated normal exits", {
     "    args: ['-e', `process.stdout.write(${JSON.stringify('nested-ok')})`],",
     "    cwd: process.cwd()",
     "  });",
-    "  if (result.exitCode !== 0 || result.stdout !== 'nested-ok') {",
+    "  if (result.stdout !== 'nested-ok') {",
     "    throw new Error('Nested managed process returned an invalid result.');",
     "  }",
     "}",

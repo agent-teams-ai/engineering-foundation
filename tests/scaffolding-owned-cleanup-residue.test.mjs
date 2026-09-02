@@ -27,7 +27,7 @@ import {
 } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 import {
   ownedTemporaryCleanupResiduePrefix,
-} from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
+} from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 
 const fixtureRoot = fileURLToPath(new URL(
   "fixtures/scaffolding-authority-consumer/",

@@ -22,6 +22,7 @@ const expectedIntegrity =
   "sha512-LWey96bQBwA/91eD1T9pZRKrNUPlAt/8NEOQ5gnWfW6Mzs+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==";
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const packageName = "@agent-teams/engineering-foundation";
+const runtimePackageName = "@agent-teams/repository-mutation";
 const normalizedCompilerVersion = "0.0.0-compatibility";
 const runPnpm = createPnpmRunner();
 
@@ -52,26 +53,66 @@ async function runScaffolding(cliPath, consumerRoot, args) {
   return Buffer.from(stdout, "utf8");
 }
 
-async function installPackedCurrentPackage({
-  candidateVersion,
-  currentPackageRoot,
-  installPackage,
-  temporaryRoot,
-}) {
-  const packRoot = join(temporaryRoot, "current-pack");
+async function packCurrentPackage({ expectedName, packageRoot, packRoot }) {
   await mkdir(packRoot, { recursive: true });
   await runPnpm(
     ["pack", "--pack-destination", packRoot, "--config.ignore-scripts=true"],
-    currentPackageRoot,
+    packageRoot,
   );
   const archives = (await readdir(packRoot)).filter((name) =>
     name.endsWith(".tgz"),
   );
   if (archives.length !== 1) {
-    throw new Error("Current Foundation pack did not produce exactly one archive.");
+    throw new Error(`${expectedName} pack did not produce exactly one archive.`);
+  }
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  if (manifest.name !== expectedName || typeof manifest.version !== "string") {
+    throw new Error(`${expectedName} source package identity is invalid.`);
+  }
+  return Object.freeze({
+    archivePath: join(packRoot, archives[0]),
+    manifest,
+  });
+}
+
+async function assertInstalledPackageIdentity(installRoot, expected) {
+  const packageRoot = join(installRoot, "node_modules", ...expected.name.split("/"));
+  const metadata = await lstat(packageRoot);
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  if (
+    !metadata.isDirectory() ||
+    metadata.isSymbolicLink() ||
+    manifest.name !== expected.name ||
+    manifest.version !== expected.version
+  ) {
+    throw new Error(`${expected.name} has an invalid installed identity.`);
+  }
+  return Object.freeze({ manifest, packageRoot });
+}
+
+async function installPackedCurrentPackage({
+  candidateVersion,
+  currentPackageRoot,
+  currentRuntimePackageRoot,
+  installPackage,
+  temporaryRoot,
+}) {
+  const [candidate, runtime] = await Promise.all([
+    packCurrentPackage({
+      expectedName: packageName,
+      packageRoot: currentPackageRoot,
+      packRoot: join(temporaryRoot, "current-foundation-pack"),
+    }),
+    packCurrentPackage({
+      expectedName: runtimePackageName,
+      packageRoot: currentRuntimePackageRoot,
+      packRoot: join(temporaryRoot, "current-runtime-pack"),
+    }),
+  ]);
+  if (candidate.manifest.version !== candidateVersion) {
+    throw new Error("Current Foundation changed identity while being packed.");
   }
   const installRoot = join(temporaryRoot, "current-packed-package");
-  const archivePath = join(packRoot, archives[0]);
   await mkdir(installRoot, { recursive: true });
   await writeFile(
     join(installRoot, "package.json"),
@@ -81,7 +122,8 @@ async function installPackedCurrentPackage({
         private: true,
         type: "module",
         devDependencies: {
-          [packageName]: `file:${archivePath.replaceAll("\\", "/")}`,
+          [packageName]: `file:${candidate.archivePath.replaceAll("\\", "/")}`,
+          [runtimePackageName]: `file:${runtime.archivePath.replaceAll("\\", "/")}`,
         },
       },
       null,
@@ -101,25 +143,25 @@ async function installPackedCurrentPackage({
     ],
     installRoot,
   );
-  const packageRoot = join(
-    installRoot,
-    "node_modules",
-    "@agent-teams",
-    "engineering-foundation",
-  );
-  const metadata = await lstat(packageRoot);
-  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  const [installedCandidate, installedRuntime] = await Promise.all([
+    assertInstalledPackageIdentity(installRoot, {
+      name: packageName,
+      version: candidateVersion,
+    }),
+    assertInstalledPackageIdentity(installRoot, {
+      name: runtimePackageName,
+      version: runtime.manifest.version,
+    }),
+  ]);
   if (
-    !metadata.isDirectory() ||
-    metadata.isSymbolicLink() ||
-    manifest.name !== packageName ||
-    manifest.version !== candidateVersion
+    installedCandidate.manifest.dependencies?.[runtimePackageName] !==
+    installedRuntime.manifest.version
   ) {
-    throw new Error("Current packed Foundation has an invalid installed identity.");
+    throw new Error("Current packed Foundation is not bound to its exact runtime package.");
   }
   return Object.freeze({
-    archivePath,
-    cliPath: join(packageRoot, "dist", "cli.js"),
+    archivePath: candidate.archivePath,
+    cliPath: join(installedCandidate.packageRoot, "dist", "cli.js"),
   });
 }
 
@@ -201,6 +243,7 @@ async function assertAllPlannedOutputsEqual({
 
 export async function verifyPublishedScaffoldingCompatibility({
   currentPackageRoot,
+  currentRuntimePackageRoot,
   fixtureRoot = join(
     repositoryRoot,
     "tests",
@@ -229,6 +272,7 @@ export async function verifyPublishedScaffoldingCompatibility({
   const current = await installPackedCurrentPackage({
     candidateVersion,
     currentPackageRoot,
+    currentRuntimePackageRoot,
     installPackage,
     temporaryRoot,
   });

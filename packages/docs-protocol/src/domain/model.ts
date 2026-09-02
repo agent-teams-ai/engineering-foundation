@@ -8,17 +8,8 @@ import type {
 
 export const DOCS_PROTOCOL_ID = "agent-teams.docs-protocol" as const;
 export const DOCS_PROTOCOL_VERSION = 1 as const;
-export const DOCS_ADOPTION_MAX_MANIFEST_BYTES = 1024 * 1024;
 export const DOCS_ADOPTION_MAX_ROUTING_BYTES = 64 * 1024;
 export const DOCS_ADOPTION_MAX_SKILL_BYTES = 16 * 1024;
-
-export type DocsCommand =
-  | "docs.check"
-  | "docs.doctor"
-  | "docs.find"
-  | "docs.info"
-  | "docs.new"
-  | "docs.recover";
 
 export type DocsCommandOutcome =
   | "authority-stale"
@@ -36,23 +27,6 @@ export interface DocsDiagnostic {
   readonly ruleId: string;
   readonly severity: "error" | "info" | "warning";
   readonly subject: string;
-}
-
-export interface DocsCommandEnvelope<Result = unknown> {
-  readonly schemaVersion: 1;
-  readonly protocol: {
-    readonly id: typeof DOCS_PROTOCOL_ID;
-    readonly version: typeof DOCS_PROTOCOL_VERSION;
-  };
-  readonly command: DocsCommand;
-  readonly outcome: DocsCommandOutcome;
-  readonly diagnostics: readonly DocsDiagnostic[];
-  readonly result: Result;
-}
-
-export interface DocsExecution<Result> {
-  readonly envelope: DocsCommandEnvelope<Result>;
-  readonly exitCode: 0 | 1 | 2 | 3 | 130;
 }
 
 export interface DocsTypeProfile {
@@ -81,27 +55,9 @@ export interface DocsTypeProfile {
     | { readonly kind: "not-required"; readonly reason: string };
 }
 
-export interface DocsProtocolProfile {
-  readonly schemaVersion: 1;
-  readonly protocol: {
-    readonly id: typeof DOCS_PROTOCOL_ID;
-    readonly version: typeof DOCS_PROTOCOL_VERSION;
-  };
-  readonly foundationProfile: {
-    readonly metadataSidecarPolicy: "foundation-profile-v2-strict-merge";
-    readonly path: string;
-    readonly schemaVersion: 2;
-  };
-  readonly agentWorkflow: {
-    readonly skillPath: string;
-  };
-  readonly semanticValidatorIds: readonly string[];
-}
-
 export interface DocsAdoptionInspector {
   inspect(input: {
-    /** Omitted by legacy callers; the managed policy remains the compatibility default. */
-    readonly policy?: "agent-teams-managed-v1" | "portable-v1";
+    readonly policy: "portable-v1";
     readonly authorityPaths: readonly string[];
     readonly consumerRoot: string;
     readonly profilePath: string;

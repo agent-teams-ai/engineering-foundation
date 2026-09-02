@@ -48,7 +48,7 @@ test("startup binding rejects a profile path escaping the consumer root", async 
   );
 });
 
-test("startup discovers the current profile path and fails closed on ambiguity", async (context) => {
+test("startup discovers the portable profile and ignores the retired Foundation profile path", async (context) => {
   const sandbox = await mkdtemp(join(tmpdir(), "docs-protocol-mcp-"));
   context.after(() => rm(sandbox, { recursive: true, force: true }));
   const consumer = join(sandbox, "consumer");
@@ -59,10 +59,8 @@ test("startup discovers the current profile path and fails closed on ambiguity",
   assert.equal(discovered.profilePath, "docs.config.yaml");
 
   await writeFile(join(consumer, "architecture", "foundation", "docs-protocol.yaml"), "test: true\n", "utf8");
-  await assert.rejects(
-    parseStartupArguments(["--consumer-root", consumer], sandbox),
-    (error) => error instanceof CliInputError && error.message.includes("ambiguous")
-  );
+  const rebound = await parseStartupArguments(["--consumer-root", consumer], sandbox);
+  assert.equal(rebound.profilePath, "docs.config.yaml");
 });
 
 test("startup discovery fails closed when no profile exists", async (context) => {

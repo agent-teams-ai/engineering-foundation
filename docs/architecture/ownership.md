@@ -45,51 +45,62 @@ The foundation is not a production dependency and is not a shared business
 kernel.
 
 Document authoring follows the same ownership boundary but remains a separate
-top-level mutation protocol rather than an executable capability. Foundation
-owns closed contracts, deterministic compilation, protected materialization,
-and recovery. Consumers own document types, lifecycle, metadata, owner meaning,
-templates, placement meaning, body rules, relationships, and prose or diagram
-tools. Profiles are data-only and cannot load consumer code. See the
+top-level mutation protocol rather than an executable capability. Consumers own
+document types, lifecycle, metadata, owner meaning, templates, placement
+meaning, body rules, relationships, and prose or diagram tools. Profiles are
+data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
-ADR-0025 separates the documentation-specific application layer from this
-kernel. `@agent-teams/docs-protocol` may depend on Foundation and owns the common
-documentation commands, vocabulary, query behavior, and agent workflow.
-Foundation cannot depend on Docs Protocol. Consumers still own their data-only
-profiles, schemas, owners, templates, reachability, and semantic validators;
-neither shared package accepts executable consumer extensions.
+[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md)
+accepts the new-only package ownership target. Implementation is pending, and
+that ADR is the sole authority for the target dependency DAG. In the target:
 
-ADR-0030 and ADR-0037 extend that split for consumer maintenance. Foundation
-alone owns recoverable create-or-replace-known-file transactions. Docs Protocol
-owns the pure consumer-integration compiler and package-owned asset catalog, and
-delegates every apply to that Foundation port. Organization governance owns the
-Qualified Cohort and enrollment evidence. During an explicit one-command
-upgrade, pnpm generates the lockfile only in disposable staging and Foundation
-publishes the proven bytes; other profile fields and documentation authority
-remain consumer-owned.
+- `@agent-teams/repository-mutation` owns portable operation barriers,
+  exact-preimage known-file transactions, journals, and exact-build recovery;
+- `@agent-teams/document-authoring` owns portable authoring contracts,
+  deterministic compilation, catalog semantics, and protected materialization;
+- `@agent-teams/engineering-foundation` owns reusable engineering policy and
+  capability tooling, composed over those portable mechanisms;
+- `@agent-teams/docs-protocol` owns the portable documentation application,
+  commands, query behavior, projections, and agent workflow;
+- `@agent-teams/docs-protocol-agent-teams` owns all Agent Teams managed
+  implementation, assets, and Qualified Cohort integration; and
+- `@agent-teams/docs-protocol-mcp` owns only the optional read-only transport.
 
-ADR-0033 closes the remaining dual-CLI ambiguity. Docs Protocol is the target
-owner of documentation commands and workflow. Foundation's older top-level
-`docs` namespace is frozen for compatibility, emits a stable human-mode
-deprecation code, and cannot gain new behavior. It is removed only by a later
-breaking change with exact consumer-cutover, packed-registry, hosted-matrix,
-and legacy-recovery evidence. The freeze does not deprecate Foundation's
-reusable document-authoring, mutation, transaction, or recovery mechanisms.
+`agent-teams-docs-managed` retains its consumer-owned managed policy and
+evidence. Organization governance retains Qualified Cohort and enrollment
+authority. Neither portable Docs Protocol nor MCP can load the Agent Teams
+adapter, including by optional or dynamic import. The cutover adds no old-root
+exports, aliases, forwarding facade, or runtime autodetection; current consumers
+must be inventoried and have explicit reviewed migration changes prepared before
+publication. Those changes adopt exact published pins only after protected
+registry and provenance proof, then prove fleet closure in the approved rollout.
 
-The corrected authoring v1 applies that split mechanically. Foundation owns
-Intent normalization, closed ID/placement operators, filename slug derivation,
-canonical frontmatter and domain-separated protocol digests. A complete rebuilt
-catalog is required before planning. Consumer metadata remains bounded opaque
-data: Foundation binary-sorts generic mapping keys, preserves array order, and
-never assigns meaning or priority to consumer field names. The consumer metadata
-schema remains the final authority for shape and meaning.
+ADR-0030's exact-preimage mutation and ADR-0037's disposable package-manager
+staging remain behavioral requirements, but their target implementations move
+to the owners above. Retiring a legacy command entrypoint does not retire a
+journal, transaction reader, or exact-build recovery handler. Incompatible or
+ambiguous persisted evidence continues to fail closed.
 
-Foundation mutation protocols share one private transaction-coordination
-application boundary. Its ports model only cooperative lock ownership and
-persisted-slot observation; Node adapters provide filesystem inspection and the
-composition root. Scaffolding and document authoring retain distinct Plans,
-Receipts, errors, and recovery handlers, and no consumer-programmable mutation
-kernel is exported.
+ADR-0033 still governs its existing legacy entrypoint until its independent
+removal evidence is complete. It does not authorize a compatibility bridge in
+the new packages, and its compatibility surface is not a reason to copy legacy
+exports into the target boundary.
+
+The corrected authoring v1 semantics remain unchanged through the split. The
+portable authoring owner retains Intent normalization, closed ID/placement
+operators, filename slug derivation, canonical frontmatter, and domain-separated
+protocol digests. A complete rebuilt catalog is required before planning.
+Consumer metadata remains bounded opaque data: generic mapping keys are
+binary-sorted, array order is preserved, and no shared package assigns meaning
+or priority to consumer field names. The consumer metadata schema remains the
+final authority for shape and meaning.
+
+Portable mutation protocols share one closed transaction-coordination boundary.
+Its ports model only cooperative lock ownership and persisted-slot observation;
+Node adapters provide filesystem inspection and composition. Scaffolding and
+document authoring retain distinct Plans, Receipts, errors, and recovery
+handlers, and no consumer-programmable mutation kernel is exported.
 
 Executable specification connectivity follows the same boundary. Foundation
 owns strict catalogs, contained artifact inspection, local JSON Schema

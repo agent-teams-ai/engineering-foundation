@@ -1,4 +1,4 @@
-import type { PortableRepositoryPathProblem } from "../../../repository-mutation/application/model/repository-path.js";
+import type { PortableRepositoryPathProblem } from "@agent-teams/repository-mutation";
 
 const WINDOWS_RESERVED_NAMES = new Set([
   "AUX",

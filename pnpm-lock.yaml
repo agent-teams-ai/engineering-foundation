@@ -102,6 +102,9 @@ catalogs:
     verdaccio:
       specifier: 6.9.2
       version: 6.9.2
+    vfile:
+      specifier: 6.0.3
+      version: 6.0.3
     yaml:
       specifier: 2.9.0
       version: 2.9.0
@@ -141,9 +144,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
-      '@types/proper-lockfile':
-        specifier: 'catalog:'
-        version: 4.1.4
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -183,18 +183,46 @@ importers:
       '@agent-teams/engineering-foundation':
         specifier: workspace:*
         version: link:../engineering-foundation
+      '@agent-teams/repository-mutation':
+        specifier: workspace:*
+        version: link:../repository-mutation
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
       ajv-formats:
         specifier: 'catalog:'
         version: 3.0.1(ajv@8.20.0)
-      jsonc-parser:
-        specifier: 'catalog:'
-        version: 3.3.1
       minisearch:
         specifier: 'catalog:'
         version: 7.2.0
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  packages/docs-protocol-agent-teams:
+    dependencies:
+      '@agent-teams/docs-protocol':
+        specifier: workspace:*
+        version: link:../docs-protocol
+      '@agent-teams/engineering-foundation':
+        specifier: workspace:*
+        version: link:../engineering-foundation
+      '@agent-teams/repository-mutation':
+        specifier: workspace:*
+        version: link:../repository-mutation
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
@@ -224,6 +252,9 @@ importers:
 
   packages/engineering-foundation:
     dependencies:
+      '@agent-teams/repository-mutation':
+        specifier: workspace:*
+        version: link:../repository-mutation
       '@microsoft/api-extractor':
         specifier: 'catalog:'
         version: 7.58.12(@types/node@24.13.3)
@@ -239,9 +270,6 @@ importers:
       github-slugger:
         specifier: 'catalog:'
         version: 2.0.0
-      jsonc-parser:
-        specifier: 'catalog:'
-        version: 3.3.1
       mdast-util-to-string:
         specifier: 'catalog:'
         version: 4.0.0
@@ -269,6 +297,28 @@ importers:
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      '@types/proper-lockfile':
+        specifier: 'catalog:'
+        version: 4.1.4
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vfile:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  packages/repository-mutation:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   spikes/source-dependency-parser:
     devDependencies:

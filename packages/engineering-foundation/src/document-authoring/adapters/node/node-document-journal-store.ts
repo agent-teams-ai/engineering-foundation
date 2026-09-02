@@ -12,14 +12,14 @@ import type {
 } from "../../application/ports/document-journal-store.js";
 import type { DocumentTransactionEnvelope } from "../../application/model/document-transaction.js";
 import { assertDocumentTransactionEnvelope } from "../../application/policies/document-transaction-envelope-policy.js";
-import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
 import {
+  assertTerminalEvidenceDirectory,
   captureFileHandleIdentity,
+  ensureTerminalEvidenceDirectory,
   pathMatchesRegularFileIdentity,
-  readBoundedRegularFile
-} from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
-import { syncDirectoryStrictly } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
-import { assertTerminalEvidenceDirectory, ensureTerminalEvidenceDirectory } from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
+  readBoundedRegularFile,
+  syncDirectoryStrictly, type PortablePathIdentity
+} from "@agent-teams/repository-mutation/node";
 import { parseStrictJson } from "../../../strict-json.js";
 import type { NodeDocumentJournalFaultInjector } from "./node-document-journal-store-faults.js";
 import { documentJournalSlotExists } from "./node-document-journal-slot.js";

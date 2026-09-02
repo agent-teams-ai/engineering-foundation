@@ -44,7 +44,7 @@ async function writeInstallManifests(input) {
   );
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
+    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
     "utf8"
   );
 }

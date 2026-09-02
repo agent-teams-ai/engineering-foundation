@@ -134,6 +134,38 @@ The second implementation validates observed source relationships:
 - boundary and package cycles are checked separately for runtime and type-only
   edges over one normalized immutable observed graph.
 
+This repository activates schema version 2 with `packageRoots: [packages]`.
+Version 2 treats each configured path as either a package root or a collection
+whose direct children are package roots; pnpm workspace globs do not select or
+exclude packages. Every selected package must have a governed root, every
+discovered JavaScript or TypeScript source file below it must belong to exactly
+one boundary, and every boundary's roots and entrypoints must stay within one
+npm package. Package roots and all governed paths use one NFC-normalized,
+case-insensitive portable identity contract and reject traversal, Windows device
+names and alternate-data-stream syntax. Discovery remains bounded,
+cancellable, symlink-free and snapshot-revalidated before evidence is returned.
+The released version 1 schema and loader remain available to external consumers;
+adopting version 2 is still an explicit consumer policy change.
+
+Generated `dist` directories are never source evidence. After ordinary governed
+resolution fails, a version 2 development boundary may admit a structured,
+same-package relative `dist` output candidate. Its literal form, package owner,
+containment, and every existing ancestor are checked; symlinks and traversal
+fail closed. Missing output remains lexical build-output evidence rather than a
+claim that an artifact exists. Runtime boundaries and version 1 reject it.
+
+Version 2 boundaries may declare exact `packageExports` subpaths. These
+consumer-owned claims classify public package subpaths to source boundaries;
+they do not describe compiler or bundler provenance. Claims must name an exact
+available manifest export, have one package and boundary owner, and agree with
+any directly observed source target. Wildcards, stale or duplicate claims fail
+closed. Exact dotted subpaths such as `./qualification.js` and `./package.json`
+remain valid under the same portable path rules. Manifest wildcard selection
+uses Node's longest-prefix, then longest-key priority and rejects empty captures.
+Runtime and type-only imports of a package containing development source
+require an exact claim owned by a runtime boundary. Version 1 retains its
+conservative mixed-package rejection.
+
 Each boundary may explicitly set `dependencyMode: development` when the entire
 boundary is consumer-owned tooling or test/specification source. Omitted or
 `runtime` mode preserves the fail-closed default. A development boundary may
@@ -148,8 +180,7 @@ target workspace package belongs to a development boundary, runtime boundaries
 cannot import that package, including through type-only imports. The v1 graph
 does not claim exact export-to-boundary ownership, so mixed runtime/development
 packages must split development source into a separate package or keep imports
-inside development boundaries. A future contract may add explicit, validated
-export-to-boundary mapping rather than infer subpath ownership.
+inside development boundaries.
 
 The source scanner, resolver, source-tree reader, and workspace inventory sit
 behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parser
@@ -172,6 +203,12 @@ consumer checks. They cannot be added to either dependency capability.
 
 Each remains an independent feature slice with its own model, ports, policies,
 adapters, schema, rules, and fixtures.
+
+The repository also has one generic public-package authority gate. It discovers
+public workspace manifests and compares that set with the existing public API,
+publishable-package and registry-qualification authorities. It derives all
+three projections from their owners, so it neither duplicates a package list
+nor creates another release graph.
 
 ### Deterministic quality gate runner
 

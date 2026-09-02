@@ -1,11 +1,22 @@
-schemaVersion: 1
+schemaVersion: 2
 workspace:
   kind: pnpm
   manifest: pnpm-workspace.yaml
+packageRoots:
+  - packages
+  - spikes
 governedRoots:
+  - packages/repository-mutation/src
+  - packages/repository-mutation/tests
   - packages/engineering-foundation/src
   - packages/docs-protocol/src
+  - packages/docs-protocol/tests
+  - packages/docs-protocol-agent-teams/scripts
+  - packages/docs-protocol-agent-teams/src
+  - packages/docs-protocol-agent-teams/tests
   - packages/docs-protocol-mcp/src
+  - packages/docs-protocol-mcp/tests
+  - spikes/source-dependency-parser
 boundaries:
   - id: docs-protocol.community.context
     roots:
@@ -27,6 +38,7 @@ boundaries:
         - docs-protocol.domain
       packages:
         - "@agent-teams/engineering-foundation"
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
         - node:fs
@@ -35,6 +47,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/docs-protocol/src/community/bootstrap/index.ts
+      - packages/docs-protocol/src/community/bootstrap/portable-bootstrap-assets.ts
   - id: docs-protocol.domain
     roots:
       - packages/docs-protocol/src/domain
@@ -42,6 +55,7 @@ boundaries:
       boundaries: []
       packages:
         - "@agent-teams/engineering-foundation"
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:path
       runtimeReferences: []
@@ -60,6 +74,7 @@ boundaries:
         - docs-protocol.domain
       packages:
         - "@agent-teams/engineering-foundation"
+        - "@agent-teams/repository-mutation"
         - yaml
       builtins: []
       runtimeReferences: []
@@ -74,13 +89,13 @@ boundaries:
         - docs-protocol.domain
       packages:
         - "@agent-teams/engineering-foundation"
+        - "@agent-teams/repository-mutation"
         - ajv
         - ajv-formats
         - yaml
       builtins:
         - node:fs
         - node:fs/promises
-        - node:module
         - node:path
         - node:url
       runtimeReferences: []
@@ -92,6 +107,8 @@ boundaries:
       - packages/docs-protocol/src/adapters/node-profile-reader.ts
       - packages/docs-protocol/src/adapters/node-profile-discovery.ts
   - id: docs-protocol.composition
+    packageExports:
+      - "."
     roots:
       - packages/docs-protocol/src/composition
       - packages/docs-protocol/src/index.ts
@@ -102,7 +119,6 @@ boundaries:
         - docs-protocol.application
         - docs-protocol.community.bootstrap
         - docs-protocol.community.context
-        - docs-protocol.consumer-integration.composition
         - docs-protocol.domain
         - docs-protocol.qualification
       packages:
@@ -113,6 +129,8 @@ boundaries:
       - packages/docs-protocol/src/index.ts
       - packages/docs-protocol/src/cli.ts
   - id: docs-protocol-mcp.surface
+    packageExports:
+      - "."
     roots:
       - packages/docs-protocol-mcp/src
     allow:
@@ -128,16 +146,64 @@ boundaries:
     entrypoints:
       - packages/docs-protocol-mcp/src/index.ts
       - packages/docs-protocol-mcp/src/cli.ts
+  - id: docs-protocol-mcp.tests
+    dependencyMode: development
+    roots:
+      - packages/docs-protocol-mcp/tests
+    allow:
+      boundaries:
+        - docs-protocol-mcp.surface
+      packages:
+        - "@modelcontextprotocol/server"
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:util
+      runtimeReferences: []
+    entrypoints: []
+  - id: docs-protocol.tests
+    dependencyMode: development
+    roots:
+      - packages/docs-protocol/tests
+    allow:
+      boundaries:
+        - docs-protocol.adapters
+        - docs-protocol.application
+        - docs-protocol.community.bootstrap
+        - docs-protocol.community.context
+        - docs-protocol.composition
+        - docs-protocol.domain
+        - docs-protocol.qualification
+      packages:
+        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/repository-mutation"
+        - ajv
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:util
+      runtimeReferences: []
+    entrypoints: []
   - id: docs-protocol.qualification
+    packageExports:
+      - "./qualification"
     roots:
       - packages/docs-protocol/src/qualification
     allow:
       boundaries:
         - docs-protocol.adapters
         - docs-protocol.application
-        - docs-protocol.consumer-integration.adapters
-        - docs-protocol.consumer-integration.composition
-        - docs-protocol.consumer-integration.domain
+        - docs-protocol.community.bootstrap
         - docs-protocol.domain
       packages:
         - "@agent-teams/engineering-foundation"
@@ -153,58 +219,60 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/docs-protocol/src/qualification/index.ts
-  - id: docs-protocol.consumer-integration.domain
+  - id: docs-protocol-agent-teams.domain
     roots:
-      - packages/docs-protocol/src/consumer-integration/domain
+      - packages/docs-protocol-agent-teams/src/consumer-integration/domain
     allow:
       boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/consumer-integration/domain/model.ts
-  - id: docs-protocol.consumer-integration.generated-assets
+      - packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts
+  - id: docs-protocol-agent-teams.generated-assets
     roots:
-      - packages/docs-protocol/src/consumer-integration/generated
+      - packages/docs-protocol-agent-teams/src/consumer-integration/generated
     allow:
       boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/consumer-integration/generated/canonical-assets.ts
-  - id: docs-protocol.consumer-integration.application
+      - packages/docs-protocol-agent-teams/src/consumer-integration/generated/canonical-assets.ts
+  - id: docs-protocol-agent-teams.application
     roots:
-      - packages/docs-protocol/src/consumer-integration/application
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application
     allow:
       boundaries:
-        - docs-protocol.consumer-integration.domain
-        - docs-protocol.consumer-integration.generated-assets
+        - docs-protocol-agent-teams.domain
+        - docs-protocol-agent-teams.generated-assets
       packages:
         - "@agent-teams/engineering-foundation"
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/consumer-integration/application/model/consumer-integration-execution.ts
-      - packages/docs-protocol/src/consumer-integration/application/model/consumer-upgrade-execution.ts
-      - packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-assets.ts
-      - packages/docs-protocol/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
-      - packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts
-      - packages/docs-protocol/src/consumer-integration/application/ports/consumer-integration-planners.ts
-      - packages/docs-protocol/src/consumer-integration/application/ports/consumer-upgrade.ts
-      - packages/docs-protocol/src/consumer-integration/application/use-cases/plan-consumer-integration.ts
-      - packages/docs-protocol/src/consumer-integration/application/use-cases/run-consumer-integration.ts
-      - packages/docs-protocol/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts
-  - id: docs-protocol.consumer-integration.adapters
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/model/consumer-integration-execution.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/model/consumer-upgrade-execution.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-assets.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-integration-planners.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-upgrade.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/plan-consumer-integration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/run-consumer-integration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts
+  - id: docs-protocol-agent-teams.adapters
     roots:
-      - packages/docs-protocol/src/consumer-integration/adapters
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters
     allow:
       boundaries:
-        - docs-protocol.consumer-integration.application
-        - docs-protocol.consumer-integration.domain
+        - docs-protocol-agent-teams.application
+        - docs-protocol-agent-teams.domain
       packages:
         - "@agent-teams/engineering-foundation"
+        - "@agent-teams/repository-mutation"
         - ajv
         - ajv-formats
         - jsonc-parser
@@ -218,30 +286,110 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/consumer-integration/adapters/agents-route-adapter-v1.ts
-      - packages/docs-protocol/src/consumer-integration/adapters/consumer-integration-schema-validator.ts
-      - packages/docs-protocol/src/consumer-integration/adapters/foundation-known-file-transaction.ts
-      - packages/docs-protocol/src/consumer-integration/adapters/github-cohort-authority-reader.ts
-      - packages/docs-protocol/src/consumer-integration/adapters/node-consumer-integration-repository.ts
-      - packages/docs-protocol/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
-      - packages/docs-protocol/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
-      - packages/docs-protocol/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts
-  - id: docs-protocol.consumer-integration.composition
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-schema-validator.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v1.ts
+  - id: docs-protocol-agent-teams.composition
+    packageExports:
+      - "."
     roots:
-      - packages/docs-protocol/src/consumer-integration/composition
-      - packages/docs-protocol/src/consumer-integration/index.ts
+      - packages/docs-protocol-agent-teams/src/composition
+      - packages/docs-protocol-agent-teams/src/index.ts
+      - packages/docs-protocol-agent-teams/src/cli.ts
     allow:
       boundaries:
-        - docs-protocol.consumer-integration.adapters
-        - docs-protocol.consumer-integration.application
-        - docs-protocol.consumer-integration.domain
+        - docs-protocol-agent-teams.consumer-integration.composition
+        - docs-protocol-agent-teams.qualification
+      packages:
+        - "@agent-teams/docs-protocol"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-agent-teams/src/index.ts
+      - packages/docs-protocol-agent-teams/src/cli.ts
+  - id: docs-protocol-agent-teams.consumer-integration.composition
+    roots:
+      - packages/docs-protocol-agent-teams/src/consumer-integration/composition
+      - packages/docs-protocol-agent-teams/src/consumer-integration/index.ts
+    allow:
+      boundaries:
+        - docs-protocol-agent-teams.adapters
+        - docs-protocol-agent-teams.application
+        - docs-protocol-agent-teams.domain
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/consumer-integration/composition/canonical-docs-skill-v2.ts
-      - packages/docs-protocol/src/consumer-integration/composition/consumer-integration-cli.ts
-      - packages/docs-protocol/src/consumer-integration/index.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/index.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/composition/consumer-integration-cli.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/composition/consumer-integration-planner.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/composition/node-consumer-integration.ts
+  - id: docs-protocol-agent-teams.qualification
+    packageExports:
+      - "./qualification"
+    roots:
+      - packages/docs-protocol-agent-teams/src/qualification
+    allow:
+      boundaries:
+        - docs-protocol-agent-teams.adapters
+        - docs-protocol-agent-teams.consumer-integration.composition
+      packages:
+        - "@agent-teams/docs-protocol"
+        - "@agent-teams/engineering-foundation"
+        - ajv
+      builtins:
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:url
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-agent-teams/src/qualification/index.ts
+      - packages/docs-protocol-agent-teams/src/qualification/managed-command-envelope-validator.ts
+      - packages/docs-protocol-agent-teams/src/qualification/qualification-v2-runner.ts
+  - id: docs-protocol-agent-teams.tests
+    dependencyMode: development
+    roots:
+      - packages/docs-protocol-agent-teams/tests
+    allow:
+      boundaries:
+        - docs-protocol-agent-teams.adapters
+        - docs-protocol-agent-teams.application
+        - docs-protocol-agent-teams.consumer-integration.composition
+        - docs-protocol-agent-teams.qualification
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:module
+        - node:os
+        - node:path
+        - node:test
+      runtimeReferences: []
+    entrypoints: []
+  - id: docs-protocol-agent-teams.scripts
+    dependencyMode: development
+    roots:
+      - packages/docs-protocol-agent-teams/scripts
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints: []
   - id: foundation.public-api
     roots:
       - packages/engineering-foundation/src/index.ts
@@ -251,7 +399,6 @@ boundaries:
         - foundation.core
         - foundation.document-authoring.composition
         - foundation.local-mode
-        - foundation.mutation.public-api
         - foundation.property-testing-support
         - foundation.scaffolding.canonical-composition
       packages: []
@@ -515,6 +662,7 @@ boundaries:
         - foundation.cancellation
         - foundation.core
       packages:
+        - "@agent-teams/repository-mutation"
         - jsonc-parser
         - yaml
       builtins:
@@ -546,7 +694,8 @@ boundaries:
       - packages/engineering-foundation/src/canonical-json.ts
     allow:
       boundaries: []
-      packages: []
+      packages:
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
       runtimeReferences: []
@@ -566,6 +715,7 @@ boundaries:
     allow:
       boundaries: []
       packages:
+        - "@agent-teams/repository-mutation"
         - ajv
       builtins:
         - node:crypto
@@ -586,9 +736,9 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/scaffolding/application/policies/legacy-scaffolding-repository-path.ts
     allow:
-      boundaries:
-        - foundation.repository-mutation.application
-      packages: []
+      boundaries: []
+      packages:
+        - "@agent-teams/repository-mutation"
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -605,121 +755,220 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/package-version.ts
-  - id: foundation.repository-mutation.application
+  - id: repository-mutation.primitives
     roots:
-      - packages/engineering-foundation/src/repository-mutation/application
+      - packages/repository-mutation/src/canonical-json.ts
+      - packages/repository-mutation/src/errors.ts
+      - packages/repository-mutation/src/package-version.ts
+      - packages/repository-mutation/src/repository-mutation-envelope.ts
+      - packages/repository-mutation/src/state-contract.ts
+      - packages/repository-mutation/src/strict-json.ts
     allow:
-      boundaries:
-        - foundation.canonical-json
-      packages: []
-      builtins: []
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/repository-mutation/application/model/directory-materialization.ts
-      - packages/engineering-foundation/src/repository-mutation/application/model/exact-postimage.ts
-      - packages/engineering-foundation/src/repository-mutation/application/model/known-file-transaction-journal.ts
-      - packages/engineering-foundation/src/repository-mutation/application/model/known-file-transaction.ts
-      - packages/engineering-foundation/src/repository-mutation/application/model/path-identity.ts
-      - packages/engineering-foundation/src/repository-mutation/application/model/repository-path.ts
-      - packages/engineering-foundation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
-      - packages/engineering-foundation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts
-      - packages/engineering-foundation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts
-      - packages/engineering-foundation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
-  - id: foundation.repository-mutation.node-adapters
-    roots:
-      - packages/engineering-foundation/src/repository-mutation/adapters/node
-    allow:
-      boundaries:
-        - foundation.canonical-json
-        - foundation.core
-        - foundation.repository-mutation.application
-        - foundation.repository-input
+      boundaries: []
       packages: []
       builtins:
         - node:crypto
         - node:fs/promises
         - node:path
+        - node:url
         - node:util
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-durability.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-directory-materialization.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-repository-path.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
-  - id: foundation.known-file-transaction.composition
+      - packages/repository-mutation/src/canonical-json.ts
+      - packages/repository-mutation/src/errors.ts
+      - packages/repository-mutation/src/package-version.ts
+      - packages/repository-mutation/src/repository-mutation-envelope.ts
+      - packages/repository-mutation/src/state-contract.ts
+      - packages/repository-mutation/src/strict-json.ts
+  - id: repository-mutation.application
     roots:
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-effects.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-faults.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-observation.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-operation.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-apply-state.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-cleanup.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-executor.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-observation.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-retirement.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-recovery-state.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+      - packages/repository-mutation/src/repository-mutation/application
     allow:
       boundaries:
-        - foundation.canonical-json
-        - foundation.core
-        - foundation.package-identity
-        - foundation.repository-mutation.application
-        - foundation.repository-mutation.node-adapters
-        - foundation.transaction-coordination.adapters
-        - foundation.transaction-coordination.application
+        - repository-mutation.primitives
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/repository-mutation/application/model/directory-materialization.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/exact-postimage.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction-journal.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/path-identity.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/repository-path.ts
+      - packages/repository-mutation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
+  - id: repository-mutation.node-adapters
+    roots:
+      - packages/repository-mutation/src/installed-artifact-identity.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-repository-path.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
+    allow:
+      boundaries:
+        - repository-mutation.primitives
+        - repository-mutation.application
+      packages: []
+      builtins:
+        - node:crypto
+        - node:fs/promises
+        - node:path
+        - node:url
+        - node:util
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/installed-artifact-identity.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-repository-path.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
+  - id: repository-mutation.known-file-composition
+    roots:
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-effects.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-faults.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-observation.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-operation.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-state.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-cleanup.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-executor.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-observation.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-retirement.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-state.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+    allow:
+      boundaries:
+        - repository-mutation.application
+        - repository-mutation.node-adapters
+        - repository-mutation.primitives
+        - repository-mutation.transaction-coordination
       packages: []
       builtins:
         - node:fs/promises
         - node:path
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
-      - packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-  - id: foundation.mutation.public-api
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+  - id: repository-mutation.transaction-coordination
     roots:
-      - packages/engineering-foundation/src/mutation/index.ts
+      - packages/repository-mutation/src/transaction-coordination
     allow:
       boundaries:
-        - foundation.repository-mutation.application
-        - foundation.repository-mutation.node-adapters
-        - foundation.known-file-transaction.composition
+        - repository-mutation.application
+        - repository-mutation.node-adapters
+        - repository-mutation.primitives
+      packages: []
+      builtins:
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:util
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/transaction-coordination/mutation-lease.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-operation-lock.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-state-directory.ts
+  - id: repository-mutation.public-api
+    packageExports:
+      - "."
+    roots:
+      - packages/repository-mutation/src/index.ts
+    allow:
+      boundaries:
+        - repository-mutation.application
+        - repository-mutation.known-file-composition
+        - repository-mutation.node-adapters
+        - repository-mutation.primitives
+        - repository-mutation.transaction-coordination
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/mutation/index.ts
-  - id: foundation.mutation.qualification
+      - packages/repository-mutation/src/index.ts
+  - id: repository-mutation.node-api
+    packageExports:
+      - "./node"
     roots:
-      - packages/engineering-foundation/src/mutation/qualification
+      - packages/repository-mutation/src/node.ts
     allow:
       boundaries:
-        - foundation.known-file-transaction.composition
-        - foundation.process-execution
+        - repository-mutation.application
+        - repository-mutation.node-adapters
+        - repository-mutation.transaction-coordination
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/mutation/qualification/index.ts
+      - packages/repository-mutation/src/node.ts
+  - id: repository-mutation.qualification
+    packageExports:
+      - "./qualification"
+    roots:
+      - packages/repository-mutation/src/qualification
+    allow:
+      boundaries:
+        - repository-mutation.application
+        - repository-mutation.known-file-composition
+        - repository-mutation.node-adapters
+        - repository-mutation.transaction-coordination
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/qualification/index.ts
+  - id: repository-mutation.tests
+    dependencyMode: development
+    roots:
+      - packages/repository-mutation/tests
+    allow:
+      boundaries:
+        - repository-mutation.node-api
+        - repository-mutation.public-api
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+      runtimeReferences: []
+    entrypoints: []
   - id: foundation.transaction-coordination.application
     roots:
       - packages/engineering-foundation/src/transaction-coordination/application
@@ -746,13 +995,12 @@ boundaries:
         - foundation.document-authoring.application
         - foundation.package-identity
         - foundation.repository-input
-        - foundation.repository-mutation.application
-        - foundation.repository-mutation.node-adapters
         - foundation.schema-validation
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
         - foundation.transaction-coordination.application
-      packages: []
+      packages:
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
         - node:fs
@@ -763,6 +1011,7 @@ boundaries:
         - node:util
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/foundation-scaffold-envelope.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-build-identity.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-operation-lock.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-cleanup-transition.ts
@@ -803,11 +1052,10 @@ boundaries:
         - foundation.core
         - foundation.package-identity
         - foundation.repository-input
-        - foundation.repository-mutation.application
-        - foundation.repository-mutation.node-adapters
         - foundation.scaffolding.core
         - foundation.scaffolding.legacy-path-policy
-      packages: []
+      packages:
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:fs/promises
         - node:path
@@ -844,14 +1092,14 @@ boundaries:
         - foundation.core
         - foundation.local-mode
         - foundation.repository-input
-        - foundation.repository-mutation.node-adapters
         - foundation.schema-validation
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
         - foundation.scaffolding.shared-adapters
         - foundation.transaction-coordination.adapters
         - foundation.transaction-coordination.application
-      packages: []
+      packages:
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:fs/promises
         - node:path
@@ -958,6 +1206,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/workspace-inventory/application/model/workspace-inventory.ts
       - packages/engineering-foundation/src/workspace-inventory/application/ports/workspace-inventory-reader.ts
+      - packages/engineering-foundation/src/workspace-inventory/application/policies/package-export-matcher.ts
   - id: foundation.source-inventory.application
     roots:
       - packages/engineering-foundation/src/source-inventory/application
@@ -994,6 +1243,7 @@ boundaries:
         - foundation.workspace-inventory.application
       packages: []
       builtins:
+        - node:fs
         - node:fs/promises
         - node:path
       runtimeReferences: []
@@ -1013,9 +1263,11 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/repository-path.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-workspace-topology.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-workspace.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-dependency-parser.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-dependency-resolver.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-workspace-topology-inspector.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/rules.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/analyze-source-dependencies.ts
   - id: capability.public-api-compatibility.application
@@ -1154,6 +1406,7 @@ boundaries:
     allow:
       boundaries:
         - capability.source-dependencies.application
+        - foundation.cancellation
         - foundation.core
         - foundation.repository-input
         - foundation.schema-validation
@@ -1169,17 +1422,20 @@ boundaries:
       boundaries:
         - capability.source-dependencies.application
         - foundation.core
+        - foundation.repository-input
         - foundation.source-inventory.application
         - foundation.workspace-inventory.application
       packages:
         - oxc-parser
       builtins:
+        - node:fs
         - node:fs/promises
         - node:module
         - node:path
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/pnpm-source-workspace-topology-inspector.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/oxc/oxc-source-dependency-parser.ts
   - id: capability.source-dependencies.composition
     roots:
@@ -1406,12 +1662,11 @@ boundaries:
         - foundation.document-authoring.application
         - foundation.canonical-json
         - foundation.repository-input
-        - foundation.repository-mutation.application
-        - foundation.repository-mutation.node-adapters
         - foundation.schema-validation
         - foundation.transaction-coordination.adapters
         - foundation.transaction-coordination.application
       packages:
+        - "@agent-teams/repository-mutation"
         - ajv
         - remark-parse
         - unified
@@ -1893,3 +2148,18 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/property-testing-standard/contract/deterministic-seed-bank.ts
+  - id: spike.source-dependency-parser
+    dependencyMode: development
+    roots:
+      - spikes/source-dependency-parser
+    allow:
+      boundaries: []
+      packages:
+        - oxc-parser
+        - typescript
+      builtins:
+        - node:assert/strict
+        - node:perf_hooks
+      runtimeReferences: []
+    entrypoints:
+      - spikes/source-dependency-parser/run.mjs

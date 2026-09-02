@@ -59,7 +59,15 @@ const CANCELLATION_DEADLINE_MS = process.platform === "win32" ? 45_000 : 5_000;
 const TEST_TIMEOUT_MS = process.platform === "win32" ? 65_000 : 10_000;
 const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
 const FAKE_ABSOLUTE_SYSTEM_ROOT = String.raw`C:\Windows`;
+const MISSING_WINDOWS_SYSTEM_ROOT = String.raw`C:\foundation-missing-system-root-${process.pid}`;
 const FAKE_WINDOWS_POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
+
+function withOnlySystemRoot(environment, systemRoot) {
+  return Object.fromEntries([
+    ...Object.entries(environment).filter(([name]) => name.toLowerCase() !== "systemroot"),
+    ["SystemRoot", systemRoot]
+  ]);
+}
 
 async function removeNewWindowsControlRoots(previousRoots) {
   const currentRoots = await windowsControlRoots();
@@ -364,17 +372,28 @@ test("preserves a synchronous PowerShell launch failure when control cleanup fai
   }
 });
 
-test("contains asynchronous control cleanup failures and permits an idempotent retry", async (context) => {
+test("contains asynchronous control cleanup failures and permits an idempotent retry", {
+  timeout: 10_000
+}, async (context) => {
   const root = await mkdtemp(join(tmpdir(), "foundation-windows-async-launch-failure-"));
+  const missingSystemRoot = process.platform === "win32" ?
+    join(root, "missing-system-root") :
+    MISSING_WINDOWS_SYSTEM_ROOT;
   const previousControls = await windowsControlRoots();
   let child;
   try {
     await withFailingSynchronousControlCleanup(context.mock, async (cleanupError) => {
+      const launcherEnvironment = withOnlySystemRoot({
+        ...process.env, SYSTEMROOT: "shadow", systemroot: "shadow"
+      }, missingSystemRoot);
+      assert.deepEqual(Object.keys(launcherEnvironment)
+        .filter((name) => name.toLowerCase() === "systemroot"), ["SystemRoot"]);
+      assert.equal(launcherEnvironment.SystemRoot, missingSystemRoot);
       child = spawnWindowsManagedProcess({
         command: process.execPath,
         args: ["-e", "process.exit()"],
-        cwd: join(root, "missing-working-directory"),
-        launcherEnvironment: { ...process.env, SystemRoot: FAKE_ABSOLUTE_SYSTEM_ROOT }
+        cwd: root,
+        launcherEnvironment
       });
       const closed = new Promise((resolve) => {
         child.once("close", resolve);
@@ -574,7 +593,12 @@ test(
 );
 
 test("Windows cancellation protocol proves containment across Job assignment", async () => {
-  const [nodeAdapterSource, windowsManagedProcessSource] = await Promise.all([
+  const [
+    nodeAdapterSource,
+    windowsManagedProcessSource,
+    managedLauncherSource,
+    processHostSource
+  ] = await Promise.all([
     readFile(join(
       process.cwd(),
       "packages/engineering-foundation/src/process-execution/node-process-runner.ts"
@@ -582,8 +606,35 @@ test("Windows cancellation protocol proves containment across Job assignment", a
     readFile(join(
       process.cwd(),
       "packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs"
+    ), "utf8"),
+    readFile(join(
+      process.cwd(),
+      "packages/engineering-foundation/src/process-execution/windows-managed-process.ts"
+    ), "utf8"),
+    readFile(join(
+      process.cwd(),
+      "packages/engineering-foundation/src/process-execution/windows-process-host.ts"
     ), "utf8")
   ]);
+
+  assert.match(
+    managedLauncherSource,
+    /writeFileSync\(control\.requestPath, serializedRequest/u
+  );
+  assert.match(
+    managedLauncherSource,
+    /assertWindowsCommandLineFits\(process\.execPath, \[\s*PROCESS_HOST_PATH,\s*control\.requestPath\s*\]\)/u
+  );
+  assert.match(
+    managedLauncherSource,
+    /hostWorkingDirectory: win32\.dirname\(PROCESS_HOST_PATH\)/u
+  );
+  assert.doesNotMatch(managedLauncherSource, /encodedRequest/u);
+  assert.match(processHostSource, /JSON\.parse\(readFileSync\(requestPath, "utf8"\)\)/u);
+  assert.match(
+    windowsManagedProcessSource,
+    /BuildCommandLine\(\s*executable, new\[\] \{ hostPath, requestPath \}\)/u
+  );
 
   const updateJobList = windowsManagedProcessSource.indexOf(
     "if (!UpdateProcThreadAttribute("

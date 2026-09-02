@@ -28,14 +28,6 @@
       "types": "./dist/local-mode/index.d.ts",
       "import": "./dist/local-mode/index.js"
     },
-    "./mutation": {
-      "types": "./dist/mutation/index.d.ts",
-      "import": "./dist/mutation/index.js"
-    },
-    "./mutation/qualification": {
-      "types": "./dist/mutation/qualification/index.d.ts",
-      "import": "./dist/mutation/qualification/index.js"
-    },
     "./scaffolding": {
       "types": "./dist/scaffolding/index.d.ts",
       "import": "./dist/scaffolding/index.js"
@@ -54,6 +46,7 @@
     "presets/typescript/base.json",
     "presets/typescript/node.json",
     "schemas/architecture-source-dependencies/v1.schema.json",
+    "schemas/architecture-source-dependencies/v2.schema.json",
     "schemas/contract-json-schema-release-baseline/v1.schema.json",
     "schemas/contract-json-schema-releases/v1.schema.json",
     "schemas/contract-protobuf-breaking-qualification/v1.schema.json",
@@ -77,11 +70,8 @@
     "schemas/foundation-transaction-envelope/v2.schema.json",
     "schemas/foundation-transaction-envelope/v3.schema.json",
     "schemas/foundation-transaction-envelope/v4.schema.json",
-    "schemas/foundation-transaction-envelope/v5.schema.json",
     "schemas/governance-architecture-decision-baseline/v1.schema.json",
     "schemas/governance-architecture-decisions/v1.schema.json",
-    "schemas/known-file-transaction-plan/v1.schema.json",
-    "schemas/known-file-transaction-receipt/v1.schema.json",
     "schemas/package-public-api-baseline/v1.schema.json",
     "schemas/package-public-api-compatibility/v1.schema.json",
     "schemas/quality-executable-specification-catalog/v1.schema.json",
@@ -130,12 +120,12 @@
     ]
   },
   "dependencies": {
+    "@agent-teams/repository-mutation": "workspace:*",
     "@microsoft/api-extractor": "catalog:",
     "@microsoft/api-extractor-model": "catalog:",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
     "github-slugger": "catalog:",
-    "jsonc-parser": "catalog:",
     "mdast-util-to-string": "catalog:",
     "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",
@@ -145,5 +135,11 @@
     "unified": "catalog:",
     "unist-util-visit": "catalog:",
     "yaml": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/proper-lockfile": "catalog:",
+    "typescript": "catalog:",
+    "vfile": "catalog:"
   }
 }

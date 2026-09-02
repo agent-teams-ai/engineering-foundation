@@ -1,7 +1,7 @@
 import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
 import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 
-export type SourceArchitectureConfigSchemaVersion = 1;
+export type SourceArchitectureConfigSchemaVersion = 1 | 2;
 
 const SOURCE_DEPENDENCY_KINDS = [
   "commonjs",
@@ -47,18 +47,29 @@ export interface ArchitectureBoundaryPolicy {
   readonly roots: readonly string[];
   /** Explicit inbound local-import surface declared by the consumer. */
   readonly entrypoints: readonly string[];
+  /** Exact consumer-owned package export subpaths classified to this boundary. */
+  readonly packageExports: readonly string[];
   readonly allowedBoundaries: readonly string[];
   readonly allowedPackages: readonly string[];
   readonly allowedBuiltins: readonly string[];
   readonly allowedRuntimeReferences: readonly UnresolvedSourceDependency["kind"][];
 }
 
-export interface SourceArchitecturePolicy {
-  readonly schemaVersion: SourceArchitectureConfigSchemaVersion;
+interface SourceArchitecturePolicyBase {
   readonly workspaceManifestPath: "pnpm-workspace.yaml";
   readonly governedRoots: readonly string[];
   readonly boundaries: readonly ArchitectureBoundaryPolicy[];
 }
+
+export type SourceArchitecturePolicy =
+  | (SourceArchitecturePolicyBase & {
+      readonly schemaVersion: 1;
+    })
+  | (SourceArchitecturePolicyBase & {
+      readonly schemaVersion: 2;
+      /** Closed-world roots whose package manifests and source are governed. */
+      readonly packageRoots: readonly string[];
+    });
 
 export interface ClassifiedSourceFile extends ParsedSourceFile {
   readonly boundary: ArchitectureBoundaryPolicy;
@@ -77,6 +88,11 @@ export type ResolvedSourceDependency =
     }
   | {
       readonly kind: "local-file";
+      readonly path: string;
+      readonly workspacePackage: WorkspacePackage;
+    }
+  | {
+      readonly kind: "generated-output-candidate";
       readonly path: string;
       readonly workspacePackage: WorkspacePackage;
     }
@@ -132,6 +148,12 @@ export type ObservedSourceDependencyResolution =
       readonly workspacePackageName: string;
       readonly workspacePackageManifestPath: string;
       readonly targetBoundaryId: string | null;
+    }
+  | {
+      readonly kind: "generated-output-candidate";
+      readonly path: string;
+      readonly workspacePackageName: string;
+      readonly workspacePackageManifestPath: string;
     }
   | {
       readonly kind: "unsupported";

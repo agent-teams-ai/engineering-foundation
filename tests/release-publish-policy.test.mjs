@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -11,8 +11,9 @@ import {
   NPM_PACKAGE_BOOTSTRAP,
   bootstrapPackageById,
 } from "../scripts/npm-package-bootstrap.mjs";
-import { PUBLISHABLE_PACKAGE_DEPENDENCIES, publishablePackageByName } from "../scripts/publishable-packages.mjs";
+import { PUBLISHABLE_PACKAGE_DEPENDENCIES, PUBLISHABLE_PACKAGES, publishablePackageByName } from "../scripts/publishable-packages.mjs";
 import { DOCS_MCP_PACKAGE } from "../scripts/release-publish-ordered.mjs";
+import { commandEnvironment, commandShim } from "./support/release-publish-policy-fixtures.mjs";
 import {
   changesetsPublishArguments,
   main,
@@ -23,6 +24,7 @@ import {
 } from "../scripts/release-publish.mjs";
 
 const foundation = { name: "@agent-teams/engineering-foundation", version: "0.16.0" };
+const repositoryMutation = { name: publishablePackageByName("@agent-teams/repository-mutation").name, version: "0.0.0" };
 const privateSpike = { name: "@agent-teams/source-dependency-parser-spike", version: "0.0.0" };
 const docsBootstrap = bootstrapPackageById("docs-protocol");
 const docsProtocol = {
@@ -31,6 +33,7 @@ const docsProtocol = {
 };
 const docsProtocolMcp = { name: publishablePackageByName(DOCS_MCP_PACKAGE).name, version: "0.1.0-rc.0" };
 const docsProtocolMcpBaselineVersion = "0.0.0";
+const docsProtocolAdapter = { name: publishablePackageByName("@agent-teams/docs-protocol-agent-teams").name, version: "0.0.0" };
 const freshPreState = {
   mode: "pre",
   tag: "rc",
@@ -233,50 +236,6 @@ async function json(path, value) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-async function commandShim(root, name, { posix, windows }, platform = process.platform) {
-  const isWindows = platform === "win32";
-  const path = join(root, "bin", `${name}${isWindows ? ".cmd" : ""}`);
-  await mkdir(dirname(path), { recursive: true });
-  await mkdir(join(root, "home"), { recursive: true });
-  await Promise.all([
-    writeFile(join(root, "home", "global.npmrc"), ""),
-    writeFile(join(root, "home", "user.npmrc"), ""),
-  ]);
-  await writeFile(path, isWindows ? windows : posix);
-  if (!isWindows) {
-    await chmod(path, 0o755);
-  }
-  return path;
-}
-
-function commandEnvironment(
-  root,
-  publishMarker,
-  platform = process.platform,
-  baseEnvironment = process.env,
-) {
-  const environment = Object.fromEntries(
-    Object.entries(baseEnvironment).filter(([key]) => {
-      const normalized = key.toLowerCase();
-      return !["home", "homedrive", "homepath", "path", "pathext", "userprofile"].includes(normalized) &&
-        !normalized.startsWith("npm_") &&
-        !normalized.startsWith("pnpm_") && !normalized.startsWith("corepack_");
-    }),
-  );
-  const isolatedHome = join(root, "home");
-  environment[platform === "win32" ? "Path" : "PATH"] = join(root, "bin");
-  environment.COMMAND_SHIM_MARKER = join(root, "command-shim.marker");
-  environment.HOME = isolatedHome;
-  environment.NPM_CONFIG_GLOBALCONFIG = join(isolatedHome, "global.npmrc");
-  environment.NPM_CONFIG_USERCONFIG = join(isolatedHome, "user.npmrc");
-  if (platform === "win32") {
-    environment.PATHEXT = ".COM;.EXE;.BAT;.CMD";
-  }
-  environment.PUBLISH_MARKER = publishMarker;
-  environment.USERPROFILE = isolatedHome;
-  return environment;
-}
-
 test("canonicalizes Windows PATH and removes inherited package-manager routing", () => {
   const environment = commandEnvironment(
     "C:\\fixture",
@@ -387,15 +346,10 @@ async function runChangesets(root, marker, arguments_) {
 
 async function writeDocsMcpManifest(root, version = docsProtocolMcp.version) {
   await json(join(root, "packages/docs-protocol-mcp/package.json"), {
-    name: docsProtocolMcp.name,
-    version,
+    name: docsProtocolMcp.name, version,
     dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocolMcp.name]
       .map((name) => [name, "workspace:*"])),
-    publishConfig: {
-      access: "public",
-      provenance: true,
-      registry: NPM_PACKAGE_BOOTSTRAP.registry,
-    },
+    publishConfig: { access: "public", provenance: true, registry: NPM_PACKAGE_BOOTSTRAP.registry },
   });
 }
 
@@ -411,13 +365,18 @@ async function fixture(root, registry) {
   await writeFile(join(root, ".node-version"), "24.6.0\n");
   await json(join(root, "packages/engineering-foundation/package.json"), {
     ...foundation,
+    dependencies: { [repositoryMutation.name]: "workspace:*" },
     publishConfig: { registry },
     version: docsBootstrap.dependencies[0].version,
   });
   await writeFile(join(root, "packages/engineering-foundation/dist.js"), "export const build = 1;\n");
+  await json(join(root, "packages/repository-mutation/package.json"), {
+    ...repositoryMutation, publishConfig: { registry },
+  });
+  await writeFile(join(root, "packages/repository-mutation/dist.js"), "export const mutation = 1;\n");
   await json(join(root, "packages/docs-protocol/package.json"), {
     ...docsProtocol,
-    dependencies: { [foundation.name]: "workspace:*" },
+    dependencies: { [foundation.name]: "workspace:*", [repositoryMutation.name]: "workspace:*" },
     publishConfig: {
       access: "public",
       provenance: true,
@@ -425,6 +384,13 @@ async function fixture(root, registry) {
     },
   });
   await writeFile(join(root, "packages/docs-protocol/dist.js"), "export const docs = 1;\n");
+  await json(join(root, "packages/docs-protocol-agent-teams/package.json"), {
+    ...docsProtocolAdapter,
+    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocolAdapter.name]
+      .map((name) => [name, "workspace:*"])),
+    publishConfig: { registry },
+  });
+  await writeFile(join(root, "packages/docs-protocol-agent-teams/dist.js"), "export const adapter = 1;\n");
   await writeDocsMcpManifest(root);
   await writeFile(join(root, "packages/docs-protocol-mcp/dist.js"), "export const mcp = 1;\n");
   await json(join(root, "spikes/source-dependency-parser/package.json"), {
@@ -440,7 +406,9 @@ async function fixture(root, registry) {
     initialVersions: {
       ...freshPreState.initialVersions,
       [docsProtocol.name]: docsProtocol.version,
+      [docsProtocolAdapter.name]: docsProtocolAdapter.version,
       [docsProtocolMcp.name]: docsProtocolMcpBaselineVersion,
+      [repositoryMutation.name]: repositoryMutation.version,
     },
   });
   await writeFile(
@@ -582,8 +550,10 @@ test("publish entrypoint independently rejects every publish-control drift bound
 test("real release entrypoint proves multi-package registry state and fails closed on drift", async (t) => {
   const versions = new Map([
     [docsProtocol.name, new Set([docsProtocol.version])],
+    [docsProtocolAdapter.name, new Set([docsProtocolAdapter.version])],
     [docsProtocolMcp.name, new Set([docsProtocolMcpBaselineVersion])],
     [foundation.name, new Set([foundation.version])],
+    [repositoryMutation.name, new Set([repositoryMutation.version])],
   ]);
   let registryRequestHook = noop;
   const registry = createServer(async (request, response) => {
@@ -737,7 +707,7 @@ test("real release entrypoint proves multi-package registry state and fails clos
       });
       registryRequestHook = async () => {
         finalFilesystemChecks += 1;
-        if (finalFilesystemChecks === 4) {
+        if (finalFilesystemChecks === PUBLISHABLE_PACKAGES.length + 1) {
           await writeFile(
             join(root, "packages/engineering-foundation/dist.js"),
             "export const build = 3;\n",

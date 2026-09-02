@@ -25,7 +25,13 @@ const FIXTURE_MARKER = ".agent-teams-document-authoring-qualification-fixture.js
 const MAX_FIXTURE_MARKER_BYTES = 4 * 1024;
 
 export type DocumentAuthoringQualificationCrashPoint =
-  "after-publishing-journal-durable";
+  | "after-publishing-journal-durable"
+  | "after-published-journal-durable";
+
+const CRASH_POINTS: ReadonlySet<DocumentAuthoringQualificationCrashPoint> = new Set([
+  "after-publishing-journal-durable",
+  "after-published-journal-durable"
+]);
 
 export interface RunDocumentAuthoringCrashQualificationRequest {
   readonly consumerRoot: string;
@@ -88,6 +94,11 @@ async function readFixtureMarker(path: string): Promise<unknown> {
     if (metadata.isSymbolicLink() || !metadata.isFile()) {
       throw new TypeError(
         "Document authoring crash qualification requires a real regular fixture marker."
+      );
+    }
+    if (metadata.nlink !== 1n) {
+      throw new TypeError(
+        "Document authoring crash qualification fixture marker must not be hard linked."
       );
     }
     if (metadata.size > BigInt(MAX_FIXTURE_MARKER_BYTES)) {
@@ -185,6 +196,11 @@ async function signalCheckpoint(
 export async function runDocumentAuthoringCrashQualification(
   request: RunDocumentAuthoringCrashQualificationRequest
 ): Promise<DocumentAuthoringCrashQualificationResult> {
+  if (!CRASH_POINTS.has(request.crashPoint)) {
+    throw new TypeError(
+      "Document authoring crash qualification requires a supported closed crashPoint."
+    );
+  }
   const consumerRoot = await assertOwnedDisposableFixture(request.consumerRoot);
   await applyNodeDocumentationPlanPrivately(
     { consumerRoot, plan: request.plan },

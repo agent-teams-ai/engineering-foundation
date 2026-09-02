@@ -11,10 +11,20 @@ import { NodeFoundationDocsPort } from "../adapters/foundation-docs-port.js";
 import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { DocsProtocol } from "../application/docs-protocol.js";
 import { normalizeCodeAnchors, normalizeDocumentIds } from "../domain/document-semantics.js";
-import type { DocsNewRequest } from "../domain/model.js";
+import type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
 import { crashAtDurablePublishing } from "./crash-driver.js";
+import { portableBootstrapDesiredFiles } from "../community/bootstrap/portable-bootstrap-assets.js";
 
 const MAX_QUALIFICATION_AUTHORITY_BYTES = 8 * 1024 * 1024;
+
+export function portableQualificationSkill(): Buffer {
+  const skill = portableBootstrapDesiredFiles("qualification/project", "qualification/owner")
+    .find(({ path }) => path === ".agents/skills/docs-authoring/SKILL.md");
+  if (skill === undefined) {
+    throw new Error("Portable qualification Skill is missing from the core bootstrap authority.");
+  }
+  return Buffer.from(skill.bytes);
+}
 
 export function digest(value: Uint8Array | string): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -35,15 +45,18 @@ export async function readContainedBoundedFile(
     throw new Error(`${label} escapes the consumer root.`);
   }
   const metadata = await lstat(absolute);
-  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maximumBytes) {
-    throw new Error(`${label} must be one bounded regular file.`);
+  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.nlink !== 1 || metadata.size > maximumBytes) {
+    throw new Error(`${label} must be one bounded, non-hardlinked regular file.`);
   }
   const physical = await realpath(absolute);
   if (physical !== absolute) {
     throw new Error(`${label} must not traverse a symlink.`);
   }
   const bytes = await readFile(physical);
-  if (bytes.byteLength !== metadata.size || bytes.byteLength > maximumBytes) {
+  const after = await lstat(absolute);
+  if (!after.isFile() || after.isSymbolicLink() || after.nlink !== 1 ||
+    after.dev !== metadata.dev || after.ino !== metadata.ino || after.size !== metadata.size ||
+    bytes.byteLength !== metadata.size || bytes.byteLength > maximumBytes) {
     throw new Error(`${label} changed during its bounded read.`);
   }
   return Object.freeze({ bytes, digest: digest(bytes), path: repositoryPath });
@@ -71,6 +84,15 @@ export async function bootstrapQualificationInstallation(consumerRoot: string, r
         "@agent-teams/engineering-foundation": foundationManifest.version
       }
     }, null, 2)}\n`, "utf8");
+  } else {
+    const dependencies = typeof consumerManifest["devDependencies"] === "object" &&
+      consumerManifest["devDependencies"] !== null
+      ? consumerManifest["devDependencies"] as Record<string, unknown>
+      : {};
+    if (dependencies["@agent-teams/docs-protocol"] !== docsManifest.version ||
+      dependencies["@agent-teams/engineering-foundation"] !== foundationManifest.version) {
+      throw new Error("Qualification requires the exact executing portable packages in devDependencies.");
+    }
   }
   const scope = join(consumerRoot, "node_modules", "@agent-teams");
   await mkdir(scope, { recursive: true });
@@ -122,6 +144,123 @@ export function createProtocol(): DocsProtocol {
   });
 }
 
+export interface PortableQualificationProtocol {
+  readonly checkV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: { readonly result: { readonly kind: "check" } };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly doctorV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: {
+      readonly outcome:
+        | "authority-stale"
+        | "cancelled"
+        | "conflict"
+        | "execution-failure"
+        | "invalid-input"
+        | "recovery-required"
+        | "success"
+        | "violation";
+      readonly result: {
+        readonly environment: {
+          readonly installedFoundationBuildIdentity: string;
+          readonly installedFoundationVersion: string;
+        };
+        readonly kind: "doctor";
+        readonly transaction:
+          | { readonly state: "idle" }
+          | { readonly state: "recoverable" }
+          | { readonly state: "manual-recovery-required" };
+      };
+    };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly findV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly query: DocsFindQuery;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: {
+      readonly result: {
+        readonly kind: "find";
+        readonly documents: readonly { readonly id: string }[];
+      };
+    };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly infoV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: {
+      readonly result: {
+        readonly kind: "info";
+        readonly projectId: string;
+        readonly types: readonly { readonly type: string }[];
+      };
+    };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly newDocumentV2: (input: DocsNewRequest) => Promise<{
+    readonly envelope: { readonly result: { readonly kind: "new" } };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+  readonly recoverV2: (input: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{
+    readonly envelope: {
+      readonly result:
+        | {
+            readonly kind: "recover";
+            readonly transactionState: "no-pending-transaction";
+            readonly writeState: "unchanged";
+          }
+        | {
+            readonly kind: "recover";
+            readonly transactionState: "manual-required";
+            readonly writeState: "unknown";
+          }
+        | {
+            readonly kind: "recover";
+            readonly transactionState: "recovered" | "recovery-required";
+            readonly writeState: "committed" | "published-recovery-required" | "unchanged" | "unknown";
+            readonly receiptDigest: `sha256:${string}`;
+            readonly receipt: {
+              readonly commit: {
+                readonly publication: "none" | "preexisting-exact" | "published" | "unknown";
+                readonly state: "committed" | "manual-recovery-required" | "not-published" | "recovery-required";
+              };
+              readonly directoryMaterialization?: {
+                readonly observedCreatedDirectories: readonly string[];
+                readonly state: "none-created" | "created-and-retained" | "preserved-unknown";
+              };
+              readonly outcome:
+                | "applied"
+                | "already-applied"
+                | "authority-stale"
+                | "cancelled"
+                | "failed-before-publication"
+                | "manual-recovery-required"
+                | "recovery-required"
+                | "rejected";
+            };
+          };
+    };
+    readonly exitCode: 0 | 1 | 2 | 3 | 130;
+  }>;
+}
+
 function qualificationMetadata(
   base: Omit<DocsNewRequest, "apply">,
   blockedBy: readonly string[],
@@ -145,7 +284,7 @@ export async function interruptAndRecover(input: {
   readonly consumerRoot: string;
   readonly previewResult: ReturnType<typeof documentResult>;
   readonly profilePath: string;
-  readonly protocol: DocsProtocol;
+  readonly protocol: PortableQualificationProtocol;
 }): Promise<{
   readonly receiptDigest: string;
   readonly receipt: {

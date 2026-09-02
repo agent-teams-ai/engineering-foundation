@@ -167,9 +167,9 @@ for (const winnerIndex of [0, 1]) {
 
       const racingLoser = startWorker(consumerRoot, planPaths[loserIndex]);
       const raced = await racingLoser.nextMessage();
-      assert.match(
+      assert.equal(
         raced.error,
-        /Another foundation operation is active or its lock is not safely recoverable/u
+        "Another repository mutation operation is active or its lock is not safely recoverable."
       );
       assert.deepEqual(await racingLoser.exit(), {
         code: 1,

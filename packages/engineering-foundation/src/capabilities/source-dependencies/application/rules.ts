@@ -148,6 +148,12 @@ export const SOURCE_DEPENDENCY_RULES = Object.freeze({
     "Use relative, node builtin, declared external, or governed workspace package imports.",
     true
   ),
+  uncoveredWorkspacePackageRoot: rule(
+    "uncovered-workspace-package-root",
+    "Every package selected by the schema v2 packageRoots contract must declare governed source scope.",
+    "Add a governed source root and non-overlapping boundary for the package, or remove the package from the workspace glob selection.",
+    true
+  ),
   unclassifiedSourceFile: rule(
     "unclassified-source-file",
     "Every governed source file must belong to exactly one declared architecture boundary.",

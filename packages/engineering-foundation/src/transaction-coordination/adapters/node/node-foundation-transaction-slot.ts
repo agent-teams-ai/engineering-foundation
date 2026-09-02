@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { opendir } from "node:fs/promises";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
@@ -10,13 +10,9 @@ import {
   LOCAL_STATE_DIRECTORY
 } from "../../../foundation-state-contract.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { sha256Json as sha256DocumentJson } from "../../../canonical-json.js";
 import type {
-  AuthorityScaffoldJournal,
-  JsonValue
+  AuthorityScaffoldJournal
 } from "../../../scaffolding/contract/types.js";
-import { assertAuthorityScaffoldJournal } from "../../../scaffolding/kernel/authority-journal-validation.js";
-import { sha256Json as sha256ScaffoldingJson } from "../../../scaffolding/kernel/canonical-json.js";
 import { parseStrictJson } from "../../../strict-json.js";
 import type {
   FoundationRecoveryRoute,
@@ -27,7 +23,8 @@ import type {
   InternalFoundationTransactionStatus
 } from "../../application/model/internal-transaction-status.js";
 import type { FoundationTransactionSlot } from "../../application/ports/foundation-transaction-slot.js";
-import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+import { readBoundedRegularFile } from "@agent-teams/repository-mutation/node";
+import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation";
 import {
   assertLegacyDocumentEnvelope,
   isKnownLegacyDocumentEnvelope
@@ -39,6 +36,8 @@ import {
 import { inspectFoundationTransitionEvidence } from "./foundation-transition-evidence.js";
 import { inspectKnownFileTransactionStatus } from "./known-file-transaction-status.js";
 import { pendingDocumentTransaction } from "./document-transaction-status.js";
+import { inspectSchema6TransactionStatus } from "./schema6-transaction-status.js";
+import { assertEnvelopeDigests, assertLegacyScaffoldingJournal } from "./legacy-scaffolding-transaction-validation.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
@@ -82,7 +81,7 @@ function recoveryRoute(exactFoundationVersion: string): FoundationRecoveryRoute 
 
 function pending(options: {
   readonly operationKind: "scaffolding";
-  readonly format: "legacy-scaffolding-v1";
+  readonly format: "foundation-scaffolding-envelope-v6" | "legacy-scaffolding-v1";
   readonly foundationVersion: string;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
@@ -158,9 +157,23 @@ function parseLinkPhase(value: unknown): "ATTACHING" | "DETACHING" | "LOCAL" {
 async function inspectLocalModeEvidence(
   stateDirectory: string
 ): Promise<InternalFoundationTransactionStatus> {
-  let entries: string[];
+  let entries: string[] = [];
   try {
-    entries = await readdir(stateDirectory);
+    const directory = await opendir(stateDirectory);
+    try {
+      for (;;) {
+        const entry = await directory.read();
+        if (entry === null) {
+          break;
+        }
+        entries.push(entry.name);
+        if (entries.length > maximumStateDirectoryEntries) {
+          throw new Error("Foundation local-mode state enumeration budget exceeded.");
+        }
+      }
+    } finally {
+      await directory.close();
+    }
   } catch (error) {
     if (isMissing(error)) {
       return { state: "idle", diagnostics: [] };
@@ -170,10 +183,14 @@ async function inspectLocalModeEvidence(
       "Foundation local-mode recovery evidence cannot be inspected safely."
     );
   }
-  if (entries.length > maximumStateDirectoryEntries) {
+  const linkIdentity = portableRepositoryPathIdentity(FOUNDATION_LINK_STATE_FILE);
+  const backupIdentity = portableRepositoryPathIdentity(FOUNDATION_REGISTRY_BACKUP);
+  if (entries.some((entry) =>
+    (portableRepositoryPathIdentity(entry) === linkIdentity && entry !== FOUNDATION_LINK_STATE_FILE) ||
+    (portableRepositoryPathIdentity(entry) === backupIdentity && entry !== FOUNDATION_REGISTRY_BACKUP))) {
     return manual(
       "local-mode-evidence-invalid",
-      "Foundation local-mode state contains too many entries."
+      "Foundation local-mode state contains a case or Unicode alias."
     );
   }
   if (
@@ -221,20 +238,6 @@ async function inspectLocalModeEvidence(
   }
 }
 
-function assertEnvelopeDigests(envelope: Record<string, unknown>): void {
-  const sha256EnvelopeJson =
-    envelope["operationKind"] === "scaffolding"
-      ? sha256ScaffoldingJson
-      : sha256DocumentJson;
-  const journal = envelope["journal"];
-  if (envelope["payloadDigest"] !== sha256EnvelopeJson(journal as JsonValue)) {
-    throw new Error("Foundation transaction payload digest is invalid.");
-  }
-  const { envelopeDigest, ...body } = envelope;
-  if (envelopeDigest !== sha256EnvelopeJson(body as JsonValue)) {
-    throw new Error("Foundation transaction envelope digest is invalid.");
-  }
-}
 
 async function inspectLegacyScaffoldingJournal(options: {
   readonly value: Record<string, unknown>;
@@ -247,7 +250,7 @@ async function inspectLegacyScaffoldingJournal(options: {
     "foundation-transaction-slot"
   );
   const journal = options.value as unknown as AuthorityScaffoldJournal;
-  assertAuthorityScaffoldJournal(journal);
+  assertLegacyScaffoldingJournal(options.value);
   const compiler = journal.plan["compiler"];
   if (!isRecord(compiler) || typeof compiler["version"] !== "string") {
     throw new Error("Legacy scaffolding journal compiler version is invalid.");
@@ -264,6 +267,18 @@ async function inspectLegacyScaffoldingJournal(options: {
 function transactionSchemaVersion(value: Record<string, unknown>): number {
   const schemaVersion = value["schemaVersion"];
   return typeof schemaVersion === "number" ? schemaVersion : Number.NaN;
+}
+
+function inspectUnsupportedTransaction(options: {
+  readonly value: Record<string, unknown>;
+  readonly schemaVersion: number;
+  readonly installedVersion: string;
+  readonly installedBuildIdentity: string;
+}): InternalFoundationTransactionStatus {
+  return inspectKnownFileTransactionStatus(options) ?? manual(
+    "unsupported-schema",
+    `Foundation transaction schema version ${String(options.schemaVersion)} is unsupported and was preserved.`
+  );
 }
 
 async function inspectParsedTransaction(
@@ -299,6 +314,13 @@ async function inspectParsedTransaction(
         format: "document-authoring-envelope-v4"
       })
     });
+  case 6: {
+    return inspectSchema6TransactionStatus({
+      value,
+      installedFoundationVersion: installedVersion,
+      installedFoundationBuildIdentity: installedBuildIdentity
+    });
+  }
   case 2: {
     const legacyDocumentEnvelope = isKnownLegacyDocumentEnvelope(value);
     if (legacyDocumentEnvelope) {
@@ -349,9 +371,7 @@ async function inspectParsedTransaction(
         return documentStatus;
       }
     } else {
-      assertAuthorityScaffoldJournal(
-        journal as unknown as AuthorityScaffoldJournal
-      );
+      assertLegacyScaffoldingJournal(journal);
     }
     return {
       state: "manual-recovery-required",
@@ -369,15 +389,12 @@ async function inspectParsedTransaction(
     };
   }
   default:
-    return inspectKnownFileTransactionStatus({
+    return inspectUnsupportedTransaction({
       value,
       schemaVersion,
       installedVersion,
       installedBuildIdentity
-    }) ?? manual(
-      "unsupported-schema",
-      `Foundation transaction schema version ${String(schemaVersion)} is unsupported and was preserved.`
-    );
+    });
   }
 }
 

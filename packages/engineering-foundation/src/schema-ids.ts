@@ -1,5 +1,6 @@
 export const FOUNDATION_SCHEMA_IDS = [
   "architecture-source-dependencies/v1",
+  "architecture-source-dependencies/v2",
   "contract-json-schema-release-baseline/v1",
   "contract-json-schema-releases/v1",
   "contract-protobuf-breaking-qualification/v1",
@@ -23,11 +24,8 @@ export const FOUNDATION_SCHEMA_IDS = [
   "foundation-transaction-envelope/v2",
   "foundation-transaction-envelope/v3",
   "foundation-transaction-envelope/v4",
-  "foundation-transaction-envelope/v5",
   "governance-architecture-decision-baseline/v1",
   "governance-architecture-decisions/v1",
-  "known-file-transaction-plan/v1",
-  "known-file-transaction-receipt/v1",
   "package-public-api-baseline/v1",
   "package-public-api-compatibility/v1",
   "quality-executable-specification-catalog/v1",

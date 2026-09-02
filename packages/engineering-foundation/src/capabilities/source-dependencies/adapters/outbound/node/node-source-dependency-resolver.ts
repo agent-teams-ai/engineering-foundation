@@ -4,20 +4,23 @@ import { posix } from "node:path";
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type {
   DependencyDeclaration,
-  PackageExportEntry,
   WorkspacePackage
 } from "../../../../../workspace-inventory/application/model/workspace-inventory.js";
+import { resolvePackageExport } from "../../../../../workspace-inventory/application/policies/package-export-matcher.js";
 import type {
   ResolvedSourceDependency
 } from "../../../application/model/source-workspace.js";
 import {
   normalizeRepositoryPath,
-  pathIsInside
+  pathIsInside,
+  portableRepositoryPathIdentity,
+  portableRepositoryPathProblem
 } from "../../../application/model/repository-path.js";
 import type {
   ResolveSourceDependencyInput,
   SourceDependencyResolver
 } from "../../../application/ports/source-dependency-resolver.js";
+import { generatedOutputFilesystemIsSafe } from "./generated-output-filesystem.js";
 
 const BUILTINS = new Set(
   builtinModules.flatMap((name) => [
@@ -47,7 +50,35 @@ function packageNameFromSpecifier(specifier: string): string | undefined {
   return name === undefined || name.length === 0 ? undefined : name;
 }
 
-function declarationKind(
+function packageSpecifierHasTraversal(specifier: string): boolean {
+  if (specifier.includes("\\") || /%2f|%5c/iu.test(specifier)) {
+    return true;
+  }
+  const segments = specifier.split("/");
+  const subpathStart = specifier.startsWith("@") ? 2 : 1;
+  if (segments.length < subpathStart) {
+    return true;
+  }
+  return segments.slice(subpathStart).some((segment) => {
+    if (segment.length === 0 || segment === "." || segment === "..") {
+      return true;
+    }
+    try {
+      const decoded = decodeURIComponent(segment);
+      return decoded === "." || decoded === ".." || decoded.includes("/") || decoded.includes("\\");
+    } catch {
+      return true;
+    }
+  });
+}
+
+function isWorkspaceBinding(specifier: string): boolean {
+  const value = specifier.slice("workspace:".length);
+  return specifier.startsWith("workspace:") &&
+    /^(?:[*^~]|[~^]?(?:0|[1-9][0-9]*)(?:[.](?:0|[1-9][0-9]*|[xX*])){0,2}(?:-[0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?(?:[+][0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?)$/u.test(value);
+}
+
+function declarationKindV1(
   declarations: readonly DependencyDeclaration[],
   packageName: string
 ): "development" | "runtime" | "undeclared" {
@@ -67,6 +98,58 @@ function declarationKind(
   return matching.some((declaration) => declaration.section === "devDependencies")
     ? "development"
     : "undeclared";
+}
+
+function declarationKind(
+  declarations: readonly DependencyDeclaration[],
+  packageName: string
+): "development" | "runtime" | "undeclared" {
+  const matching = declarations.filter(
+    (declaration) => declaration.dependencyName === packageName
+  );
+  if (matching.length === 0 || matching.some(({ specifier }) => !isWorkspaceBinding(specifier))) {
+    return "undeclared";
+  }
+  return declarationKindV1(matching, packageName);
+}
+
+function catalogTarget(
+  specifier: string,
+  packageName: string,
+  inventory: ResolveSourceDependencyInput["inventory"]
+): string | undefined {
+  if (!specifier.startsWith("catalog:")) {
+    return undefined;
+  }
+  const catalogName = specifier.slice("catalog:".length) || "default";
+  return inventory.catalogs.find(
+    (entry) =>
+      entry.catalogName === catalogName && entry.dependencyName === packageName
+  )?.version;
+}
+
+function isLocalIdentitySpecifier(
+  specifier: string,
+  packageName: string,
+  inventory: ResolveSourceDependencyInput["inventory"]
+): boolean {
+  const effective = catalogTarget(specifier, packageName, inventory) ?? specifier;
+  return /^(?:workspace|link|file):/u.test(effective);
+}
+
+function externalDeclarationKind(
+  declarations: readonly DependencyDeclaration[],
+  packageName: string,
+  inventory: ResolveSourceDependencyInput["inventory"]
+): "development" | "runtime" | "undeclared" {
+  const matching = declarations.filter(
+    (declaration) => declaration.dependencyName === packageName
+  );
+  return matching.some(({ specifier }) =>
+    isLocalIdentitySpecifier(specifier, packageName, inventory)
+  )
+    ? "undeclared"
+    : declarationKindV1(matching, packageName);
 }
 
 function candidateLocalPaths(importerPath: string, specifier: string): readonly string[] {
@@ -108,32 +191,146 @@ function containingPackage(
     )[0];
 }
 
-function matchesExport(entry: PackageExportEntry, subpath: string): boolean {
-  if (!entry.subpath.includes("*")) {
-    return entry.subpath === subpath;
-  }
-  const [prefix, suffix] = entry.subpath.split("*");
+function nearestPackageType(input: {
+  readonly importer: WorkspacePackage;
+  readonly importerPath: string;
+  readonly packageTypeScopes: ResolveSourceDependencyInput["packageTypeScopes"];
+}): "commonjs" | "module" {
+  return (input.packageTypeScopes ?? [])
+    .filter(
+      (scope) =>
+        pathInside(scope.rootPath, input.importer.rootPath) &&
+        pathInside(input.importerPath, scope.rootPath)
+    )
+    .toSorted((left, right) => right.rootPath.length - left.rootPath.length)[0]
+    ?.moduleType ?? input.importer.moduleType;
+}
+
+function importerUsesCommonJs(
+  importerPath: string,
+  moduleType: "commonjs" | "module"
+): boolean {
+  const extension = posix.extname(importerPath).toLocaleLowerCase("en-US");
   return (
-    prefix !== undefined &&
-    suffix !== undefined &&
-    subpath.startsWith(prefix) &&
-    subpath.endsWith(suffix) &&
-    subpath.length >= prefix.length + suffix.length
+    extension === ".cts" ||
+    extension === ".cjs" ||
+    ((extension === ".ts" ||
+      extension === ".tsx" ||
+      extension === ".js" ||
+      extension === ".jsx") &&
+      moduleType === "commonjs")
   );
 }
 
-function subpathExported(target: WorkspacePackage, subpath: string): boolean {
-  if (!target.exportSurface.explicit) {
+function subpathExported(input: {
+  readonly importer: WorkspacePackage;
+  readonly importerPath: string;
+  readonly packageTypeScopes: ResolveSourceDependencyInput["packageTypeScopes"];
+  readonly reference: ResolveSourceDependencyInput["reference"];
+  readonly subpath: string;
+  readonly target: WorkspacePackage;
+}): boolean {
+  if (!input.target.exportSurface.explicit) {
     return false;
   }
-  const matching = target.exportSurface.entries
-    .filter((entry) => matchesExport(entry, subpath))
-    .toSorted((left, right) => {
-      const leftExact = left.subpath.includes("*") ? 0 : 1;
-      const rightExact = right.subpath.includes("*") ? 0 : 1;
-      return rightExact - leftExact || right.subpath.length - left.subpath.length;
-    });
-  return matching[0]?.availability === "available";
+  const staticLike =
+    input.reference.kind === "static" ||
+    input.reference.kind === "static-type" ||
+    input.reference.kind === "export" ||
+    input.reference.kind === "export-type" ||
+    input.reference.kind === "type-query";
+  const condition =
+    input.reference.kind === "commonjs" ||
+    input.reference.kind.startsWith("import-equals") ||
+    (staticLike && importerUsesCommonJs(
+      input.importerPath,
+      nearestPackageType(input)
+    ))
+    ? "require"
+    : "import";
+  const typeOnly =
+    input.reference.kind === "static-type" ||
+    input.reference.kind === "export-type" ||
+    input.reference.kind === "import-equals-type" ||
+    input.reference.kind === "type-query";
+  return resolvePackageExport(
+    input.target.exportSurface.entries,
+    input.subpath,
+    condition,
+    typeOnly
+  ).available;
+}
+
+function generatedOutputLiteral(raw: string): readonly string[] | undefined {
+  if (
+    raw.includes("\\") ||
+    raw.includes("?") ||
+    raw.includes("#") ||
+    raw.includes("%")
+  ) {
+    return undefined;
+  }
+  const segments = raw.split("/");
+  let index = 0;
+  while (segments[index] === "." || segments[index] === "..") {
+    index += 1;
+  }
+  const output = segments.slice(index);
+  if (
+    index === 0 ||
+    output[0] !== "dist" ||
+    output.length < 2 ||
+    output.some(
+      (segment) => segment === "" || segment === "." || segment === ".."
+    ) ||
+    output.some(
+      (segment) =>
+        portableRepositoryPathProblem(segment) !== undefined ||
+        portableRepositoryPathIdentity(segment) !==
+          segment.toLocaleLowerCase("en-US")
+    ) ||
+    !/[.]((?:m|c)?js)$/u.test(output.at(-1) ?? "")
+  ) {
+    return undefined;
+  }
+  return output;
+}
+
+function generatedOutputCandidate(
+  input: ResolveSourceDependencyInput
+): ResolvedSourceDependency | undefined {
+  const raw = input.reference.specifier;
+  if (generatedOutputLiteral(raw) === undefined) {
+    return undefined;
+  }
+  const targetPath = normalizeRepositoryPath(posix.join(posix.dirname(input.file.path), raw));
+  const expectedDist = posix.join(input.file.workspacePackage.rootPath, "dist");
+  if (!pathInside(targetPath, expectedDist) || targetPath === expectedDist) {
+    return undefined;
+  }
+  const owner = containingPackage(targetPath, input.inventory.packages);
+  if (
+    owner?.name !== input.file.workspacePackage.name ||
+    owner.manifestPath !== input.file.workspacePackage.manifestPath ||
+    !generatedOutputFilesystemIsSafe({
+      consumerRoot: input.consumerRoot,
+      ...(input.consumerRootIdentity === undefined
+        ? {}
+        : { expectedRootIdentity: input.consumerRootIdentity }),
+      ...(input.workspacePackageRootIdentity === undefined
+        ? {}
+        : { expectedPackageRootIdentity: input.workspacePackageRootIdentity }),
+      packageRoot: owner.rootPath,
+      target: targetPath
+    })
+  ) {
+    return undefined;
+  }
+  return {
+    kind: "generated-output-candidate",
+    path: targetPath,
+    workspacePackage: owner
+  };
 }
 
 function resolveLocal(input: ResolveSourceDependencyInput): ResolvedSourceDependency {
@@ -174,17 +371,37 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
   if (specifier.startsWith("#") || specifier.startsWith("/") || specifier.includes(":")) {
     return { kind: "unsupported", reason: "unsupported package or URL specifier" };
   }
+  if (packageSpecifierHasTraversal(specifier)) {
+    return { kind: "unsupported", reason: "package specifier traversal is unsupported" };
+  }
   const packageName = packageNameFromSpecifier(specifier);
   if (packageName === undefined) {
     return { kind: "unsupported", reason: "invalid package specifier" };
   }
-  const target = input.inventory.packages.find(
+  const inventoryTarget = input.inventory.packages.find(
     (workspacePackage) => workspacePackage.name === packageName
   );
-  const declaration = declarationKind(
-    input.file.workspacePackage.dependencies,
-    packageName
-  );
+  const target =
+    input.enforceWorkspaceBindings === true &&
+    inventoryTarget !== undefined &&
+    input.governedWorkspacePackageManifestPaths !== undefined &&
+    !input.governedWorkspacePackageManifestPaths.has(inventoryTarget.manifestPath)
+      ? undefined
+      : inventoryTarget;
+  const declaration = input.enforceWorkspaceBindings === true
+    ? target === undefined
+      ? inventoryTarget === undefined
+        ? externalDeclarationKind(
+            input.file.workspacePackage.dependencies,
+            packageName,
+            input.inventory
+          )
+        : declarationKind(
+            input.file.workspacePackage.dependencies,
+            packageName
+          )
+      : declarationKind(input.file.workspacePackage.dependencies, packageName)
+    : declarationKindV1(input.file.workspacePackage.dependencies, packageName);
   if (target === undefined) {
     return { kind: "external-package", packageName, declaration };
   }
@@ -193,7 +410,14 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
     return {
       kind: "self-workspace-package",
       workspacePackage: target,
-      exported: subpathExported(target, subpath),
+      exported: subpathExported({
+        importer: input.file.workspacePackage,
+        importerPath: input.file.path,
+        packageTypeScopes: input.packageTypeScopes,
+        reference: input.reference,
+        subpath,
+        target
+      }),
       subpath
     };
   }
@@ -201,15 +425,26 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
     kind: "workspace-package",
     workspacePackage: target,
     declaration,
-    exported: subpathExported(target, subpath),
+    exported: subpathExported({
+      importer: input.file.workspacePackage,
+      importerPath: input.file.path,
+      packageTypeScopes: input.packageTypeScopes,
+      reference: input.reference,
+      subpath,
+      target
+    }),
     subpath
   };
 }
 
 export class NodeSourceDependencyResolver implements SourceDependencyResolver {
   resolve(input: ResolveSourceDependencyInput): ResolvedSourceDependency {
-    return input.reference.specifier.startsWith(".")
-      ? resolveLocal(input)
-      : resolvePackage(input);
+    if (!input.reference.specifier.startsWith(".")) {
+      return resolvePackage(input);
+    }
+    const resolved = resolveLocal(input);
+    return resolved.kind === "unresolved"
+      ? generatedOutputCandidate(input) ?? resolved
+      : resolved;
   }
 }

@@ -11,10 +11,6 @@ import type {
   DocsFindQueryV3
 } from "../domain/model-v3.js";
 import {
-  consumerIntegrationHelp,
-  runConsumerIntegrationCli
-} from "../consumer-integration/composition/consumer-integration-cli.js";
-import {
   MAXIMUM_COMMUNITY_CONTEXT_BYTES,
   MAXIMUM_COMMUNITY_CONTEXT_DOCUMENTS,
   MINIMUM_COMMUNITY_CONTEXT_BYTES
@@ -34,9 +30,8 @@ import {
   docsInitPlan,
   docsInitRecover
 } from "./node-docs-bootstrap-api.js";
-import { runQualificationCli } from "./qualification-cli.js";
 
-export { renderDocsHuman, renderDocsHumanV2, renderDocsHumanV3 } from "./docs-human-renderer.js";
+export { renderDocsHumanV2, renderDocsHumanV3 } from "./docs-human-renderer.js";
 export { docsCliErrorExecution, validatedMachineExecution } from "./docs-cli-machine.js";
 
 interface CommonArguments {
@@ -395,7 +390,7 @@ async function dispatch(protocol: DocsProtocol, command: string, values: readonl
   const args = new Arguments(values);
   if (command === "init") {return dispatchInit(args, signal);}
   if (!["info", "find", "context", "new", "doctor", "recover", "check"].includes(command)) {
-    throw new CliInputError("Expected one command: info, find, context, new, doctor, recover, check, init, qualify, or consumer.");
+    throw new CliInputError("Expected one command: info, find, context, new, doctor, recover, check, or init.");
   }
   const options = await common(args, signal);
   if (command === "info") {
@@ -442,10 +437,7 @@ function helpText(command?: string): string {
   if (["info", "doctor", "recover", "check"].includes(command ?? "")) {
     return `Usage: agent-teams-docs ${command} [--consumer PATH] [--profile PATH] [--json]\n`;
   }
-  if (command === "qualify") {
-    return "Usage: agent-teams-docs qualify [--consumer PATH] [--integration PATH] [--local-development] [--json]\nRuns only the package-owned suite in an owned disposable copy; the declared consumer gate is never executed. --local-development overlays the current package canonical Skill only in that copy and emits evidence that is not cohort-admissible.\n";
-  }
-  return "Usage: agent-teams-docs <info|find|context|new|doctor|recover|check|init|qualify|consumer> [options]\nThe package also installs the package-manager-neutral 'docs-protocol' alias. Run 'agent-teams-docs consumer --help' for Agent Teams maintainer integration commands.\n";
+  return "Usage: agent-teams-docs <info|find|context|new|doctor|recover|check|init> [options]\nThe package also installs the package-manager-neutral 'docs-protocol' alias. Managed Agent Teams operations are available only from the separate adapter package and its 'agent-teams-docs-managed' executable.\n";
 }
 
 export function runDocsCli(argv: readonly string[]): Promise<number>;
@@ -459,16 +451,6 @@ export async function runDocsCli(
   })
 ): Promise<number> {
   const normalizedArgv = argv[0] === "--" ? argv.slice(1) : argv;
-  if (normalizedArgv[0] === "consumer") {
-    if (normalizedArgv.length === 2 && normalizedArgv[1] === "--help") {
-      process.stdout.write(consumerIntegrationHelp());
-      return 0;
-    }
-    return runConsumerIntegrationCli(normalizedArgv.slice(1));
-  }
-  if (normalizedArgv[0] === "qualify") {
-    return runQualificationCli(normalizedArgv.slice(1));
-  }
   if (
     (normalizedArgv.length === 1 && (normalizedArgv[0] === "--help" || normalizedArgv[0] === "help")) ||
     (normalizedArgv.length === 2 && normalizedArgv[1] === "--help")

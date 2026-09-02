@@ -18,8 +18,14 @@ import test from "node:test";
 
 import { NodeScaffoldJournalStore } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-store.js";
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
+import { assertNoOwnedCleanupResidue } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-operation-state.js";
 import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
+import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import {
+  canonicalJson,
+  compileRepositoryMutationEnvelope
+} from "../packages/repository-mutation/dist/index.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixtureRoot = join(
@@ -58,6 +64,65 @@ async function withStore(run) {
   } finally {
     await rm(root, { force: true, recursive: true });
   }
+}
+
+test("writes and recovers the closed Foundation schema6 owner composition", async () => {
+  await withStore(async ({ journal, path, root }) => {
+    const store = new NodeScaffoldJournalStore(root);
+    await store.create(journal);
+    const envelope = JSON.parse(await readFile(path, "utf8"));
+    assert.equal(envelope.schemaVersion, 6);
+    assert.equal(envelope.operationKind, "scaffolding");
+    assert.equal(envelope.recoveryHandler.id, "agent-teams.engineering-foundation.scaffolding/v1");
+    assert.equal(envelope.payloadKind, "agent-teams.engineering-foundation.scaffold-recovery-journal/v1");
+    assert.equal(envelope.state, "PREPARED");
+    assert.equal(envelope.ownerArtifact.name, "@agent-teams/engineering-foundation");
+    assert.equal(envelope.kernelArtifact.name, "@agent-teams/repository-mutation");
+    assert.deepEqual((await store.read()).journal, journal);
+
+    const status = await (await createNodeFoundationTransactionCoordinator(root)).inspect();
+    assert.equal(status.state, "pending", JSON.stringify(status));
+    assert.equal(status.operationKind, "scaffolding");
+    assert.equal(status.format, "foundation-scaffolding-envelope-v6");
+  });
+});
+
+for (const corruption of ["handler", "payload-kind", "state", "owner-build"]) {
+  test(`preserves schema6 Foundation evidence with wrong ${corruption}`, async () => {
+    await withStore(async ({ journal, path, root }) => {
+      const store = new NodeScaffoldJournalStore(root);
+      await store.create(journal);
+      const envelope = JSON.parse(await readFile(path, "utf8"));
+      const input = {
+        operationKind: envelope.operationKind,
+        recoveryHandler: envelope.recoveryHandler,
+        ownerArtifact: envelope.ownerArtifact,
+        kernelArtifact: envelope.kernelArtifact,
+        adapterContractVersion: envelope.adapterContractVersion,
+        payloadKind: envelope.payloadKind,
+        state: envelope.state,
+        payload: envelope.payload
+      };
+      if (corruption === "handler") {
+        input.recoveryHandler = { ...input.recoveryHandler, id: "unknown-handler/v1" };
+      } else if (corruption === "payload-kind") {
+        input.payloadKind = "unknown-payload/v1";
+      } else if (corruption === "state") {
+        input.state = "UNKNOWN";
+      } else {
+        input.ownerArtifact = {
+          ...input.ownerArtifact,
+          buildIdentity: `sha256:${"0".repeat(64)}`
+        };
+      }
+      const incompatible = compileRepositoryMutationEnvelope(input);
+      const evidence = `${canonicalJson(incompatible)}\n`;
+      await writeFile(path, evidence, "utf8");
+      const status = await (await createNodeFoundationTransactionCoordinator(root)).inspect();
+      assert.equal(status.state, "manual-recovery-required");
+      assert.equal(await readFile(path, "utf8"), evidence);
+    });
+  });
 }
 
 test("creates without replacing or mutating a foreign canonical slot", async () => {
@@ -490,6 +555,22 @@ test("replace commit-then-throw exposes committed after clean retirement", async
     assert.equal(observation.outcome, "committed");
     assert.equal(observation.stored.journal.operations[0].state, "publishing");
   });
+});
+
+test("bounds cleanup-residue enumeration before whole-directory allocation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "scaffold-operation-state-bounds-"));
+  try {
+    const parent = join(root, "managed");
+    await mkdir(parent);
+    await Promise.all(Array.from({ length: 1025 }, (_, index) =>
+      writeFile(join(parent, "entry-" + index), "")));
+    await assert.rejects(assertNoOwnedCleanupResidue(root, {
+      planDigest: "sha256:" + "0".repeat(64),
+      operations: [{ id: "fixture", path: "managed/output.txt" }]
+    }), /too many entries/u);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test("bounded state scan fails closed after 1024 entries", async () => {

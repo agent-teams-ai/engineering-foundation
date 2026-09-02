@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 
-import { OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER } from "../../../repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
-import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
+import { OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER } from "@agent-teams/repository-mutation/node";
+import type { PortablePathIdentity } from "@agent-teams/repository-mutation";
 import {
   captureNodeRepositoryPathAuthority,
   recaptureNodeRepositoryPathAuthority,

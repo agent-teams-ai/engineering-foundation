@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/repository-mutation-transaction-envelope/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "format", "operationKind", "recoveryHandler",
+    "ownerArtifact", "kernelArtifact", "adapterContractVersion", "payloadKind",
+    "state", "payload", "payloadDigest", "envelopeDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 6 },
+    "format": { "const": "agent-teams.repository-mutation.transaction-envelope/v1" },
+    "operationKind": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "recoveryHandler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "contractVersion": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "ownerArtifact": { "$ref": "#/$defs/artifact" },
+    "kernelArtifact": { "$ref": "#/$defs/artifact" },
+    "adapterContractVersion": { "type": "integer", "minimum": 1 },
+    "payloadKind": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "state": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "payload": {},
+    "payloadDigest": { "$ref": "#/$defs/sha256" },
+    "envelopeDigest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "buildIdentity"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "version": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "buildIdentity": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

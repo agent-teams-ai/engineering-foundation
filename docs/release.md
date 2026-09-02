@@ -1,10 +1,11 @@
 # Release Procedure
 
-All ordinary Foundation, Docs Protocol, and Docs Protocol MCP releases use npm
-Trusted Publishing from the protected `main` workflow with GitHub OIDC and
-automatic provenance. Manual workstation publication and stored long-lived npm
-credentials are not supported. The sole exception is the reviewed one-time MCP
-namespace bootstrap in ADR-0042; it cannot publish a supported release.
+All ordinary Repository Mutation, Foundation, Docs Protocol, Agent Teams
+adapter, and Docs Protocol MCP releases use npm Trusted Publishing from the
+protected `main` workflow with GitHub OIDC and automatic provenance. Manual
+workstation publication and persistent npm secrets are not supported.
+The sole exception is the reviewed one-time MCP namespace bootstrap in ADR-0042;
+it cannot publish a supported release.
 
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`.
@@ -74,12 +75,15 @@ leaves the release run failed and blocks completion evidence.
 Release-candidate waves use committed Changesets prerelease state with the exact
 `rc` tag. Changesets remains the sole version and changelog authority, but the
 publish step is deliberately ordered rather than delegated to concurrent
-workspace publication. It packs every reviewed artifact, proves the exact
-runtime dependency graph `Foundation -> Docs Protocol -> Docs Protocol MCP`,
-and publishes Foundation
-directly under the reviewed final `rc` or `latest` tag using npm Trusted
-Publishing with the npm version bundled by the pinned Node runtime. No npm
-token is stored. Immediately before each npm write, the live protected
+workspace publication. It packs every reviewed artifact and proves the exact
+five-package dependency DAG: `Repository Mutation -> Foundation -> Docs
+Protocol`, `Docs Protocol -> Agent Teams adapter`, and `Docs Protocol -> Docs
+Protocol MCP`; the adapter also binds exact Foundation and Repository Mutation
+versions. Publication follows the reviewed topological order Repository Mutation,
+Foundation, Docs Protocol, Agent Teams adapter, then Docs Protocol MCP under the
+final `rc` or `latest` tag using npm Trusted Publishing with the npm version
+bundled by the pinned Node runtime. No npm token is stored. Immediately before
+each npm write, the live protected
 `refs/heads/main` must still equal the run's exact `GITHUB_SHA`; an older run may
 inspect and reconcile an already-published exact pair but cannot publish a
 missing version after `main` advances. A current exact-main run may publish a
@@ -93,14 +97,20 @@ only from the exact SLSA statement inside that npm-verified Sigstore bundle,
 including package subject, tarball SRI, repository, workflow, ref and commit.
 Separately fetched registry attestation data is only supplementary and must
 agree with the verified statement. Only a clean exact-package signature result
-permits Docs Protocol publication under the same final tag, and the same proof
-then permits Docs Protocol MCP publication. Every package must pass the same
-audit before Git tags or GitHub releases are reconciled. The publisher requires
-`Foundation published_at <= Docs Protocol published_at <= Docs Protocol MCP published_at`.
+permits the next package in topological order to publish under the same final
+tag. Every package must pass the same audit before Git tags or GitHub releases
+are reconciled. For every dependency edge, the publisher requires the upstream
+package's `published_at` to be no later than the downstream package's timestamp.
 After all signature checks it re-reads every exact tarball, final tag, SRI and provenance before
 creating any GitHub release. The short interval where only Foundation's final
 tag has moved is non-authoritative: consumer admission starts only after the
 exact package graph receives its external qualification.
+
+A repository gate discovers every non-private direct package under `packages/`
+and requires the same package names in the existing public API compatibility,
+publishable-package, and registry-qualification authorities. The gate reads
+those owners directly; it is a completeness contract, not another package list
+or release dependency graph.
 
 The ordered publisher also owns idempotent Git tag and GitHub release
 reconciliation. The Changesets action's built-in GitHub release creation is
@@ -110,16 +120,16 @@ Changesets changelog body match. A partial boundary is completed on retry.
 Later `main` commits accept only package provenance from a verified protected-main
 ancestor and require intact final tags. An already-published exact graph performs
 no npm writes and emits no `New tag:` lines. A current exact-main patch may reuse
-an already-proven upstream prefix and publish only the missing downstream suffix
-of `Foundation -> Docs Protocol -> Docs Protocol MCP`. It emits one
-parser-compatible line for every package in that completed suffix after all npm
-and GitHub postconditions have converged.
+already-proven dependencies and publish only the missing dependency-closed set in
+reviewed topological order. It emits one parser-compatible line for every package
+completed by the current provenance commit after all npm and GitHub postconditions
+have converged.
 
 A partial retry never uses `npm dist-tag`, overwrites or unpublishes an
 immutable npm version. It may skip an existing version only when its SRI,
 complete packed manifest and trusted source provenance exactly match the local
-reviewed artifact. A partial release may publish its missing downstream suffix
-from a later exact protected-main run only after every existing upstream package
+reviewed artifact. A later exact protected-main run may publish a partial
+release's missing dependency-closed set only after every existing dependency
 passes the reusable-artifact proof. Before the first publication, every exact
 package state is inspected; a graph with a published package whose required
 upstream dependency is missing is quarantined without filling that upstream

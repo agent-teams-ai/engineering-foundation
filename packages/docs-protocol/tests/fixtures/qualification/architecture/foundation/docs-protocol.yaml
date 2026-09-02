@@ -1,8 +1,0 @@
-schemaVersion: 2
-protocol: {id: agent-teams.docs-protocol, version: 1}
-foundationProfile:
-  path: architecture/foundation/document-authoring.yaml
-  schemaVersion: 3
-  metadataSidecarPolicy: foundation-profile-v3-strict-merge
-agentWorkflow: {skillPath: .agents/skills/docs-authoring/SKILL.md}
-semanticValidatorIds: []

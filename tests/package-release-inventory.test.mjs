@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, opendir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+
+import { parse as parseYaml } from "yaml";
 
 import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
@@ -25,10 +27,122 @@ const repositoryPackageRoot = new URL(
   import.meta.url,
 );
 
-function assertMcpBaselineMatchesManifest(baseline, manifest) {
+function assertInitialBaselineMatchesManifest(baseline, manifest) {
   assert.equal(baseline.packageName, manifest.name);
   assert.equal(baseline.packageVersion, manifest.version);
 }
+
+function authorityPackageNames(values, authority) {
+  const names = values.map(({ name }) => name).toSorted();
+  assert.equal(
+    new Set(names).size,
+    names.length,
+    `${authority} must contain unique package names`,
+  );
+  return names;
+}
+
+function assertPublicWorkspacePackageAuthorities({
+  publicWorkspacePackages,
+  publicApiPackages,
+  releasePackages,
+  qualificationPackages,
+  securityPackages,
+}) {
+  const expected = authorityPackageNames(publicWorkspacePackages, "workspace package inventory");
+  for (const [authority, values] of [
+    ["public API", publicApiPackages],
+    ["release", releasePackages],
+    ["package qualification", qualificationPackages],
+    ["repository security", securityPackages],
+  ]) {
+    const observed = authorityPackageNames(values, authority);
+    const missing = expected.filter((name) => !observed.includes(name));
+    const stale = observed.filter((name) => !expected.includes(name));
+    if (missing.length > 0 || stale.length > 0) {
+      throw new Error(
+        `${authority} package authority does not match public workspace packages; ` +
+          `missing=[${missing.join(", ")}], stale=[${stale.join(", ")}].`,
+      );
+    }
+  }
+}
+
+async function resolveManifestAuthorityPackages(manifestPaths) {
+  return Promise.all(
+    manifestPaths.map(async (manifestPath) => {
+      const manifest = JSON.parse(
+        await readFile(new URL(`../${manifestPath}`, import.meta.url), "utf8"),
+      );
+      return { name: manifest.name };
+    }),
+  );
+}
+
+async function discoverPublicWorkspacePackages() {
+  const packagesRoot = new URL("../packages/", import.meta.url);
+  const directory = await opendir(packagesRoot);
+  const packages = [];
+  for await (const entry of directory) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const manifest = JSON.parse(
+      await readFile(new URL(`${entry.name}/package.json`, packagesRoot), "utf8"),
+    );
+    if (manifest.private !== true) {
+      packages.push({ name: manifest.name });
+    }
+  }
+  return packages;
+}
+
+test("every public workspace package has API, release, qualification, and security authority", async () => {
+  const publicApiConfig = parseYaml(
+    await readFile(
+      new URL("../architecture/foundation/public-api-compatibility.yaml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const repositorySecurityConfig = parseYaml(
+    await readFile(
+      new URL("../architecture/foundation/repository-security-baseline.yaml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const authorities = {
+    publicWorkspacePackages: await discoverPublicWorkspacePackages(),
+    publicApiPackages: publicApiConfig.packages.map(({ packageName: name }) => ({ name })),
+    releasePackages: PUBLISHABLE_PACKAGES,
+    qualificationPackages: registryQualificationPackages(PUBLISHABLE_PACKAGES),
+    securityPackages: await resolveManifestAuthorityPackages(
+      repositorySecurityConfig.publishablePackageManifests,
+    ),
+  };
+  assert.doesNotThrow(() => assertPublicWorkspacePackageAuthorities(authorities));
+
+  assert.throws(
+    () => assertPublicWorkspacePackageAuthorities({
+      ...authorities,
+      qualificationPackages: authorities.qualificationPackages.slice(0, -1),
+    }),
+    /package qualification.*missing=\[@agent-teams\/docs-protocol-mcp\]/u,
+  );
+  assert.throws(
+    () => assertPublicWorkspacePackageAuthorities({
+      ...authorities,
+      publicApiPackages: [...authorities.publicApiPackages, { name: "@fixture/retired" }],
+    }),
+    /public API.*stale=\[@fixture\/retired\]/u,
+  );
+  assert.throws(
+    () => assertPublicWorkspacePackageAuthorities({
+      ...authorities,
+      securityPackages: authorities.securityPackages.slice(1),
+    }),
+    /repository security.*missing=\[@agent-teams\/repository-mutation\]/u,
+  );
+});
 
 test("registry qualification includes Docs Protocol exactly once across bootstrap promotion", () => {
   const foundation = {
@@ -104,20 +218,78 @@ test("reviewed catalog and API baseline follow the public Docs Protocol MCP mani
   const baseline = JSON.parse(
     await readFile(new URL("../architecture/public-api/docs-protocol-mcp.json", import.meta.url), "utf8"),
   );
-  assertMcpBaselineMatchesManifest(baseline, manifest);
+  assertInitialBaselineMatchesManifest(baseline, manifest);
 });
 
 test("Docs Protocol MCP API baseline supports the initial release transition", () => {
   for (const version of ["0.0.0", "0.1.0"]) {
-    assert.doesNotThrow(() => assertMcpBaselineMatchesManifest(
+    assert.doesNotThrow(() => assertInitialBaselineMatchesManifest(
       { packageName: "@agent-teams/docs-protocol-mcp", packageVersion: version },
       { name: "@agent-teams/docs-protocol-mcp", version },
     ));
   }
-  assert.throws(() => assertMcpBaselineMatchesManifest(
+  assert.throws(() => assertInitialBaselineMatchesManifest(
     { packageName: "@agent-teams/docs-protocol-mcp", packageVersion: "0.0.0" },
     { name: "@agent-teams/docs-protocol-mcp", version: "0.1.0" },
   ));
+});
+
+test("reviewed catalog and API baseline follow the public Agent Teams adapter manifest", async () => {
+  const entries = PUBLISHABLE_PACKAGES.filter(
+    ({ name }) => name === "@agent-teams/docs-protocol-agent-teams",
+  );
+  assert.deepEqual(entries, [
+    {
+      changelogPath: "packages/docs-protocol-agent-teams/CHANGELOG.md",
+      manifestPath: "packages/docs-protocol-agent-teams/package.json",
+      name: "@agent-teams/docs-protocol-agent-teams",
+      root: "packages/docs-protocol-agent-teams",
+    },
+  ]);
+  const manifest = JSON.parse(
+    await readFile(new URL("../packages/docs-protocol-agent-teams/package.json", import.meta.url), "utf8"),
+  );
+  assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
+  assert.equal(manifest.private, undefined);
+  assert.deepEqual(Object.keys(manifest.exports).toSorted(), [
+    ".",
+    "./package.json",
+    "./qualification",
+    "./schemas/*",
+  ]);
+  const baseline = JSON.parse(
+    await readFile(new URL("../architecture/public-api/docs-protocol-agent-teams.json", import.meta.url), "utf8"),
+  );
+  assertInitialBaselineMatchesManifest(baseline, manifest);
+});
+
+test("Agent Teams adapter API baseline supports the initial release transition", () => {
+  for (const version of ["0.0.0", "0.1.0"]) {
+    assert.doesNotThrow(() => assertInitialBaselineMatchesManifest(
+      { packageName: "@agent-teams/docs-protocol-agent-teams", packageVersion: version },
+      { name: "@agent-teams/docs-protocol-agent-teams", version },
+    ));
+  }
+  assert.throws(() => assertInitialBaselineMatchesManifest(
+    { packageName: "@agent-teams/docs-protocol-agent-teams", packageVersion: "0.0.0" },
+    { name: "@agent-teams/docs-protocol-agent-teams", version: "0.1.0" },
+  ));
+});
+
+test("Agent Teams adapter declarations close the managed qualification public types", async () => {
+  const declarations = await Promise.all([
+    readFile(new URL("../packages/docs-protocol-agent-teams/dist/index.d.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../packages/docs-protocol-agent-teams/dist/qualification/index.d.ts", import.meta.url),
+      "utf8",
+    ),
+  ]);
+  for (const source of declarations) {
+    assert.match(source, /DocsProtocolQualificationContractV2/u);
+    assert.match(source, /DocsProtocolQualificationReceiptV2/u);
+    assert.match(source, /DocsProtocolQualificationScenarioV2/u);
+    assert.match(source, /DocsProtocolQualificationV2Request/u);
+  }
 });
 
 test("release manifest exactly follows the package self-check allowlist", async () => {
@@ -174,10 +346,28 @@ test("clean checkout package stages materialize the repository license", async (
 
     const stage = await createCleanBuildStage({
       artifactLabel: "clean-checkout",
+      authoritativePackageRoots: [supportRoot, packageRoot],
+      buildPackageNames: ["qualified-package"],
+      dependencyDeclarations: {
+        "qualified-package": [],
+        "support-package": [],
+      },
+      packageName: "qualified-package",
       packageRoot,
       repositoryRoot: root,
       runBuild: async () => {},
-      supportPackageRoots: [supportRoot],
+      stagePackages: [
+        {
+          name: "support-package",
+          root: "packages/support-package",
+          sourceRoot: supportRoot,
+        },
+        {
+          name: "qualified-package",
+          root: "packages/qualified-package",
+          sourceRoot: packageRoot,
+        },
+      ],
       temporaryRoot,
     }, "a");
 

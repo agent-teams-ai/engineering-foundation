@@ -85,7 +85,7 @@ function validatorIds(value: unknown): readonly string[] {
 export function parseDocsProtocolProfile(value: unknown): NormalizedDocsProtocolProfile {
   const candidate = record(value, "profile");
   exactKeys(candidate, ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "semanticValidatorIds"], "profile");
-  if (candidate["schemaVersion"] !== 1 && candidate["schemaVersion"] !== 2 && candidate["schemaVersion"] !== 3) {throw new DocsProfileError("profile.schemaVersion must be 1, 2, or 3.");}
+  if (candidate["schemaVersion"] !== 3) {throw new DocsProfileError("profile.schemaVersion must be 3.");}
   const protocol = record(candidate["protocol"], "profile.protocol");
   exactKeys(protocol, ["id", "version"], "profile.protocol");
   if (protocol["id"] !== DOCS_PROTOCOL_ID || protocol["version"] !== DOCS_PROTOCOL_VERSION) {
@@ -93,15 +93,14 @@ export function parseDocsProtocolProfile(value: unknown): NormalizedDocsProtocol
   }
   const foundationProfile = record(candidate["foundationProfile"], "profile.foundationProfile");
   exactKeys(foundationProfile, ["metadataSidecarPolicy", "path", "schemaVersion"], "profile.foundationProfile");
-  const profileV2 = candidate["schemaVersion"] === 1 && foundationProfile["schemaVersion"] === 2 && foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v2-strict-merge";
-  const profileV3 = candidate["schemaVersion"] === 2 && foundationProfile["schemaVersion"] === 3 && foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v3-strict-merge";
-  const portableV3 = candidate["schemaVersion"] === 3 && foundationProfile["schemaVersion"] === 3 && foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v3-strict-merge";
-  if (!profileV2 && !profileV3 && !portableV3) {
-    throw new DocsProfileError("profile.foundationProfile must match its versioned Foundation profile route.");
+  const portableV3 = foundationProfile["schemaVersion"] === 3 &&
+    foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v3-strict-merge";
+  if (!portableV3) {
+    throw new DocsProfileError("profile.foundationProfile must use the portable v3 Foundation profile route.");
   }
   const workflow = record(candidate["agentWorkflow"], "profile.agentWorkflow");
-  exactKeys(workflow, portableV3 ? ["adoption", "skillPath"] : ["skillPath"], "profile.agentWorkflow");
-  if (portableV3 && workflow["adoption"] !== "portable-v1") {
+  exactKeys(workflow, ["adoption", "skillPath"], "profile.agentWorkflow");
+  if (workflow["adoption"] !== "portable-v1") {
     throw new DocsProfileError("profile.agentWorkflow.adoption must be portable-v1.");
   }
   const skillPath = validatePortableRepositoryPath(workflow["skillPath"], "profile.agentWorkflow.skillPath");
@@ -110,24 +109,6 @@ export function parseDocsProtocolProfile(value: unknown): NormalizedDocsProtocol
     semanticValidatorIds: validatorIds(candidate["semanticValidatorIds"])
   };
   const path = validatePortableRepositoryPath(foundationProfile["path"], "profile.foundationProfile.path");
-  if (profileV2) {
-    return Object.freeze({
-      ...shared,
-      adoptionPolicy: "agent-teams-managed-v1" as const,
-      agentWorkflow: Object.freeze({ skillPath }),
-      schemaVersion: 1 as const,
-      foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v2-strict-merge" as const, path, schemaVersion: 2 as const })
-    });
-  }
-  if (profileV3) {
-    return Object.freeze({
-      ...shared,
-      adoptionPolicy: "agent-teams-managed-v1" as const,
-      agentWorkflow: Object.freeze({ skillPath }),
-      schemaVersion: 2 as const,
-      foundationProfile: Object.freeze({ metadataSidecarPolicy: "foundation-profile-v3-strict-merge" as const, path, schemaVersion: 3 as const })
-    });
-  }
   return Object.freeze({
     ...shared,
     adoptionPolicy: "portable-v1" as const,

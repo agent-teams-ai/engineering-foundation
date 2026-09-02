@@ -2,6 +2,7 @@ import type { JsonValue, ScaffoldPlan } from "../contract/types.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import { sha256Bytes, sha256Json } from "./canonical-json.js";
 import {
+  MAX_SCAFFOLD_FILE_BYTES,
   MAX_SCAFFOLD_OPERATIONS,
   MAX_SCAFFOLD_TOTAL_BYTES
 } from "./limits.js";
@@ -39,6 +40,16 @@ export function assertScaffoldPlanContent(plan: ScaffoldPlan): void {
   const targetPrefix = `${plan.target.path}/`;
   let totalBytes = 0;
   for (const operation of plan.operations) {
+    const maximumBase64Length = 4 * Math.ceil(MAX_SCAFFOLD_FILE_BYTES / 3);
+    if (typeof operation.after.contentBase64 !== "string" ||
+      operation.after.contentBase64.length > maximumBase64Length ||
+      !Number.isSafeInteger(operation.after.size) || operation.after.size < 0 ||
+      operation.after.size > MAX_SCAFFOLD_FILE_BYTES) {
+      throw new ScaffoldError(
+        "SCAFFOLD_PLAN_INVALID",
+        `Scaffolding operation content is outside its byte bound: ${operation.id}.`
+      );
+    }
     const bytes = Buffer.from(operation.after.contentBase64, "base64");
     if (
       bytes.toString("base64") !== operation.after.contentBase64 ||

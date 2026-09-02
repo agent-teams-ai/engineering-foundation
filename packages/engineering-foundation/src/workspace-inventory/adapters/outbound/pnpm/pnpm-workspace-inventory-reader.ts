@@ -1,37 +1,23 @@
-import { glob, realpath } from "node:fs/promises";
-import { isAbsolute, posix, relative, resolve, sep } from "node:path";
+import type { Dirent } from "node:fs";
+import { opendir } from "node:fs/promises";
+import { isAbsolute, join, posix, sep } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../capability-runtime.js";
-import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../filesystem-path-safety.js";
 import {
   assertNotCancelled,
   loadStrictYamlFile
 } from "../../../../strict-yaml.js";
 import type {
   CatalogEntry,
-  DependencyDeclaration,
-  PackageExportEntry,
-  PackageExportSurface,
-  WorkspaceInventory,
-  WorkspacePackage
+  WorkspaceInventory
 } from "../../../application/model/workspace-inventory.js";
-import { DEPENDENCY_SECTIONS } from "../../../application/model/workspace-inventory.js";
 import type { WorkspaceInventoryReader } from "../../../application/ports/workspace-inventory-reader.js";
+import { readPnpmPackageManifestSnapshots } from "./pnpm-package-manifest-snapshot-reader.js";
 
-const MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
 const MAX_WORKSPACE_PACKAGES = 5_000;
-const READ_CONCURRENCY = 32;
-const IGNORED_GLOBS = [
-  "**/.git/**",
-  "**/node_modules/**",
-  "**/dist/**",
-  "**/coverage/**"
-];
+const MAX_WORKSPACE_DISCOVERY_ENTRIES = 500_000;
+const IGNORED_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
 
 function inputError(code: string, message: string, phase: string): never {
   throw new CapabilityInputError({ code, message, phase, retryable: false });
@@ -45,8 +31,72 @@ function toPosixPath(path: string): string {
   return path.split(sep).join("/");
 }
 
+function validatedGlobManifestPath(candidate: string): string {
+  const repositoryPath = toPosixPath(candidate);
+  const segments = repositoryPath.split("/");
+  if (
+    isAbsolute(candidate) ||
+    posix.isAbsolute(repositoryPath) ||
+    /^[A-Za-z]:/u.test(repositoryPath) ||
+    repositoryPath.startsWith("//") ||
+    segments.some(
+      (segment) => segment.length === 0 || segment === "." || segment === ".."
+    ) ||
+    posix.normalize(repositoryPath) !== repositoryPath ||
+    posix.basename(repositoryPath) !== "package.json"
+  ) {
+    inputError(
+      "WORKSPACE_GLOB_CANDIDATE_INVALID",
+      "Workspace discovery returned a non-contained package manifest candidate.",
+      "workspace-discovery"
+    );
+  }
+  return repositoryPath;
+}
+
 function portablePathIdentity(path: string): string {
   return path.normalize("NFC").toLocaleLowerCase("en-US");
+}
+
+function assertPatternDirectoryIdentity(
+  patterns: readonly string[],
+  directoriesByIdentity: ReadonlyMap<string, string>
+): void {
+  for (const pattern of patterns) {
+    const segments = (pattern.startsWith("!") ? pattern.slice(1) : pattern).split("/");
+    const literalSegments: string[] = [];
+    for (const segment of segments) {
+      if (/[*?[\]{}()]/u.test(segment)) {
+        break;
+      }
+      literalSegments.push(segment);
+      const literalPath = literalSegments.join("/");
+      const discovered = directoriesByIdentity.get(portablePathIdentity(literalPath));
+      if (discovered !== undefined && discovered !== literalPath) {
+        inputError(
+          "PACKAGE_PATH_CASE_COLLISION",
+          `Workspace pattern and package directory paths differ only by portable identity: ${literalPath} and ${discovered}.`,
+          "workspace-discovery"
+        );
+      }
+    }
+  }
+}
+
+function recordWorkspaceDirectory(
+  directoriesByIdentity: Map<string, string>,
+  repositoryPath: string
+): void {
+  const identity = portablePathIdentity(repositoryPath);
+  const existing = directoriesByIdentity.get(identity);
+  if (existing !== undefined && existing !== repositoryPath) {
+    inputError(
+      "PACKAGE_PATH_CASE_COLLISION",
+      `Workspace package directories differ only by portable identity: ${existing} and ${repositoryPath}.`,
+      "workspace-discovery"
+    );
+  }
+  directoriesByIdentity.set(identity, repositoryPath);
 }
 
 function validateWorkspacePatterns(value: unknown): readonly string[] {
@@ -91,230 +141,6 @@ function stringRecord(
     }
   }
   return value as Readonly<Record<string, string>>;
-}
-
-function optionalStringArray(value: unknown, field: string): readonly string[] {
-  if (value === undefined) {
-    return [];
-  }
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
-    inputError(
-      "PACKAGE_MANIFEST_INVALID",
-      `${field} must be an array of package names.`,
-      "package-manifest"
-    );
-  }
-  return value as readonly string[];
-}
-
-function targetAvailability(value: unknown, field: string): "available" | "blocked" {
-  if (value === null) {
-    return "blocked";
-  }
-  if (typeof value === "string") {
-    return "available";
-  }
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      inputError(
-        "PACKAGE_EXPORTS_INVALID",
-        `${field} export target array cannot be empty.`,
-        "package-manifest"
-      );
-    }
-    return value.some((entry) => targetAvailability(entry, field) === "available")
-      ? "available"
-      : "blocked";
-  }
-  if (isRecord(value)) {
-    const entries = Object.entries(value);
-    if (entries.length === 0 || entries.some(([condition]) => condition.length === 0)) {
-      inputError(
-        "PACKAGE_EXPORTS_INVALID",
-        `${field} conditional export target is invalid.`,
-        "package-manifest"
-      );
-    }
-    return entries.some(
-      ([condition, target]) =>
-        condition !== "" && targetAvailability(target, `${field}.${condition}`) === "available"
-    )
-      ? "available"
-      : "blocked";
-  }
-  inputError(
-    "PACKAGE_EXPORTS_INVALID",
-    `${field} export target must be a string, null, array, or condition object.`,
-    "package-manifest"
-  );
-}
-
-function normalizeExportSurface(value: unknown, manifestPath: string): PackageExportSurface {
-  if (value === undefined) {
-    return { explicit: false, entries: [] };
-  }
-  const entries: PackageExportEntry[] = [];
-  if (isRecord(value)) {
-    const keys = Object.keys(value);
-    if (keys.length === 0) {
-      return { explicit: true, entries: [] };
-    }
-    const subpathKeys = keys.filter((key) => key.startsWith("."));
-    if (subpathKeys.length > 0 && subpathKeys.length !== keys.length) {
-      inputError(
-        "PACKAGE_EXPORTS_INVALID",
-        `${manifestPath} exports cannot mix subpaths and conditions at the same level.`,
-        "package-manifest"
-      );
-    }
-    if (subpathKeys.length > 0) {
-      for (const subpath of subpathKeys) {
-        const segments = subpath.split("/");
-        if (
-          (subpath !== "." && !subpath.startsWith("./")) ||
-          subpath.includes("\\") ||
-          (subpath.match(/\*/gu)?.length ?? 0) > 1 ||
-          segments.some(
-            (segment, index) =>
-              index > 0 &&
-              (segment === "" || segment === "." || segment === ".." || segment === "node_modules")
-          )
-        ) {
-          inputError(
-            "PACKAGE_EXPORTS_INVALID",
-            `${manifestPath} contains an invalid export subpath: ${subpath}.`,
-            "package-manifest"
-          );
-        }
-        entries.push({
-          subpath,
-          availability: targetAvailability(value[subpath], `${manifestPath} exports.${subpath}`)
-        });
-      }
-    } else {
-      entries.push({
-        subpath: ".",
-        availability: targetAvailability(value, `${manifestPath} exports`)
-      });
-    }
-  } else {
-    entries.push({
-      subpath: ".",
-      availability: targetAvailability(value, `${manifestPath} exports`)
-    });
-  }
-  return {
-    explicit: true,
-    entries: entries.toSorted((left, right) =>
-      compareBinaryStrings(left.subpath, right.subpath)
-    )
-  };
-}
-
-async function readJsonManifest(
-  consumerRoot: string,
-  manifestPath: string,
-  signal?: AbortSignal
-): Promise<WorkspacePackage> {
-  assertNotCancelled(signal);
-  const canonicalRoot = await realpath(consumerRoot);
-  const absolutePath = resolve(canonicalRoot, manifestPath);
-  if (await pathTraversesSymbolicLink(canonicalRoot, absolutePath)) {
-    inputError(
-      "PACKAGE_MANIFEST_SYMLINK_PROHIBITED",
-      `Workspace package manifests cannot be symbolic links: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
-  const canonicalPath = await realpath(absolutePath).catch(() =>
-    inputError(
-      "PACKAGE_MANIFEST_UNAVAILABLE",
-      `Workspace package manifest is unavailable: ${manifestPath}.`,
-      "package-manifest"
-    )
-  );
-  const relation = relative(canonicalRoot, canonicalPath);
-  if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
-    inputError(
-      "PACKAGE_MANIFEST_ESCAPE",
-      `Workspace package manifest escapes the consumer repository: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
-  let input: unknown;
-  try {
-    const bytes = await readContainedRegularFile({
-      candidate: canonicalPath,
-      maxBytes: MAX_MANIFEST_BYTES,
-      root: canonicalRoot
-    });
-    input = JSON.parse(bytes.toString("utf8")) as unknown;
-  } catch (error) {
-    if (!(error instanceof SyntaxError) && !(error instanceof ContainedFileReadError)) {
-      throw error;
-    }
-    inputError(
-      "PACKAGE_MANIFEST_INVALID",
-      `Workspace package manifest changed, escaped containment, or is not stable valid JSON: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
-  if (!isRecord(input)) {
-    inputError(
-      "PACKAGE_MANIFEST_INVALID",
-      `Workspace package manifest must contain an object: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
-
-  const packageName =
-    typeof input["name"] === "string" && input["name"].length > 0
-      ? input["name"]
-      : `<unnamed:${manifestPath}>`;
-  const dependencies: DependencyDeclaration[] = [];
-  for (const section of DEPENDENCY_SECTIONS) {
-    if (input[section] === undefined) {
-      continue;
-    }
-    const declarations = stringRecord(
-      input[section],
-      `${manifestPath} ${section}`,
-      "package-manifest"
-    );
-    for (const [dependencyName, specifier] of Object.entries(declarations)) {
-      dependencies.push({
-        packageName,
-        manifestPath,
-        section,
-        dependencyName,
-        specifier
-      });
-    }
-  }
-  return {
-    name: packageName,
-    rootPath: posix.dirname(manifestPath),
-    manifestPath,
-    ...(typeof input["packageManager"] === "string"
-      ? { packageManager: input["packageManager"] }
-      : {}),
-    dependencies: dependencies.toSorted(
-      (left, right) =>
-        compareBinaryStrings(left.dependencyName, right.dependencyName) ||
-        compareBinaryStrings(left.section, right.section)
-    ),
-    bundledDependencies: [
-      ...optionalStringArray(
-        input["bundleDependencies"],
-        `${manifestPath} bundleDependencies`
-      ),
-      ...optionalStringArray(
-        input["bundledDependencies"],
-        `${manifestPath} bundledDependencies`
-      )
-    ].toSorted(),
-    exportSurface: normalizeExportSurface(input["exports"], manifestPath)
-  };
 }
 
 function parseCatalog(
@@ -366,29 +192,125 @@ function selectedByPatterns(directory: string, patterns: readonly string[]): boo
   );
 }
 
+function assertSafeDirectoryEntry(entry: Dirent): void {
+  if (
+    entry.name.length === 0 ||
+    entry.name === "." ||
+    entry.name === ".." ||
+    entry.name.includes("/") ||
+    entry.name.includes("\\")
+  ) {
+    inputError(
+      "WORKSPACE_GLOB_CANDIDATE_INVALID",
+      "Workspace discovery returned an unsafe directory entry.",
+      "workspace-discovery"
+    );
+  }
+}
+
+async function readDirectoryEntries(
+  absolutePath: string,
+  repositoryPath: string,
+  budget: { entries: number },
+  signal?: AbortSignal
+): Promise<readonly Dirent[]> {
+  let handle: Awaited<ReturnType<typeof opendir>>;
+  try {
+    handle = await opendir(absolutePath);
+  } catch {
+    assertNotCancelled(signal);
+    inputError(
+      "WORKSPACE_DISCOVERY_UNAVAILABLE",
+      `Workspace discovery could not inspect ${repositoryPath}.`,
+      "workspace-discovery"
+    );
+  }
+  assertNotCancelled(signal);
+  const entries: Dirent[] = [];
+  try {
+    for await (const entry of handle) {
+      assertNotCancelled(signal);
+      budget.entries += 1;
+      if (budget.entries > MAX_WORKSPACE_DISCOVERY_ENTRIES) {
+        inputError(
+          "WORKSPACE_DISCOVERY_LIMIT_EXCEEDED",
+          `Workspace discovery exceeds ${MAX_WORKSPACE_DISCOVERY_ENTRIES} filesystem entries.`,
+          "workspace-discovery"
+        );
+      }
+      assertSafeDirectoryEntry(entry);
+      entries.push(entry);
+    }
+  } finally {
+    await handle.close().catch(() => {});
+  }
+  assertNotCancelled(signal);
+  return entries.toSorted((left, right) =>
+    compareBinaryStrings(left.name, right.name)
+  );
+}
+
+function recordSelectedManifest(
+  manifests: Set<string>,
+  patterns: readonly string[],
+  repositoryPath: string
+): void {
+  const manifestPath = validatedGlobManifestPath(repositoryPath);
+  if (!selectedByPatterns(posix.dirname(manifestPath), patterns)) {
+    return;
+  }
+  manifests.add(manifestPath);
+  if (manifests.size > MAX_WORKSPACE_PACKAGES) {
+    inputError(
+      "WORKSPACE_LIMIT_EXCEEDED",
+      `Workspace contains more than ${MAX_WORKSPACE_PACKAGES} package manifests.`,
+      "workspace-discovery"
+    );
+  }
+}
+
 async function discoverManifestPaths(
   consumerRoot: string,
   patterns: readonly string[],
   signal?: AbortSignal
 ): Promise<readonly string[]> {
   const manifests = new Set<string>(["package.json"]);
-  for await (const candidate of glob("**/package.json", {
-    cwd: consumerRoot,
-    exclude: IGNORED_GLOBS
-  })) {
+  const directoriesByIdentity = new Map<string, string>();
+  const directories: { readonly absolutePath: string; readonly repositoryPath: string }[] = [
+    { absolutePath: consumerRoot, repositoryPath: "." }
+  ];
+  const budget = { entries: 0 };
+  while (directories.length > 0) {
     assertNotCancelled(signal);
-    const manifestPath = toPosixPath(candidate);
-    if (selectedByPatterns(posix.dirname(manifestPath), patterns)) {
-      manifests.add(manifestPath);
-      if (manifests.size > MAX_WORKSPACE_PACKAGES) {
-        inputError(
-          "WORKSPACE_LIMIT_EXCEEDED",
-          `Workspace contains more than ${MAX_WORKSPACE_PACKAGES} package manifests.`,
-          "workspace-discovery"
-        );
+    const directory = directories.pop();
+    if (directory === undefined) {
+      break;
+    }
+    const entries = await readDirectoryEntries(
+      directory.absolutePath,
+      directory.repositoryPath,
+      budget,
+      signal
+    );
+    for (const entry of entries.toReversed()) {
+      const repositoryPath = directory.repositoryPath === "."
+        ? entry.name
+        : posix.join(directory.repositoryPath, entry.name);
+      if (entry.isDirectory()) {
+        if (!IGNORED_DIRECTORY_NAMES.has(entry.name)) {
+          recordWorkspaceDirectory(directoriesByIdentity, repositoryPath);
+          directories.push({
+            absolutePath: join(directory.absolutePath, entry.name),
+            repositoryPath
+          });
+        }
+      } else if (entry.isFile() && entry.name === "package.json") {
+        recordSelectedManifest(manifests, patterns, repositoryPath);
       }
     }
   }
+  assertNotCancelled(signal);
+  assertPatternDirectoryIdentity(patterns, directoriesByIdentity);
   const manifestPaths = [...manifests].toSorted();
   const caseFoldedPaths = new Map<string, string>();
   for (const manifestPath of manifestPaths) {
@@ -406,27 +328,74 @@ async function discoverManifestPaths(
   return manifestPaths;
 }
 
-async function readManifestBatch(
+async function readPnpmWorkspaceInventoryFromManifestPaths(
   consumerRoot: string,
-  paths: readonly string[],
+  workspaceManifest: unknown,
+  manifestPaths: readonly string[],
   signal?: AbortSignal
-): Promise<readonly WorkspacePackage[]> {
-  const packages: WorkspacePackage[] = [];
-  for (let index = 0; index < paths.length; index += READ_CONCURRENCY) {
-    packages.push(
-      ...(await Promise.all(
-        paths
-          .slice(index, index + READ_CONCURRENCY)
-          .map((path) => readJsonManifest(consumerRoot, path, signal))
-      ))
+): Promise<WorkspaceInventory> {
+  if (!isRecord(workspaceManifest)) {
+    inputError(
+      "PNPM_WORKSPACE_INVALID",
+      "pnpm-workspace.yaml must contain an object.",
+      "workspace-manifest"
     );
   }
-  return packages.toSorted((left, right) =>
-    compareBinaryStrings(left.manifestPath, right.manifestPath)
-  );
+  const containedManifestPaths = manifestPaths.map(validatedGlobManifestPath);
+  return {
+    ...(typeof workspaceManifest["catalogMode"] === "string"
+      ? { catalogMode: workspaceManifest["catalogMode"] }
+      : {}),
+    catalogs: [
+      ...parseCatalog(workspaceManifest, "catalog"),
+      ...parseCatalog(workspaceManifest, "catalogs")
+    ].toSorted(
+      (left, right) =>
+        compareBinaryStrings(left.catalogName, right.catalogName) ||
+        compareBinaryStrings(left.dependencyName, right.dependencyName)
+    ),
+    packages: await readPnpmPackageManifestSnapshots(
+      consumerRoot,
+      containedManifestPaths,
+      signal
+    )
+  };
 }
 
 export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
+  discoverManifestPathsFromManifest(
+    consumerRoot: string,
+    workspaceManifest: unknown,
+    signal?: AbortSignal
+  ): Promise<readonly string[]> {
+    if (!isRecord(workspaceManifest)) {
+      inputError(
+        "PNPM_WORKSPACE_INVALID",
+        "pnpm-workspace.yaml must contain an object.",
+        "workspace-manifest"
+      );
+    }
+    return discoverManifestPaths(
+      consumerRoot,
+      validateWorkspacePatterns(workspaceManifest["packages"]),
+      signal
+    );
+  }
+
+  readFromManifestPaths(
+    consumerRoot: string,
+    workspaceManifest: unknown,
+    manifestPaths: readonly string[],
+    signal?: AbortSignal
+  ): Promise<WorkspaceInventory> {
+    return readPnpmWorkspaceInventoryFromManifestPaths(
+      consumerRoot,
+      workspaceManifest,
+      manifestPaths,
+      signal
+    );
+  }
+
   async discoverManifestPaths(
     consumerRoot: string,
     workspaceManifestPath: string,
@@ -445,11 +414,7 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
         "workspace-manifest"
       );
     }
-    return discoverManifestPaths(
-      consumerRoot,
-      validateWorkspacePatterns(input["packages"]),
-      signal
-    );
+    return this.discoverManifestPathsFromManifest(consumerRoot, input, signal);
   }
 
   async read(
@@ -470,21 +435,16 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
         "workspace-manifest"
       );
     }
-    const patterns = validateWorkspacePatterns(input["packages"]);
-    const manifestPaths = await discoverManifestPaths(consumerRoot, patterns, signal);
-    return {
-      ...(typeof input["catalogMode"] === "string"
-        ? { catalogMode: input["catalogMode"] }
-        : {}),
-      catalogs: [
-        ...parseCatalog(input, "catalog"),
-        ...parseCatalog(input, "catalogs")
-      ].toSorted(
-        (left, right) =>
-          compareBinaryStrings(left.catalogName, right.catalogName) ||
-          compareBinaryStrings(left.dependencyName, right.dependencyName)
-      ),
-      packages: await readManifestBatch(consumerRoot, manifestPaths, signal)
-    };
+    const manifestPaths = await this.discoverManifestPathsFromManifest(
+      consumerRoot,
+      input,
+      signal
+    );
+    return readPnpmWorkspaceInventoryFromManifestPaths(
+      consumerRoot,
+      input,
+      manifestPaths,
+      signal
+    );
   }
 }

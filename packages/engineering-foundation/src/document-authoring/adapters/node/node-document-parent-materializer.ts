@@ -1,8 +1,10 @@
 import { lstat, mkdir, readdir, realpath } from "node:fs/promises";
 import { join } from "node:path";
 
-import { syncDirectoryStrictly } from "../../../repository-mutation/adapters/node/node-directory-durability.js";
-import { createAndBindNodeDirectory } from "../../../repository-mutation/adapters/node/node-create-and-bind-directory.js";
+import {
+  createAndBindNodeDirectory,
+  syncDirectoryStrictly
+} from "@agent-teams/repository-mutation/node";
 import {
   assertNonzeroDocumentPhysicalIdentity,
   type DocumentPhysicalIdentity

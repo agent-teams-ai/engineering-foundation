@@ -24,6 +24,34 @@ function sameIdentity(left: { readonly dev: bigint; readonly ino: bigint }, righ
   return left.dev === right.dev && left.ino === right.ino;
 }
 
+async function pathIdentities(root: string, profilePath: string): Promise<readonly { readonly dev: bigint; readonly ino: bigint }[]> {
+  let current = root;
+  const rootState = await lstat(root, { bigint: true });
+  if (rootState.isSymbolicLink() || !rootState.isDirectory()) {
+    throw new DocsProfileError("Profile path must be a real contained file without symlinks.");
+  }
+  const identities = [{ dev: rootState.dev, ino: rootState.ino }];
+  const segments = profilePath.split("/");
+  for (const [index, segment] of segments.entries()) {
+    current = resolve(current, segment);
+    const state = await lstat(current, { bigint: true });
+    if (state.isSymbolicLink() || (index < segments.length - 1 && !state.isDirectory())) {
+      throw new DocsProfileError("Profile path must be a real contained file without symlinks.");
+    }
+    identities.push({ dev: state.dev, ino: state.ino });
+  }
+  return identities;
+}
+
+function assertSamePathIdentities(
+  left: readonly { readonly dev: bigint; readonly ino: bigint }[],
+  right: readonly { readonly dev: bigint; readonly ino: bigint }[]
+): void {
+  if (left.length !== right.length || !left.every((identity, index) => sameIdentity(identity, right[index]!))) {
+    throw new DocsProfileError("Profile pathname changed during its bounded read.");
+  }
+}
+
 async function readBounded(handle: FileHandle, signal: AbortSignal | undefined): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let total = 0;
@@ -56,14 +84,19 @@ async function readProfileBytes(input: { readonly consumerRoot: string; readonly
   try {
     const opened = await handle.stat({ bigint: true });
     assertInitialFile(opened);
+    const beforePathIdentities = await pathIdentities(root, input.profilePath);
     const physical = await realpath(requested);
     input.signal?.throwIfAborted();
-    if (!contained(root, physical) || physical !== requested) {throw new DocsProfileError("Profile path must be a real contained file without symlinks.");}
+    if (!contained(root, physical)) {throw new DocsProfileError("Profile path must be a real contained file without symlinks.");}
     const pathState = await lstat(physical, { bigint: true });
     if (!pathState.isFile() || pathState.isSymbolicLink() || pathState.nlink !== 1n || !sameIdentity(pathState, opened)) {throw new DocsProfileError("Profile identity changed before its bounded read or has hard links.");}
     const bytes = await readBounded(handle, input.signal);
     const after = await handle.stat({ bigint: true });
     if (after.nlink !== 1n || !sameIdentity(after, opened) || after.size !== opened.size || after.mtimeNs !== opened.mtimeNs || after.size !== BigInt(bytes.byteLength)) {throw new DocsProfileError("Profile changed during its bounded read, has hard links, or exceeds 1 MiB.");}
+    const afterPathIdentities = await pathIdentities(root, input.profilePath);
+    assertSamePathIdentities(afterPathIdentities, beforePathIdentities);
+    const finalPathState = await lstat(physical, { bigint: true });
+    if (!finalPathState.isFile() || finalPathState.isSymbolicLink() || finalPathState.nlink !== 1n || !sameIdentity(finalPathState, after)) {throw new DocsProfileError("Profile pathname changed during its bounded read or has hard links.");}
     return bytes;
   } finally {
     await handle.close();

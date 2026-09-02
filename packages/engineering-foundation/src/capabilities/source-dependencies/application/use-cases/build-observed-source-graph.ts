@@ -20,11 +20,26 @@ import type {
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 
 export interface BuildObservedSourceGraphInput {
+  readonly consumerRoot?: string;
+  readonly consumerRootIdentity?: {
+    readonly device: string;
+    readonly inode: string;
+  };
+  readonly enforceWorkspaceBindings?: boolean;
   readonly inventory: WorkspaceInventory;
+  readonly packageTypeScopes?: readonly {
+    readonly moduleType: "commonjs" | "module";
+    readonly rootPath: string;
+  }[];
+  readonly governedWorkspacePackageManifestPaths?: ReadonlySet<string>;
   readonly allSourceFiles: readonly SourceFileSnapshot[];
   readonly classifiedFiles: readonly ClassifiedSourceFile[];
   readonly resolver: SourceDependencyResolver;
   readonly signal?: AbortSignal;
+  readonly workspacePackageRootIdentities?: ReadonlyMap<string, {
+    readonly device: string;
+    readonly inode: string;
+  }>;
 }
 
 function inputError(code: string, message: string): never {
@@ -86,6 +101,8 @@ function resolutionKey(resolution: ObservedSourceDependencyResolution): string {
       return `${resolution.kind}:${resolution.packageName}:${resolution.declaration}`;
     case "local-file":
       return `${resolution.kind}:${resolution.path}:${resolution.targetBoundaryId ?? ""}`;
+    case "generated-output-candidate":
+      return `${resolution.kind}:${resolution.path}:${resolution.workspacePackageName}`;
     case "self-workspace-package":
       return `${resolution.kind}:${resolution.workspacePackageName}:${resolution.subpath}`;
     case "unsupported":
@@ -151,6 +168,13 @@ function normalizeResolution(
         targetBoundaryId: targetNode?.boundaryId ?? null
       });
     }
+    case "generated-output-candidate":
+      return Object.freeze({
+        kind: resolved.kind,
+        path: normalizeRepositoryPath(resolved.path),
+        workspacePackageName: resolved.workspacePackage.name,
+        workspacePackageManifestPath: resolved.workspacePackage.manifestPath
+      });
     case "self-workspace-package":
       return Object.freeze({
         kind: resolved.kind,
@@ -249,6 +273,9 @@ export function buildObservedSourceGraph(
     }
     for (const reference of file.parsed.references) {
       assertNotCancelled(input.signal);
+      const workspacePackageRootIdentity = input.workspacePackageRootIdentities?.get(
+        file.workspacePackage.manifestPath
+      );
       edges.push(
         Object.freeze({
           fromPath: node.path,
@@ -262,10 +289,27 @@ export function buildObservedSourceGraph(
           end: reference.end,
           resolution: normalizeResolution(
             input.resolver.resolve({
+              consumerRoot: input.consumerRoot ?? ".",
+              ...(input.consumerRootIdentity === undefined
+                ? {}
+                : { consumerRootIdentity: input.consumerRootIdentity }),
+              enforceWorkspaceBindings: input.enforceWorkspaceBindings ?? false,
               file,
               governedFilePaths,
+              ...(input.governedWorkspacePackageManifestPaths === undefined
+                ? {}
+                : {
+                    governedWorkspacePackageManifestPaths:
+                      input.governedWorkspacePackageManifestPaths
+                  }),
               inventory: input.inventory,
-              reference
+              ...(input.packageTypeScopes === undefined
+                ? {}
+                : { packageTypeScopes: input.packageTypeScopes }),
+              reference,
+              ...(workspacePackageRootIdentity === undefined
+                ? {}
+                : { workspacePackageRootIdentity })
             }),
             governedFilePaths,
             nodesByPath

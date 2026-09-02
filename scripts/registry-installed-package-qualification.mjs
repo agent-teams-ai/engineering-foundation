@@ -94,6 +94,7 @@ export async function verifyFoundationFeatures({
   consumerRoot,
   docsVersion,
   featureImports,
+  installedDocsRoot,
   installedRoot,
   repositoryRoot,
   verifyInstalledBufQualifier,
@@ -126,5 +127,10 @@ export async function verifyFoundationFeatures({
       "scaffolding-authority-consumer",
     ),
   });
-  await verifyRegistryDocumentAuthoring({ consumerRoot, docsVersion, version });
+  await verifyRegistryDocumentAuthoring({
+    consumerRoot,
+    docsVersion,
+    installedDocsRoot,
+    version,
+  });
 }

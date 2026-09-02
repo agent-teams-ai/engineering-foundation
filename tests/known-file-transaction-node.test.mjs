@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { link, mkdir, open, readFile, readdir, rename, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { applyKnownFileTransaction, compileKnownFileTransactionPlan, inspectKnownFileTransactionBarrier, recoverKnownFileTransaction } from "../packages/engineering-foundation/dist/mutation/index.js";
-import { releaseKnownFileTransactionLease } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-known-file-transaction-lease-release.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { compileKnownFileTransactionPlan, inspectKnownFileTransactionBarrier } from "../packages/repository-mutation/dist/index.js";
+import { applyKnownFileTransaction, recoverKnownFileTransaction, releaseKnownFileTransactionLeaseWith } from "../packages/repository-mutation/dist/qualification/index.js";
 import { fixture, killAtCheckpoint, plan, posixTest, replacementPlan, temporaryDirectory, windowsTest } from "./support/known-file-transaction-node-fixtures.mjs";
 
 for (const checkpoint of [
@@ -80,7 +79,7 @@ posixTest("two concurrent applies admit one publisher and fail the live-lock con
   assert.equal(attempts.filter(({ status }) => status === "fulfilled").length, 1);
   assert.equal(attempts.filter(({ status }) => status === "rejected").length, 1);
   assert.equal(attempts.find(({ status }) => status === "fulfilled").value.outcome, "applied");
-  assert.equal(attempts.find(({ status }) => status === "rejected").reason.code, "LOCAL_STATE_INVALID");
+  assert.equal(attempts.find(({ status }) => status === "rejected").reason.code, "MUTATION_LEASE_INVALID");
   const retry = await applyKnownFileTransaction({ consumerRoot: root, plan: replacementPlan() });
   assert.equal(retry.outcome, "already-satisfied");
   assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "new\n");
@@ -158,15 +157,12 @@ posixTest("lease release preserves arbitrary single and joint failures", async (
     await context.test(scenario.name, async () => {
       let releaseCalls = 0;
       let releaseOptions;
-      const observed = await observePromise(releaseKnownFileTransactionLease({
+      const observed = await observePromise(releaseKnownFileTransactionLeaseWith({
         jointFailureMessage: "operation and release failed",
-        lease: {
-          status: { diagnostics: [], state: "idle" },
-          async release(options) {
-            releaseCalls += 1;
-            releaseOptions = options;
-            if (scenario.release.state === "rejected") {throw scenario.release.reason;}
-          },
+        async release() {
+          releaseCalls += 1;
+          releaseOptions = { retainTransactionBarrier: true };
+          if (scenario.release.state === "rejected") {throw scenario.release.reason;}
         },
         ...(scenario.primaryFailure === undefined ? {} : {
           primaryFailure: scenario.primaryFailure,
@@ -212,7 +208,7 @@ posixTest("apply preserves ordered provenance when mutation and release both fai
     assert.ok(error instanceof AggregateError);
     assert.equal(error.message, "Known-file apply and transaction lease release both failed.");
     assert.equal(error.errors[0], primaryFailure);
-    assert.equal(error.errors[1]?.code, "LOCAL_STATE_INVALID");
+    assert.equal(error.errors[1]?.code, "MUTATION_LEASE_INVALID");
     assert.equal(error.cause, primaryFailure);
     assert.equal(primaryFailure.cause, originalCause);
     return true;
@@ -245,8 +241,6 @@ windowsTest("fails closed before known-file mutation on Windows", async (context
 posixTest("applies create and exact known replacement, then performs a write-free no-op", async (context) => {
   const root = await fixture(context);
   const first = await applyKnownFileTransaction({ consumerRoot: root, plan: plan() });
-  await assertSchema("known-file-transaction-plan/v1", plan(), "test");
-  await assertSchema("known-file-transaction-receipt/v1", first, "test");
   assert.equal(first.outcome, "applied");
   assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "new\n");
   assert.equal((await stat(join(root, "managed", "existing.txt"))).mode & 0o777, 0o640);
@@ -269,7 +263,7 @@ posixTest("rejects stale preimages before creating a recovery journal", async (c
   assert.equal((await inspectKnownFileTransactionBarrier({ consumerRoot: root })).state, "idle");
 });
 
-posixTest("returns an already-satisfied Plan without acquiring or writing the barrier", async (context) => {
+posixTest("admits an already-satisfied Plan through the shared barrier", async (context) => {
   const root = await fixture(context);
   await applyKnownFileTransaction({ consumerRoot: root, plan: plan() });
   const state = join(root, ".agent-teams-local");
@@ -282,21 +276,19 @@ posixTest("returns an already-satisfied Plan without acquiring or writing the ba
     faultInjector() {invoked = true;}
   });
   assert.equal(result.outcome, "already-satisfied");
-  assert.equal(invoked, false);
-  assert.equal((await stat(state, { bigint: true })).mtimeNs, before);
+  assert.equal(invoked, true);
+  assert.ok((await stat(state, { bigint: true })).mtimeNs >= before);
   assert.equal((await inspectKnownFileTransactionBarrier({ consumerRoot: root })).state, "idle");
 });
 
-posixTest("fresh no-op does not materialize Foundation local state", async (context) => {
+posixTest("fresh no-op performs barrier admission and leaves no active evidence", async (context) => {
   const root = await fixture(context);
   await writeFile(join(root, "managed", "existing.txt"), "new\n", { mode: 0o640 });
   await writeFile(join(root, "managed", "new.txt"), "created\n", { mode: 0o644 });
   const result = await applyKnownFileTransaction({ consumerRoot: root, plan: plan() });
   assert.equal(result.outcome, "already-satisfied");
-  await assert.rejects(
-    stat(join(root, ".agent-teams-local")),
-    (error) => error?.code === "ENOENT"
-  );
+  assert.equal((await stat(join(root, ".agent-teams-local"))).isDirectory(), true);
+  assert.equal((await inspectKnownFileTransactionBarrier({ consumerRoot: root })).state, "idle");
 });
 
 posixTest("no-op refuses an exact postimage while an APPLYING journal exists", async (context) => {

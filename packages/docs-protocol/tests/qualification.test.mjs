@@ -4,16 +4,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { planDocumentationDocument } from "../../engineering-foundation/dist/document-authoring/index.js";
-import { applyNodeDocumentationPlanPrivately } from "../../engineering-foundation/dist/document-authoring/composition/node-document-writing-private.js";
+import { planDocumentationDocument } from "@agent-teams/engineering-foundation/document-authoring";
 import { DocsProtocol } from "../dist/application/docs-protocol.js";
 import { NodeCodeAnchorMatcher } from "../dist/adapters/node-code-anchor-matcher.js";
 import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspector.js";
 import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
 import { NodeFoundationDocsPort } from "../dist/adapters/foundation-docs-port.js";
-import { runDocsProtocolQualification, runDocsProtocolQualificationV2 } from "../dist/qualification/index.js";
-import { overlayLocalDevelopmentSkill } from "../dist/qualification/qualification-v2-runner.js";
-import { crashAtDurablePublishing } from "../dist/qualification/crash-driver.js";
+import { runDocsProtocolQualification } from "../dist/qualification/index.js";
+import {
+  crashAfterDurablePublication,
+  crashAtDurablePublishing
+} from "../dist/qualification/crash-driver.js";
 import {
   fileSnapshot,
   isQualificationEvidenceExcludedPath,
@@ -23,7 +24,7 @@ import {
   snapshot,
 } from "../dist/qualification/filesystem-evidence.js";
 
-const fixtureRoot = new URL("./fixtures/qualification", import.meta.url).pathname;
+const fixtureRoot = new URL("./fixtures/portable-qualification", import.meta.url).pathname;
 
 test("shared qualification runner mutates only its owned disposable copy", async () => {
   const receipt = await runDocsProtocolQualification({
@@ -44,64 +45,6 @@ test("shared qualification runner mutates only its owned disposable copy", async
   assert.equal(receipt.projectId, "docs-protocol-qualification");
   assert.equal(receipt.appliedDocumentPath, "docs/decisions/generated/0001-qualification-decision.md");
   assert.deepEqual(receipt.checks, ["info", "find", "preview", "crash", "doctor", "recover", "receipt", "parent", "apply", "index", "check", "source-unchanged"]);
-});
-
-test("v2 qualification rejects unverified released-cohort fixtures", async () => {
-  await assert.rejects(
-    runDocsProtocolQualificationV2({ consumerRoot: fixtureRoot }),
-    /Consumer root must equal the Git repository top-level directory|current exact managed integration/u
-  );
-});
-
-test("v2 qualification derives managed authority and marks local evidence non-admissible", async () => {
-  const receipt = await runDocsProtocolQualificationV2({ consumerRoot: fixtureRoot, localDevelopment: true });
-  assert.equal(receipt.schemaVersion, 2);
-  assert.equal(receipt.evidenceClass, "local-development");
-  assert.equal(receipt.cohortAdmissible, false);
-  assert.match(receipt.receiptDigest, /^sha256:[0-9a-f]{64}$/u);
-  assert.equal(receipt.checks.includes("golden"), false);
-  assert.deepEqual(receipt.scenarios.map(({ type }) => type), ["adr"]);
-  assert.equal(receipt.derived.contractPath, "architecture/foundation/docs-protocol-qualification.json");
-  assert.equal(receipt.derived.gateCommand, "pnpm docs:protocol:check");
-});
-
-test("v2 local-development Skill overlay rejects a symlink without touching its target", async () => {
-  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-skill-overlay-"));
-  const outside = join(temporary, "outside-skill.md");
-  const sentinel = "outside must remain unchanged\n";
-  try {
-    const skillDirectory = join(temporary, ".agents", "skills", "docs-authoring");
-    const skill = join(skillDirectory, "SKILL.md");
-    await mkdir(skillDirectory, { recursive: true });
-    await writeFile(outside, sentinel);
-    await symlink(outside, skill, "file");
-    await assert.rejects(
-      overlayLocalDevelopmentSkill(temporary, ".agents/skills/docs-authoring/SKILL.md", true),
-      /Local-development qualification Skill target must be one stable, non-hardlinked regular file/u
-    );
-    assert.equal(await readFile(outside, "utf8"), sentinel);
-  } finally {
-    await rm(temporary, { recursive: true, force: true });
-  }
-});
-
-test("v2 qualification excludes transient cache and build output from evidence", async () => {
-  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-transient-evidence-"));
-  const consumerRoot = join(temporary, "consumer");
-  try {
-    await cp(fixtureRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });
-    await mkdir(join(consumerRoot, ".cache", "docs-tools"), { recursive: true });
-    await mkdir(join(consumerRoot, "agent-runtime", "experiments", "rust-system-boundaries", "target"), { recursive: true });
-    await writeFile(join(consumerRoot, ".cache", "docs-tools", "binary"), "cache\n");
-    await writeFile(join(consumerRoot, "agent-runtime", "experiments", "rust-system-boundaries", "target", "CACHEDIR.TAG"), "Signature: 8a477f597d28d172789f06886806bc55\n# Cargo build cache\n");
-    await writeFile(join(consumerRoot, "agent-runtime", "experiments", "rust-system-boundaries", "target", "artifact"), "build\n");
-
-    const receipt = await runDocsProtocolQualificationV2({ consumerRoot, localDevelopment: true });
-    assert.equal(receipt.evidenceClass, "local-development");
-    assert.equal(receipt.cohortAdmissible, false);
-  } finally {
-    await rm(temporary, { recursive: true, force: true });
-  }
 });
 
 test("qualification separates immutable source exclusions from mutation observation", async () => {
@@ -221,14 +164,16 @@ test("qualification cleans its inputs after a crash-child spawn error", async ()
 
 const requiresStrictDirectoryDurability = process.platform === "win32" ? test.skip : test;
 
-requiresStrictDirectoryDurability("recovery uses persisted transaction authority after both mutable profiles are corrupted", async () => {
-  const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-corrupt-profile-"));
+async function withCorruptedProfileCrash(crash, callback) {
+  const temporary = await realpath(
+    await mkdtemp(join(tmpdir(), "agent-teams-docs-corrupt-profile-")),
+  );
   const consumerRoot = join(temporary, "consumer");
   try {
     await cp(fixtureRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });
     const plan = await planDocumentationDocument({
       consumerRoot,
-      profilePath: "architecture/foundation/document-authoring.yaml",
+      profilePath: ".docs-protocol/document-authoring.yaml",
       parentPolicy: "create-missing-real-directories",
       intent: {
         schemaVersion: 1,
@@ -241,34 +186,67 @@ requiresStrictDirectoryDurability("recovery uses persisted transaction authority
     });
     assert.equal(plan.schemaVersion, 2);
     assert.deepEqual(plan.parentMaterialization.missingDirectories, ["docs/decisions/generated"]);
-    const interrupted = await applyNodeDocumentationPlanPrivately(
-      { consumerRoot, plan },
-      {
-        faultInjector(point) {
-          if (point.phase === "after-published-journal-durable") {
-            throw new Error("simulated process crash after durable publication state");
-          }
-        }
-      }
+    const packageScope = join(consumerRoot, "node_modules", "@agent-teams");
+    await mkdir(packageScope, { recursive: true });
+    await symlink(
+      new URL("../../engineering-foundation", import.meta.url).pathname,
+      join(packageScope, "engineering-foundation"),
+      process.platform === "win32" ? "junction" : "dir"
     );
-    assert.equal(interrupted.outcome, "recovery-required");
-    await writeFile(join(consumerRoot, "architecture/foundation/docs-protocol.yaml"), "not: [valid\n", "utf8");
-    await writeFile(join(consumerRoot, "architecture/foundation/document-authoring.yaml"), "not: [valid\n", "utf8");
-
-    const protocol = new DocsProtocol({
+    await writeFile(
+      join(consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json"),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        kind: "agent-teams-document-authoring-qualification-fixture",
+        consumerRoot: await realpath(consumerRoot)
+      })}\n`,
+      "utf8"
+    );
+    await crash(consumerRoot, plan);
+    await writeFile(join(consumerRoot, "docs.config.yaml"), "not: [valid\n", "utf8");
+    await writeFile(join(consumerRoot, ".docs-protocol/document-authoring.yaml"), "not: [valid\n", "utf8");
+    await callback({ consumerRoot, plan, protocol: new DocsProtocol({
       adoption: new NodeDocsAdoptionInspector(),
       anchors: new NodeCodeAnchorMatcher(),
       foundation: new NodeFoundationDocsPort(),
       profiles: new NodeDocsProfileReader()
-    });
-    const recovered = await protocol.recover({
+    }) });
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+}
+
+requiresStrictDirectoryDurability("before durable publication, corrupted mutable profiles require recovery and preserve evidence", async () => {
+  await withCorruptedProfileCrash(crashAtDurablePublishing, async ({ consumerRoot, plan, protocol }) => {
+    const journalPath = join(consumerRoot, ".agent-teams-local", "scaffolding-transaction.json");
+    const evidenceBefore = await readFile(journalPath);
+    await assert.rejects(access(join(consumerRoot, plan.destination)), (error) => error?.code === "ENOENT");
+    const recovered = await protocol.recoverV2({
       consumerRoot,
-      profilePath: "architecture/foundation/docs-protocol.yaml"
+      profilePath: "docs.config.yaml"
+    });
+    assert.equal(recovered.exitCode, 1, JSON.stringify(recovered.envelope));
+    assert.equal(recovered.envelope.outcome, "recovery-required");
+    assert.equal(recovered.envelope.result.transactionState, "recovery-required");
+    assert.equal(recovered.envelope.result.writeState, "unchanged");
+    assert.equal(recovered.envelope.diagnostics[0].ruleId, "document.transaction.recovery-authority");
+    assert.deepEqual(await readFile(journalPath), evidenceBefore);
+    await assert.rejects(access(join(consumerRoot, plan.destination)), (error) => error?.code === "ENOENT");
+  });
+});
+
+requiresStrictDirectoryDurability("after durable publication, recovery uses persisted authority when both mutable profiles are corrupted", async () => {
+  await withCorruptedProfileCrash(crashAfterDurablePublication, async ({ consumerRoot, plan, protocol }) => {
+    assert.equal(
+      await readFile(join(consumerRoot, plan.destination), "utf8"),
+      Buffer.from(plan.output.contentBase64, "base64").toString("utf8")
+    );
+    const recovered = await protocol.recoverV2({
+      consumerRoot,
+      profilePath: "docs.config.yaml"
     });
     assert.equal(recovered.exitCode, 0, JSON.stringify(recovered.envelope));
     assert.equal(recovered.envelope.result.transactionState, "recovered");
     await lstat(join(consumerRoot, plan.destination));
-  } finally {
-    await rm(temporary, { recursive: true, force: true });
-  }
+  });
 });

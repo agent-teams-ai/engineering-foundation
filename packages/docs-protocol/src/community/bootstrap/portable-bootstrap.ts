@@ -11,7 +11,7 @@ import {
   type KnownFileTransactionOperationInput,
   type KnownFileTransactionPlanV1,
   type KnownFileTransactionReceiptV1
-} from "@agent-teams/engineering-foundation/mutation";
+} from "@agent-teams/repository-mutation";
 import { DOCS_ADOPTION_MAX_ROUTING_BYTES } from "../../domain/model.js";
 import {
   PORTABLE_BOOTSTRAP_BEGIN_MARKER,

@@ -16,7 +16,7 @@ import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeFoundationOperationLock } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-operation-lock.js";
+import { NodeMutationOperationLock } from "../packages/repository-mutation/dist/qualification/index.js";
 
 async function createRoot() {
   return realpath(await mkdtemp(join(tmpdir(), "foundation-operation-lock-")));
@@ -50,8 +50,8 @@ function activeEvidence(pid, overrides = {}) {
 }
 
 async function assertAcquireFailsClosed(root) {
-  await assert.rejects(new NodeFoundationOperationLock(root).acquire(), (error) => {
-    assert.equal(error.code, "LOCAL_STATE_INVALID");
+  await assert.rejects(new NodeMutationOperationLock(root).acquire(), (error) => {
+    assert.equal(error.code, "MUTATION_LEASE_INVALID");
     return true;
   });
 }
@@ -143,7 +143,7 @@ test("ignores a residual claim from an older lock generation", async () => {
     const deadOwner = activeEvidence(2_147_483_647);
     const target = await writeEvidence(root, deadOwner);
     await writeFile(`${target.lock}.claim.${randomUUID()}`, "partial\n", "utf8");
-    const release = await new NodeFoundationOperationLock(root).acquire();
+    const release = await new NodeMutationOperationLock(root).acquire();
     await release();
   } finally {
     await rm(root, { force: true, recursive: true });
@@ -155,8 +155,8 @@ test("serializes two reclaimers of one provably dead owner", async () => {
   try {
     await writeEvidence(root, activeEvidence(2_147_483_647));
     const attempts = await Promise.allSettled([
-      new NodeFoundationOperationLock(root).acquire(),
-      new NodeFoundationOperationLock(root).acquire(),
+      new NodeMutationOperationLock(root).acquire(),
+      new NodeMutationOperationLock(root).acquire(),
     ]);
     const acquired = attempts.filter(({ status }) => status === "fulfilled");
     assert.equal(acquired.length, 1);
@@ -171,12 +171,12 @@ test("release is idempotent and an old releaser cannot delete a successor", asyn
   const root = await createRoot();
   try {
     const target = paths(root);
-    const release = await new NodeFoundationOperationLock(root).acquire();
+    const release = await new NodeMutationOperationLock(root).acquire();
     const displaced = `${target.lock}.displaced`;
     await rename(target.lock, displaced);
     const successor = activeEvidence(process.pid);
     await writeEvidence(root, successor);
-    await assert.rejects(release(), (error) => error.code === "LOCAL_STATE_INVALID");
+    await assert.rejects(release(), (error) => error.code === "MUTATION_LEASE_INVALID");
     assert.deepEqual(
       JSON.parse(await readFile(target.lock, "utf8")),
       successor,
@@ -190,7 +190,7 @@ test("release is idempotent and an old releaser cannot delete a successor", asyn
 test("coalesces concurrent release calls without deleting unrelated state", async () => {
   const root = await createRoot();
   try {
-    const release = await new NodeFoundationOperationLock(root).acquire();
+    const release = await new NodeMutationOperationLock(root).acquire();
     await Promise.all([release(), release(), release()]);
     await release();
     await assert.rejects(lstat(paths(root).lock), { code: "ENOENT" });
@@ -203,7 +203,7 @@ test("release preserves a foreign predictable retirement destination", async () 
   const root = await createRoot();
   try {
     const target = paths(root);
-    const release = await new NodeFoundationOperationLock(root).acquire();
+    const release = await new NodeMutationOperationLock(root).acquire();
     const owned = JSON.parse(await readFile(target.lock, "utf8"));
     const legacyDestination = `${target.lock}.released.${owned.token}`;
     await writeFile(legacyDestination, "foreign retirement evidence\n", "utf8");
@@ -236,7 +236,7 @@ test("release preserves a substituted retirement pathname", async () => {
   const root = await createRoot();
   try {
     let foreignPath;
-    const release = await new NodeFoundationOperationLock(root, {
+    const release = await new NodeMutationOperationLock(root, {
       async faultInjector(point) {
         if (point.phase !== "after-release-retirement") {
           return;
@@ -247,7 +247,7 @@ test("release preserves a substituted retirement pathname", async () => {
       },
     }).acquire();
 
-    await assert.rejects(release(), (error) => error.code === "LOCAL_STATE_INVALID");
+    await assert.rejects(release(), (error) => error.code === "MUTATION_LEASE_INVALID");
     assert.ok(foreignPath);
     assert.equal(await readFile(foreignPath, "utf8"), "foreign substituted evidence\n");
     assert.equal((await lstat(`${foreignPath}.owned-original`)).isFile(), true);
@@ -261,7 +261,7 @@ test("successful releases keep state-directory cardinality constant", async () =
   try {
     const target = paths(root);
     for (let iteration = 0; iteration < 8; iteration += 1) {
-      const release = await new NodeFoundationOperationLock(root).acquire();
+      const release = await new NodeMutationOperationLock(root).acquire();
       await release();
     }
     assert.deepEqual(
@@ -284,11 +284,11 @@ test("retained transaction barrier survives its owner and is claimable by a new 
   const root = await createRoot();
   try {
     const target = paths(root);
-    const release = await new NodeFoundationOperationLock(root).acquire();
+    const release = await new NodeMutationOperationLock(root).acquire();
     await release({ retainTransactionBarrier: true });
     const barrier = JSON.parse(await readFile(target.lock, "utf8"));
     assert.equal(barrier.kind, "transaction-barrier");
-    const successorRelease = await new NodeFoundationOperationLock(root).acquire();
+    const successorRelease = await new NodeMutationOperationLock(root).acquire();
     await successorRelease({ retainTransactionBarrier: true });
     assert.equal(
       JSON.parse(await readFile(target.lock, "utf8")).kind,

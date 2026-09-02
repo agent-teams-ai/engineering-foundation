@@ -9,18 +9,18 @@ import {
   assertNoPortableNameCollision,
   assertSafeExistingRepositoryAncestors,
   ExistingRepositoryAncestorError
-} from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-existing-repository-ancestors.js";
+} from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-existing-repository-ancestors.js";
 import {
   StrictDirectoryDurabilityError,
   syncDirectoryDurably,
   syncDirectoryStrictlyWith,
-} from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-directory-durability.js";
-import { isLexicallyContainedPath } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-repository-path.js";
+} from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-directory-durability.js";
+import { isLexicallyContainedPath } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-repository-path.js";
 import {
   findPortableRepositoryPathCollision,
   portableRepositoryPathIdentity,
   portableRepositoryPathProblem
-} from "../packages/engineering-foundation/dist/repository-mutation/application/model/repository-path.js";
+} from "../packages/repository-mutation/dist/repository-mutation/application/model/repository-path.js";
 import { legacyScaffoldingRepositoryPathProblem } from "../packages/engineering-foundation/dist/scaffolding/application/policies/legacy-scaffolding-repository-path.js";
 
 async function withTemporaryRoot(callback) {

@@ -8,9 +8,7 @@ import {
   DOCS_PROTOCOL_VERSION,
   type DocsCommandOutcome,
   type DocsDiagnostic,
-  type DocsExecution,
   type DocsFindQuery,
-  type DocsNewResult,
   type DocsNewRequest,
   type CodeAnchorMatcher,
   type DocsAdoptionInspector,
@@ -37,7 +35,6 @@ import { completeDocsNewApply, inspectCorpusSemantics, inspectRecapturedAnchors,
 import { compatibleProfileV2, execution, executionV3 } from "./docs-execution.js";
 import { compiledDocument } from "./compiled-document.js";
 import { projectCommunityContext, projectCommunityFind, projectLegacyFind } from "../community/context/index.js";
-import { presentCheckV1, presentDoctorV1, presentFindV1, presentInfoV1, presentNewV1, presentRecoverV1 } from "./docs-protocol-v1-presenter.js";
 
 const BINARY = (left: string, right: string): number => Buffer.compare(Buffer.from(left), Buffer.from(right));
 const GOVERNED_METADATA = new Set(["id", "type", "status", "owner", "summary", "related", "title", "slug", "destination"]);
@@ -492,27 +489,4 @@ export class DocsProtocol {
     return execution("docs.check", valid ? "success" : "violation", Object.freeze({ kind: "check" as const, projectId: description.projectId, catalogStatus: catalog.status, documents: catalog.documents.length, foundationProfile: compatibleProfile.foundationProfile, metadataSidecar: description.metadataSidecar, semanticValidatorIds: compatibleProfile.semanticValidatorIds, valid }), diagnostics);
   }
 
-  async info(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }) {
-    return presentInfoV1(await this.infoV2(input));
-  }
-
-  async find(input: { readonly consumerRoot: string; readonly profilePath: string; readonly query: DocsFindQuery; readonly signal?: AbortSignal }) {
-    return presentFindV1(await this.findV2(input));
-  }
-
-  async newDocument(request: DocsNewRequest): Promise<DocsExecution<DocsNewResult>> {
-    return presentNewV1(await this.newDocumentV2(request));
-  }
-
-  async doctor(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }) {
-    return presentDoctorV1(await this.doctorV2(input));
-  }
-
-  async recover(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }) {
-    return presentRecoverV1(await this.recoverV2(input));
-  }
-
-  async check(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }) {
-    return presentCheckV1(await this.checkV2(input));
-  }
 }

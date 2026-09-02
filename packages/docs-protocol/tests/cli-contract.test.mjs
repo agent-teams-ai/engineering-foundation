@@ -11,13 +11,13 @@ import { assertDocsCommandEnvelopeSchema } from "../dist/adapters/docs-command-e
 
 const execute = promisify(execFile);
 const cli = new URL("../dist/cli.js", import.meta.url);
-const fixture = new URL("./fixtures/qualification", import.meta.url).pathname;
+const fixture = new URL("./fixtures/portable-qualification", import.meta.url).pathname;
 
 test("help succeeds through one pnpm-style separator", async () => {
   const result = await execute(process.execPath, [cli.pathname, "--", "--help"]);
   assert.match(result.stdout, /^Usage: agent-teams-docs/u);
-  assert.match(result.stdout, /\|consumer>/u);
-  assert.match(result.stdout, /consumer --help/u);
+  assert.doesNotMatch(result.stdout, /consumer|qualify/u);
+  assert.match(result.stdout, /agent-teams-docs-managed/u);
   assert.equal(result.stderr, "");
 });
 
@@ -31,13 +31,11 @@ test("help covers every public command and find documents all common options", a
     ["recover", "Usage: agent-teams-docs recover "],
     ["check", "Usage: agent-teams-docs check "],
     ["init", "Usage: docs-protocol init "],
-    ["qualify", "Usage: agent-teams-docs qualify "],
-    ["consumer", "Usage: agent-teams-docs consumer <command>"],
   ]);
   const general = await execute(process.execPath, [cli.pathname, "--help"]);
   assert.equal(
     general.stdout.split("\n", 1)[0],
-    "Usage: agent-teams-docs <info|find|context|new|doctor|recover|check|init|qualify|consumer> [options]",
+    "Usage: agent-teams-docs <info|find|context|new|doctor|recover|check|init> [options]",
   );
   for (const [command, prefix] of commands) {
     const result = await execute(process.execPath, [cli.pathname, command, "--help"]);
@@ -59,11 +57,30 @@ test("invalid command guidance names the complete public command surface", async
       assert.equal(error.code, 2);
       assert.match(
         error.stdout,
-        /Expected one command: info, find, context, new, doctor, recover, check, init, qualify, or consumer\./u,
+        /Expected one command: info, find, context, new, doctor, recover, check, or init\./u,
       );
       return true;
     },
   );
+});
+
+test("portable CLI rejects every former managed route", async () => {
+  for (const command of ["consumer", "qualify"]) {
+    await assert.rejects(
+      execute(process.execPath, [cli.pathname, command, "--json"]),
+      (error) => {
+        assert.equal(error.code, 2);
+        const envelope = JSON.parse(error.stdout);
+        assert.equal(envelope.command, "docs.info");
+        assert.equal(envelope.outcome, "invalid-input");
+        assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.invalid-input.validation");
+        assert.equal(envelope.diagnostics[0].phase, "input");
+        assert.equal(envelope.diagnostics[0].message, "Documentation command input is invalid.");
+        assert.doesNotMatch(error.stdout, /Expected one command/u);
+        return true;
+      }
+    );
+  }
 });
 
 test("new subcommand help documents the explicit mutation boundary", async () => {

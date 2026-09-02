@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -23,6 +24,16 @@ const fixture = JSON.parse(
     "utf8",
   ),
 );
+function legacyCanonicalJson(value) {
+  if (Array.isArray(value)) {return "[" + value.map(legacyCanonicalJson).join(",") + "]";}
+  if (typeof value === "object" && value !== null) {return "{" + Object.entries(value).toSorted(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([key, item]) => JSON.stringify(key) + ":" + legacyCanonicalJson(item)).join(",") + "}";}
+  return JSON.stringify(value);
+}
+
+function sha256LegacyJson(value) {
+  return "sha256:" + createHash("sha256").update(legacyCanonicalJson(value)).digest("hex");
+}
+
 const installedBuildIdentity = await installedFoundationBuildIdentity();
 
 function slotPath(root) {
@@ -161,7 +172,7 @@ test("verifies current scaffolding envelope digests with frozen scaffolding cano
     plan.resolved.recipeParameters.edgeNumber = -0;
     plan.resolved.recipeParameters.edgeString = "\ud800";
     const { planDigest: _planDigest, ...planBody } = plan;
-    plan.planDigest = sha256ScaffoldingJson(planBody);
+    plan.planDigest = sha256LegacyJson(planBody);
     const journal = {
       schemaVersion: 1,
       state: "PREPARED",
@@ -180,10 +191,10 @@ test("verifies current scaffolding envelope digests with frozen scaffolding cano
       adapterContractVersion: 1,
       payloadKind: "scaffold-recovery-journal/v1",
       journal,
-      payloadDigest: sha256ScaffoldingJson(journal),
+      payloadDigest: sha256LegacyJson(journal),
       state: "PREPARED",
     };
-    envelope.envelopeDigest = sha256ScaffoldingJson(envelope);
+    envelope.envelopeDigest = sha256LegacyJson(envelope);
     const serialized = `${JSON.stringify(envelope, null, 2)}\n`.replace(
       '"edgeNumber": 0',
       '"edgeNumber": -0',
@@ -214,9 +225,9 @@ test("does not accept frozen scaffolding digest semantics for a current document
     envelope.journal.plan.compiler.buildIdentity = unknownBuild;
     envelope.journal.plan.intent.additionalMetadata.n = -0;
     envelope.journal.plan.intent.additionalMetadata.lone = "\ud800";
-    envelope.payloadDigest = sha256ScaffoldingJson(envelope.journal);
+    envelope.payloadDigest = sha256LegacyJson(envelope.journal);
     const { envelopeDigest: _envelopeDigest, ...body } = envelope;
-    envelope.envelopeDigest = sha256ScaffoldingJson(body);
+    envelope.envelopeDigest = sha256LegacyJson(body);
     await writeEnvelope(root, envelope);
 
     const status = await new NodeFoundationTransactionSlot({

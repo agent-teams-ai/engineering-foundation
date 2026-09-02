@@ -5,14 +5,46 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
+  readInstalledPortableDocsSkill
+} from "../scripts/registry-installed-docs-skill.mjs";
+import {
   isCanonicalPathInside,
   isSameCanonicalPath
-} from "../scripts/registry-document-authoring-e2e.mjs";
+} from "../scripts/registry-package-paths.mjs";
 import {
   assertWindowsDocsApplyRecovery,
   assertWindowsDocsRecoveryInspection,
   verifyWindowsDocsRecoveryQualification
 } from "../scripts/registry-document-authoring-policy.mjs";
+import {
+  writeDocsProtocolProfileFixture
+} from "../scripts/registry-document-authoring-e2e.mjs";
+import {
+  NodeDocsProfileReader
+} from "../packages/docs-protocol/dist/adapters/node-profile-reader.js";
+
+test("registry Docs Profile fixture satisfies the current portable profile policy", async (context) => {
+  const consumerRoot = await mkdtemp(join(tmpdir(), "registry-docs-profile-"));
+  context.after(() => rm(consumerRoot, { force: true, recursive: true }));
+  await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
+
+  await writeDocsProtocolProfileFixture(consumerRoot);
+
+  const profile = await new NodeDocsProfileReader().read({
+    consumerRoot,
+    profilePath: "architecture/foundation/docs-protocol.yaml"
+  });
+  assert.equal(profile.schemaVersion, 3);
+  assert.deepEqual(profile.agentWorkflow, {
+    adoption: "portable-v1",
+    skillPath: ".agents/skills/docs-authoring/SKILL.md"
+  });
+  assert.equal(profile.foundationProfile.schemaVersion, 3);
+  assert.equal(
+    profile.foundationProfile.metadataSidecarPolicy,
+    "foundation-profile-v3-strict-merge"
+  );
+});
 
 test("canonical package boundaries use platform path semantics", () => {
   const root = join("registry-root", "node_modules", "@agent-teams", "engineering-foundation");
@@ -50,6 +82,45 @@ test("physical package containment rejects a link that resolves outside", async 
   assert.equal(isCanonicalPathInside(
     await realpath(packageRoot), await realpath(linkedQualification)
   ), false);
+});
+
+test("portable Skill resolves from the qualified installed Docs Protocol root", async (context) => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "registry-installed-docs-skill-"));
+  context.after(() => rm(temporaryRoot, { force: true, recursive: true }));
+  const installedRoot = join(temporaryRoot, "nested", "node_modules", "@agent-teams", "docs-protocol");
+  await mkdir(join(installedRoot, "dist", "qualification"), { recursive: true });
+  await writeFile(join(installedRoot, "package.json"), `${JSON.stringify({
+    name: "@agent-teams/docs-protocol",
+    type: "module",
+    exports: { "./qualification": { import: "./dist/qualification/index.js" } }
+  })}\n`, "utf8");
+  await writeFile(join(installedRoot, "dist", "qualification", "index.js"),
+    "export const portableQualificationSkill = () => Buffer.from('# installed portable skill\\n');\n",
+    "utf8");
+
+  assert.equal(
+    (await readInstalledPortableDocsSkill(installedRoot)).toString("utf8"),
+    "# installed portable skill\n"
+  );
+});
+
+test("portable Skill rejects an installed qualification export outside its package root", async (context) => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "registry-installed-docs-skill-escape-"));
+  context.after(() => rm(temporaryRoot, { force: true, recursive: true }));
+  const installedRoot = join(temporaryRoot, "docs-protocol");
+  await mkdir(installedRoot);
+  await writeFile(join(temporaryRoot, "outside.js"),
+    "export const portableQualificationSkill = () => Buffer.from('outside');\n", "utf8");
+  await writeFile(join(installedRoot, "package.json"), `${JSON.stringify({
+    name: "@agent-teams/docs-protocol",
+    type: "module",
+    exports: { "./qualification": { import: "./../outside.js" } }
+  })}\n`, "utf8");
+
+  await assert.rejects(
+    readInstalledPortableDocsSkill(installedRoot),
+    /qualification export escapes its package root/u
+  );
 });
 
 function windowsRecoveryApply() {

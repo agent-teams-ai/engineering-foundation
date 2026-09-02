@@ -14,7 +14,7 @@ import {
   inspectDocumentTransactionV1,
   planDocumentationDocument
 } from "../packages/engineering-foundation/dist/document-authoring/index.js";
-import { StrictDirectoryDurabilityError } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-directory-durability.js";
+import { StrictDirectoryDurabilityError } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-directory-durability.js";
 import { createNodeFoundationCleanupTransition } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
 
 const fixtures = fileURLToPath(

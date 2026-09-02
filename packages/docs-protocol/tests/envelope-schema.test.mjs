@@ -13,16 +13,12 @@ import { parseDocsProtocolProfile } from "../dist/domain/profile-policy.js";
 
 const execute = promisify(execFile);
 const cli = new URL("../dist/cli.js", import.meta.url);
-const fixture = new URL("./fixtures/qualification", import.meta.url).pathname;
-const schema = JSON.parse(await readFile(new URL("../schemas/docs-protocol-command-envelope/v1.schema.json", import.meta.url), "utf8"));
+const fixture = new URL("./fixtures/portable-qualification", import.meta.url).pathname;
+const schema = JSON.parse(await readFile(new URL("../schemas/docs-protocol-portable-command-envelope/v1.schema.json", import.meta.url), "utf8"));
 const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
-const schemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-command-envelope/v2.schema.json", import.meta.url), "utf8"));
-const schemaV3 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-command-envelope/v3.schema.json", import.meta.url), "utf8"));
-const qualificationReceiptSchemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"));
-const consumerIntegrationSchemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8"));
+const schemaV2 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-portable-command-envelope/v2.schema.json", import.meta.url), "utf8"));
+const schemaV3 = JSON.parse(await readFile(new URL("../schemas/docs-protocol-portable-command-envelope/v3.schema.json", import.meta.url), "utf8"));
 const ajvV2 = new Ajv2020({ allErrors: true, strict: true });
-ajvV2.addSchema(consumerIntegrationSchemaV2);
-ajvV2.addSchema(qualificationReceiptSchemaV2);
 const validateV2 = ajvV2.compile(schemaV2);
 const validateV3 = ajvV2.compile(schemaV3);
 
@@ -66,14 +62,14 @@ test("published v1 info envelope remains backward compatible", () => {
 });
 
 const profile = parseDocsProtocolProfile({
-  schemaVersion: 1,
+  schemaVersion: 3,
   protocol: { id: "agent-teams.docs-protocol", version: 1 },
   foundationProfile: {
-    path: "architecture/foundation/document-authoring.yaml",
-    schemaVersion: 2,
-    metadataSidecarPolicy: "foundation-profile-v2-strict-merge"
+    path: ".docs-protocol/document-authoring.yaml",
+    schemaVersion: 3,
+    metadataSidecarPolicy: "foundation-profile-v3-strict-merge"
   },
-  agentWorkflow: { skillPath: ".agents/skills/docs-authoring/SKILL.md" },
+  agentWorkflow: { adoption: "portable-v1", skillPath: ".agents/skills/docs-authoring/SKILL.md" },
   semanticValidatorIds: []
 });
 
@@ -88,41 +84,6 @@ test("schema accepts emitted success and stable zero-match envelopes", async () 
 
   const context = await execute(process.execPath, [cli.pathname, "context", "--consumer", fixture, "--max-documents", "1", "--json"]);
   assertValidEnvelope(JSON.parse(context.stdout));
-});
-
-test("qualify --json emits the v2 command envelope with an extractable closed receipt", async () => {
-  const success = await execute(process.execPath, [cli.pathname, "qualify", "--consumer", fixture, "--local-development", "--json"]);
-  const envelope = JSON.parse(success.stdout);
-  assert.equal(envelope.command, "docs.qualify");
-  assert.equal(envelope.outcome, "success");
-  assert.match(envelope.result.receiptDigest, /^sha256:[0-9a-f]{64}$/u);
-  assert.equal(qualificationReceiptSchemaV2.additionalProperties, false);
-  assertValidEnvelope(envelope);
-
-  const localClaimingAdmissible = structuredClone(envelope);
-  localClaimingAdmissible.result.cohortAdmissible = true;
-  assert.equal(validateV2(localClaimingAdmissible), false);
-
-  const emptyCohort = structuredClone(envelope);
-  emptyCohort.result.evidence.cohort = {};
-  assert.equal(validateV2(emptyCohort), false);
-
-  const missingSourceUnchanged = structuredClone(envelope);
-  missingSourceUnchanged.result.checks = missingSourceUnchanged.result.checks.filter((check) => check !== "source-unchanged");
-  assert.equal(validateV2(missingSourceUnchanged), false);
-
-  await assert.rejects(
-    execute(process.execPath, [cli.pathname, "qualify", "--json", "--json"]),
-    (error) => {
-      const failure = JSON.parse(error.stdout);
-      assert.equal(error.code, 2);
-      assert.equal(failure.command, "docs.qualify");
-      assert.equal(failure.outcome, "invalid-input");
-      assert.deepEqual(failure.result, {});
-      assertValidEnvelope(failure);
-      return true;
-    }
-  );
 });
 
 test("schema accepts the emitted invalid-input envelope", async () => {
@@ -143,7 +104,7 @@ test("CLI classifies invalid Foundation authority as input and missing runtime r
   const consumer = join(temporary, "consumer");
   try {
     await cp(fixture, consumer, { recursive: true, errorOnExist: true, force: false, dereference: false });
-    await writeFile(join(consumer, "architecture/foundation/document-authoring.yaml"), "schemaVersion: 1\nprojectId: legacy\n", "utf8");
+    await writeFile(join(consumer, ".docs-protocol/document-authoring.yaml"), "schemaVersion: 1\nprojectId: legacy\n", "utf8");
     await assert.rejects(execute(process.execPath, [cli.pathname, "info", "--consumer", consumer, "--json"]), (error) => {
       const envelope = JSON.parse(error.stdout);
       assert.equal(error.code, 2);
@@ -201,7 +162,7 @@ test("schema accepts an emitted recovery-required doctor envelope", async () => 
       return {
         authority: {},
         projectId: "fixture-project",
-        profileSchemaVersion: 2,
+        profileSchemaVersion: 3,
         metadataSchemaPath: "docs/metadata.schema.json",
         metadataSidecar: { kind: "none" },
         ownerIds: ["architecture/tooling"],
@@ -234,7 +195,7 @@ test("schema accepts an emitted recovery-required doctor envelope", async () => 
     foundation,
     profiles: { async read() { return profile; } }
   });
-  const execution = await protocol.doctor({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
+  const execution = await protocol.doctorV2({ consumerRoot: ".", profilePath: "docs.config.yaml" });
   assert.equal(execution.exitCode, 1);
   assert.equal(execution.envelope.outcome, "recovery-required");
   assertValidEnvelope(execution.envelope);

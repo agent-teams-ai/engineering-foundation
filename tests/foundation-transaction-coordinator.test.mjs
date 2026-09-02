@@ -32,7 +32,7 @@ import {
   recoverFilesystemScaffold,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
-import { readBoundedRegularFile } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-bounded-regular-file.js";
+import { readBoundedRegularFile } from "../packages/repository-mutation/dist/qualification/index.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const coordinatorModulePath = join(

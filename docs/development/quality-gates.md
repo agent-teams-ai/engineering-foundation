@@ -212,6 +212,14 @@ The source-dependency schema requires explicit target entrypoints and rejects
 runtime or type-only dependency cycles between packages and architecture
 boundaries.
 
+The repository dogfood uses source-dependencies v2 and `packageRoots:
+[packages]`. The explicit package-root contract, rather than pnpm selection
+globs, closes package and source ownership: a new direct child package, a source
+outside governed roots, or a boundary spanning package roots fails the gate.
+The package inventory test independently proves that every public workspace
+manifest appears in the existing public API, release, and registry qualification
+authorities without maintaining another package catalog or release graph.
+
 Suppression waivers, released API baselines, privileged workflow jobs, and
 publishable packages are also closed-world evidence. Released contract and API
 baselines are release-owned: creation, replacement, movement, and deletion are

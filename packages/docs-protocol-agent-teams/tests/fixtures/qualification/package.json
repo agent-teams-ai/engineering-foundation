@@ -1,0 +1,16 @@
+{
+  "name": "docs-protocol-qualification-fixture",
+  "private": true,
+  "scripts": {
+    "docs:check": "docs-protocol check --consumer . --profile docs.config.yaml",
+    "docs:doctor": "docs-protocol doctor --consumer . --profile docs.config.yaml",
+    "docs:find": "docs-protocol find --consumer . --profile docs.config.yaml",
+    "docs:info": "docs-protocol info --consumer . --profile docs.config.yaml",
+    "docs:new": "docs-protocol new --consumer . --profile docs.config.yaml",
+    "docs:recover": "docs-protocol recover --consumer . --profile docs.config.yaml",
+    "docs:protocol:check": "pnpm docs:check"
+  },
+  "devDependencies": {
+    "@agent-teams/docs-protocol": "0.0.0"
+  }
+}

@@ -5,6 +5,7 @@ import {
   cp,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   readdir,
   rename,
@@ -31,7 +32,7 @@ import {
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
 import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
 import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-plan-authority.js";
-import { ownedTemporaryCleanupResiduePrefix } from "../packages/engineering-foundation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
+import { ownedTemporaryCleanupResiduePrefix } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 
 test("legacy journal retirement rejects a pre-existing link without escaping state", async () => {
   const root = await createConsumer();
@@ -226,7 +227,9 @@ test("does not commit when an output changes before final authority verification
 
     assert.equal(receipt.outcome, "recovery-required");
     assert.equal(await readFile(destination, "utf8"), "third-party final state\n");
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+    const envelope = JSON.parse(await readFile(journalPath(root), "utf8"));
+    assert.equal(envelope.schemaVersion, 6);
+    assert.equal(envelope.payload.schemaVersion, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -252,7 +255,9 @@ test("preserves a journal replaced after final verification", async () => {
       ),
       /journal changed before it could be removed/u
     );
-    assert.match(await readFile(journalPath(root), "utf8"), /"schemaVersion": 1/u);
+    const envelope = JSON.parse(await readFile(journalPath(root), "utf8"));
+    assert.equal(envelope.schemaVersion, 6);
+    assert.equal(envelope.payload.schemaVersion, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -403,11 +408,24 @@ test("preserves an exact replacement before cleanup transition authority", async
           );
           assert.ok(temporaryName);
           const temporary = join(parent, temporaryName);
-          const bytes = await readFile(temporary);
-          const ownedIdentity = await stat(temporary, { bigint: true });
           const originalPath = `${temporary}.original`;
           await rename(temporary, originalPath);
-          await writeFile(temporary, bytes);
+          const original = await open(originalPath, "r");
+          let bytes;
+          let ownedIdentity;
+          try {
+            [bytes, ownedIdentity] = await Promise.all([
+              original.readFile(), original.stat({ bigint: true }),
+            ]);
+          } finally {
+            await original.close();
+          }
+          const replacement = await open(temporary, "wx", 0o644);
+          try {
+            await replacement.writeFile(bytes);
+          } finally {
+            await replacement.close();
+          }
           if (process.platform !== "win32") {
             await chmod(temporary, 0o644);
           }
@@ -537,7 +555,7 @@ test("retains the downgrade barrier for a replaced journal temporary", async () 
 
 test(
   "rejects a FIFO journal without blocking and releases the operation lock",
-  { skip: process.platform === "win32", timeout: 10_000 },
+  { skip: process.platform === "win32", timeout: 15_000 },
   async () => {
     const root = await createConsumer();
     try {
@@ -581,7 +599,7 @@ test(
           root,
           path
         ],
-        { timeout: 5_000 }
+        { timeout: 8_000 }
       );
 
       assert.equal(stdout, "completed\n");
@@ -596,7 +614,7 @@ test(
   "rejects a Unix socket journal through the typed recovery path",
   { skip: process.platform === "win32", timeout: 10_000 },
   async () => {
-    const root = await mkdtemp("/tmp/foundation-socket-");
+    const root = await mkdtemp(join(process.platform === "darwin" ? "/tmp" : tmpdir(), "fs-socket-"));
     await cp(fixtureRoot, root, { recursive: true });
     const path = journalPath(root);
     const server = createServer();

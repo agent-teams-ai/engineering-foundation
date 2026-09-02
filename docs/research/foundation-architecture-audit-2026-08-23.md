@@ -128,7 +128,7 @@ application, adapters и composition в
 [`source-dependencies.yaml`](../../architecture/foundation/source-dependencies.yaml).
 Application зависит от узких lifecycle/planner ports, а concrete Node,
 package-manager и Foundation mutation adapters собираются только в
-[`node-consumer-integration.ts`](../../packages/docs-protocol/src/consumer-integration/composition/node-consumer-integration.ts).
+[`node-consumer-integration.ts`](../../packages/docs-protocol-agent-teams/src/consumer-integration/composition/node-consumer-integration.ts).
 
 Направление защищено golden policy и негативным тестом в
 [`package-boundary.test.mjs`](../../tests/package-boundary.test.mjs). Это
@@ -224,9 +224,9 @@ plan/apply.
 
 ### Recovery остаётся слишком сложным для безопасного изменения
 
-[`node-known-file-transaction-recovery.ts`](../../packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts)
+[`node-known-file-transaction-recovery.ts`](../../packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts)
 имеет 1,334 строки, а
-[`node-known-file-transaction.ts`](../../packages/engineering-foundation/src/repository-mutation/adapters/node/node-known-file-transaction.ts)
+[`node-known-file-transaction.ts`](../../packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts)
 - 869 строк. В одном уровне смешаны transition decisions, journal evolution,
 identity checks, filesystem effects и orchestration. Четыре временные complexity
 waiver для этой области зафиксированы в
@@ -258,9 +258,11 @@ failure.
 
 ### Публичный API показывает concrete и qualification seams
 
-[`mutation/index.ts`](../../packages/engineering-foundation/src/mutation/index.ts)
-экспортирует concrete Node operations и fault injector types.
-[`consumer-integration/index.ts`](../../packages/docs-protocol/src/consumer-integration/index.ts)
+На проверенном снимке удалённый впоследствии Foundation mutation facade
+экспортировал concrete Node operations и fault injector types; текущая
+new-only поверхность находится в
+[`Repository Mutation`](../../packages/repository-mutation/src/index.ts).
+[`consumer-integration/index.ts`](../../packages/docs-protocol-agent-teams/src/consumer-integration/index.ts)
 экспортирует planners/adapters и Node error рядом с основными use cases.
 
 Это полезно для существующей qualification, но увеличивает стоимость каждого

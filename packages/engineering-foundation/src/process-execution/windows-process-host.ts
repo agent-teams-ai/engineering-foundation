@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { spawn, type ChildProcess } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
 
 interface HostRequest {
   readonly schemaVersion: 1;
@@ -28,20 +28,27 @@ function isHostRequest(value: unknown): value is HostRequest {
 }
 
 function readRequest(): HostRequest {
-  const encoded = process.argv[2];
-  if (encoded === undefined) {
+  const requestPath = process.argv[2];
+  if (requestPath === undefined) {
     throw new Error("The managed Windows process host did not receive a request.");
   }
   let input: unknown;
   try {
-    input = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as unknown;
+    input = JSON.parse(readFileSync(requestPath, "utf8")) as unknown;
   } catch {
-    throw new Error("The managed Windows process host received invalid request encoding.");
+    throw new Error("The managed Windows process host could not read a valid request.");
   }
   if (!isHostRequest(input)) {
     throw new Error("The managed Windows process host received an invalid request.");
   }
   return input;
+}
+
+function reportLaunchFailure(request: HostRequest, error: unknown): void {
+  writeFileSync(request.launchPath, "FAILED", { encoding: "utf8", flag: "wx" });
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`Managed command could not be started: ${message}\n`);
+  process.exitCode = 1;
 }
 
 if (process.platform !== "win32") {
@@ -50,32 +57,37 @@ if (process.platform !== "win32") {
 } else {
   try {
     const request = readRequest();
-    const child = spawn(request.command, [...request.args], {
-      cwd: request.cwd,
-      detached: false,
-      shell: false,
-      stdio: ["ignore", "inherit", "inherit"],
-      windowsHide: true
-    });
-    child.once("error", (error) => {
-      writeFileSync(request.launchPath, "FAILED", { encoding: "utf8", flag: "wx" });
-      process.stderr.write(`Managed command could not be started: ${error.message}\n`);
-      process.exitCode = 1;
-    });
-    child.once("spawn", () => {
-      try {
-        writeFileSync(request.launchPath, "STARTED", { encoding: "utf8", flag: "wx" });
-      } catch (error) {
-        child.kill("SIGKILL");
-        process.stderr.write(
-          `Managed command launch could not be confirmed: ${error instanceof Error ? error.message : String(error)}\n`
-        );
-        process.exitCode = 1;
-      }
-    });
-    child.once("close", (exitCode) => {
-      process.exit(exitCode ?? 1);
-    });
+    let child: ChildProcess | undefined;
+    try {
+      child = spawn(request.command, [...request.args], {
+        cwd: request.cwd,
+        detached: false,
+        shell: false,
+        stdio: ["ignore", "inherit", "inherit"],
+        windowsHide: true
+      });
+    } catch (error) {
+      reportLaunchFailure(request, error);
+    }
+    if (child !== undefined) {
+      child.once("error", (error) => {
+        reportLaunchFailure(request, error);
+      });
+      child.once("spawn", () => {
+        try {
+          writeFileSync(request.launchPath, "STARTED", { encoding: "utf8", flag: "wx" });
+        } catch (error) {
+          child.kill("SIGKILL");
+          process.stderr.write(
+            `Managed command launch could not be confirmed: ${error instanceof Error ? error.message : String(error)}\n`
+          );
+          process.exitCode = 1;
+        }
+      });
+      child.once("close", (exitCode) => {
+        process.exit(exitCode ?? 1);
+      });
+    }
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;

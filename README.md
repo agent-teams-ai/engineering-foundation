@@ -7,14 +7,16 @@ This repository contains reusable development tooling only. Product runtime code
 must not import it. Each consumer remains authoritative for its own domain model,
 package catalog, dependency permissions, security classifications, and ADRs.
 
-The monorepo is structured as one-way layered packages. Engineering Foundation
-owns reusable validation and mutation mechanisms. `@agent-teams/docs-protocol`
-depends on Foundation and owns the repository-native documentation library,
-CLI, portable agent workflow, fuzzy discovery, and bounded context projection.
-The optional `@agent-teams/docs-protocol-mcp` package is a read-only transport
-over that public API. Dependencies never point back toward Foundation, and
-consumer-specific document types, schemas, owners, templates, reachability,
-and semantic validators remain strict data-only authority in each repository.
+The current release has the original package placement. The accepted target is
+a new-only, independently versioned portable package boundary; its implementation
+and qualification are pending. [ADR-0043](docs/decisions/0043-new-only-portable-documentation-package-boundary.md)
+is the single authority for the target dependency DAG, and the
+[delivery contract](docs/development/docs-portable-boundary-delivery.md) records
+the evidence still required before release. No compatibility facade or legacy
+alias is part of that target.
+
+Consumer-specific document types, schemas, owners, templates, reachability, and
+semantic validators remain strict data-only authority in each repository.
 Exact public installation and optional MCP pairing have one canonical authority:
 the [open-source Docs Protocol workflow](docs/reference/open-source-docs-protocol.md#install-one-exact-version).
 
@@ -40,7 +42,8 @@ Capabilities are extracted incrementally from proven repositories. A capability
 moves here only with parity fixtures and a consumer conformance test.
 `workspace.dependency-declarations` is active.
 `architecture.source-dependencies` is active and dogfooded with its accepted
-Oxc adapter. See
+Oxc adapter. This monorepo uses schema v2 with the explicit `packages` package
+root, while the published v1 contract remains loadable for existing consumers. See
 [Executable capabilities](docs/architecture/executable-capabilities.md) and
 [the parser spike](docs/research/source-dependency-parser-spike.md).
 Suppression governance, released public API compatibility, and the publishing-

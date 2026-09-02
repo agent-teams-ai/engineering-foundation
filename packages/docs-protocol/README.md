@@ -74,25 +74,11 @@ init plan/apply/recover behavior without a terminal.
 See the [community workflow](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/open-source-docs-protocol.md)
 for the complete safety contract.
 
-## Managed Agent Teams commands
+## Portable commands
 
 Install this tooling package at one exact version in `devDependencies`, never in
-production `dependencies`. Map these scripts to `agent-teams-docs`:
-
-```text
-docs:info     -> agent-teams-docs info
-docs:find     -> agent-teams-docs find
-docs:new      -> agent-teams-docs new
-docs:doctor   -> agent-teams-docs doctor
-docs:recover  -> agent-teams-docs recover
-docs:check    -> agent-teams-docs check
-```
-
-Managed repositories use
-`architecture/foundation/docs-protocol.yaml`. Portable repositories use
-`docs.config.yaml`. The CLI discovers either path and fails closed when both
-exist; override it with `--profile` and override the repository with
-`--consumer`.
+production `dependencies`. The portable profile is `docs.config.yaml`; override
+it explicitly with `--profile` and override the repository with `--consumer`.
 
 `new` requires exactly one of `--dry-run` or `--apply`. Preview never reserves
 an ID or writes. Apply creates only the planned document and reports the exact
@@ -115,7 +101,7 @@ v1 vocabulary. Repeat `--code-anchor` with one strict JSON value. Repeat
 
 ## Profile routing
 
-The protocol profile routes to a Foundation authoring profile v2 or v3. Foundation
+The portable v3 protocol profile routes to a Foundation authoring profile v3. Foundation
 alone loads inline frontmatter and any declared metadata sidecar, performs the
 strict path-to-full-metadata merge, validates the final instance, and exposes a
 bounded inert metadata projection. Docs Protocol never reparses documents.
@@ -126,59 +112,17 @@ reachability. `not-required` requires a human-readable reason; omission is
 invalid. The Docs Protocol profile contains only routing, protocol identity,
 the agent Skill route, and opaque semantic validator IDs.
 
-The JSON schemas are exported under `@agent-teams/docs-protocol/schemas/*`.
+The portable JSON schemas are exported under
+`@agent-teams/docs-protocol/schemas/*`.
 Machine output uses one JSON envelope with protocol ID/version and stable exit
 codes: `0` success, `1` violation/conflict/recovery, `2` invalid input, `3`
 execution failure, and `130` cancellation.
-Published v1/v2 commands retain their existing envelope shapes. Portable
+Generic v1/v2 commands retain their existing envelope shapes. Portable
 `init`, bounded `context`, and opt-in fuzzy `find` use the additive v3 envelope;
 default exact `find` remains v2. Consumers must dispatch on `schemaVersion` and
 validate against the matching exported schema.
 Recovery is bound to the persisted transaction and exact installed Foundation
 build, so it does not parse mutable authoring profiles before resuming.
-
-## Maintainer lifecycle
-
-Daily authoring commands stay unchanged. Integration maintenance uses a separate
-namespace and the committed
-`architecture/foundation/docs-consumer-integration.json` profile:
-
-```bash
-agent-teams-docs consumer check --json
-agent-teams-docs consumer upgrade --to docs-YYYY-MM-DD-N --json
-agent-teams-docs consumer plan --to docs-YYYY-MM-DD-N --json
-agent-teams-docs consumer apply --expect sha256:EXACT_PLAN_DIGEST --json
-agent-teams-docs consumer recover --json
-```
-
-`upgrade` is the normal Cohort migration. It resolves current protected
-`.github` authority, projects the Cohort and two exact package pins, generates
-the lockfile with pnpm in a disposable Git copy, and proves the installed target
-CLI before Foundation publishes the closed postimage set. The real activation
-is a frozen offline install plus read-only check; a failure restores the exact
-source files and package set.
-
-The command requires a clean Git HEAD, an idle Foundation transaction, and a
-source Cohort that already passes `consumer check`. It preserves consumer-owned
-profile fields and arbitrary manifest/workspace content. `eligibleAfter` is
-evidence, not a local wait gate. `--authority-revision` may assert freshness but
-must equal current protected main.
-
-`check` and `plan` are write-free and offline. `apply` recompiles the Plan,
-requires its exact digest, and delegates all writes to Foundation's recoverable
-known-file transaction. The integration never edits a lockfile, documentation
-profile, owner catalog, schema, template, validator, or governed document.
-
-V1 supports only one root pnpm 11 integration on Node 24 and GitHub Actions.
-Other package managers and mixed lockfiles fail closed. Windows supports check
-and plan; apply and recovery refuse until strict directory durability has a
-separate qualification.
-
-If source check reports recovery, run the current build's
-`consumer recover --json` first. Replacing the installed build while its journal
-is active remains unsupported and fails the upgrade. The lower-level
-`plan`/`apply` path remains available for diagnosis and managed-asset repair;
-it is no longer a prerequisite for Cohort authority, pins, or lockfile updates.
 
 ## Consumer qualification
 
@@ -190,51 +134,7 @@ explicit reachability, check, doctor, and recovery end to end. It rejects fixtur
 symlinks, verifies that the source tree did not change, and removes only the
 temporary directory it created.
 
-Qualification v2 replaces consumer-owned test code with one strict data file.
-The managed integration profile uses `schemaVersion: 2` and declares only the
-fixed qualification contract path and external governance gate. The contract
-contains exactly one scenario for every authorable type:
-
-```json
-{
-  "schemaVersion": 2,
-  "scenarios": [{
-    "id": "adr",
-    "type": "adr",
-    "intent": {
-      "id": "ADR-9001",
-      "title": "Qualification",
-      "owner": "architecture/tooling",
-      "summary": "Proves the disposable authoring roundtrip."
-    },
-    "expected": {
-      "documentPath": "docs/decisions/9001-qualification.md",
-      "metadataStorage": "frontmatter",
-      "reachability": {
-        "state": "manual-required",
-        "indexPath": "docs/decisions/README.md",
-        "markdownLink": "[ADR-9001: Qualification](9001-qualification.md)"
-      }
-    }
-  }]
-}
-```
-
-Run `agent-teams-docs qualify --consumer . --json`. The package derives pins,
-profile and contract paths, and the declared gate from managed integration. It
-never executes that gate or other consumer code. It copies the consumer into an
-owned temporary directory while excluding `.git`, `node_modules`, and
-`.agent-teams-local`, then runs package-owned info/find/check/doctor/recover and
-per-scenario preview/apply/golden checks. The single-file writer always emits
-canonical frontmatter. A configured metadata sidecar remains read-only catalog
-authority and is qualified by the suite-wide strict merge roundtrip.
-
-V1 `runDocsProtocolQualification` remains available during migration. Invoking
-the v2 CLI with v1 managed or qualification authority returns
-`DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED`; move pins, paths, and the gate to the
-managed integration profile and retain only scenario data in the v2 contract.
-For pre-release testing, `--local-development` overlays the current package's
-canonical managed Skill only inside the disposable copy. Its receipt has
-`evidenceClass: "local-development"` and `cohortAdmissible: false`; governance
-and released-cohort rollout must reject that evidence. The default remains
-strict released-cohort qualification.
+Managed qualification is intentionally outside this package. Agent Teams users
+install `@agent-teams/docs-protocol-agent-teams` and use its distinct
+`agent-teams-docs-managed` executable; the portable core neither discovers nor
+imports that adapter.

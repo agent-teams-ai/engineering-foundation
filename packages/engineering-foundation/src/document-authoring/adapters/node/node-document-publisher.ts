@@ -1,18 +1,16 @@
 import { createHash } from "node:crypto";
 import { link, open, rm } from "node:fs/promises";
 
-import { cleanupIdentityMatchingOwnedTemporary } from "../../../repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 import {
+  cleanupIdentityMatchingOwnedTemporary,
+  pathMatchesRegularFileIdentity,
+  prepareExactSiblingTemporary,
+  publishPreparedAbsentFile,
+  readBoundedRegularFile,
   syncDirectoryDurably,
   syncDirectoryStrictly
-} from "../../../repository-mutation/adapters/node/node-directory-durability.js";
-import { prepareExactSiblingTemporary } from "../../../repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.js";
-import { publishPreparedAbsentFile } from "../../../repository-mutation/adapters/node/node-publish-prepared-absent-file.js";
-import {
-  pathMatchesRegularFileIdentity,
-  readBoundedRegularFile
-} from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
-import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
+} from "@agent-teams/repository-mutation/node";
+import type { PortablePathIdentity } from "@agent-teams/repository-mutation";
 import {
   assertDocumentPhysicalIdentity,
   assertNonzeroDocumentPhysicalIdentity,
@@ -161,7 +159,6 @@ export class NodeDocumentPublisher implements DocumentPublisher {
     request.signal?.throwIfAborted();
     const captured = await prepareExactSiblingTemporary({
       displayPath: temporaryPath,
-      faultInjector: undefined,
       onIdentityCaptured() {},
       open: this.#operations.open,
       postimage: postimage(request.plan),
@@ -276,9 +273,6 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       destinationPath: paths.destinationPath,
       displayPath: request.plan.destination,
       expectedIdentity,
-      faultInjector: async () => this.#operations.faultInjector?.({
-        phase: "after-hard-link"
-      }),
       link: async (source, destination) => {
         const immediatelyBefore = await recaptureDocumentPublicationPaths({
           consumerRoot: request.consumerRoot,
@@ -298,6 +292,7 @@ export class NodeDocumentPublisher implements DocumentPublisher {
           throw new Error("Document publication ancestry changed before link.");
         }
         await this.#operations.link(source, destination);
+        await this.#operations.faultInjector?.({ phase: "after-hard-link" });
         const immediatelyAfter = await recaptureDocumentPublicationPaths({
           consumerRoot: request.consumerRoot,
           destination: request.plan.destination

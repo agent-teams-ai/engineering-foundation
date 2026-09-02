@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
@@ -21,7 +20,6 @@ const [
   { evaluateSourceDependencies },
   { evaluateSourceDependencyCycles },
   { NodeSourceDependencyResolver },
-  { loadCapabilityConfig },
 ] = await Promise.all([
   loadDistModule(
     "capabilities/source-dependencies/application/use-cases/build-observed-source-graph.js",
@@ -38,7 +36,6 @@ const [
   loadDistModule(
     "capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.js",
   ),
-  loadDistModule("capabilities/source-dependencies/contract/config.js"),
 ]);
 
 function workspacePackage(name, rootPath, dependencies = []) {
@@ -136,15 +133,6 @@ function evidence(diagnostic, kind) {
   const found = diagnostic.evidence.find((entry) => entry.kind === kind);
   assert.notEqual(found, undefined, `missing ${kind} evidence`);
   return found.value;
-}
-
-async function withTemporaryDirectory(callback) {
-  const directory = await mkdtemp(join(tmpdir(), "foundation-source-graph-"));
-  try {
-    return await callback(directory);
-  } finally {
-    await rm(directory, { force: true, recursive: true });
-  }
 }
 
 test("builds a deeply frozen, deterministic graph with POSIX Windows-path identity", () => {
@@ -756,41 +744,4 @@ test("bounds a canonical SCC witness without recursive traversal", () => {
   );
   assert.match(evidence(diagnostic, "cycle-witness"), /boundary\.00 -> boundary\.01 -> .*\.\.\..* -> boundary\.00/);
   assert.equal(evidence(diagnostic, "cycle-witness-edge-count"), "2048");
-});
-
-test("loads the single schema v1 and rejects missing entrypoints or another version", async () => {
-  await withTemporaryDirectory(async (consumerRoot) => {
-    const v1Path = join(consumerRoot, "v1.yaml");
-    await writeFile(
-      v1Path,
-      `schemaVersion: 1\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    entrypoints:\n      - packages/app/src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
-      "utf8",
-    );
-    const v1 = await loadCapabilityConfig(consumerRoot, "v1.yaml");
-    assert.equal(v1.schemaVersion, 1);
-    assert.equal(v1.boundaries[0].dependencyMode, "runtime");
-    assert.deepEqual(v1.boundaries[0].entrypoints, ["packages/app/src/index.ts"]);
-
-    const missingEntrypointsPath = join(consumerRoot, "missing-entrypoints.yaml");
-    await writeFile(
-      missingEntrypointsPath,
-      `schemaVersion: 1\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
-      "utf8",
-    );
-    await assert.rejects(
-      () => loadCapabilityConfig(consumerRoot, "missing-entrypoints.yaml"),
-      (error) => error?.name === "CapabilityInputError",
-    );
-
-    const unsupportedVersionPath = join(consumerRoot, "unsupported-version.yaml");
-    await writeFile(
-      unsupportedVersionPath,
-      `schemaVersion: 2\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\ngovernedRoots:\n  - packages/app/src\nboundaries:\n  - id: app.domain\n    roots:\n      - packages/app/src\n    entrypoints: []\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
-      "utf8",
-    );
-    await assert.rejects(
-      () => loadCapabilityConfig(consumerRoot, "unsupported-version.yaml"),
-      (error) => error?.name === "CapabilityInputError",
-    );
-  });
 });

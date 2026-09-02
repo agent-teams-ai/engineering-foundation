@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -10,24 +10,21 @@ import {
 } from "./pack-test-support.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyWindowsDocsRecoveryQualification } from "./registry-document-authoring-policy.mjs";
+import { readInstalledPortableDocsSkill } from "./registry-installed-docs-skill.mjs";
+import {
+  isCanonicalPathInside,
+  isSameCanonicalPath
+} from "./registry-package-paths.mjs";
 
 const packageName = "@agent-teams/engineering-foundation", docsPackageName = "@agent-teams/docs-protocol";
+const docsProfilePath = "architecture/foundation/docs-protocol.yaml";
+const foundationProfilePath = "architecture/foundation/document-authoring.yaml";
 const timeoutMs = 120_000, runPnpm = createPnpmRunner();
 
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
-}
-
-export function isSameCanonicalPath(left, right) {
-  return relative(left, right) === "";
-}
-
-export function isCanonicalPathInside(root, candidate) {
-  const relation = relative(root, candidate);
-  return relation !== "" && relation !== ".." &&
-    !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
 }
 
 async function runBin(consumerRoot, args) {
@@ -118,6 +115,8 @@ async function assertInstalledBoundary(input) {
     await realpath(join(input.consumerRoot, "node_modules")), await realpath(docsRoot)
   ),
     "Installed Docs Protocol escaped the clean consumer node_modules tree.");
+  assert(isSameCanonicalPath(await realpath(input.installedDocsRoot), await realpath(docsRoot)),
+    "Document E2E received a different installed Docs Protocol package root.");
   const foundationManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert(typeof foundationManifest.exports?.["./document-authoring/qualification"] === "object",
     "Packed Foundation does not declare its closed document-authoring qualification export.");
@@ -160,6 +159,16 @@ function documentArgs(consumerRoot, input) {
   ];
 }
 
+export async function writeDocsProtocolProfileFixture(consumerRoot) {
+  await writeFile(join(consumerRoot, docsProfilePath), [
+    "schemaVersion: 3", "protocol: {id: agent-teams.docs-protocol, version: 1}",
+    "foundationProfile:", `  path: ${foundationProfilePath}`, "  schemaVersion: 3",
+    "  metadataSidecarPolicy: foundation-profile-v3-strict-merge",
+    "agentWorkflow: {adoption: portable-v1, skillPath: .agents/skills/docs-authoring/SKILL.md}",
+    "semanticValidatorIds: []", ""
+  ].join("\n"), "utf8");
+}
+
 export async function verifyRegistryDocumentAuthoring(input) {
   await assertInstalledBoundary(input);
   await writePackedConsumerDocumentAuthoringFixture(input.consumerRoot);
@@ -174,8 +183,6 @@ export async function verifyRegistryDocumentAuthoring(input) {
 }
 
 async function prepareDocsProtocolFixture(input) {
-  const profilePath = "architecture/foundation/docs-protocol.yaml";
-  const foundationProfilePath = "architecture/foundation/document-authoring.yaml";
   const manifestPath = join(input.consumerRoot, "package.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   manifest.devDependencies = {
@@ -186,16 +193,14 @@ async function prepareDocsProtocolFixture(input) {
   manifest.scripts = Object.fromEntries(
     ["info", "find", "new", "doctor", "recover", "check"].map((command) => [
       `docs:${command}`,
-      `agent-teams-docs ${command} --consumer . --profile ${profilePath}`
+      `agent-teams-docs ${command} --consumer . --profile ${docsProfilePath}`
     ])
   );
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   await writeFile(join(input.consumerRoot, foundationProfilePath), [
     "schemaVersion: 3", "projectId: pack-consumer", "catalog:", "  metadataSchemaPath: docs/metadata.schema.json", "  ownerCatalog: {path: docs/owners.yaml, contract: foundation.owner-map/v1}", "  collections:", "    - {kind: markdown-tree, root: docs/catalog}", "  excludedPrefixes: [docs/template.md]", "authoring:", "  mode: create-only", "  artifactTypes:", "    - type: adr", "      initialStatus: proposed", "      identity: {kind: explicit, format: adr-four-digits}", "      placement: {kind: collection, directory: docs/catalog, filename: numeric-id-slug}", "      template: {kind: fenced-markdown-body, path: docs/template.md}", "      heading: {kind: id-colon-title}", "      reachability: {kind: manual-fixed-index, indexPath: docs/catalog/README.md}", "      allowedOwnerIds: [architecture]", ""
   ].join("\n"), "utf8");
-  await writeFile(join(input.consumerRoot, profilePath), [
-    "schemaVersion: 2", "protocol: {id: agent-teams.docs-protocol, version: 1}", "foundationProfile:", `  path: ${foundationProfilePath}`, "  schemaVersion: 3", "  metadataSidecarPolicy: foundation-profile-v3-strict-merge", "agentWorkflow: {skillPath: .agents/skills/docs-authoring/SKILL.md}", "semanticValidatorIds: []", ""
-  ].join("\n"), "utf8");
+  await writeDocsProtocolProfileFixture(input.consumerRoot);
   const metadataSchemaPath = join(input.consumerRoot, "docs", "metadata.schema.json");
   const metadataSchema = JSON.parse(await readFile(metadataSchemaPath, "utf8"));
   metadataSchema.properties = {
@@ -206,10 +211,7 @@ async function prepareDocsProtocolFixture(input) {
   };
   await writeFile(metadataSchemaPath, `${JSON.stringify(metadataSchema, null, 2)}\n`, "utf8");
   await mkdir(join(input.consumerRoot, ".agents", "skills", "docs-authoring"), { recursive: true });
-  const installedDocsSkill = await readFile(join(
-    input.consumerRoot,
-    "node_modules", "@agent-teams", "docs-protocol", "skills", "docs", "SKILL.md"
-  ));
+  const installedDocsSkill = await readInstalledPortableDocsSkill(input.installedDocsRoot);
   await writeFile(
     join(input.consumerRoot, ".agents", "skills", "docs-authoring", "SKILL.md"),
     installedDocsSkill
@@ -335,7 +337,11 @@ function assertDocsHealth(check, idleDoctor, idleRecover) {
 
 async function verifyInstalledDocsProtocol(input) {
   await prepareDocsProtocolFixture(input);
-  const info = await docsJsonCommand(input.consumerRoot, ["info", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
+  const info = await docsJsonCommand(input.consumerRoot, ["info", "--consumer", ".", "--profile", docsProfilePath]);
+  assert(info.outcome === "success" && info.result?.agentWorkflow?.adoption === "portable-v1" &&
+    info.result?.foundationProfile?.schemaVersion === 3 &&
+    info.result?.foundationProfile?.metadataSidecarPolicy === "foundation-profile-v3-strict-merge",
+  "Generated registry Docs Profile did not parse under the installed portable profile policy.");
   const found = await docsJsonCommand(input.consumerRoot, ["find", "Hermetic", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
   assertDocsInfoAndFind(info, found);
   const preview = await docsJsonCommand(input.consumerRoot, docsNewArguments({ id: "ADR-0050", title: "Unified Registry Boundary", slug: "unified-registry-boundary" }, "--dry-run"));

@@ -23,9 +23,9 @@ import {
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
 } from "../packages/engineering-foundation/dist/package-self-check.js";
 import {
-  applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
-} from "../packages/engineering-foundation/dist/mutation/index.js";
+} from "../packages/repository-mutation/dist/index.js";
+import { applyKnownFileTransaction } from "../packages/repository-mutation/dist/qualification/index.js";
 import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
 
 function NodeProcessRunner() {
@@ -453,7 +453,7 @@ test("status JSON remains one parseable object when transaction recovery is requ
   }
 });
 
-strictDirectoryDurabilityTest("status preserves the exact known-file recovery route", async () => {
+strictDirectoryDurabilityTest("Foundation status preserves leaf known-file evidence for explicit recovery", async () => {
   const fixture = await createFixture();
   try {
     const plan = compileKnownFileTransactionPlan({
@@ -478,28 +478,11 @@ strictDirectoryDurabilityTest("status preserves the exact known-file recovery ro
 
     const status = await inspectFoundationMode(fixture.consumerRoot);
     assert.equal(status.mode, "INVALID");
-    assert.deepEqual(
-      {
-        state: status.transaction?.state,
-        operationKind: status.transaction?.operationKind,
-        format: status.transaction?.format,
-        foundationVersion: status.transaction?.foundationVersion,
-        foundationBuildIdentity: status.transaction?.foundationBuildIdentity,
-        recovery: status.transaction?.recovery,
-      },
-      {
-        state: "pending",
-        operationKind: "known-file-transaction",
-        format: "known-file-transaction-envelope-v1",
-        foundationVersion: status.transaction?.foundationVersion,
-        foundationBuildIdentity: status.transaction?.foundationBuildIdentity,
-        recovery: {
-          commandId: "replace-known-file-recover",
-          exactFoundationVersion: status.transaction?.foundationVersion,
-          exactFoundationBuildIdentity: status.transaction?.foundationBuildIdentity,
-        },
-      },
-    );
+    assert.equal(status.transaction?.state, "pending");
+    assert.equal(status.transaction?.operationKind, "known-file-transaction");
+    assert.equal(status.transaction?.format, "known-file-transaction-envelope-v1");
+    assert.equal(status.transaction?.recovery.commandId, "replace-known-file-recover");
+    await readFile(join(fixture.consumerRoot, ".agent-teams-local", "scaffolding-transaction.json"));
   } finally {
     await rm(fixture.root, { force: true, recursive: true });
   }

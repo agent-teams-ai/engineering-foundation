@@ -106,11 +106,27 @@ function assertReviewRouterInteractionRuntime(
 function assertExactReleaseRunBinding(attestation, release, ci) {
   const jobTimeoutSeconds =
     release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
-  const primaryDeadlineSeconds = 2100;
-  const finalVerificationSeconds = 60;
+  const requiredContexts = attestation.run.match(/^\s*ci_contexts=\(([^)]+)\)$/mu)[1].split(" ");
+  const criticalPathMinutes = (jobId) => {
+    const { needs = [], "timeout-minutes": timeout } = ci.jobs[jobId] ?? {};
+    assert.ok(Number.isInteger(timeout), `${jobId} must be bounded`);
+    return timeout + Math.max(0, ...[needs].flat().map(criticalPathMinutes));
+  };
+  const longestRequiredCiPathSeconds = Math.max(...requiredContexts.map(criticalPathMinutes)) * 60;
+  const deadlineEntries = [...attestation.run.matchAll(
+    /^\s*(deadline|final_verification_deadline)=\$\(\(SECONDS \+ ([0-9]+)\)\)$/gmu,
+  )];
+  const deadlines = new Map(deadlineEntries.map(
+    ([, name, seconds]) => [name, Number.parseInt(seconds, 10)],
+  ));
+  const primaryDeadlineSeconds = deadlines.get("deadline");
+  const finalVerificationSeconds = deadlines.get("final_verification_deadline");
 
-  assert.equal(jobTimeoutSeconds, 2400);
-  assert.match(attestation.run, /deadline=\$\(\(SECONDS \+ 2100\)\)/u);
+  assert.equal(jobTimeoutSeconds, 60 * 60);
+  assert.equal(deadlines.size, 2);
+  assert.equal(primaryDeadlineSeconds, 55 * 60);
+  assert.equal(finalVerificationSeconds, 60);
+  assert.equal(primaryDeadlineSeconds - longestRequiredCiPathSeconds, 3 * 60);
   assert.match(attestation.run, /actions\/workflows\/ci\.yml\/dispatches/u);
   assert.match(attestation.run, /-F return_run_details=true/u);
   assert.match(attestation.run, /\.workflow_run_id \/\/ ""/u);
@@ -144,20 +160,11 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.match(attestation.run, /final_run_conclusion.*success/su);
   assert.match(
     attestation.run,
-    /final_verification_deadline=\$\(\(SECONDS \+ 60\)\)/u,
-  );
-  assert.match(
-    attestation.run,
     /while \(\( SECONDS < final_verification_deadline \)\); do/u,
   );
-  assert.ok(
-    attestation.run.lastIndexOf("deadline=$((SECONDS + 2100))") <
-      attestation.run.lastIndexOf(
-        "final_verification_deadline=$((SECONDS + 60))",
-      ),
-  );
-  assert.ok(
-    primaryDeadlineSeconds + finalVerificationSeconds <= jobTimeoutSeconds,
+  assert.equal(
+    jobTimeoutSeconds - primaryDeadlineSeconds - finalVerificationSeconds,
+    4 * 60,
   );
   assert.ok(
     attestation.run.lastIndexOf("final_bound_run") <
@@ -167,12 +174,6 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| first/u);
   assert.doesNotMatch(attestation.run, /commits\/\$\{head_sha\}\/check-runs/u);
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
-  assert.ok(
-    release.jobs["attest-release-pr"]["timeout-minutes"] >=
-      ci.jobs["dependency-review"]["timeout-minutes"] +
-        ci.jobs["macos-qualification"]["timeout-minutes"] +
-        10,
-  );
 }
 
 function exactPullRequestRun(overrides = {}) {
@@ -304,7 +305,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.equal(releaseJob["timeout-minutes"], 30);
   const attestationIndex = attestationSteps.indexOf(attestation);
   const attestationPnpmSetupIndex = attestationSteps.findIndex(
-    ({ uses }) => uses?.startsWith("pnpm/action-setup@"),
+    ({ uses }) => uses?.startsWith("pnpm/setup@"),
   );
   const attestationNodeSetupIndex = attestationSteps.findIndex(
     ({ uses }) => uses?.startsWith("actions/setup-node@"),
@@ -339,7 +340,11 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.ok(attestationIndex > attestationInstallIndex);
   assert.equal(
     attestationSteps[attestationPnpmSetupIndex].uses,
-    "pnpm/action-setup@008330803749db0355799c700092d9a85fd074e9",
+    "pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b",
+  );
+  assert.deepEqual(
+    attestationSteps[attestationPnpmSetupIndex].with,
+    { install: false },
   );
   assert.equal(
     attestationSteps[attestationNodeSetupIndex].uses,
@@ -493,7 +498,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["registry-install-e2e:built"],
     "node scripts/registry-install-e2e.mjs",
   );
-  assert.equal(ci.jobs["linux-registry"].steps.at(-1).run, "pnpm registry-install-e2e");
+  assert.equal(ci.jobs["linux-registry"].steps.at(-1).run, "pnpm registry-install-e2e"); assert.equal(ci.jobs["linux-registry"]["timeout-minutes"], 25);
   const windowsRegistryCommands = ci.jobs["windows-registry"].steps
     .map((step) => step.run)
     .filter((command) => command !== undefined);
@@ -506,6 +511,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     ci.jobs["windows-package"].steps.at(-1).run,
     "pnpm package:check",
   );
+  assert.equal(ci.jobs["windows-package"]["timeout-minutes"], 45);
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
   assert.equal(

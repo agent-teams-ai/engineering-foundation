@@ -1,18 +1,20 @@
-import { readdir } from "node:fs/promises";
+import { opendir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 import {
+  AbsentFilePublicationError,
   assertTemporaryPathsAbsent,
   classifyExactFilePostimage,
+  ownedTemporaryCleanupResiduePrefix,
   publishAbsentFile,
-  type AbsentFilePublicationFaultPoint
-} from "../../../repository-mutation/adapters/node/node-absent-file-publication.js";
-import { AbsentFilePublicationError } from "../../../repository-mutation/application/model/exact-postimage.js";
-import { ownedTemporaryCleanupResiduePrefix } from "../../../repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
+  type OwnedTemporaryCleanupTransitionPort
+} from "@agent-teams/repository-mutation/node";
+import {
+  publishAbsentFile as publishAbsentFileWithFaults
+} from "@agent-teams/repository-mutation/qualification";
 import type { MaterializeFileOperation } from "../../contract/scaffold-contract.js";
 import { sha256Text } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import type { OwnedTemporaryCleanupTransitionPort } from "../../../repository-mutation/application/ports/owned-temporary-cleanup-transition.js";
 import {
   assertSafeExistingAncestors,
   ensureSafeParent,
@@ -22,7 +24,10 @@ import {
 export type FilesystemOperationState = "absent" | "after" | "conflict";
 
 interface FilesystemPublicationFaultPoint {
-  readonly phase: AbsentFilePublicationFaultPoint["phase"];
+  readonly phase:
+    | "after-hard-link"
+    | "after-temporary-synced"
+    | "after-temporary-written";
   readonly operationIndex: number;
   readonly operationPath: string;
 }
@@ -34,6 +39,28 @@ export type FilesystemPublicationFaultInjector = (
 interface FilesystemPublicationOptions {
   readonly cleanupTransition: OwnedTemporaryCleanupTransitionPort;
   readonly faultInjector?: FilesystemPublicationFaultInjector;
+}
+
+const maximumDirectoryEntries = 1024;
+
+async function boundedDirectoryNames(parent: string): Promise<readonly string[]> {
+  const directory = await opendir(parent);
+  const names: string[] = [];
+  try {
+    for (;;) {
+      const entry = await directory.read();
+      if (entry === null) {return names;}
+      names.push(entry.name);
+      if (names.length > maximumDirectoryEntries) {
+        throw new ScaffoldError(
+          "SCAFFOLD_RECOVERY_REQUIRED",
+          "Scaffolding directory contains too many entries to inspect cleanup evidence safely."
+        );
+      }
+    }
+  } finally {
+    await directory.close();
+  }
 }
 
 function postimage(operation: MaterializeFileOperation) {
@@ -83,7 +110,7 @@ export async function assertNoOwnedCleanupResidue(
     const prefix = ownedTemporaryCleanupResiduePrefix(temporary);
     let entries: string[];
     try {
-      entries = await readdir(parent);
+      entries = [...await boundedDirectoryNames(parent)];
     } catch (error) {
       if (
         error instanceof Error &&
@@ -236,26 +263,26 @@ export async function publishFilesystemOperation(
     transactionTemporaryName(planDigest, operation)
   );
   try {
-    const outcome = await publishAbsentFile({
+    const publication = {
       allowUnsupportedDirectoryDurability: true,
       destinationPath: destination,
       displayPath: operation.path,
-      ...(faultInjector === undefined
-        ? {}
-        : {
-            faultInjector: async (point: AbsentFilePublicationFaultPoint) =>
-              faultInjector({
-                ...point,
-                operationIndex,
-                operationPath: operation.path
-              })
-          }),
       postimage: postimage(operation),
       temporaryPath: temporary,
       ...(cleanupTransition === undefined
         ? {}
         : { transition: cleanupTransition })
-    });
+    };
+    const outcome = faultInjector === undefined
+      ? await publishAbsentFile(publication)
+      : await publishAbsentFileWithFaults({
+          ...publication,
+          faultInjector: async (point) => faultInjector({
+            ...point,
+            operationIndex,
+            operationPath: operation.path
+          })
+        });
     return outcome === "published" ? "applied" : "already-satisfied";
   } catch (error) {
     translatePublicationError(error, operation);

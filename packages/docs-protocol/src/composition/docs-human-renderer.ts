@@ -1,8 +1,7 @@
-import type { DocsCommandEnvelope } from "../domain/model.js";
 import type { DocsCommandEnvelopeV2 } from "../domain/model-v2.js";
 import type { DocsCommandEnvelopeV3 } from "../domain/model-v3.js";
 
-type RenderableEnvelope = DocsCommandEnvelope | DocsCommandEnvelopeV2 | DocsCommandEnvelopeV3;
+type RenderableEnvelope = DocsCommandEnvelopeV2 | DocsCommandEnvelopeV3;
 
 function reachabilitySummary(value: unknown): string {
   const reachability = value as Record<string, unknown>;
@@ -92,10 +91,6 @@ function renderCommandResult(envelope: RenderableEnvelope, result: Record<string
     case "docs.recover": return [`Recovery: ${display(result["transactionState"])} (${display(result["writeState"])})`];
     default: return [];
   }
-}
-
-export function renderDocsHuman(envelope: DocsCommandEnvelope): string {
-  return render(envelope);
 }
 
 export function renderDocsHumanV2(envelope: DocsCommandEnvelopeV2): string {

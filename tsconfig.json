@@ -2,6 +2,9 @@
   "files": [],
   "references": [
     {
+      "path": "./packages/repository-mutation"
+    },
+    {
       "path": "./packages/engineering-foundation"
     },
     {
@@ -9,6 +12,9 @@
     },
     {
       "path": "./packages/docs-protocol-mcp"
+    },
+    {
+      "path": "./packages/docs-protocol-agent-teams"
     }
   ]
 }

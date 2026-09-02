@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { link, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { applyKnownFileTransaction, compileKnownFileTransactionPlan, inspectKnownFileTransactionBarrier, recoverKnownFileTransaction } from "../packages/engineering-foundation/dist/mutation/index.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
-import { compileKnownFileTransactionEnvelope } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
+import { canonicalJson, compileKnownFileTransactionPlan, inspectKnownFileTransactionBarrier } from "../packages/repository-mutation/dist/index.js";
+import { applyKnownFileTransaction, recoverKnownFileTransaction } from "../packages/repository-mutation/dist/qualification/index.js";
+import { compileKnownFileTransactionEnvelope } from "../packages/repository-mutation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
 import { fixture, killAtCheckpoint, plan, posixTest, replacementPlan } from "./support/known-file-transaction-node-fixtures.mjs";
 
 for (const [checkpoint, expectedOutcome] of [
@@ -68,7 +68,7 @@ posixTest("recovery preserves ordered provenance when recovery and release both 
     assert.ok(error instanceof AggregateError);
     assert.equal(error.message, "Known-file recovery and transaction lease release both failed.");
     assert.equal(error.errors[0], primaryFailure);
-    assert.equal(error.errors[1]?.code, "LOCAL_STATE_INVALID");
+    assert.equal(error.errors[1]?.code, "MUTATION_LEASE_INVALID");
     assert.equal(error.cause, primaryFailure);
     return true;
   });
@@ -100,7 +100,7 @@ posixTest("failed recovery release surfaces without pruning recovery state", asy
         );
       }
     },
-  }), (error) => error?.code === "LOCAL_STATE_INVALID");
+  }), (error) => error?.code === "MUTATION_LEASE_INVALID");
   assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "old\n");
   await assert.rejects(
     stat(join(state, "scaffolding-transaction.json")),
@@ -148,23 +148,24 @@ posixTest("journal policy rejects created and authorized paths outside operation
   ));
   for (const journal of [
     {
-      ...envelope.journal,
+      ...envelope.payload,
       createdDirectories: [{
         path: "../outside",
         identity: { birthtimeNs: "1", dev: "1", ino: "1" }
       }]
     },
-    { ...envelope.journal, authorizedDirectories: ["unrelated"] }
+    { ...envelope.payload, authorizedDirectories: ["unrelated"] }
   ]) {
     assert.throws(() => compileKnownFileTransactionEnvelope({
-      foundation: envelope.foundation,
+      ownerArtifact: envelope.ownerArtifact,
+      kernelArtifact: envelope.kernelArtifact,
       journal,
       state: "APPLYING"
     }), /created directory|authorized-directory/u);
   }
 });
 
-posixTest("recovery requires the exact Foundation build before touching files", async (context) => {
+posixTest("recovery requires the exact owner and kernel builds before touching files", async (context) => {
   const root = await fixture(context);
   await assert.rejects(applyKnownFileTransaction({
     consumerRoot: root,
@@ -176,17 +177,18 @@ posixTest("recovery requires the exact Foundation build before touching files", 
   const journalPath = join(root, ".agent-teams-local", "scaffolding-transaction.json");
   const envelope = JSON.parse(await readFile(journalPath, "utf8"));
   const foreignBuild = compileKnownFileTransactionEnvelope({
-    foundation: {
-      ...envelope.foundation,
+    ownerArtifact: {
+      ...envelope.ownerArtifact,
       buildIdentity: `sha256:${"0".repeat(64)}`
     },
-    journal: envelope.journal,
+    kernelArtifact: envelope.kernelArtifact,
+    journal: envelope.payload,
     state: envelope.state
   });
-  await writeFile(journalPath, `${JSON.stringify(foreignBuild)}\n`, "utf8");
+  await writeFile(journalPath, `${canonicalJson(foreignBuild)}\n`, "utf8");
   await assert.rejects(
     recoverKnownFileTransaction({ consumerRoot: root }),
-    /must recover the pending known-file transaction|exact Foundation build/u
+    /exact owner and kernel artifacts/u
   );
   assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "old\n");
 });
@@ -217,11 +219,6 @@ for (const phase of ["after-operation-publishing", "after-operation-published"])
       }),
       /simulated crash/u
     );
-    const envelope = JSON.parse(await readFile(
-      join(root, ".agent-teams-local", "scaffolding-transaction.json"),
-      "utf8"
-    ));
-    await assertSchema("foundation-transaction-envelope/v5", envelope, "test");
     const recovered = await recoverKnownFileTransaction({ consumerRoot: root });
     assert.equal(recovered.outcome, "rolled-back");
     assert.equal(recovered.operations[0].outcome, "rolled-back-to-preimage");

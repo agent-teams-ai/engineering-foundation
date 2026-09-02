@@ -29,6 +29,8 @@
         "tests/known-file-transaction-recovery.test.mjs",
         "tests/document-parent-materialization-v2.test.mjs",
         "tests/package-boundary.test.mjs",
+        "tests/pack-publish-manifest.test.mjs",
+        "tests/pack-publishable-artifacts.test.mjs",
         "tests/repository-mutation-qualification-api.test.mjs",
         "tests/public-api-bootstrap.test.mjs",
         "tests/public-api-prerelease-promotion.test.mjs",
@@ -79,7 +81,10 @@
         "tests/repository-mutation-directory-materialization.test.mjs",
         "tests/repository-security-hardening.test.mjs",
         "tests/scaffolding-adversarial.test.mjs",
-        "tests/source-dependency-development-mode.test.mjs"
+        "tests/source-dependency-development-mode.test.mjs",
+        "tests/source-dependency-export-authority.test.mjs",
+        "tests/source-dependency-workspace-discovery.test.mjs",
+        "tests/source-dependency-workspace-topology.test.mjs"
       ]
     },
     {
@@ -156,6 +161,7 @@
         "tests/registry-docs-protocol-mcp-e2e.test.mjs",
         "tests/registry-install-policy.test.mjs",
         "tests/repository-mutation-owned-temporary-cleanup.test.mjs",
+        "tests/root-package-projections.test.mjs",
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
         "tests/scorecard-workflow.test.mjs",
         "tests/test-manifests.test.mjs",

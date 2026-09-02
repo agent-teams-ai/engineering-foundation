@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-portable-command-envelope/v2",
+  "title": "Portable Docs Protocol Command Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocol", "command", "outcome", "diagnostics", "result"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "protocol": { "$ref": "#/$defs/protocol" },
+    "command": { "enum": ["docs.info", "docs.find", "docs.new", "docs.doctor", "docs.recover", "docs.check"] },
+    "outcome": { "enum": ["success", "conflict", "violation", "authority-stale", "recovery-required", "invalid-input", "execution-failure", "cancelled"] },
+    "diagnostics": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/diagnostic" } },
+    "result": {
+      "oneOf": [
+        { "$ref": "#/$defs/emptyResult" },
+        { "$ref": "#/$defs/infoResult" },
+        { "$ref": "#/$defs/findResult" },
+        { "$ref": "#/$defs/newResult" },
+        { "$ref": "#/$defs/doctorResult" },
+        { "$ref": "#/$defs/recoverResult" },
+        { "$ref": "#/$defs/checkResult" }
+      ]
+    }
+  },
+  "allOf": [
+    { "$ref": "#/$defs/infoEnvelope" },
+    { "$ref": "#/$defs/findEnvelope" },
+    { "$ref": "#/$defs/newEnvelope" },
+    { "$ref": "#/$defs/doctorEnvelope" },
+    { "$ref": "#/$defs/recoverEnvelope" },
+    { "$ref": "#/$defs/checkEnvelope" }
+  ],
+  "$defs": {
+    "protocol": {
+      "type": "object", "additionalProperties": false, "required": ["id", "version"],
+      "properties": { "id": { "const": "agent-teams.docs-protocol" }, "version": { "const": 1 } }
+    },
+    "lowerId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "opaqueId": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "repositoryPath": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "emptyResult": { "type": "object", "additionalProperties": false, "maxProperties": 0 },
+    "diagnostic": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ruleId", "severity", "phase", "subject", "message"],
+      "properties": {
+        "ruleId": { "$ref": "#/$defs/opaqueId" },
+        "severity": { "enum": ["error", "info", "warning"] },
+        "phase": { "enum": ["apply", "authority", "input", "planning", "query", "recovery"] },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    },
+    "jsonValue": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "null" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array", "maxItems": 10000, "items": { "$ref": "#/$defs/jsonValue" } },
+        { "type": "object", "maxProperties": 10000, "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+      ]
+    },
+    "foundationProfile": { "type": "object", "additionalProperties": false, "required": ["path", "schemaVersion", "metadataSidecarPolicy"], "properties": { "path": { "$ref": "#/$defs/repositoryPath" }, "schemaVersion": { "const": 3 }, "metadataSidecarPolicy": { "const": "foundation-profile-v3-strict-merge" } } },
+    "metadataSidecar": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "const": "none" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "path"], "properties": { "kind": { "const": "path-metadata-map" }, "path": { "$ref": "#/$defs/repositoryPath" } } }
+      ]
+    },
+    "authorityEvidence": { "type": "object", "additionalProperties": false, "required": ["path", "digest", "size"], "properties": { "path": { "$ref": "#/$defs/repositoryPath" }, "digest": { "$ref": "#/$defs/digest" }, "size": { "type": "integer", "minimum": 0, "maximum": 10485760 } } },
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "format"],
+      "properties": {
+        "kind": { "const": "explicit" },
+        "format": { "enum": ["adr-four-digits", "open-decision-three-digits", "qualified"] },
+        "grammar": {
+          "type": "object", "additionalProperties": false,
+          "required": ["prefixSegments", "minSuffixSegments", "maxSuffixSegments"],
+          "properties": {
+            "prefixSegments": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/lowerId" } },
+            "minSuffixSegments": { "type": "integer", "minimum": 1, "maximum": 16 },
+            "maxSuffixSegments": { "type": "integer", "minimum": 1, "maximum": 16 }
+          }
+        }
+      }
+    },
+    "placement": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "directory", "filename"],
+          "properties": { "kind": { "const": "collection" }, "directory": { "$ref": "#/$defs/repositoryPath" }, "filename": { "enum": ["numeric-id-slug", "id-slug", "slug", "README.md"] } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "root", "requiredBasename"],
+          "properties": { "kind": { "const": "qualified-leaf-index" }, "root": { "$ref": "#/$defs/repositoryPath" }, "requiredBasename": { "const": "README.md" } }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "allowedRoots", "requiredSegmentsInOrder", "requiredBasename", "minimumSegmentsBeforeRequired", "minimumSegmentsAfterRequired"],
+          "properties": {
+            "kind": { "const": "explicit" },
+            "allowedRoots": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/repositoryPath" } },
+            "requiredSegmentsInOrder": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "type": "string", "pattern": "^[A-Za-z0-9._@-]+$", "maxLength": 255 } },
+            "requiredBasename": { "const": "README.md" },
+            "minimumSegmentsBeforeRequired": { "type": "integer", "minimum": 0, "maximum": 16 },
+            "minimumSegmentsAfterRequired": { "type": "integer", "minimum": 0, "maximum": 16 }
+          }
+        }
+      ]
+    },
+    "reachability": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "indexPath"], "properties": { "kind": { "const": "manual-fixed-index" }, "indexPath": { "$ref": "#/$defs/repositoryPath" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "pathPrefix", "indexBasename"], "properties": { "kind": { "const": "manual-colocated-index" }, "pathPrefix": { "const": "before-required-segments" }, "indexBasename": { "const": "README.md" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "reason"], "properties": { "kind": { "const": "not-required" }, "reason": { "type": "string", "minLength": 1, "maxLength": 500 } } }
+      ]
+    },
+    "typeInfo": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "initialStatus", "allowedOwnerIds", "identity", "heading", "placement", "template", "requiredMetadata", "reachability"],
+      "properties": {
+        "type": { "$ref": "#/$defs/lowerId" },
+        "initialStatus": { "$ref": "#/$defs/lowerId" },
+        "allowedOwnerIds": { "type": "array", "minItems": 1, "maxItems": 4096, "items": { "$ref": "#/$defs/opaqueId" } },
+        "identity": { "$ref": "#/$defs/identity" },
+        "heading": { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "enum": ["id-colon-title", "title"] } } },
+        "placement": { "$ref": "#/$defs/placement" },
+        "template": { "type": "object", "additionalProperties": false, "required": ["kind", "path"], "properties": { "kind": { "const": "fenced-markdown-body" }, "path": { "$ref": "#/$defs/repositoryPath" } } },
+        "requiredMetadata": { "type": "array", "minItems": 5, "maxItems": 128, "items": { "type": "string", "maxLength": 128 } },
+        "reachability": { "$ref": "#/$defs/reachability" }
+      }
+    },
+    "infoResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "projectId", "protocol", "foundationProfile", "agentWorkflow", "authority", "authorityPaths", "catalog", "semanticDigest", "metadataSchemaPath", "metadataSidecar", "ownerIds", "types", "semanticValidatorIds"],
+      "properties": {
+        "kind": { "const": "info" }, "projectId": { "$ref": "#/$defs/lowerId" }, "protocol": { "$ref": "#/$defs/protocol" },
+        "foundationProfile": { "$ref": "#/$defs/foundationProfile" },
+        "agentWorkflow": { "type": "object", "additionalProperties": false, "required": ["adoption", "skillPath"], "properties": { "adoption": { "const": "portable-v1" }, "skillPath": { "$ref": "#/$defs/repositoryPath" } } },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metadataSchema", "ownerCatalog", "profile", "templates"],
+          "properties": {
+            "metadataSchema": { "$ref": "#/$defs/authorityEvidence" },
+            "metadataSidecar": { "$ref": "#/$defs/authorityEvidence" },
+            "ownerCatalog": { "$ref": "#/$defs/authorityEvidence" },
+            "profile": { "$ref": "#/$defs/authorityEvidence" },
+            "templates": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["evidence", "type"],
+                "properties": {
+                  "evidence": { "$ref": "#/$defs/authorityEvidence" },
+                  "type": { "$ref": "#/$defs/lowerId" }
+                }
+              }
+            }
+          }
+        },
+        "authorityPaths": { "type": "array", "minItems": 3, "maxItems": 96, "uniqueItems": true, "items": { "$ref": "#/$defs/repositoryPath" } },
+        "catalog": { "type": "object", "additionalProperties": false, "required": ["collections", "excludedPrefixes"], "properties": { "collections": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/catalogCollection" } }, "excludedPrefixes": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/repositoryPath" } } } },
+        "semanticDigest": { "$ref": "#/$defs/digest" },
+        "metadataSchemaPath": { "$ref": "#/$defs/repositoryPath" }, "metadataSidecar": { "$ref": "#/$defs/metadataSidecar" },
+        "ownerIds": { "type": "array", "maxItems": 4096, "items": { "$ref": "#/$defs/opaqueId" } },
+        "types": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/typeInfo" } },
+        "semanticValidatorIds": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/lowerId" } }
+      }
+    },
+    "catalogCollection": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "root"], "properties": { "kind": { "const": "markdown-tree" }, "root": { "$ref": "#/$defs/repositoryPath" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "roots"], "properties": { "kind": { "const": "frontmatter-readme" }, "roots": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/repositoryPath" } } } }
+      ]
+    },
+    "document": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "type", "status", "owner", "summary", "title", "repositoryPath", "source", "metadata", "related", "blockedBy"],
+      "properties": {
+        "id": { "$ref": "#/$defs/opaqueId" }, "type": { "$ref": "#/$defs/lowerId" }, "status": { "$ref": "#/$defs/lowerId" },
+        "owner": { "$ref": "#/$defs/opaqueId" }, "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 }, "repositoryPath": { "$ref": "#/$defs/repositoryPath" },
+        "source": { "enum": ["frontmatter-readme", "markdown-tree"] },
+        "metadata": { "type": "object", "maxProperties": 10000, "additionalProperties": { "$ref": "#/$defs/jsonValue" } },
+        "related": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/opaqueId" } },
+        "blockedBy": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/opaqueId" } }
+      }
+    },
+    "findResult": { "type": "object", "additionalProperties": false, "required": ["kind", "matches", "documents"], "properties": { "kind": { "const": "find" }, "matches": { "type": "integer", "minimum": 0, "maximum": 10000 }, "documents": { "type": "array", "maxItems": 10000, "items": { "$ref": "#/$defs/document" } } } },
+    "reachabilityAction": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["state", "indexPath", "markdownLink"], "properties": { "state": { "const": "manual-required" }, "indexPath": { "$ref": "#/$defs/repositoryPath" }, "markdownLink": { "type": "string", "minLength": 1, "maxLength": 1024 } } },
+        { "type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": { "state": { "const": "not-required" }, "reason": { "type": "string", "minLength": 1, "maxLength": 500 } } }
+      ]
+    },
+    "compiledDocument": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "document", "frontmatter", "metadata", "relations", "anchors"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "document": { "type": "object", "additionalProperties": false, "required": ["content", "digest", "mediaType", "size"], "properties": { "content": { "type": "string", "maxLength": 1048576 }, "digest": { "$ref": "#/$defs/digest" }, "mediaType": { "const": "text/markdown; charset=utf-8" }, "size": { "type": "integer", "minimum": 1, "maximum": 1048576 } } },
+        "frontmatter": { "type": "string", "minLength": 1, "maxLength": 262144 },
+        "metadata": { "type": "object", "maxProperties": 10000, "additionalProperties": { "$ref": "#/$defs/jsonValue" } },
+        "relations": { "type": "object", "additionalProperties": false, "required": ["blockedBy", "related"], "properties": { "blockedBy": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/opaqueId" } }, "related": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/opaqueId" } } } },
+        "anchors": { "type": "array", "maxItems": 256, "items": { "type": "object", "additionalProperties": false, "required": ["enforcement", "pattern"], "properties": { "enforcement": { "enum": ["advisory", "required"] }, "pattern": { "type": "string", "minLength": 1, "maxLength": 1000 } } } }
+      }
+    },
+    "recovery": { "type": "object", "additionalProperties": false, "required": ["commandId", "args"], "properties": { "commandId": { "enum": ["detach", "docs.recover", "docs-recover", "scaffold-recover"] }, "args": { "type": "object", "maxProperties": 16, "additionalProperties": { "type": "string", "maxLength": 512 } } } },
+    "receiptEvidence": {
+      "type": "object", "additionalProperties": false, "required": ["outcome", "commit"],
+      "properties": {
+        "outcome": { "enum": ["applied", "already-applied", "authority-stale", "rejected", "recovery-required", "manual-recovery-required", "failed-before-publication", "cancelled"] },
+        "commit": { "type": "object", "additionalProperties": false, "required": ["state", "publication", "recoverability"], "properties": { "state": { "enum": ["committed", "not-published", "recovery-required", "manual-recovery-required"] }, "publication": { "enum": ["none", "preexisting-exact", "published", "unknown"] }, "recoverability": { "enum": ["not-required", "preserved-for-recovery"] } } },
+        "directoryMaterialization": { "type": "object", "additionalProperties": false, "required": ["state", "plannedDirectories", "observedCreatedDirectories"], "properties": { "state": { "enum": ["none-created", "created-and-retained", "preserved-unknown"] }, "plannedDirectories": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/repositoryPath" } }, "observedCreatedDirectories": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/repositoryPath" } } } }
+      }
+    },
+    "transaction": {
+      "type": "object", "additionalProperties": false, "required": ["state"],
+      "properties": { "state": { "enum": ["idle", "recoverable", "manual-recovery-required"] }, "transactionKind": { "enum": ["corrupt", "document", "local-mode", "scaffold", "transition-residue", "unknown", "version-mismatch"] }, "reason": { "type": "string", "minLength": 1, "maxLength": 1000 }, "recovery": { "$ref": "#/$defs/recovery" } }
+    },
+    "newResult": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "reservation", "writeState", "transaction"], "properties": { "kind": { "const": "new" }, "reservation": { "const": "none" }, "writeState": { "const": "blocked" }, "transaction": { "$ref": "#/$defs/transaction" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "reservation", "writeState", "reason"], "properties": { "kind": { "const": "new" }, "reservation": { "const": "none" }, "writeState": { "const": "blocked" }, "reason": { "enum": ["adoption-invalid", "authority-stale"] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "reservation", "writeState", "documentPath", "planDigest", "compiled", "reachability"], "properties": { "kind": { "const": "new" }, "reservation": { "const": "none" }, "writeState": { "const": "preview" }, "documentPath": { "$ref": "#/$defs/repositoryPath" }, "planDigest": { "$ref": "#/$defs/digest" }, "compiled": { "$ref": "#/$defs/compiledDocument" }, "reachability": { "$ref": "#/$defs/reachabilityAction" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "reservation", "writeState", "documentPath", "planDigest", "compiled", "receiptDigest", "receiptOutcome", "receipt"], "properties": { "kind": { "const": "new" }, "reservation": { "const": "none" }, "writeState": { "enum": ["applied", "already-applied", "published-recovery-required", "unchanged", "unknown"] }, "documentPath": { "$ref": "#/$defs/repositoryPath" }, "planDigest": { "$ref": "#/$defs/digest" }, "compiled": { "$ref": "#/$defs/compiledDocument" }, "receiptDigest": { "$ref": "#/$defs/digest" }, "receiptOutcome": { "enum": ["applied", "already-applied", "authority-stale", "rejected", "recovery-required", "manual-recovery-required", "failed-before-publication", "cancelled"] }, "receipt": { "$ref": "#/$defs/receiptEvidence" }, "reachability": { "$ref": "#/$defs/reachabilityAction" } } }
+      ]
+    },
+    "environment": { "type": "object", "additionalProperties": false, "required": ["installedFoundationVersion", "installedFoundationBuildIdentity", "filesystem"], "properties": { "installedFoundationVersion": { "type": "string", "minLength": 1, "maxLength": 100 }, "installedFoundationBuildIdentity": { "$ref": "#/$defs/digest" }, "filesystem": { "type": "object", "additionalProperties": false, "required": ["basis", "strictDirectoryDurability"], "properties": { "basis": { "const": "platform-contract" }, "strictDirectoryDurability": { "enum": ["platform-supported", "platform-unsupported"] } } } } },
+    "doctorResult": { "type": "object", "additionalProperties": false, "required": ["kind", "protocol", "environment", "transaction"], "properties": { "kind": { "const": "doctor" }, "protocol": { "$ref": "#/$defs/protocol" }, "projectId": { "$ref": "#/$defs/lowerId" }, "environment": { "$ref": "#/$defs/environment" }, "transaction": { "$ref": "#/$defs/transaction" } } },
+    "recoverResult": { "oneOf": [
+      { "type": "object", "additionalProperties": false, "required": ["kind", "transactionState", "writeState"], "properties": { "kind": { "const": "recover" }, "transactionState": { "const": "no-pending-transaction" }, "writeState": { "const": "unchanged" } } },
+      { "type": "object", "additionalProperties": false, "required": ["kind", "transactionState", "writeState", "transaction"], "properties": { "kind": { "const": "recover" }, "transactionState": { "const": "manual-required" }, "writeState": { "const": "unknown" }, "transaction": { "$ref": "#/$defs/transaction" } } },
+      { "type": "object", "additionalProperties": false, "required": ["kind", "transactionState", "writeState", "receiptDigest", "receipt"], "properties": { "kind": { "const": "recover" }, "transactionState": { "enum": ["recovered", "recovery-required"] }, "writeState": { "enum": ["unchanged", "unknown", "committed", "published-recovery-required"] }, "receiptDigest": { "$ref": "#/$defs/digest" }, "receipt": { "$ref": "#/$defs/receiptEvidence" } } }
+    ] },
+    "checkResult": { "type": "object", "additionalProperties": false, "required": ["kind", "projectId", "catalogStatus", "documents", "foundationProfile", "metadataSidecar", "semanticValidatorIds", "valid"], "properties": { "kind": { "const": "check" }, "projectId": { "$ref": "#/$defs/lowerId" }, "catalogStatus": { "enum": ["complete", "partial"] }, "documents": { "type": "integer", "minimum": 0, "maximum": 100000 }, "foundationProfile": { "$ref": "#/$defs/foundationProfile" }, "metadataSidecar": { "$ref": "#/$defs/metadataSidecar" }, "semanticValidatorIds": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/lowerId" } }, "valid": { "type": "boolean" } } },
+    "infoEnvelope": { "if": { "type": "object", "properties": { "command": { "const": "docs.info" } }, "required": ["command"] }, "then": { "type": "object", "properties": { "outcome": { "enum": ["success", "invalid-input", "execution-failure", "cancelled"] } }, "allOf": [{ "if": { "type": "object", "properties": { "outcome": { "const": "success" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/infoResult" } } }, "else": { "type": "object", "properties": { "result": { "$ref": "#/$defs/emptyResult" } } } }] } },
+    "findEnvelope": { "if": { "type": "object", "properties": { "command": { "const": "docs.find" } }, "required": ["command"] }, "then": { "type": "object", "properties": { "outcome": { "enum": ["success", "invalid-input", "execution-failure", "cancelled"] } }, "allOf": [{ "if": { "type": "object", "properties": { "outcome": { "const": "success" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/findResult" } } }, "else": { "type": "object", "properties": { "result": { "$ref": "#/$defs/emptyResult" } } } }] } },
+    "newEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.new" } }, "required": ["command"] },
+      "then": {
+        "type": "object",
+        "properties": { "outcome": { "enum": ["success", "conflict", "violation", "authority-stale", "recovery-required", "invalid-input", "execution-failure", "cancelled"] } },
+        "allOf": [
+          { "if": { "type": "object", "properties": { "outcome": { "const": "success" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "allOf": [{ "$ref": "#/$defs/newResult" }, { "type": "object", "properties": { "writeState": { "enum": ["preview", "applied", "already-applied"] } }, "required": ["writeState"] }] } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "const": "authority-stale" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "allOf": [{ "$ref": "#/$defs/newResult" }, { "type": "object", "properties": { "writeState": { "enum": ["blocked", "unchanged", "unknown"] } }, "required": ["writeState"] }] } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "const": "recovery-required" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "allOf": [{ "$ref": "#/$defs/newResult" }, { "type": "object", "properties": { "writeState": { "enum": ["blocked", "published-recovery-required", "unknown", "unchanged"] } }, "required": ["writeState"] }] } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "const": "conflict" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "allOf": [{ "$ref": "#/$defs/newResult" }, { "type": "object", "properties": { "writeState": { "enum": ["unchanged", "unknown"] }, "receipt": true }, "required": ["writeState", "receipt"] }] } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "const": "violation" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "allOf": [{ "$ref": "#/$defs/newResult" }, { "type": "object", "properties": { "writeState": { "const": "blocked" }, "reason": { "const": "adoption-invalid" } }, "required": ["writeState", "reason"] }] } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "const": "invalid-input" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/emptyResult" } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "enum": ["execution-failure", "cancelled"] } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "oneOf": [{ "$ref": "#/$defs/emptyResult" }, { "allOf": [{ "$ref": "#/$defs/newResult" }, { "type": "object", "properties": { "writeState": { "enum": ["unchanged", "unknown", "published-recovery-required"] }, "receipt": true }, "required": ["writeState", "receipt"] }] }] } } } }
+        ]
+      }
+    },
+    "doctorEnvelope": { "if": { "type": "object", "properties": { "command": { "const": "docs.doctor" } }, "required": ["command"] }, "then": { "type": "object", "properties": { "outcome": { "enum": ["success", "violation", "recovery-required", "invalid-input", "execution-failure", "cancelled"] } }, "allOf": [{ "if": { "type": "object", "properties": { "outcome": { "enum": ["success", "violation", "recovery-required"] } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/doctorResult" } } }, "else": { "type": "object", "properties": { "result": { "$ref": "#/$defs/emptyResult" } } } }] } },
+    "recoverEnvelope": {
+      "if": { "type": "object", "properties": { "command": { "const": "docs.recover" } }, "required": ["command"] },
+      "then": {
+        "type": "object",
+        "properties": { "outcome": { "enum": ["success", "conflict", "authority-stale", "recovery-required", "invalid-input", "execution-failure", "cancelled"] } },
+        "allOf": [
+          { "if": { "type": "object", "properties": { "outcome": { "const": "success" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "allOf": [{ "$ref": "#/$defs/recoverResult" }, { "type": "object", "properties": { "transactionState": { "enum": ["no-pending-transaction", "recovered"] } }, "required": ["transactionState"] }] } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "const": "recovery-required" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "allOf": [{ "$ref": "#/$defs/recoverResult" }, { "type": "object", "properties": { "transactionState": { "enum": ["manual-required", "recovery-required"] } }, "required": ["transactionState"] }] } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "enum": ["conflict", "authority-stale"] } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "allOf": [{ "$ref": "#/$defs/recoverResult" }, { "type": "object", "properties": { "transactionState": { "const": "recovery-required" }, "receipt": true }, "required": ["transactionState", "receipt"] }] } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "const": "invalid-input" } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/emptyResult" } } } },
+          { "if": { "type": "object", "properties": { "outcome": { "enum": ["execution-failure", "cancelled"] } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "oneOf": [{ "$ref": "#/$defs/emptyResult" }, { "allOf": [{ "$ref": "#/$defs/recoverResult" }, { "type": "object", "properties": { "transactionState": { "const": "recovery-required" }, "receipt": true }, "required": ["transactionState", "receipt"] }] }] } } } }
+        ]
+      }
+    },
+    "checkEnvelope": { "if": { "type": "object", "properties": { "command": { "const": "docs.check" } }, "required": ["command"] }, "then": { "type": "object", "properties": { "outcome": { "enum": ["success", "violation", "invalid-input", "execution-failure", "cancelled"] } }, "allOf": [{ "if": { "type": "object", "properties": { "outcome": { "enum": ["success", "violation"] } }, "required": ["outcome"] }, "then": { "type": "object", "properties": { "result": { "$ref": "#/$defs/checkResult" } } }, "else": { "type": "object", "properties": { "result": { "$ref": "#/$defs/emptyResult" } } } }] } }
+  }
+}

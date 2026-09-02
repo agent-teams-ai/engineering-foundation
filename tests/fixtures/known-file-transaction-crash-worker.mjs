@@ -1,8 +1,5 @@
-import {
-  applyKnownFileTransaction,
-  compileKnownFileTransactionPlan,
-  recoverKnownFileTransaction
-} from "../../packages/engineering-foundation/dist/mutation/index.js";
+import { compileKnownFileTransactionPlan } from "../../packages/repository-mutation/dist/index.js";
+import { applyKnownFileTransaction, recoverKnownFileTransaction } from "../../packages/repository-mutation/dist/qualification/index.js";
 
 const [root, checkpoint, action = "apply"] = process.argv.slice(2);
 const plan = compileKnownFileTransactionPlan({ operations: [{

@@ -9,12 +9,20 @@ import test from "node:test";
 import {
   applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
-} from "../../engineering-foundation/dist/mutation/index.js";
-import { acquireFoundationOperationLock } from "../../engineering-foundation/dist/local-mode/service.js";
+} from "@agent-teams/repository-mutation";
+import {
+  applyKnownFileTransaction as applyKnownFileTransactionWithFaults,
+} from "@agent-teams/repository-mutation/qualification";
 import { assertDocsCommandEnvelopeSchema } from "../dist/adapters/docs-command-envelope-schema-validator.js";
 
 const execute = promisify(execFile);
 const cli = new URL("../dist/cli.js", import.meta.url);
+const ignoredSnapshotPaths = new Set([
+  ".agent-teams-local/foundation-operation-lock.completed-evidence",
+]);
+const ignoredSnapshotPrefixes = [
+  ".agent-teams-local/foundation-operation-lock.completed-evidence/",
+];
 
 async function runJson(arguments_) {
   const result = await execute(process.execPath, [cli.pathname, ...arguments_, "--json"]);
@@ -45,6 +53,12 @@ async function snapshotTree(root, relative = "") {
   const snapshot = [];
   for (const entry of entries) {
     const path = relative === "" ? entry.name : `${relative}/${entry.name}`;
+    if (
+      ignoredSnapshotPaths.has(path) ||
+      ignoredSnapshotPrefixes.some((prefix) => path.startsWith(prefix))
+    ) {
+      continue;
+    }
     const stats = await lstat(join(root, path));
     if (stats.isDirectory()) {
       snapshot.push({ path, type: "directory" });
@@ -176,7 +190,7 @@ test("init apply reports an interrupted transaction as recoverable before mutati
       postimage: { bytes: Buffer.from("must-not-publish\n", "utf8") },
     }] });
     await assert.rejects(
-      applyKnownFileTransaction({
+      applyKnownFileTransactionWithFaults({
         consumerRoot: root,
         plan: interruptedPlan,
         faultInjector(point) {
@@ -248,7 +262,9 @@ test("init dry-run reports an oversized AGENTS route as a schema-valid conflict 
 
 test("init apply waits for an active operation instead of prescribing recovery", async () => {
   const root = await mkdtemp(join(tmpdir(), "docs-protocol-init-active-lock-e2e-"));
-  let release;
+  const barrierAcquired = Promise.withResolvers();
+  const releaseBarrier = Promise.withResolvers();
+  let activeOperation;
   try {
     const initArguments = [
       "init",
@@ -257,7 +273,29 @@ test("init apply waits for an active operation instead of prescribing recovery",
       "--owner", "docs/platform",
     ];
     const preview = await runJson([...initArguments, "--dry-run"]);
-    release = await acquireFoundationOperationLock(root);
+    const activePlan = compileKnownFileTransactionPlan({ operations: [{
+      path: "active-operation-fixture.txt",
+      precondition: { state: "absent" },
+      postimage: { bytes: Buffer.from("active operation\n", "utf8") },
+    }] });
+    if (process.platform === "win32") {
+      await assert.rejects(
+        applyKnownFileTransaction({ consumerRoot: root, plan: activePlan }),
+        (error) => error?.code === "KNOWN_FILE_APPLY_UNSUPPORTED"
+      );
+      return;
+    }
+    activeOperation = applyKnownFileTransactionWithFaults({
+      consumerRoot: root,
+      plan: activePlan,
+      async faultInjector(point) {
+        if (point.phase === "after-barrier-acquired") {
+          barrierAcquired.resolve();
+          await releaseBarrier.promise;
+        }
+      },
+    });
+    await barrierAcquired.promise;
     const beforeApply = await snapshotTree(root);
     const blocked = await runJsonFailure([
       ...initArguments,
@@ -286,7 +324,8 @@ test("init apply waits for an active operation instead of prescribing recovery",
     assert.doesNotMatch(recoverBlocked.envelope.diagnostics[0].message, /run .*--recover/iu);
     assert.deepEqual(await snapshotTree(root), beforeApply, "active-lock recover must not mutate");
   } finally {
-    await release?.();
+    releaseBarrier.resolve();
+    await activeOperation;
     await rm(root, { recursive: true, force: true });
   }
 });

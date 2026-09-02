@@ -5,14 +5,13 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
-  applyKnownFileTransaction,
   canonicalKnownFileTransactionReceipt,
-  compileKnownFileTransactionPlan,
-  recoverKnownFileTransaction
-} from "../packages/engineering-foundation/dist/mutation/index.js";
+  compileKnownFileTransactionPlan
+} from "../packages/repository-mutation/dist/index.js";
+import { applyKnownFileTransaction, recoverKnownFileTransaction } from "../packages/repository-mutation/dist/qualification/index.js";
 import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { classifyKnownFileRecoveryTransition } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js";
-import { compileKnownFileTransactionEnvelope } from "../packages/engineering-foundation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
+import { classifyKnownFileRecoveryTransition } from "../packages/repository-mutation/dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js";
+import { compileKnownFileTransactionEnvelope } from "../packages/repository-mutation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 
 const posixTest = process.platform === "win32" ? test.skip : test;
@@ -82,16 +81,18 @@ async function readJournal(root) {
   assert.deepEqual(Object.keys(envelope).toSorted(), [
     "adapterContractVersion",
     "envelopeDigest",
-    "foundation",
-    "journal",
+    "format",
+    "kernelArtifact",
     "operationKind",
+    "ownerArtifact",
+    "payload",
     "payloadDigest",
     "payloadKind",
     "recoveryHandler",
     "schemaVersion",
     "state"
   ]);
-  assert.deepEqual(Object.keys(envelope.journal).toSorted(), [
+  assert.deepEqual(Object.keys(envelope.payload).toSorted(), [
     "authorizedDirectories",
     "createdDirectories",
     "operations",
@@ -100,8 +101,9 @@ async function readJournal(root) {
   ]);
   assert.deepEqual(
     compileKnownFileTransactionEnvelope({
-      foundation: envelope.foundation,
-      journal: envelope.journal,
+      ownerArtifact: envelope.ownerArtifact,
+      kernelArtifact: envelope.kernelArtifact,
+      journal: envelope.payload,
       state: envelope.state
     }),
     envelope,
@@ -129,7 +131,10 @@ posixTest("keeps applied receipt bytes canonical and deterministic", async (cont
 function classifyStoredEnvelope(envelope) {
   return classifyKnownFileRecoveryTransition({
     envelope,
-    installedBuild: envelope.foundation
+    installedBuild: {
+      ownerArtifact: envelope.ownerArtifact,
+      kernelArtifact: envelope.kernelArtifact
+    }
   });
 }
 
@@ -142,17 +147,20 @@ test("goldens top-level known-file v1 recovery transitions without changing enve
     authorizedDirectories: [],
     createdDirectories: []
   };
-  const foundation = {
+  const artifact = {
+    name: "@agent-teams/repository-mutation",
     version: "0.17.0",
     buildIdentity: `sha256:${"1".repeat(64)}`
   };
   const applying = compileKnownFileTransactionEnvelope({
-    foundation,
+    ownerArtifact: artifact,
+    kernelArtifact: artifact,
     journal,
     state: "APPLYING"
   });
   const committed = compileKnownFileTransactionEnvelope({
-    foundation,
+    ownerArtifact: artifact,
+    kernelArtifact: artifact,
     journal,
     state: "COMMITTED"
   });
@@ -160,36 +168,39 @@ test("goldens top-level known-file v1 recovery transitions without changing enve
     {
       label: "exact APPLYING journal rolls back",
       envelope: applying,
-      installedBuild: foundation,
+      installedBuild: { ownerArtifact: artifact, kernelArtifact: artifact },
       expected: { action: "rollback-applying" }
     },
     {
       label: "exact COMMITTED journal resumes terminal cleanup",
       envelope: committed,
-      installedBuild: foundation,
+      installedBuild: { ownerArtifact: artifact, kernelArtifact: artifact },
       expected: { action: "resume-committed-cleanup" }
     },
     {
       label: "different version rejects before APPLYING rollback",
       envelope: applying,
-      installedBuild: { ...foundation, version: "0.17.1" },
+      installedBuild: {
+        ownerArtifact: { ...artifact, version: "0.17.1" },
+        kernelArtifact: artifact
+      },
       expected: {
         action: "reject",
         code: "KNOWN_FILE_EXACT_BUILD_REQUIRED",
-        message: "The exact Foundation build that created this journal must recover it."
+        message: "The exact owner and kernel artifacts that created this journal must recover it."
       }
     },
     {
       label: "different build rejects before COMMITTED cleanup",
       envelope: committed,
       installedBuild: {
-        ...foundation,
-        buildIdentity: `sha256:${"2".repeat(64)}`
+        ownerArtifact: artifact,
+        kernelArtifact: { ...artifact, buildIdentity: `sha256:${"2".repeat(64)}` }
       },
       expected: {
         action: "reject",
         code: "KNOWN_FILE_EXACT_BUILD_REQUIRED",
-        message: "The exact Foundation build that created this journal must recover it."
+        message: "The exact owner and kernel artifacts that created this journal must recover it."
       }
     }
   ];
@@ -206,7 +217,7 @@ test("goldens top-level known-file v1 recovery transitions without changing enve
 
 test("keeps the top-level recovery classifier free of Node and process adapters", async () => {
   const source = await readFile(new URL(
-    "../packages/engineering-foundation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts",
+    "../packages/repository-mutation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts",
     import.meta.url
   ), "utf8");
   assert.doesNotMatch(source, /(?:node:|adapters\/node|\bprocess\b)/u);
@@ -402,8 +413,8 @@ for (const characterization of replacementApplyCases) {
     assert.deepEqual(classifyStoredEnvelope(envelope), characterization.envelopeState === "COMMITTED"
       ? { action: "resume-committed-cleanup" }
       : { action: "rollback-applying" });
-    assert.equal(envelope.journal.plan.planDigest, plan.planDigest);
-    assertOperationShape(envelope.journal.operations[0], characterization.operation);
+    assert.equal(envelope.payload.plan.planDigest, plan.planDigest);
+    assertOperationShape(envelope.payload.operations[0], characterization.operation);
     await assertDestinationState(root, characterization.destination);
     if (characterization.captureEntries !== undefined) {
       await assertCaptureEntries(root, characterization.captureEntries);
@@ -454,15 +465,15 @@ for (const characterization of [
     crash.assertConsumed();
 
     const envelope = await readJournal(root);
-    assert.deepEqual(envelope.journal.authorizedDirectories, characterization.authorizedDirectories);
+    assert.deepEqual(envelope.payload.authorizedDirectories, characterization.authorizedDirectories);
     assert.deepEqual(
-      envelope.journal.createdDirectories.map(({ path }) => path),
+      envelope.payload.createdDirectories.map(({ path }) => path),
       characterization.createdDirectories
     );
-    for (const directory of envelope.journal.createdDirectories) {
+    for (const directory of envelope.payload.createdDirectories) {
       assertIdentityShape(directory.identity, "created directory identity");
     }
-    assertOperationShape(envelope.journal.operations[0], {
+    assertOperationShape(envelope.payload.operations[0], {
       keys: ["path", "state"],
       state: "pending"
     });
@@ -579,7 +590,7 @@ for (const characterization of replacementRecoveryCases) {
     const envelope = await readJournal(root);
     assert.equal(envelope.state, "APPLYING");
     assert.deepEqual(classifyStoredEnvelope(envelope), { action: "rollback-applying" });
-    assertOperationShape(envelope.journal.operations[0], characterization.operation);
+    assertOperationShape(envelope.payload.operations[0], characterization.operation);
     await assertDestinationState(root, characterization.destination);
 
     const recovered = await recoverKnownFileTransaction({ consumerRoot: root });

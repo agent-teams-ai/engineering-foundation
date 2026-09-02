@@ -7,7 +7,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { runCommand } from "../scripts/pack-test-support.mjs";
+import {
+  createPnpmRunner,
+  runCommand,
+  runNpmCommand,
+} from "../scripts/pack-test-support.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const requireFromRepository = createRequire(import.meta.url);
@@ -239,6 +243,19 @@ ${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}
   });
 });
 
+test("packaging package-manager runners ignore executable environment overrides", async () => {
+  const environment = {
+    ...process.env,
+    ComSpec: join(repositoryRoot, "attacker-cmd.exe"),
+    npm_execpath: join(repositoryRoot, "attacker-pnpm.cjs"),
+    PATH: join(repositoryRoot, "attacker-bin"),
+  };
+  const pnpm = await createPnpmRunner()(["--version"], repositoryRoot, { environment });
+  const npm = await runNpmCommand(["--version"], repositoryRoot, { environment });
+  assert.match(pnpm.stdout, /^11\.20\.0\s*$/u);
+  assert.match(npm.stdout, /^11\./u);
+});
+
 test("packaging subprocesses have a bounded deadline", async () => {
   await assert.rejects(
     runCommand(
@@ -355,13 +372,36 @@ test("clean removes incremental state and permits a full rebuild", async () => {
       ),
     );
     packageConfig.compilerOptions.types = [];
+    packageConfig.references = [];
 
+    const fixturePackages = [
+      ["repository-mutation", "@agent-teams/repository-mutation", {}],
+      ["engineering-foundation", "@agent-teams/engineering-foundation", {
+        "@agent-teams/repository-mutation": "workspace:*",
+      }],
+      ["docs-protocol", "@agent-teams/docs-protocol", {
+        "@agent-teams/engineering-foundation": "workspace:*",
+      }],
+      ["docs-protocol-mcp", "@agent-teams/docs-protocol-mcp", {
+        "@agent-teams/docs-protocol": "workspace:*",
+      }],
+      ["docs-protocol-agent-teams", "@agent-teams/docs-protocol-agent-teams", {
+        "@agent-teams/docs-protocol": "workspace:*",
+        "@agent-teams/repository-mutation": "workspace:*",
+      }],
+    ];
+    await Promise.all(fixturePackages.map(([slug]) =>
+      mkdir(join(fixtureRoot, "packages", slug), { recursive: true })));
     await mkdir(sourceRoot, { recursive: true });
     await mkdir(dirname(cleanScript), { recursive: true });
     await Promise.all([
       writeFile(join(sourceRoot, "index.ts"), "export const built = true;\n", "utf8"),
       writeFile(join(packageRoot, "LICENSE"), "generated", "utf8"),
-      writeFile(join(packageRoot, "package.json"), '{"type":"module"}\n', "utf8"),
+      ...fixturePackages.map(([slug, name, dependencies]) => writeFile(
+        join(fixtureRoot, "packages", slug, "package.json"),
+        `${JSON.stringify({ dependencies, name, type: "module" })}\n`,
+        "utf8",
+      )),
       writeFile(tsconfigPath, `${JSON.stringify(packageConfig)}\n`, "utf8"),
       writeFile(
         cleanScript,

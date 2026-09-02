@@ -52,25 +52,39 @@ export async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
+const trustedCommandSearchPath = process.env.PATH;
+
+function packageManagerOptions(options) {
+  if (options.environment === undefined) {
+    return options;
+  }
+  const environment = Object.fromEntries(
+    Object.entries(options.environment).filter(([key]) => key.toLowerCase() !== "path")
+  );
+  if (trustedCommandSearchPath !== undefined) {
+    environment.PATH = trustedCommandSearchPath;
+  }
+  return { ...options, environment };
+}
+
 export function createPnpmRunner() {
-  const entrypoint = process.env.npm_execpath;
-  const executable = entrypoint === undefined ? "pnpm" : process.execPath;
-  return async (args, cwd) =>
-    runCommand(executable, entrypoint === undefined ? args : [entrypoint, ...args], cwd);
+  return async (args, cwd, options = {}) =>
+    runCommand("pnpm", args, cwd, packageManagerOptions(options));
 }
 
 export function runNpmCommand(args, cwd, options = {}) {
+  const trustedOptions = packageManagerOptions(options);
   if (process.platform !== "win32") {
-    return runCommand("npm", args, cwd, options);
+    return runCommand("npm", args, cwd, trustedOptions);
   }
   const npmCliPath = join(
-    dirname(process.execPath),
+    dirname(process.argv[0]),
     "node_modules",
     "npm",
     "bin",
     "npm-cli.js",
   );
-  return runCommand(process.execPath, [npmCliPath, ...args], cwd, options);
+  return runCommand(process.argv[0], [npmCliPath, ...args], cwd, trustedOptions);
 }
 
 export const localRegistryInstallQualification = Object.freeze({
@@ -190,14 +204,15 @@ async function cleanUpAfterNormalExit(child, windowsManagedProcess) {
   }
 }
 
-function spawnCommand(command, args, cwd, windowsManagedProcess) {
-  return process.platform === "win32"
-    ? windowsManagedProcess.spawnWindowsManagedProcess({
-        command, args, cwd, environment: process.env
-      })
-    : spawn(command, args, {
-        cwd, detached: true, stdio: ["ignore", "pipe", "pipe"], windowsHide: true
-      });
+function spawnCommand(request, windowsManagedProcess) {
+  return windowsManagedProcess.spawnWindowsManagedProcess(request);
+}
+
+function spawnPosixCommand({ command, args, cwd, environment }) {
+  return spawn(command, args, {
+    cwd, detached: true, env: environment, shell: false,
+    stdio: ["ignore", "pipe", "pipe"], windowsHide: true
+  });
 }
 
 async function cleanUpCommandTree(child, windowsManagedProcess, forced, requestTermination) {
@@ -240,12 +255,15 @@ export async function runCommand(command, args, cwd, options = {}) {
     });
   }
   const windowsManagedProcess = await windowsProcessSpawner();
+  const environment = options.environment ?? process.env;
   let resolveForcedTermination;
   const forcedTermination = new Promise((_resolve) => {
     resolveForcedTermination = _resolve;
   });
   return new Promise((resolve, reject) => {
-    const child = spawnCommand(command, args, cwd, windowsManagedProcess);
+    const child = process.platform === "win32"
+      ? spawnCommand({ command, args, cwd, environment }, windowsManagedProcess)
+      : spawnPosixCommand({ command, args, cwd, environment });
     const stdout = [];
     const stderr = [];
     let stdoutBytes = 0;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { cp, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, link, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -18,10 +18,14 @@ const qualificationUrl = new URL(
   "../packages/engineering-foundation/dist/document-authoring/qualification/index.js",
   import.meta.url
 ).href;
-const checkpointLine = `${JSON.stringify({
+const crashPoints = [
+  "after-publishing-journal-durable",
+  "after-published-journal-durable"
+];
+const checkpointLine = (crashPoint) => `${JSON.stringify({
   schemaVersion: 1,
   event: "document-authoring-qualification-crash-point",
-  crashPoint: "after-publishing-journal-durable"
+  crashPoint
 })}\n`;
 const qualified = process.platform === "win32" ? test.skip : test;
 
@@ -82,6 +86,34 @@ test("qualification subpath is closed and absent from normal authoring", async (
   );
   assert.match(declarations, /DocumentPlanV2/u);
   assert.match(declarations, /after-publishing-journal-durable/u);
+  assert.match(declarations, /after-published-journal-durable/u);
+});
+
+test("qualification rejects an unsupported checkpoint without writes", async (t) => {
+  const consumerRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "foundation-qualification-unsupported-"))
+  );
+  t.after(() => rm(consumerRoot, { force: true, recursive: true }));
+  await writeOwnershipMarker(consumerRoot);
+  const marker = await readFile(
+    join(consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json"),
+    "utf8"
+  );
+  await assert.rejects(
+    runDocumentAuthoringCrashQualification({
+      consumerRoot,
+      plan: {},
+      crashPoint: "unsupported-checkpoint"
+    }),
+    /supported closed crashPoint/u
+  );
+  assert.deepEqual(await readdir(consumerRoot), [
+    ".agent-teams-document-authoring-qualification-fixture.json"
+  ]);
+  assert.equal(await readFile(
+    join(consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json"),
+    "utf8"
+  ), marker);
 });
 
 test("qualification rejects a marker with any unowned field before applying", async (t) => {
@@ -147,7 +179,36 @@ qualified("qualification rejects a symlinked ownership marker before applying", 
   );
 });
 
-qualified("qualification signals durable publishing and remains killable for recovery", async (t) => {
+qualified("qualification rejects a hard-linked ownership marker before applying", async (t) => {
+  const consumerRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "foundation-qualification-hard-link-"))
+  );
+  const markerSource = join(await realpath(tmpdir()), `foundation-qualification-hard-link-${process.pid}-${Date.now()}.json`);
+  t.after(async () => {
+    await rm(consumerRoot, { force: true, recursive: true });
+    await rm(markerSource, { force: true });
+  });
+  await writeFile(markerSource, `${JSON.stringify({
+    schemaVersion: 1,
+    kind: "agent-teams-document-authoring-qualification-fixture",
+    consumerRoot
+  })}\n`);
+  await link(
+    markerSource,
+    join(consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json")
+  );
+  await assert.rejects(
+    runDocumentAuthoringCrashQualification({
+      consumerRoot,
+      plan: {},
+      crashPoint: "after-publishing-journal-durable"
+    }),
+    /hard linked/iu
+  );
+});
+
+function qualifyCrashPoint(crashPoint) {
+qualified(`qualification signals ${crashPoint} and remains killable for recovery`, async (t) => {
   const scratch = await realpath(
     await mkdtemp(join(tmpdir(), "foundation-qualification-crash-"))
   );
@@ -164,7 +225,7 @@ qualified("qualification signals durable publishing and remains killable for rec
     `import { runDocumentAuthoringCrashQualification } from ${JSON.stringify(qualificationUrl)};`,
     "const [consumerRoot, planPath] = process.argv.slice(2);",
     'const plan = JSON.parse(await readFile(planPath, "utf8"));',
-    'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-publishing-journal-durable" });',
+    `await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: ${JSON.stringify(crashPoint)} });`,
     'process.stderr.write("qualification returned before SIGKILL\\n");',
     "process.exitCode = 2;",
     ""
@@ -185,7 +246,7 @@ qualified("qualification signals durable publishing and remains killable for rec
       }, 20_000);
       child.stdout.on("data", (chunk) => {
         stdout += chunk;
-        if (stdout === checkpointLine) {
+        if (stdout === checkpointLine(crashPoint)) {
           clearTimeout(timeout);
           resolve();
         }
@@ -195,7 +256,7 @@ qualified("qualification signals durable publishing and remains killable for rec
         reject(error);
       });
       child.once("exit", (code, signal) => {
-        if (stdout !== checkpointLine) {
+        if (stdout !== checkpointLine(crashPoint)) {
           clearTimeout(timeout);
           reject(new Error(
             `qualification exited before checkpoint: ${code}/${signal}: ${stderr}`
@@ -203,7 +264,7 @@ qualified("qualification signals durable publishing and remains killable for rec
         }
       });
     });
-    assert.equal(stdout, checkpointLine);
+    assert.equal(stdout, checkpointLine(crashPoint));
     assert.equal(child.exitCode, null);
     assert.equal(child.signalCode, null);
     assert.equal(child.kill("SIGKILL"), true);
@@ -221,3 +282,6 @@ qualified("qualification signals durable publishing and remains killable for rec
   assert.equal(recovered.outcome, "applied");
   assert.equal(recovered.planDigest, plan.planDigest);
 });
+}
+
+for (const crashPoint of crashPoints) {qualifyCrashPoint(crashPoint);}

@@ -4,7 +4,7 @@ Agent Teams managed integration for the portable
 `@agent-teams/docs-protocol` package.
 
 This package exclusively owns Cohort authority, managed consumer state,
-transition projectors, managed workflows, managed qualification, and historical
+transition projectors, managed workflows, managed cohort qualification, and historical
 managed assets. It depends on the portable package through that package's public
 Node contracts; the portable package never discovers or imports this adapter.
 

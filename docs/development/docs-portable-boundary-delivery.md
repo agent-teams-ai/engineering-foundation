@@ -2,7 +2,8 @@
 
 Status: Repository Mutation extraction checkpoint implemented in a disposable
 sandbox; independent integration review, API-authority registration, complete
-qualification, Authoring extraction, publication, and consumer rollout remain pending.
+artifact qualification, Authoring extraction, publication, and consumer rollout
+remain pending.
 
 The accepted target and sole manually maintained package DAG are in
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md).
@@ -15,7 +16,7 @@ Measured in the disposable documentation worktree on 2026-08-31:
 
 | Evidence | State | Observation |
 | --- | --- | --- |
-| Exact base/HEAD | Pending integration | The extraction is an uncommitted linked-worktree patch; integration owns exact-head qualification |
+| Exact base/HEAD | Pending integration | The extraction is an uncommitted linked-worktree patch; integration owns exact-head integration qualification |
 | Current public manifests | Measured | The catalog projects five packages, including Repository Mutation and Docs Protocol Agent Teams; Authoring remains in Engineering Foundation |
 | Git lock creation | Measured | Denied by the read-only linked-worktree Git directory; no retry and no history change |
 | Build and focused tests | Measured | Pinned direct TypeScript build, lint, graph projections, manifests, and focused mutation tests pass in the disposable sandbox |
@@ -71,7 +72,7 @@ journals to be ignored or treated as idle.
 
 - [ ] Make Source Dependencies v2 reject every failure class listed in ADR-0043,
   with positive and hostile fixtures and separate runtime/type-only cycle proof.
-- [ ] Record qualification coverage for every public package and permitted edge;
+- [ ] Record artifact-qualification coverage for every public package and permitted edge;
   missing coverage must fail closed without inventing a source edge.
 - [ ] At the exact release head, derive package publication order solely by
   topologically sorting exact internal manifest dependencies; reject drift,
@@ -114,7 +115,7 @@ journals to be ignored or treated as idle.
 ### 8. Protected provenance publication and consumer adoption
 
 - [ ] Publish only immutable reviewed versions from protected provenance after
-  all upstream exact artifacts and qualification evidence pass.
+  all upstream exact artifacts and artifact-qualification evidence pass.
 - [ ] Re-prove manifest, tarball, SRI, signature, source-bound provenance, SBOM,
   final tags, and installed dependency resolution before downstream publication.
 - [ ] On partial or uncertain publication, observe and fail closed; merge no

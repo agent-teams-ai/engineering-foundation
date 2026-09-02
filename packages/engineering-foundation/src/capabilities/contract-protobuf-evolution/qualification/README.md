@@ -14,7 +14,7 @@ never imports its process adapters, starts Buf, opens a shell or accesses the
 network. The command is invoked explicitly by a protected consumer workflow.
 
 Write mode runs the pinned Buf executable and atomically emits canonical,
-versioned evidence. Check mode omits `--write`, reruns the same qualification and
+versioned evidence. Check mode omits `--write`, reruns the same capability qualification and
 requires byte-for-byte equality with committed evidence. Consumers own the Buf
 pin, workflow protection and review policy; Foundation owns invocation semantics,
 normalization and evidence validation.
@@ -26,7 +26,7 @@ config for policy execution. Processes have a bounded deadline and process-tree
 cancellation; evidence publication is locked, contained, atomically replaced and
 verified after rename.
 
-The single Foundation-owned capability configuration and qualification evidence
+The single Foundation-owned capability configuration and capability-qualification evidence
 schemas are `v1` and include all hardened `FILE` provenance bindings. Older
 published package artifacts remain immutable history but their weaker shapes are
 not shipped or accepted by the current package.

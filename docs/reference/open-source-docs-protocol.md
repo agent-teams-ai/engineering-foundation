@@ -1,7 +1,7 @@
 # Open-Source Docs Protocol
 
 Status: Community workflow accepted by ADR-0039 and implemented for the
-qualified coordinates `@agent-teams/docs-protocol@0.4.0` and optional
+artifact-qualified coordinates `@agent-teams/docs-protocol@0.4.0` and optional
 `@agent-teams/docs-protocol-mcp@0.1.0`. Source or release-branch state never
 proves availability: proceed only when the exact registry checks below resolve
 both requested versions from public npm.
@@ -18,10 +18,10 @@ It does not require the Agent Teams managed preset, a site, or a portal.
 - one exact package version, committed in the consumer manifest and lockfile;
 - no `latest`, ranges, floating `npx`, or floating `dlx` invocation.
 
-Bootstrap apply and transaction recovery are initially qualified on POSIX
+Bootstrap apply and transaction recovery are initially capability-qualified on POSIX
 systems only. On Windows, use a repository whose portable authority was
 initialized on a supported POSIX host, reviewed, committed, and then cloned;
-the read-only `info`, `find`, `context`, `check`, and MCP flows are qualified
+the read-only `info`, `find`, `context`, `check`, and MCP flows are capability-qualified
 there. Do not run or automate local Windows `init --apply` or recovery until a
 release explicitly adds durable Windows transaction evidence.
 
@@ -62,9 +62,9 @@ pnpm add --save-dev --save-exact \
 
 Commit the resulting manifest and native lockfile. Do not create a second
 lockfile. Package-manager installation support does not make Bun or another
-engine a qualified runtime; run the CLI on the qualified Node version. Yarn and
+engine a capability-qualified runtime; run the CLI on the capability-qualified Node version. Yarn and
 Bun installation are not yet support claims: each needs its own packed-registry,
-installed-binary, recovery, and cross-platform qualification before its command
+installed-binary, recovery, and cross-platform capability qualification before its command
 is documented here.
 
 Add stable repository scripts so contributors invoke the installed binary:
@@ -86,7 +86,7 @@ Calling the equivalent committed script is preferred in repository automation.
 
 ## Preview and apply bootstrap
 
-Run this section on a qualified POSIX system. Windows consumers start from the
+Run this section on a capability-qualified POSIX system. Windows consumers start from the
 committed preinitialized authority described in Requirements and continue with
 the read-only daily workflow.
 
@@ -236,5 +236,5 @@ multi-tenant operation are not part of the portable profile.
 - Bootstrap uses only reviewed create-absent and exact-preimage operations.
 - The Agent Teams managed preset and Cohort workflow remain separate and
   unchanged.
-- A wider Node range or alternative runtime is unsupported until separately
-  qualified.
+- A wider Node range or alternative runtime is unsupported until it passes
+  separate capability qualification.

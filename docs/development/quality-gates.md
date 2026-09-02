@@ -11,16 +11,17 @@ weakening the merge gate.
 | Layer | Command | Purpose |
 | --- | --- | --- |
 | Changed | `pnpm check:changed` | Foundation-routed checks for the current Git delta |
-| Fast | `pnpm check:fast` | Fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
+| Fast | `pnpm check:fast` | Terminology contract, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
+| Terminology | `pnpm docs:terminology:check` | Canonical glossary sections, qualification scopes, and entry-point links |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
-| Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor qualification for all workflows and local actions |
-| Buf qualification E2E | `pnpm buf-qualification:e2e` | Real pinned Buf `FILE` compatible, breaking and fabricated-evidence scenarios |
+| Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor capability qualification for all workflows and local actions |
+| Buf capability qualification E2E | `pnpm buf-qualification:e2e` | Real pinned Buf `FILE` compatible, breaking and fabricated-evidence scenarios |
 | Patterns | `pnpm architecture:patterns` | Consumer-owned deterministic AST prohibitions |
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
 | Merge-ready | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
-| Coverage | `pnpm test:coverage` | Local native Node coverage qualification with line, branch, and function thresholds |
-| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI qualification of exact-head raw V8 evidence from the four isolated Linux test shards |
+| Coverage | `pnpm test:coverage` | Local native Node coverage-threshold qualification for lines, branches, and functions |
+| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the four isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
 
 Foundation's self-dogfood lifecycle is explicit and ordered:
@@ -30,8 +31,9 @@ Foundation's self-dogfood lifecycle is explicit and ordered:
 2. `pnpm foundation:dogfood` runs the freshly built Foundation CLI against this
    repository. Existing CI jobs may use `foundation:check:built` only after their
    preceding build step succeeds.
-3. `pnpm foundation:qualification` first repeats that source dogfood, then checks
-   packed and hermetic-registry artifacts and finally runs the pinned published-
+3. `pnpm foundation:qualification` first repeats that source dogfood, then runs
+   artifact qualification against packed and hermetic-registry artifacts and
+   finally runs the pinned published-
    version compatibility oracle. Published versions never govern current-source
    checking.
 
@@ -41,7 +43,7 @@ depend on Docs Protocol, and no bootstrap package or published dependency cycle
 is part of this lifecycle.
 
 `pnpm check` is the deterministic repository and package conformance layer. It
-does not claim networked, hosted, or external-tool qualification. `pnpm verify`
+does not claim networked, hosted, or external-tool capability qualification. `pnpm verify`
 is the single local command matching the union of Linux merge lanes: workflow
 security, the deterministic check, Buf, hermetic registry installation, published-version
 compatibility, dead-code analysis, and parser parity.
@@ -78,7 +80,7 @@ differently.
 Required CI executes the same evidence as independent jobs. Linux uses four
 checked-in weighted test shards; Windows combines the same manifest into two
 sequential shards. Package, registry, published-version, coverage, and static
-qualification run in parallel checkouts. The stable required contexts `check`
+capability qualifications run in parallel checkouts. The stable required contexts `check`
 and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, or
 missing prerequisite fails the required context. Every executable pull request
 job depends directly on Dependency Review.
@@ -117,8 +119,8 @@ hosted-review evidence belongs in pull-request comments; it is not converted
 into a workflow-authored or self-attested status check. `ReviewGate` is retired.
 
 `tests/manifests/test-shards.v1.json` owns the cross-platform shards.
-QGR synthetic and real-pnpm lifecycle qualification is assigned to shard 3.
-The required macOS qualification lane deliberately reruns the focused QGR
+QGR synthetic and real-pnpm lifecycle capability qualification is assigned to shard 3.
+The required `macos-qualification` adapter-qualification lane deliberately reruns the focused QGR
 lifecycle command after its Darwin build, including entrypoint cancellation and
 POSIX containment evidence; it does not rerun the complete shard.
 `tests/manifests/coverage.v1.json` pins their coverage-only additions, the
@@ -131,7 +133,7 @@ duplicate, nested, non-portable, or symlinked test entries and malformed
 coverage configuration. Add or rename a test and update the shard manifest in
 the same change. Each shard's `tests` remain the cross-platform required suite;
 the coverage manifest's `additionalTestsByShard` extends only the Linux
-raw-evidence run with suites that are already qualified elsewhere but are needed
+raw-evidence run with suites that passed capability qualification elsewhere but are needed
 for the complete coverage universe. Keep
 `--test-concurrency=1` inside a shard because recovery tests intentionally share
 process and filesystem assumptions.
@@ -217,7 +219,7 @@ The repository dogfood uses source-dependencies v2 and `packageRoots:
 globs, closes package and source ownership: a new direct child package, a source
 outside governed roots, or a boundary spanning package roots fails the gate.
 The package inventory test independently proves that every public workspace
-manifest appears in the existing public API, release, and registry qualification
+manifest appears in the existing public API, release, and registry artifact-qualification
 authorities without maintaining another package catalog or release graph.
 
 Suppression waivers, released API baselines, privileged workflow jobs, and
@@ -235,7 +237,7 @@ packed-tarball consumer. The tarball consumer installs its own exact Oxlint,
 oxlint-tsgolint, and TypeScript versions and proves the published type-aware
 preset, the source graph, documentation links and anchors, idempotent ADR baseline
 promotion, and both contract-evolution capabilities.
-Linux CI separately runs the real Aqua-pinned Buf qualification E2E because the
+Linux CI separately runs the real Aqua-pinned Buf capability-qualification E2E because the
 normal capability and package checks are intentionally process-free. The E2E
 proves compatible and breaking `FILE` behavior plus rejection of modified
 committed evidence after a fresh Buf rerun.

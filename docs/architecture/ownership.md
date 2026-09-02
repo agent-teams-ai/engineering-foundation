@@ -1,5 +1,9 @@
 # Ownership Boundary
 
+The [Foundation glossary](../reference/glossary.md) defines authority, evidence,
+cohort, journal, envelope, and the required qualification scopes used here.
+Every authority in this document decides only the claim named beside it.
+
 The foundation owns reusable engineering mechanisms:
 
 - configuration contracts and generic validators;

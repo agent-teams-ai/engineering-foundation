@@ -3,13 +3,17 @@
 Versioned engineering policy, tooling, and conformance for Agent Teams
 repositories.
 
+The [Foundation glossary](docs/reference/glossary.md) defines the core language
+used by this repository. In particular, authority is claim-specific, evidence is
+bounded to an observation, and qualification must name its subject.
+
 This repository contains reusable development tooling only. Product runtime code
 must not import it. Each consumer remains authoritative for its own domain model,
 package catalog, dependency permissions, security classifications, and ADRs.
 
 The current release has the original package placement. The accepted target is
 a new-only, independently versioned portable package boundary; its implementation
-and qualification are pending. [ADR-0043](docs/decisions/0043-new-only-portable-documentation-package-boundary.md)
+and artifact qualification are pending. [ADR-0043](docs/decisions/0043-new-only-portable-documentation-package-boundary.md)
 is the single authority for the target dependency DAG, and the
 [delivery contract](docs/development/docs-portable-boundary-delivery.md) records
 the evidence still required before release. No compatibility facade or legacy

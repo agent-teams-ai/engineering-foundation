@@ -73,7 +73,7 @@ not download or retain artifacts, so privileged execution cannot consume fork
 artifacts.
 
 The offline capability cannot fetch and recursively attest remote reusable
-workflow internals. Producer-owned qualification is required before claiming
+workflow internals. Producer-owned workflow qualification is required before claiming
 that a remote trust root also pins every transitive action. Empty
 `transitiveUses` declarations are therefore not interpreted as such proof.
 
@@ -107,7 +107,7 @@ and known local-auth paths are prohibited. This static capability does not
 prove the produced tarball contents. A publishing consumer must separately run
 a real tarball E2E check that proves required files, rejects forbidden paths,
 and searches packed content for a source-owned secret canary before it may treat
-package publication as qualified. The repository gate also proves two clean
+the package artifact as qualified for publication. The repository gate also proves two clean
 packs are byte-identical, enforces archive size and entry-count budgets, and
 rejects special tar entries.
 

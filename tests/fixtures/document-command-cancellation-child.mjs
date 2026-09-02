@@ -1,7 +1,7 @@
 import { parseArguments } from "../../packages/engineering-foundation/dist/cli-arguments.js";
-import { RunDocumentDoctor } from "../../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-doctor.js";
-import { RunDocumentNew } from "../../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-new.js";
-import { RunDocumentRecover } from "../../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-recover.js";
+import { RunDocumentDoctor } from "../../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
+import { RunDocumentNew } from "../../packages/document-authoring/dist/application/use-cases/run-document-new.js";
+import { RunDocumentRecover } from "../../packages/document-authoring/dist/application/use-cases/run-document-recover.js";
 import { runDocumentCommandWithComposition } from "../../packages/engineering-foundation/dist/document-command.js";
 
 const command = process.argv[2];

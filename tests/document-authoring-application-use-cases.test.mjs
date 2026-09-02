@@ -3,10 +3,10 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { applyDocumentPlan } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/apply-document-plan.js";
-import { recoverDocumentTransaction } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/recover-document-transaction.js";
-import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
-import { createDocumentTransactionEnvelope } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
+import { applyDocumentPlan } from "../packages/document-authoring/dist/application/use-cases/apply-document-plan.js";
+import { recoverDocumentTransaction } from "../packages/document-authoring/dist/application/use-cases/recover-document-transaction.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
+import { createDocumentTransactionEnvelope } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
 
 const fixture = JSON.parse(await readFile(fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)

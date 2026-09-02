@@ -11,7 +11,7 @@ import {
   inspectDocumentTransactionV2,
   planDocumentationDocument,
   recoverDocumentationTransaction
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 
 const fixtures = fileURLToPath(

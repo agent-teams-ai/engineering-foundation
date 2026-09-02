@@ -10,13 +10,13 @@ import test from "node:test";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import {
   findDocumentationDocuments,
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
-import { FindDocuments } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/find-documents.js";
+} from "../packages/document-authoring/dist/index.js";
+import { FindDocuments } from "../packages/document-authoring/dist/application/use-cases/find-documents.js";
 import {
   documentFindFailure,
   documentFindSuccess,
-} from "../packages/engineering-foundation/dist/document-authoring/find-command.js";
-import { DocumentCatalogError } from "../packages/engineering-foundation/dist/document-authoring/document-catalog-error.js";
+} from "../packages/document-authoring/dist/find-command.js";
+import { DocumentCatalogError } from "../packages/document-authoring/dist/document-catalog-error.js";
 import { LEGACY_DOCS_CLI_DEPRECATION_CODE } from "../packages/engineering-foundation/dist/legacy-docs-cli-deprecation.js";
 
 const cliPath = fileURLToPath(

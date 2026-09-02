@@ -6,10 +6,10 @@ import test from "node:test";
 
 import {
   inspectDocumentTransactionV1,
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 import {
   projectDocumentTransactionInspectionV1,
-} from "../packages/engineering-foundation/dist/document-authoring/composition/inspect-document-transaction.js";
+} from "../packages/document-authoring/dist/composition/inspect-document-transaction.js";
 import {
   inspectFoundationTransactionAwareMode,
 } from "../packages/engineering-foundation/dist/index.js";
@@ -185,7 +185,7 @@ test("public document inspection exposes docs-recover while legacy local-mode st
       ...installed,
     };
     const { documentPlanDigest } = await import(
-      "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js"
+      "../packages/document-authoring/dist/application/policies/document-contract-digests.js"
     );
     const { sha256Json } = await import(
       "../packages/engineering-foundation/dist/canonical-json.js"
@@ -247,7 +247,7 @@ test("public document inspection never follows a redirected state directory", as
       ...installed,
     };
     const { documentPlanDigest } = await import(
-      "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js"
+      "../packages/document-authoring/dist/application/policies/document-contract-digests.js"
     );
     const { sha256Json } = await import(
       "../packages/engineering-foundation/dist/canonical-json.js"

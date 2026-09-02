@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { NodeDocumentTransactionCoordinator } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-transaction-coordinator.js";
+import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/adapters/node/node-document-transaction-coordinator.js";
 
 const buildIdentity = `sha256:${"a".repeat(64)}`;
 

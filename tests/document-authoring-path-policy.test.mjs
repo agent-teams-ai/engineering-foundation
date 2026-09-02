@@ -5,16 +5,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeAuthoringProfileReader } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-authoring-profile-reader.js";
+import { NodeAuthoringProfileReader } from "../packages/document-authoring/dist/adapters/node/node-authoring-profile-reader.js";
 import {
   assertAuthoringProfileSemantics,
   AuthoringProfileSemanticError,
   hasContiguousRequiredSegments,
   isRepositoryPathAllowedByPlacement,
   matchingPlacementRoot
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/authoring-profile-semantics.js";
-import { isDocumentRepositoryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-repository-path.js";
-import { DocumentCatalogError } from "../packages/engineering-foundation/dist/document-authoring/document-catalog-error.js";
+} from "../packages/document-authoring/dist/application/policies/authoring-profile-semantics.js";
+import { isDocumentRepositoryPath } from "../packages/document-authoring/dist/application/policies/document-repository-path.js";
+import { DocumentCatalogError } from "../packages/document-authoring/dist/document-catalog-error.js";
 
 const pathVectors = JSON.parse(readFileSync(
   new URL("./fixtures/repository-path-conformance-v1.json", import.meta.url),

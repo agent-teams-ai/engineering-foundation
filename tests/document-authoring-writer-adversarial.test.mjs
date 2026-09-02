@@ -16,17 +16,17 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { sha256Bytes } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { NodeDocumentFileState } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-file-state.js";
-import { NodeDocumentJournalStore } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-journal-store-private.js";
-import { NodeDocumentPublisher } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-publisher-private.js";
-import { documentPlanDigest } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
+import { NodeDocumentFileState } from "../packages/document-authoring/dist/adapters/node/node-document-file-state.js";
+import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/adapters/node/node-document-journal-store-private.js";
+import { NodeDocumentPublisher } from "../packages/document-authoring/dist/adapters/node/node-document-publisher-private.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
 import {
   applyNodeDocumentationPlanPrivately
-} from "../packages/engineering-foundation/dist/document-authoring/composition/node-document-writing-private.js";
+} from "../packages/document-authoring/dist/composition/node-document-writing-private.js";
 import {
   planDocumentationDocument
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 
 const planningFixture = fileURLToPath(new URL(
   "fixtures/document-planning/orchestrator/",

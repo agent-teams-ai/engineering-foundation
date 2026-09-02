@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderDocumentCommandText } from "../packages/engineering-foundation/dist/document-authoring/adapters/inbound/cli/document-command-renderer.js";
+import { renderDocumentCommandText } from "../packages/document-authoring/dist/adapters/inbound/cli/document-command-renderer.js";
 
 function execution(command, result, outcome = "success") {
   return {

@@ -8,11 +8,11 @@ import { parseArguments } from "../packages/engineering-foundation/dist/cli-argu
 import {
   renderDocumentCommandJson,
   renderDocumentCommandText,
-} from "../packages/engineering-foundation/dist/document-authoring/adapters/inbound/cli/document-command-renderer.js";
+} from "../packages/document-authoring/dist/adapters/inbound/cli/document-command-renderer.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
-import { RunDocumentDoctor } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-doctor.js";
-import { RunDocumentNew } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-new.js";
-import { RunDocumentRecover } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-recover.js";
+import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
+import { RunDocumentNew } from "../packages/document-authoring/dist/application/use-cases/run-document-new.js";
+import { RunDocumentRecover } from "../packages/document-authoring/dist/application/use-cases/run-document-recover.js";
 
 const cliPath = fileURLToPath(
   new URL("../packages/engineering-foundation/dist/cli.js", import.meta.url),

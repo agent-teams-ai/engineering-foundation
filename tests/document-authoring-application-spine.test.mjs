@@ -5,12 +5,12 @@ import test from "node:test";
 
 import {
   createDocumentReceipt,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-receipt-policy.js";
+} from "../packages/document-authoring/dist/application/policies/document-receipt-policy.js";
 import {
   assertDocumentTransactionEnvelope,
   createDocumentTransactionEnvelope,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
-import { documentTransactionEnvelopeDigest } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-digests.js";
+} from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
+import { documentTransactionEnvelopeDigest } from "../packages/document-authoring/dist/application/policies/document-transaction-digests.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),

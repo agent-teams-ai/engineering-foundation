@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeDocumentContractValidator } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-contract-validator.js";
-import { NodeDocumentPlanningProfileReader } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-planning-profile-reader.js";
-import { NodeDocumentPlanningStateReader } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-planning-state-reader.js";
-import { NodeDocumentTemplateReader } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-template-reader.js";
-import { DocumentPlanningError } from "../packages/engineering-foundation/dist/document-authoring/document-planning-error.js";
+import { NodeDocumentContractValidator } from "../packages/document-authoring/dist/adapters/node/node-document-contract-validator.js";
+import { NodeDocumentPlanningProfileReader } from "../packages/document-authoring/dist/adapters/node/node-document-planning-profile-reader.js";
+import { NodeDocumentPlanningStateReader } from "../packages/document-authoring/dist/adapters/node/node-document-planning-state-reader.js";
+import { NodeDocumentTemplateReader } from "../packages/document-authoring/dist/adapters/node/node-document-template-reader.js";
+import { DocumentPlanningError } from "../packages/document-authoring/dist/document-planning-error.js";
 
 async function disposableRepository(prefix, run) {
   const root = await mkdtemp(join(tmpdir(), prefix));

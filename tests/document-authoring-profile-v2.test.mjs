@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { loadValidatedDocumentAuthoringProfileV2 } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.js";
-import { NodeDocumentPlanningProfileReader } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-planning-profile-reader.js";
-import { PlanDocumentationDocument } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/plan-documentation-document.js";
+import { loadValidatedDocumentAuthoringProfileV2 } from "../packages/document-authoring/dist/adapters/node/load-validated-document-authoring-profile-v2.js";
+import { NodeDocumentPlanningProfileReader } from "../packages/document-authoring/dist/adapters/node/node-document-planning-profile-reader.js";
+import { PlanDocumentationDocument } from "../packages/document-authoring/dist/application/use-cases/plan-documentation-document.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 
 const fixturePath = fileURLToPath(

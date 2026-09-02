@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeDocumentEnvironmentInspector } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-environment-inspector.js";
-import { RunDocumentDoctor } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-doctor.js";
+import { NodeDocumentEnvironmentInspector } from "../packages/document-authoring/dist/adapters/node/node-document-environment-inspector.js";
+import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
-import { inspectDocumentAuthoringEnvironmentV1 } from "../packages/engineering-foundation/dist/document-authoring/index.js";
+import { inspectDocumentAuthoringEnvironmentV1 } from "../packages/document-authoring/dist/index.js";
 
 const digest = `sha256:${"b".repeat(64)}`;
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { projectDocumentReachability } from "../packages/engineering-foundation/dist/document-authoring/application/policies/project-document-reachability.js";
+import { projectDocumentReachability } from "../packages/document-authoring/dist/application/policies/project-document-reachability.js";
 
 function artifact(reachability, placement = {
   kind: "collection",

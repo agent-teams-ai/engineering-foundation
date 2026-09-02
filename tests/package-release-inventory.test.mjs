@@ -326,7 +326,8 @@ test("release manifest exactly follows the package self-check allowlist", async 
   for (const schemaId of FOUNDATION_SCHEMA_IDS) {
     assert.ok(manifest.files.includes(`schemas/${schemaId}.schema.json`));
   }
-  assert.ok(manifest.exports["./document-authoring"]);
+  assert.equal(manifest.exports["./document-authoring"], undefined);
+  assert.equal(manifest.exports["./document-authoring/qualification"], undefined);
 });
 
 test("tarball inventory rejects any source or unallowlisted release file", () => {

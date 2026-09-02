@@ -21,10 +21,10 @@ import {
   documentPlanDigest,
   documentReceiptDigest,
   documentReferencedDocumentDigest,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
+} from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
 import {
   documentTemporaryPath,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
+} from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import {
   parseStrictJson,

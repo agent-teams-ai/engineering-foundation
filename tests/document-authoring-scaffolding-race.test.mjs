@@ -16,10 +16,10 @@ import test from "node:test";
 import {
   applyDocumentationPlan,
   planDocumentationDocument,
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 import {
   applyNodeDocumentationPlanPrivately,
-} from "../packages/engineering-foundation/dist/document-authoring/composition/node-document-writing-private.js";
+} from "../packages/document-authoring/dist/composition/node-document-writing-private.js";
 import {
   applyFilesystemScaffold,
   planScaffoldFromFile,

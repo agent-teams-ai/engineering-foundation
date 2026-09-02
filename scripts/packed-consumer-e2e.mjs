@@ -20,10 +20,12 @@ const expectedCapabilityIds = [
   "workspace.dependency-declarations"
 ];
 
-async function assertPrivateMutationImportsRejected(fixture) {
+async function assertRemovedFoundationPackagePathsRejected(fixture) {
   const privateSpecifiers = [
     "@agent-teams/engineering-foundation/repository-mutation",
-    "@agent-teams/engineering-foundation/dist/repository-mutation/application/model/repository-path.js"
+    "@agent-teams/engineering-foundation/dist/repository-mutation/application/model/repository-path.js",
+    "@agent-teams/engineering-foundation/document-authoring",
+    "@agent-teams/engineering-foundation/dist/document-authoring/index.js"
   ];
   for (const specifier of privateSpecifiers) {
     const failure = await captureFailure(() => runCommand(
@@ -39,9 +41,9 @@ async function assertPrivateMutationImportsRejected(fixture) {
 
 async function assertDocumentAuthoringPackageExport(fixture) {
   const probe = [
-    "const module = await import('@agent-teams/engineering-foundation/document-authoring');",
+    "const module = await import('@agent-teams/document-authoring');",
     "if (typeof module.buildDocumentationCatalog !== 'function') process.exit(2);",
-    "process.stdout.write(import.meta.resolve('@agent-teams/engineering-foundation/document-authoring'));",
+    "process.stdout.write(import.meta.resolve('@agent-teams/document-authoring'));",
   ].join("\n");
   const { stdout } = await runCommand(
     process.execPath,
@@ -51,7 +53,7 @@ async function assertDocumentAuthoringPackageExport(fixture) {
   const resolved = new URL(stdout.trim());
   if (
     resolved.protocol !== "file:" ||
-    !resolved.pathname.includes("/node_modules/@agent-teams/engineering-foundation/dist/document-authoring/index.js") ||
+    !resolved.pathname.includes("/node_modules/@agent-teams/document-authoring/dist/index.js") ||
     resolved.pathname.includes("/.worktrees/")
   ) {
     throw new Error("Packed document-authoring export resolved outside the installed package.");
@@ -483,7 +485,7 @@ async function assertDocumentFind(fixture) {
 
 export async function verifyPackedConsumer(input) {
   const fixture = input.fixture;
-  await assertPrivateMutationImportsRejected(fixture);
+  await assertRemovedFoundationPackagePathsRejected(fixture);
   await assertDocumentAuthoringPackageExport(fixture);
   await assertAdrPromotion(fixture);
   await assertCapabilityCheck(fixture);

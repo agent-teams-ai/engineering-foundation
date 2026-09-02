@@ -7,8 +7,8 @@ import { assertSchema } from "../packages/engineering-foundation/dist/schema-cat
 
 import {
   planDocumentParentMaterializationV2
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
-import { NodeDocumentParentMaterializerV2 } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-parent-materializer.js";
+} from "../packages/document-authoring/dist/index.js";
+import { NodeDocumentParentMaterializerV2 } from "../packages/document-authoring/dist/adapters/node/node-document-parent-materializer.js";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-parent-v2-"));

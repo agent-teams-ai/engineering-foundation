@@ -1,5 +1,5 @@
-import { documentPlanDigest } from "../../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
+import { documentPlanDigest } from "../../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../../packages/document-authoring/dist/application/policies/document-temporary-path.js";
 import { sha256Json } from "../../packages/engineering-foundation/dist/canonical-json.js";
 
 export const documentEnvelopeV3BuildIdentity = `sha256:${"2".repeat(64)}`;

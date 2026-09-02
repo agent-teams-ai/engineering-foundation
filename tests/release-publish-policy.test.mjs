@@ -290,11 +290,26 @@ test("creates one platform-native command shim without a shadowing extensionless
 
 async function runRelease(root, marker) {
   const harness = join(root, "release-harness.mjs");
+  const approvedBootstrapCatalog = {
+    ...NPM_PACKAGE_BOOTSTRAP,
+    packages: NPM_PACKAGE_BOOTSTRAP.packages.map((profile) =>
+      profile.state !== "candidate" ? profile : {
+        ...profile,
+        approval: {
+          archiveIntegrity: `sha512-${Buffer.alloc(64).toString("base64")}`,
+          packageTree: "0".repeat(40),
+        },
+        state: "approved",
+      },
+    ),
+  };
   await writeFile(
     harness,
     `import { appendFile, writeFile } from "node:fs/promises";\n` +
       `import { main } from ${JSON.stringify(pathToFileURL(releaseScript).href)};\n` +
+      `const approvedBootstrapCatalog = ${JSON.stringify(approvedBootstrapCatalog)};\n` +
       `await main({\n` +
+      `  bootstrapCatalog: approvedBootstrapCatalog,\n` +
       `  publishOrdered: async () => {\n` +
       `    await writeFile(process.env.PUBLISH_MARKER, "ordered publish");\n` +
       `    await appendFile(process.env.COMMAND_SHIM_MARKER, "ordered publish\\n");\n` +

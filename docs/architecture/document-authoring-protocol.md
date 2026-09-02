@@ -6,35 +6,35 @@ recovery-handler contract v2. ADR-0026 supersedes ADR-0025 and adds
 Plan/Receipt v2, envelope v4, document journal v3, and recovery-handler contract
 v3. Published older evidence remains immutable and is never reinterpreted.
 The catalog, compiler, create-only writer, `docs new`, `docs doctor`, and
-`docs recover` are implemented and released. Packed registry and cross-platform
-qualification evidence supports release adoption; consumer activation remains
-explicit.
+`docs recover` are implemented in the strict new-only package split accepted by
+ADR-0043. `@agent-teams/document-authoring` owns the portable authoring
+contracts and behavior, `@agent-teams/repository-mutation` owns the shared
+barrier, journal, and recovery mechanism, and `@agent-teams/docs-protocol`
+composes the portable application, public API, and CLI. There is no Foundation
+authoring export, documentation CLI, or compatibility bridge.
 
-ADR-0026 carries forward ADR-0025's placement of the unified documentation CLI
-and metadata/query workflow in the separate `@agent-teams/docs-protocol`
-package. This document remains the
-canonical Foundation mutation-kernel and persisted-evidence specification.
-Docs Protocol depends on these mechanisms; Foundation does not depend on Docs
-Protocol. The vNext directory-materialization extension binds every missing
-allowed parent segment and its observed physical identity into its Plan and
-journal. Portable Node recovery is retain-only and never deletes a created
-directory.
+This document is the canonical portable authoring and persisted-evidence
+specification. Directory materialization binds every missing allowed parent
+segment and its observed physical identity into its Plan and journal. Portable
+Node recovery is retain-only and never deletes a created directory.
 
 ## Boundary
 
 Document authoring is a top-level mutation protocol. It is not a capability,
 does not run inside `foundation check`, and is not a scaffolding recipe. Its
-public contracts are document-specific; only private Foundation coordination
-and filesystem mechanisms may later be shared with scaffolding.
+public contracts are document-specific. Repository Mutation supplies the closed
+coordination and filesystem mechanism shared with other mutation clients.
 
-Foundation owns deterministic observation, contract validation, compilation,
-safe materialization, recovery, stable diagnostics, and package qualification.
-A consumer owns every repository-specific meaning. Foundation never loads
-consumer code or treats a profile as an extension language.
+Document Authoring owns deterministic observation, contract validation,
+compilation, authoring diagnostics, and protected materialization. Repository
+Mutation owns transaction coordination, persisted evidence, and exact-build
+recovery mechanics. Docs Protocol owns portable command and application
+composition. A consumer owns every repository-specific meaning; no portable
+package loads consumer code or treats a profile as an extension language.
 
 ## Rule ownership matrix
 
-| Rule or fact | Authority | Foundation responsibility |
+| Rule or fact | Authority | Portable owner responsibility |
 | --- | --- | --- |
 | Allowed metadata shape | Consumer metadata schema | Render canonically, then validate the compiled instance |
 | Create-enabled document types | Consumer authoring profile | Select one closed v1 strategy and reject partial authority |
@@ -49,10 +49,10 @@ consumer code or treats a profile as an extension language.
 | Slug or explicit destination | Document Intent when selected placement consumes it | Validate or deterministically derive; never ignore |
 | Qualified identity grammar and placement operators | Consumer authoring profile | Execute only closed v1 operators |
 | Blocker and code-anchor semantics | Consumer validator | No generic interpretation |
-| Generic links and anchors | Foundation documentation checks | Validate read-only integrity |
+| Generic links and anchors | Docs Protocol checks | Validate read-only integrity |
 | RC reachability instruction | Consumer authoring profile | Project the exact index path and relative Markdown link without editing the index |
-| Safe file publication | Foundation authoring protocol | Enforce Plan and adapter contract |
-| Transaction coordination | Private Foundation coordinator | Serialize Foundation mutations |
+| Safe file publication | Document Authoring | Enforce the authoring Plan through Repository Mutation |
+| Transaction coordination | Repository Mutation | Serialize cooperating repository mutations |
 | Agent routing | Existing `repository.agent-workflow` | Validate the declared route |
 | Prose and diagram tools | Consumer exact lockfile and checks | Never execute them from a profile |
 | Organization requirements and exceptions | Central policy repository | Outside this protocol |
@@ -69,7 +69,7 @@ effective member must still exist in the owner catalog. There is no implicit
 catalog-wide set: adding an owner cannot silently expand authoring authority.
 Owner-set resolution does not centralize metadata schemas, templates, or domain
 meaning.
-Foundation does not infer creation defaults from arbitrary JSON Schema.
+Document Authoring does not infer creation defaults from arbitrary JSON Schema.
 
 ## Read-only catalog
 
@@ -124,7 +124,7 @@ pnpm check
 ```
 
 `--type`, `--id`, `--title`, `--owner`, and `--summary` are required by
-`docs new`. Foundation never invents an owner or summary. `--slug`,
+`docs new`. Docs Protocol never invents an owner or summary. `--slug`,
 `--destination`, repeatable `--related`, `--profile`, and `--consumer` remain
 explicit inputs when the selected profile strategy permits them. Automatic ID
 allocation is not part of this version.
@@ -196,10 +196,10 @@ combination admitted by the public schema is allowed.
 
 An unused path-affecting value is invalid; it is never silently ignored. Intent
 normalization NFC-normalizes strings where the v1 schema admits Unicode, derives
-or validates the slug, sorts the Foundation-owned `related` set in binary order,
+or validates the slug, sorts the Document Authoring-owned `related` set in binary order,
 and deep-freezes the result. Duplicate `related` entries are invalid.
 
-`additionalMetadata` is bounded inert JSON data. Foundation does not interpret
+`additionalMetadata` is bounded inert JSON data. Document Authoring does not interpret
 consumer lifecycle, blocker, code-anchor, or relationship meaning. It rejects a
 top-level key that could replace `id`, `type`, `status`, `owner`, `summary`,
 `slug`, `destination`, or `related`, and recursively rejects `__proto__`,
@@ -284,7 +284,7 @@ filesystem paths.
 `manual-fixed-index` binds one exact portable `indexPath` in consumer authority.
 `manual-colocated-index` is valid only for explicit placement and projects the
 literal `README.md` before the required placement segments, such as a package
-README before `src/features`. Foundation derives the relative Markdown link
+README before `src/features`. Document Authoring derives the relative Markdown link
 from that index to the compiled destination. `not-required` emits no index
 action. None of these strategies mutates an index or claims managed
 reachability.
@@ -309,7 +309,7 @@ identity:
 Every dot-delimited segment matches `^[a-z][a-z0-9-]*$`. The candidate must
 start with the exact declared prefix, and the number of following segments must
 be within the inclusive bounds. The prefix is part of consumer authority;
-Foundation does not infer it from type names or placement.
+Document Authoring does not infer it from type names or placement.
 
 ### Filename and placement operators
 
@@ -363,7 +363,7 @@ observation admits at most 10,000 documents and 32 MiB total; identity
 projection admits at most 100,000 entries. Field, item, nesting, scalar,
 diagnostic, and encoded-output limits remain exactly those in the published v1
 schemas. Both character and UTF-8 byte bounds are enforced when specified.
-For in-memory callers, Foundation rejects shared-object amplification as soon
+For in-memory callers, Document Authoring rejects shared-object amplification as soon
 as an NFC-normalized lower bound of the logically expanded document fields
 exceeds the same public 1 MiB output ceiling. This proves an existing output
 failure before schema traversal; it does not add a wire-contract limit.
@@ -374,7 +374,7 @@ The bounded UTF-8 template contains exactly one fenced block whose info string
 is `markdown`. After CRLF-to-LF normalization, the skeleton inside that block
 must begin with a strict YAML mapping and then exactly one leading H1. YAML tags,
 anchors, aliases, duplicate keys, interpolation, includes, callbacks, and
-executable expressions are invalid. Foundation discards the placeholder
+executable expressions are invalid. Document Authoring discards the placeholder
 frontmatter, replaces the placeholder H1 through `title` or `id-colon-title`,
 and retains the body beneath that H1. Content outside the single skeleton is
 not copied into output.
@@ -385,9 +385,9 @@ Canonical frontmatter uses this key order:
 2. present `related`;
 3. every additional metadata key in binary order.
 
-`related` is unique and binary-sorted because Foundation owns that set.
+`related` is unique and binary-sorted because Document Authoring owns that set.
 Every consumer-owned array preserves caller order and every nested mapping uses
-binary key order. Foundation has no knowledge of consumer field names. The
+binary key order. Document Authoring has no knowledge of consumer field names. The
 governed keys `id`, `type`, `status`, `owner`, `summary`, `related`, `title`,
 `slug`, and `destination` cannot be supplied as additional metadata. The
 rendered metadata must round-trip through the strict YAML data model and pass
@@ -395,11 +395,11 @@ the consumer metadata schema. Output is UTF-8 with LF, one terminal newline,
 and logical mode `0644`.
 
 The adopted donor corpus remains raw provenance evidence. Five of its six
-documents are exact Foundation output vectors. The feature document is an
+documents are exact Document Authoring output vectors. The feature document is an
 intentional semantic-equivalence vector: the donor preserves insertion order
-inside a `code_anchors` item (`pattern`, then `enforcement`), while Foundation's
+inside a `code_anchors` item (`pattern`, then `enforcement`), while Document Authoring's
 generic canonical mapping rule emits binary order (`enforcement`, then
-`pattern`). Foundation output enforcement takes precedence over donor byte
+`pattern`). Document Authoring output enforcement takes precedence over donor byte
 parity; no consumer field receives a privileged ordering rule.
 
 The exact temporary-output operator is
@@ -471,12 +471,14 @@ rule.
 
 ## Transaction and compatibility
 
-One repository root has one canonical Foundation operation lock and one active
-transaction slot. Directory materialization uses envelope v4 with registered
-recovery-handler contract v3 and `document-authoring-journal/v3`. It records
-the exact Foundation version/build, adapter contract, Plan v2, materialization
-evidence, payload digest, lifecycle state, and envelope digest. Envelope v3
-remains the exact legacy file-only protocol.
+One repository root has one canonical Repository Mutation operation lock and one
+active transaction slot. Document Authoring supplies the document envelope and
+journal vocabulary; Repository Mutation supplies the barrier, persistence, and
+exact-recovery mechanism. Directory materialization uses envelope v4 with
+registered recovery-handler contract v3 and `document-authoring-journal/v3`.
+It records the exact Document Authoring version/build, adapter contract, Plan
+v2, materialization evidence, payload digest, lifecycle state, and envelope
+digest. Envelope v3 remains the exact earlier file-only protocol.
 The canonical lock is a bounded owner-token regular file. New ownership is
 published with no replacement, and reclaim or release is fenced by token plus
 physical file identity. A same-host lock is reclaimed only when its PID is
@@ -492,23 +494,18 @@ transaction barrier. This intentionally makes released directory-lock clients
 fail closed before they can mutate. Interrupted in-place ownership/barrier
 rewrites also remain regular-file evidence and require recovery rather than
 opening an unlocked window.
-The coordinator enforces that barrier for scaffolding, document authoring, and
-local attach or detach before mutation begins. It recognizes the frozen legacy
-scaffolding journal v1 and immutable document envelopes v2, v3, and v4 at the
-historical physical slot; an orphan temporary, invalid regular-file evidence,
-unknown schema, digest failure, or contradictory document lifecycle is
-preserved and fails closed.
-Incomplete local-mode phases and orphan registry backups share the same
-coordinator and admit only `detach`. Status reports a structured recovery route
-only for an implemented path: legacy `scaffold-recover`, local-mode `detach`, or
-`docs-recover` for an exact compatible envelope v3 or v4 handler. Envelope v2 and
-document journal v1 are permanently manual-recovery-only in current packages.
-The legacy local-mode `FoundationTransactionStatus` projection remains
-type-compatible and intentionally lossy for document envelopes v3 and v4: it reports
-`recovery-handler-unavailable` and does not expose `docs-recover`. Automation
-that routes document recovery must use the versioned
-`inspectDocumentTransactionV2` API from `./document-authoring`; V1 retains its
-frozen projection while V2 exposes exact v3 and v4 evidence.
+The Repository Mutation coordinator enforces that barrier before mutation. Each
+client classifies only the evidence it owns; foreign, orphaned, invalid,
+unknown, digest-failing, or contradictory evidence is preserved and fails
+closed. Document Authoring recognizes immutable document envelopes v3 and v4 at
+the historical physical slot and reports `docs-recover` only for an exact
+compatible handler. Envelope v2 and document journal v1 remain permanently
+manual-recovery-only in current packages. Automation that routes document
+recovery uses `inspectDocumentTransactionV2` from
+`@agent-teams/document-authoring`; V1 retains its frozen projection while V2
+exposes exact v3 and v4 evidence. Stable wire field names such as
+`foundationVersion` remain persisted contract identities, not package-ownership
+claims.
 
 For envelopes v3 and v4, the recorded package-artifact identity contains SemVer plus a
 canonical SHA-256 digest of the installed package manifest, executable
@@ -517,8 +514,9 @@ of install path and directory enumeration order, is cached for the immutable
 installed package process, and distinguishes rebuilt shipped artifacts at the
 same version. Recovery is available only from the exact recorded SemVer and
 build identity through the closed v2 handler after its required dependency
-closure and adapter semantics are qualified. The envelope Foundation identity
-must equal the embedded document compiler version and build identity. A version
+closure and adapter semantics are qualified. The envelope's historically named
+`foundation` identity must equal the embedded Document Authoring compiler
+version and build identity. A version
 range, same-version rebuild, or merely schema-compatible package is not recovery
 authority.
 
@@ -563,14 +561,14 @@ the writer completes a provable commit or preserves evidence. It never reports
 cancelled while a transaction or possible output remains.
 
 The envelope does not merge `ScaffoldPlan` with `DocumentPlan` or their
-Receipts. Recovery dispatch is closed in the Foundation composition root and
-cannot call consumer code. A current Foundation package reads the legacy
-scaffolding journal, envelope v2, envelope v3, and envelope v4. Only envelope
-v3/v4 with the exact recorded Foundation version and build identity may select `docs-recover`.
-Envelope v2 is preserved as manual-recovery evidence. Packages older than v3
-preserve its unknown regular-file slot and block mutation. Unknown, newer,
-tampered, or multiple transaction evidence is likewise preserved. Journals are
-never migrated, rewritten, downgraded, or automatically deleted.
+Receipts. Recovery dispatch is closed across Repository Mutation and the owning
+client and cannot call consumer code. Document Authoring reads envelopes v3 and
+v4; only the exact recorded Document Authoring version and build identity may
+select `docs-recover`. Envelope v2 is preserved as manual-recovery evidence.
+Packages that cannot classify evidence preserve the regular-file slot and block
+mutation. Unknown, newer, tampered, or multiple transaction evidence is
+likewise preserved. Journals are never migrated, rewritten, downgraded, or
+automatically deleted.
 
 Recognition of envelope v2 and journal v1 cannot be retired until governed
 inventory proves zero instances in every admitted repository, all producing
@@ -604,7 +602,7 @@ stored inode/device tuple remains valid across platforms or process lifetimes.
 | `journaled-recoverable` | Durable transaction evidence permits compatible recovery; it is not a multi-file transaction claim |
 | `preserved-for-recovery` | Evidence or output may exist and was intentionally retained for recovery or manual resolution |
 
-After the first publication boundary, Foundation never automatically deletes a
+After the first publication boundary, Document Authoring never automatically deletes a
 destination. Allowed actions are complete, preserve, recover, or request manual
 resolution. See the [cooperative writer threat model](../security/document-authoring-threat-model.md)
 for the exact safety claim.

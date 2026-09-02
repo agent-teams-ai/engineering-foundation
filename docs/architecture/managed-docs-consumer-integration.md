@@ -1,50 +1,36 @@
 # Managed Docs Protocol Consumer Integration
 
-Status: Accepted target from ADR-0030 and ADR-0037. The internal bounded-context
-dependency fence is implemented and the managed integration is release-qualified;
-consumer activation remains explicit.
+Status: Accepted behavior from ADR-0030 and ADR-0037, relocated by ADR-0043 to
+the new-only `@agent-teams/docs-protocol-agent-teams` package. Consumer
+activation remains explicit.
 
 ## Boundaries
 
-The system has three authorities with one-way dependencies:
+Organization governance owns Qualified Cohort, enrollment, admission, and
+observed CI. Docs Protocol Agent Teams owns managed desired state, compilation,
+diagnostics, and assets. It composes the portable Docs Protocol public API and
+Repository Mutation without moving managed behavior into either dependency.
+Portable Docs Protocol never imports, discovers, or executes the managed
+adapter. Repository Mutation supplies only the barrier, exact-preimage
+transactions, journals, receipts, filesystem guards, and exact-build recovery
+mechanism. Consumers retain all repository-specific documentation meaning. The
+sole authoritative package DAG remains in
+[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md).
 
-```text
-.github governance
-  Qualified Cohort, enrollment, admission, observed CI
-              |
-              v
-Docs Protocol consumer-integration
-  desired state, compiler, diagnostics, managed assets
-              |
-              v
-Engineering Foundation mutation
-  barrier, CAS, journal, recovery, receipt, filesystem guards
-```
+## New-only command boundary
 
-Foundation never imports Docs Protocol. Docs Protocol never owns organization
-admission. Consumers retain all repository-specific documentation meaning.
+Managed operations use only the distinct `agent-teams-docs-managed` executable
+from Docs Protocol Agent Teams. Portable `agent-teams-docs` and `docs-protocol`
+contain only portable commands. Engineering Foundation has no documentation
+CLI, and no package supplies an alias, forwarding command, optional adapter
+lookup, or compatibility bridge. Removing those user-facing routes does not
+remove recognized journals or exact-build recovery handlers during their
+support windows.
 
-## Legacy Foundation CLI boundary
+## Internal managed-adapter boundary
 
-Docs Protocol is the target command owner. The older Foundation `docs`
-namespace remains executable only as the frozen compatibility boundary defined
-by [ADR-0033](../decisions/0033-freeze-legacy-foundation-docs-cli.md). Foundation
-does not forward that namespace to Docs Protocol or add a reverse dependency.
-Human invocations receive the stable `FOUNDATION_DOCS_CLI_DEPRECATED` signal;
-machine invocations preserve their published one-envelope stream contract.
-
-The later removal event is evidence-gated, not time-gated. It requires a
-complete consumer inventory bound to an exact revision of the append-only
-central Cohort registry with zero legacy invocations, exact consumer cutover
-evidence, positive and negative parity fixtures, packed-registry and platform
-qualification, and a closed inventory plus proven route for every recognized
-legacy evidence version. Until then, the compatibility surface is maintained
-but cannot evolve.
-
-## Internal Docs Protocol boundary
-
-Within Docs Protocol, consumer integration now follows one enforced source
-direction:
+Within Docs Protocol Agent Teams, consumer integration follows one enforced
+source direction:
 
 ```text
 composition -> adapters -> application -> domain
@@ -53,30 +39,31 @@ application -------------> generated package assets
 ```
 
 Application ports own the repository-observation, package-asset, partial-file
-planning, and Foundation transaction needs. The Node composition root supplies
-the concrete repository, asset-catalog, manifest, route, and transaction
-adapters. Application source cannot import adapter source. The repository source
-policy and its golden boundary test reject a reversed edge, undeclared package
-or Node builtin, or cross-boundary import that bypasses a declared entrypoint.
+planning, and Repository Mutation transaction needs. The Node composition root
+supplies the concrete repository, asset-catalog, manifest, route, and
+transaction adapters. Application source cannot import adapter source. The
+repository source policy and its golden boundary test reject a reversed edge,
+undeclared package or Node builtin, or cross-boundary import that bypasses a
+declared entrypoint.
 
-This containment changes no public exports or wire schemas. Planning still
+This containment changes no persisted wire schemas. Planning still
 sorts the exact asset and operation sets deterministically. Apply still rebuilds
 the Plan before comparing `--expect`, delegates the rebuilt mutation Plan to
-Foundation, recaptures the repository afterward, and returns Foundation's
+Repository Mutation, recaptures the repository afterward, and returns its
 unchanged receipt.
 
 ## Ownership
 
 | Surface | Owner | Integration authority |
 | --- | --- | --- |
-| Canonical authoring Skill | Docs Protocol | Full bytes |
-| Standalone caller workflow | Docs Protocol plus Qualified Cohort revision | Full bytes |
-| Generated managed state | Docs Protocol | Full bytes |
-| Six `docs:*` aliases | Docs Protocol | Exact package fields |
-| Docs Protocol and Foundation pins | Qualified Cohort | Exact development dependency fields |
-| Documentation route in `AGENTS.md` | Docs Protocol | One exact managed block |
-| Integration profile Cohort field | `.github` governance via Docs Protocol upgrade | One exact field |
-| pnpm lockfile | Package manager plus Foundation publication | Generate only in disposable staging; publish exact postimage |
+| Canonical authoring Skill | Docs Protocol Agent Teams | Full bytes |
+| Standalone caller workflow | Docs Protocol Agent Teams plus Qualified Cohort revision | Full bytes |
+| Generated managed state | Docs Protocol Agent Teams | Full bytes |
+| Six `docs:*` aliases | Docs Protocol Agent Teams | Exact package fields |
+| Docs Protocol package pins | Qualified Cohort | Exact development dependency fields |
+| Documentation route in `AGENTS.md` | Docs Protocol Agent Teams | One exact managed block |
+| Integration profile Cohort field | `.github` governance via managed upgrade | One exact field |
+| pnpm lockfile | Package manager plus managed transaction | Generate only in disposable staging; publish exact postimage |
 | Profiles, owners, schemas, templates, validators, documents | Consumer | No write authority |
 | Enrolled repositories and exceptions | `.github` governance | External audit and admission |
 
@@ -90,14 +77,14 @@ discover -> check source -> stage successor -> prove target -> publish -> check 
 The normal migration is one explicit command:
 
 ```bash
-agent-teams-docs consumer upgrade --to docs-YYYY-MM-DD-N --json
+agent-teams-docs-managed upgrade --to docs-YYYY-MM-DD-N --json
 ```
 
 It resolves current protected `.github` main, projects the qualified Cohort and
 exact package pins, lets pnpm generate the lockfile only inside a disposable Git
-copy, and runs the successor CLI there. Foundation then publishes the closed
-postimage set once, after revalidating that the captured SHA is still protected
-main. Activation is a frozen offline install plus read-only check;
+copy, and runs the successor CLI there. Repository Mutation then publishes the
+closed postimage set once, after revalidating that the captured SHA is still
+protected main. Activation is a frozen offline install plus read-only check;
 failure publishes exact reverse operations and restores the source installation.
 
 The source must be current, transaction-idle, and clean at one Git HEAD. The
@@ -106,11 +93,12 @@ protected main. The Cohort's `eligible_after` timestamp remains informational;
 lifecycle state, canary enrollment, and explicit `upgrade_from` are the local
 selection gates.
 
-`check` and `plan` remain deterministic offline observations. `apply` accepts only a newly
-rebuilt Plan whose digest equals the caller's expectation, then delegates to the
-Foundation recoverable serialized CAS transaction. A crash can expose mixed
-bytes until exact-build recovery completes; the transaction journal and hosted
-merge gate make that state visible and prevent default-branch admission.
+`check` and `plan` remain deterministic offline observations. `apply` accepts
+only a newly rebuilt Plan whose digest equals the caller's expectation, then
+delegates to the Repository Mutation recoverable serialized CAS transaction. A
+crash can expose mixed bytes until exact-build recovery completes; the
+transaction journal and hosted merge gate make that state visible and prevent
+default-branch admission.
 
 ## V1 support
 

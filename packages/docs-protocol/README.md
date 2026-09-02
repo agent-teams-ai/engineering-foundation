@@ -5,15 +5,18 @@ and coding agents. It keeps Markdown/YAML as authority, provides safe
 create-only authoring, advisory fuzzy search, bounded `llms.txt` context, and a
 portable setup that does not require an Agent Teams managed repository.
 
-The package is a thin application layer over the versioned mutation kernel in
-`@agent-teams/engineering-foundation`. The optional read-only MCP transport is
-published separately as `@agent-teams/docs-protocol-mcp`.
+The package is the portable application layer over direct dependencies on
+`@agent-teams/document-authoring` and `@agent-teams/repository-mutation`. The
+optional read-only MCP transport is published separately as
+`@agent-teams/docs-protocol-mcp`.
 
 ## Boundary
 
-- Engineering Foundation owns catalogs, Plan/Apply/Receipt, the single writer,
-  filesystem safety, transaction evidence, recovery, and strict sidecar merge.
-- Docs Protocol owns command semantics, the shared metadata vocabulary,
+- Document Authoring owns authoring contracts, catalogs, Plans, Receipts,
+  deterministic compilation, protected materialization, and strict sidecar merge.
+- Repository Mutation owns the operation barrier, journal persistence,
+  filesystem mutation safety, and exact-build recovery mechanism.
+- Docs Protocol owns portable application and command semantics, the shared metadata vocabulary,
   relation queries, agent routing, and adoption checks.
 - A consumer owns its data-only profiles, metadata schema, owners, templates,
   explicit reachability, and opaque semantic validator IDs.
@@ -83,7 +86,7 @@ it explicitly with `--profile` and override the repository with `--consumer`.
 `new` requires exactly one of `--dry-run` or `--apply`. Preview never reserves
 an ID or writes. Apply creates only the planned document and reports the exact
 index path and Markdown link; it never edits an index.
-Every authoring request selects Foundation's closed
+Every authoring request selects Document Authoring's closed
 `create-missing-real-directories` policy. The resulting Plan v2 may create only
 its verified missing parent chain and records directory evidence for recovery.
 
@@ -101,12 +104,13 @@ v1 vocabulary. Repeat `--code-anchor` with one strict JSON value. Repeat
 
 ## Profile routing
 
-The portable v3 protocol profile routes to a Foundation authoring profile v3. Foundation
-alone loads inline frontmatter and any declared metadata sidecar, performs the
-strict path-to-full-metadata merge, validates the final instance, and exposes a
-bounded inert metadata projection. Docs Protocol never reparses documents.
+The portable v3 protocol profile routes to a Document Authoring profile v3.
+Document Authoring alone loads inline frontmatter and any declared metadata
+sidecar, performs the strict path-to-full-metadata merge, validates the final
+instance, and exposes a bounded inert metadata projection. Docs Protocol never
+reparses documents.
 
-The referenced Foundation profile is the only authority for authorable
+The referenced Document Authoring profile is the only authority for authorable
 types, identity, placement, heading, owners, required metadata, and explicit
 reachability. `not-required` requires a human-readable reason; omission is
 invalid. The Docs Protocol profile contains only routing, protocol identity,
@@ -121,8 +125,10 @@ Generic v1/v2 commands retain their existing envelope shapes. Portable
 `init`, bounded `context`, and opt-in fuzzy `find` use the additive v3 envelope;
 default exact `find` remains v2. Consumers must dispatch on `schemaVersion` and
 validate against the matching exported schema.
-Recovery is bound to the persisted transaction and exact installed Foundation
-build, so it does not parse mutable authoring profiles before resuming.
+Recovery is bound to the persisted transaction and exact installed Document
+Authoring build, so it does not parse mutable authoring profiles before
+resuming. Historical wire names that contain `foundation` remain unchanged
+persisted contract identities.
 
 ## Consumer qualification
 

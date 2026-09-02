@@ -329,7 +329,7 @@ async function verifyPackedDocsConsumerIntegration(input) {
       "--consumer",
       consumerRoot,
       "--profile",
-      "architecture/foundation/document-authoring.yaml",
+      "docs.config.yaml",
       "--json"
     ],
     consumerRoot

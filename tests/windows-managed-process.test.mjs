@@ -192,13 +192,15 @@ windowsTest(
     const root = await mkdtemp(join(tmpdir(), "foundation deep installed helper "));
     const bootstrapName = "bootstrap.ps1";
     const helperName = "WindowsManagedProcess.cs";
-    const targetBootstrapLength = 250;
-    const segmentLength = targetBootstrapLength - root.length - bootstrapName.length - 1;
-    assert.ok(segmentLength > 0 && segmentLength <= 240);
+    let segmentLength = 1;
+    while (join(root, "x".repeat(segmentLength), bootstrapName).length < 250) {
+      segmentLength += 1;
+    }
+    assert.ok(segmentLength <= 240);
     const helperRoot = join(root, "x".repeat(segmentLength));
     const bootstrapPath = join(helperRoot, "bootstrap.ps1");
     const helperPath = join(helperRoot, helperName);
-    assert.equal(bootstrapPath.length, targetBootstrapLength);
+    assert.ok(bootstrapPath.length >= 250 && bootstrapPath.length < 260);
     assert.ok(helperPath.length > 260);
     try {
       await mkdir(helperRoot, { recursive: true });

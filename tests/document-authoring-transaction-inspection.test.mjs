@@ -12,6 +12,7 @@ import { sha256Json } from "../packages/document-authoring/dist/canonical-json.j
 import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/installed-artifact-identity.js";
 import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/package-version.js";
 import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/adapters/node/node-document-journal-store.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const fixture = JSON.parse(await readFile(
@@ -41,7 +42,7 @@ async function installedEnvelope() {
 async function writeEnvelope(root, envelope) {
   const path = join(root, ".agent-teams-local", "scaffolding-transaction.json");
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(envelope)}\n`, "utf8");
+  await new NodeDocumentJournalStore(path).create(envelope);
 }
 
 test("Document Authoring inspection exposes exact owner-package recovery coordinates", async () => {

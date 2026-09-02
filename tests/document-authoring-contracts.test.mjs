@@ -5,13 +5,10 @@ import test from "node:test";
 
 import {
   canonicalJson,
-  sha256Json,
-} from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
-import {
-  canonicalJson as neutralCanonicalJson,
   CanonicalJsonError,
   sha256Bytes,
-} from "../packages/engineering-foundation/dist/canonical-json.js";
+  sha256Json,
+} from "../packages/document-authoring/dist/canonical-json.js";
 import {
   assertDocumentPlanDigests,
   assertDocumentReceiptDigest,
@@ -29,13 +26,14 @@ import { assertSchema } from "../packages/document-authoring/dist/schema-catalog
 import {
   parseStrictJson,
   StrictJsonError,
-} from "../packages/engineering-foundation/dist/strict-json.js";
+} from "../packages/document-authoring/dist/strict-json.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
 );
 const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+const neutralCanonicalJson = canonicalJson;
 
 function clone(value) {
   return structuredClone(value);
@@ -180,6 +178,21 @@ test("envelope-owned paths enforce the per-segment bound", async () => {
     );
     selectPath(value).path = "a".repeat(256);
     await rejectsSchema("foundation-transaction-envelope/v3", value);
+  }
+});
+
+test("schema requires a closed creator-handle identity", async (context) => {
+  for (const [name, mutate] of [
+    ["missing", (identity) => { delete identity.adapter; }],
+    ["forged adapter", (identity) => { identity.adapter = "forged"; }],
+    ["non-canonical zero inode", (identity) => { identity.ino = "00"; }],
+    ["open shape", (identity) => { identity.extra = "open"; }],
+  ]) {
+    await context.test(name, async () => {
+      const envelope = clone(documentEnvelope("PUBLISHING"));
+      mutate(envelope.journal.ownedTemporary.identity);
+      await rejectsSchema("foundation-transaction-envelope/v3", envelope);
+    });
   }
 });
 

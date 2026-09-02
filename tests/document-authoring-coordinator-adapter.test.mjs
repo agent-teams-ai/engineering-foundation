@@ -1,159 +1,135 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
+import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/adapters/node/node-document-journal-store.js";
 import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/adapters/node/node-document-transaction-coordinator.js";
+import { sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
+import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/installed-artifact-identity.js";
+import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/package-version.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
-const buildIdentity = `sha256:${"a".repeat(64)}`;
+const contract = JSON.parse(await readFile(
+  new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
+  "utf8",
+));
+const stateDirectory = ".agent-teams-local";
+const journalName = "scaffolding-transaction.json";
+const lockName = "foundation-operation.lock";
 
-function idle() {
-  return { state: "idle", diagnostics: [] };
+async function withRoot(run) {
+  const root = await mkdtemp(join(tmpdir(), "document-coordinator-adapter-"));
+  try {
+    await run(root);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 }
 
-function exactDocument() {
-  return {
-    state: "pending",
-    operationKind: "document-authoring",
-    format: "document-authoring-envelope-v3",
-    foundationVersion: "0.16.0",
-    foundationBuildIdentity: buildIdentity,
-    recovery: {
-      commandId: "docs-recover",
-      exactFoundationVersion: "0.16.0",
-      exactFoundationBuildIdentity: buildIdentity,
-    },
-    diagnostics: [{ code: "FOUNDATION_TRANSACTION_ACTIVE", message: "active" }],
+async function installedEnvelope() {
+  const envelope = createDocumentEnvelopeV3(contract);
+  const installed = {
+    version: await installedDocumentAuthoringVersion(),
+    buildIdentity: await installedDocumentAuthoringBuildIdentity(),
   };
+  envelope.foundation = installed;
+  envelope.recoveryHandler.id = "document-authoring";
+  envelope.journal.plan.compiler = {
+    ...envelope.journal.plan.compiler,
+    id: "@agent-teams/document-authoring",
+    ...installed,
+  };
+  envelope.journal.plan.planDigest = documentPlanDigest(envelope.journal.plan);
+  envelope.payloadDigest = sha256Json(envelope.journal);
+  delete envelope.envelopeDigest;
+  envelope.envelopeDigest = sha256Json(envelope);
+  return envelope;
 }
 
-function fixture(initial, releaseFailure) {
-  let status = initial;
-  const acquisitions = [];
-  const releases = [];
-  const foundation = {
-    async inspect() {
-      if (status instanceof Error) {
-        throw status;
-      }
-      return status;
-    },
-    async acquire(options) {
-      acquisitions.push(options);
-      return {
-        status,
-        async release(releaseOptions) {
-          releases.push(releaseOptions);
-          if (releaseFailure !== undefined) {
-            throw releaseFailure;
-          }
-        },
-      };
-    },
-  };
-  return {
-    acquisitions,
-    coordinator: new NodeDocumentTransactionCoordinator(foundation),
-    releases,
-    setStatus(next) {
-      status = next;
-    },
-  };
+async function persistEnvelope(root, envelope) {
+  const directory = join(root, stateDirectory);
+  await mkdir(directory, { recursive: true });
+  await new NodeDocumentJournalStore(join(directory, journalName)).create(envelope);
 }
 
 test("maps only the exact document v3 journal v2 route to recoverable", async () => {
-  const exact = fixture(exactDocument());
-  assert.deepEqual(await exact.coordinator.inspect(), { state: "recoverable" });
-
-  const mismatched = exactDocument();
-  mismatched.recovery.exactFoundationBuildIdentity = `sha256:${"b".repeat(64)}`;
-  const mismatchStatus = await fixture(mismatched).coordinator.inspect();
-  assert.equal(mismatchStatus.state, "manual-recovery-required");
-
-  const wrongBuild = exactDocument();
-  wrongBuild.diagnostics = [{
-    code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-    message: "different installed build",
-  }];
-  assert.deepEqual(await fixture(wrongBuild).coordinator.inspect(), {
-    state: "manual-recovery-required",
-    reason: "different installed build",
+  await withRoot(async (root) => {
+    const coordinator = new NodeDocumentTransactionCoordinator(root);
+    await persistEnvelope(root, await installedEnvelope());
+    assert.deepEqual(await coordinator.inspect(), { state: "recoverable" });
   });
 
-  const foreign = {
-    state: "pending",
-    operationKind: "local-mode",
-    format: "local-mode-v1",
-    recovery: { commandId: "detach" },
-    diagnostics: [{ code: "FOUNDATION_TRANSACTION_ACTIVE", message: "detach first" }],
-  };
-  assert.deepEqual(await fixture(foreign).coordinator.inspect(), {
-    state: "manual-recovery-required",
-    reason: "detach first",
+  await withRoot(async (root) => {
+    const coordinator = new NodeDocumentTransactionCoordinator(root);
+    await persistEnvelope(root, createDocumentEnvelopeV3(contract));
+    const mismatch = await coordinator.inspect();
+    assert.equal(mismatch.state, "manual-recovery-required");
+    assert.match(mismatch.reason, /Document Authoring 0\.16\.0/u);
+  });
+
+  await withRoot(async (root) => {
+    const directory = join(root, stateDirectory);
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, journalName), "foreign transaction evidence\n");
+    const foreign = await new NodeDocumentTransactionCoordinator(root).inspect();
+    assert.equal(foreign.state, "manual-recovery-required");
+    assert.match(foreign.reason, /foreign, corrupt, incompatible/u);
   });
 });
 
-test("requests an idle-only apply lease and an exact document recovery lease", async () => {
-  const applying = fixture(idle());
-  const applyLease = await applying.coordinator.acquire({ mode: "apply" });
-  assert.deepEqual(applyLease.status, { state: "idle" });
-  assert.deepEqual(applying.acquisitions, [{
-    requestedMutation: "document-authoring",
-  }]);
-  await applyLease.release();
+test("acquires an idle apply lease and an exact document recovery lease", async () => {
+  await withRoot(async (root) => {
+    const coordinator = new NodeDocumentTransactionCoordinator(root);
+    const applyLease = await coordinator.acquire({ mode: "apply" });
+    assert.deepEqual(applyLease.status, { state: "idle" });
+    const active = JSON.parse(await readFile(
+      join(root, stateDirectory, lockName), "utf8",
+    ));
+    assert.equal(active.kind, "active");
+    await applyLease.release();
+    await assert.rejects(readFile(join(root, stateDirectory, lockName)), {
+      code: "ENOENT",
+    });
+  });
 
-  const recovering = fixture(exactDocument());
-  const recoverLease = await recovering.coordinator.acquire({ mode: "recover" });
-  assert.deepEqual(recoverLease.status, { state: "recoverable" });
-  assert.deepEqual(recovering.acquisitions, [{
-    requestedMutation: "document-authoring",
-    allowRecoveryOf: "document-authoring",
-  }]);
+  await withRoot(async (root) => {
+    await persistEnvelope(root, await installedEnvelope());
+    const recoverLease = await new NodeDocumentTransactionCoordinator(root)
+      .acquire({ mode: "recover" });
+    assert.deepEqual(recoverLease.status, { state: "recoverable" });
+    await recoverLease.release();
+    const retained = JSON.parse(await readFile(
+      join(root, stateDirectory, lockName), "utf8",
+    ));
+    assert.equal(retained.kind, "transaction-barrier");
+  });
 });
 
 test("releases normally only after all transaction evidence is durably gone", async () => {
-  const clean = fixture(idle());
-  const cleanLease = await clean.coordinator.acquire({ mode: "apply" });
-  await cleanLease.release();
-  assert.deepEqual(clean.releases, [{ retainTransactionBarrier: false }]);
-
-  const pending = fixture(idle());
-  const pendingLease = await pending.coordinator.acquire({ mode: "apply" });
-  pending.setStatus(exactDocument());
-  await pendingLease.release();
-  assert.deepEqual(pending.releases, [{ retainTransactionBarrier: true }]);
-
-  const explicitlyRetained = fixture(idle());
-  const retainedLease = await explicitlyRetained.coordinator.acquire({ mode: "apply" });
-  await retainedLease.release({ retainTransactionBarrier: true });
-  await retainedLease.release();
-  assert.deepEqual(explicitlyRetained.releases, [{ retainTransactionBarrier: true }]);
+  await withRoot(async (root) => {
+    const coordinator = new NodeDocumentTransactionCoordinator(root);
+    const lease = await coordinator.acquire({ mode: "apply" });
+    await persistEnvelope(root, await installedEnvelope());
+    await lease.release();
+    const retained = JSON.parse(await readFile(
+      join(root, stateDirectory, lockName), "utf8",
+    ));
+    assert.equal(retained.kind, "transaction-barrier");
+    await lease.release();
+  });
 });
 
-test("retains the barrier when post-operation evidence cannot be inspected", async () => {
-  const value = fixture(idle());
-  const lease = await value.coordinator.acquire({ mode: "apply" });
-  const inspectionError = new Error("slot unreadable");
-  value.setStatus(inspectionError);
-  await assert.rejects(lease.release(), (error) => error === inspectionError);
-  assert.deepEqual(value.releases, [{ retainTransactionBarrier: true }]);
-
-  const releaseError = new Error("operation lease release failed");
-  const blocked = fixture(idle(), releaseError);
-  const blockedLease = await blocked.coordinator.acquire({ mode: "apply" });
-  blocked.setStatus(inspectionError);
-  await assert.rejects(
-    blockedLease.release(),
-    (error) => {
-      assert.match(
-        error.message,
-        /inspection and barrier retention both failed/u,
-      );
-      assert.ok(error.cause instanceof AggregateError);
-      assert.deepEqual(
-        error.cause.errors,
-        [inspectionError, releaseError],
-      );
-      return true;
-    },
-  );
-  assert.deepEqual(blocked.releases, [{ retainTransactionBarrier: true }]);
+test("an explicit release retention request leaves the transaction barrier", async () => {
+  await withRoot(async (root) => {
+    const coordinator = new NodeDocumentTransactionCoordinator(root);
+    const lease = await coordinator.acquire({ mode: "apply" });
+    await lease.release({ retainTransactionBarrier: true });
+    const retained = JSON.parse(await readFile(
+      join(root, stateDirectory, lockName), "utf8",
+    ));
+    assert.equal(retained.kind, "transaction-barrier");
+  });
 });

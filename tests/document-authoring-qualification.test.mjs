@@ -74,6 +74,9 @@ test("qualification subpath is closed and absent from normal authoring", async (
   ]);
   assert.equal(normal.runDocumentAuthoringCrashQualification, undefined);
   assert.deepEqual(Object.keys(qualification), [
+    "assertDocumentPlanDigests",
+    "assertDocumentTransactionEnvelope",
+    "documentTemporaryPath",
     "runDocumentAuthoringCrashQualification"
   ]);
   const declarations = await readFile(new URL(

@@ -73,7 +73,7 @@ Foundation does not infer creation defaults from arbitrary JSON Schema.
 
 ## Read-only catalog
 
-`@agent-teams/engineering-foundation/document-authoring` exposes
+`@agent-teams/document-authoring` exposes
 `buildDocumentationCatalog`. The caller supplies one explicit profile path. The
 catalog reads the closed profile, local metadata schema, owner map, and declared
 Markdown collections without running consumer code or external tools.

@@ -44,7 +44,7 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-qJnCTE02xAyBrdz7TYzQUH0ByuuO+CHjPqVtF2QbXvQs11Y0+owhMhMoapsqvqH6TInT1Cr96xShjjaHi3NcVA==",
+        "archiveIntegrity": "sha512-NTMARqc5EQAbQNubXJgNUcCNFBPDZSYOvPJ4XnfuE3GIf9MXnpkRjlvF+9RdM7EIh51JZAld7W1MaaRjT1BOuw==",
         "packageTree": "7dbdcab2ae28962bac70eb0dd16009e48058de79"
       }
     },
@@ -179,7 +179,7 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-LqCyRwRRa+23Brueh9oIXGzTeBhq9bzGjw0O1r0Py7xbKDZj0H4DX4Vq/VzqXQbLMvIQ5BbAIz91hu5F43cS+g==",
+        "archiveIntegrity": "sha512-5D53X8GGmIJU+0URe6XtFFdYipzK5EfiiI9okJ6Ygc2tDWWYGYyUPLgU0n3oFWWIp2kL68fnKUalU3BdqBxgGw==",
         "packageTree": "8e9a779f45e40c6dfc5edce2a0192179a8f8bb3e"
       }
     },

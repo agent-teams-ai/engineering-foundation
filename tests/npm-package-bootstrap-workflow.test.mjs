@@ -58,7 +58,9 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   );
   const ci = await workflow("ci.yml");
   const release = await workflow("release.yml");
+  const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
   const job = bootstrap.jobs.bootstrap;
+  const ciWriter = ci.jobs["linux-package"];
   const publish = job.steps.find(
     ({ name }) => name === "Publish, resume, or quarantine the exact bootstrap artifact",
   );
@@ -89,6 +91,14 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.deepEqual(bootstrap.permissions, { contents: "read" });
   assert.deepEqual(job.permissions, { contents: "read", "id-token": "write" });
   assert.equal(job.environment, "npm-package-bootstrap");
+  assert.equal(job["runs-on"], "ubuntu-24.04");
+  assert.equal(ciWriter["runs-on"], job["runs-on"]);
+  assert.equal(repositoryManifest.packageManager, "pnpm@11.20.0");
+  assert.equal(job.steps[1].uses, ciWriter.steps[1].uses);
+  assert.equal(job.steps[1].with.install, false);
+  assert.equal(job.steps[2].uses, ciWriter.steps[2].uses);
+  assert.equal(job.steps[2].with["node-version-file"], ".node-version");
+  assert.equal(ciWriter.steps[2].with["node-version-file"], job.steps[2].with["node-version-file"]);
   assert.match(job.if, /NPM_PACKAGE_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
   assert.equal(job.env.NPM_TOKEN, undefined);
   assert.equal(job.env.NODE_AUTH_TOKEN, undefined);

@@ -7,15 +7,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import {
-  DOCS_PROTOCOL_CLI_COMMAND,
-  DOCS_PROTOCOL_PACKAGE_NAME,
-  LEGACY_DOCS_CLI_DEPRECATION_CODE,
-  emitLegacyDocsCliDeprecation,
-  isLegacyDocsCliInvocation,
-  renderLegacyDocsCliDeprecation,
-} from "../packages/engineering-foundation/dist/legacy-docs-cli-deprecation.js";
-
 const cliPath = fileURLToPath(
   new URL(
     "../packages/engineering-foundation/dist/cli.js",
@@ -27,39 +18,18 @@ function sha256(value) {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-test("renders a stable legacy Docs CLI deprecation signal", () => {
-  assert.equal(renderLegacyDocsCliDeprecation(["check"]), undefined);
-  assert.equal(
-    renderLegacyDocsCliDeprecation(["docs", "find"]),
-    `${LEGACY_DOCS_CLI_DEPRECATION_CODE}: agent-teams-foundation docs is deprecated and frozen for compatibility. Use ${DOCS_PROTOCOL_CLI_COMMAND} from ${DOCS_PROTOCOL_PACKAGE_NAME}.\n`,
-  );
-  assert.equal(
-    renderLegacyDocsCliDeprecation(["docs", "find", "--format", "json"]),
-    undefined,
-  );
-  assert.equal(
-    renderLegacyDocsCliDeprecation(["docs", "find", "--json"]),
-    undefined,
-  );
-  assert.match(
-    renderLegacyDocsCliDeprecation(
-      ["docs", "find", "--", "--json"],
-      false,
-    ),
-    /^FOUNDATION_DOCS_CLI_DEPRECATED:/u,
-  );
-  assert.match(
-    renderLegacyDocsCliDeprecation(
-      ["docs", "find", "--", "--format", "json"],
-      false,
-    ),
-    /^FOUNDATION_DOCS_CLI_DEPRECATED:/u,
-  );
+test("does not advertise a Foundation docs namespace", () => {
+  const result = spawnSync(process.execPath, [cliPath, "--help"], {
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.doesNotMatch(result.stdout, /agent-teams-foundation docs/u);
 });
 
-test("classifies only the top-level legacy namespace", () => {
+test("rejects removed Foundation docs commands as ordinary unknown commands", () => {
   for (const rawArguments of [
-    ["docs"],
     ["docs", "find"],
     ["docs", "new"],
     ["docs", "doctor"],
@@ -69,120 +39,55 @@ test("classifies only the top-level legacy namespace", () => {
     ["docs.doctor"],
     ["docs.recover"],
   ]) {
-    assert.equal(isLegacyDocsCliInvocation(rawArguments), true);
-  }
-  for (const rawArguments of [
-    [],
-    ["--help"],
-    ["check", "docs"],
-    ["repo", "check", "docs"],
-    ["agent-workflow", "instructions", "docs"],
-  ]) {
-    assert.equal(isLegacyDocsCliInvocation(rawArguments), false);
-    assert.equal(renderLegacyDocsCliDeprecation(rawArguments), undefined);
+    const result = spawnSync(process.execPath, [cliPath, ...rawArguments], {
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /^CONSUMER_INVALID: Unknown command: docs(?:\.[a-z]+)?\.\n$/u);
+    assert.doesNotMatch(result.stderr, /deprecated|compatib/iu);
   }
 });
 
-test("emits exactly one human diagnostic and stays silent in machine mode", () => {
+test("gives removed docs invocations only the generic Foundation JSON error", () => {
   for (const command of ["find", "new", "doctor", "recover"]) {
-    const writes = [];
-    emitLegacyDocsCliDeprecation(["docs", command], {
-      write(notice) {
-        writes.push(notice);
-      },
-    });
-    assert.deepEqual(writes, [
-      `${LEGACY_DOCS_CLI_DEPRECATION_CODE}: agent-teams-foundation docs is deprecated and frozen for compatibility. Use ${DOCS_PROTOCOL_CLI_COMMAND} from ${DOCS_PROTOCOL_PACKAGE_NAME}.\n`,
-    ]);
-  }
-
-  for (const rawArguments of [
-    ["docs", "find", "--json"],
-    ["docs", "new", "--format", "json"],
-    ["check", "--format", "json"],
-  ]) {
-    const writes = [];
-    emitLegacyDocsCliDeprecation(rawArguments, {
-      write(notice) {
-        writes.push(notice);
-      },
-    });
-    assert.deepEqual(writes, []);
-  }
-
-  const terminatedWrites = [];
-  emitLegacyDocsCliDeprecation(
-    ["docs", "find", "--", "--json"],
-    {
-      machineOutput: false,
-      write(notice) {
-        terminatedWrites.push(notice);
-      },
-    },
-  );
-  assert.equal(terminatedWrites.length, 1);
-  assert.match(
-    terminatedWrites[0],
-    /^FOUNDATION_DOCS_CLI_DEPRECATED:/u,
-  );
-});
-
-test("keeps text format on the human deprecation path", () => {
-  const warning = renderLegacyDocsCliDeprecation([
-    "docs", "find", "--format", "text",
-  ]);
-  assert.match(warning, /^FOUNDATION_DOCS_CLI_DEPRECATED:/u);
-  assert.match(warning, /agent-teams-docs/u);
-  assert.match(warning, /@agent-teams\/docs-protocol/u);
-});
-
-test("advertises Docs Protocol ownership while keeping legacy help visible", () => {
-  const result = spawnSync(process.execPath, [cliPath, "--help"], {
-    encoding: "utf8",
-  });
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stderr, "");
-  assert.match(
-    result.stdout,
-    /\[DEPRECATED\] agent-teams-foundation docs <command> \[\.\.\.\]/u,
-  );
-  assert.match(
-    result.stdout,
-    /Use agent-teams-docs from @agent-teams\/docs-protocol\./u,
-  );
-});
-
-test("preserves the legacy JSON stream contract while keeping execution available", () => {
-  for (const rawArguments of [
-    ["docs", "unknown", "--json"],
-    ["docs", "--", "--json"],
-  ]) {
-    const result = spawnSync(process.execPath, [cliPath, ...rawArguments], {
+    const result = spawnSync(process.execPath, [cliPath, "docs", command, "--json"], {
       encoding: "utf8",
     });
-
-    assert.equal(result.status, 2, result.stderr);
+    assert.equal(result.status, 2);
     assert.equal(result.stderr, "");
-    const envelope = JSON.parse(result.stdout);
-    assert.equal(envelope.schemaVersion, 2);
-    assert.equal(envelope.command, "docs.doctor");
-    assert.equal(envelope.outcome, "invalid-input");
+    assert.deepEqual(JSON.parse(result.stdout), {
+      schemaVersion: 1,
+      outcome: "invalid-input",
+      error: {
+        code: "CONSUMER_INVALID",
+        message: "Unknown command: docs.",
+        retryable: false,
+      },
+    });
   }
 });
 
-test("emits the stable human notice before a legacy invocation error", () => {
-  for (const rawArguments of [
-    ["docs", "unknown"],
-    ["docs.new"],
+test("rejects every removed document parser option as unknown", () => {
+  for (const commandArguments of [
+    ["check", "--id", "ADR-0001"],
+    ["check", "--destination", "docs/example.md"],
+    ["check", "--owner", "architecture"],
+    ["check", "--profile", "document-authoring.yaml"],
+    ["check", "--related", "ADR-0001"],
+    ["check", "--slug", "example"],
+    ["check", "--status", "accepted"],
+    ["check", "--summary", "Example"],
+    ["check", "--title", "Example"],
+    ["check", "--type", "adr"],
+    ["check", "--dry-run"],
   ]) {
-    const result = spawnSync(process.execPath, [cliPath, ...rawArguments], {
+    const result = spawnSync(process.execPath, [cliPath, ...commandArguments], {
       encoding: "utf8",
     });
-
     assert.equal(result.status, 2, result.stderr);
-    assert.match(result.stderr, new RegExp(`^${LEGACY_DOCS_CLI_DEPRECATION_CODE}:`, "u"));
-    assert.match(result.stderr, /CONSUMER_INVALID:/u);
+    assert.match(result.stderr, /^CONSUMER_INVALID: Unknown option: --/u);
   }
 });
 

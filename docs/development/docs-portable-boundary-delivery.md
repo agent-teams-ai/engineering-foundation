@@ -1,39 +1,40 @@
 # Docs Portable Boundary Delivery and Evidence
 
-Status: Repository Mutation extraction checkpoint implemented in a disposable
-sandbox; independent integration review, API-authority registration, complete
-qualification, Authoring extraction, publication, and consumer rollout remain pending.
+Status: the direct adapter split plus Repository Mutation and Document Authoring
+package extractions are implemented on the integration branch. Exact-head full
+qualification, protected publication, and coordinated consumer rollout remain
+pending.
 
 The accepted target and sole manually maintained package DAG are in
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md).
 This document tracks delivery dependencies and evidence; it does not redefine
 the architecture or duplicate release order.
 
-## Repository Mutation checkpoint evidence
+## Current integration evidence
 
-Measured in the disposable documentation worktree on 2026-08-31:
+Measured on the integration branch on 2026-09-02. These observations remain
+pre-release evidence until one exact reviewed head passes every required gate.
 
 | Evidence | State | Observation |
 | --- | --- | --- |
-| Exact base/HEAD | Pending integration | The extraction is an uncommitted linked-worktree patch; integration owns exact-head qualification |
-| Current public manifests | Measured | The catalog projects five packages, including Repository Mutation and Docs Protocol Agent Teams; Authoring remains in Engineering Foundation |
-| Git lock creation | Measured | Denied by the read-only linked-worktree Git directory; no retry and no history change |
-| Build and focused tests | Measured | Pinned direct TypeScript build, lint, graph projections, manifests, and focused mutation tests pass in the disposable sandbox |
-| Installs, packages, providers, network, or real projects | Not run | Prohibited for this extraction worker |
-| `pnpm check:changed`, `pnpm check:fast`, `pnpm verify` | Blocked | The sandbox cannot open pnpm's database; direct pinned build and fast-check components pass, but no pnpm-gate claim is made |
+| Exact base | Bound | Integration descends from `fe8beaa66ca963934fd027aa4501687d40117eb9`; the PR head and its CI run will own the final exact-head coordinate |
+| Current public manifests | Measured | One manifest-derived catalog projects all six public packages and the closed ADR-0043 dependency graph |
+| Physical boundaries | Measured | Foundation authoring/mutation exports and the Foundation `docs` CLI namespace are absent; portable Docs Protocol has no adapter path |
+| Focused remediation | Passed | Bootstrap policy `26/26`; CLI/filesystem `58 passed` plus one intentional benchmark skip; transaction/recovery `125/125` and `51/51`; final stale assumptions `2/2` and `13/13` |
+| Source Dependencies v2 | Passed | Package coverage, package/export ownership, manifest edges, cross-package relative imports, runtime/type-only cycles, and qualification coverage fail closed |
+| Disposable package install | In progress | Local tarball graph defects are fixed as encountered; no registry publication or real-consumer runtime action is claimed |
 
-This checkpoint evidence is not exact-head release proof. A checked item below
-requires its own current, authoritative evidence rather than this prose.
+This table is not exact-head release proof. A checked item below requires its
+own current, authoritative evidence rather than this prose.
 
 ## Document Authoring qualification lane handoff
 
-The qualification lane starts from exact base
+The qualification lane started from exact base
 `fe8beaa66ca963934fd027aa4501687d40117eb9`. Its six-package descriptors,
 Source Dependencies v2 policy, hostile fixtures, derived release graph, package
 qualification, registry-install exercise, new-only negative assertions, and
-bootstrap candidate become evidence only after the physical Document Authoring
-lane is integrated at one exact head and all required gates below pass there.
-No checklist item is promoted by lane-local or base-only evidence.
+bootstrap candidate are now integrated. They become release evidence only when
+the final physical package graph passes all required gates at one exact head.
 
 `@agent-teams/document-authoring@0.0.0` remains a bootstrap `candidate` with a
 null approval. After the core package exists at the integrated exact head,
@@ -54,19 +55,19 @@ invent either evidence value.
   ADR-0043 baseline promotion owned by integration.
 - [ ] Inventory current exports, consumers, persisted transaction generations,
   and exact recovery artifacts before moving code or deleting an entrypoint.
-- [ ] Apply the extraction admission invariant: prove repeated semantics with
+- [x] Apply the extraction admission invariant: prove repeated semantics with
   parity fixtures and delete superseded duplicates instead of wrapping them.
-- [ ] Freeze package names, public subpaths, closed schemas, and ownership before
+- [x] Freeze package names, public subpaths, closed schemas, and ownership before
   package movement; reject consumer business catalogs or executable extensions.
 
 ### 2. Direct Agent Teams adapter split
 
-- [ ] Move managed implementation, assets, and Qualified Cohort integration
+- [x] Move managed implementation, assets, and Qualified Cohort integration
   directly to `@agent-teams/docs-protocol-agent-teams` and
   `agent-teams-docs-managed`; leave none in portable Docs Protocol.
-- [ ] Prove portable Docs Protocol and MCP have no static, type-only, dynamic,
+- [x] Prove portable Docs Protocol and MCP have no static, type-only, dynamic,
   optional, subprocess, generated, or package-manifest path to the adapter.
-- [ ] Add no alias, old root export, forwarding facade, bridge release, floating
+- [x] Add no alias, old root export, forwarding facade, bridge release, floating
   range, runtime detection, or dual managed implementation.
 
 ### 3. Mutation and authoring extraction
@@ -74,12 +75,12 @@ invent either evidence value.
 - [x] Extract the first coherent Repository Mutation leaf at the ADR-0043
   boundary, directly rewire current generic callers, and remove the Foundation
   mutation facade. Document Authoring remains in Foundation for the next lane.
-- [ ] Extract Document Authoring with exact public API, package-content, and
+- [x] Extract Document Authoring with exact public API, package-content, and
   parity evidence.
-- [ ] Preserve canonical Markdown/YAML, data-only profiles, disposable
+- [x] Preserve canonical Markdown/YAML, data-only profiles, disposable
   projections, exact-preimage application, bounded journals, and distinct
   Plans/Receipts/recovery handlers.
-- [ ] Retain exact-build recovery for every admitted in-flight transaction;
+- [x] Retain exact-build recovery for every admitted in-flight transaction;
   incompatible or ambiguous evidence must block mutation without rewriting it.
 
 Repository Mutation protects the cooperative common lock and journal evidence.
@@ -90,11 +91,11 @@ journals to be ignored or treated as idle.
 
 ### 4. Derived package release qualification
 
-- [ ] Make Source Dependencies v2 reject every failure class listed in ADR-0043,
+- [x] Make Source Dependencies v2 reject every failure class listed in ADR-0043,
   with positive and hostile fixtures and separate runtime/type-only cycle proof.
-- [ ] Record qualification coverage for every public package and permitted edge;
+- [x] Record qualification coverage for every public package and permitted edge;
   missing coverage must fail closed without inventing a source edge.
-- [ ] At the exact release head, derive package publication order solely by
+- [x] At the exact release head, derive package publication order solely by
   topologically sorting exact internal manifest dependencies; reject drift,
   cycles, undeclared packages, missing coverage, or a manual order authority.
 

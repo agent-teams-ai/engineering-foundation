@@ -1,6 +1,6 @@
-export type NodeScaffoldJournalMutation = "create" | "remove" | "replace";
+type NodeScaffoldJournalMutation = "create" | "remove" | "replace";
 
-export type NodeScaffoldJournalEvidence =
+type NodeScaffoldJournalEvidence =
   | "candidate"
   | "previous"
   | "retired";

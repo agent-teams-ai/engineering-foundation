@@ -1018,6 +1018,9 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-state-directory.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-journal-slot-evidence.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-journal-slot-profile.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-journal-slot-store.ts
   - id: foundation.scaffolding.canonical-kernel
     roots:
       - packages/engineering-foundation/src/scaffolding/kernel/authority-journal-validation.ts
@@ -1075,7 +1078,6 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-finalization.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-journal-state.ts
-      - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-journal.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-error.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-input-loader.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-receipt-validator.ts
@@ -1083,7 +1085,6 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-plan-authority.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-evidence.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-gateway.ts
-      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-reconciliation.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store-faults.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
@@ -1112,14 +1113,12 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-finalization.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-journal-state.ts
-      - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-journal.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-error.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-input-loader.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-authority-receipt-validator.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-plan-authority.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-evidence.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-gateway.ts
-      - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-reconciliation.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store-faults.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts

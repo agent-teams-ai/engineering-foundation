@@ -3,11 +3,11 @@ import { lstat, mkdir, readFile, realpath, symlink, writeFile } from "node:fs/pr
 import { dirname, join, relative, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { planDocumentationDocumentV2 } from "@agent-teams/engineering-foundation/document-authoring";
+import { planDocumentationDocumentV2 } from "@agent-teams/document-authoring";
 
 import { NodeDocsAdoptionInspector } from "../adapters/node-adoption-inspector.js";
 import { NodeCodeAnchorMatcher } from "../adapters/node-code-anchor-matcher.js";
-import { NodeFoundationDocsPort } from "../adapters/foundation-docs-port.js";
+import { NodeDocumentAuthoringPort } from "../adapters/document-authoring-port.js";
 import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { DocsProtocol } from "../application/docs-protocol.js";
 import { normalizeCodeAnchors, normalizeDocumentIds } from "../domain/document-semantics.js";
@@ -64,13 +64,16 @@ export async function readContainedBoundedFile(
 
 export async function bootstrapQualificationInstallation(consumerRoot: string, rewriteManifest: boolean): Promise<{
   readonly docsVersion: string;
-  readonly foundationVersion: string;
+  readonly authoringVersion: string;
+  readonly mutationVersion: string;
 }> {
   const docsManifestPath = fileURLToPath(new URL("../../package.json", import.meta.url));
-  const foundationManifestPath = fileURLToPath(import.meta.resolve("@agent-teams/engineering-foundation/package.json"));
-  const [docsManifest, foundationManifest, consumerManifest] = await Promise.all([
+  const authoringManifestPath = fileURLToPath(import.meta.resolve("@agent-teams/document-authoring/package.json"));
+  const mutationManifestPath = fileURLToPath(import.meta.resolve("@agent-teams/repository-mutation/package.json"));
+  const [docsManifest, authoringManifest, mutationManifest, consumerManifest] = await Promise.all([
     readFile(docsManifestPath, "utf8").then((source) => JSON.parse(source) as { readonly version: string }),
-    readFile(foundationManifestPath, "utf8").then((source) => JSON.parse(source) as { readonly version: string }),
+    readFile(authoringManifestPath, "utf8").then((source) => JSON.parse(source) as { readonly version: string }),
+    readFile(mutationManifestPath, "utf8").then((source) => JSON.parse(source) as { readonly version: string }),
     readFile(join(consumerRoot, "package.json"), "utf8").then((source) => JSON.parse(source) as Record<string, unknown>)
   ]);
   if (rewriteManifest) {
@@ -81,7 +84,8 @@ export async function bootstrapQualificationInstallation(consumerRoot: string, r
           ? consumerManifest["devDependencies"] as Record<string, unknown>
           : {}),
         "@agent-teams/docs-protocol": docsManifest.version,
-        "@agent-teams/engineering-foundation": foundationManifest.version
+        "@agent-teams/document-authoring": authoringManifest.version,
+        "@agent-teams/repository-mutation": mutationManifest.version
       }
     }, null, 2)}\n`, "utf8");
   } else {
@@ -90,7 +94,8 @@ export async function bootstrapQualificationInstallation(consumerRoot: string, r
       ? consumerManifest["devDependencies"] as Record<string, unknown>
       : {};
     if (dependencies["@agent-teams/docs-protocol"] !== docsManifest.version ||
-      dependencies["@agent-teams/engineering-foundation"] !== foundationManifest.version) {
+      dependencies["@agent-teams/document-authoring"] !== authoringManifest.version ||
+      dependencies["@agent-teams/repository-mutation"] !== mutationManifest.version) {
       throw new Error("Qualification requires the exact executing portable packages in devDependencies.");
     }
   }
@@ -98,14 +103,19 @@ export async function bootstrapQualificationInstallation(consumerRoot: string, r
   await mkdir(scope, { recursive: true });
   await Promise.all([
     symlink(dirname(docsManifestPath), join(scope, "docs-protocol"), process.platform === "win32" ? "junction" : "dir"),
-    symlink(dirname(foundationManifestPath), join(scope, "engineering-foundation"), process.platform === "win32" ? "junction" : "dir")
+    symlink(dirname(authoringManifestPath), join(scope, "document-authoring"), process.platform === "win32" ? "junction" : "dir"),
+    symlink(dirname(mutationManifestPath), join(scope, "repository-mutation"), process.platform === "win32" ? "junction" : "dir")
   ]);
   await writeFile(join(consumerRoot, ".agent-teams-document-authoring-qualification-fixture.json"), `${JSON.stringify({
     schemaVersion: 1,
     kind: "agent-teams-document-authoring-qualification-fixture",
     consumerRoot: await realpath(consumerRoot)
   })}\n`, "utf8");
-  return Object.freeze({ docsVersion: docsManifest.version, foundationVersion: foundationManifest.version });
+  return Object.freeze({
+    docsVersion: docsManifest.version,
+    authoringVersion: authoringManifest.version,
+    mutationVersion: mutationManifest.version
+  });
 }
 
 export function requireSuccess(label: string, execution: { readonly envelope?: unknown; readonly exitCode: number }): void {
@@ -139,7 +149,7 @@ export function createProtocol(): DocsProtocol {
   return new DocsProtocol({
     adoption: new NodeDocsAdoptionInspector(),
     anchors: new NodeCodeAnchorMatcher(),
-    foundation: new NodeFoundationDocsPort(),
+    foundation: new NodeDocumentAuthoringPort(),
     profiles: new NodeDocsProfileReader()
   });
 }

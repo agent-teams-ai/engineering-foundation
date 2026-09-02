@@ -55,7 +55,7 @@
     "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
   },
   "dependencies": {
-    "@agent-teams/engineering-foundation": "workspace:*",
+    "@agent-teams/document-authoring": "workspace:*",
     "@agent-teams/repository-mutation": "workspace:*",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",

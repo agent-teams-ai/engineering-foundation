@@ -2,7 +2,7 @@ import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import {
   markdownSourceWithoutFrontmatter,
   type MarkdownDocumentObservation
-} from "../../../../documentation-observation/application/model/markdown-document.js";
+} from "@agent-teams/document-authoring/observation";
 
 export const ARCHITECTURE_DECISION_STATUSES = [
   "proposed",

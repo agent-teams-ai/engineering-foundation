@@ -1,0 +1,36 @@
+{
+  "name": "@agent-teams/document-authoring",
+  "version": "0.0.0",
+  "description": "Portable deterministic documentation authoring contracts, catalog semantics, and protected materialization.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./observation": { "types": "./dist/observation.d.ts", "import": "./dist/observation.js" },
+    "./qualification": { "types": "./dist/qualification/index.d.ts", "import": "./dist/qualification/index.js" },
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "schemas", "LICENSE", "README.md", "CHANGELOG.md"],
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false",
+    "test": "pnpm build && node --test tests/*.test.mjs"
+  },
+  "engines": { "node": ">=24.18.0 <25", "pnpm": ">=11.17.0 <12" },
+  "publishConfig": { "access": "public", "provenance": true, "registry": "https://registry.npmjs.org/" },
+  "repository": { "type": "git", "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git", "directory": "packages/document-authoring" },
+  "dependencies": {
+    "@agent-teams/repository-mutation": "workspace:*",
+    "ajv": "catalog:",
+    "github-slugger": "catalog:",
+    "mdast-util-to-string": "catalog:",
+    "remark-frontmatter": "catalog:",
+    "remark-gfm": "catalog:",
+    "remark-parse": "catalog:",
+    "unified": "catalog:",
+    "unist-util-visit": "catalog:",
+    "yaml": "catalog:"
+  },
+  "devDependencies": { "@types/node": "catalog:", "typescript": "catalog:" }
+}

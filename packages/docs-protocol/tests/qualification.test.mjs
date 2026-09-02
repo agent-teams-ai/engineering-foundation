@@ -4,12 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { planDocumentationDocument } from "@agent-teams/engineering-foundation/document-authoring";
+import { planDocumentationDocument } from "@agent-teams/document-authoring";
 import { DocsProtocol } from "../dist/application/docs-protocol.js";
 import { NodeCodeAnchorMatcher } from "../dist/adapters/node-code-anchor-matcher.js";
 import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspector.js";
 import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
-import { NodeFoundationDocsPort } from "../dist/adapters/foundation-docs-port.js";
+import { NodeDocumentAuthoringPort } from "../dist/adapters/document-authoring-port.js";
 import { runDocsProtocolQualification } from "../dist/qualification/index.js";
 import {
   crashAfterDurablePublication,
@@ -133,8 +133,8 @@ test("qualification awaits an early crash-child exit before cleaning its inputs"
   try {
     await mkdir(scope, { recursive: true });
     await symlink(
-      new URL("../../engineering-foundation", import.meta.url).pathname,
-      join(scope, "engineering-foundation"),
+      new URL("../../document-authoring", import.meta.url).pathname,
+      join(scope, "document-authoring"),
       process.platform === "win32" ? "junction" : "dir",
     );
     await assert.rejects(crashAtDurablePublishing(temporary, {}), /exited before checkpoint/u);
@@ -189,8 +189,8 @@ async function withCorruptedProfileCrash(crash, callback) {
     const packageScope = join(consumerRoot, "node_modules", "@agent-teams");
     await mkdir(packageScope, { recursive: true });
     await symlink(
-      new URL("../../engineering-foundation", import.meta.url).pathname,
-      join(packageScope, "engineering-foundation"),
+      new URL("../../document-authoring", import.meta.url).pathname,
+      join(packageScope, "document-authoring"),
       process.platform === "win32" ? "junction" : "dir"
     );
     await writeFile(
@@ -208,7 +208,7 @@ async function withCorruptedProfileCrash(crash, callback) {
     await callback({ consumerRoot, plan, protocol: new DocsProtocol({
       adoption: new NodeDocsAdoptionInspector(),
       anchors: new NodeCodeAnchorMatcher(),
-      foundation: new NodeFoundationDocsPort(),
+      foundation: new NodeDocumentAuthoringPort(),
       profiles: new NodeDocsProfileReader()
     }) });
   } finally {

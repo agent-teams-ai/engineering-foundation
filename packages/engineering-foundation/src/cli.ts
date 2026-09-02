@@ -13,9 +13,6 @@ import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { foundationCommandFailure } from "./command-error.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
 import { FoundationError } from "./errors.js";
-import { DOCS_PROTOCOL_CLI_COMMAND, DOCS_PROTOCOL_PACKAGE_NAME, emitLegacyDocsCliDeprecation } from "./legacy-docs-cli-deprecation.js";
-import { projectDocumentLaunchFailure } from "./document-authoring/composition/document-command-cli.js";
-import { runDocumentCommand } from "./document-command.js";
 import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { loadFoundationConfig } from "./foundation-config.js";
 import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
@@ -127,8 +124,6 @@ function printHelp(): void {
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
   agent-teams-foundation scaffold-recover [--consumer <path>] [--json]
-  [DEPRECATED] agent-teams-foundation docs <command> [...]
-    Compatibility-only legacy CLI. Use ${DOCS_PROTOCOL_CLI_COMMAND} from ${DOCS_PROTOCOL_PACKAGE_NAME}.
   agent-teams-foundation schema <schema-id>
   agent-teams-foundation attach <path> [--consumer <path>]
   agent-teams-foundation status [--consumer <path>] [--json]
@@ -440,8 +435,7 @@ async function runInformationCommand(
 }
 
 async function main(environment: NodeJS.ProcessEnv): Promise<void> {
-  const rawArguments = process.argv.slice(2);
-  const parsed = parseArguments(rawArguments);
+  const parsed = parseArguments(process.argv.slice(2));
   const json = parsed.format === "json";
   const service = new FoundationLocalModeService({
     runner: createNodeProcessRunner(environment),
@@ -452,12 +446,10 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
     await tryRunQualityGateCliCommand(parsed, environment) ||
     await runAgentWorkflowCommand(parsed, environment) ||
     await runProtobufQualificationCommand(parsed, json) ||
-    await runDocumentCommand(parsed, json) ||
     await runCheckCommand(parsed, json) ||
     await runPolicyCommand(parsed, json) ||
     await runInformationCommand(parsed, json)
   ) {
-    emitLegacyDocsCliDeprecation(rawArguments, { machineOutput: json });
     return;
   }
   throw new FoundationError(
@@ -469,12 +461,7 @@ async function main(environment: NodeJS.ProcessEnv): Promise<void> {
 try {
   await main(process.env);
 } catch (error) {
-  emitLegacyDocsCliDeprecation(process.argv.slice(2));
-  const documentFailure = projectDocumentLaunchFailure(process.argv.slice(2), error);
-  if (documentFailure !== undefined) {
-    process.stdout.write(documentFailure.stdout);
-    process.exitCode = documentFailure.exitCode;
-  } else if (
+  if (
     process.argv.slice(2).includes("--json") ||
     process.argv.slice(2).some(
       (argument, index, arguments_) =>

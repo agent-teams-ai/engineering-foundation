@@ -3,6 +3,7 @@
   "private": true,
   "devDependencies": {
     "@agent-teams/docs-protocol": "0.0.0",
-    "@agent-teams/engineering-foundation": "0.0.0"
+    "@agent-teams/document-authoring": "0.0.0",
+    "@agent-teams/repository-mutation": "0.0.0"
   }
 }

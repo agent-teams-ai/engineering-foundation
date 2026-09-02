@@ -1,5 +1,5 @@
 import type { FoundationDiagnostic } from "../../../../check-contract.js";
-import type { MarkdownDocumentObservation } from "../../../../documentation-observation/application/model/markdown-document.js";
+import type { MarkdownDocumentObservation } from "@agent-teams/document-authoring/observation";
 import type {
   ArchitectureDecision,
   ArchitectureDecisionPolicy

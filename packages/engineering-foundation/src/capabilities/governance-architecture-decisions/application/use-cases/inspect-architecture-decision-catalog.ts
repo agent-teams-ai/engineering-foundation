@@ -1,5 +1,5 @@
 import { assertNotCancelled } from "../../../../strict-yaml.js";
-import type { MarkdownRepository } from "../../../../documentation-observation/application/ports/markdown-repository.js";
+import type { MarkdownRepository } from "@agent-teams/document-authoring/observation";
 import type { ArchitectureDecisionPolicy } from "../model/architecture-decision.js";
 import {
   evaluateArchitectureDecisionCatalog,

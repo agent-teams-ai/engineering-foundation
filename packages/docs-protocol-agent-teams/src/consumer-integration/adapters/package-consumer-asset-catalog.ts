@@ -136,11 +136,10 @@ async function directTarget(value: unknown): Promise<KnownPriorCohortCatalogEntr
 }
 
 export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCatalogV1> {
-  const [bytes, transitionBytes, docsManifestBytes, foundationManifestBytes] = await Promise.all([
+  const [bytes, transitionBytes, docsManifestBytes] = await Promise.all([
     readFile(new URL("../../../assets/catalog.json", import.meta.url)),
     readFile(new URL("../../../assets/transition-catalog.json", import.meta.url)),
-    readFile(new URL("../../../package.json", import.meta.url)),
-    readFile(new URL(import.meta.resolve("@agent-teams/engineering-foundation/package.json")))
+    readFile(new URL("../../../package.json", import.meta.url))
   ]);
   if (bytes.byteLength > MAXIMUM_CATALOG_BYTES) {throw new TypeError("Consumer asset catalog is too large.");}
   if (transitionBytes.byteLength > MAXIMUM_CATALOG_BYTES) {
@@ -160,13 +159,8 @@ export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCa
     throw new TypeError("Consumer asset catalog executor and target lists must be bounded arrays.");
   }
   const docsVersion = record(JSON.parse(docsManifestBytes.toString("utf8")), "Docs package")["version"];
-  const foundationVersion = record(
-    JSON.parse(foundationManifestBytes.toString("utf8")),
-    "Foundation package"
-  )["version"];
   const currentSourceExecutors = sources.map(currentSource).filter(({ packages }) =>
-    packages.docsProtocol.version === docsVersion &&
-    packages.engineeringFoundation.version === foundationVersion
+    packages.docsProtocol.version === docsVersion
   );
   const directTargetBundles = await Promise.all(targets.map(directTarget));
   const directTargetIds = new Set(directTargetBundles.map(({ cohort }) => cohort.cohortId));

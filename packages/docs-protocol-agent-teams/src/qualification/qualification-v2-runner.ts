@@ -114,8 +114,9 @@ async function bootstrapManagedQualificationInstallation(
   rewriteManifest: boolean
 ): Promise<{
   readonly adapterVersion: string;
+  readonly authoringVersion: string;
   readonly docsVersion: string;
-  readonly foundationVersion: string;
+  readonly mutationVersion: string;
 }> {
   const portable = await bootstrapQualificationInstallation(consumerRoot, rewriteManifest);
   const adapterManifestPath = fileURLToPath(new URL("../../package.json", import.meta.url));
@@ -396,11 +397,8 @@ export async function runDocsProtocolQualificationV2(
       readonly installedFoundationBuildIdentity: `sha256:${string}`;
       readonly installedFoundationVersion: string;
     };
-    if (request.localDevelopment !== true && (
-      executingPackages.docsVersion !== qualifiedIntegration.cohort.packages.docsProtocol.version ||
-      executingPackages.foundationVersion !== qualifiedIntegration.cohort.packages.engineeringFoundation.version ||
-      environment.installedFoundationVersion !== qualifiedIntegration.cohort.packages.engineeringFoundation.version
-    )) {
+    if (request.localDevelopment !== true &&
+      executingPackages.docsVersion !== qualifiedIntegration.cohort.packages.docsProtocol.version) {
       throw new Error("Released-cohort qualification execution identity does not match the exact cohort package versions.");
     }
     const hasGolden = qualification.contract.scenarios.some(({ expected }) =>

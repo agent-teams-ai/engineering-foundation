@@ -22,7 +22,6 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
-    { "path": "../engineering-foundation" },
     { "path": "../repository-mutation" },
     { "path": "../docs-protocol" }
   ]

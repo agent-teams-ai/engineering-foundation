@@ -1,14 +1,14 @@
 import type { DocsDiagnostic, DocsFindDocument, DocsFindQuery } from "../../domain/model.js";
 import type {
-  FoundationDocsPortV2
+  DocumentAuthoringPortV2
 } from "../../domain/model-v2.js";
 import type {
   DocsContextRequestV1,
   DocsContextResultV1,
   DocsContextSelectionV1,
   DocsFindQueryV3,
-  FoundationDocsFindEvidenceV3,
-  FoundationDocsPortV3
+  DocumentAuthoringFindEvidenceV3,
+  DocumentAuthoringPortV3
 } from "../../domain/model-v3.js";
 import { normalizeDocumentId } from "../../domain/document-semantics.js";
 import { DocsProfileError } from "../../domain/profile-policy.js";
@@ -134,7 +134,7 @@ function foundationQuery(query: Readonly<DocsFindQueryV3>): Readonly<DocsFindQue
   });
 }
 
-function catalogDiagnostics(diagnostics: FoundationDocsFindEvidenceV3["diagnostics"]): readonly DocsDiagnostic[] {
+function catalogDiagnostics(diagnostics: DocumentAuthoringFindEvidenceV3["diagnostics"]): readonly DocsDiagnostic[] {
   return Object.freeze(diagnostics.map((entry) => Object.freeze({
     ruleId: entry.ruleId,
     severity: entry.severity,
@@ -231,7 +231,7 @@ function projectDocuments(documents: readonly DocsFindDocument[], query: Readonl
 
 export async function projectLegacyFind(input: {
   readonly consumerRoot: string;
-  readonly foundation: FoundationDocsPortV2;
+  readonly foundation: DocumentAuthoringPortV2;
   readonly foundationProfilePath: string;
   readonly query: DocsFindQuery;
   readonly signal?: AbortSignal;
@@ -257,7 +257,7 @@ export async function projectLegacyFind(input: {
 
 export async function projectCommunityFind(input: {
   readonly consumerRoot: string;
-  readonly foundation: FoundationDocsPortV3;
+  readonly foundation: DocumentAuthoringPortV3;
   readonly foundationProfilePath: string;
   readonly query: DocsFindQueryV3;
   readonly signal?: AbortSignal;
@@ -283,8 +283,8 @@ export async function projectCommunityFind(input: {
 }
 
 export async function projectCommunityContext(input: {
-  readonly catalogBefore: Awaited<ReturnType<FoundationDocsPortV2["buildCatalog"]>>;
-  readonly foundation: FoundationDocsPortV3;
+  readonly catalogBefore: Awaited<ReturnType<DocumentAuthoringPortV2["buildCatalog"]>>;
+  readonly foundation: DocumentAuthoringPortV3;
   readonly foundationProfilePath: string;
   readonly request: DocsContextRequestV1;
 }): Promise<CommunityContextProjection> {

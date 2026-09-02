@@ -1,4 +1,4 @@
-import type { DocumentJsonValue } from "@agent-teams/engineering-foundation/document-authoring";
+import type { DocumentJsonValue } from "@agent-teams/docs-protocol/qualification";
 
 export interface DocsProtocolQualificationScenarioV2 {
   readonly id: string;

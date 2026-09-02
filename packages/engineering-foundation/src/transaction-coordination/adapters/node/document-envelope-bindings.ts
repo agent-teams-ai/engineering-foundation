@@ -1,6 +1,8 @@
-import { assertDocumentPlanDigests } from "../../../document-authoring/application/policies/document-contract-digests.js";
-import { assertDocumentTransactionEnvelope } from "../../../document-authoring/application/policies/document-transaction-envelope-policy.js";
-import { documentTemporaryPath } from "../../../document-authoring/application/policies/document-temporary-path.js";
+import {
+  assertDocumentPlanDigests,
+  assertDocumentTransactionEnvelope,
+  documentTemporaryPath
+} from "@agent-teams/document-authoring/qualification";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 import {
   classifyNodeTemporaryIdentity,
@@ -165,7 +167,8 @@ export async function inspectCurrentDocumentEnvelope(options: {
   if (
     options.value["operationKind"] !== "document-authoring" ||
     options.value["payloadKind"] !== version.payloadKind ||
-    !isRecord(handler) || handler["id"] !== "foundation.document-authoring" ||
+    !isRecord(handler) ||
+    !["document-authoring", "foundation.document-authoring"].includes(String(handler["id"])) ||
     handler["contractVersion"] !== version.handlerContractVersion ||
     !isRecord(foundation) ||
     typeof foundation["version"] !== "string" ||

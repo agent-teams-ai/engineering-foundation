@@ -4,7 +4,7 @@ import {
   type CapabilityDefinition,
   type CapabilityInvocation
 } from "../../capability-runtime.js";
-import { FilesystemMarkdownRepository } from "../../documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
+import { FilesystemMarkdownRepository } from "@agent-teams/document-authoring/observation";
 import { DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID } from "./application/rules.js";
 import { analyzeDocumentationLocalReferences } from "./application/use-cases/analyze-documentation-local-references.js";
 import {

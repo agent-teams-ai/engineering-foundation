@@ -4,7 +4,7 @@ import type {
   DocumentReceiptContract,
   DocumentTransactionInspectionV2,
   DocumentationCatalogSnapshotV2
-} from "@agent-teams/engineering-foundation/document-authoring";
+} from "@agent-teams/document-authoring";
 
 import {
   DOCS_PROTOCOL_ID,
@@ -95,7 +95,7 @@ export type DocsNewResultV2 =
   | Readonly<Extract<DocsNewResult, { readonly writeState: "preview" }> & { readonly compiled: DocsCompiledDocumentV1 }>
   | Readonly<Extract<DocsNewResult, { readonly receipt: unknown }> & { readonly compiled: DocsCompiledDocumentV1 }>;
 
-export interface FoundationDocsDescriptionV2 {
+export interface DocumentAuthoringDescriptionV2 {
   readonly authority: {
     readonly metadataSchema: { readonly digest: string; readonly path: string; readonly size: number };
     readonly metadataSidecar?: { readonly digest: string; readonly path: string; readonly size: number };
@@ -120,7 +120,7 @@ export interface FoundationDocsDescriptionV2 {
   readonly authorityPaths: readonly string[];
 }
 
-export interface FoundationDocsPortV2 {
+export interface DocumentAuthoringPortV2 {
   inspectEnvironment(input: { readonly consumerRoot: string; readonly signal?: AbortSignal }): Promise<{
     readonly installedFoundationVersion: string;
     readonly installedFoundationBuildIdentity: string;
@@ -129,7 +129,7 @@ export interface FoundationDocsPortV2 {
       readonly strictDirectoryDurability: "platform-supported" | "platform-unsupported";
     };
   }>;
-  describe(input: { readonly consumerRoot: string; readonly profilePath: string; readonly profileSchemaVersion: 3; readonly signal?: AbortSignal }): Promise<FoundationDocsDescriptionV2>;
+  describe(input: { readonly consumerRoot: string; readonly profilePath: string; readonly profileSchemaVersion: 3; readonly signal?: AbortSignal }): Promise<DocumentAuthoringDescriptionV2>;
   buildCatalog(input: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal }): Promise<DocumentationCatalogSnapshotV2>;
   find(input: { readonly consumerRoot: string; readonly profilePath: string; readonly query: DocsFindQuery; readonly signal?: AbortSignal }): Promise<readonly DocsFindDocument[]>;
   inspect(consumerRoot: string): Promise<DocumentTransactionInspectionV2>;

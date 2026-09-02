@@ -3,7 +3,7 @@ import {
   anchorsForMarkdownDocument,
   type MarkdownObservationIssue,
   type MarkdownReferenceResolution
-} from "../../../../documentation-observation/application/model/markdown-document.js";
+} from "@agent-teams/document-authoring/observation";
 import type {
   DocumentationLocalReferencesObservation,
   DocumentationLocalReferencesPolicy

@@ -4,7 +4,7 @@ import type {
   DocumentJsonValue,
   DocumentMetadataObject,
   DocumentReceiptContract
-} from "@agent-teams/engineering-foundation/document-authoring";
+} from "@agent-teams/document-authoring";
 
 export const DOCS_PROTOCOL_ID = "agent-teams.docs-protocol" as const;
 export const DOCS_PROTOCOL_VERSION = 1 as const;

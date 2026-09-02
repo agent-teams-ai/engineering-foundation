@@ -280,6 +280,7 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm build
       - run: pnpm package:check:built
+      - run: node scripts/npm-package-bootstrap-local-evidence.mjs
       - run: pnpm buf-qualification:e2e:built
 
   linux-registry:

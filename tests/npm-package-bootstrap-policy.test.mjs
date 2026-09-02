@@ -31,7 +31,7 @@ import {
 } from "../scripts/npm-package-bootstrap-cli.mjs";
 import { main as releasePublishMain } from "../scripts/release-publish.mjs";
 
-const mcpProfile = bootstrapPackageById("docs-protocol-mcp", { approved: true });
+const mcpProfile = bootstrapPackageById("docs-protocol-agent-teams", { approved: true });
 const reviewedCommit = "a".repeat(40);
 
 function integrity(bytes) {
@@ -131,12 +131,12 @@ function releaseState(profile, version) {
   };
 }
 
-test("bootstrap catalog is closed, data-only, and owns one historical and one approved package", () => {
+test("bootstrap catalog is closed, data-only, and owns approved and historical package states", () => {
   assert.deepEqual(
     NPM_PACKAGE_BOOTSTRAP.packages.map(({ id, state }) => ({ id, state })),
     [
-      { id: "docs-protocol", state: "historical" },
-      { id: "docs-protocol-mcp", state: "approved" },
+      { id: "repository-mutation", state: "approved" }, { id: "docs-protocol", state: "historical" },
+      { id: "docs-protocol-agent-teams", state: "approved" }, { id: "docs-protocol-mcp", state: "historical" },
     ],
   );
   assert.notEqual(mcpProfile.approval, null);
@@ -144,13 +144,14 @@ test("bootstrap catalog is closed, data-only, and owns one historical and one ap
     () => bootstrapPackageById("unknown", { approved: true }),
     /closed bootstrap catalog/u,
   );
-  assert.equal(bootstrapPackageById("docs-protocol-mcp", { approved: true }), mcpProfile);
+  assert.equal(bootstrapPackageById("docs-protocol-agent-teams", { approved: true }), mcpProfile);
+  assert.throws(() => bootstrapPackageById("docs-protocol-mcp", { approved: true }), /not approved/u);
 
   for (const mutation of [
     (value) => { value.extra = true; },
     (value) => { value.packages[0].root = "../escape"; },
-    (value) => { value.packages[0].dependencies[0].version = "latest"; },
-    (value) => { value.packages[1].dependencies[1].specifier = "latest"; },
+    (value) => { value.packages.find(({ id }) => id === "docs-protocol-agent-teams").dependencies[0].version = "latest"; },
+    (value) => { value.packages.find(({ id }) => id === "docs-protocol-agent-teams").dependencies[3].specifier = "latest"; },
     (value) => { value.packages[0].contentPolicy.prefixes = ["dist/file.js"]; },
     (value) => { value.packages[0].approval.packageTree = "not-a-tree"; },
     (value) => { value.packages[1].approval = { archiveIntegrity: "bad", packageTree: "a".repeat(40) }; },
@@ -163,16 +164,16 @@ test("bootstrap catalog is closed, data-only, and owns one historical and one ap
 
 test("bootstrap workspace authority distinguishes internal and catalog dependencies", async () => {
   const manifest = Object.assign(JSON.parse(await readFile(
-    new URL("../packages/docs-protocol-mcp/package.json", import.meta.url),
+    new URL("../packages/docs-protocol-agent-teams/package.json", import.meta.url),
     "utf8",
   )), { version: mcpProfile.bootstrapVersion });
   assert.doesNotThrow(() => assertWorkspaceManifestMatchesProfile(mcpProfile, manifest));
 
   const catalogDrift = structuredClone(manifest);
-  catalogDrift.dependencies["@modelcontextprotocol/server"] = "workspace:*";
+  catalogDrift.dependencies.ajv = "workspace:*";
   assert.throws(
     () => assertWorkspaceManifestMatchesProfile(mcpProfile, catalogDrift),
-    /specifier mismatch for @modelcontextprotocol\/server/u,
+    /specifier mismatch for ajv/u,
   );
 
   const unexpectedDependency = structuredClone(manifest);
@@ -218,8 +219,8 @@ test("pack evidence binds identity, dependency, allowlist, tree, and reviewed SR
   assert.notDeepEqual(foreignGzipWrapper, archiveBytes);
   const catalog = approvedMcpCatalog(archiveBytes);
   const profile = catalog.packages[0];
-  const archivePath = resolve("/tmp/agent-teams-docs-protocol-mcp-0.0.0.tgz");
-  const files = ["CHANGELOG.md", "LICENSE", "README.md", "dist/index.js", "package.json"];
+  const archivePath = resolve("/tmp/agent-teams-docs-protocol-agent-teams-0.0.0.tgz");
+  const files = ["CHANGELOG.md", "LICENSE", "README.md", "dist/index.js", "package.json", "skills/docs/SKILL.md"];
   const input = {
     archivePath,
     archiveBytes,
@@ -227,10 +228,9 @@ test("pack evidence binds identity, dependency, allowlist, tree, and reviewed SR
     packedManifest: {
       name: profile.name,
       version: profile.bootstrapVersion,
-      dependencies: {
-        "@agent-teams/docs-protocol": "0.3.2",
-        "@modelcontextprotocol/server": "2.0.0",
-      },
+      dependencies: Object.fromEntries(
+        profile.dependencies.map(({ name, version }) => [name, version]),
+      ),
       publishConfig: {
         access: "public",
         provenance: true,
@@ -274,10 +274,9 @@ test("pack evidence binds identity, dependency, allowlist, tree, and reviewed SR
 test("registry preflight publishes only a proven absent namespace and resumes only exact bytes", () => {
   const profile = approvedMcpCatalog().packages[0];
   const base = {
-    dependencyVersions: {
-      "@agent-teams/docs-protocol": "0.3.2",
-      "@modelcontextprotocol/server": "2.0.0",
-    },
+    dependencyVersions: Object.fromEntries(
+      profile.dependencies.map(({ name, version }) => [name, version]),
+    ),
     localIntegrity: profile.approval.archiveIntegrity,
     profile,
   };
@@ -292,8 +291,8 @@ test("registry preflight publishes only a proven absent namespace and resumes on
     publishedIntegrity: profile.approval.archiveIntegrity,
   }), "reuse");
   for (const mutation of [
-    (value) => { value.dependencyVersions["@agent-teams/docs-protocol"] = null; },
-    (value) => { value.dependencyVersions["@modelcontextprotocol/server"] = null; },
+    (value) => { value.dependencyVersions[profile.dependencies[0].name] = null; },
+    (value) => { value.dependencyVersions[profile.dependencies.at(-1).name] = null; },
     (value) => { value.publishedIntegrity = integrity(Buffer.from("foreign")); },
     (value) => { value.packageMetadata.versions.push("0.0.1"); },
     (value) => { value.packageMetadata["dist-tags"].foreign = "0.0.0"; },
@@ -356,7 +355,7 @@ test("mutation proof audits first and rejects registry state changed during the 
   const mutableMetadata = bootstrapMetadata(profile);
   const events = [];
   await assert.rejects(() => proveLiveBootstrap(
-    ["docs-protocol-mcp", profile.approval.archiveIntegrity, reviewedCommit, "unused.json"],
+    ["docs-protocol-agent-teams", profile.approval.archiveIntegrity, reviewedCommit, "unused.json"],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
@@ -386,7 +385,7 @@ test("mutation proof stores only validated evidence fields", async () => {
   const audit = auditEvidence(profile);
   audit.remoteCanary = remoteCanary;
   await proveLiveBootstrap(
-    ["docs-protocol-mcp", profile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    ["docs-protocol-agent-teams", profile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
@@ -413,7 +412,7 @@ test("mutation proof retries stale registry metadata without repeating its audit
   const waits = [];
   let writes = 0;
   await proveLiveBootstrap(
-    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
@@ -449,7 +448,7 @@ test("mutation proof fails after bounded retries when registry metadata stays st
   const waits = [];
   let writes = 0;
   await assert.rejects(() => proveLiveBootstrap(
-    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
@@ -528,7 +527,7 @@ test("quarantine postconditions retry a stale deprecation before writing evidenc
   const waits = [];
   let writes = 0;
   await proveQuarantine(
-    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, "evidence.json"],
+    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, "evidence.json"],
     assertBootstrapQuarantinePostconditions,
     {
       assertionAttempts: 3,
@@ -555,7 +554,7 @@ test("quarantine postconditions fail boundedly when deprecation stays stale", as
   const waits = [];
   let writes = 0;
   await assert.rejects(() => proveQuarantine(
-    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, "evidence.json"],
+    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, "evidence.json"],
     assertBootstrapQuarantinePostconditions,
     {
       assertionAttempts: 3,
@@ -606,7 +605,7 @@ test("postconditions retry stale registry metadata until the exact deprecation c
   const waits = [];
   let written;
   await proveLiveBootstrap(
-    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapPostconditions,
     "published bootstrap package remained absent.",
     {
@@ -640,7 +639,7 @@ test("postconditions fail after the bounded attempts when registry metadata stay
   const waits = [];
   let writes = 0;
   await assert.rejects(() => proveLiveBootstrap(
-    ["docs-protocol-mcp", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapPostconditions,
     "published bootstrap package remained absent.",
     {

@@ -123,8 +123,9 @@ function assertPackedManifest(profile, packedManifest) {
   const expectedDependencies = Object.fromEntries(
     profile.dependencies.map(({ name, version }) => [name, version]),
   );
-  const exactDependencies = isRecord(packedManifest.dependencies) &&
-    JSON.stringify(Object.fromEntries(Object.entries(packedManifest.dependencies).toSorted())) ===
+  const packedDependencies = packedManifest.dependencies ?? {};
+  const exactDependencies = isRecord(packedDependencies) &&
+    JSON.stringify(Object.fromEntries(Object.entries(packedDependencies).toSorted())) ===
       JSON.stringify(Object.fromEntries(Object.entries(expectedDependencies).toSorted()));
   const extraRuntimeSections = [
     "optionalDependencies", "peerDependencies", "bundleDependencies", "bundledDependencies",
@@ -151,6 +152,10 @@ export function validatePackEvidence({
   assertRequiredPackFiles(profile, files, tarEntries);
   try {
     assertArchiveSafety({
+      allowedArtifactPaths: [
+        ...profile.contentPolicy.exact,
+        ...profile.contentPolicy.prefixes,
+      ],
       archiveBytes,
       listing: `${tarEntries.join("\n")}\n`,
       requiredArtifactPaths: profile.contentPolicy.required,

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { createRequire } from "node:module";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -9,6 +10,20 @@ import { parse as parseYaml } from "yaml";
 import { reconcileGithubTagRelease } from "../scripts/github-release-reconciliation.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const pnpmHooks = createRequire(import.meta.url)("../.pnpmfile.cjs").hooks;
+
+test("pnpm packing canonicalizes publish-manifest key order", () => {
+  const input = {
+    version: "0.0.0",
+    name: "@fixture/package",
+    dependencies: { zeta: "1.0.0", alpha: "1.0.0", "@fixture/core": "1.0.0" },
+  };
+  const packed = pnpmHooks.beforePacking(input);
+
+  assert.deepEqual(Object.keys(packed), ["dependencies", "name", "version"]);
+  assert.deepEqual(Object.keys(packed.dependencies), ["@fixture/core", "alpha", "zeta"]);
+  assert.deepEqual(Object.keys(input.dependencies), ["zeta", "alpha", "@fixture/core"]);
+});
 
 async function workflow(name) {
   return parseYaml(await readFile(join(repositoryRoot, ".github", "workflows", name), "utf8"));
@@ -41,6 +56,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     join(repositoryRoot, "scripts", "pack-test-support.mjs"),
     "utf8",
   );
+  const ci = await workflow("ci.yml");
   const release = await workflow("release.yml");
   const job = bootstrap.jobs.bootstrap;
   const publish = job.steps.find(
@@ -154,6 +170,11 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(
     release.jobs.release.steps.find(({ name }) => name === "Guard public package bootstrap baselines").run,
     "node scripts/npm-package-bootstrap-cli.mjs check-release",
+  );
+  assert.ok(
+    ci.jobs["linux-package"].steps.some(
+      ({ run }) => run === "node scripts/npm-package-bootstrap-local-evidence.mjs",
+    ),
   );
 });
 

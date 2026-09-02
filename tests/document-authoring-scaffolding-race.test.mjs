@@ -60,10 +60,14 @@ function statePaths(root) {
   };
 }
 
-async function assertTypedLockConflict(operation) {
+async function assertTypedLockConflict(
+  operation,
+  expectedName = "FoundationError",
+  expectedCode = "LOCAL_STATE_INVALID",
+) {
   await assert.rejects(operation, (error) => {
-    assert.equal(error?.name, "FoundationError");
-    assert.equal(error?.code, "LOCAL_STATE_INVALID");
+    assert.equal(error?.name, expectedName);
+    assert.equal(error?.code, expectedCode);
     assert.match(error?.message, /operation is active|lock is not safely recoverable/u);
     return true;
   });
@@ -138,13 +142,14 @@ test(
       await assertTypedLockConflict(applyDocumentationPlan({
         consumerRoot: root,
         plan: documentPlan,
-      }));
+      }), "RepositoryMutationError", "MUTATION_LEASE_INVALID");
 
       assert.deepEqual(await readFile(paths.journal), before.journal);
       assert.deepEqual(await readFile(paths.lock), before.lock);
       await assertAbsent(join(root, documentPlan.destination));
     } finally {
       resume.resolve();
+      await scaffolding.catch(() => {});
     }
 
     const receipt = await scaffolding;
@@ -193,6 +198,7 @@ requiresStrictDirectoryDurability(
       }
     } finally {
       resume.resolve();
+      await document.catch(() => {});
     }
 
     const receipt = await document;

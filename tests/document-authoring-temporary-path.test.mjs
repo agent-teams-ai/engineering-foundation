@@ -106,7 +106,9 @@ test("schema requires a closed creator-handle identity", async (context) => {
   ]) {
     await context.test(name, async () => {
       const envelope = createDocumentEnvelopeV3(fixture, "PUBLISHING");
-      mutate(envelope.journal.ownedTemporary.identity);
+      const identity = { ...envelope.journal.ownedTemporary.identity };
+      mutate(identity);
+      envelope.journal.ownedTemporary.identity = identity;
       await assert.rejects(
         assertSchema("foundation-transaction-envelope/v3", envelope, name),
         (error) => error?.problem?.code === "SCHEMA_INVALID",

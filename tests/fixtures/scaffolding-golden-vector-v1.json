@@ -179,14 +179,6 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js"
       },
-      "./document-authoring": {
-        "types": "./dist/document-authoring/index.d.ts",
-        "import": "./dist/document-authoring/index.js"
-      },
-      "./document-authoring/qualification": {
-        "types": "./dist/document-authoring/qualification/index.d.ts",
-        "import": "./dist/document-authoring/qualification/index.js"
-      },
       "./local-mode": {
         "types": "./dist/local-mode/index.d.ts",
         "import": "./dist/local-mode/index.js"
@@ -208,22 +200,10 @@
     "schemas/contract-protobuf-breaking-qualification/v1.schema.json",
     "schemas/contract-protobuf-evolution-baseline/v1.schema.json",
     "schemas/contract-protobuf-evolution/v1.schema.json",
-    "schemas/document-authoring-profile/v1.schema.json",
-    "schemas/document-authoring-profile/v2.schema.json",
-    "schemas/document-authoring-profile/v3.schema.json",
-    "schemas/document-command-envelope/v1.schema.json",
-    "schemas/document-command-envelope/v2.schema.json",
-    "schemas/document-intent/v1.schema.json",
-    "schemas/document-parent-materialization/v2.schema.json",
-    "schemas/document-plan/v1.schema.json",
-    "schemas/document-plan/v2.schema.json",
-    "schemas/document-receipt/v1.schema.json",
-    "schemas/document-receipt/v2.schema.json",
     "schemas/documentation-local-references/v1.schema.json",
     "schemas/foundation-check-report/v1.schema.json",
     "schemas/foundation-config/v1.schema.json",
     "schemas/foundation-transaction-envelope/v2.schema.json",
-    "schemas/foundation-transaction-envelope/v4.schema.json",
     "schemas/governance-architecture-decision-baseline/v1.schema.json",
     "schemas/governance-architecture-decisions/v1.schema.json",
     "schemas/package-public-api-baseline/v1.schema.json",

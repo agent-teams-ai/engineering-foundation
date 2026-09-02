@@ -142,27 +142,22 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
     NPM_PACKAGE_BOOTSTRAP.packages.map(({ id, state }) => ({ id, state })),
     [
       { id: "repository-mutation", state: "approved" },
-      { id: "document-authoring", state: "candidate" },
+      { id: "document-authoring", state: "approved" },
       { id: "docs-protocol", state: "historical" },
-      { id: "docs-protocol-agent-teams", state: "candidate" }, { id: "docs-protocol-mcp", state: "historical" },
+      { id: "docs-protocol-agent-teams", state: "approved" },
+      { id: "docs-protocol-mcp", state: "historical" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
   assert.equal(authoring.bootstrapVersion, "0.0.0");
-  assert.equal(authoring.approval, null);
-  assert.throws(
-    () => bootstrapPackageById("document-authoring", { approved: true }),
-    /bootstrap is not approved/u,
-  );
-  assert.equal(mcpCandidateProfile.approval, null);
+  assert.notEqual(authoring.approval, null);
+  assert.doesNotThrow(() => bootstrapPackageById("document-authoring", { approved: true }));
+  assert.notEqual(mcpCandidateProfile.approval, null);
   assert.throws(
     () => bootstrapPackageById("unknown", { approved: true }),
     /closed bootstrap catalog/u,
   );
-  assert.throws(
-    () => bootstrapPackageById("docs-protocol-agent-teams", { approved: true }),
-    /bootstrap is not approved/u,
-  );
+  assert.doesNotThrow(() => bootstrapPackageById("docs-protocol-agent-teams", { approved: true }));
   assert.throws(() => bootstrapPackageById("docs-protocol-mcp", { approved: true }), /not approved/u);
   assert.deepEqual(mcpProfile.tags, {
     allowed: ["bootstrap", "latest"],

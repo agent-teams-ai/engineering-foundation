@@ -48,7 +48,7 @@ Status also reports shared transaction evidence. A frozen legacy scaffolding
 journal exposes its exact recovery command and package version. An incomplete
 local-mode phase exposes `detach` as its only automatic recovery route. A
 verified envelope v2 is preserved with its recorded package identity but remains
-manual until its registered handler is implemented and qualified. Attach and
+manual until its registered handler is implemented and capability-qualified. Attach and
 detach acquire the shared operation lock and refuse to switch package bytes
 while any foreign, incompatible, unknown, or manual-recovery evidence exists.
 

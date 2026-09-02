@@ -20,7 +20,7 @@ The optional v1 state-model evidence profile is XState-shaped. The capability
 has no XState runtime dependency and owns no XState runtime or domain semantics.
 `kind: xstate` describes an artifact topology only; Foundation reads those files
 as bounded evidence and never imports them. A different state-model formalism
-requires a versioned contract extension with its own qualified evidence profile,
+requires a versioned contract extension with its own capability-qualification evidence profile,
 not a reinterpretation of the v1 fields as generic.
 
 ## Configuration

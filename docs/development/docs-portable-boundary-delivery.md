@@ -17,7 +17,7 @@ pre-release evidence until one exact reviewed head passes every required gate.
 
 | Evidence | State | Observation |
 | --- | --- | --- |
-| Exact base | Bound | Integration descends from `fe8beaa66ca963934fd027aa4501687d40117eb9`; the PR head and its CI run will own the final exact-head coordinate |
+| Exact base | Bound | Extraction began from `fe8beaa66ca963934fd027aa4501687d40117eb9`; integration includes current main `e000fcbfdc87bf0cfa966b45034514dcc973ec51`; the PR head and its CI run own the final exact-head coordinate |
 | Current public manifests | Measured | One manifest-derived catalog projects all six public packages and the closed ADR-0043 dependency graph |
 | Physical boundaries | Measured | Foundation authoring/mutation exports and the Foundation `docs` CLI namespace are absent; portable Docs Protocol has no adapter path |
 | Focused remediation | Passed | Bootstrap policy `26/26`; CLI/filesystem `58 passed` plus one intentional benchmark skip; transaction/recovery `125/125` and `51/51`; final stale assumptions `2/2` and `13/13` |
@@ -93,7 +93,7 @@ journals to be ignored or treated as idle.
 
 - [x] Make Source Dependencies v2 reject every failure class listed in ADR-0043,
   with positive and hostile fixtures and separate runtime/type-only cycle proof.
-- [x] Record qualification coverage for every public package and permitted edge;
+- [x] Record artifact-qualification coverage for every public package and permitted edge;
   missing coverage must fail closed without inventing a source edge.
 - [x] At the exact release head, derive package publication order solely by
   topologically sorting exact internal manifest dependencies; reject drift,
@@ -136,7 +136,7 @@ journals to be ignored or treated as idle.
 ### 8. Protected provenance publication and consumer adoption
 
 - [ ] Publish only immutable reviewed versions from protected provenance after
-  all upstream exact artifacts and qualification evidence pass.
+  all upstream exact artifacts and artifact-qualification evidence pass.
 - [ ] Re-prove manifest, tarball, SRI, signature, source-bound provenance, SBOM,
   final tags, and installed dependency resolution before downstream publication.
 - [ ] On partial or uncertain publication, observe and fail closed; merge no

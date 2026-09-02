@@ -4,6 +4,10 @@ Status: Accepted behavior from ADR-0030 and ADR-0037, relocated by ADR-0043 to
 the new-only `@agent-teams/docs-protocol-agent-teams` package. Consumer
 activation remains explicit.
 
+Terminology follows the [Foundation glossary](../reference/glossary.md).
+Release qualification, cohort qualification, consumer qualification, and
+admission are separate decisions throughout this document.
+
 ## Boundaries
 
 Organization governance owns Qualified Cohort, enrollment, admission, and
@@ -105,8 +109,8 @@ default-branch admission.
 V1 is intentionally closed to Node 24, root pnpm 11, one root manifest and
 lockfile, GitHub Actions, and one integration root. Unsupported or ambiguous
 topologies produce stable diagnostics and no writes. Windows supports check and
-plan; apply remains fail-closed until strict replacement durability is separately
-qualified.
+plan; apply remains fail-closed until the Windows mutation adapter passes
+separate capability qualification.
 
 ## Non-goals
 

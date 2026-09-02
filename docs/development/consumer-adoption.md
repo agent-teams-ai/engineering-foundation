@@ -216,7 +216,7 @@ and blocks package switching until recovery is complete.
 ### Scaffolding transition from 0.5.0
 
 Version `0.5.0` published the provisional rendering contract before any product
-donor was qualified. A consumer must finish every pending `0.5.0`
+donor passed consumer qualification. A consumer must finish every pending `0.5.0`
 `scaffold-recover` operation while its dependency and lockfile still pin exactly
 `@agent-teams/engineering-foundation@0.5.0`, and verify that the local journal is
 absent before upgrading. Saved old-format Plans and Receipts are historical

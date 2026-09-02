@@ -8,6 +8,7 @@ not repeat their rules.
 
 | Subject | Document | State |
 | --- | --- | --- |
+| Core terminology | [Foundation glossary](reference/glossary.md) | Active terminology contract for current documentation |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
 | Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Implemented and released; consumer activation is explicit |
 | Documentation integrity | [Executable capabilities](architecture/executable-capabilities.md#documentation-governance) | Accepted and implemented |

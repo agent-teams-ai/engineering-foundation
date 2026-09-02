@@ -8,7 +8,7 @@ accepts this design. The canonical source-bound protocol, public schemas, CLI,
 programmatic API, journaled filesystem adapter, testing-only conformance
 definitions, and the first generic technical Recipe are implemented. Foundation
 exposes no parallel legacy API. Structured-update operations, a second consumer,
-and the Nx adapter are not implemented or qualified.
+and the Nx adapter are not implemented or capability-qualified.
 
 ## Implementation status
 
@@ -429,9 +429,10 @@ The adapter and Foundation kernel initially release as one Changesets fixed grou
 
 ## Delivery stages
 
-These are qualification stages, not a requirement to prebuild every definition.
+These are capability-qualification stages, not a requirement to prebuild every
+definition.
 Stage 0 and the Foundation-owned implementation part of Stage 1 are complete.
-The consumer repository owns donor parity and qualification evidence. A second
+The consumer repository owns donor parity and consumer-qualification evidence. A second
 consumer and Nx remain later gates.
 
 ### Stage 0: protocol kernel and testing conformance
@@ -487,11 +488,12 @@ consumer and Nx remain later gates.
 The existing Orchestrator package-only scaffolder is the mandatory donor and
 regression oracle, but does not become a reusable Recipe merely by being moved.
 Only behavior proven generic by the migration may enter Foundation; the real
-feature and consumer-owned architecture gates remain the qualification subject.
+feature and consumer-owned architecture gates remain the consumer-qualification
+subject.
 
 Foundation now implements the generic library-boundary Recipe and varied
-synthetic fixtures. Stage 1 becomes Orchestrator-qualified only when the
-Orchestrator repository records byte parity, recovery, and post-Apply consumer
+synthetic fixtures. Stage 1 passes Orchestrator consumer qualification only when
+the Orchestrator repository records byte parity, recovery, and post-Apply consumer
 checks against its real donor and removes the donor implementation.
 
 ### Stage 2: second consumer

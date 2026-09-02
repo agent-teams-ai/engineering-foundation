@@ -141,8 +141,9 @@ preview, repeat the same command with `--apply`, then follow the emitted
 - when no manual reachability step is required, run the consumer's standard
   complete repository check.
 
-The RC writer does not edit an index. Managed reachability is a later qualified
-transaction, so the profile is the only authority for a manual index action.
+The RC writer does not edit an index. Managed reachability is a later managed
+transaction after separate capability qualification, so the profile is the only
+authority for a manual index action.
 
 Operator commands are separate from the happy path:
 
@@ -598,7 +599,7 @@ stored inode/device tuple remains valid across platforms or process lifetimes.
 | --- | --- |
 | `not-published` | No destination publication was observed by this operation |
 | `preexisting-exact` | Exact desired bytes already existed and were not published by this operation |
-| `single-file-atomic-create` | One absent destination was published without replacement on a qualified adapter |
+| `single-file-atomic-create` | One absent destination was published without replacement on a capability-qualified adapter |
 | `journaled-recoverable` | Durable transaction evidence permits compatible recovery; it is not a multi-file transaction claim |
 | `preserved-for-recovery` | Evidence or output may exist and was intentionally retained for recovery or manual resolution |
 

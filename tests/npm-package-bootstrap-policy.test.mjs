@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- Bootstrap security policy remains one auditable state-machine suite.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
@@ -15,6 +16,7 @@ import {
   assertBootstrapReleasePolicy,
   assertReusableBootstrap,
   assertOneDayGranularTokenWindow,
+  assertPublishedBootstrapArtifact,
   auditLivePackage,
   bootstrapPackageById,
   classifyRegistryPreflight,
@@ -290,12 +292,20 @@ test("registry preflight publishes only a proven absent namespace and resumes on
     packageMetadata: bootstrapMetadata(profile),
     publishedIntegrity: profile.approval.archiveIntegrity,
   }), "reuse");
+  const partialMetadata = bootstrapMetadata(profile);
+  delete partialMetadata["dist-tags"].latest;
+  assert.equal(classifyRegistryPreflight({
+    ...base,
+    packageMetadata: partialMetadata,
+    publishedIntegrity: profile.approval.archiveIntegrity,
+  }), "reuse");
   for (const mutation of [
     (value) => { value.dependencyVersions[profile.dependencies[0].name] = null; },
     (value) => { value.dependencyVersions[profile.dependencies.at(-1).name] = null; },
     (value) => { value.publishedIntegrity = integrity(Buffer.from("foreign")); },
     (value) => { value.packageMetadata.versions.push("0.0.1"); },
     (value) => { value.packageMetadata["dist-tags"].foreign = "0.0.0"; },
+    (value) => { delete value.packageMetadata["dist-tags"].bootstrap; },
   ]) {
     const value = {
       ...base,
@@ -339,6 +349,15 @@ test("reuse proof rejects a dist-tag race before token-bearing mutations", () =>
     profile,
     publishedIntegrity: profile.approval.archiveIntegrity,
   }), "reuse");
+  delete packageMetadata["dist-tags"].latest;
+  assert.doesNotThrow(() => assertReusableBootstrap({
+    auditEvidence: auditEvidence(profile),
+    expectedCommit: reviewedCommit,
+    localIntegrity: profile.approval.archiveIntegrity,
+    packageMetadata,
+    profile,
+    publishedIntegrity: profile.approval.archiveIntegrity,
+  }));
   packageMetadata["dist-tags"].foreign = profile.bootstrapVersion;
   assert.throws(() => assertReusableBootstrap({
     auditEvidence: auditEvidence(profile),
@@ -348,6 +367,30 @@ test("reuse proof rejects a dist-tag race before token-bearing mutations", () =>
     profile,
     publishedIntegrity: profile.approval.archiveIntegrity,
   }), /unexpected bootstrap dist-tag/u);
+});
+
+test("published artifact proof permits only the bootstrap-to-latest transition", () => {
+  const profile = approvedMcpCatalog().packages[0];
+  const base = {
+    auditEvidence: auditEvidence(profile),
+    expectedCommit: reviewedCommit,
+    localIntegrity: profile.approval.archiveIntegrity,
+    packageMetadata: bootstrapMetadata(profile),
+    profile,
+    publishedIntegrity: profile.approval.archiveIntegrity,
+  };
+  delete base.packageMetadata["dist-tags"].latest;
+  assert.doesNotThrow(() => assertPublishedBootstrapArtifact(base));
+  assert.throws(
+    () => assertBootstrapMutationPreconditions(base),
+    /dist-tags are incomplete/u,
+  );
+  delete base.packageMetadata["dist-tags"].bootstrap;
+  base.packageMetadata["dist-tags"].latest = profile.bootstrapVersion;
+  assert.throws(
+    () => assertPublishedBootstrapArtifact(base),
+    /bootstrap dist-tag does not resolve/u,
+  );
 });
 
 test("mutation proof audits first and rejects registry state changed during the audit", async () => {

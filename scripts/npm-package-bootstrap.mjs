@@ -225,6 +225,9 @@ export function classifyRegistryPreflight({
     fail("existing package namespace is not the isolated bootstrap baseline.");
   }
   assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: false });
+  if (packageMetadata["dist-tags"].bootstrap !== profile.bootstrapVersion) {
+    fail("existing package namespace does not carry the bootstrap dist-tag.");
+  }
   if (publishedIntegrity !== localIntegrity) {
     fail("existing bootstrap version is not the reviewed tarball.");
   }
@@ -286,11 +289,32 @@ export function assertBootstrapMutationPreconditions({
   profile,
   publishedIntegrity,
 }) {
+  assertPublishedBootstrapArtifact({
+    auditEvidence,
+    expectedCommit,
+    localIntegrity,
+    packageMetadata,
+    profile,
+    publishedIntegrity,
+  }, { exactTags: true });
+}
+
+export function assertPublishedBootstrapArtifact({
+  auditEvidence,
+  expectedCommit,
+  localIntegrity,
+  packageMetadata,
+  profile,
+  publishedIntegrity,
+}, { exactTags = false } = {}) {
   const versions = normalizedVersions(packageMetadata);
-  if (versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
+  if (versions === null || versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
     fail("registry does not contain exactly the bootstrap version.");
   }
-  assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: true });
+  assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: exactTags });
+  if (packageMetadata["dist-tags"].bootstrap !== profile.bootstrapVersion) {
+    fail("registry bootstrap dist-tag does not resolve to the reviewed version.");
+  }
   if (localIntegrity !== profile.approval.archiveIntegrity || publishedIntegrity !== localIntegrity) {
     fail("published bootstrap integrity differs from the reviewed tarball.");
   }
@@ -305,7 +329,7 @@ export function assertReusableBootstrap({
   profile,
   publishedIntegrity,
 }) {
-  assertBootstrapMutationPreconditions({
+  assertPublishedBootstrapArtifact({
     auditEvidence,
     expectedCommit,
     localIntegrity,

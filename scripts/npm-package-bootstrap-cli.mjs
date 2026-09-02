@@ -9,6 +9,7 @@ import {
   assertBootstrapQuarantineCandidate,
   assertBootstrapQuarantinePostconditions,
   assertOneDayGranularTokenWindow,
+  assertPublishedBootstrapArtifact,
   assertReusableBootstrap,
   auditLivePackage,
   bootstrapPackageById,
@@ -219,6 +220,12 @@ export async function proveQuarantine(
 }
 
 const handlers = Object.freeze({
+  "artifact-proof": (args) => prove(
+    args,
+    assertPublishedBootstrapArtifact,
+    "published bootstrap artifact remained absent.",
+    { assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS },
+  ),
   "check-live": async () => {
     const verified = await verifyLiveBootstrapBaselines();
     process.stdout.write(`Verified npm bootstrap baselines: ${verified.join(", ") || "none required"}.\n`);

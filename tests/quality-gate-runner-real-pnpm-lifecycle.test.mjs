@@ -209,7 +209,7 @@ void (async () => {
 `;
   await writeFile(join(root, "real-pnpm-parent.cjs"), `const { spawn } = require("node:child_process");
 const { once } = require("node:events");
-const { accessSync, constants, realpathSync, statSync, writeFileSync } = require("node:fs");
+const { accessSync, constants, realpathSync, renameSync, statSync, writeFileSync } = require("node:fs");
 const { basename, delimiter, extname, resolve } = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 const { connect } = require("./fixture-boundary-client.cjs");
@@ -289,12 +289,14 @@ descendant = spawn(process.execPath, ["--eval", ${JSON.stringify(descendantSourc
   stdio: ["ignore", "ignore", "ignore", "ipc"]
 });
 await once(descendant, "message");
-writeFileSync(${JSON.stringify(marker)}, JSON.stringify({
+const readinessPath = ${JSON.stringify(marker)} + ".tmp";
+writeFileSync(readinessPath, JSON.stringify({
   evidenceId: process.env.QGR_FIXTURE_BOUNDARY_ID,
   lifecycleEvent: process.env.npm_lifecycle_event,
   npmExecPath: canonicalNpmExecPath,
   roles: ${JSON.stringify(roles)}
 }) + "\\n", { flag: "wx" });
+renameSync(readinessPath, ${JSON.stringify(marker)});
 setInterval(() => {}, 60000);
 })().catch((error) => { throw error; });
 `, "utf8");

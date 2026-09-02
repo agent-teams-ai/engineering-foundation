@@ -8,6 +8,7 @@ import {
   NPM_PACKAGE_BOOTSTRAP,
   validatePackEvidence,
 } from "./npm-package-bootstrap.mjs";
+import { preparePackages } from "./prepare-package.mjs";
 
 const execute = promisify(execFile);
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
@@ -59,6 +60,7 @@ async function verifyProfile(profile) {
 }
 
 async function main() {
+  await preparePackages();
   const verified = [];
   for (const profile of NPM_PACKAGE_BOOTSTRAP.packages) {
     if (profile.state !== "approved") {

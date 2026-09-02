@@ -99,6 +99,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(job.steps[2].uses, ciWriter.steps[2].uses);
   assert.equal(job.steps[2].with["node-version-file"], ".node-version");
   assert.equal(ciWriter.steps[2].with["node-version-file"], job.steps[2].with["node-version-file"]);
+  assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);
   assert.match(job.if, /NPM_PACKAGE_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
   assert.equal(job.env.NPM_TOKEN, undefined);
   assert.equal(job.env.NODE_AUTH_TOKEN, undefined);
@@ -186,6 +187,12 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
       ({ run }) => run === "node scripts/npm-package-bootstrap-local-evidence.mjs",
     ),
   );
+  const localEvidenceSource = await readFile(
+    join(repositoryRoot, "scripts", "npm-package-bootstrap-local-evidence.mjs"),
+    "utf8",
+  );
+  assert.match(localEvidenceSource, /import \{ preparePackages \} from "\.\/prepare-package\.mjs";/u);
+  assert.match(localEvidenceSource, /await preparePackages\(\);/u);
 });
 
 test("shared reconciliation resolves annotated tags and re-reads final exact state", async () => {

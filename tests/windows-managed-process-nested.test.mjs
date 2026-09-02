@@ -57,8 +57,10 @@ test("nested Windows Jobs confirm repeated normal exits", {
     child.stdout?.setEncoding("utf8");
     child.stderr?.on("data", (chunk) => { stderr += chunk; });
     child.stdout?.on("data", (chunk) => { stdout += chunk; });
+    const closed = once(child, "close");
     const [exitCode] = await once(child, "exit");
     await waitForWindowsManagedProcessContainment(child);
+    await closed;
     assert.equal(exitCode, 0, stderr);
     assert.equal(stdout, "outer-ok");
     assert.deepEqual(

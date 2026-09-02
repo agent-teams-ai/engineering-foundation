@@ -1,8 +1,8 @@
 ---
 id: ADR-0042
-status: accepted
+status: superseded
 supersedes: [ADR-0041]
-superseded_by: []
+superseded_by: [ADR-0044]
 ---
 
 # ADR-0042: First-Publish Default-Tag Quarantine

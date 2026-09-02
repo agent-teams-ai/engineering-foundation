@@ -37,8 +37,8 @@ No proposed decisions.
 - [ADR-0037: One-Command Qualified Cohort Upgrades](0037-one-command-qualified-cohort-upgrades.md)
 - [ADR-0038: Approve Docs Consumer Upgrade API](0038-approve-docs-consumer-upgrade-api.md)
 - [ADR-0039: Open-Source Documentation Protocol](0039-open-source-documentation-protocol.md)
-- [ADR-0042: First-Publish Default-Tag Quarantine](0042-first-publish-default-tag-quarantine.md)
 - [ADR-0043: New-Only Portable Documentation Package Boundary](0043-new-only-portable-documentation-package-boundary.md)
+- [ADR-0044: Registry-Neutral npm Bootstrap Tags](0044-registry-neutral-npm-bootstrap-tags.md)
 
 ## Superseded
 
@@ -56,3 +56,4 @@ No proposed decisions.
 - [ADR-0031: Managed Docs Protocol Consumer Integration](0031-managed-docs-consumer-integration.md)
 - [ADR-0040: Closed-Catalog npm Namespace Bootstrap](0040-closed-catalog-npm-namespace-bootstrap.md)
 - [ADR-0041: Non-Default npm Bootstrap Quarantine](0041-non-default-npm-bootstrap-quarantine.md)
+- [ADR-0042: First-Publish Default-Tag Quarantine](0042-first-publish-default-tag-quarantine.md)

@@ -89,6 +89,7 @@ jobs:
           set -Eeuo pipefail
           evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
           mkdir -p "${evidence_root}/pack"
+          node scripts/prepare-package.mjs
           pnpm --filter "${PACKAGE_NAME}" pack \
             --pack-destination "${evidence_root}/pack" --json \
             --config.ignore-scripts=true > "${evidence_root}/pack.json"

@@ -116,6 +116,8 @@ catalogs:
 overrides:
   brace-expansion: 5.0.9
 
+pnpmfileChecksum: sha256-QaZoGkoapTRcxbf3tl10MVvcbpsQhOtkG4+cTPNGWeg=
+
 importers:
 
   .:

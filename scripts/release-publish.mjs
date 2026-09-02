@@ -28,7 +28,7 @@ const allowedPrereleaseTag = "rc";
 const changesetMetadataFiles = new Set(["config.json", "pre.json"]);
 const workspacePackageGlobs = Object.freeze(["packages/*", "spikes/*"]);
 const releaseControlPaths = Object.freeze([
-  ".node-version", ".npmrc", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
+  ".node-version", ".npmrc", ".pnpmfile.cjs", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
 ]);
 const workspaceRoots = Object.freeze(workspacePackageGlobs.map((pattern) => pattern.slice(0, -2)));
 const registryTimeoutMilliseconds = 10_000;

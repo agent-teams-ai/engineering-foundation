@@ -123,8 +123,9 @@ function assertPackedManifest(profile, packedManifest) {
   const expectedDependencies = Object.fromEntries(
     profile.dependencies.map(({ name, version }) => [name, version]),
   );
-  const exactDependencies = isRecord(packedManifest.dependencies) &&
-    JSON.stringify(Object.fromEntries(Object.entries(packedManifest.dependencies).toSorted())) ===
+  const packedDependencies = packedManifest.dependencies ?? {};
+  const exactDependencies = isRecord(packedDependencies) &&
+    JSON.stringify(Object.fromEntries(Object.entries(packedDependencies).toSorted())) ===
       JSON.stringify(Object.fromEntries(Object.entries(expectedDependencies).toSorted()));
   const extraRuntimeSections = [
     "optionalDependencies", "peerDependencies", "bundleDependencies", "bundledDependencies",
@@ -151,6 +152,10 @@ export function validatePackEvidence({
   assertRequiredPackFiles(profile, files, tarEntries);
   try {
     assertArchiveSafety({
+      allowedArtifactPaths: [
+        ...profile.contentPolicy.exact,
+        ...profile.contentPolicy.prefixes,
+      ],
       archiveBytes,
       listing: `${tarEntries.join("\n")}\n`,
       requiredArtifactPaths: profile.contentPolicy.required,
@@ -179,15 +184,16 @@ function normalizedVersions(metadata) {
   return versions;
 }
 
-function assertBootstrapTags(profile, tags, { exact }) {
+function assertBootstrapTags(profile, tags) {
   if (!isRecord(tags)) {
     fail("registry dist-tags must be an object.");
   }
-  if (Object.entries(tags).some(([tag, version]) => !profile.tags.includes(tag) || version !== profile.bootstrapVersion)) {
+  if (Object.entries(tags).some(([tag, version]) =>
+    !profile.tags.allowed.includes(tag) || version !== profile.bootstrapVersion)) {
     fail("registry contains an unexpected bootstrap dist-tag.");
   }
-  if (exact && Object.keys(tags).toSorted().join("\0") !== profile.tags.toSorted().join("\0")) {
-    fail("registry bootstrap dist-tags are incomplete.");
+  if (profile.tags.required.some((tag) => tags[tag] !== profile.bootstrapVersion)) {
+    fail("registry required bootstrap dist-tags are incomplete.");
   }
 }
 
@@ -219,7 +225,7 @@ export function classifyRegistryPreflight({
   if (versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
     fail("existing package namespace is not the isolated bootstrap baseline.");
   }
-  assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: false });
+  assertBootstrapTags(profile, packageMetadata["dist-tags"]);
   if (publishedIntegrity !== localIntegrity) {
     fail("existing bootstrap version is not the reviewed tarball.");
   }
@@ -281,11 +287,29 @@ export function assertBootstrapMutationPreconditions({
   profile,
   publishedIntegrity,
 }) {
+  assertPublishedBootstrapArtifact({
+    auditEvidence,
+    expectedCommit,
+    localIntegrity,
+    packageMetadata,
+    profile,
+    publishedIntegrity,
+  });
+}
+
+export function assertPublishedBootstrapArtifact({
+  auditEvidence,
+  expectedCommit,
+  localIntegrity,
+  packageMetadata,
+  profile,
+  publishedIntegrity,
+}) {
   const versions = normalizedVersions(packageMetadata);
-  if (versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
+  if (versions === null || versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
     fail("registry does not contain exactly the bootstrap version.");
   }
-  assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: true });
+  assertBootstrapTags(profile, packageMetadata["dist-tags"]);
   if (localIntegrity !== profile.approval.archiveIntegrity || publishedIntegrity !== localIntegrity) {
     fail("published bootstrap integrity differs from the reviewed tarball.");
   }
@@ -300,7 +324,7 @@ export function assertReusableBootstrap({
   profile,
   publishedIntegrity,
 }) {
-  assertBootstrapMutationPreconditions({
+  assertPublishedBootstrapArtifact({
     auditEvidence,
     expectedCommit,
     localIntegrity,
@@ -320,7 +344,7 @@ export function assertBootstrapQuarantineCandidate({
   if (versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
     fail("quarantine target is not the isolated bootstrap version.");
   }
-  assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: true });
+  assertBootstrapTags(profile, packageMetadata["dist-tags"]);
   if (localIntegrity !== profile.approval.archiveIntegrity || publishedIntegrity !== localIntegrity) {
     fail("quarantine target differs from the exact reviewed tarball.");
   }

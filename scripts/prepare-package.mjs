@@ -1,6 +1,6 @@
 import { access, copyFile, readdir, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 
@@ -43,14 +43,20 @@ async function pruneStaleDistribution(root, sourceRoot, distributionRoot) {
   }
 }
 
-for (const releasePackage of PUBLISHABLE_PACKAGES) {
-  const packageRoot = join(repositoryRoot, releasePackage.root);
-  const sourceRoot = join(packageRoot, "src");
-  const distributionRoot = join(packageRoot, "dist");
-  if (await exists(distributionRoot)) {
-    await pruneStaleDistribution(distributionRoot, sourceRoot, distributionRoot);
+export async function preparePackages() {
+  for (const releasePackage of PUBLISHABLE_PACKAGES) {
+    const packageRoot = join(repositoryRoot, releasePackage.root);
+    const sourceRoot = join(packageRoot, "src");
+    const distributionRoot = join(packageRoot, "dist");
+    if (await exists(distributionRoot)) {
+      await pruneStaleDistribution(distributionRoot, sourceRoot, distributionRoot);
+    }
+    if (await exists(packageRoot)) {
+      await copyFile(join(repositoryRoot, "LICENSE"), join(packageRoot, "LICENSE"));
+    }
   }
-  if (await exists(packageRoot)) {
-    await copyFile(join(repositoryRoot, "LICENSE"), join(packageRoot, "LICENSE"));
-  }
+}
+
+if (process.argv[1] !== undefined && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  await preparePackages();
 }

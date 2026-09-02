@@ -29,6 +29,7 @@ const CONTENT_POLICY_KEYS = ["exact", "prefixes", "required"];
 const DEPENDENCY_KEYS = ["name", "specifier", "version"];
 const PROVENANCE_KEYS = ["ref", "workflowPath"];
 const APPROVAL_KEYS = ["archiveIntegrity", "packageTree"];
+const TAG_POLICY_KEYS = ["allowed", "required"];
 
 export function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -123,6 +124,21 @@ function parseApproval(value, state, label) {
   });
 }
 
+function parseTagPolicy(value, label) {
+  exactKeys(value, TAG_POLICY_KEYS, label);
+  for (const key of TAG_POLICY_KEYS) {
+    exactStringArray(value[key], `${label}.${key}`);
+  }
+  if (value.required.toSorted().join("\0") !== "bootstrap" ||
+      value.allowed.toSorted().join("\0") !== "bootstrap\0latest") {
+    fail(`${label} must require bootstrap and allow only bootstrap and latest.`);
+  }
+  return Object.freeze({
+    allowed: Object.freeze([...value.allowed]),
+    required: Object.freeze([...value.required]),
+  });
+}
+
 function parsePackage(value, index) {
   const label = `packages[${index}]`;
   exactKeys(value, PACKAGE_KEYS, label);
@@ -139,10 +155,6 @@ function parsePackage(value, index) {
   }
   if (typeof value.deprecationMessage !== "string" || value.deprecationMessage.length < 20 || value.deprecationMessage.includes("\n")) {
     fail(`${label}.deprecationMessage must be one bounded human-readable line.`);
-  }
-  exactStringArray(value.tags, `${label}.tags`);
-  if (value.tags.toSorted().join("\0") !== "bootstrap\0latest") {
-    fail(`${label}.tags must be exactly bootstrap and latest.`);
   }
   exactKeys(value.provenance, PROVENANCE_KEYS, `${label}.provenance`);
   portablePath(value.provenance.workflowPath, `${label}.provenance.workflowPath`);
@@ -165,14 +177,14 @@ function parsePackage(value, index) {
     provenance: Object.freeze({ ...value.provenance }),
     root: value.root,
     state: value.state,
-    tags: Object.freeze([...value.tags]),
+    tags: parseTagPolicy(value.tags, `${label}.tags`),
   });
 }
 
 export function parseBootstrapCatalog(value) {
   exactKeys(value, CATALOG_KEYS, "catalog");
-  if (value.schemaVersion !== 1 || value.registry !== "https://registry.npmjs.org/") {
-    fail("catalog must use schema version 1 and the canonical public npm registry.");
+  if (value.schemaVersion !== 2 || value.registry !== "https://registry.npmjs.org/") {
+    fail("catalog must use schema version 2 and the canonical public npm registry.");
   }
   if (value.repository !== "https://github.com/agent-teams-ai/engineering-foundation") {
     fail("catalog repository must be the canonical Engineering Foundation repository.");

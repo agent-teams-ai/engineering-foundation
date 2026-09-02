@@ -91,9 +91,9 @@ async function registryPreflight(args, observationOptions) {
   await output(args[2], { action });
 }
 
-function verifiedEvidence({ deprecationMatches, expectedCommit, localIntegrity, profile }) {
+function verifiedEvidence({ deprecationMatches, distTags, expectedCommit, localIntegrity, profile }) {
   const evidence = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     verified: true,
     package: {
       integrity: localIntegrity,
@@ -102,6 +102,7 @@ function verifiedEvidence({ deprecationMatches, expectedCommit, localIntegrity, 
     },
     live: {
       deprecationMatches,
+      distTags: Object.fromEntries(Object.keys(distTags).toSorted().map((tag) => [tag, distTags[tag]])),
     },
   };
   if (expectedCommit !== undefined) {
@@ -169,6 +170,7 @@ export async function prove(
   });
   const evidence = verifiedEvidence({
     deprecationMatches: live.deprecatedMessage === profile.deprecationMessage,
+    distTags: live.metadata["dist-tags"],
     expectedCommit: args[2],
     localIntegrity: args[1],
     profile,
@@ -212,6 +214,7 @@ export async function proveQuarantine(
   });
   const evidence = verifiedEvidence({
     deprecationMatches: live.deprecatedMessage === profile.deprecationMessage,
+    distTags: live.metadata["dist-tags"],
     localIntegrity: args[1],
     profile,
   });

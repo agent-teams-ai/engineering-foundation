@@ -1,8 +1,53 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "registry": "https://registry.npmjs.org/",
   "repository": "https://github.com/agent-teams-ai/engineering-foundation",
   "packages": [
+    {
+      "id": "repository-mutation",
+      "state": "approved",
+      "name": "@agent-teams/repository-mutation",
+      "root": "packages/repository-mutation",
+      "manifestPath": "packages/repository-mutation/package.json",
+      "bootstrapVersion": "0.0.0",
+      "dependencies": [],
+      "contentPolicy": {
+        "exact": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ],
+        "prefixes": [
+          "dist/",
+          "schemas/"
+        ],
+        "required": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ]
+      },
+      "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/repository-mutation release instead.",
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
+      "provenance": {
+        "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
+        "ref": "refs/heads/main"
+      },
+      "approval": {
+        "archiveIntegrity": "sha512-LpuMnEnzCfjEHpF3qYWAeZMXAvV906iAsHTAJOZ5FhfkBTFDdcZYeqNq8Yer2hvvVqIlhyxEeW22Okqzcehkrg==",
+        "packageTree": "7dbdcab2ae28962bac70eb0dd16009e48058de79"
+      }
+    },
     {
       "id": "docs-protocol",
       "state": "historical",
@@ -41,10 +86,15 @@
         ]
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol release candidate instead.",
-      "tags": [
-        "bootstrap",
-        "latest"
-      ],
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
       "provenance": {
         "workflowPath": ".github/workflows/docs-protocol-bootstrap.yml",
         "ref": "refs/heads/main"
@@ -55,8 +105,87 @@
       }
     },
     {
-      "id": "docs-protocol-mcp",
+      "id": "docs-protocol-agent-teams",
       "state": "approved",
+      "name": "@agent-teams/docs-protocol-agent-teams",
+      "root": "packages/docs-protocol-agent-teams",
+      "manifestPath": "packages/docs-protocol-agent-teams/package.json",
+      "bootstrapVersion": "0.0.0",
+      "dependencies": [
+        {
+          "name": "@agent-teams/docs-protocol",
+          "specifier": "workspace:*",
+          "version": "0.4.1"
+        },
+        {
+          "name": "@agent-teams/engineering-foundation",
+          "specifier": "workspace:*",
+          "version": "0.21.0"
+        },
+        {
+          "name": "@agent-teams/repository-mutation",
+          "specifier": "workspace:*",
+          "version": "0.0.0"
+        },
+        {
+          "name": "ajv",
+          "specifier": "catalog:",
+          "version": "8.20.0"
+        },
+        {
+          "name": "jsonc-parser",
+          "specifier": "catalog:",
+          "version": "3.3.1"
+        },
+        {
+          "name": "yaml",
+          "specifier": "catalog:",
+          "version": "2.9.0"
+        }
+      ],
+      "contentPolicy": {
+        "exact": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json",
+          "skills/docs/SKILL.md"
+        ],
+        "prefixes": [
+          "assets/",
+          "dist/",
+          "schemas/"
+        ],
+        "required": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json",
+          "skills/docs/SKILL.md"
+        ]
+      },
+      "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol-agent-teams release instead.",
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
+      "provenance": {
+        "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
+        "ref": "refs/heads/main"
+      },
+      "approval": {
+        "archiveIntegrity": "sha512-rRqTdNgRFrqc8a5tl+s3GA1NfkMa/UzufbaDJ0OKQFH1V3BBC4OS6T5hfoU4W5Wh+Is1vMsDOoRLyJ+Nthz9oQ==",
+        "packageTree": "8e9a779f45e40c6dfc5edce2a0192179a8f8bb3e"
+      }
+    },
+    {
+      "id": "docs-protocol-mcp",
+      "state": "historical",
       "name": "@agent-teams/docs-protocol-mcp",
       "root": "packages/docs-protocol-mcp",
       "manifestPath": "packages/docs-protocol-mcp/package.json",
@@ -91,10 +220,15 @@
         ]
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol-mcp release instead.",
-      "tags": [
-        "bootstrap",
-        "latest"
-      ],
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
       "provenance": {
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"

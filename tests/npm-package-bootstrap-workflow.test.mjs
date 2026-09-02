@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { createRequire } from "node:module";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -9,6 +10,20 @@ import { parse as parseYaml } from "yaml";
 import { reconcileGithubTagRelease } from "../scripts/github-release-reconciliation.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const pnpmHooks = createRequire(import.meta.url)("../.pnpmfile.cjs").hooks;
+
+test("pnpm packing canonicalizes publish-manifest key order", () => {
+  const input = {
+    version: "0.0.0",
+    name: "@fixture/package",
+    dependencies: { zeta: "1.0.0", alpha: "1.0.0", "@fixture/core": "1.0.0" },
+  };
+  const packed = pnpmHooks.beforePacking(input);
+
+  assert.deepEqual(Object.keys(packed), ["dependencies", "name", "version"]);
+  assert.deepEqual(Object.keys(packed.dependencies), ["@fixture/core", "alpha", "zeta"]);
+  assert.deepEqual(Object.keys(input.dependencies), ["zeta", "alpha", "@fixture/core"]);
+});
 
 async function workflow(name) {
   return parseYaml(await readFile(join(repositoryRoot, ".github", "workflows", name), "utf8"));
@@ -41,8 +56,11 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     join(repositoryRoot, "scripts", "pack-test-support.mjs"),
     "utf8",
   );
+  const ci = await workflow("ci.yml");
   const release = await workflow("release.yml");
+  const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
   const job = bootstrap.jobs.bootstrap;
+  const ciWriter = ci.jobs["linux-package"];
   const publish = job.steps.find(
     ({ name }) => name === "Publish, resume, or quarantine the exact bootstrap artifact",
   );
@@ -73,6 +91,15 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.deepEqual(bootstrap.permissions, { contents: "read" });
   assert.deepEqual(job.permissions, { contents: "read", "id-token": "write" });
   assert.equal(job.environment, "npm-package-bootstrap");
+  assert.equal(job["runs-on"], "ubuntu-24.04");
+  assert.equal(ciWriter["runs-on"], job["runs-on"]);
+  assert.equal(repositoryManifest.packageManager, "pnpm@11.20.0");
+  assert.equal(job.steps[1].uses, ciWriter.steps[1].uses);
+  assert.equal(job.steps[1].with.install, false);
+  assert.equal(job.steps[2].uses, ciWriter.steps[2].uses);
+  assert.equal(job.steps[2].with["node-version-file"], ".node-version");
+  assert.equal(ciWriter.steps[2].with["node-version-file"], job.steps[2].with["node-version-file"]);
+  assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);
   assert.match(job.if, /NPM_PACKAGE_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
   assert.equal(job.env.NPM_TOKEN, undefined);
   assert.equal(job.env.NODE_AUTH_TOKEN, undefined);
@@ -81,12 +108,12 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.match(publish.run, /test "\$\{NODE_AUTH_TOKEN\}" != ""/u);
   assert.match(publish.run, /npm_token="\$\{NODE_AUTH_TOKEN\}"\s+unset NODE_AUTH_TOKEN/u);
   assert.match(publish.run, /NODE_AUTH_TOKEN="\$\{npm_token\}"[\s\\]+npm publish/u);
+  assert.doesNotMatch(publish.run, /npm dist-tag/u);
   assert.match(publish.run, /NODE_AUTH_TOKEN="\$\{npm_token\}"[\s\\]+npm deprecate/u);
   assert.match(publish.run, /git ls-remote --exit-code origin refs\/heads\/main/u);
   assert.match(publish.run, /assert_token_window/u);
   assert.match(publish.run, /quarantine-final-proof/u);
   assert.match(publish.run, /npm publish "\$\{ARCHIVE_PATH\}" --tag bootstrap --provenance --ignore-scripts/u);
-  assert.doesNotMatch(publish.run, /npm dist-tag/u);
   assert.match(publish.run, /mutation-proof/u);
   assert.match(publish.run, /npm deprecate "\$\{PACKAGE_TAG\}"/u);
   const quarantineBranch = publish.run.slice(
@@ -107,8 +134,8 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     "assert_token_window", "npm publish",
   ]);
   assertOrdered(postPublishBranch, [
-    "mutation-proof", "assert_fresh_main_bounded", "quarantine-final-proof", "assert_fresh_main",
-    "assert_token_window", "npm deprecate",
+    "mutation-proof", "assert_fresh_main_bounded", "quarantine-final-proof",
+    "assert_fresh_main", "assert_token_window", "npm deprecate",
   ]);
   assert.match(cliSource, /"registry-final-preflight": \(args\) => registryPreflight\(args, \{ attempts: 1 \}\)/u);
   assert.match(cliSource, /"quarantine-final-proof"[\s\S]*?\{ attempts: 1 \}/u);
@@ -155,6 +182,17 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     release.jobs.release.steps.find(({ name }) => name === "Guard public package bootstrap baselines").run,
     "node scripts/npm-package-bootstrap-cli.mjs check-release",
   );
+  assert.ok(
+    ci.jobs["linux-package"].steps.some(
+      ({ run }) => run === "node scripts/npm-package-bootstrap-local-evidence.mjs",
+    ),
+  );
+  const localEvidenceSource = await readFile(
+    join(repositoryRoot, "scripts", "npm-package-bootstrap-local-evidence.mjs"),
+    "utf8",
+  );
+  assert.match(localEvidenceSource, /import \{ preparePackages \} from "\.\/prepare-package\.mjs";/u);
+  assert.match(localEvidenceSource, /await preparePackages\(\);/u);
 });
 
 test("shared reconciliation resolves annotated tags and re-reads final exact state", async () => {

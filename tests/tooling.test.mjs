@@ -376,11 +376,16 @@ test("clean removes incremental state and permits a full rebuild", async () => {
 
     const fixturePackages = [
       ["repository-mutation", "@agent-teams/repository-mutation", {}],
+      ["document-authoring", "@agent-teams/document-authoring", {
+        "@agent-teams/repository-mutation": "workspace:*",
+      }],
       ["engineering-foundation", "@agent-teams/engineering-foundation", {
+        "@agent-teams/document-authoring": "workspace:*",
         "@agent-teams/repository-mutation": "workspace:*",
       }],
       ["docs-protocol", "@agent-teams/docs-protocol", {
-        "@agent-teams/engineering-foundation": "workspace:*",
+        "@agent-teams/document-authoring": "workspace:*",
+        "@agent-teams/repository-mutation": "workspace:*",
       }],
       ["docs-protocol-mcp", "@agent-teams/docs-protocol-mcp", {
         "@agent-teams/docs-protocol": "workspace:*",

@@ -338,6 +338,51 @@ test("historical candidate pathname replacement is preserved", async () => {
   });
 });
 
+test("create never links a same-inode mutated temporary", async () => {
+  await withStore(async ({ journal, path, root }) => {
+    const candidate = `${path}.tmp`;
+    const foreign = "mutated journal temporary\n";
+    const store = new NodeScaffoldJournalStore(root, {
+      faultInjector: async (point) => {
+        if (point.phase === "after-candidate-synced") {
+          await writeFile(candidate, foreign, "utf8");
+        }
+      }
+    });
+
+    await assert.rejects(
+      store.create(journal),
+      /temporary identity or bytes changed/u
+    );
+    await assert.rejects(stat(path), { code: "ENOENT" });
+    assert.equal(await readFile(candidate, "utf8"), foreign);
+  });
+});
+
+test("terminal retirement rejects a pre-existing link during removal", async () => {
+  await withStore(async ({ journal, root, state }) => {
+    const store = new NodeScaffoldJournalStore(root);
+    const initial = await store.create(journal);
+    const terminalRoot = join(state, "scaffolding-transaction.json.completed-scaffold-evidence");
+    const outside = await mkdtemp(join(tmpdir(), "scaffold-journal-remove-outside-"));
+    try {
+      await rm(terminalRoot, { force: true, recursive: true });
+      await symlink(
+        outside,
+        terminalRoot,
+        process.platform === "win32" ? "junction" : "dir"
+      );
+      await assert.rejects(
+        store.remove(initial),
+        /real operation-owned directory/u
+      );
+      assert.deepEqual(await readdir(outside), []);
+    } finally {
+      await rm(outside, { force: true, recursive: true });
+    }
+  });
+});
+
 test("candidate authority is re-proved immediately before canonical publication", async () => {
   await withStore(async ({ journal, path, root }) => {
     const candidate = `${path}.tmp`;

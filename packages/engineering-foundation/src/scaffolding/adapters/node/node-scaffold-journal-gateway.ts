@@ -1,8 +1,6 @@
 import type { AuthorityScaffoldJournal } from "../../contract/types.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import {
-  sameScaffoldJournalAuthority
-} from "./node-scaffold-journal-reconciliation.js";
+import { sameJournalSlotAuthority as sameScaffoldJournalAuthority } from "../../../transaction-coordination/adapters/node/node-journal-slot-profile.js";
 import {
   NodeScaffoldJournalStore,
   type ScaffoldJournalAuthority,

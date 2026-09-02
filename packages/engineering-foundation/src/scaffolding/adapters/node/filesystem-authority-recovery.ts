@@ -9,7 +9,7 @@ import { assertScaffoldRecoveryScopeMatchesPlan } from "../../kernel/recovery-sc
 import { LOCAL_STATE_DIRECTORY } from "../../../foundation-state-contract.js";
 import { releaseFoundationTransactionLeaseSafely } from "../../../transaction-coordination/application/release-foundation-transaction-lease.js";
 import { assertSafeOperationPaths } from "./filesystem-path-guard.js";
-import { SCAFFOLD_JOURNAL_FILE } from "./filesystem-journal.js";
+import { SCAFFOLD_JOURNAL_FILE } from "./node-scaffold-journal-evidence.js";
 import {
   acquireScaffoldingTransaction,
   continueAuthorityScaffoldJournal,

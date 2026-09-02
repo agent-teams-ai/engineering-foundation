@@ -405,10 +405,11 @@ test("current runbook isolates the one-time token bootstrap from ordinary OIDC r
     releaseDocs,
     /All ordinary Repository Mutation, Foundation, Docs Protocol, Agent Teams\s+adapter, and Docs Protocol MCP releases use npm Trusted Publishing/u,
   );
-  assert.match(releaseDocs, /sole exception is the reviewed one-time MCP\s+namespace bootstrap/u);
+  assert.match(releaseDocs, /sole exception is the reviewed one-time\s+namespace bootstrap in ADR-0044/u);
   assert.match(releaseDocs, /expires within 24 hours/u);
-  assert.match(releaseDocs, /revoke the token immediately/u);
-  assert.match(releaseDocs, /never creates or moves those tags explicitly/u);
+  assert.match(releaseDocs, /fresh token for each package/u);
+  assert.match(releaseDocs, /revoke its one-package token immediately/u);
+  assert.match(releaseDocs, /never creates,\s+removes, or moves either tag explicitly/u);
   assert.match(releaseDocs, /final required phase resolves the canonical public Docs Protocol coordinates/u);
   assert.match(releaseDocs, /exact\s+five-package dependency DAG/u);
   assert.match(releaseDocs, /missing dependency-closed set in\s+reviewed topological order/u);

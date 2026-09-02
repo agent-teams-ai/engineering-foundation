@@ -15,8 +15,12 @@ import { inspectDocumentTransactionV2 } from "../../composition/inspect-document
 function projected(
   inspection: Awaited<ReturnType<typeof inspectDocumentTransactionV2>>
 ): DocumentTransactionStatus {
-  if (inspection.state === "idle") return { state: "idle" };
-  if (inspection.state === "recoverable") return { state: "recoverable" };
+  if (inspection.state === "idle") {
+    return { state: "idle" };
+  }
+  if (inspection.state === "recoverable") {
+    return { state: "recoverable" };
+  }
   return { state: "manual-recovery-required", reason: inspection.reason };
 }
 
@@ -39,12 +43,16 @@ export class NodeDocumentTransactionCoordinator implements DocumentTransactionCo
       return {
         status,
         release: async (options) => {
-          if (!held) return;
+          if (!held) {
+            return;
+          }
           if (options?.retainTransactionBarrier === true) {
             retainMutationBarrier(lease);
           } else {
             try {
-              if ((await this.inspect()).state !== "idle") retainMutationBarrier(lease);
+              if ((await this.inspect()).state !== "idle") {
+                retainMutationBarrier(lease);
+              }
             } catch {
               retainMutationBarrier(lease);
             }

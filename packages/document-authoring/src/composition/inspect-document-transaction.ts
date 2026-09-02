@@ -48,12 +48,18 @@ async function hasForeignEvidence(stateDirectory: string): Promise<boolean> {
   try {
     for (;;) {
       const entry = await directory.read();
-      if (entry === null) return false;
+      if (entry === null) {
+        return false;
+      }
       count += 1;
-      if (count > maximumStateEntries) return true;
+      if (count > maximumStateEntries) {
+        return true;
+      }
       if (transitionNames.has(entry.name) ||
         entry.name.startsWith(`${FOUNDATION_TRANSACTION_FILE}.document-quarantine.`) ||
-        entry.name.startsWith(`${FOUNDATION_TRANSACTION_FILE}.document-retired.`)) return true;
+        entry.name.startsWith(`${FOUNDATION_TRANSACTION_FILE}.document-retired.`)) {
+        return true;
+      }
     }
   } finally {
     await directory.close();
@@ -65,7 +71,9 @@ async function inspectV2(consumerRoot: string): Promise<DocumentTransactionInspe
   const stateDirectory = join(root, LOCAL_STATE_DIRECTORY);
   try { await lstat(stateDirectory); }
   catch (error) {
-    if (missing(error)) return { schemaVersion: 2, state: "idle", diagnostics: [] };
+    if (missing(error)) {
+      return { schemaVersion: 2, state: "idle", diagnostics: [] };
+    }
     return unsafe("Document transaction evidence path cannot be inspected safely.");
   }
   try {
@@ -75,10 +83,12 @@ async function inspectV2(consumerRoot: string): Promise<DocumentTransactionInspe
     });
   } catch {
     try {
-      if (missing(await lstat(stateDirectory).then(() => undefined).catch((error: unknown) => error))) {
+      await lstat(stateDirectory);
+    } catch (error) {
+      if (missing(error)) {
         return { schemaVersion: 2, state: "idle", diagnostics: [] };
       }
-    } catch { /* projected below */ }
+    }
     return unsafe("Document transaction evidence path is redirected or cannot be inspected safely.");
   }
 
@@ -150,7 +160,9 @@ export async function inspectDocumentTransactionV1(
   consumerRoot: string
 ): Promise<DocumentTransactionInspectionV1> {
   const observed = await inspectV2(consumerRoot);
-  if (observed.state === "idle") return { schemaVersion: 1, state: "idle", diagnostics: [] };
+  if (observed.state === "idle") {
+    return { schemaVersion: 1, state: "idle", diagnostics: [] };
+  }
   if (observed.state === "recoverable" && observed.format === "document-authoring-envelope-v3") {
     return { ...observed, schemaVersion: 1, format: "document-authoring-envelope-v3" };
   }

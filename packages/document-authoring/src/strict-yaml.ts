@@ -18,8 +18,9 @@ export function parseStrictYamlSource(source: string, phase: string): unknown {
   }
   let forbidden: string | undefined;
   visit(document, (_key, node) => {
-    if (isAlias(node)) forbidden = "YAML aliases are prohibited.";
-    else if (isNode(node) && (node.anchor !== undefined || node.tag !== undefined)) {
+    if (isAlias(node)) {
+      forbidden = "YAML aliases are prohibited.";
+    } else if (isNode(node) && (node.anchor !== undefined || node.tag !== undefined)) {
       forbidden = "YAML anchors and explicit tags are prohibited.";
     } else if (isPair(node) && isNode(node.key) && "value" in node.key && node.key.value === "<<") {
       forbidden = "YAML merge keys are prohibited.";
@@ -28,6 +29,8 @@ export function parseStrictYamlSource(source: string, phase: string): unknown {
     }
     return forbidden === undefined ? undefined : visit.BREAK;
   });
-  if (forbidden !== undefined) invalid("YAML_FEATURE_PROHIBITED", forbidden, phase);
+  if (forbidden !== undefined) {
+    invalid("YAML_FEATURE_PROHIBITED", forbidden, phase);
+  }
   return document.toJS({ maxAliasCount: 0 }) as unknown;
 }

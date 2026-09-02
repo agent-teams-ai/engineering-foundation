@@ -48,9 +48,13 @@ function safeMessage(errors: readonly ErrorObject[] | null | undefined): string 
 
 async function register(id: DocumentAuthoringSchemaId): Promise<string> {
   const cached = loads.get(id);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) {
+    return cached;
+  }
   const loading = (async () => {
-    for (const dependency of dependencies[id] ?? []) await register(dependency);
+    for (const dependency of dependencies[id] ?? []) {
+      await register(dependency);
+    }
     const schema = JSON.parse(await readDocumentAuthoringSchema(id)) as {
       readonly $id?: unknown;
     };
@@ -73,7 +77,9 @@ export async function assertSchema(
   if (validate === undefined) {
     const key = await register(schemaId);
     validate = ajv.getSchema(key);
-    if (validate === undefined) throw new Error(`Document Authoring schema ${schemaId} is not registered.`);
+    if (validate === undefined) {
+      throw new Error(`Document Authoring schema ${schemaId} is not registered.`);
+    }
     validators.set(schemaId, validate);
   }
   if (!validate(input)) {

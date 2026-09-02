@@ -9,8 +9,11 @@ async function sourceFiles(directory) {
   const files = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...await sourceFiles(path));
-    else if (entry.isFile() && entry.name.endsWith(".ts")) files.push(path);
+    if (entry.isDirectory()) {
+      files.push(...await sourceFiles(path));
+    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
+      files.push(path);
+    }
   }
   return files;
 }
@@ -18,7 +21,7 @@ async function sourceFiles(directory) {
 test("physical package has the closed Repository Mutation edge", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert.deepEqual(
-    Object.keys(manifest.dependencies).filter((name) => name.startsWith("@agent-teams/")).sort(),
+    Object.keys(manifest.dependencies).filter((name) => name.startsWith("@agent-teams/")).toSorted(),
     ["@agent-teams/repository-mutation"]
   );
   assert.equal(manifest.exports["./document-authoring"], undefined);

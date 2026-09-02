@@ -7,6 +7,8 @@ import { join, win32 } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
+export { describeManagedProcessCleanupFailure } from "./windows-managed-process-diagnostics.js";
+
 export interface WindowsManagedProcessRequest {
   readonly command: string;
   readonly args: readonly string[];

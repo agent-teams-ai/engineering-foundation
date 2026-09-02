@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 
+import { describeManagedProcessCleanupFailure } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process-diagnostics.js";
 import {
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess as spawnWindowsManagedProcessWithoutEnvironment,
@@ -25,6 +26,42 @@ const TEST_TIMEOUT_MS = 90_000;
 const READY_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 10;
 const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
+
+test("reports bounded Windows cleanup diagnostics without exposing wrapper output", () => {
+  const timeout = new Error(
+    "Windows Job Object wrapper did not confirm containment within 30000 ms."
+  );
+  const diagnostic = describeManagedProcessCleanupFailure(
+    new AggregateError([new Error("outer cleanup failure"), timeout], "cleanup failed"),
+    [Buffer.from([
+      "private child output",
+      "Windows Job Object runner failed [phase=managed-run]: private failure detail"
+    ].join("\n"))],
+    true
+  );
+  assert.equal(
+    diagnostic,
+    "could not clean up its process tree after exit. [windows-containment=wrapper-confirmation-timeout;wrapper-phase=managed-run]"
+  );
+  assert.doesNotMatch(diagnostic, /private/u);
+});
+
+test("classifies allowlisted Windows confirmation read codes only", () => {
+  const busy = Object.assign(new Error("private control path"), { code: "EBUSY" });
+  assert.equal(
+    describeManagedProcessCleanupFailure(busy, [Buffer.from("arbitrary output")], true),
+    "could not clean up its process tree after exit. [windows-containment=confirmation-read-EBUSY;wrapper-phase=unreported]"
+  );
+  const privateCode = Object.assign(new Error("private failure"), { code: "SECRET" });
+  assert.equal(
+    describeManagedProcessCleanupFailure(privateCode, [Buffer.from("private output")], true),
+    "could not clean up its process tree after exit. [windows-containment=unknown;wrapper-phase=unreported]"
+  );
+  assert.equal(
+    describeManagedProcessCleanupFailure(privateCode, [Buffer.from("private output")], false),
+    "could not clean up its process tree after exit."
+  );
+});
 
 async function windowsControlRoots() {
   return new Set((await readdir(tmpdir(), { withFileTypes: true }))

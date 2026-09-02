@@ -33,7 +33,7 @@ import {
 } from "../scripts/npm-package-bootstrap-cli.mjs";
 import { main as releasePublishMain } from "../scripts/release-publish.mjs";
 
-const mcpProfile = bootstrapPackageById("docs-protocol-agent-teams", { approved: true });
+const mcpCandidateProfile = bootstrapPackageById("docs-protocol-agent-teams");
 const authoringProfile = bootstrapPackageById("document-authoring");
 const reviewedCommit = "a".repeat(40);
 
@@ -43,7 +43,7 @@ function integrity(bytes) {
 
 function approvedMcpCatalog(archiveBytes = Buffer.from("reviewed archive")) {
   const value = structuredClone(NPM_PACKAGE_BOOTSTRAP);
-  value.packages = [structuredClone(mcpProfile)];
+  value.packages = [structuredClone(mcpCandidateProfile)];
   value.packages[0].state = "approved";
   value.packages[0].approval = {
     archiveIntegrity: integrity(archiveBytes),
@@ -54,11 +54,13 @@ function approvedMcpCatalog(archiveBytes = Buffer.from("reviewed archive")) {
 
 function candidateMcpCatalog() {
   const value = structuredClone(NPM_PACKAGE_BOOTSTRAP);
-  value.packages = [structuredClone(mcpProfile)];
+  value.packages = [structuredClone(mcpCandidateProfile)];
   value.packages[0].state = "candidate";
   value.packages[0].approval = null;
   return parseBootstrapCatalog(value);
 }
+
+const mcpProfile = approvedMcpCatalog().packages[0];
 
 function auditEvidence(profile, commit = reviewedCommit) {
   const statement = {
@@ -141,7 +143,7 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
       { id: "repository-mutation", state: "approved" },
       { id: "document-authoring", state: "candidate" },
       { id: "docs-protocol", state: "historical" },
-      { id: "docs-protocol-agent-teams", state: "approved" }, { id: "docs-protocol-mcp", state: "historical" },
+      { id: "docs-protocol-agent-teams", state: "candidate" }, { id: "docs-protocol-mcp", state: "historical" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
@@ -151,12 +153,15 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
     () => bootstrapPackageById("document-authoring", { approved: true }),
     /bootstrap is not approved/u,
   );
-  assert.notEqual(mcpProfile.approval, null);
+  assert.equal(mcpCandidateProfile.approval, null);
   assert.throws(
     () => bootstrapPackageById("unknown", { approved: true }),
     /closed bootstrap catalog/u,
   );
-  assert.equal(bootstrapPackageById("docs-protocol-agent-teams", { approved: true }), mcpProfile);
+  assert.throws(
+    () => bootstrapPackageById("docs-protocol-agent-teams", { approved: true }),
+    /bootstrap is not approved/u,
+  );
   assert.throws(() => bootstrapPackageById("docs-protocol-mcp", { approved: true }), /not approved/u);
   assert.deepEqual(mcpProfile.tags, {
     allowed: ["bootstrap", "latest"],

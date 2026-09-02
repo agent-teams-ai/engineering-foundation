@@ -199,7 +199,7 @@
     },
     {
       "id": "docs-protocol-agent-teams",
-      "state": "approved",
+      "state": "candidate",
       "name": "@agent-teams/docs-protocol-agent-teams",
       "root": "packages/docs-protocol-agent-teams",
       "manifestPath": "packages/docs-protocol-agent-teams/package.json",
@@ -209,11 +209,6 @@
           "name": "@agent-teams/docs-protocol",
           "specifier": "workspace:*",
           "version": "0.4.1"
-        },
-        {
-          "name": "@agent-teams/engineering-foundation",
-          "specifier": "workspace:*",
-          "version": "0.21.0"
         },
         {
           "name": "@agent-teams/repository-mutation",
@@ -271,10 +266,7 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": {
-        "archiveIntegrity": "sha512-rRqTdNgRFrqc8a5tl+s3GA1NfkMa/UzufbaDJ0OKQFH1V3BBC4OS6T5hfoU4W5Wh+Is1vMsDOoRLyJ+Nthz9oQ==",
-        "packageTree": "8e9a779f45e40c6dfc5edce2a0192179a8f8bb3e"
-      }
+      "approval": null
     },
     {
       "id": "docs-protocol-mcp",

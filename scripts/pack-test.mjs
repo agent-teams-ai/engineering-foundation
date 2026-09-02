@@ -266,6 +266,7 @@ async function verifyPackedDocsConsumerIntegration(input) {
     private: true,
     packageManager: packageManagerVersion(),
     devDependencies: {
+      "@agent-teams/document-authoring": input.authoring.archiveFileSpecifier,
       "@agent-teams/docs-protocol-agent-teams": input.adapter.archiveFileSpecifier,
       "@agent-teams/docs-protocol": input.docs.archiveFileSpecifier,
       "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier,
@@ -274,6 +275,7 @@ async function verifyPackedDocsConsumerIntegration(input) {
   };
   await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify(installedManifest, null, 2)}\n`);
   const localArtifactOverrides = {
+    "@agent-teams/document-authoring": input.authoring.archiveFileSpecifier,
     "@agent-teams/docs-protocol": input.docs.archiveFileSpecifier,
     "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier,
     "@agent-teams/repository-mutation": input.mutation.archiveFileSpecifier
@@ -425,6 +427,7 @@ try {
   const artifacts = await packPublishableArtifacts({ temporaryRoot });
   const artifact = artifacts["@agent-teams/engineering-foundation"];
   const mutationArtifact = artifacts["@agent-teams/repository-mutation"];
+  const documentAuthoringArtifact = artifacts["@agent-teams/document-authoring"];
   const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
   const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
   const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
@@ -436,6 +439,7 @@ try {
   );
   await verifyPackedDocsConsumerIntegration({
     adapter: rollbackFixtureArtifact,
+    authoring: documentAuthoringArtifact,
     docs: docsProtocolArtifact,
     foundation: artifact,
     mutation: mutationArtifact

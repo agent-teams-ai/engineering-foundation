@@ -414,7 +414,7 @@ test("current runbook isolates the one-time token bootstrap from ordinary OIDC r
   const releaseDocs = await readFile(new URL("../docs/release.md", import.meta.url), "utf8");
   assert.match(
     releaseDocs,
-    /All ordinary Repository Mutation, Foundation, Docs Protocol, Agent Teams\s+adapter, and Docs Protocol MCP releases use npm Trusted Publishing/u,
+    /All ordinary releases of packages in the reviewed public-package catalog use\s+npm Trusted Publishing/u,
   );
   assert.match(releaseDocs, /sole exception is the reviewed one-time\s+namespace bootstrap in ADR-0044/u);
   assert.match(releaseDocs, /expires within 24 hours/u);
@@ -422,7 +422,9 @@ test("current runbook isolates the one-time token bootstrap from ordinary OIDC r
   assert.match(releaseDocs, /revoke its one-package token immediately/u);
   assert.match(releaseDocs, /never creates,\s+removes, or moves either tag explicitly/u);
   assert.match(releaseDocs, /final required phase resolves the canonical public Docs Protocol coordinates/u);
-  assert.match(releaseDocs, /exact\s+five-package dependency DAG/u);
+  assert.match(releaseDocs, /derives the\s+publication order by topologically sorting the exact internal dependencies/u);
+  assert.match(releaseDocs, /closed\s+six-package DAG owned solely by/u);
+  assert.doesNotMatch(releaseDocs, /five-package dependency DAG/u);
   assert.match(releaseDocs, /missing dependency-closed set in\s+reviewed topological order/u);
   assert.match(releaseDocs, /published package whose required\s+upstream dependency is missing is quarantined/u);
   assert.doesNotMatch(releaseDocs, /long-lived npm credentials|npm login|NPM_TOKEN/iu);

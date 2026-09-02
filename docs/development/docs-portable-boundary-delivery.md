@@ -36,16 +36,14 @@ qualification, registry-install exercise, new-only negative assertions, and
 bootstrap candidate are now integrated. They become release evidence only when
 the final physical package graph passes all required gates at one exact head.
 
-`@agent-teams/document-authoring@0.0.0` remains a bootstrap `candidate` with a
-null approval. After the core package exists at the integrated exact head,
-prepare the packages, pack that exact package with lifecycle scripts disabled,
-retain the JSON pack report and verbose/ordinary tar listings, and read
-`git rev-parse HEAD:packages/document-authoring`. Review the resulting archive's
-canonical SHA-512 SRI and exact package tree, then—and only in the separately
-reviewed approval change—set the catalog entry to `approved` and bind those two
-observed values. Run `node scripts/npm-package-bootstrap-local-evidence.mjs`
-after that binding. This is the required integration step; this lane does not
-invent either evidence value.
+`@agent-teams/document-authoring@0.0.0` is an approved bootstrap-only candidate
+with reviewed package-tree and canonical SHA-512 SRI evidence in the bootstrap
+catalog. That approval authorizes only the protected one-time namespace
+bootstrap; it is neither registry evidence nor a supported release. Before a
+dispatch, the exact protected-main head must reproduce the catalog evidence with
+`node scripts/npm-package-bootstrap-local-evidence.mjs`. Publication must then
+prove the immutable registry bytes, signature, source-bound provenance, tags,
+and deprecation before the ordinary release can consume the namespace baseline.
 
 ## Delivery checklist
 

@@ -5,7 +5,7 @@
   "packages": [
     {
       "id": "repository-mutation",
-      "state": "approved",
+      "state": "candidate",
       "name": "@agent-teams/repository-mutation",
       "root": "packages/repository-mutation",
       "manifestPath": "packages/repository-mutation/package.json",
@@ -43,14 +43,11 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": {
-        "archiveIntegrity": "sha512-lecUDOrZDORwWvGMavGFkcgrgUvGrNr/dyB2Cz3AlGWRJ9TmQ5su0gehRJbcAo7pzB3sqrkaYORiL8+GKYMHvQ==",
-        "packageTree": "7dbdcab2ae28962bac70eb0dd16009e48058de79"
-      }
+      "approval": null
     },
     {
       "id": "document-authoring",
-      "state": "approved",
+      "state": "candidate",
       "name": "@agent-teams/document-authoring",
       "root": "packages/document-authoring",
       "manifestPath": "packages/document-authoring/package.json",
@@ -144,10 +141,7 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": {
-        "archiveIntegrity": "sha512-eEfwesQlUmXHU1itd6lEHeAV/6An5tK/WOcNYRxiM2UqmAUmh4fiemoJeJle8QWQtD1tb8xLeAZ+4txxyhJiog==",
-        "packageTree": "42339f5e13c02965aaaeaa29cff62aac971d48eb"
-      }
+      "approval": null
     },
     {
       "id": "docs-protocol",

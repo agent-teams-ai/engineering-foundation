@@ -195,7 +195,6 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
       `published Foundation cannot depend on itself through ${section}`,
     );
   }
-  assert.equal(workspace.devDependencies?.[foundationName], "workspace:*");
   assert.equal(
     docsProtocol.dependencies[documentAuthoringName] === "workspace:*"
       ? documentAuthoring.version

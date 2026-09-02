@@ -51,3 +51,24 @@ export type {
 export { assertTemporaryPathsAbsent, classifyExactFilePostimage, publishAbsentFile } from "./repository-mutation/adapters/node/node-absent-file-publication.js";
 export type { AbsentFilePublicationOptions } from "./repository-mutation/adapters/node/node-absent-file-publication.js";
 export { ensureMutationStateDirectory, pruneMutationStateDirectory, syncMutationStateDirectory, syncMutationStateDirectoryStrictly } from "./transaction-coordination/adapters/node/node-state-directory.js";
+export { NodeJournalSlotStore } from "./transaction-coordination/adapters/node/node-journal-slot-store.js";
+export { sameJournalSlotAuthority } from "./transaction-coordination/adapters/node/node-journal-slot-profile.js";
+export type {
+  JournalSlotAuthority,
+  JournalSlotCodec,
+  JournalSlotEvidence,
+  JournalSlotFailure,
+  JournalSlotFailureContext,
+  JournalSlotFailureFactory,
+  JournalSlotFaultInjector,
+  JournalSlotFaultPoint,
+  JournalSlotMutation,
+  JournalSlotNaming,
+  JournalSlotObservation,
+  JournalSlotProfile,
+  JournalSlotResidueMatcher,
+  JournalSlotSubject,
+  JournalSlotSyncRole,
+  JournalSlotSyncStage,
+  StoredJournalSlot
+} from "./transaction-coordination/adapters/node/node-journal-slot-profile.js";

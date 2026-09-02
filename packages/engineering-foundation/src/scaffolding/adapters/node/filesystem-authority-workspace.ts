@@ -38,7 +38,7 @@ import {
 } from "./filesystem-authority.js";
 import {
   SCAFFOLD_JOURNAL_FILE
-} from "./filesystem-journal.js";
+} from "./node-scaffold-journal-evidence.js";
 import {
   createScaffoldJournalReconciled,
   readScaffoldJournal,

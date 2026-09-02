@@ -3,8 +3,8 @@ import { dirname } from "node:path";
 
 import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../../foundation-state-contract.js";
 
-import { SCAFFOLD_JOURNAL_QUARANTINE_PREFIX } from "./filesystem-journal.js";
 import {
+  SCAFFOLD_JOURNAL_QUARANTINE_PREFIX,
   scaffoldQuarantinePrefix,
   scaffoldRetiredPrefix
 } from "./node-scaffold-journal-evidence.js";

@@ -693,6 +693,71 @@ requiresStrictDirectoryDurability("an interrupted removal leaves a quarantine ba
   });
 });
 
+requiresStrictDirectoryDurability("create never links a same-inode mutated candidate", async () => {
+  await withFixture(async ({ path, state }) => {
+    const candidate = join(state, "scaffolding-transaction.json.document-transition");
+    const foreign = "mutated candidate bytes\n";
+    const store = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (point.phase === "after-candidate-synced") {
+          await writeFile(candidate, foreign);
+        }
+      }
+    });
+
+    await assert.rejects(
+      store.create(await envelope()),
+      /transition candidate identity or canonical bytes changed concurrently/u
+    );
+
+    await assert.rejects(lstat(path), { code: "ENOENT" });
+    assert.equal(await readFile(candidate, "utf8"), foreign);
+  });
+});
+
+requiresStrictDirectoryDurability("remove never reports success after canonical recreation", async () => {
+  await withFixture(async ({ path, store }) => {
+    const authority = await store.create(await envelope());
+    const foreign = "foreign canonical recreation\n";
+    const attacked = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (
+          point.phase === "before-logical-retirement" &&
+          point.evidence === "quarantine"
+        ) {
+          await writeFile(path, foreign, { flag: "wx", mode: 0o600 });
+        }
+      }
+    });
+
+    await assert.rejects(attacked.remove(authority), /recreated concurrently/u);
+    assert.equal(await readFile(path, "utf8"), foreign);
+  });
+});
+
+requiresStrictDirectoryDurability("terminal retirement rejects a pre-existing link during removal", async () => {
+  await withFixture(async ({ path, store }) => {
+    const authority = await store.create(await envelope());
+    const terminalRoot = `${path}.completed-document-evidence`;
+    const outside = await mkdtemp(join(tmpdir(), "document-journal-remove-outside-"));
+    try {
+      await rm(terminalRoot, { force: true, recursive: true });
+      await symlink(
+        outside,
+        terminalRoot,
+        process.platform === "win32" ? "junction" : "dir"
+      );
+      await assert.rejects(
+        store.remove(authority),
+        /real operation-owned directory/u
+      );
+      assert.deepEqual(await readdir(outside), []);
+    } finally {
+      await rm(outside, { force: true, recursive: true });
+    }
+  });
+});
+
 requiresStrictDirectoryDurability("rejects non-canonical slots, invalid identities, and non-regular journals", async () => {
   await withFixture(async ({ path, store }) => {
     assert.throws(

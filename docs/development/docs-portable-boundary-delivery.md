@@ -36,14 +36,12 @@ qualification, registry-install exercise, new-only negative assertions, and
 bootstrap candidate are now integrated. They become release evidence only when
 the final physical package graph passes all required gates at one exact head.
 
-`@agent-teams/document-authoring@0.0.0` is an approved bootstrap-only candidate
-with reviewed package-tree and canonical SHA-512 SRI evidence in the bootstrap
-catalog. That approval authorizes only the protected one-time namespace
-bootstrap; it is neither registry evidence nor a supported release. Before a
-dispatch, the exact protected-main head must reproduce the catalog evidence with
-`node scripts/npm-package-bootstrap-local-evidence.mjs`. Publication must then
-prove the immutable registry bytes, signature, source-bound provenance, tags,
-and deprecation before the ordinary release can consume the namespace baseline.
+`@agent-teams/document-authoring@0.0.0` and
+`@agent-teams/repository-mutation@0.0.0` are candidate bootstrap artifacts after
+the shared journal kernel merge. Their previous package-tree/SRI approvals were
+invalidated because the package bytes changed; the catalog is intentionally
+fail-closed until protected bootstrap re-qualifies both exact artifacts. They
+are neither registry evidence nor supported releases.
 
 ## Delivery checklist
 

@@ -292,6 +292,24 @@ async function verifyPackedDocsConsumerIntegration(input) {
     ["install", "--offline", "--frozen-lockfile", "--ignore-scripts"],
     consumerRoot
   );
+  const authoringProbe = [
+    "const module = await import('@agent-teams/document-authoring');",
+    "if (typeof module.buildDocumentationCatalog !== 'function') process.exit(2);",
+    "process.stdout.write(import.meta.resolve('@agent-teams/document-authoring'));"
+  ].join("\n");
+  const { stdout: authoringResolution } = await runCommand(
+    process.execPath,
+    ["--input-type=module", "--eval", authoringProbe],
+    consumerRoot
+  );
+  const resolvedAuthoring = new URL(authoringResolution.trim());
+  if (
+    resolvedAuthoring.protocol !== "file:" ||
+    !resolvedAuthoring.pathname.includes("/node_modules/@agent-teams/document-authoring/dist/index.js") ||
+    resolvedAuthoring.pathname.includes("/.worktrees/")
+  ) {
+    throw new Error("Packed document-authoring export resolved outside the installed package.");
+  }
 
   let cohort = input.adapter.sourceB;
   const desired = {
@@ -449,7 +467,6 @@ try {
     archiveFileSpecifier: artifact.archiveFileSpecifier,
     consumerRoot: join(temporaryRoot, "consumer"),
     documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
-    documentAuthoringVersion: documentAuthoringArtifact.packageVersion,
     mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
     packageManager: packageManagerVersion(),
     runPnpm,

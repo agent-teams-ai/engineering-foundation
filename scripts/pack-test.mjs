@@ -322,7 +322,16 @@ async function verifyPackedDocsConsumerIntegration(input) {
   );
   const found = parseDocsExecution((await runCommand(
     process.execPath,
-    [docsCli, "find", "hermetic search marker", "--consumer", consumerRoot, "--json"],
+    [
+      docsCli,
+      "find",
+      "hermetic search marker",
+      "--consumer",
+      consumerRoot,
+      "--profile",
+      "architecture/foundation/document-authoring.yaml",
+      "--json"
+    ],
     consumerRoot
   )).stdout);
   if (

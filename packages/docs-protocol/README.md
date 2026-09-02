@@ -26,11 +26,11 @@ executes them.
 ## Portable quick start
 
 Use the [canonical community workflow](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/open-source-docs-protocol.md#install-one-exact-version)
-to prove and install the exact qualified coordinate. It is the single authority
+to prove and install the exact artifact-qualified coordinate. It is the single authority
 for versions, registry pinning, package-manager support, and optional MCP pairing.
 
 Portable bootstrap apply and recovery are initially POSIX-only. Windows is
-qualified for read-only CLI and MCP use of authority initialized on a supported
+capability-qualified for read-only CLI and MCP use of authority initialized on a supported
 POSIX host, committed, and then cloned; local Windows bootstrap mutation is not
 yet a support claim.
 
@@ -134,7 +134,7 @@ explicit reachability, check, doctor, and recovery end to end. It rejects fixtur
 symlinks, verifies that the source tree did not change, and removes only the
 temporary directory it created.
 
-Managed qualification is intentionally outside this package. Agent Teams users
+Managed cohort qualification is intentionally outside this package. Agent Teams users
 install `@agent-teams/docs-protocol-agent-teams` and use its distinct
 `agent-teams-docs-managed` executable; the portable core neither discovers nor
 imports that adapter.

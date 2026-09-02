@@ -6,6 +6,10 @@ The additional documentation and contract capabilities, hardened source graph,
 portable repository agent workflow, and closed scaffolding protocol are also
 implemented in the current published package.
 
+Terminology follows the [Foundation glossary](../reference/glossary.md).
+Capability qualification, artifact qualification, consumer activation, and
+release are separate claims throughout this document.
+
 ADR-0001 accepts this model. Version 0.2 replaces `foundation.config.mjs` with
 strict `foundation.config.yaml` and implements the first capability. The source
 dependency capability is implemented and dogfooded behind internal ports.
@@ -13,9 +17,10 @@ ADR-0002 accepts its Oxc adapter after cross-platform conformance evidence.
 ADR-0003 through ADR-0009 accept the governance, source-graph,
 documentation, contract-evolution, and workflow-security capabilities.
 ADR-0016 supersedes ADR-0015 and hardens contract evolution with a reusable
-pinned Buf `FILE` qualification producer and versioned evidence envelope.
+pinned Buf `FILE` capability-qualification producer and versioned evidence
+envelope.
 Package installation never activates them: the consumer declares each applicable
-capability and supplies its own policy and qualification evidence.
+capability and supplies its own policy and capability-qualification evidence.
 
 ## Capability lifecycle status
 
@@ -39,7 +44,7 @@ These terms describe different facts and must not be used interchangeably:
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
 | `documentation.local-references` | Yes | Yes | Yes | Only by explicit declaration |
 | `governance.architecture-decisions` | Yes | Yes | Yes | Only by explicit declaration and baseline promotion |
-| `contract.protobuf-evolution` | Yes | Yes | No contract owned here | Only by explicit declaration and qualification evidence |
+| `contract.protobuf-evolution` | Yes | Yes | No contract owned here | Only by explicit declaration and capability-qualification evidence |
 | `contract.json-schema-releases` | Yes | Yes | No contract owned here | Only by explicit declaration and consumer evidence |
 | `repository.agent-workflow` | Yes | Yes | Yes | Only by explicit declaration |
 | `quality.gate-runner` | Yes | Yes, since 0.17.0 | Yes, after build | Only by explicit declaration |
@@ -198,7 +203,8 @@ consumer checks. They cannot be added to either dependency capability.
   Changeset classification, and breaking-change approval;
 - `repository.security-baseline` owns workflow least privilege, immutable action
   references, dependency/SBOM gates, and static publishable-package metadata for
-  repositories that publish packages. Real tarball qualification is a separate
+  repositories that publish packages. Real tarball artifact qualification is a
+  separate
   consumer publication gate.
 
 Each remains an independent feature slice with its own model, ports, policies,
@@ -206,7 +212,7 @@ adapters, schema, rules, and fixtures.
 
 The repository also has one generic public-package authority gate. It discovers
 public workspace manifests and compares that set with the existing public API,
-publishable-package and registry-qualification authorities. It derives all
+publishable-package and registry artifact-qualification authorities. It derives all
 three projections from their owners, so it neither duplicates a package list
 nor creates another release graph.
 
@@ -243,7 +249,8 @@ XState dependency, and owns no XState runtime or domain semantics. It makes no
 claim that a bound gate passed. Domain facts, evaluators, properties, mutation
 setup, state models, and execution evidence remain consumer-owned. Supporting a
 different state-model formalism requires a versioned contract extension with
-its own qualified evidence profile; v1 does not pretend that its XState-shaped
+its own capability-qualification evidence profile; v1 does not pretend that its
+XState-shaped
 profile is generic. See the
 [reference contract](../reference/executable-specifications.md).
 
@@ -267,10 +274,11 @@ foundation concern and requires explicit product-owner approval.
   local-only references, positive and negative fixtures, immutable release
   digests, and supported-consumer evidence.
 
-Normal checks never start Buf, a shell, or a network request. Qualification tools
+Normal checks never start Buf, a shell, or a network request.
+Capability-qualification tools
 run in explicit pinned CI boundaries and produce evidence consumed by the pure
 capability. The capability proves evidence consistency, while the consumer's
-protected qualification workflow owns evidence provenance. Breaking Protobuf
+protected capability-qualification workflow owns evidence provenance. Breaking Protobuf
 evidence must bind its exact fingerprint to an ADR in the immutable accepted
 decision baseline.
 

@@ -61,7 +61,7 @@ retain-only and the protocol does not claim a hostile-writer sandbox.
 | Unknown or newer journal | Preserve exact evidence and block every Foundation mutation | Manual recovery required |
 | Published envelope v2 or document journal v1 | Frozen read-only recognition without handler or recovery authority | Preserve as manual-recovery evidence; never resume mutation |
 | Temporary path substitution or inode reuse | Exact Plan-derived sibling plus creator-handle dev/ino/birthtime identity | Reject or preserve for manual recovery; never act on a merely matching pathname |
-| Package downgrade or same-version rebuild during a transaction | Exact SemVer plus package build identity in envelope v4, bound to the embedded compiler and closed handler v3 | Preserve evidence; only the exact qualified package may recover |
+| Package downgrade or same-version rebuild during a transaction | Exact SemVer plus package build identity in envelope v4, bound to the embedded compiler and closed handler v3 | Preserve evidence; only the exact artifact-qualified package may recover |
 | Contradictory envelope/document lifecycle | Closed PREPARED/MATERIALIZING/PUBLISHING/PUBLISHED matrix binding destination, directory prefix, pending segment, temporary, and publication identity | Manual recovery required |
 | Interrupted local attach or detach | Shared coordinator recognizes durable phase or orphan registry backup and admits only detach | All foreign mutations blocked |
 | Concurrent Foundation mutation | One operation lock and one physical transaction slot | Recovery required |
@@ -92,7 +92,7 @@ The only permitted responses after that boundary are:
 
 - finish verification and commit;
 - preserve destination and transaction evidence;
-- resume only with a compatible implemented and qualified recovery handler;
+- resume only with a compatible implemented and capability-qualified recovery handler;
 - report manual recovery with stable diagnostics.
 
 Envelope v4 recovery is version-exact, not range-compatible. It requires the
@@ -122,7 +122,7 @@ recovery-fixture evidence, and a new accepted removal ADR.
 
 ## Honest claim
 
-On a qualified adapter, the protocol may claim cooperative serialization,
+On a capability-qualified adapter, the protocol may claim cooperative serialization,
 single-file atomic create-no-replace, exact-byte verification, journaled
 recoverability, known ancestry hazard rejection, and retain-only created
 directories. It may not claim a hostile-writer sandbox, a true multi-file

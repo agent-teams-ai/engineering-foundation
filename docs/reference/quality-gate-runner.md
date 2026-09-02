@@ -104,8 +104,9 @@ Managed-process deadlines reject with the typed `ProcessTimeoutError`, whose
 timeouts with `instanceof` and translates them to `PackageScriptTimeoutError`;
 it does not infer timeout semantics by matching error-message text.
 
-The repository lifecycle qualification runs in cross-platform test shard 3.
-The required macOS qualification lane also runs the focused QGR lifecycle suite
+The QGR lifecycle capability qualification runs in cross-platform test shard 3.
+The required `macos-qualification` adapter-qualification lane also runs the
+focused QGR lifecycle suite
 after building, so Darwin proves the same entrypoint cancellation and POSIX
 containment behavior rather than relying on Linux evidence. The suite observes
 cooperating, harness-owned fixture roles. Its fixture server assigns a distinct
@@ -115,7 +116,7 @@ port test proves that the configured `timeoutMs` crosses the command, use-case,
 pnpm adapter, and managed-process
 request unchanged; controlled application evidence proves timeout classification
 and concurrent-sibling isolation without a wall-clock gate. One cross-platform
-cancellation qualification waits for authenticated readiness, then drives the
+cancellation capability qualification waits for authenticated readiness, then drives the
 QGR cancellation port through the real installed pnpm process boundary. On
 Windows that reaches the Job Object adapter without relying on POSIX signals.
 The installed-pnpm and synthetic cancellation evidence requires every owned role

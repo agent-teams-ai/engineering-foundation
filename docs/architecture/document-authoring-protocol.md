@@ -6,9 +6,9 @@ recovery-handler contract v2. ADR-0026 supersedes ADR-0025 and adds
 Plan/Receipt v2, envelope v4, document journal v3, and recovery-handler contract
 v3. Published older evidence remains immutable and is never reinterpreted.
 The catalog, compiler, create-only writer, `docs new`, `docs doctor`, and
-`docs recover` are implemented and released. Packed registry and cross-platform
-qualification evidence supports release adoption; consumer activation remains
-explicit.
+`docs recover` are implemented and released. Packed-registry artifact evidence
+and cross-platform capability-qualification evidence support release adoption;
+consumer activation remains explicit.
 
 ADR-0026 carries forward ADR-0025's placement of the unified documentation CLI
 and metadata/query workflow in the separate `@agent-teams/docs-protocol`
@@ -28,7 +28,8 @@ public contracts are document-specific; only private Foundation coordination
 and filesystem mechanisms may later be shared with scaffolding.
 
 Foundation owns deterministic observation, contract validation, compilation,
-safe materialization, recovery, stable diagnostics, and package qualification.
+safe materialization, recovery, stable diagnostics, and package artifact
+qualification.
 A consumer owns every repository-specific meaning. Foundation never loads
 consumer code or treats a profile as an extension language.
 
@@ -141,8 +142,9 @@ preview, repeat the same command with `--apply`, then follow the emitted
 - when no manual reachability step is required, run the consumer's standard
   complete repository check.
 
-The RC writer does not edit an index. Managed reachability is a later qualified
-transaction, so the profile is the only authority for a manual index action.
+The RC writer does not edit an index. Managed reachability is a later managed
+transaction after separate capability qualification, so the profile is the only
+authority for a manual index action.
 
 Operator commands are separate from the happy path:
 
@@ -517,7 +519,8 @@ of install path and directory enumeration order, is cached for the immutable
 installed package process, and distinguishes rebuilt shipped artifacts at the
 same version. Recovery is available only from the exact recorded SemVer and
 build identity through the closed v2 handler after its required dependency
-closure and adapter semantics are qualified. The envelope Foundation identity
+closure and adapter capability qualification are complete. The envelope
+Foundation identity
 must equal the embedded document compiler version and build identity. A version
 range, same-version rebuild, or merely schema-compatible package is not recovery
 authority.
@@ -600,7 +603,7 @@ stored inode/device tuple remains valid across platforms or process lifetimes.
 | --- | --- |
 | `not-published` | No destination publication was observed by this operation |
 | `preexisting-exact` | Exact desired bytes already existed and were not published by this operation |
-| `single-file-atomic-create` | One absent destination was published without replacement on a qualified adapter |
+| `single-file-atomic-create` | One absent destination was published without replacement on a capability-qualified adapter |
 | `journaled-recoverable` | Durable transaction evidence permits compatible recovery; it is not a multi-file transaction claim |
 | `preserved-for-recovery` | Evidence or output may exist and was intentionally retained for recovery or manual resolution |
 

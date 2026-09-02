@@ -17,7 +17,7 @@ an optional `--profile` argument or deterministic discovery of
 `architecture/foundation/docs-protocol.yaml` path. Discovery fails closed when
 both or neither exist. MCP tool arguments cannot replace either value.
 
-The read-only adapter is qualified on POSIX and Windows. A Windows repository
+The read-only adapter is capability-qualified on POSIX and Windows. A Windows repository
 must already contain portable authority initialized and committed from a
 supported POSIX host; the adapter never performs bootstrap mutation or
 recovery.

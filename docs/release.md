@@ -20,7 +20,8 @@ rollout are not prerequisites to rerun.
 
 The D' rollout first published Foundation `0.17.0-rc.0`, then promoted Docs
 Protocol from its exact public `0.0.0` namespace baseline into the bounded
-catalog and qualified the packed pair through the RC waves. The subsequent
+catalog and passed the packed pair through artifact qualification in the RC
+waves. The subsequent
 stable Foundation and Docs Protocol releases are recorded by their package
 changelogs, immutable registry versions, Git tags, and GitHub releases. This
 paragraph records completed history; it is not an executable release checklist.
@@ -107,11 +108,11 @@ package's `published_at` to be no later than the downstream package's timestamp.
 After all signature checks it re-reads every exact tarball, final tag, SRI and provenance before
 creating any GitHub release. The short interval where only Foundation's final
 tag has moved is non-authoritative: consumer admission starts only after the
-exact package graph receives its external qualification.
+exact package graph receives its external artifact qualification.
 
 A repository gate discovers every non-private direct package under `packages/`
 and requires the same package names in the existing public API compatibility,
-publishable-package, and registry-qualification authorities. The gate reads
+publishable-package, and registry artifact-qualification authorities. The gate reads
 those owners directly; it is a completeness contract, not another package list
 or release dependency graph.
 
@@ -237,7 +238,7 @@ Before every publication:
 - verify that local tarball overrides are rejected as registry provenance;
 - verify development-only dependency placement;
 - reject unexpected or sensitive package contents;
-- pass the hermetic npm-compatible registry publish/install qualification;
+- pass the hermetic npm-compatible registry publish/install artifact qualification;
 - rerun the hardened qualifier with the exact pinned Buf `FILE` policy;
 - retain the CI-generated SPDX JSON SBOM and npm Trusted Publishing provenance
   as separate supply-chain evidence.
@@ -246,9 +247,9 @@ The exact generated release PR must pass the protected cross-platform repository
 checks before merge. A fresh publish runner builds the reviewed sources once to
 materialize package artifacts. `release:publish` does not repeat the full
 repository suite on the same reviewed artifact tree; it then runs the
-release-only pinned Buf qualification, hermetic registry qualification,
+release-only pinned Buf capability qualification, hermetic registry artifact qualification,
 published-version compatibility checks, and ordered publication.
-The registry qualification starts an isolated
+The registry artifact qualification starts an isolated
 npm-compatible registry with no uplinks, publishes the packed package and its
 runtime dependency closure, installs by exact version, and verifies registry
 metadata, lockfile integrity, CLI startup, and public imports.
@@ -256,7 +257,7 @@ metadata, lockfile integrity, CLI startup, and public imports.
 The test suite also exercises the production operation lock across real child
 processes, including live-owner rejection, dual-reclaimer serialization, and
 ownership-fenced recovery after a same-host owner is killed. Published-version
-qualification installs the pinned npm 0.11 package and proves that a current v2
+compatibility qualification installs the pinned npm 0.11 package and proves that a current v2
 transaction barrier blocks its recover, attach, and detach mutations without
 changing consumer evidence. Mutation-boundary recovery remains covered by
 deterministic state fixtures. Windows does not claim POSIX-equivalent hard

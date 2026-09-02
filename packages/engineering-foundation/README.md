@@ -98,7 +98,7 @@ capabilities:
 
 Capability presence means enabled. Source architecture, documentation, ADR,
 contract-evolution, suppression, public API, and repository-security checks are
-adopted independently with consumer-owned policy and qualification evidence.
+adopted independently with consumer-owned policy and capability-qualification evidence.
 Installing or upgrading this package never enables them automatically.
 
 `quality.executable-specifications` optionally validates a consumer-owned JSON
@@ -177,4 +177,4 @@ continuing recovery. The one-argument API and CLI are unchanged;
 
 The current built-in Composition is a testing-only conformance fixture. Product
 package and feature recipes, structured updates, and Nx integration require
-separate qualification before they become available.
+separate capability qualification before they become available.

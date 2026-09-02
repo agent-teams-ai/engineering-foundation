@@ -1,5 +1,5 @@
-const WINDOWS_WRAPPER_FAILURE_PHASE_PATTERN =
-  /(?:^|\r?\n)Windows Job Object runner failed \[phase=(helper-load|bootstrap-request|managed-run)\]:/u;
+const MAXIMUM_DIAGNOSTIC_ERROR_NODES = 32;
+const MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES = 64 * 1024;
 
 const WINDOWS_CONTAINMENT_FAILURE_MESSAGES = [
   ["invalid-confirmation", "Windows Job Object wrapper sent an invalid containment confirmation."],
@@ -15,39 +15,91 @@ const WINDOWS_CONTAINMENT_FILESYSTEM_CODES = new Set([
   "EACCES",
   "EBUSY",
   "EISDIR",
-  "ENOENT",
   "EPERM"
 ]);
+
+function candidateFailureReason(candidate: unknown): string | undefined {
+  try {
+    if (!(candidate instanceof Error)) {
+      return undefined;
+    }
+    for (const [reason, message] of WINDOWS_CONTAINMENT_FAILURE_MESSAGES) {
+      if (candidate.message.startsWith(message)) {
+        return reason;
+      }
+    }
+    const code = "code" in candidate ? candidate.code : undefined;
+    return typeof code === "string" && WINDOWS_CONTAINMENT_FILESYSTEM_CODES.has(code)
+      ? `confirmation-read-${code}`
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function enqueueRelatedFailures(
+  candidate: unknown,
+  pending: unknown[],
+  maximum: number
+): void {
+  try {
+    if (candidate instanceof AggregateError && Array.isArray(candidate.errors)) {
+      pending.push(...candidate.errors.slice(0, maximum));
+    }
+    if (candidate instanceof Error) {
+      pending.push(candidate.cause);
+    }
+  } catch {
+    // Diagnostics must never replace the original cleanup failure.
+  }
+}
 
 function windowsContainmentFailureReason(error: unknown): string {
   const pending: unknown[] = [error];
   const seen = new Set<unknown>();
-  while (pending.length > 0) {
+  while (pending.length > 0 && seen.size < MAXIMUM_DIAGNOSTIC_ERROR_NODES) {
     const candidate = pending.shift();
     if (candidate === undefined || seen.has(candidate)) {
       continue;
     }
     seen.add(candidate);
-    if (candidate instanceof AggregateError) {
-      pending.push(...candidate.errors);
+    const reason = candidateFailureReason(candidate);
+    if (reason !== undefined) {
+      return reason;
     }
-    if (candidate instanceof Error) {
-      for (const [reason, message] of WINDOWS_CONTAINMENT_FAILURE_MESSAGES) {
-        if (candidate.message.startsWith(message)) {
-          return reason;
-        }
-      }
-      if (
-        "code" in candidate &&
-        typeof candidate.code === "string" &&
-        WINDOWS_CONTAINMENT_FILESYSTEM_CODES.has(candidate.code)
-      ) {
-        return `confirmation-read-${candidate.code}`;
-      }
-      pending.push(candidate.cause);
-    }
+    enqueueRelatedFailures(
+      candidate,
+      pending,
+      Math.max(0, MAXIMUM_DIAGNOSTIC_ERROR_NODES - seen.size - pending.length)
+    );
   }
   return "unknown";
+}
+
+function boundedWrapperStderrSuffix(chunks: readonly Buffer[]): string {
+  const selected: Buffer[] = [];
+  let remaining = MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES;
+  for (let index = chunks.length - 1; index >= 0 && remaining > 0; index -= 1) {
+    const chunk = chunks[index];
+    if (chunk === undefined) {
+      continue;
+    }
+    const suffix = chunk.subarray(Math.max(0, chunk.length - remaining));
+    selected.unshift(suffix);
+    remaining -= suffix.length;
+  }
+  return Buffer.concat(selected).toString("utf8");
+}
+
+function finalWrapperFailurePhase(stderr: string): string {
+  const matches = stderr.matchAll(
+    /(?:^|\r?\n)Windows Job Object runner failed \[phase=(helper-load|bootstrap-request|managed-run)\]:/gu
+  );
+  let phase = "unreported";
+  for (const match of matches) {
+    phase = match[1] ?? phase;
+  }
+  return phase;
 }
 
 export function describeManagedProcessCleanupFailure(
@@ -58,7 +110,27 @@ export function describeManagedProcessCleanupFailure(
   if (!windows) {
     return "could not clean up its process tree after exit.";
   }
-  const stderr = Buffer.concat(wrapperStderr).toString("utf8");
-  const wrapperPhase = WINDOWS_WRAPPER_FAILURE_PHASE_PATTERN.exec(stderr)?.[1] ?? "unreported";
-  return `could not clean up its process tree after exit. [windows-containment=${windowsContainmentFailureReason(error)};wrapper-phase=${wrapperPhase}]`;
+  try {
+    const wrapperPhase = finalWrapperFailurePhase(boundedWrapperStderrSuffix(wrapperStderr));
+    return `could not clean up its process tree after exit. [windows-containment=${windowsContainmentFailureReason(error)};wrapper-phase=${wrapperPhase}]`;
+  } catch {
+    return "could not clean up its process tree after exit. [windows-containment=unknown;wrapper-phase=unreported]";
+  }
 }
+
+export function managedProcessCleanupFailure(
+  request: ProcessRequest,
+  error: unknown,
+  wrapperStderr: readonly Buffer[],
+  windows: boolean
+): FoundationError {
+  const description = describeManagedProcessCleanupFailure(error, wrapperStderr, windows);
+  const requestDescription = `${request.command} ${request.args.join(" ")}`;
+  return new FoundationError(
+    "PROCESS_FAILED",
+    windows ? `${description} ${requestDescription}` : `${requestDescription} ${description}`,
+    { cause: error }
+  );
+}
+import { FoundationError } from "../errors.js";
+import type { ProcessRequest } from "./types.js";

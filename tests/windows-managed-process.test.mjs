@@ -7,7 +7,11 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 
-import { describeManagedProcessCleanupFailure } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process-diagnostics.js";
+import { foundationCommandFailure } from "../packages/engineering-foundation/dist/command-error.js";
+import {
+  describeManagedProcessCleanupFailure,
+  managedProcessCleanupFailure
+} from "../packages/engineering-foundation/dist/process-execution/windows-managed-process-diagnostics.js";
 import {
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess as spawnWindowsManagedProcessWithoutEnvironment,
@@ -60,6 +64,48 @@ test("classifies allowlisted Windows confirmation read codes only", () => {
   assert.equal(
     describeManagedProcessCleanupFailure(privateCode, [Buffer.from("private output")], false),
     "could not clean up its process tree after exit."
+  );
+});
+
+test("bounds hostile cleanup diagnostics and selects the final wrapper phase", () => {
+  const cycle = new AggregateError([], "cycle");
+  cycle.errors.push(cycle);
+  Object.defineProperty(cycle, "cause", {
+    get() {
+      throw new Error("private throwing cause");
+    }
+  });
+  const throwingErrors = new AggregateError([], "private aggregate");
+  Object.defineProperty(throwingErrors, "errors", {
+    get() {
+      throw new Error("private throwing errors");
+    }
+  });
+  assert.equal(
+    describeManagedProcessCleanupFailure(
+      new AggregateError([cycle, throwingErrors], "private root"),
+      [Buffer.from([
+        "Windows Job Object runner failed [phase=helper-load]: child spoof",
+        "Windows Job Object runner failed [phase=managed-run]: wrapper failure"
+      ].join("\n"))],
+      true
+    ),
+    "could not clean up its process tree after exit. [windows-containment=unknown;wrapper-phase=managed-run]"
+  );
+});
+
+test("preserves bounded Windows cleanup diagnostics in the command envelope", () => {
+  const cleanupFailure = managedProcessCleanupFailure(
+    { command: "private-command".repeat(100), args: [], cwd: process.cwd() },
+    new Error("Windows Job Object wrapper exited before it confirmed process containment."),
+    [],
+    true
+  );
+  const failure = foundationCommandFailure(cleanupFailure);
+  assert.equal(failure.envelope.error.message.length, 1000);
+  assert.match(
+    failure.envelope.error.message,
+    /^could not clean up its process tree after exit\. \[windows-containment=wrapper-exited-before-confirmation;wrapper-phase=unreported\]/u
   );
 });
 

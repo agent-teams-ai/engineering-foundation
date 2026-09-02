@@ -278,6 +278,9 @@ importers:
       unist-util-visit:
         specifier: 'catalog:'
         version: 5.1.0
+      vfile:
+        specifier: 'catalog:'
+        version: 6.0.3
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
@@ -309,33 +312,12 @@ importers:
       ajv-formats:
         specifier: 'catalog:'
         version: 3.0.1(ajv@8.20.0)
-      github-slugger:
-        specifier: 'catalog:'
-        version: 2.0.0
-      mdast-util-to-string:
-        specifier: 'catalog:'
-        version: 4.0.0
       oxc-parser:
         specifier: 'catalog:'
         version: 0.142.0
       proper-lockfile:
         specifier: 'catalog:'
         version: 4.1.2
-      remark-frontmatter:
-        specifier: 'catalog:'
-        version: 5.0.0(supports-color@8.1.1)
-      remark-gfm:
-        specifier: 'catalog:'
-        version: 4.0.1(supports-color@8.1.1)
-      remark-parse:
-        specifier: 'catalog:'
-        version: 11.0.0(supports-color@8.1.1)
-      unified:
-        specifier: 'catalog:'
-        version: 11.0.5
-      unist-util-visit:
-        specifier: 'catalog:'
-        version: 5.1.0
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
@@ -349,9 +331,6 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
-      vfile:
-        specifier: 'catalog:'
-        version: 6.0.3
 
   packages/repository-mutation:
     devDependencies:

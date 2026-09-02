@@ -30,6 +30,7 @@
     "remark-parse": "catalog:",
     "unified": "catalog:",
     "unist-util-visit": "catalog:",
+    "vfile": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": { "@types/node": "catalog:", "typescript": "catalog:" }

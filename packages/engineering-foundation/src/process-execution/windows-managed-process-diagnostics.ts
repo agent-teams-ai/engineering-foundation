@@ -44,7 +44,10 @@ function enqueueRelatedFailures(
 ): void {
   try {
     if (candidate instanceof AggregateError && Array.isArray(candidate.errors)) {
-      pending.push(...candidate.errors.slice(0, maximum));
+      const limit = Math.min(candidate.errors.length, maximum);
+      for (let index = 0; index < limit; index += 1) {
+        pending.push(candidate.errors[index] as unknown);
+      }
     }
     if (candidate instanceof Error) {
       pending.push(candidate.cause);

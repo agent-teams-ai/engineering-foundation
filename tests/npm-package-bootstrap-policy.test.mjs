@@ -35,6 +35,7 @@ import { main as releasePublishMain } from "../scripts/release-publish.mjs";
 
 const mcpCandidateProfile = bootstrapPackageById("docs-protocol-agent-teams");
 const authoringProfile = bootstrapPackageById("document-authoring");
+const approvedProfile = bootstrapPackageById("repository-mutation", { approved: true });
 const reviewedCommit = "a".repeat(40);
 
 function integrity(bytes) {
@@ -413,11 +414,11 @@ test("published artifact proof accepts only required bootstrap and optional regi
 });
 
 test("mutation proof audits first and rejects registry state changed during the audit", async () => {
-  const profile = mcpProfile;
+  const profile = approvedProfile;
   const mutableMetadata = bootstrapMetadata(profile);
   const events = [];
   await assert.rejects(() => proveLiveBootstrap(
-    ["docs-protocol-agent-teams", profile.approval.archiveIntegrity, reviewedCommit, "unused.json"],
+    [profile.id, profile.approval.archiveIntegrity, reviewedCommit, "unused.json"],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
@@ -441,13 +442,13 @@ test("mutation proof audits first and rejects registry state changed during the 
 });
 
 test("mutation proof stores only validated evidence fields", async () => {
-  const profile = mcpProfile;
+  const profile = approvedProfile;
   const remoteCanary = "UNTRUSTED_REMOTE_EVIDENCE_CANARY";
   let written;
   const audit = auditEvidence(profile);
   audit.remoteCanary = remoteCanary;
   await proveLiveBootstrap(
-    ["docs-protocol-agent-teams", profile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    [profile.id, profile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
@@ -479,23 +480,23 @@ test("mutation proof retries stale registry metadata without repeating its audit
   const waits = [];
   let writes = 0;
   await proveLiveBootstrap(
-    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
       assertionAttempts: 3,
       auditPackage: async () => {
         audits += 1;
-        return auditEvidence(mcpProfile);
+        return auditEvidence(approvedProfile);
       },
       liveEvidence: async (_profile, _fetch, options) => {
         reads.push(options);
         return {
           deprecatedMessage: null,
-          integrity: reads.length === 1 ? null : mcpProfile.approval.archiveIntegrity,
+          integrity: reads.length === 1 ? null : approvedProfile.approval.archiveIntegrity,
           metadata: reads.length === 1
             ? { versions: [], "dist-tags": {} }
-            : bootstrapMetadata(mcpProfile),
+            : bootstrapMetadata(approvedProfile),
         };
       },
       wait: async (milliseconds) => { waits.push(milliseconds); },
@@ -515,14 +516,14 @@ test("mutation proof fails after bounded retries when registry metadata stays st
   const waits = [];
   let writes = 0;
   await assert.rejects(() => proveLiveBootstrap(
-    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
       assertionAttempts: 3,
       auditPackage: async () => {
         audits += 1;
-        return auditEvidence(mcpProfile);
+        return auditEvidence(approvedProfile);
       },
       liveEvidence: async () => {
         reads += 1;
@@ -594,16 +595,16 @@ test("quarantine postconditions retry a stale deprecation before writing evidenc
   const waits = [];
   let writes = 0;
   await proveQuarantine(
-    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, "evidence.json"],
+    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, "evidence.json"],
     assertBootstrapQuarantinePostconditions,
     {
       assertionAttempts: 3,
       liveEvidence: async (_profile, _fetch, options) => {
         reads.push(options);
         return {
-          deprecatedMessage: reads.length === 1 ? null : mcpProfile.deprecationMessage,
-          integrity: mcpProfile.approval.archiveIntegrity,
-          metadata: bootstrapMetadata(mcpProfile),
+          deprecatedMessage: reads.length === 1 ? null : approvedProfile.deprecationMessage,
+          integrity: approvedProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(approvedProfile),
         };
       },
       wait: async (milliseconds) => { waits.push(milliseconds); },
@@ -621,7 +622,7 @@ test("quarantine postconditions fail boundedly when deprecation stays stale", as
   const waits = [];
   let writes = 0;
   await assert.rejects(() => proveQuarantine(
-    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, "evidence.json"],
+    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, "evidence.json"],
     assertBootstrapQuarantinePostconditions,
     {
       assertionAttempts: 3,
@@ -629,8 +630,8 @@ test("quarantine postconditions fail boundedly when deprecation stays stale", as
         reads += 1;
         return {
           deprecatedMessage: null,
-          integrity: mcpProfile.approval.archiveIntegrity,
-          metadata: bootstrapMetadata(mcpProfile),
+          integrity: approvedProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(approvedProfile),
         };
       },
       wait: async (milliseconds) => { waits.push(milliseconds); },
@@ -701,21 +702,21 @@ test("postconditions retry stale registry metadata until the exact deprecation c
   const waits = [];
   let written;
   await proveLiveBootstrap(
-    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapPostconditions,
     "published bootstrap package remained absent.",
     {
       assertionAttempts: 3,
       auditPackage: async () => {
         audits += 1;
-        return auditEvidence(mcpProfile);
+        return auditEvidence(approvedProfile);
       },
       liveEvidence: async (_profile, _fetch, options) => {
         reads.push(options);
         return {
-          deprecatedMessage: reads.length === 1 ? null : mcpProfile.deprecationMessage,
-          integrity: mcpProfile.approval.archiveIntegrity,
-          metadata: bootstrapMetadata(mcpProfile),
+          deprecatedMessage: reads.length === 1 ? null : approvedProfile.deprecationMessage,
+          integrity: approvedProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(approvedProfile),
         };
       },
       wait: async (milliseconds) => { waits.push(milliseconds); },
@@ -735,21 +736,21 @@ test("postconditions fail after the bounded attempts when registry metadata stay
   const waits = [];
   let writes = 0;
   await assert.rejects(() => proveLiveBootstrap(
-    ["docs-protocol-agent-teams", mcpProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
     assertBootstrapPostconditions,
     "published bootstrap package remained absent.",
     {
       assertionAttempts: 3,
       auditPackage: async () => {
         audits += 1;
-        return auditEvidence(mcpProfile);
+        return auditEvidence(approvedProfile);
       },
       liveEvidence: async () => {
         reads += 1;
         return {
           deprecatedMessage: null,
-          integrity: mcpProfile.approval.archiveIntegrity,
-          metadata: bootstrapMetadata(mcpProfile),
+          integrity: approvedProfile.approval.archiveIntegrity,
+          metadata: bootstrapMetadata(approvedProfile),
         };
       },
       wait: async (milliseconds) => { waits.push(milliseconds); },

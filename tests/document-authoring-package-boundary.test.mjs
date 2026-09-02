@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
@@ -88,5 +88,18 @@ test("new-only cutover has no Foundation/Document Authoring backchannel", async 
         /(?:from\s+|import\s*\()["']@agent-teams\/engineering-foundation\/document-authoring(?:\/[^"']*)?["']/u,
         `${path} cannot import the removed Foundation authoring export`);
     }
+  }
+});
+
+test("removed Foundation authoring package paths stay physically absent", async () => {
+  for (const path of [
+    "packages/engineering-foundation/dist/document-authoring/index.js",
+    "packages/engineering-foundation/dist/documentation-observation/index.js",
+  ]) {
+    await assert.rejects(
+      access(join(repositoryRoot, path)),
+      (error) => error?.code === "ENOENT",
+      path,
+    );
   }
 });

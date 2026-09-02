@@ -8,7 +8,7 @@ import test from "node:test";
 import { loadValidatedDocumentAuthoringProfileV2 } from "../packages/document-authoring/dist/adapters/node/load-validated-document-authoring-profile-v2.js";
 import { NodeDocumentPlanningProfileReader } from "../packages/document-authoring/dist/adapters/node/node-document-planning-profile-reader.js";
 import { PlanDocumentationDocument } from "../packages/document-authoring/dist/application/use-cases/plan-documentation-document.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),

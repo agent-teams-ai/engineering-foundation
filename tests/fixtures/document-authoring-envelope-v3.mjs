@@ -1,6 +1,6 @@
 import { documentPlanDigest } from "../../packages/document-authoring/dist/application/policies/document-contract-digests.js";
 import { documentTemporaryPath } from "../../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { sha256Json } from "../../packages/engineering-foundation/dist/canonical-json.js";
+import { sha256Json } from "../../packages/document-authoring/dist/canonical-json.js";
 
 export const documentEnvelopeV3BuildIdentity = `sha256:${"2".repeat(64)}`;
 export const documentEnvelopeV3Version = "0.16.0";

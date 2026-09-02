@@ -25,11 +25,12 @@ import {
 import {
   documentTemporaryPath,
 } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
 import {
   parseStrictJson,
   StrictJsonError,
 } from "../packages/engineering-foundation/dist/strict-json.js";
+import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
@@ -46,10 +47,8 @@ function bodyWithout(value, key) {
   );
 }
 
-function documentEnvelope() {
-  const envelope = clone(fixture.documentEnvelope);
-  envelope.journal.plan = clone(fixture.plan);
-  return envelope;
+function documentEnvelope(state = "PREPARED") {
+  return createDocumentEnvelopeV3(fixture, state);
 }
 
 async function rejectsSchema(schemaId, value) {
@@ -65,7 +64,7 @@ test("accepts every document authoring v1 contract fixture", async () => {
   await assertSchema("document-plan/v1", fixture.plan, "plan");
   await assertSchema("document-receipt/v1", fixture.receipt, "receipt");
   await assertSchema(
-    "foundation-transaction-envelope/v2",
+    "foundation-transaction-envelope/v3",
     documentEnvelope(),
     "transaction-envelope",
   );
@@ -109,7 +108,7 @@ test("applies the same bounded repository path grammar to every public surface",
       };
       return [value, (invalid) => { invalid.result.documentPath = overLimit; }];
     }],
-    ["foundation-transaction-envelope/v2", () => {
+    ["foundation-transaction-envelope/v3", () => {
       const value = documentEnvelope();
       value.journal.plan.destination = atLimit;
       return [value, (invalid) => { invalid.journal.plan.destination = overLimit; }];
@@ -172,26 +171,15 @@ test("envelope-owned paths enforce the per-segment bound", async () => {
     (value) => value.journal.destination,
     (value) => value.journal.ownedTemporary,
   ]) {
-    const value = documentEnvelope();
-    value.journal.ownedTemporary = {
-      path: "temporary.tmp",
-      digest: value.journal.plan.output.digest,
-      identity: {
-        adapter: "node-filesystem",
-        version: 1,
-        dev: "1",
-        ino: "2",
-        birthtimeNs: "3",
-      },
-    };
+    const value = documentEnvelope("PUBLISHING");
     selectPath(value).path = "a".repeat(255);
     await assertSchema(
-      "foundation-transaction-envelope/v2",
+      "foundation-transaction-envelope/v3",
       value,
       "envelope-path-at-segment-limit",
     );
     selectPath(value).path = "a".repeat(256);
-    await rejectsSchema("foundation-transaction-envelope/v2", value);
+    await rejectsSchema("foundation-transaction-envelope/v3", value);
   }
 });
 
@@ -556,8 +544,8 @@ test("rejects unknown versions and fields across the public contracts", async ()
   }
 
   const futureEnvelope = documentEnvelope();
-  futureEnvelope.schemaVersion = 3;
-  await rejectsSchema("foundation-transaction-envelope/v2", futureEnvelope);
+  futureEnvelope.schemaVersion = 99;
+  await rejectsSchema("foundation-transaction-envelope/v3", futureEnvelope);
 });
 
 test("keeps profiles local, closed, create-only, and non-executable", async () => {
@@ -803,14 +791,14 @@ test("binds Receipt result evidence to a proven output outcome", async () => {
   await rejectsSchema("document-receipt/v1", rejectedWithResult);
 });
 
-test("binds transaction payloads to closed Foundation recovery handlers", async () => {
+test("binds transaction payloads to closed Document Authoring recovery handlers", async () => {
   const mismatchedHandler = documentEnvelope();
   mismatchedHandler.recoveryHandler.id = "foundation.scaffolding";
-  await rejectsSchema("foundation-transaction-envelope/v2", mismatchedHandler);
+  await rejectsSchema("foundation-transaction-envelope/v3", mismatchedHandler);
 
   const unknownPayload = documentEnvelope();
   unknownPayload.payloadKind = "consumer.callback/v1";
-  await rejectsSchema("foundation-transaction-envelope/v2", unknownPayload);
+  await rejectsSchema("foundation-transaction-envelope/v3", unknownPayload);
 });
 
 test("binds each JSON command to its closed result shape", async () => {

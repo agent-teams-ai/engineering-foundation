@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { NodeDocumentEnvironmentInspector } from "../packages/document-authoring/dist/adapters/node/node-document-environment-inspector.js";
 import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
 import { inspectDocumentAuthoringEnvironmentV1 } from "../packages/document-authoring/dist/index.js";
 
 const digest = `sha256:${"b".repeat(64)}`;

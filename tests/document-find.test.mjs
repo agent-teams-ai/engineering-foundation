@@ -7,7 +7,7 @@ import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
 import {
   findDocumentationDocuments,
 } from "../packages/document-authoring/dist/index.js";
@@ -17,15 +17,11 @@ import {
   documentFindSuccess,
 } from "../packages/document-authoring/dist/find-command.js";
 import { DocumentCatalogError } from "../packages/document-authoring/dist/document-catalog-error.js";
-import { LEGACY_DOCS_CLI_DEPRECATION_CODE } from "../packages/engineering-foundation/dist/legacy-docs-cli-deprecation.js";
+import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
 
 const cliPath = fileURLToPath(
-  new URL("../packages/engineering-foundation/dist/cli.js", import.meta.url),
+  new URL("../packages/docs-protocol/dist/cli.js", import.meta.url),
 );
-
-function assertHumanDeprecation(stderr) {
-  assert.match(stderr, new RegExp(`^${LEGACY_DOCS_CLI_DEPRECATION_CODE}:`, "u"));
-}
 
 const metadataSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -75,6 +71,19 @@ authoring:
 `;
 }
 
+function portableProfileSource() {
+  return profileSource()
+    .replace("schemaVersion: 1", "schemaVersion: 3")
+    .replace(
+      "  mode: create-only\n",
+      "  mode: create-only\n  ownerSets:\n    schemaVersion: 1\n    sets:\n      documentation: [architecture, product]\n",
+    )
+    .replace(
+      "      reachability:\n        kind: not-required\n",
+      "      reachability:\n        kind: not-required\n        reason: Search projection indexes this collection.\n      ownerSetId: documentation\n",
+    );
+}
+
 function documentSource({
   body = "Body.",
   heading = "Heading",
@@ -104,11 +113,22 @@ ${body}
 async function createConsumer() {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-find-"));
   await mkdir(join(root, "architecture", "foundation"), { recursive: true });
+  await mkdir(join(root, ".docs-protocol"), { recursive: true });
   await mkdir(join(root, "docs", "content"), { recursive: true });
   await Promise.all([
     writeFile(
       join(root, "architecture", "foundation", "document-authoring.yaml"),
       profileSource(),
+      "utf8",
+    ),
+    writeFile(
+      join(root, ".docs-protocol", "document-authoring.yaml"),
+      portableProfileSource(),
+      "utf8",
+    ),
+    writeFile(
+      join(root, "docs.config.yaml"),
+      "schemaVersion: 3\nprotocol: {id: agent-teams.docs-protocol, version: 1}\nfoundationProfile:\n  path: .docs-protocol/document-authoring.yaml\n  schemaVersion: 3\n  metadataSidecarPolicy: foundation-profile-v3-strict-merge\nagentWorkflow:\n  adoption: portable-v1\n  skillPath: AGENTS.md\nsemanticValidatorIds: []\n",
       "utf8",
     ),
     writeFile(
@@ -119,6 +139,11 @@ async function createConsumer() {
     writeFile(
       join(root, "docs", "owners.yaml"),
       "version: 1\nowners:\n  architecture:\n    kind: architecture\n  product:\n    kind: product\n",
+      "utf8",
+    ),
+    writeFile(
+      join(root, "docs", "template.md"),
+      "````markdown\n---\nplaceholder: true\n---\n\n# Document title\n````\n",
       "utf8",
     ),
   ]);
@@ -237,7 +262,7 @@ test("returns deterministic id/path ordering, exact literals, and zero-match suc
   }
 });
 
-test("CLI emits one schema-valid JSON object, partial diagnostics, and never writes an index", async () => {
+test("Docs Protocol CLI emits one schema-valid JSON object and never writes an index", async () => {
   const root = await createConsumer();
   try {
     await Promise.all([
@@ -258,35 +283,35 @@ test("CLI emits one schema-valid JSON object, partial diagnostics, and never wri
     ]);
     const result = spawnSync(process.execPath, [
       cliPath,
-      "docs",
       "find",
       "valid",
       "--consumer",
       root,
       "--json",
     ], { encoding: "utf8", env: { ...process.env, LANG: "tr_TR.UTF-8" } });
-    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
     const output = JSON.parse(result.stdout);
     assert.equal(`${JSON.stringify(output)}\n`, result.stdout);
-    await assertSchema("document-command-envelope/v1", output, "docs-find-cli");
-    assert.equal(output.outcome, "partial");
+    await assertDocsCommandEnvelopeSchema(output);
+    assert.equal(output.outcome, "success");
     assert.equal(output.result.matches, 1);
     assert.deepEqual(output.result.documents.map(({ id }) => id), ["guide.valid"]);
-    assert.equal(output.diagnostics[0].phase, "query");
+    assert.deepEqual(output.diagnostics, []);
     const human = spawnSync(process.execPath, [
       cliPath,
-      "docs",
       "find",
       "valid",
       "--consumer",
       root,
     ], { encoding: "utf8" });
-    assert.equal(human.status, 1, human.stderr);
-    assertHumanDeprecation(human.stderr);
-    assert.match(human.stdout, /^Catalog: partial\nMatches: 1\n/u);
-    assert.match(human.stdout, /guide\.valid \[guide\/active\] docs\/content\/valid\.md/u);
-    assert.match(human.stdout, /ERROR document\.catalog\.frontmatter-required/u);
+    assert.equal(human.status, 0, human.stderr);
+    assert.equal(human.stderr, "");
+    assert.match(human.stdout, /^docs\.find: success\nMatches: 1\n/u);
+    assert.match(
+      human.stdout,
+      /guide\.valid \| guide \| active \| architecture \| docs\/content\/valid\.md \| Valid guide/u,
+    );
     assert.deepEqual(
       await Promise.all([
         readFile(join(root, "docs", "content", "valid.md")),
@@ -351,7 +376,6 @@ test("CLI reports zero matches as success and invalid JSON invocations structura
     );
     const zero = spawnSync(process.execPath, [
       cliPath,
-      "docs",
       "find",
       "absent",
       "--consumer",
@@ -367,7 +391,6 @@ test("CLI reports zero matches as success and invalid JSON invocations structura
 
     const terminated = spawnSync(process.execPath, [
       cliPath,
-      "docs",
       "find",
       "--consumer",
       root,
@@ -375,13 +398,17 @@ test("CLI reports zero matches as success and invalid JSON invocations structura
       "--json",
     ], { encoding: "utf8" });
     assert.equal(terminated.status, 0, terminated.stderr);
-    assertHumanDeprecation(terminated.stderr);
-    assert.match(terminated.stdout, /^Catalog: success\nMatches: 0\n/u);
+    assert.equal(terminated.stderr, "");
+    assert.deepEqual(JSON.parse(terminated.stdout).result, {
+      kind: "find",
+      matches: 0,
+      documents: [],
+    });
 
     for (const args of [
-      ["docs", "find", "one", "two", "--json"],
-      ["docs", "find", "--id", "", "--json"],
-      ["docs", "find", "--type", "INVALID", "--consumer", root, "--json"],
+      ["find", "one", "two", "--json"],
+      ["find", "--id", "", "--json"],
+      ["find", "--type", "INVALID", "--consumer", root, "--json"],
     ]) {
       const invalid = spawnSync(process.execPath, [cliPath, ...args], {
         encoding: "utf8",
@@ -390,26 +417,21 @@ test("CLI reports zero matches as success and invalid JSON invocations structura
       assert.equal(invalid.stderr, "");
       const output = JSON.parse(invalid.stdout);
       assert.equal(output.outcome, "invalid-input");
-      await assertSchema("document-command-envelope/v1", output, "invalid-docs-find");
+      await assertDocsCommandEnvelopeSchema(output);
     }
 
     const missingConsumer = spawnSync(process.execPath, [
       cliPath,
-      "docs",
       "find",
       "--consumer",
       join(root, "missing"),
       "--json",
     ], { encoding: "utf8" });
-    assert.equal(missingConsumer.status, 2);
+    assert.equal(missingConsumer.status, 3);
     assert.equal(missingConsumer.stderr, "");
     const missingOutput = JSON.parse(missingConsumer.stdout);
-    assert.equal(missingOutput.outcome, "invalid-input");
-    await assertSchema(
-      "document-command-envelope/v1",
-      missingOutput,
-      "missing-consumer-docs-find",
-    );
+    assert.equal(missingOutput.outcome, "execution-failure");
+    await assertDocsCommandEnvelopeSchema(missingOutput);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -425,20 +447,19 @@ test("excludes non-portable document paths from schema-bound command output", as
     );
     const result = spawnSync(process.execPath, [
       cliPath,
-      "docs",
       "find",
       "unicode",
       "--consumer",
       root,
       "--json",
     ], { encoding: "utf8" });
-    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
     const output = JSON.parse(result.stdout);
-    assert.equal(output.outcome, "partial");
+    assert.equal(output.outcome, "success");
     assert.equal(output.result.matches, 0);
-    assert.equal(output.diagnostics[0].ruleId, "document.catalog.path-invalid");
-    await assertSchema("document-command-envelope/v1", output, "portable-path-docs-find");
+    assert.deepEqual(output.diagnostics, []);
+    await assertDocsCommandEnvelopeSchema(output);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

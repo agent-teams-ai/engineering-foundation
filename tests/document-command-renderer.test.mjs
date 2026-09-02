@@ -67,7 +67,7 @@ test("recovery instruction renders consumer root separately from shell tokens", 
 
   assert.match(
     text,
-    /Run: pnpm dlx @agent-teams\/engineering-foundation@0\.14\.3 docs recover/u,
+    /Run: agent-teams-docs recover/u,
   );
   assert.match(text, /Run from consumer root: \/tmp\/project with spaces; echo unsafe/u);
   assert.match(text, /Required build: sha256:c{64}/u);
@@ -87,7 +87,7 @@ test("recover result uses the same separate consumer-root instruction", () => {
     },
   }, "recovery-required"));
 
-  assert.match(text, /Run: agent-teams-foundation docs recover/u);
+  assert.match(text, /Run: agent-teams-docs recover/u);
   assert.match(text, /Run from consumer root: \/tmp\/exact root/u);
 });
 
@@ -152,7 +152,7 @@ test("human diagnostics render manual doctor guidance without shell interpolatio
   }];
 
   const text = renderDocumentCommandText(value);
-  assert.match(text, /Run: agent-teams-foundation docs doctor/u);
+  assert.match(text, /Run: agent-teams-docs doctor/u);
   assert.match(text, /Run from consumer root: \/tmp\/manual project; echo unsafe/u);
   const runLine = text.split("\n").find((line) => line.startsWith("Run: "));
   assert.equal(runLine?.includes(consumerRoot), false);

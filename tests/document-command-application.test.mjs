@@ -4,7 +4,7 @@ import test from "node:test";
 import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
 import { RunDocumentNew } from "../packages/document-authoring/dist/application/use-cases/run-document-new.js";
 import { RunDocumentRecover } from "../packages/document-authoring/dist/application/use-cases/run-document-recover.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const plan = {

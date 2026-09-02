@@ -8,10 +8,10 @@ import test from "node:test";
 import {
   planDocumentationDocument,
   recoverDocumentationTransaction
-} from "@agent-teams/document-authoring";
+} from "../packages/document-authoring/dist/index.js";
 import {
   runDocumentAuthoringCrashQualification
-} from "@agent-teams/document-authoring/qualification";
+} from "../packages/document-authoring/dist/qualification/index.js";
 
 const fixtureRoot = new URL("fixtures/document-planning/orchestrator/", import.meta.url);
 const qualificationUrl = new URL(
@@ -69,8 +69,8 @@ async function writeOwnershipMarker(consumerRoot, extra = {}) {
 
 test("qualification subpath is closed and absent from normal authoring", async () => {
   const [normal, qualification] = await Promise.all([
-    import("@agent-teams/document-authoring"),
-    import("@agent-teams/document-authoring/qualification")
+    import("../packages/document-authoring/dist/index.js"),
+    import("../packages/document-authoring/dist/qualification/index.js")
   ]);
   assert.equal(normal.runDocumentAuthoringCrashQualification, undefined);
   assert.deepEqual(Object.keys(qualification), [

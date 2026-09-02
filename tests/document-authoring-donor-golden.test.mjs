@@ -35,7 +35,7 @@ async function loadSchema(name) {
   return JSON.parse(
     await readFile(
       new URL(
-        `../packages/engineering-foundation/schemas/${name}/v1.schema.json`,
+        `../packages/document-authoring/schemas/${name}/v1.schema.json`,
         import.meta.url,
       ),
       "utf8",

@@ -22,7 +22,7 @@ import {
   promoteArchitectureDecisionBaseline,
   readAcceptedArchitectureDecisionEvidence
 } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/module.js";
-import { FilesystemMarkdownRepository } from "../packages/engineering-foundation/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
+import { FilesystemMarkdownRepository } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixtureRoot = join(

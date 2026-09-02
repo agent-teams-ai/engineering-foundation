@@ -9,13 +9,14 @@ import {
   renderDocumentCommandJson,
   renderDocumentCommandText,
 } from "../packages/document-authoring/dist/adapters/inbound/cli/document-command-renderer.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
+import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
 import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
 import { RunDocumentNew } from "../packages/document-authoring/dist/application/use-cases/run-document-new.js";
 import { RunDocumentRecover } from "../packages/document-authoring/dist/application/use-cases/run-document-recover.js";
 
 const cliPath = fileURLToPath(
-  new URL("../packages/engineering-foundation/dist/cli.js", import.meta.url),
+  new URL("../packages/docs-protocol/dist/cli.js", import.meta.url),
 );
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-command-envelope-v2.json", import.meta.url),
@@ -241,10 +242,10 @@ test("pure renderers emit one JSON object and a human recovery command", () => {
   const execution = { envelope: fixtures.preview, exitCode: 0 };
   assert.equal(renderDocumentCommandJson(execution), `${JSON.stringify(fixtures.preview)}\n`);
   const human = renderDocumentCommandText({ envelope: fixtures.doctor, exitCode: 1 });
-  assert.match(human, /Run: agent-teams-foundation docs recover/u);
+  assert.match(human, /Run: agent-teams-docs recover/u);
 });
 
-test("human renderer preserves an exact recovery package version", () => {
+test("human renderer preserves exact Document Authoring recovery coordinates", () => {
   const doctor = structuredClone(fixtures.doctor);
   doctor.result.recoveryCommand.args = {
     exactFoundationVersion: "0.14.3",
@@ -253,26 +254,26 @@ test("human renderer preserves an exact recovery package version", () => {
   const human = renderDocumentCommandText({ envelope: doctor, exitCode: 1 });
   assert.match(
     human,
-    /Run: pnpm dlx @agent-teams\/engineering-foundation@0\.14\.3 docs recover/u,
+    /Run: agent-teams-docs recover/u,
   );
   assert.match(human, /Required build: sha256:a{64}/u);
 });
 
 test("JSON parse failures use one object and no stderr", async () => {
   const invalid = spawnSync(process.execPath, [
-    cliPath, "docs", "new", "--force", "--json",
+    cliPath, "new", "--force", "--json",
   ], { encoding: "utf8" });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
   const invalidEnvelope = JSON.parse(invalid.stdout);
   assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
-  await assertSchema("document-command-envelope/v2", invalidEnvelope, "invalid-docs-new");
+  await assertDocsCommandEnvelopeSchema(invalidEnvelope);
 
 });
 
 test("doctor JSON parse failures remain valid without runtime environment evidence", async () => {
   const invalid = spawnSync(process.execPath, [
-    cliPath, "docs", "doctor", "--bogus", "--json",
+    cliPath, "doctor", "--bogus", "--json",
   ], { encoding: "utf8" });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
@@ -280,16 +281,12 @@ test("doctor JSON parse failures remain valid without runtime environment eviden
   assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
   assert.equal(invalidEnvelope.command, "docs.doctor");
   assert.equal(invalidEnvelope.outcome, "invalid-input");
-  await assertSchema(
-    "document-command-envelope/v2",
-    invalidEnvelope,
-    "invalid-docs-doctor",
-  );
+  await assertDocsCommandEnvelopeSchema(invalidEnvelope);
 });
 
 test("doctor JSON preserves machine output when consumer value is missing", async () => {
   const invalid = spawnSync(process.execPath, [
-    cliPath, "docs", "doctor", "--consumer", "--json",
+    cliPath, "doctor", "--consumer", "--json",
   ], { encoding: "utf8" });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
@@ -297,9 +294,5 @@ test("doctor JSON preserves machine output when consumer value is missing", asyn
   assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
   assert.equal(invalidEnvelope.command, "docs.doctor");
   assert.equal(invalidEnvelope.outcome, "invalid-input");
-  await assertSchema(
-    "document-command-envelope/v2",
-    invalidEnvelope,
-    "missing-consumer-docs-doctor",
-  );
+  await assertDocsCommandEnvelopeSchema(invalidEnvelope);
 });

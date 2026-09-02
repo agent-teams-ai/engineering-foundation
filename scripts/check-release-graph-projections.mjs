@@ -35,8 +35,11 @@ function referencePaths(tsconfig, label, diagnostics, { required = false } = {})
 }
 
 function sameSet(left, right) {
-  return left.length === right.length &&
-    left.toSorted().every((value, index) => value === right.toSorted()[index]);
+  if (left.length !== right.length) {
+    return false;
+  }
+  const expected = right.toSorted();
+  return left.toSorted().every((value, index) => value === expected[index]);
 }
 
 export function releaseGraphProjectionDiagnostics({

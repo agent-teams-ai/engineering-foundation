@@ -1,8 +1,9 @@
 import { lstat, readdir, realpath } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { join, resolve } from "node:path";
 
 import type { PortablePathIdentity } from "@agent-teams/repository-mutation";
 import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation";
+import { isLexicallyContainedPath } from "@agent-teams/repository-mutation/node";
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 
 interface NodePathAuthorityStat {
@@ -84,12 +85,6 @@ export function sameNodePathIdentity(
     left.ino === right.ino;
 }
 
-function contained(root: string, candidate: string): boolean {
-  const relation = relative(root, candidate);
-  return relation === "" ||
-    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`));
-}
-
 function assertRealDirectory(
   metadata: NodePathAuthorityStat,
   description: string
@@ -160,7 +155,7 @@ async function captureChildDirectory(
   const beforeIdentity = identity(before);
   const canonical = await operations.realpath(absolutePath);
   if (resolve(canonical) !== resolve(absolutePath) ||
-    !contained(root.canonicalRoot, canonical)) {
+    !isLexicallyContainedPath(root.canonicalRoot, canonical)) {
     throw new Error("Repository ancestry is redirected or escapes the repository.");
   }
   const after = await operations.lstat(absolutePath);

@@ -49,10 +49,11 @@ function locationKey(path: string, line: number): string {
 }
 
 function exactRules(left: readonly string[], right: readonly string[]): boolean {
-  return (
-    left.length === right.length &&
-    left.toSorted().every((value, index) => value === right.toSorted()[index])
-  );
+  if (left.length !== right.length) {
+    return false;
+  }
+  const expected = right.toSorted();
+  return left.toSorted().every((value, index) => value === expected[index]);
 }
 
 function waiverable(kind: SuppressionDirective["kind"]): kind is WaiverableDirective {

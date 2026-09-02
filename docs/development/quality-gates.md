@@ -11,7 +11,8 @@ weakening the merge gate.
 | Layer | Command | Purpose |
 | --- | --- | --- |
 | Changed | `pnpm check:changed` | Foundation-routed checks for the current Git delta |
-| Fast | `pnpm check:fast` | Terminology contract, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
+| Fast | `pnpm check:fast` | Terminology contract, reviewed npm bootstrap trees, release graph projections, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
+| Bootstrap trees | `pnpm bootstrap:trees:check` | Approved npm bootstrap profiles still bind the exact committed package tree, no uncommitted changes under it, and the exact packed runtime dependency map |
 | Terminology | `pnpm docs:terminology:check` | Canonical glossary sections, qualification scopes, and entry-point links |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
 | Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor capability qualification for all workflows and local actions |

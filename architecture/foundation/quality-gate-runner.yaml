@@ -4,6 +4,12 @@ profiles:
   - id: fast
     concurrency: 3
     tasks:
+      - id: docs:terminology:check
+        timeoutMs: 120000
+      - id: bootstrap:trees:check
+        timeoutMs: 120000
+      - id: release-graph:check
+        timeoutMs: 120000
       - id: test:manifests:check
         timeoutMs: 120000
       - id: lint:fast

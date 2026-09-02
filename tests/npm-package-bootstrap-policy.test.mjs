@@ -26,6 +26,7 @@ import {
   verifyLiveBootstrapBaselines,
   verifyReleaseBootstrapBaselines,
 } from "../scripts/npm-package-bootstrap.mjs";
+import { checkNpmBootstrapTrees } from "../scripts/check-npm-bootstrap-trees.mjs";
 import {
   assertWorkspaceManifestMatchesProfile,
   prove as proveLiveBootstrap,
@@ -916,4 +917,85 @@ test("live baseline verification blocks a candidate before network access", asyn
     readManifest: async () => ({ name: candidate.name, version: "0.1.0" }),
   }), /before reviewed bootstrap approval/u);
   assert.equal(fetched, false);
+});
+
+async function pinnedCatalogVersions() {
+  return { yaml: "2.9.0" };
+}
+
+function scriptedGit(tree, dirty) {
+  return async (args) => (args[0] === "rev-parse" ? tree : dirty);
+}
+
+test("bootstrap tree preflight refuses committed drift and uncommitted changes under an approved profile", async () => {
+  const approved = {
+    approval: { archiveIntegrity: "sha512-AAAA", packageTree: "a".repeat(40) },
+    bootstrapVersion: "0.0.0",
+    dependencies: [
+      { name: "@agent-teams/engineering-foundation", specifier: "workspace:*", version: "0.21.0" },
+      { name: "yaml", specifier: "catalog:", version: "2.9.0" }
+    ],
+    manifestPath: "packages/example/package.json",
+    name: "@agent-teams/example",
+    root: "packages/example",
+    state: "approved"
+  };
+  const historical = { ...approved, name: "@agent-teams/history", root: "packages/history", state: "historical" };
+  const released = {
+    ...approved,
+    manifestPath: "packages/released/package.json",
+    name: "@agent-teams/released",
+    root: "packages/released"
+  };
+  const catalog = { packages: [approved, historical, released] };
+  const manifests = new Map([
+    [approved.manifestPath, {
+      dependencies: { "@agent-teams/engineering-foundation": "workspace:*", yaml: "catalog:" },
+      version: "0.0.0"
+    }],
+    ["packages/engineering-foundation/package.json", { version: "0.21.0" }]
+  ]);
+  const readManifest = async (path) => manifests.get(path) ?? { version: "0.4.1" };
+  const readCatalogVersions = pinnedCatalogVersions;
+
+  const clean = await checkNpmBootstrapTrees({
+    catalog,
+    readCatalogVersions,
+    readManifest,
+    runGit: scriptedGit("a".repeat(40), "")
+  });
+  assert.deepEqual(clean.problems, []);
+  assert.deepEqual(clean.verified, ["@agent-teams/example@0.0.0"]);
+
+  const drifted = await checkNpmBootstrapTrees({
+    catalog,
+    readCatalogVersions,
+    readManifest,
+    runGit: scriptedGit("b".repeat(40), " M packages/example/src/index.ts")
+  });
+  assert.equal(drifted.verified.length, 0);
+  assert.equal(drifted.problems.length, 2);
+  assert.match(drifted.problems[0], /committed tree b{40} differs from the reviewed bootstrap authority a{40}/u);
+  assert.match(drifted.problems[1], /uncommitted changes under packages\/example/u);
+
+  const bumped = await checkNpmBootstrapTrees({
+    catalog,
+    readCatalogVersions: async () => ({ yaml: "2.10.0" }),
+    readManifest,
+    runGit: scriptedGit("a".repeat(40), "")
+  });
+  assert.equal(bumped.verified.length, 0);
+  assert.equal(bumped.problems.length, 1);
+  assert.match(bumped.problems[0], /would pack as .*yaml@2\.10\.0 \(catalog:\).*binds .*yaml@2\.9\.0/u);
+
+  const extraSection = await checkNpmBootstrapTrees({
+    catalog,
+    readCatalogVersions,
+    readManifest: async (path) => path === approved.manifestPath
+      ? { ...manifests.get(path), peerDependencies: { react: "*" } }
+      : readManifest(path),
+    runGit: scriptedGit("a".repeat(40), "")
+  });
+  assert.equal(extraSection.problems.length, 1);
+  assert.match(extraSection.problems[0], /declares peerDependencies/u);
 });

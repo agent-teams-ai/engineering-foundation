@@ -758,6 +758,39 @@ requiresStrictDirectoryDurability("terminal retirement rejects a pre-existing li
   });
 });
 
+requiresStrictDirectoryDurability("a journal that disappears during a proof reports a typed change, not a raw ENOENT", async () => {
+  await withFixture(async ({ path, store }) => {
+    const authority = await store.create(await envelope());
+    const attacked = new NodeDocumentJournalStore(path, {
+      async faultInjector(point) {
+        if (point.phase === "before-shared-quarantine") {
+          await rm(path);
+        }
+      }
+    });
+
+    await assert.rejects(
+      attacked.remove(authority),
+      (error) =>
+        error instanceof Error &&
+        error.name === "NodeDocumentJournalStoreError" &&
+        /Canonical document journal identity or canonical bytes changed concurrently/u.test(error.message)
+    );
+  });
+});
+
+requiresStrictDirectoryDurability("an invalid envelope is rejected before the occupied slot is probed", async () => {
+  await withFixture(async ({ path, state, store }) => {
+    await writeFile(path, "foreign occupant\n", { flag: "wx", mode: 0o600 });
+    await assert.rejects(
+      store.create(fixture.documentEnvelope),
+      /document transaction envelope|schema|payload/iu
+    );
+    assert.equal(await readFile(path, "utf8"), "foreign occupant\n");
+    assert.deepEqual(await readdir(state), ["scaffolding-transaction.json"]);
+  });
+});
+
 requiresStrictDirectoryDurability("rejects non-canonical slots, invalid identities, and non-regular journals", async () => {
   await withFixture(async ({ path, store }) => {
     assert.throws(

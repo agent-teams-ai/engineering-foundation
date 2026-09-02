@@ -4,7 +4,7 @@ All ordinary Repository Mutation, Foundation, Docs Protocol, Agent Teams
 adapter, and Docs Protocol MCP releases use npm Trusted Publishing from the
 protected `main` workflow with GitHub OIDC and automatic provenance. Manual
 workstation publication and persistent npm secrets are not supported.
-The sole exception is the reviewed one-time MCP namespace bootstrap in ADR-0042;
+The sole exception is the reviewed one-time namespace bootstrap in ADR-0044;
 it cannot publish a supported release.
 
 Changesets maintains versions and release notes. The release workflow publishes
@@ -26,15 +26,15 @@ changelogs, immutable registry versions, Git tags, and GitHub releases. This
 paragraph records completed history; it is not an executable release checklist.
 
 The one-time ADR-0029 namespace bootstrap is likewise completed historical
-evidence. Do not rerun its retired workflow. ADR-0042 now owns the single generic
+evidence. Do not rerun its retired workflow. ADR-0044 now owns the single generic
 closed-catalog mechanism for an explicitly approved future namespace and keeps it
 separate from ordinary OIDC release authority. Never edit package versions or
 `.changeset/pre.json` by hand.
 
-## One-time MCP namespace bootstrap
+## One-time namespace bootstrap
 
 `architecture/foundation/npm-package-bootstrap.json` is the only package-specific
-authority. The MCP profile must be `approved` with reviewed package-tree and SRI
+authority. The selected profile must be `approved` with reviewed package-tree and SRI
 evidence before the protected `npm-package-bootstrap` environment can run. The
 SRI must come from the retained Ubuntu writer artifact with the repository-pinned
 Node and pnpm versions, never from a local `npm pack` or `pnpm pack`: gzip bytes
@@ -45,20 +45,23 @@ was created at the dispatch timestamp, expires within 24 hours, and has at least
 protected-main commit.
 
 The workflow performs one publish attempt only after the complete local and npm
-preflight. Public npm assigns both `bootstrap` and `latest` to a namespace's
-first version even when publication requests only `bootstrap`; the workflow
-never creates or moves those tags explicitly. Normal publish or reuse re-proves
-exact SRI, both tags, signature, publish attestation, and source-bound SLSA
+preflight. Public npm may expose only the requested `bootstrap` tag or may also
+create `latest` for a namespace's first version. The workflow never creates,
+removes, or moves either tag explicitly. Normal publish or reuse requires
+`bootstrap -> 0.0.0`, allows only an optional `latest -> 0.0.0`, and re-proves
+exact SRI, signature, publish attestation, and source-bound SLSA
 provenance before deprecation. If publication is uncertain and provenance cannot
 be proved, rerun only the reviewed `quarantine` operation: it may deprecate the
 exact reviewed bytes but cannot publish, move tags, reconcile a GitHub release,
 or satisfy the ordinary release gate. Retain the evidence, revoke the token,
 disable the workflow, and require a successor ADR plus newly reviewed version
-path if provenance never converges. After the exact normal postconditions and
-GitHub prerelease are retained as evidence, configure npm Trusted Publisher for
-`@agent-teams/docs-protocol-mcp`, revoke the token immediately, remove its GitHub
-environment secret, and disable the bootstrap repository variable. Confirm all
-three actions before allowing the `0.1.0` release PR to merge.
+path if provenance never converges. After each exact normal postcondition and
+GitHub prerelease is retained as evidence, configure npm Trusted Publisher for
+that package, revoke its one-package token immediately, and remove the GitHub
+environment secret. Bootstrap dependent packages strictly in catalog dependency
+order with a fresh token for each package. Disable the bootstrap repository
+variable after the approved batch and confirm cleanup before merging the release
+PR.
 
 The ordered release command does not complete after npm publication alone. Its
 final required phase resolves the canonical public Docs Protocol coordinates and

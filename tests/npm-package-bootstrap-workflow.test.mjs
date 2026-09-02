@@ -97,14 +97,12 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.match(publish.run, /test "\$\{NODE_AUTH_TOKEN\}" != ""/u);
   assert.match(publish.run, /npm_token="\$\{NODE_AUTH_TOKEN\}"\s+unset NODE_AUTH_TOKEN/u);
   assert.match(publish.run, /NODE_AUTH_TOKEN="\$\{npm_token\}"[\s\\]+npm publish/u);
-  assert.match(publish.run, /NODE_AUTH_TOKEN="\$\{npm_token\}"[\s\\]+npm dist-tag add/u);
+  assert.doesNotMatch(publish.run, /npm dist-tag/u);
   assert.match(publish.run, /NODE_AUTH_TOKEN="\$\{npm_token\}"[\s\\]+npm deprecate/u);
   assert.match(publish.run, /git ls-remote --exit-code origin refs\/heads\/main/u);
   assert.match(publish.run, /assert_token_window/u);
   assert.match(publish.run, /quarantine-final-proof/u);
   assert.match(publish.run, /npm publish "\$\{ARCHIVE_PATH\}" --tag bootstrap --provenance --ignore-scripts/u);
-  assert.match(publish.run, /npm dist-tag add "\$\{PACKAGE_TAG\}" latest/u);
-  assert.match(publish.run, /artifact-proof/u);
   assert.match(publish.run, /mutation-proof/u);
   assert.match(publish.run, /npm deprecate "\$\{PACKAGE_TAG\}"/u);
   const quarantineBranch = publish.run.slice(
@@ -115,7 +113,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     publish.run.indexOf('if [[ "${REGISTRY_ACTION}" == "publish" ]]'),
     publish.run.indexOf('elif [[ "${REGISTRY_ACTION}" != "reuse" ]]'),
   );
-  const postPublishBranch = publish.run.slice(publish.run.indexOf("artifact-proof"));
+  const postPublishBranch = publish.run.slice(publish.run.indexOf("mutation-proof"));
   assertOrdered(quarantineBranch, [
     "assert_fresh_main_bounded", "quarantine-final-proof", "assert_fresh_main",
     "assert_token_window", "npm deprecate",
@@ -125,7 +123,6 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     "assert_token_window", "npm publish",
   ]);
   assertOrdered(postPublishBranch, [
-    "artifact-proof", "assert_fresh_main", "assert_token_window", "npm dist-tag add",
     "mutation-proof", "assert_fresh_main_bounded", "quarantine-final-proof",
     "assert_fresh_main", "assert_token_window", "npm deprecate",
   ]);

@@ -221,17 +221,6 @@ jobs:
             echo "Unexpected registry action." >&2
             exit 1
           fi
-          node scripts/npm-package-bootstrap-cli.mjs artifact-proof \
-            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
-            "${evidence_root}/artifact-before-tags.json"
-          assert_fresh_main
-          assert_token_window
-          set +e
-          NODE_AUTH_TOKEN="${npm_token}" \
-            npm dist-tag add "${PACKAGE_TAG}" latest
-          dist_tag_status="$?"
-          set -e
-          echo "npm dist-tag returned status ${dist_tag_status}; reconciling exact registry evidence."
           node scripts/npm-package-bootstrap-cli.mjs mutation-proof \
             "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
             "${evidence_root}/mutation-audit.json"

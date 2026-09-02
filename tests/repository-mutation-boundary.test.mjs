@@ -20,7 +20,7 @@ async function filesBelow(root) {
 test("keeps Repository Mutation a zero-monorepo-dependency packed closure", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert.equal(manifest.name, "@agent-teams/repository-mutation");
-  assert.equal(manifest.version, "0.0.0");
+  assert.match(manifest.version, /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u);
   assert.equal(manifest.dependencies, undefined);
   assert.deepEqual(Object.keys(manifest.exports).toSorted(), [
     ".", "./node", "./package.json", "./qualification", "./schemas/*"

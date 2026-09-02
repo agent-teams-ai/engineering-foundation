@@ -148,10 +148,17 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
   );
   assert.equal(bootstrapPackageById("docs-protocol-agent-teams", { approved: true }), mcpProfile);
   assert.throws(() => bootstrapPackageById("docs-protocol-mcp", { approved: true }), /not approved/u);
+  assert.deepEqual(mcpProfile.tags, {
+    allowed: ["bootstrap", "latest"],
+    required: ["bootstrap"],
+  });
 
   for (const mutation of [
     (value) => { value.extra = true; },
+    (value) => { value.schemaVersion = 1; },
     (value) => { value.packages[0].root = "../escape"; },
+    (value) => { value.packages[0].tags.required = ["latest"]; },
+    (value) => { value.packages[0].tags.allowed.push("next"); },
     (value) => { value.packages.find(({ id }) => id === "docs-protocol-agent-teams").dependencies[0].version = "latest"; },
     (value) => { value.packages.find(({ id }) => id === "docs-protocol-agent-teams").dependencies[3].specifier = "latest"; },
     (value) => { value.packages[0].contentPolicy.prefixes = ["dist/file.js"]; },
@@ -369,7 +376,7 @@ test("reuse proof rejects a dist-tag race before token-bearing mutations", () =>
   }), /unexpected bootstrap dist-tag/u);
 });
 
-test("published artifact proof permits only the bootstrap-to-latest transition", () => {
+test("published artifact proof accepts only required bootstrap and optional registry-created latest", () => {
   const profile = approvedMcpCatalog().packages[0];
   const base = {
     auditEvidence: auditEvidence(profile),
@@ -381,15 +388,12 @@ test("published artifact proof permits only the bootstrap-to-latest transition",
   };
   delete base.packageMetadata["dist-tags"].latest;
   assert.doesNotThrow(() => assertPublishedBootstrapArtifact(base));
-  assert.throws(
-    () => assertBootstrapMutationPreconditions(base),
-    /dist-tags are incomplete/u,
-  );
+  assert.doesNotThrow(() => assertBootstrapMutationPreconditions(base));
   delete base.packageMetadata["dist-tags"].bootstrap;
   base.packageMetadata["dist-tags"].latest = profile.bootstrapVersion;
   assert.throws(
     () => assertPublishedBootstrapArtifact(base),
-    /bootstrap dist-tag does not resolve/u,
+    /required bootstrap dist-tags are incomplete/u,
   );
 });
 
@@ -443,7 +447,12 @@ test("mutation proof stores only validated evidence fields", async () => {
   );
   const evidence = JSON.parse(written);
   assert.equal(written.includes(remoteCanary), false);
+  assert.equal(evidence.schemaVersion, 2);
   assert.equal(evidence.live.deprecationMatches, false);
+  assert.deepEqual(evidence.live.distTags, {
+    bootstrap: profile.bootstrapVersion,
+    latest: profile.bootstrapVersion,
+  });
   assert.equal(evidence.package.integrity, profile.approval.archiveIntegrity);
   assert.equal(evidence.provenance.commit, reviewedCommit);
   assert.equal(evidence.verified, true);
@@ -630,6 +639,9 @@ test("postconditions require exact registry state, deprecation, signature audit,
     publishedIntegrity: profile.approval.archiveIntegrity,
   };
   assert.doesNotThrow(() => assertBootstrapPostconditions(input));
+  const bootstrapOnly = structuredClone(input);
+  delete bootstrapOnly.packageMetadata["dist-tags"].latest;
+  assert.doesNotThrow(() => assertBootstrapPostconditions(bootstrapOnly));
   for (const mutation of [
     (value) => { value.deprecatedMessage = "different deprecation"; },
     (value) => { value.expectedCommit = "c".repeat(40); },
@@ -639,6 +651,32 @@ test("postconditions require exact registry state, deprecation, signature audit,
     const value = structuredClone(input);
     mutation(value);
     assert.throws(() => assertBootstrapPostconditions(value), /bootstrap refused/u);
+  }
+});
+
+test("quarantine accepts both registry-created tag shapes but rejects conflicting tags", () => {
+  const profile = approvedMcpCatalog().packages[0];
+  const input = {
+    deprecatedMessage: profile.deprecationMessage,
+    localIntegrity: profile.approval.archiveIntegrity,
+    packageMetadata: bootstrapMetadata(profile),
+    profile,
+    publishedIntegrity: profile.approval.archiveIntegrity,
+  };
+  assert.doesNotThrow(() => assertBootstrapQuarantineCandidate(input));
+  assert.doesNotThrow(() => assertBootstrapQuarantinePostconditions(input));
+  const bootstrapOnly = structuredClone(input);
+  delete bootstrapOnly.packageMetadata["dist-tags"].latest;
+  assert.doesNotThrow(() => assertBootstrapQuarantineCandidate(bootstrapOnly));
+  assert.doesNotThrow(() => assertBootstrapQuarantinePostconditions(bootstrapOnly));
+  for (const mutation of [
+    (value) => { value.packageMetadata["dist-tags"].latest = "0.0.1"; },
+    (value) => { value.packageMetadata["dist-tags"].foreign = profile.bootstrapVersion; },
+    (value) => { delete value.packageMetadata["dist-tags"].bootstrap; },
+  ]) {
+    const value = structuredClone(input);
+    mutation(value);
+    assert.throws(() => assertBootstrapQuarantineCandidate(value), /bootstrap refused/u);
   }
 });
 

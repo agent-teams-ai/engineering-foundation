@@ -184,15 +184,16 @@ function normalizedVersions(metadata) {
   return versions;
 }
 
-function assertBootstrapTags(profile, tags, { exact }) {
+function assertBootstrapTags(profile, tags) {
   if (!isRecord(tags)) {
     fail("registry dist-tags must be an object.");
   }
-  if (Object.entries(tags).some(([tag, version]) => !profile.tags.includes(tag) || version !== profile.bootstrapVersion)) {
+  if (Object.entries(tags).some(([tag, version]) =>
+    !profile.tags.allowed.includes(tag) || version !== profile.bootstrapVersion)) {
     fail("registry contains an unexpected bootstrap dist-tag.");
   }
-  if (exact && Object.keys(tags).toSorted().join("\0") !== profile.tags.toSorted().join("\0")) {
-    fail("registry bootstrap dist-tags are incomplete.");
+  if (profile.tags.required.some((tag) => tags[tag] !== profile.bootstrapVersion)) {
+    fail("registry required bootstrap dist-tags are incomplete.");
   }
 }
 
@@ -224,10 +225,7 @@ export function classifyRegistryPreflight({
   if (versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
     fail("existing package namespace is not the isolated bootstrap baseline.");
   }
-  assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: false });
-  if (packageMetadata["dist-tags"].bootstrap !== profile.bootstrapVersion) {
-    fail("existing package namespace does not carry the bootstrap dist-tag.");
-  }
+  assertBootstrapTags(profile, packageMetadata["dist-tags"]);
   if (publishedIntegrity !== localIntegrity) {
     fail("existing bootstrap version is not the reviewed tarball.");
   }
@@ -296,7 +294,7 @@ export function assertBootstrapMutationPreconditions({
     packageMetadata,
     profile,
     publishedIntegrity,
-  }, { exactTags: true });
+  });
 }
 
 export function assertPublishedBootstrapArtifact({
@@ -306,15 +304,12 @@ export function assertPublishedBootstrapArtifact({
   packageMetadata,
   profile,
   publishedIntegrity,
-}, { exactTags = false } = {}) {
+}) {
   const versions = normalizedVersions(packageMetadata);
   if (versions === null || versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
     fail("registry does not contain exactly the bootstrap version.");
   }
-  assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: exactTags });
-  if (packageMetadata["dist-tags"].bootstrap !== profile.bootstrapVersion) {
-    fail("registry bootstrap dist-tag does not resolve to the reviewed version.");
-  }
+  assertBootstrapTags(profile, packageMetadata["dist-tags"]);
   if (localIntegrity !== profile.approval.archiveIntegrity || publishedIntegrity !== localIntegrity) {
     fail("published bootstrap integrity differs from the reviewed tarball.");
   }
@@ -349,7 +344,7 @@ export function assertBootstrapQuarantineCandidate({
   if (versions.length !== 1 || versions[0] !== profile.bootstrapVersion) {
     fail("quarantine target is not the isolated bootstrap version.");
   }
-  assertBootstrapTags(profile, packageMetadata["dist-tags"], { exact: true });
+  assertBootstrapTags(profile, packageMetadata["dist-tags"]);
   if (localIntegrity !== profile.approval.archiveIntegrity || publishedIntegrity !== localIntegrity) {
     fail("quarantine target differs from the exact reviewed tarball.");
   }

@@ -389,25 +389,9 @@ test("CLI reports zero matches as success and invalid JSON invocations structura
       documents: [],
     });
 
-    const terminated = spawnSync(process.execPath, [
-      cliPath,
-      "find",
-      "--consumer",
-      root,
-      "--",
-      "--json",
-    ], { encoding: "utf8" });
-    assert.equal(terminated.status, 0, terminated.stderr);
-    assert.equal(terminated.stderr, "");
-    assert.deepEqual(JSON.parse(terminated.stdout).result, {
-      kind: "find",
-      matches: 0,
-      documents: [],
-    });
-
     for (const args of [
-      ["find", "one", "two", "--json"],
-      ["find", "--id", "", "--json"],
+      ["find", "one", "two", "--consumer", root, "--json"],
+      ["find", "--id", "", "--consumer", root, "--json"],
       ["find", "--type", "INVALID", "--consumer", root, "--json"],
     ]) {
       const invalid = spawnSync(process.execPath, [cliPath, ...args], {

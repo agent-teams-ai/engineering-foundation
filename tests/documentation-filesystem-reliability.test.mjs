@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { CapabilityInputError } from "../packages/engineering-foundation/dist/capability-runtime.js";
+import { CapabilityInputError } from "../packages/document-authoring/dist/capability-runtime.js";
 import { FilesystemMarkdownDocumentReader } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-document-reader.js";
 import { nodeFilesystemMarkdownOperations } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-filesystem.js";
 import { resolveFilesystemMarkdownReference } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-reference-resolver.js";

@@ -96,7 +96,7 @@ function boundedWrapperStderrSuffix(chunks: readonly Buffer[]): string {
 
 function finalWrapperFailurePhase(stderr: string): string {
   const matches = stderr.matchAll(
-    /(?:^|\r?\n)Windows Job Object runner failed \[phase=(helper-load|bootstrap-request|managed-run)\]:/gu
+    /(?:^|\r?\n)Windows Job Object runner failed \[phase=(helper-source-read|helper-compile|helper-load|bootstrap-request|managed-run)\]:/gu
   );
   let phase = "unreported";
   for (const match of matches) {

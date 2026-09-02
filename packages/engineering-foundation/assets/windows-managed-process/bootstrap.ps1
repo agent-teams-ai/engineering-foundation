@@ -1,9 +1,26 @@
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
-$FailurePhase = "helper-load"
+$FailurePhase = "helper-source-read"
+
+function ConvertTo-ExtendedLengthPath([string]$Path) {
+  if ($Path.StartsWith('\\?\')) {
+    return $Path
+  }
+  if (-not [System.IO.Path]::IsPathRooted($Path)) {
+    throw "Windows managed-process helper path must be absolute."
+  }
+  if ($Path.StartsWith('\\')) {
+    return '\\?\UNC\' + $Path.Substring(2)
+  }
+  return '\\?\' + $Path
+}
 
 try {
-  Add-Type -Path (Join-Path $PSScriptRoot "WindowsManagedProcess.cs")
+  $helperSource = [System.IO.File]::ReadAllText(
+    (ConvertTo-ExtendedLengthPath (
+      Join-Path $PSScriptRoot "WindowsManagedProcess.cs")))
+  $FailurePhase = "helper-compile"
+  Add-Type -TypeDefinition $helperSource -Language CSharp
   $FailurePhase = "bootstrap-request"
   $bootstrapRequest = [Console]::In.ReadToEnd() | ConvertFrom-Json
   if ([int]$bootstrapRequest.schemaVersion -ne 1) {

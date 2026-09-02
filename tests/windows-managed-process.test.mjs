@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { copyFile, mkdir, mkdtemp, open, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -85,7 +86,7 @@ test("bounds hostile cleanup diagnostics and selects the final wrapper phase", (
     describeManagedProcessCleanupFailure(
       new AggregateError([cycle, throwingErrors], "private root"),
       [Buffer.from([
-        "Windows Job Object runner failed [phase=helper-load]: child spoof",
+        "Windows Job Object runner failed [phase=helper-compile]: child spoof",
         "Windows Job Object runner failed [phase=managed-run]: wrapper failure"
       ].join("\n"))],
       true
@@ -183,6 +184,58 @@ async function writeNewFileExclusive(path, contents) {
     await handle.close();
   }
 }
+
+windowsTest(
+  "PowerShell bootstrap compiles its helper outside the deep installed asset path",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation deep installed helper "));
+    const bootstrapName = "bootstrap.ps1";
+    const helperName = "WindowsManagedProcess.cs";
+    const targetBootstrapLength = 250;
+    const segmentLength = targetBootstrapLength - root.length - bootstrapName.length - 1;
+    assert.ok(segmentLength > 0 && segmentLength <= 240);
+    const helperRoot = join(root, "x".repeat(segmentLength));
+    const bootstrapPath = join(helperRoot, "bootstrap.ps1");
+    const helperPath = join(helperRoot, helperName);
+    assert.equal(bootstrapPath.length, targetBootstrapLength);
+    assert.ok(helperPath.length > 260);
+    try {
+      await mkdir(helperRoot, { recursive: true });
+      await Promise.all([
+        copyFile(
+          new URL("../packages/engineering-foundation/assets/windows-managed-process/bootstrap.ps1", import.meta.url),
+          bootstrapPath
+        ),
+        copyFile(
+          new URL("../packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs", import.meta.url),
+          helperPath
+        )
+      ]);
+      const systemRoot = Object.entries(process.env).find(
+        ([name]) => name.toLowerCase() === "systemroot"
+      )?.[1];
+      assert.equal(typeof systemRoot, "string");
+      const child = spawn(
+        join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", bootstrapPath],
+        { cwd: helperRoot, stdio: ["pipe", "pipe", "pipe"], windowsHide: true }
+      );
+      let stderr = "";
+      child.stderr.setEncoding("utf8");
+      child.stderr.on("data", (chunk) => { stderr += chunk; });
+      const closed = once(child, "close");
+      child.stdin.end(JSON.stringify({ schemaVersion: 0 }));
+      const [exitCode] = await once(child, "exit");
+      await closed;
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /\[phase=bootstrap-request\]/u);
+      assert.doesNotMatch(stderr, /\[phase=helper-(?:source-read|compile)\]/u);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  }
+);
 
 windowsTest(
   "packaged helper compiles and preserves a long Windows path and argument vector",

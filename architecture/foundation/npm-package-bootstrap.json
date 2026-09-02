@@ -49,6 +49,99 @@
       }
     },
     {
+      "id": "document-authoring",
+      "state": "candidate",
+      "name": "@agent-teams/document-authoring",
+      "root": "packages/document-authoring",
+      "manifestPath": "packages/document-authoring/package.json",
+      "bootstrapVersion": "0.0.0",
+      "dependencies": [
+        {
+          "name": "@agent-teams/repository-mutation",
+          "specifier": "workspace:*",
+          "version": "0.0.0"
+        },
+        {
+          "name": "ajv",
+          "specifier": "catalog:",
+          "version": "8.20.0"
+        },
+        {
+          "name": "github-slugger",
+          "specifier": "catalog:",
+          "version": "2.0.0"
+        },
+        {
+          "name": "mdast-util-to-string",
+          "specifier": "catalog:",
+          "version": "4.0.0"
+        },
+        {
+          "name": "remark-frontmatter",
+          "specifier": "catalog:",
+          "version": "5.0.0"
+        },
+        {
+          "name": "remark-gfm",
+          "specifier": "catalog:",
+          "version": "4.0.1"
+        },
+        {
+          "name": "remark-parse",
+          "specifier": "catalog:",
+          "version": "11.0.0"
+        },
+        {
+          "name": "unified",
+          "specifier": "catalog:",
+          "version": "11.0.5"
+        },
+        {
+          "name": "unist-util-visit",
+          "specifier": "catalog:",
+          "version": "5.1.0"
+        },
+        {
+          "name": "yaml",
+          "specifier": "catalog:",
+          "version": "2.9.0"
+        }
+      ],
+      "contentPolicy": {
+        "exact": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ],
+        "prefixes": [
+          "dist/",
+          "schemas/"
+        ],
+        "required": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ]
+      },
+      "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/document-authoring release instead.",
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
+      "provenance": {
+        "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
+        "ref": "refs/heads/main"
+      },
+      "approval": null
+    },
+    {
       "id": "docs-protocol",
       "state": "historical",
       "name": "@agent-teams/docs-protocol",

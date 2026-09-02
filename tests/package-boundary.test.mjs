@@ -122,13 +122,15 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
     [
       repositoryMutationName,
-      foundationName,
+      "@agent-teams/document-authoring",
       docsProtocolName,
       docsProtocolAgentTeamsName,
       docsProtocolMcpName,
+      foundationName,
     ],
   );
   const repositoryMutation = await json("packages/repository-mutation/package.json");
+  const documentAuthoring = await json("packages/document-authoring/package.json");
   const foundation = await json("packages/engineering-foundation/package.json");
   const docsProtocol = await json("packages/docs-protocol/package.json");
   const docsProtocolAgentTeams = await json("packages/docs-protocol-agent-teams/package.json");
@@ -154,14 +156,17 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     );
   }
   assert.equal(foundation.dependencies?.[repositoryMutationName], "workspace:*");
+  assert.equal(foundation.dependencies?.["@agent-teams/document-authoring"], "workspace:*");
   assert.equal(docsProtocol.dependencies?.[repositoryMutationName], "workspace:*");
-  assert.equal(docsProtocol.dependencies?.[foundationName], "workspace:*");
+  assert.equal(docsProtocol.dependencies?.["@agent-teams/document-authoring"], "workspace:*");
+  assert.equal(docsProtocol.dependencies?.[foundationName], undefined);
   assert.equal(docsProtocol.dependencies?.[docsProtocolAgentTeamsName], undefined);
   assert.equal(docsProtocol.dependencies?.[docsProtocolMcpName], undefined);
   assert.equal(docsProtocolAgentTeams.dependencies?.[docsProtocolName], "workspace:*");
-  assert.equal(docsProtocolAgentTeams.dependencies?.[foundationName], "workspace:*");
+  assert.equal(docsProtocolAgentTeams.dependencies?.[foundationName], undefined);
+  assert.equal(docsProtocolAgentTeams.dependencies?.["@agent-teams/document-authoring"], undefined);
   assert.equal(docsProtocolAgentTeams.dependencies?.[repositoryMutationName], "workspace:*");
-  for (const manifest of [repositoryMutation, foundation, docsProtocol]) {
+  for (const manifest of [repositoryMutation, documentAuthoring, foundation, docsProtocol]) {
     for (const section of dependencySections) {
       assert.equal(
         manifest[section]?.[docsProtocolAgentTeamsName],
@@ -209,7 +214,7 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
   });
   for (const entry of packageDirectories.filter((candidate) => candidate.isDirectory())) {
     const manifest = await json(`packages/${entry.name}/package.json`);
-    if (![docsProtocolName, docsProtocolAgentTeamsName].includes(manifest.name)) {
+    if (manifest.name !== foundationName) {
       assert.equal(
         manifest.dependencies?.[foundationName],
         undefined,
@@ -774,7 +779,7 @@ test("current authoring guidance uses only the unified explicit-mutation CLI", a
 
 test("document authoring public surface exposes no directory rollback capability", async () => {
   const runtime = await import(
-    "../packages/engineering-foundation/dist/document-authoring/index.js"
+    "../packages/document-authoring/dist/index.js"
   );
   assert.deepEqual(
     Object.keys(runtime).filter((name) => /rollback/iu.test(name)),
@@ -782,7 +787,7 @@ test("document authoring public surface exposes no directory rollback capability
   );
   const declarations = await readFile(join(
     repositoryRoot,
-    "packages/engineering-foundation/dist/document-authoring/index.d.ts",
+    "packages/document-authoring/dist/index.d.ts",
   ), "utf8");
   assert.doesNotMatch(
     declarations,
@@ -790,7 +795,7 @@ test("document authoring public surface exposes no directory rollback capability
   );
   const authoringSources = await sourceFiles(join(
     repositoryRoot,
-    "packages/engineering-foundation/src/document-authoring",
+    "packages/document-authoring/src",
   ));
   for (const path of authoringSources) {
     assert.doesNotMatch(
@@ -801,10 +806,12 @@ test("document authoring public surface exposes no directory rollback capability
   }
 });
 test("production and generic directory adapters share the internal bind kernel", async () => {
-  const production = await readFile(join(
+  const productionPath = (await sourceFiles(join(
     repositoryRoot,
-    "packages/engineering-foundation/src/document-authoring/adapters/node/node-document-parent-materializer.ts",
-  ), "utf8");
+    "packages/document-authoring/src",
+  ))).find((path) => path.endsWith("/node-document-parent-materializer.ts"));
+  assert.notEqual(productionPath, undefined);
+  const production = await readFile(productionPath, "utf8");
   const generic = await readFile(join(
     repositoryRoot,
     "packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts",

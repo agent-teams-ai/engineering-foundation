@@ -25,6 +25,27 @@ Measured in the disposable documentation worktree on 2026-08-31:
 This checkpoint evidence is not exact-head release proof. A checked item below
 requires its own current, authoritative evidence rather than this prose.
 
+## Document Authoring qualification lane handoff
+
+The qualification lane starts from exact base
+`fe8beaa66ca963934fd027aa4501687d40117eb9`. Its six-package descriptors,
+Source Dependencies v2 policy, hostile fixtures, derived release graph, package
+qualification, registry-install exercise, new-only negative assertions, and
+bootstrap candidate become evidence only after the physical Document Authoring
+lane is integrated at one exact head and all required gates below pass there.
+No checklist item is promoted by lane-local or base-only evidence.
+
+`@agent-teams/document-authoring@0.0.0` remains a bootstrap `candidate` with a
+null approval. After the core package exists at the integrated exact head,
+prepare the packages, pack that exact package with lifecycle scripts disabled,
+retain the JSON pack report and verbose/ordinary tar listings, and read
+`git rev-parse HEAD:packages/document-authoring`. Review the resulting archive's
+canonical SHA-512 SRI and exact package tree, then—and only in the separately
+reviewed approval change—set the catalog entry to `approved` and bind those two
+observed values. Run `node scripts/npm-package-bootstrap-local-evidence.mjs`
+after that binding. This is the required integration step; this lane does not
+invent either evidence value.
+
 ## Delivery checklist
 
 ### 1. Foundation gate

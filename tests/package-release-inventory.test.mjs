@@ -124,7 +124,9 @@ test("every public workspace package has API, release, qualification, and securi
   assert.throws(
     () => assertPublicWorkspacePackageAuthorities({
       ...authorities,
-      qualificationPackages: authorities.qualificationPackages.slice(0, -1),
+      qualificationPackages: authorities.qualificationPackages.filter(
+        ({ name }) => name !== "@agent-teams/docs-protocol-mcp",
+      ),
     }),
     /package qualification.*missing=\[@agent-teams\/docs-protocol-mcp\]/u,
   );
@@ -167,6 +169,29 @@ test("registry qualification includes Docs Protocol exactly once across bootstra
     () => registryQualificationPackages([foundation, docs, docs]),
     /unique publishable package names/u,
   );
+});
+
+test("reviewed catalog owns the standalone Document Authoring package", async () => {
+  const entries = PUBLISHABLE_PACKAGES.filter(
+    ({ name }) => name === "@agent-teams/document-authoring",
+  );
+  assert.deepEqual(entries, [{
+    changelogPath: "packages/document-authoring/CHANGELOG.md",
+    manifestPath: "packages/document-authoring/package.json",
+    name: "@agent-teams/document-authoring",
+    root: "packages/document-authoring",
+  }]);
+  const manifest = JSON.parse(await readFile(
+    new URL("../packages/document-authoring/package.json", import.meta.url),
+    "utf8",
+  ));
+  assert.equal(manifest.private, undefined);
+  assert.equal(manifest.version, "0.0.0");
+  assert.equal(manifest.dependencies?.["@agent-teams/repository-mutation"], "workspace:*");
+  assert.equal(manifest.dependencies?.["@agent-teams/engineering-foundation"], undefined);
+  assert.deepEqual(Object.keys(manifest.exports).toSorted(), [
+    ".", "./observation", "./package.json", "./qualification", "./schemas/*",
+  ]);
 });
 
 test("reviewed catalog owns the public Docs Protocol manifest", async () => {

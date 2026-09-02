@@ -34,6 +34,7 @@ import {
 import { main as releasePublishMain } from "../scripts/release-publish.mjs";
 
 const mcpProfile = bootstrapPackageById("docs-protocol-agent-teams", { approved: true });
+const authoringProfile = bootstrapPackageById("document-authoring");
 const reviewedCommit = "a".repeat(40);
 
 function integrity(bytes) {
@@ -137,9 +138,18 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
   assert.deepEqual(
     NPM_PACKAGE_BOOTSTRAP.packages.map(({ id, state }) => ({ id, state })),
     [
-      { id: "repository-mutation", state: "approved" }, { id: "docs-protocol", state: "historical" },
+      { id: "repository-mutation", state: "approved" },
+      { id: "document-authoring", state: "candidate" },
+      { id: "docs-protocol", state: "historical" },
       { id: "docs-protocol-agent-teams", state: "approved" }, { id: "docs-protocol-mcp", state: "historical" },
     ],
+  );
+  const authoring = bootstrapPackageById("document-authoring");
+  assert.equal(authoring.bootstrapVersion, "0.0.0");
+  assert.equal(authoring.approval, null);
+  assert.throws(
+    () => bootstrapPackageById("document-authoring", { approved: true }),
+    /bootstrap is not approved/u,
   );
   assert.notEqual(mcpProfile.approval, null);
   assert.throws(
@@ -173,22 +183,22 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
 
 test("bootstrap workspace authority distinguishes internal and catalog dependencies", async () => {
   const manifest = Object.assign(JSON.parse(await readFile(
-    new URL("../packages/docs-protocol-agent-teams/package.json", import.meta.url),
+    new URL("../packages/document-authoring/package.json", import.meta.url),
     "utf8",
-  )), { version: mcpProfile.bootstrapVersion });
-  assert.doesNotThrow(() => assertWorkspaceManifestMatchesProfile(mcpProfile, manifest));
+  )), { version: authoringProfile.bootstrapVersion });
+  assert.doesNotThrow(() => assertWorkspaceManifestMatchesProfile(authoringProfile, manifest));
 
   const catalogDrift = structuredClone(manifest);
   catalogDrift.dependencies.ajv = "workspace:*";
   assert.throws(
-    () => assertWorkspaceManifestMatchesProfile(mcpProfile, catalogDrift),
+    () => assertWorkspaceManifestMatchesProfile(authoringProfile, catalogDrift),
     /specifier mismatch for ajv/u,
   );
 
   const unexpectedDependency = structuredClone(manifest);
   unexpectedDependency.dependencies["unexpected-package"] = "1.0.0";
   assert.throws(
-    () => assertWorkspaceManifestMatchesProfile(mcpProfile, unexpectedDependency),
+    () => assertWorkspaceManifestMatchesProfile(authoringProfile, unexpectedDependency),
     /runtime dependency names differ/u,
   );
 });

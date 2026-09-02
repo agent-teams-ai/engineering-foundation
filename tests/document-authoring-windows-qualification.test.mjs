@@ -6,14 +6,14 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { sha256Bytes } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { NodeDocumentPublisher } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-publisher.js";
-import { documentPlanDigest } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
+import { NodeDocumentPublisher } from "../packages/document-authoring/dist/adapters/node/node-document-publisher.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
 import {
   applyDocumentationPlan,
   inspectDocumentTransactionV1,
   planDocumentationDocument
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 import { StrictDirectoryDurabilityError } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-directory-durability.js";
 import { createNodeFoundationCleanupTransition } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
 

@@ -47,8 +47,8 @@ test("registry Docs Profile fixture satisfies the current portable profile polic
 });
 
 test("canonical package boundaries use platform path semantics", () => {
-  const root = join("registry-root", "node_modules", "@agent-teams", "engineering-foundation");
-  const qualification = join(root, "dist", "document-authoring", "qualification", "index.js");
+  const root = join("registry-root", "node_modules", "@agent-teams", "document-authoring");
+  const qualification = join(root, "dist", "qualification", "index.js");
 
   assert.equal(isSameCanonicalPath(root, root), true);
   assert.equal(isCanonicalPathInside(root, qualification), true);

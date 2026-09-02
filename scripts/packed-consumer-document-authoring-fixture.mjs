@@ -8,9 +8,9 @@ export async function writePackedConsumerDocumentAuthoringFixture(consumerRoot) 
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   manifest.scripts = {
     ...manifest.scripts,
-    "docs:find": "agent-teams-foundation docs find",
-    "docs:new": "agent-teams-foundation docs new",
-    "docs:doctor": "agent-teams-foundation docs doctor",
+    "docs:find": "agent-teams-docs find",
+    "docs:new": "agent-teams-docs new",
+    "docs:doctor": "agent-teams-docs doctor",
     check: "agent-teams-foundation repo check"
   };
   await writeJson(manifestPath, manifest);

@@ -26,6 +26,7 @@ const PROCESS_HOST_PATH = fileURLToPath(
 const MAX_WINDOWS_COMMAND_LINE_CHARACTERS = 32_766;
 const CONTROL_CONFIRMATION_TIMEOUT_MS = 30_000;
 const WRAPPER_EXIT_TIMEOUT_MS = 5_000;
+const WRAPPER_EXIT_CONFIRMATION_GRACE_MS = 1_000;
 const CONTROL_POLL_INTERVAL_MS = 10;
 
 // The packaged native helper owns the JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
@@ -261,6 +262,27 @@ async function readContainmentConfirmation(
   }
 }
 
+async function readContainmentConfirmationAfterWrapperExit(
+  control: WindowsProcessControl,
+  confirmationDeadline: number
+): Promise<string | undefined> {
+  const deadline = Math.min(
+    confirmationDeadline,
+    performance.now() + WRAPPER_EXIT_CONFIRMATION_GRACE_MS
+  );
+  for (;;) {
+    const confirmation = await readContainmentConfirmation(control);
+    if (confirmation !== undefined) {
+      return confirmation;
+    }
+    const remainingMs = deadline - performance.now();
+    if (remainingMs <= 0) {
+      return undefined;
+    }
+    await delay(Math.min(CONTROL_POLL_INTERVAL_MS, remainingMs));
+  }
+}
+
 function controlFor(child: ChildProcess): WindowsProcessControl {
   const control = windowsProcessControls.get(child);
   if (control === undefined) {
@@ -413,10 +435,11 @@ export async function waitForWindowsManagedProcessContainment(
     }
     if (child.exitCode !== null || child.signalCode !== null) {
       // The wrapper publishes the marker immediately before it exits. If exit
-      // wins the poll race, perform one bounded final read before retiring the
-      // control directory so a durable confirmation is not discarded unseen.
+      // wins the poll race, allow bounded filesystem visibility lag before
+      // retiring the control directory so a durable confirmation is not
+      // discarded unseen.
       try {
-        confirmation = await readContainmentConfirmation(control);
+        confirmation = await readContainmentConfirmationAfterWrapperExit(control, deadline);
       } catch (error) {
         await failAfterForcingWrapperExit(
           child,

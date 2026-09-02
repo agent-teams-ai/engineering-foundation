@@ -417,9 +417,7 @@ test("contains asynchronous control cleanup failures and permits an idempotent r
   }
 });
 
-test("accepts a containment marker published in the wrapper-exit poll race", {
-  skip: process.platform === "win32"
-}, async (context) => {
+test("accepts a containment marker published in the wrapper-exit poll race", { skip: process.platform === "win32" }, async (context) => {
   const root = await mkdtemp(join(tmpdir(), "foundation-windows-final-marker-read-"));
   const bin = join(root, "bin");
   const releasePath = join(root, "release-wrapper");
@@ -473,6 +471,8 @@ test("accepts a containment marker published in the wrapper-exit poll race", {
             const exited = once(child, "exit");
             await writeFile(releasePath, "release", "utf8");
             await exited;
+          }
+          if (confirmationReads <= 2) {
             const missing = new Error("synthetic pre-publication marker snapshot");
             missing.code = "ENOENT";
             throw missing;
@@ -487,7 +487,7 @@ test("accepts a containment marker published in the wrapper-exit poll race", {
         mockedReadFile.mock.restore();
         syncBuiltinESMExports();
       }
-      assert.equal(confirmationReads, 2);
+      assert.equal(confirmationReads, 3);
       assert.equal(child.exitCode, 0);
     }
     await assertNoNewWindowsControlRoots(previousControls);

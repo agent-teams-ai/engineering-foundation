@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { copyFile, mkdir, mkdtemp, open, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -7,6 +8,11 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 
+import { foundationCommandFailure } from "../packages/engineering-foundation/dist/command-error.js";
+import {
+  describeManagedProcessCleanupFailure,
+  managedProcessCleanupFailure
+} from "../packages/engineering-foundation/dist/process-execution/windows-managed-process-diagnostics.js";
 import {
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess as spawnWindowsManagedProcessWithoutEnvironment,
@@ -25,6 +31,84 @@ const TEST_TIMEOUT_MS = 90_000;
 const READY_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 10;
 const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
+
+test("reports bounded Windows cleanup diagnostics without exposing wrapper output", () => {
+  const timeout = new Error(
+    "Windows Job Object wrapper did not confirm containment within 30000 ms."
+  );
+  const diagnostic = describeManagedProcessCleanupFailure(
+    new AggregateError([new Error("outer cleanup failure"), timeout], "cleanup failed"),
+    [Buffer.from([
+      "private child output",
+      "Windows Job Object runner failed [phase=managed-run]: private failure detail"
+    ].join("\n"))],
+    true
+  );
+  assert.equal(
+    diagnostic,
+    "could not clean up its process tree after exit. [windows-containment=wrapper-confirmation-timeout;wrapper-phase=managed-run]"
+  );
+  assert.doesNotMatch(diagnostic, /private/u);
+});
+
+test("classifies allowlisted Windows confirmation read codes only", () => {
+  const busy = Object.assign(new Error("private control path"), { code: "EBUSY" });
+  assert.equal(
+    describeManagedProcessCleanupFailure(busy, [Buffer.from("arbitrary output")], true),
+    "could not clean up its process tree after exit. [windows-containment=confirmation-read-EBUSY;wrapper-phase=unreported]"
+  );
+  const privateCode = Object.assign(new Error("private failure"), { code: "SECRET" });
+  assert.equal(
+    describeManagedProcessCleanupFailure(privateCode, [Buffer.from("private output")], true),
+    "could not clean up its process tree after exit. [windows-containment=unknown;wrapper-phase=unreported]"
+  );
+  assert.equal(
+    describeManagedProcessCleanupFailure(privateCode, [Buffer.from("private output")], false),
+    "could not clean up its process tree after exit."
+  );
+});
+
+test("bounds hostile cleanup diagnostics and selects the final wrapper phase", () => {
+  const cycle = new AggregateError([], "cycle");
+  cycle.errors.push(cycle);
+  Object.defineProperty(cycle, "cause", {
+    get() {
+      throw new Error("private throwing cause");
+    }
+  });
+  const throwingErrors = new AggregateError([], "private aggregate");
+  Object.defineProperty(throwingErrors, "errors", {
+    get() {
+      throw new Error("private throwing errors");
+    }
+  });
+  assert.equal(
+    describeManagedProcessCleanupFailure(
+      new AggregateError([cycle, throwingErrors], "private root"),
+      [Buffer.from([
+        "Windows Job Object runner failed [phase=helper-compile]: child spoof",
+        "Windows Job Object runner failed [phase=managed-run]: wrapper failure"
+      ].join("\n"))],
+      true
+    ),
+    "could not clean up its process tree after exit. [windows-containment=unknown;wrapper-phase=managed-run]"
+  );
+});
+
+test("preserves bounded Windows cleanup diagnostics in the command envelope", () => {
+  const cleanupFailure = managedProcessCleanupFailure(
+    { command: "private-command".repeat(100), args: [], cwd: process.cwd() },
+    new Error("Windows Job Object wrapper exited before it confirmed process containment."),
+    [],
+    true
+  );
+  const failure = foundationCommandFailure(cleanupFailure);
+  assert.equal(failure.envelope.error.message.length, 1000);
+  assert.match(
+    failure.envelope.error.message,
+    /^could not clean up its process tree after exit\. \[windows-containment=wrapper-exited-before-confirmation;wrapper-phase=unreported\]/u
+  );
+});
 
 async function windowsControlRoots() {
   return new Set((await readdir(tmpdir(), { withFileTypes: true }))
@@ -100,6 +184,60 @@ async function writeNewFileExclusive(path, contents) {
     await handle.close();
   }
 }
+
+windowsTest(
+  "PowerShell bootstrap compiles its helper outside the deep installed asset path",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation deep installed helper "));
+    const bootstrapName = "bootstrap.ps1";
+    const helperName = "WindowsManagedProcess.cs";
+    let segmentLength = 1;
+    while (join(root, "x".repeat(segmentLength), bootstrapName).length < 250) {
+      segmentLength += 1;
+    }
+    assert.ok(segmentLength <= 240);
+    const helperRoot = join(root, "x".repeat(segmentLength));
+    const bootstrapPath = join(helperRoot, "bootstrap.ps1");
+    const helperPath = join(helperRoot, helperName);
+    assert.ok(bootstrapPath.length >= 250 && bootstrapPath.length < 260);
+    assert.ok(helperPath.length > 260);
+    try {
+      await mkdir(helperRoot, { recursive: true });
+      await Promise.all([
+        copyFile(
+          new URL("../packages/engineering-foundation/assets/windows-managed-process/bootstrap.ps1", import.meta.url),
+          bootstrapPath
+        ),
+        copyFile(
+          new URL("../packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs", import.meta.url),
+          helperPath
+        )
+      ]);
+      const systemRoot = Object.entries(process.env).find(
+        ([name]) => name.toLowerCase() === "systemroot"
+      )?.[1];
+      assert.equal(typeof systemRoot, "string");
+      const child = spawn(
+        join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", bootstrapPath],
+        { cwd: helperRoot, stdio: ["pipe", "pipe", "pipe"], windowsHide: true }
+      );
+      let stderr = "";
+      child.stderr.setEncoding("utf8");
+      child.stderr.on("data", (chunk) => { stderr += chunk; });
+      const closed = once(child, "close");
+      child.stdin.end(JSON.stringify({ schemaVersion: 0 }));
+      const [exitCode] = await once(child, "exit");
+      await closed;
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /\[phase=bootstrap-request\]/u);
+      assert.doesNotMatch(stderr, /\[phase=helper-(?:source-read|compile)\]/u);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  }
+);
 
 windowsTest(
   "packaged helper compiles and preserves a long Windows path and argument vector",

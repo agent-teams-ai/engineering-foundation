@@ -122,6 +122,7 @@
         "tests/security-toolchain-bootstrap.test.mjs",
         "tests/strict-json.test.mjs",
         "tests/tooling.test.mjs",
+        "tests/windows-managed-process-nested.test.mjs",
         "tests/windows-managed-process.test.mjs"
       ]
     },

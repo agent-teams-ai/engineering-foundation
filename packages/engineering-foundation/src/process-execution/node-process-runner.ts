@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { FoundationError } from "../errors.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
+  managedProcessCleanupFailure,
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess,
   waitForWindowsManagedProcessContainment
@@ -360,10 +361,9 @@ async function normalExitResult(input: {
     await cleanUpAfterNormalExit(input.child);
     await (process.platform === "win32" ? input.closed : waitForCloseWithinCleanupDeadline(input.closed));
   } catch (error) {
-    return processFailure(
-      input.request,
-      "could not clean up its process tree after exit.",
-      error
+    return managedProcessCleanupFailure(
+      input.request, error, input.stderr,
+      process.platform === "win32"
     );
   }
   const decoded = decodeProcessOutput(

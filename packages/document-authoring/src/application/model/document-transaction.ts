@@ -11,7 +11,7 @@ export interface DocumentOwnedTemporary {
   readonly identity: DocumentPhysicalIdentity;
 }
 
-interface DocumentJournalBase {
+export interface DocumentJournalBase {
   readonly schemaVersion: 2;
   readonly plan: DocumentPlanV1;
 }
@@ -44,7 +44,7 @@ export type DocumentTransactionJournal =
       readonly publicationIdentity: DocumentPhysicalIdentity;
     });
 
-interface DocumentTransactionEnvelopeBase {
+export interface DocumentTransactionEnvelopeBase {
   readonly schemaVersion: 3;
   readonly operationKind: "document-authoring";
   readonly recoveryHandler: {
@@ -61,7 +61,7 @@ interface DocumentTransactionEnvelopeBase {
   readonly envelopeDigest: DocumentAuthorityDigest;
 }
 
-type DocumentTransactionEnvelopeV3 =
+export type DocumentTransactionEnvelopeV3 =
   | (DocumentTransactionEnvelopeBase & {
       readonly state: "PREPARED";
       readonly journal: Extract<
@@ -87,7 +87,7 @@ type DocumentTransactionEnvelopeV3 =
       >;
     });
 
-interface DocumentTransactionJournalV3Base {
+export interface DocumentTransactionJournalV3Base {
   readonly schemaVersion: 3;
   readonly plan: DocumentPlanV2;
   readonly parentMaterialization: {
@@ -116,7 +116,7 @@ export type DocumentTransactionJournalV3 =
       readonly publicationIdentity: DocumentPhysicalIdentity;
     });
 
-interface DocumentTransactionEnvelopeV4Base {
+export interface DocumentTransactionEnvelopeV4Base {
   readonly schemaVersion: 4;
   readonly operationKind: "document-authoring";
   readonly recoveryHandler: {
@@ -133,7 +133,7 @@ interface DocumentTransactionEnvelopeV4Base {
   readonly envelopeDigest: DocumentAuthorityDigest;
 }
 
-type DocumentTransactionEnvelopeV4 =
+export type DocumentTransactionEnvelopeV4 =
   | (DocumentTransactionEnvelopeV4Base & {
       readonly state: "PREPARED";
       readonly journal:

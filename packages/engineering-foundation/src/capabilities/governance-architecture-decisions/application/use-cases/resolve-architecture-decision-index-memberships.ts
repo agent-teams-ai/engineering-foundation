@@ -1,6 +1,8 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
-import type { MarkdownDocumentObservation } from "@agent-teams/document-authoring/observation";
-import type { MarkdownRepository } from "@agent-teams/document-authoring/observation";
+import type {
+  MarkdownDocumentObservation,
+  MarkdownRepository
+} from "@agent-teams/document-authoring/observation";
 import type { ArchitectureDecision } from "../model/architecture-decision.js";
 import {
   normalizeArchitectureDecisionIndexSection,

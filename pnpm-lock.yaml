@@ -182,9 +182,9 @@ importers:
 
   packages/docs-protocol:
     dependencies:
-      '@agent-teams/engineering-foundation':
+      '@agent-teams/document-authoring':
         specifier: workspace:*
-        version: link:../engineering-foundation
+        version: link:../document-authoring
       '@agent-teams/repository-mutation':
         specifier: workspace:*
         version: link:../repository-mutation
@@ -213,9 +213,6 @@ importers:
       '@agent-teams/docs-protocol':
         specifier: workspace:*
         version: link:../docs-protocol
-      '@agent-teams/engineering-foundation':
-        specifier: workspace:*
-        version: link:../engineering-foundation
       '@agent-teams/repository-mutation':
         specifier: workspace:*
         version: link:../repository-mutation
@@ -252,8 +249,51 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  packages/document-authoring:
+    dependencies:
+      '@agent-teams/repository-mutation':
+        specifier: workspace:*
+        version: link:../repository-mutation
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+      github-slugger:
+        specifier: 'catalog:'
+        version: 2.0.0
+      mdast-util-to-string:
+        specifier: 'catalog:'
+        version: 4.0.0
+      remark-frontmatter:
+        specifier: 'catalog:'
+        version: 5.0.0(supports-color@8.1.1)
+      remark-gfm:
+        specifier: 'catalog:'
+        version: 4.0.1(supports-color@8.1.1)
+      remark-parse:
+        specifier: 'catalog:'
+        version: 11.0.0(supports-color@8.1.1)
+      unified:
+        specifier: 'catalog:'
+        version: 11.0.5
+      unist-util-visit:
+        specifier: 'catalog:'
+        version: 5.1.0
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   packages/engineering-foundation:
     dependencies:
+      '@agent-teams/document-authoring':
+        specifier: workspace:*
+        version: link:../document-authoring
       '@agent-teams/repository-mutation':
         specifier: workspace:*
         version: link:../repository-mutation

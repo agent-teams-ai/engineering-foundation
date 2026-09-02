@@ -1,0 +1,3355 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@agent-teams/document-authoring",
+  "packageVersion": "0.0.0",
+  "extractorVersion": "7.58.12",
+  "entrypoints": [
+    {
+      "exportPath": ".",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ApplyDocumentPlanRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ApplyDocumentPlanRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ApplyDocumentPlanRequest#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ApplyDocumentPlanRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: unknown;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ApplyDocumentPlanRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ApplyDocumentPlanRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ApplyDocumentPlanRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ApplyDocumentPlanRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!BuildDocumentationCatalogRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!BuildDocumentationCatalogRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!BuildDocumentationCatalogRequest#profilePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!BuildDocumentationCatalogRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profilePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!BuildDocumentationCatalogRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!BuildDocumentationCatalogRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!BuildDocumentationCatalogRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface BuildDocumentationCatalogRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV2Request#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV2Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV2Request#profilePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV2Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profilePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV2Request#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV2Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV2Request:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DescribeDocumentAuthoringProfileV2Request"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV3Request#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV3Request#profilePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profilePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV3Request#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DescribeDocumentAuthoringProfileV3Request:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DescribeDocumentAuthoringProfileV3Request"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: {\n        readonly metadataSchema: DocumentAuthorityEvidence;\n        readonly metadataSidecar?: DocumentAuthorityEvidence;\n        readonly ownerCatalog: DocumentAuthorityEvidence;\n        readonly profile: DocumentAuthorityEvidence;\n        readonly templates: readonly {\n            readonly evidence: DocumentAuthorityEvidence;\n            readonly type: string;\n        }[];\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#authorityPaths:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authorityPaths: {\n        readonly metadataSchema: string;\n        readonly metadataSidecar?: string;\n        readonly ownerCatalog: string;\n        readonly profile: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#catalog:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly catalog: {\n        readonly collections: readonly DocumentCatalogCollection[];\n        readonly excludedPrefixes: readonly string[];\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#ownerIds:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ownerIds: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#profileSchemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profileSchemaVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#projectId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly projectId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#semanticDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly semanticDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#types:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly types: readonly DocumentAuthoringTypeDescriptionV2[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentAuthoringProfileDescriptionV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV3:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentAuthoringProfileDescriptionV3 = Omit<DocumentAuthoringProfileDescriptionV2, \"profileSchemaVersion\" | \"schemaVersion\"> & {\n    readonly profileSchemaVersion: 3;\n    readonly schemaVersion: 3;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringSchemaId:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentAuthoringSchemaId = \"document-authoring-profile/v1\" | \"document-authoring-profile/v2\" | \"document-authoring-profile/v3\" | \"document-command-envelope/v1\" | \"document-command-envelope/v2\" | \"document-intent/v1\" | \"document-parent-materialization/v2\" | \"document-plan/v1\" | \"document-plan/v2\" | \"document-receipt/v1\" | \"document-receipt/v2\" | \"foundation-transaction-envelope/v3\" | \"foundation-transaction-envelope/v4\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#allowedOwnerIds:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly allowedOwnerIds: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#heading:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly heading: {\n        readonly kind: \"id-colon-title\" | \"title\";\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#identity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identity: DocumentIdentityStrategy;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#initialStatus:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly initialStatus: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#placement:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly placement: DocumentPlacementStrategy;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#reachability:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly reachability: DocumentReachabilityStrategyV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#requiredMetadata:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiredMetadata: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#template:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly template: {\n        readonly kind: \"fenced-markdown-body\";\n        readonly path: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#type:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly type: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentAuthoringTypeDescriptionV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityDigest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentAuthorityDigest = `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence#size:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly size: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentAuthorityEvidence"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCatalogCollection:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentCatalogCollection = {\n    readonly kind: \"frontmatter-readme\";\n    readonly roots: readonly string[];\n} | {\n    readonly kind: \"markdown-tree\";\n    readonly root: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCatalogError#code:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/document-authoring!DocumentCatalogError:class",
+          "parentKind": "Class",
+          "signature": "readonly code: DocumentCatalogErrorCode;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCatalogError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class DocumentCatalogError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCatalogError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/document-authoring!DocumentCatalogError:class",
+          "parentKind": "Class",
+          "signature": "constructor(code: DocumentCatalogErrorCode, message: string, options?: ErrorOptions);"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCatalogErrorCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentCatalogErrorCode = \"DOCUMENT_CATALOG_AUTHORITY_CHANGED\" | \"DOCUMENT_CATALOG_AUTHORITY_UNAVAILABLE\" | \"DOCUMENT_CATALOG_INPUT_INVALID\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCommitObservation#atomicity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCommitObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly atomicity: \"not-applicable\" | \"single-file-atomic-create\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCommitObservation#publication:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCommitObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCommitObservation#recoverability:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCommitObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoverability: \"not-required\" | \"preserved-for-recovery\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCommitObservation#state:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCommitObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly state: \"committed\" | \"not-published\" | \"recovery-required\" | \"manual-recovery-required\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCommitObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentCommitObservation"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity#buildIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly buildIdentity: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity#id:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly id: \"@agent-teams/document-authoring\" | \"@agent-teams/engineering-foundation\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity#version:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly version: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentCompilerIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2#identity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identity: DocumentPhysicalIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentCreatedDirectoryEvidenceV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor#id:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "parentKind": "Interface",
+          "signature": "readonly id: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor#owner:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "parentKind": "Interface",
+          "signature": "readonly owner: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor#repositoryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repositoryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor#source:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "parentKind": "Interface",
+          "signature": "readonly source: \"frontmatter-readme\" | \"markdown-tree\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor#status:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "parentKind": "Interface",
+          "signature": "readonly status: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor#summary:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "parentKind": "Interface",
+          "signature": "readonly summary: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor#title:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "parentKind": "Interface",
+          "signature": "readonly title: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor#type:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "parentKind": "Interface",
+          "signature": "readonly type: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptor:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentDescriptor"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptorV2#metadata:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentDescriptorV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly metadata: DocumentMetadataObject;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentDescriptorV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentDescriptorV2 extends DocumentDescriptor"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection#filesystem:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly filesystem: {\n        readonly basis: \"platform-contract\";\n        readonly strictDirectoryDurability: \"platform-supported\" | \"platform-unsupported\";\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection#installedFoundationBuildIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly installedFoundationBuildIdentity: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection#installedFoundationVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly installedFoundationVersion: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentEnvironmentInspection"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindFilters#id:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindFilters:interface",
+          "parentKind": "Interface",
+          "signature": "readonly id?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindFilters#owner:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindFilters:interface",
+          "parentKind": "Interface",
+          "signature": "readonly owner?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindFilters#status:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindFilters:interface",
+          "parentKind": "Interface",
+          "signature": "readonly status?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindFilters#type:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindFilters:interface",
+          "parentKind": "Interface",
+          "signature": "readonly type?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindFilters:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentFindFilters"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindQuery#filters:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindQuery:interface",
+          "parentKind": "Interface",
+          "signature": "readonly filters?: DocumentFindFilters;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindQuery#text:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindQuery:interface",
+          "parentKind": "Interface",
+          "signature": "readonly text?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindQuery:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentFindQuery"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindResult#catalogStatus:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly catalogStatus: \"complete\" | \"partial\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindResult#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly DocumentationCatalogDiagnostic[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindResult#documents:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly documents: readonly DocumentDescriptor[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindResult#matches:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly matches: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindResult:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentFindResult"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindResultV2#catalogSemanticDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindResultV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly catalogSemanticDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindResultV2#documents:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentFindResultV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly documents: readonly DocumentDescriptorV2[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentFindResultV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentFindResultV2 extends Omit<DocumentFindResult, \"documents\">"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIdentityProjectionEntry#id:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIdentityProjectionEntry:interface",
+          "parentKind": "Interface",
+          "signature": "readonly id: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIdentityProjectionEntry#repositoryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIdentityProjectionEntry:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repositoryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIdentityProjectionEntry:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentIdentityProjectionEntry"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIdentityStrategy:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentIdentityStrategy = {\n    readonly kind: \"explicit\";\n    readonly format: \"adr-four-digits\" | \"open-decision-three-digits\";\n} | {\n    readonly kind: \"explicit\";\n    readonly format: \"qualified\";\n    readonly grammar: {\n        readonly prefixSegments: readonly string[];\n        readonly minSuffixSegments: number;\n        readonly maxSuffixSegments: number;\n    };\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#additionalMetadata:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly additionalMetadata?: Readonly<Record<string, DocumentJsonValue>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#destination:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destination?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#id:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly id: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#owner:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly owner: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#related:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly related?: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#slug:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly slug?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#summary:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly summary: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#title:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly title: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#type:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly type: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentIntent"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJournalBase#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentJournalBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: DocumentPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJournalBase#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentJournalBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJournalBase:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentJournalBase"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJsonObject:index(1)",
+          "kind": "IndexSignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentJsonObject:interface",
+          "parentKind": "Interface",
+          "signature": "readonly [key: string]: DocumentJsonValue;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJsonObject:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentJsonObject"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJsonPrimitive:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentJsonPrimitive = boolean | null | number | string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJsonValue:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentJsonValue = DocumentJsonPrimitive | readonly DocumentJsonValue[] | DocumentJsonObject;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentMetadataObject:index(1)",
+          "kind": "IndexSignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentMetadataObject:interface",
+          "parentKind": "Interface",
+          "signature": "readonly [key: string]: DocumentMetadataValue;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentMetadataObject:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentMetadataObject"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentMetadataPrimitive:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentMetadataPrimitive = boolean | null | number | string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentMetadataValue:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentMetadataValue = DocumentMetadataPrimitive | readonly DocumentMetadataValue[] | DocumentMetadataObject;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentOwnedTemporary#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentOwnedTemporary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentOwnedTemporary#identity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentOwnedTemporary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identity: DocumentPhysicalIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentOwnedTemporary#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentOwnedTemporary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentOwnedTemporary:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentOwnedTemporary"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationInspectionV2:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentParentMaterializationInspectionV2 = {\n    readonly state: \"current\";\n    readonly nextDirectory?: string;\n} | {\n    readonly state: \"manual-recovery-required\";\n    readonly reason: \"anchor-changed\" | \"created-directory-changed\" | \"portable-name-collision\" | \"unbound-directory-exists\";\n    readonly path: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2#anchorIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly anchorIdentity: DocumentPhysicalIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2#createdDirectories:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly createdDirectories: readonly DocumentCreatedDirectoryEvidenceV2[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: DocumentParentMaterializationPlanV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationJournalV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentParentMaterializationJournalV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2#deepestExistingDirectory:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly deepestExistingDirectory: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2#finalParent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly finalParent: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2#missingDirectories:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly missingDirectories: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2#policy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policy: \"create-missing-real-directories\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentParentMaterializationPlanV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#adapter:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapter: \"node-filesystem\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#birthtimeNs:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly birthtimeNs: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#dev:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly dev: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#ino:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ino: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#version:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly version: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentPhysicalIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlacementStrategy:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentPlacementStrategy = {\n    readonly kind: \"collection\";\n    readonly directory: string;\n    readonly filename: \"numeric-id-slug\" | \"id-slug\" | \"slug\" | \"README.md\";\n} | {\n    readonly kind: \"qualified-leaf-index\";\n    readonly root: string;\n    readonly requiredBasename: \"README.md\";\n} | {\n    readonly kind: \"explicit\";\n    readonly allowedRoots: readonly string[];\n    readonly requiredSegmentsInOrder: readonly string[];\n    readonly requiredBasename: \"README.md\";\n    readonly minimumSegmentsBeforeRequired: number;\n    readonly minimumSegmentsAfterRequired: number;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: {\n        readonly profile: DocumentAuthorityEvidence;\n        readonly metadataSchema: DocumentAuthorityEvidence;\n        readonly ownerCatalog: DocumentAuthorityEvidence;\n        readonly template: DocumentAuthorityEvidence;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#compiler:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly compiler: DocumentCompilerIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#destination:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destination: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#destinationPrecondition:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destinationPrecondition: {\n        readonly state: \"absent\";\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly DocumentPlanDiagnostic[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#expectedParent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly expectedParent: {\n        readonly path: string;\n        readonly state: \"directory\";\n        readonly ancestry: \"real-directories\";\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#identityProjection:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identityProjection: {\n        readonly entryCount: number;\n        readonly digest: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#intent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly intent: DocumentIntent;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#intentDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly intentDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#output:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly output: {\n        readonly digest: DocumentAuthorityDigest;\n        readonly size: number;\n        readonly mode: \"0644\";\n        readonly mediaType: \"text/markdown; charset=utf-8\";\n        readonly contentBase64: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#projectId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly projectId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#protocolVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocolVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#referencedDocuments:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly referencedDocuments: readonly {\n        readonly id: string;\n        readonly path: string;\n        readonly projectionDigest: DocumentAuthorityDigest;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#requiredAdapterCapabilities:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiredAdapterCapabilities: readonly [\"create-file-no-replace/v1\"];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#selectedOwner:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly selectedOwner: {\n        readonly id: string;\n        readonly membershipDigest: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentPlan"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanCommon:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentPlanCommon = Omit<DocumentPlan, \"protocolVersion\" | \"requiredAdapterCapabilities\" | \"schemaVersion\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanContract:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentPlanContract = DocumentPlan | DocumentPlanV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#phase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phase: \"authority\" | \"input\" | \"planning\" | \"policy\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#ruleId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ruleId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#severity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly severity: \"error\" | \"info\" | \"warning\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentPlanDiagnostic"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentPlanV1 = DocumentPlan;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: DocumentPlan[\"authority\"] & {\n        readonly metadataSidecar?: DocumentAuthorityEvidence;\n        readonly profileSemanticDigest: DocumentAuthorityDigest;\n        readonly catalogPreimageSemanticDigest: DocumentAuthorityDigest;\n        readonly expectedCatalogPostimageSemanticDigest: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#parentMaterialization:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parentMaterialization: DocumentParentMaterializationPlanV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#protocolVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocolVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#requiredAdapterCapabilities:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiredAdapterCapabilities: readonly [\n        \"create-directories-no-replace/v1\",\n        \"create-file-no-replace/v1\"\n    ];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentPlanV2 extends Omit<DocumentPlanCommon, \"authority\">"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanningError#code:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanningError:class",
+          "parentKind": "Class",
+          "signature": "readonly code: DocumentPlanningErrorCode;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanningError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class DocumentPlanningError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanningError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanningError:class",
+          "parentKind": "Class",
+          "signature": "constructor(code: DocumentPlanningErrorCode, message: string, options?: ErrorOptions);"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanningErrorCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentPlanningErrorCode = \"DOCUMENT_PLANNING_AUTHORITY_CHANGED\" | \"DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE\" | \"DOCUMENT_PLANNING_CATALOG_PARTIAL\" | \"DOCUMENT_PLANNING_CONFLICT\" | \"DOCUMENT_PLANNING_INPUT_INVALID\" | \"DOCUMENT_PLANNING_OUTPUT_INVALID\" | \"DOCUMENT_PLANNING_PARENT_UNAVAILABLE\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReachabilityStrategy:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentReachabilityStrategy = {\n    readonly kind: \"manual-fixed-index\";\n    readonly indexPath: string;\n} | {\n    readonly kind: \"manual-colocated-index\";\n    readonly pathPrefix: \"before-required-segments\";\n    readonly indexBasename: \"README.md\";\n} | {\n    readonly kind: \"not-required\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReachabilityStrategyV2:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentReachabilityStrategyV2 = Exclude<DocumentReachabilityStrategy, {\n    readonly kind: \"not-required\";\n}> | {\n    readonly kind: \"not-required\";\n    readonly reason: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceipt:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentReceipt = (DocumentReceiptBase & {\n    readonly outcome: \"applied\";\n    readonly resultDigest: DocumentAuthorityDigest;\n    readonly commit: {\n        readonly state: \"committed\";\n        readonly publication: \"published\";\n        readonly atomicity: \"single-file-atomic-create\";\n        readonly recoverability: \"not-required\";\n    };\n}) | (DocumentReceiptBase & {\n    readonly outcome: \"already-applied\";\n    readonly resultDigest: DocumentAuthorityDigest;\n    readonly commit: {\n        readonly state: \"committed\";\n        readonly publication: \"preexisting-exact\";\n        readonly atomicity: \"not-applicable\";\n        readonly recoverability: \"not-required\";\n    };\n}) | (DocumentReceiptBase & {\n    readonly outcome: \"authority-stale\" | \"rejected\" | \"failed-before-publication\" | \"cancelled\";\n    readonly commit: {\n        readonly state: \"not-published\";\n        readonly publication: \"none\";\n        readonly atomicity: \"not-applicable\";\n        readonly recoverability: \"not-required\";\n    };\n}) | (DocumentReceiptBase & {\n    readonly outcome: \"recovery-required\";\n    readonly commit: {\n        readonly state: \"recovery-required\";\n        readonly publication: \"none\" | \"published\" | \"unknown\";\n        readonly atomicity: \"not-applicable\" | \"single-file-atomic-create\";\n        readonly recoverability: \"preserved-for-recovery\";\n    };\n}) | (DocumentReceiptBase & {\n    readonly outcome: \"manual-recovery-required\";\n    readonly commit: {\n        readonly state: \"manual-recovery-required\";\n        readonly publication: \"none\" | \"published\" | \"unknown\";\n        readonly atomicity: \"not-applicable\" | \"single-file-atomic-create\";\n        readonly recoverability: \"preserved-for-recovery\";\n    };\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase#adapter:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapter: {\n        readonly id: \"foundation.filesystem/v1\";\n        readonly contractVersion: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase#destination:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destination: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly DocumentReceiptDiagnostic[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase#protocolVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocolVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentReceiptBase"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptContract:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentReceiptContract = DocumentReceipt | DocumentReceiptV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic#phase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phase: \"apply\" | \"authority\" | \"input\" | \"recovery\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic#ruleId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ruleId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic#severity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly severity: \"error\" | \"info\" | \"warning\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptDiagnostic:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentReceiptDiagnostic"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentReceiptOutcome = \"applied\" | \"already-applied\" | \"authority-stale\" | \"rejected\" | \"recovery-required\" | \"manual-recovery-required\" | \"failed-before-publication\" | \"cancelled\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentReceiptV1 = DocumentReceipt;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#adapter:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapter: {\n        readonly id: \"foundation.filesystem/v1\";\n        readonly contractVersion: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#commit:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly commit: {\n        readonly state: \"committed\" | \"not-published\" | \"recovery-required\" | \"manual-recovery-required\";\n        readonly publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";\n        readonly fileAtomicity: \"not-applicable\" | \"single-file-atomic-create\";\n        readonly recoverability: \"not-required\" | \"preserved-for-recovery\";\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#destination:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destination: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly DocumentReceiptDiagnostic[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#directoryMaterialization:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly directoryMaterialization: {\n        readonly state: \"none-created\" | \"created-and-retained\" | \"preserved-unknown\";\n        readonly plannedDirectories: readonly string[];\n        readonly observedCreatedDirectories: readonly string[];\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: DocumentReceiptOutcome;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#protocolVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocolVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#resultDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly resultDigest?: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentReceiptV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelope:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionEnvelope = DocumentTransactionEnvelopeV3 | DocumentTransactionEnvelopeV4;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#adapterContractVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapterContractVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#envelopeDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly envelopeDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#foundation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#operationKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operationKind: \"document-authoring\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#payloadDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#payloadKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadKind: \"document-authoring-journal/v2\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#recoveryHandler:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\" | \"foundation.document-authoring\";\n        readonly contractVersion: 2;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentTransactionEnvelopeBase"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV3:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionEnvelopeV3 = (DocumentTransactionEnvelopeBase & {\n    readonly state: \"PREPARED\";\n    readonly journal: Extract<DocumentTransactionJournal, {\n        readonly destination: {\n            readonly state: \"pending\";\n        };\n    }> | Extract<DocumentTransactionJournal, {\n        readonly destination: {\n            readonly state: \"preexisting\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeBase & {\n    readonly state: \"PUBLISHING\";\n    readonly journal: Extract<DocumentTransactionJournal, {\n        readonly destination: {\n            readonly state: \"publishing\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeBase & {\n    readonly state: \"PUBLISHED\";\n    readonly journal: Extract<DocumentTransactionJournal, {\n        readonly destination: {\n            readonly state: \"published\";\n        };\n    }>;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionEnvelopeV4 = (DocumentTransactionEnvelopeV4Base & {\n    readonly state: \"PREPARED\";\n    readonly journal: Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"pending\";\n        };\n    }> | Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"preexisting\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeV4Base & {\n    readonly state: \"MATERIALIZING\";\n    readonly journal: Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"materializing\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeV4Base & {\n    readonly state: \"PUBLISHING\";\n    readonly journal: Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"publishing\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeV4Base & {\n    readonly state: \"PUBLISHED\";\n    readonly journal: Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"published\";\n        };\n    }>;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#adapterContractVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapterContractVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#envelopeDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly envelopeDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#foundation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#operationKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operationKind: \"document-authoring\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#payloadDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#payloadKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadKind: \"document-authoring-journal/v3\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#recoveryHandler:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\" | \"foundation.document-authoring\";\n        readonly contractVersion: 3;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 4;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentTransactionEnvelopeV4Base"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionInspection:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionInspection = DocumentTransactionInspectionV1 | DocumentTransactionInspectionV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionInspectionDiagnostic:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionInspectionDiagnostic = {\n    readonly code: \"FOUNDATION_TRANSACTION_ACTIVE\";\n    readonly message: string;\n} | {\n    readonly code: \"FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED\";\n    readonly message: string;\n} | {\n    readonly code: \"FOUNDATION_TRANSACTION_VERSION_MISMATCH\";\n    readonly message: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionInspectionV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionInspectionV1 = {\n    readonly schemaVersion: 1;\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly schemaVersion: 1;\n    readonly state: \"recoverable\";\n    readonly operationKind: \"document-authoring\";\n    readonly format: \"document-authoring-envelope-v3\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: {\n        readonly commandId: \"docs-recover\";\n        readonly exactFoundationVersion: string;\n        readonly exactFoundationBuildIdentity: string;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n} | {\n    readonly schemaVersion: 1;\n    readonly state: \"manual-recovery-required\";\n    readonly reason: string;\n    readonly operationKind?: \"document-authoring\" | \"local-mode\" | \"scaffolding\";\n    readonly transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly format?: string;\n    readonly recovery?: {\n        readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n        readonly args: Readonly<Record<string, string>>;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionInspectionV2:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionInspectionV2 = {\n    readonly schemaVersion: 2;\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly schemaVersion: 2;\n    readonly state: \"recoverable\";\n    readonly operationKind: \"document-authoring\";\n    readonly format: \"document-authoring-envelope-v3\" | \"document-authoring-envelope-v4\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: {\n        readonly commandId: \"docs-recover\";\n        readonly exactFoundationVersion: string;\n        readonly exactFoundationBuildIdentity: string;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n} | (Omit<Extract<DocumentTransactionInspectionV1, {\n    readonly state: \"manual-recovery-required\";\n}>, \"schemaVersion\"> & {\n    readonly schemaVersion: 2;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournal:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionJournal = (DocumentJournalBase & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"pending\";\n    };\n}) | (DocumentJournalBase & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"preexisting\";\n    };\n}) | (DocumentJournalBase & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"publishing\";\n    };\n    readonly ownedTemporary: DocumentOwnedTemporary;\n}) | (DocumentJournalBase & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"published\";\n    };\n    readonly publicationIdentity: DocumentPhysicalIdentity;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionJournalV3 = (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"pending\";\n    };\n}) | (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"preexisting\";\n    };\n}) | (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"materializing\";\n    };\n}) | (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"publishing\";\n    };\n    readonly ownedTemporary: DocumentOwnedTemporary;\n}) | (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"published\";\n    };\n    readonly publicationIdentity: DocumentPhysicalIdentity;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base#parentMaterialization:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parentMaterialization: {\n        readonly anchorIdentity: DocumentPhysicalIdentity;\n        readonly createdDirectories: readonly DocumentCreatedDirectoryEvidenceV2[];\n        readonly pendingDirectory?: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: DocumentPlanV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentTransactionJournalV3Base"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentTransactionRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogAuthority#metadataSchema:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly metadataSchema: DocumentAuthorityEvidence;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogAuthority#ownerCatalog:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ownerCatalog: DocumentAuthorityEvidence;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogAuthority#profile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profile: DocumentAuthorityEvidence;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogAuthority:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentationCatalogAuthority"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogAuthorityV2#metadataSidecar:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogAuthorityV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly metadataSidecar?: DocumentAuthorityEvidence;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogAuthorityV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentationCatalogAuthorityV2 extends DocumentationCatalogAuthority"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic#ruleId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ruleId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic#severity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly severity: \"error\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogDiagnostic:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentationCatalogDiagnostic"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: DocumentationCatalogAuthority;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly DocumentationCatalogDiagnostic[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot#documents:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly documents: readonly DocumentDescriptor[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot#identityProjection:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identityProjection: readonly DocumentIdentityProjectionEntry[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot#ownerIds:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ownerIds: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot#projectId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly projectId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot#status:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly status: \"complete\" | \"partial\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshot:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentationCatalogSnapshot"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshotV2#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshotV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: DocumentationCatalogAuthorityV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshotV2#documents:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshotV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly documents: readonly DocumentDescriptorV2[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshotV2#semanticDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshotV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly semanticDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentationCatalogSnapshotV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentationCatalogSnapshotV2 extends Omit<DocumentationCatalogSnapshot, \"authority\" | \"documents\">"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!FindDocumentsRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!FindDocumentsRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!FindDocumentsRequest#profilePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!FindDocumentsRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profilePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!FindDocumentsRequest#query:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!FindDocumentsRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly query?: DocumentFindQuery;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!FindDocumentsRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!FindDocumentsRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!FindDocumentsRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface FindDocumentsRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!InspectDocumentAuthoringEnvironmentV1Request#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!InspectDocumentAuthoringEnvironmentV1Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!InspectDocumentAuthoringEnvironmentV1Request#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!InspectDocumentAuthoringEnvironmentV1Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!InspectDocumentAuthoringEnvironmentV1Request:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface InspectDocumentAuthoringEnvironmentV1Request"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest#intent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly intent: unknown;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest#profilePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profilePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PlanDocumentationDocumentRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequestContract:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type PlanDocumentationDocumentRequestContract = PlanDocumentationDocumentRequest & {\n    readonly parentPolicy?: \"create-missing-real-directories\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequestV2#parentPolicy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequestV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parentPolicy: \"create-missing-real-directories\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!PlanDocumentationDocumentRequestV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PlanDocumentationDocumentRequestV2 extends PlanDocumentationDocumentRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!RecoverDocumentTransactionRequest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RecoverDocumentTransactionRequest = DocumentTransactionRequest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ReferencedDocumentProjection#id:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ReferencedDocumentProjection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly id: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ReferencedDocumentProjection#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ReferencedDocumentProjection:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ReferencedDocumentProjection:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ReferencedDocumentProjection"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ReferencedDocumentProjectionResult#documents:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ReferencedDocumentProjectionResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly documents: readonly ReferencedDocumentProjection[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ReferencedDocumentProjectionResult#missingIds:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ReferencedDocumentProjectionResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly missingIds: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ReferencedDocumentProjectionResult#unresolvedIds:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ReferencedDocumentProjectionResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly unresolvedIds: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ReferencedDocumentProjectionResult:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ReferencedDocumentProjectionResult"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!applyDocumentationPlan:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function applyDocumentationPlan(request: ApplyDocumentPlanRequest): Promise<import(\"./application/model/document-receipt.js\").DocumentReceipt>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!applyDocumentationPlanV2:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function applyDocumentationPlanV2(request: Omit<ApplyDocumentPlanRequest, \"plan\"> & {\n    readonly plan: import(\"./application/model/document-planning.js\").DocumentPlanV2;\n}): Promise<import(\"./application/model/document-receipt.js\").DocumentReceiptV2>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!buildDocumentationCatalog:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function buildDocumentationCatalog(request: BuildDocumentationCatalogRequest): Promise<import(\"./application/model/document-catalog.js\").DocumentationCatalogSnapshot>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!buildDocumentationCatalogV2:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function buildDocumentationCatalogV2(request: BuildDocumentationCatalogRequest): Promise<import(\"./application/model/document-catalog.js\").DocumentationCatalogSnapshotV2>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!describeDocumentAuthoringProfileV2:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function describeDocumentAuthoringProfileV2(request: DescribeDocumentAuthoringProfileV2Request): Promise<DocumentAuthoringProfileDescriptionV2>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!describeDocumentAuthoringProfileV3:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function describeDocumentAuthoringProfileV3(request: DescribeDocumentAuthoringProfileV3Request): Promise<DocumentAuthoringProfileDescriptionV3>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!findDocumentationDocuments:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function findDocumentationDocuments(request: FindDocumentsRequest): Promise<import(\"./application/model/document-find.js\").DocumentFindResult>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!findDocumentationDocumentsV2:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function findDocumentationDocumentsV2(request: FindDocumentsRequest): Promise<import(\"./application/model/document-find.js\").DocumentFindResultV2>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!inspectDocumentAuthoringEnvironmentV1:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function inspectDocumentAuthoringEnvironmentV1(request: InspectDocumentAuthoringEnvironmentV1Request): Promise<DocumentEnvironmentInspection>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!inspectDocumentTransactionV1:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function inspectDocumentTransactionV1(consumerRoot: string): Promise<DocumentTransactionInspectionV1>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!inspectDocumentTransactionV2:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function inspectDocumentTransactionV2(consumerRoot: string): Promise<DocumentTransactionInspectionV2>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!planDocumentParentMaterializationV2:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function planDocumentParentMaterializationV2(request: {\n    readonly consumerRoot: string;\n    readonly destination: string;\n    readonly signal?: AbortSignal;\n}): Promise<DocumentParentMaterializationPlanV2>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!planDocumentationDocument:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function planDocumentationDocument(request: PlanDocumentationDocumentRequest): Promise<import(\"./application/model/document-planning.js\").DocumentPlan>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!planDocumentationDocumentV2:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function planDocumentationDocumentV2(request: PlanDocumentationDocumentRequestV2): Promise<import(\"./application/model/document-planning.js\").DocumentPlanV2>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!projectReferencedDocuments:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function projectReferencedDocuments(snapshot: DocumentationCatalogSnapshot, referencedIds: readonly string[]): ReferencedDocumentProjectionResult;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!readDocumentAuthoringSchema:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function readDocumentAuthoringSchema(schemaId: DocumentAuthoringSchemaId): Promise<string>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!recoverDocumentationTransaction:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function recoverDocumentationTransaction(request: RecoverDocumentTransactionRequest): Promise<import(\"./application/model/document-receipt.js\").DocumentReceipt>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!recoverDocumentationTransactionV2:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function recoverDocumentationTransactionV2(request: RecoverDocumentTransactionRequest): Promise<import(\"./application/model/document-receipt.js\").DocumentReceiptContract>;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./observation",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/document-authoring!FilesystemMarkdownRepository#observe:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/document-authoring!FilesystemMarkdownRepository:class",
+          "parentKind": "Class",
+          "signature": "observe(request: ObserveMarkdownRepositoryRequest): Promise<MarkdownRepositoryObservation>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!FilesystemMarkdownRepository#resolveReference:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/document-authoring!FilesystemMarkdownRepository:class",
+          "parentKind": "Class",
+          "signature": "resolveReference(request: ResolveMarkdownReferenceRequest): Promise<MarkdownReferenceResolution>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!FilesystemMarkdownRepository:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class FilesystemMarkdownRepository implements MarkdownRepository"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownAnchorObservation#ids:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownAnchorObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ids: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownAnchorObservation#profile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownAnchorObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profile: MarkdownAnchorProfile;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownAnchorObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MarkdownAnchorObservation"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownAnchorProfile:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type MarkdownAnchorProfile = \"github\" | \"none\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownDocumentObservation#anchorObservations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownDocumentObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly anchorObservations: readonly MarkdownAnchorObservation[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownDocumentObservation#frontmatter:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownDocumentObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly frontmatter: MarkdownFrontmatterObservation;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownDocumentObservation#headings:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownDocumentObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly headings: readonly MarkdownHeadingObservation[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownDocumentObservation#references:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownDocumentObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly references: readonly MarkdownReferenceObservation[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownDocumentObservation#repositoryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownDocumentObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repositoryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownDocumentObservation#source:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownDocumentObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly source: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownDocumentObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MarkdownDocumentObservation"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownFrontmatterObservation:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type MarkdownFrontmatterObservation = {\n    readonly endOffset: 0;\n    readonly kind: \"absent\";\n} | {\n    readonly endOffset: number;\n    readonly kind: \"invalid\";\n    readonly message: string;\n} | {\n    readonly endOffset: number;\n    readonly kind: \"valid\";\n    readonly value: unknown;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownHeadingObservation#depth:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownHeadingObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly depth: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownHeadingObservation#location:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownHeadingObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly location: MarkdownPosition;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownHeadingObservation#text:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownHeadingObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly text: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownHeadingObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MarkdownHeadingObservation"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownObservationIssue#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownObservationIssue:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: MarkdownObservationIssueKind;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownObservationIssue#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownObservationIssue:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownObservationIssue#repositoryPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownObservationIssue:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repositoryPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownObservationIssue:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MarkdownObservationIssue"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownObservationIssueKind:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type MarkdownObservationIssueKind = \"root-missing\" | \"root-not-directory\" | \"source-invalid\" | \"source-too-large\" | \"source-unreadable\" | \"symbolic-link\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownPosition#column:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownPosition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly column: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownPosition#line:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownPosition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly line: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownPosition#offset:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownPosition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly offset: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownPosition:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MarkdownPosition"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownReferenceKind:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type MarkdownReferenceKind = \"definition\" | \"image\" | \"link\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownReferenceObservation#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownReferenceObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: MarkdownReferenceKind;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownReferenceObservation#location:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownReferenceObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly location: MarkdownPosition;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownReferenceObservation#rawTarget:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownReferenceObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly rawTarget: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownReferenceObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MarkdownReferenceObservation"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownReferenceResolution:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type MarkdownReferenceResolution = {\n    readonly kind: \"external\";\n} | {\n    readonly kind: \"file\";\n    readonly markdownDocument?: MarkdownDocumentObservation;\n    readonly repositoryPath: string;\n    readonly fragment: string;\n} | {\n    readonly kind: \"missing\";\n    readonly reason: \"directory-readme-missing\" | \"target-missing\";\n    readonly repositoryPath: string;\n} | {\n    readonly kind: \"unsafe\";\n    readonly reason: \"absolute-path\" | \"invalid-encoding\" | \"repository-escape\" | \"symbolic-link\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownRepository#observe:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownRepository:interface",
+          "parentKind": "Interface",
+          "signature": "observe(request: ObserveMarkdownRepositoryRequest): Promise<MarkdownRepositoryObservation>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownRepository#resolveReference:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownRepository:interface",
+          "parentKind": "Interface",
+          "signature": "resolveReference(request: ResolveMarkdownReferenceRequest): Promise<MarkdownReferenceResolution>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownRepository:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MarkdownRepository"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownRepositoryObservation#documents:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownRepositoryObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly documents: readonly MarkdownDocumentObservation[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownRepositoryObservation#issues:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!MarkdownRepositoryObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly issues: readonly MarkdownObservationIssue[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!MarkdownRepositoryObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface MarkdownRepositoryObservation"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest#excludedPrefixes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly excludedPrefixes?: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest#roots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly roots: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ObserveMarkdownRepositoryRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ObserveMarkdownRepositoryRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest#rawTarget:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly rawTarget: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest#source:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly source: MarkdownDocumentObservation;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!ResolveMarkdownReferenceRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ResolveMarkdownReferenceRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!anchorsForMarkdownDocument:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function anchorsForMarkdownDocument(document: MarkdownDocumentObservation, profile: MarkdownAnchorProfile): readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!markdownSourceWithoutFrontmatter:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function markdownSourceWithoutFrontmatter(document: MarkdownDocumentObservation): string;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./qualification",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringCrashQualificationResult#crashPoint:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringCrashQualificationResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly crashPoint: DocumentAuthoringQualificationCrashPoint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringCrashQualificationResult#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringCrashQualificationResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringCrashQualificationResult#state:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthoringCrashQualificationResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly state: \"apply-completed-before-crash-point\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringCrashQualificationResult:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentAuthoringCrashQualificationResult"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringQualificationCrashPoint:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentAuthoringQualificationCrashPoint = \"after-publishing-journal-durable\" | \"after-published-journal-durable\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityDigest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentAuthorityDigest = `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence#size:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly size: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentAuthorityEvidence:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentAuthorityEvidence"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity#buildIdentity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly buildIdentity: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity#id:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly id: \"@agent-teams/document-authoring\" | \"@agent-teams/engineering-foundation\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity#version:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly version: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentCompilerIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2#identity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identity: DocumentPhysicalIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentCreatedDirectoryEvidenceV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentCreatedDirectoryEvidenceV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#additionalMetadata:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly additionalMetadata?: Readonly<Record<string, DocumentJsonValue>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#destination:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destination?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#id:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly id: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#owner:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly owner: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#related:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly related?: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#slug:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly slug?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#summary:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly summary: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#title:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly title: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent#type:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "parentKind": "Interface",
+          "signature": "readonly type: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentIntent:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentIntent"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJournalBase#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentJournalBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: DocumentPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJournalBase#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentJournalBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJournalBase:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentJournalBase"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJsonObject:index(1)",
+          "kind": "IndexSignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentJsonObject:interface",
+          "parentKind": "Interface",
+          "signature": "readonly [key: string]: DocumentJsonValue;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJsonObject:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentJsonObject"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJsonPrimitive:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentJsonPrimitive = boolean | null | number | string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentJsonValue:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentJsonValue = DocumentJsonPrimitive | readonly DocumentJsonValue[] | DocumentJsonObject;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentOwnedTemporary#digest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentOwnedTemporary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentOwnedTemporary#identity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentOwnedTemporary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identity: DocumentPhysicalIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentOwnedTemporary#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentOwnedTemporary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentOwnedTemporary:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentOwnedTemporary"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2#deepestExistingDirectory:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly deepestExistingDirectory: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2#finalParent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly finalParent: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2#missingDirectories:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly missingDirectories: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2#policy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policy: \"create-missing-real-directories\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentParentMaterializationPlanV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentParentMaterializationPlanV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#adapter:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapter: \"node-filesystem\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#birthtimeNs:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly birthtimeNs: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#dev:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly dev: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#ino:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ino: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity#version:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "parentKind": "Interface",
+          "signature": "readonly version: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPhysicalIdentity:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentPhysicalIdentity"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: {\n        readonly profile: DocumentAuthorityEvidence;\n        readonly metadataSchema: DocumentAuthorityEvidence;\n        readonly ownerCatalog: DocumentAuthorityEvidence;\n        readonly template: DocumentAuthorityEvidence;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#compiler:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly compiler: DocumentCompilerIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#destination:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destination: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#destinationPrecondition:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly destinationPrecondition: {\n        readonly state: \"absent\";\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly DocumentPlanDiagnostic[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#expectedParent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly expectedParent: {\n        readonly path: string;\n        readonly state: \"directory\";\n        readonly ancestry: \"real-directories\";\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#identityProjection:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identityProjection: {\n        readonly entryCount: number;\n        readonly digest: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#intent:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly intent: DocumentIntent;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#intentDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly intentDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#output:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly output: {\n        readonly digest: DocumentAuthorityDigest;\n        readonly size: number;\n        readonly mode: \"0644\";\n        readonly mediaType: \"text/markdown; charset=utf-8\";\n        readonly contentBase64: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#planDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly planDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#projectId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly projectId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#protocolVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocolVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#referencedDocuments:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly referencedDocuments: readonly {\n        readonly id: string;\n        readonly path: string;\n        readonly projectionDigest: DocumentAuthorityDigest;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#requiredAdapterCapabilities:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiredAdapterCapabilities: readonly [\"create-file-no-replace/v1\"];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#selectedOwner:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly selectedOwner: {\n        readonly id: string;\n        readonly membershipDigest: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlan:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentPlan"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanCommon:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentPlanCommon = Omit<DocumentPlan, \"protocolVersion\" | \"requiredAdapterCapabilities\" | \"schemaVersion\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#phase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phase: \"authority\" | \"input\" | \"planning\" | \"policy\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#ruleId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ruleId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#severity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly severity: \"error\" | \"info\" | \"warning\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanDiagnostic:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentPlanDiagnostic"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentPlanV1 = DocumentPlan;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: DocumentPlan[\"authority\"] & {\n        readonly metadataSidecar?: DocumentAuthorityEvidence;\n        readonly profileSemanticDigest: DocumentAuthorityDigest;\n        readonly catalogPreimageSemanticDigest: DocumentAuthorityDigest;\n        readonly expectedCatalogPostimageSemanticDigest: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#parentMaterialization:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parentMaterialization: DocumentParentMaterializationPlanV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#protocolVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocolVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#requiredAdapterCapabilities:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiredAdapterCapabilities: readonly [\n        \"create-directories-no-replace/v1\",\n        \"create-file-no-replace/v1\"\n    ];"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentPlanV2 extends Omit<DocumentPlanCommon, \"authority\">"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelope:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionEnvelope = DocumentTransactionEnvelopeV3 | DocumentTransactionEnvelopeV4;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#adapterContractVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapterContractVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#envelopeDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly envelopeDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#foundation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#operationKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operationKind: \"document-authoring\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#payloadDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#payloadKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadKind: \"document-authoring-journal/v2\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#recoveryHandler:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\" | \"foundation.document-authoring\";\n        readonly contractVersion: 2;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentTransactionEnvelopeBase"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV3:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionEnvelopeV3 = (DocumentTransactionEnvelopeBase & {\n    readonly state: \"PREPARED\";\n    readonly journal: Extract<DocumentTransactionJournal, {\n        readonly destination: {\n            readonly state: \"pending\";\n        };\n    }> | Extract<DocumentTransactionJournal, {\n        readonly destination: {\n            readonly state: \"preexisting\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeBase & {\n    readonly state: \"PUBLISHING\";\n    readonly journal: Extract<DocumentTransactionJournal, {\n        readonly destination: {\n            readonly state: \"publishing\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeBase & {\n    readonly state: \"PUBLISHED\";\n    readonly journal: Extract<DocumentTransactionJournal, {\n        readonly destination: {\n            readonly state: \"published\";\n        };\n    }>;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionEnvelopeV4 = (DocumentTransactionEnvelopeV4Base & {\n    readonly state: \"PREPARED\";\n    readonly journal: Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"pending\";\n        };\n    }> | Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"preexisting\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeV4Base & {\n    readonly state: \"MATERIALIZING\";\n    readonly journal: Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"materializing\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeV4Base & {\n    readonly state: \"PUBLISHING\";\n    readonly journal: Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"publishing\";\n        };\n    }>;\n}) | (DocumentTransactionEnvelopeV4Base & {\n    readonly state: \"PUBLISHED\";\n    readonly journal: Extract<DocumentTransactionJournalV3, {\n        readonly destination: {\n            readonly state: \"published\";\n        };\n    }>;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#adapterContractVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly adapterContractVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#envelopeDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly envelopeDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#foundation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#operationKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operationKind: \"document-authoring\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#payloadDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadDigest: DocumentAuthorityDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#payloadKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly payloadKind: \"document-authoring-journal/v3\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#recoveryHandler:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\" | \"foundation.document-authoring\";\n        readonly contractVersion: 3;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 4;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentTransactionEnvelopeV4Base"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournal:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionJournal = (DocumentJournalBase & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"pending\";\n    };\n}) | (DocumentJournalBase & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"preexisting\";\n    };\n}) | (DocumentJournalBase & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"publishing\";\n    };\n    readonly ownedTemporary: DocumentOwnedTemporary;\n}) | (DocumentJournalBase & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"published\";\n    };\n    readonly publicationIdentity: DocumentPhysicalIdentity;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocumentTransactionJournalV3 = (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"pending\";\n    };\n}) | (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"preexisting\";\n    };\n}) | (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"materializing\";\n    };\n}) | (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"publishing\";\n    };\n    readonly ownedTemporary: DocumentOwnedTemporary;\n}) | (DocumentTransactionJournalV3Base & {\n    readonly destination: {\n        readonly path: string;\n        readonly state: \"published\";\n    };\n    readonly publicationIdentity: DocumentPhysicalIdentity;\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base#parentMaterialization:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parentMaterialization: {\n        readonly anchorIdentity: DocumentPhysicalIdentity;\n        readonly createdDirectories: readonly DocumentCreatedDirectoryEvidenceV2[];\n        readonly pendingDirectory?: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: DocumentPlanV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocumentTransactionJournalV3Base"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!RunDocumentAuthoringCrashQualificationRequest#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!RunDocumentAuthoringCrashQualificationRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!RunDocumentAuthoringCrashQualificationRequest#crashPoint:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!RunDocumentAuthoringCrashQualificationRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly crashPoint: DocumentAuthoringQualificationCrashPoint;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!RunDocumentAuthoringCrashQualificationRequest#plan:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!RunDocumentAuthoringCrashQualificationRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly plan: DocumentPlanV2;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!RunDocumentAuthoringCrashQualificationRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface RunDocumentAuthoringCrashQualificationRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!assertDocumentPlanDigests:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertDocumentPlanDigests(value: unknown): void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!assertDocumentTransactionEnvelope:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function assertDocumentTransactionEnvelope(value: unknown): Promise<DocumentTransactionEnvelope>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!documentTemporaryPath:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function documentTemporaryPath(destination: string, planDigest: string): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/document-authoring!runDocumentAuthoringCrashQualification:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/document-authoring!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function runDocumentAuthoringCrashQualification(request: RunDocumentAuthoringCrashQualificationRequest): Promise<DocumentAuthoringCrashQualificationResult>;"
+        }
+      ]
+    }
+  ]
+}

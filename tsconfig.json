@@ -5,6 +5,9 @@
       "path": "./packages/repository-mutation"
     },
     {
+      "path": "./packages/document-authoring"
+    },
+    {
       "path": "./packages/engineering-foundation"
     },
     {

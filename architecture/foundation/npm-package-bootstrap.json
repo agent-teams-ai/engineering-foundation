@@ -44,13 +44,13 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-LpuMnEnzCfjEHpF3qYWAeZMXAvV906iAsHTAJOZ5FhfkBTFDdcZYeqNq8Yer2hvvVqIlhyxEeW22Okqzcehkrg==",
+        "archiveIntegrity": "sha512-lecUDOrZDORwWvGMavGFkcgrgUvGrNr/dyB2Cz3AlGWRJ9TmQ5su0gehRJbcAo7pzB3sqrkaYORiL8+GKYMHvQ==",
         "packageTree": "7dbdcab2ae28962bac70eb0dd16009e48058de79"
       }
     },
     {
       "id": "document-authoring",
-      "state": "candidate",
+      "state": "approved",
       "name": "@agent-teams/document-authoring",
       "root": "packages/document-authoring",
       "manifestPath": "packages/document-authoring/package.json",
@@ -144,7 +144,10 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": null
+      "approval": {
+        "archiveIntegrity": "sha512-eEfwesQlUmXHU1itd6lEHeAV/6An5tK/WOcNYRxiM2UqmAUmh4fiemoJeJle8QWQtD1tb8xLeAZ+4txxyhJiog==",
+        "packageTree": "42339f5e13c02965aaaeaa29cff62aac971d48eb"
+      }
     },
     {
       "id": "docs-protocol",
@@ -204,7 +207,7 @@
     },
     {
       "id": "docs-protocol-agent-teams",
-      "state": "candidate",
+      "state": "approved",
       "name": "@agent-teams/docs-protocol-agent-teams",
       "root": "packages/docs-protocol-agent-teams",
       "manifestPath": "packages/docs-protocol-agent-teams/package.json",
@@ -271,7 +274,10 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": null
+      "approval": {
+        "archiveIntegrity": "sha512-i71dtF9EKryerLtwFxrMhz0DAD/9T1kgS4uwOUElVvC/Lpmlxt8LcEp3SKHNiD3g3V3karEHO1Uz4WmE4C5LsA==",
+        "packageTree": "9661dd72dedb23d05fa8b320f4e26b14d4aa67d8"
+      }
     },
     {
       "id": "docs-protocol-mcp",

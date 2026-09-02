@@ -64,7 +64,6 @@
     "typecheck": "tsc --build tsconfig.json --pretty false"
   },
   "devDependencies": {
-    "@agent-teams/engineering-foundation": "workspace:*",
     "@ast-grep/cli": "catalog:",
     "@arethetypeswrong/cli": "catalog:",
     "@changesets/changelog-github": "catalog:",

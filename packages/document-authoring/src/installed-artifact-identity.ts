@@ -5,7 +5,7 @@ import { computeInstalledArtifactBuildIdentity } from "@agent-teams/repository-m
 
 const packageRoot = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 
-export function computeDocumentAuthoringBuildIdentity(
+function computeDocumentAuthoringBuildIdentity(
   root: string,
   limits: { readonly maximumVisitedEntries?: number } = {}
 ): Promise<`sha256:${string}`> {

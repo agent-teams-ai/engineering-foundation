@@ -122,9 +122,6 @@ importers:
 
   .:
     devDependencies:
-      '@agent-teams/engineering-foundation':
-        specifier: workspace:*
-        version: link:packages/engineering-foundation
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
         version: 0.18.5

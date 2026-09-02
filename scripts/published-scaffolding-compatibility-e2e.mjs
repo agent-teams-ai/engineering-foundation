@@ -22,6 +22,7 @@ const expectedIntegrity =
   "sha512-LWey96bQBwA/91eD1T9pZRKrNUPlAt/8NEOQ5gnWfW6Mzs+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==";
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const packageName = "@agent-teams/engineering-foundation";
+const authoringPackageName = "@agent-teams/document-authoring";
 const runtimePackageName = "@agent-teams/repository-mutation";
 const normalizedCompilerVersion = "0.0.0-compatibility";
 const runPnpm = createPnpmRunner();
@@ -92,16 +93,22 @@ async function assertInstalledPackageIdentity(installRoot, expected) {
 
 async function installPackedCurrentPackage({
   candidateVersion,
+  currentAuthoringPackageRoot,
   currentPackageRoot,
   currentRuntimePackageRoot,
   installPackage,
   temporaryRoot,
 }) {
-  const [candidate, runtime] = await Promise.all([
+  const [candidate, authoring, runtime] = await Promise.all([
     packCurrentPackage({
       expectedName: packageName,
       packageRoot: currentPackageRoot,
       packRoot: join(temporaryRoot, "current-foundation-pack"),
+    }),
+    packCurrentPackage({
+      expectedName: authoringPackageName,
+      packageRoot: currentAuthoringPackageRoot,
+      packRoot: join(temporaryRoot, "current-authoring-pack"),
     }),
     packCurrentPackage({
       expectedName: runtimePackageName,
@@ -123,6 +130,7 @@ async function installPackedCurrentPackage({
         type: "module",
         devDependencies: {
           [packageName]: `file:${candidate.archivePath.replaceAll("\\", "/")}`,
+          [authoringPackageName]: `file:${authoring.archivePath.replaceAll("\\", "/")}`,
           [runtimePackageName]: `file:${runtime.archivePath.replaceAll("\\", "/")}`,
         },
       },
@@ -143,10 +151,14 @@ async function installPackedCurrentPackage({
     ],
     installRoot,
   );
-  const [installedCandidate, installedRuntime] = await Promise.all([
+  const [installedCandidate, installedAuthoring, installedRuntime] = await Promise.all([
     assertInstalledPackageIdentity(installRoot, {
       name: packageName,
       version: candidateVersion,
+    }),
+    assertInstalledPackageIdentity(installRoot, {
+      name: authoringPackageName,
+      version: authoring.manifest.version,
     }),
     assertInstalledPackageIdentity(installRoot, {
       name: runtimePackageName,
@@ -154,10 +166,16 @@ async function installPackedCurrentPackage({
     }),
   ]);
   if (
+    installedCandidate.manifest.dependencies?.[authoringPackageName] !==
+      installedAuthoring.manifest.version ||
     installedCandidate.manifest.dependencies?.[runtimePackageName] !==
-    installedRuntime.manifest.version
+      installedRuntime.manifest.version ||
+    installedAuthoring.manifest.dependencies?.[runtimePackageName] !==
+      installedRuntime.manifest.version
   ) {
-    throw new Error("Current packed Foundation is not bound to its exact runtime package.");
+    throw new Error(
+      "Current packed Foundation closure is not bound to its exact internal packages.",
+    );
   }
   return Object.freeze({
     archivePath: candidate.archivePath,
@@ -242,6 +260,7 @@ async function assertAllPlannedOutputsEqual({
 }
 
 export async function verifyPublishedScaffoldingCompatibility({
+  currentAuthoringPackageRoot,
   currentPackageRoot,
   currentRuntimePackageRoot,
   fixtureRoot = join(
@@ -271,6 +290,7 @@ export async function verifyPublishedScaffoldingCompatibility({
   });
   const current = await installPackedCurrentPackage({
     candidateVersion,
+    currentAuthoringPackageRoot,
     currentPackageRoot,
     currentRuntimePackageRoot,
     installPackage,

@@ -37,6 +37,7 @@ try {
     temporaryRoot,
   });
   await verifyPublishedScaffoldingCompatibility({
+    currentAuthoringPackageRoot: resolve("packages", "document-authoring"),
     currentPackageRoot: resolve("packages", "engineering-foundation"),
     currentRuntimePackageRoot: resolve("packages", "repository-mutation"),
     installPackage,

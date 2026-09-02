@@ -5,11 +5,9 @@ import type {
   DocumentationCatalogDiagnostic
 } from "./application/model/document-catalog.js";
 import type {
-  DocumentFindFilters,
   DocumentFindResult
 } from "./application/model/document-find.js";
 import { DocumentCatalogError } from "./document-catalog-error.js";
-import { findDocumentationDocuments } from "./index.js";
 
 const MAXIMUM_DOCUMENTS = 2_048;
 const MAXIMUM_DIAGNOSTICS = 256;
@@ -38,14 +36,6 @@ interface DocumentFindEnvelope {
     readonly matches: number;
   };
   readonly schemaVersion: 1;
-}
-
-export interface DocumentFindCommandRequest {
-  readonly consumerRoot: string;
-  readonly filters: DocumentFindFilters;
-  readonly profilePath: string;
-  readonly signal?: AbortSignal;
-  readonly text?: string;
 }
 
 export interface DocumentFindCommandResult {
@@ -215,48 +205,4 @@ export function documentFindSuccess(
     }),
     exitCode: partial ? 1 : 0
   });
-}
-
-export async function runDocumentFindCommand(
-  request: DocumentFindCommandRequest
-): Promise<DocumentFindCommandResult> {
-  try {
-    const result = await findDocumentationDocuments({
-      consumerRoot: request.consumerRoot,
-      profilePath: request.profilePath,
-      query: {
-        filters: request.filters,
-        ...(request.text === undefined ? {} : { text: request.text })
-      },
-      ...(request.signal === undefined ? {} : { signal: request.signal })
-    });
-    return documentFindSuccess(result);
-  } catch (error) {
-    return documentFindFailure(error);
-  }
-}
-
-export function renderDocumentFindText(result: DocumentFindCommandResult): string {
-  const lines = [
-    `Catalog: ${result.envelope.outcome}`,
-    `Matches: ${result.envelope.result.matches}`
-  ];
-  for (const document of result.envelope.result.documents) {
-    lines.push(
-      `${document.id} [${document.type}/${document.status}] ${document.repositoryPath}`
-    );
-  }
-  if (
-    result.envelope.result.documents.length < result.envelope.result.matches
-  ) {
-    lines.push(
-      `Showing: ${result.envelope.result.documents.length} of ${result.envelope.result.matches}`
-    );
-  }
-  for (const entry of result.envelope.diagnostics) {
-    lines.push(
-      `${entry.severity.toUpperCase()} ${entry.ruleId} ${entry.subject}: ${entry.message}`
-    );
-  }
-  return `${lines.join("\n")}\n`;
 }

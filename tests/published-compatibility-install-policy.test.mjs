@@ -61,7 +61,7 @@ test("published compatibility persistent timeout makes exactly two attempts", as
   assert.deepEqual(calls, ["install", "cleanup", "install"]);
 });
 
-test("published compatibility shares its single retry across installs", async () => {
+test("published compatibility bounds one retry per independent install", async () => {
   let attempts = 0;
   const install = createPublishedCompatibilityInstallPolicy({
     cleanup: async () => {},
@@ -73,7 +73,7 @@ test("published compatibility shares its single retry across installs", async ()
   });
   await assert.rejects(install([], "/first"));
   await assert.rejects(install([], "/second"));
-  assert.equal(attempts, 3);
+  assert.equal(attempts, 4);
 });
 
 test("published compatibility callsites share one install policy", async () => {
@@ -96,6 +96,18 @@ test("published compatibility callsites share one install policy", async () => {
   assert.match(
     entrypoint,
     /currentRuntimePackageRoot: resolve\("packages", "repository-mutation"\)/u,
+  );
+  assert.match(
+    entrypoint,
+    /currentAuthoringPackageRoot: resolve\("packages", "document-authoring"\)/u,
+  );
+  assert.match(
+    scaffolding,
+    /\[authoringPackageName\]: `file:\$\{authoring\.archivePath\.replaceAll/u,
+  );
+  assert.match(
+    scaffolding,
+    /installedAuthoring\.manifest\.dependencies\?\.\[runtimePackageName\]/u,
   );
   assert.doesNotMatch(publishedInstall, /runNpmCommand/u);
   assert.match(publishedInstall, /await installPackage\(/u);

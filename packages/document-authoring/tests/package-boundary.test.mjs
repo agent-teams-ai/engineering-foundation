@@ -4,6 +4,25 @@ import { join } from "node:path";
 import test from "node:test";
 
 const packageRoot = new URL("..", import.meta.url).pathname;
+const packagesRoot = new URL("../..", import.meta.url).pathname;
+
+const targetEdges = new Map([
+  ["repository-mutation", []],
+  ["document-authoring", ["@agent-teams/repository-mutation"]],
+  ["engineering-foundation", [
+    "@agent-teams/document-authoring",
+    "@agent-teams/repository-mutation"
+  ]],
+  ["docs-protocol", [
+    "@agent-teams/document-authoring",
+    "@agent-teams/repository-mutation"
+  ]],
+  ["docs-protocol-agent-teams", [
+    "@agent-teams/docs-protocol",
+    "@agent-teams/repository-mutation"
+  ]],
+  ["docs-protocol-mcp", ["@agent-teams/docs-protocol"]]
+]);
 
 async function sourceFiles(directory) {
   const files = [];
@@ -30,6 +49,40 @@ test("physical package has the closed Repository Mutation edge", async () => {
   )).join("\n");
   assert.doesNotMatch(source, /from\s+["']@agent-teams\/engineering-foundation/u);
   assert.doesNotMatch(source, /import\s*\(\s*["'`]@agent-teams\/engineering-foundation/u);
+});
+
+test("portable package manifests and source imports implement the closed target DAG", async () => {
+  for (const [directory, expectedDependencies] of targetEdges) {
+    const root = join(packagesRoot, directory);
+    const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    const declared = {
+      ...manifest.dependencies,
+      ...manifest.optionalDependencies,
+      ...manifest.peerDependencies
+    };
+    assert.deepEqual(
+      Object.keys(declared)
+        .filter((name) => name.startsWith("@agent-teams/"))
+        .toSorted(),
+      expectedDependencies
+    );
+
+    const imports = new Set();
+    for (const path of await sourceFiles(join(root, "src"))) {
+      const source = await readFile(path, "utf8");
+      const pattern = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](@agent-teams\/[a-z0-9-]+(?:\/[a-z0-9-]+)?)["']/gu;
+      for (const match of source.matchAll(pattern)) {
+        imports.add(match[1]);
+      }
+    }
+    const importedPackages = [...imports]
+      .map((specifier) => specifier.split("/").slice(0, 2).join("/"))
+      .toSorted();
+    assert.deepEqual([...new Set(importedPackages)], expectedDependencies);
+    if (directory === "docs-protocol-mcp") {
+      assert.deepEqual([...imports], ["@agent-teams/docs-protocol"]);
+    }
+  }
 });
 
 test("new plans identify Document Authoring while schemas retain admitted legacy evidence", async () => {

@@ -4,9 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/adapters/node/node-document-journal-store.js";
 import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/adapters/node/node-document-transaction-coordinator.js";
-import { sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
+import { canonicalJson, sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
 import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/installed-artifact-identity.js";
 import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/package-version.js";
 import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
@@ -52,7 +51,10 @@ async function installedEnvelope() {
 async function persistEnvelope(root, envelope) {
   const directory = join(root, stateDirectory);
   await mkdir(directory, { recursive: true });
-  await new NodeDocumentJournalStore(join(directory, journalName)).create(envelope);
+  // This fixture writes a validated canonical journal directly so the
+  // coordinator read path can be qualified on Windows, where strict directory
+  // fsync is intentionally unsupported for production publication.
+  await writeFile(join(directory, journalName), `${canonicalJson(envelope)}\n`, "utf8");
 }
 
 test("maps only the exact document v3 journal v2 route to recoverable", async () => {

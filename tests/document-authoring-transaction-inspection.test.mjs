@@ -8,11 +8,10 @@ import {
   inspectDocumentTransactionV1,
   inspectDocumentTransactionV2,
 } from "../packages/document-authoring/dist/index.js";
-import { sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
+import { canonicalJson, sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
 import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/installed-artifact-identity.js";
 import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/package-version.js";
 import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
-import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/adapters/node/node-document-journal-store.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const fixture = JSON.parse(await readFile(
@@ -42,7 +41,9 @@ async function installedEnvelope() {
 async function writeEnvelope(root, envelope) {
   const path = join(root, ".agent-teams-local", "scaffolding-transaction.json");
   await mkdir(dirname(path), { recursive: true });
-  await new NodeDocumentJournalStore(path).create(envelope);
+  // Keep inspection fixtures writable on Windows; production journal creation
+  // still enforces strict directory durability before publication.
+  await writeFile(path, `${canonicalJson(envelope)}\n`, "utf8");
 }
 
 test("Document Authoring inspection exposes exact owner-package recovery coordinates", async () => {

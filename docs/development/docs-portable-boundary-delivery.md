@@ -1,11 +1,14 @@
 # Docs Portable Boundary Delivery and Evidence
 
 Status: the direct adapter split plus Repository Mutation and Document Authoring
-package extractions are implemented and merged at exact head
-`9fdd5e37f71ee12a228456cdebc9dd7db358ea47`. Required exact-head qualification is
-green. Candidate package trees and archive integrity are reviewed in the
-bootstrap catalog; protected publication and coordinated consumer rollout
-remain pending.
+package extractions are implemented and merged on protected `main` at exact
+head `15588e31d970bda42490309da3b3d64c308fd5a2`. Exact-head cross-platform,
+package, registry, security, and performance qualification is green. The
+catalog-approved bootstrap artifacts are still unpublished: npm's granular
+write-token UI only accepts a calendar expiry at least one day ahead, while the
+protected workflow requires an actual lifetime of at most 24 hours. Consumer
+preparation and fleet rollout remain pending until immutable registry and
+provenance evidence exists.
 
 The accepted target and sole manually maintained package DAG are in
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md).
@@ -19,19 +22,21 @@ migration would violate the current boundary.
 
 ## Current integration evidence
 
-Measured against the implementation integration head on 2026-09-03. The
-documentation commits may advance `main` without changing this evidence; it
-remains pre-release until protected bootstrap and provenance promotion finish.
+Measured against the protected merge on 2026-09-03/04. This remains pre-release
+evidence until protected bootstrap and provenance promotion finish.
 
 | Evidence | State | Observation |
 | --- | --- | --- |
-| Exact base | Bound | The package-boundary delivery is measured from `f73907741b6752a1ba57baaf516e7fcdb6e2aa9b`; implementation integration head `9fdd5e37f71ee12a228456cdebc9dd7db358ea47` is bound to post-merge CI run `33766996969` (all jobs passed) |
+| Exact base | Passed | PR #239 merged as `15588e31d970bda42490309da3b3d64c308fd5a2`; the protected main ref was re-read before the exact-head run |
 | Current public manifests | Measured | One manifest-derived catalog projects all six public packages and the closed ADR-0043 dependency graph |
 | Physical boundaries | Measured | Foundation authoring/mutation exports and the Foundation `docs` CLI namespace are absent; portable Docs Protocol has no adapter path |
 | Focused remediation | Passed | Bootstrap policy `26/26`; CLI/filesystem `58 passed` plus one intentional benchmark skip; transaction/recovery `125/125` and `51/51`; final stale assumptions `2/2` and `13/13` |
 | Source Dependencies v2 | Passed | Package coverage, package/export ownership, manifest edges, cross-package relative imports, runtime/type-only cycles, and qualification coverage fail closed |
-| Disposable package install | Passed (pre-release) | On exact implementation tree `9fdd5e3`, post-merge CI run `33766996969` passed npm/pnpm docs-only, MCP, and Foundation registry matrices on Linux and Windows plus macOS qualification. The same run retained candidate bootstrap evidence for all three candidate packages with archive, manifest, package-tree, and SRI receipt; no protected registry publication or real-consumer runtime action is claimed |
-| Reviewed bootstrap bytes | Bound, unpublished | Ubuntu `linux-package` writer-evidence job in run `33793824242` retained the exact direct-writer archives from merge ref `c02476443e9873e2886d3a82f7384a62384e4d90`; receipt `sha256:8f07209ccdb85ff3198979a9c7dc3fd2ad70ea6f6d46f3b91a6333cb40dfcd93` binds all three catalog package trees, SHA-512 SRI values, and archive SHA-256 values. Candidate qualification remains separate and approved-only runs skip redundant packing. |
+| Disposable package install | Passed (pre-release) | Exact-head CI run `33802255095` passed npm/pnpm docs-only, MCP, and Foundation registry matrices on Linux and Windows plus macOS qualification; no protected registry publication or real-consumer runtime action is claimed |
+| CodeQL and performance | Passed | CodeQL `33802255083`; Performance signals `33802255104`; CI feedback `33804779303` |
+| Reviewed bootstrap bytes | Bound, unpublished | Ubuntu writer-evidence artifact `npm-package-bootstrap-writer-evidence-15588e31d970bda42490309da3b3d64c308fd5a2` retains all three exact archives, manifests, package trees, SHA-512 SRI, and SHA-256 values; receipt digest is `sha256:bb79b549f5a9d69c552190c27eb23ea8c406f0e353f0e3c0e218be89a1327676` |
+| Release guard | Correctly blocked | Run `33802255032` failed closed because `@agent-teams/repository-mutation@0.0.0` is absent from npm; no publication was attempted |
+| npm token preflight | Blocked, no side effect | Real Brave session confirmed only expired tokens. No new token or GitHub secret was created because the provider calendar expiry cannot satisfy the workflow's <=24-hour lifetime contract |
 
 Hosted execution is currently fail-closed. A project-control admission snapshot
 at `2026-09-03T12:42:58Z` reported no heavy workers running and sufficient

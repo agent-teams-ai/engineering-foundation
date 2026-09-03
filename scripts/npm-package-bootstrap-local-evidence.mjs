@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -44,8 +45,10 @@ async function verifyProfile(profile) {
       command("tar", ["-xOf", archivePath, "package/package.json"]),
       command("git", ["rev-parse", `HEAD:${profile.root}`]),
     ]);
-    return validatePackEvidence({
-      archiveBytes: await readFile(archivePath),
+    const archiveBytes = await readFile(archivePath);
+    try {
+      return validatePackEvidence({
+        archiveBytes,
       archivePath,
       packedManifest: JSON.parse(packedManifest),
       packageTree: packageTree.trim(),
@@ -53,7 +56,12 @@ async function verifyProfile(profile) {
       profile,
       tarEntries: tarEntries.trim().split("\n"),
       tarVerboseListing,
-    });
+      });
+    } catch (error) {
+      const observed = `sha512-${createHash("sha512").update(archiveBytes).digest("base64")}`;
+      const message = error instanceof Error ? error.message : "bootstrap writer evidence failed.";
+      throw new Error(`${message} (observed ${observed})`, { cause: error });
+    }
   } finally {
     await rm(evidenceRoot, { force: true, recursive: true });
   }
@@ -62,6 +70,7 @@ async function verifyProfile(profile) {
 async function main() {
   await preparePackages();
   const verified = [];
+  const failures = [];
   for (const profile of NPM_PACKAGE_BOOTSTRAP.packages) {
     if (profile.state !== "approved") {
       continue;
@@ -70,8 +79,15 @@ async function main() {
     if (manifest.version !== profile.bootstrapVersion) {
       continue;
     }
-    const evidence = await verifyProfile(profile);
-    verified.push(`${profile.name}@${profile.bootstrapVersion} ${evidence.integrity}`);
+    try {
+      const evidence = await verifyProfile(profile);
+      verified.push(`${profile.name}@${profile.bootstrapVersion} ${evidence.integrity}`);
+    } catch (error) {
+      failures.push(`${profile.name}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(`Bootstrap writer evidence failed for ${failures.length} package(s): ${failures.join("; ")}`);
   }
   process.stdout.write(`Verified local npm bootstrap approvals: ${verified.join(", ") || "none pending"}.\n`);
 }

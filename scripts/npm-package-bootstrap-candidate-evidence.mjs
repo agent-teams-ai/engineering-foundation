@@ -158,9 +158,25 @@ export async function createCandidateEvidence({ outputRoot }) {
   const stagingRoot = join(outputRoot, ".staging");
   await mkdir(stagingRoot);
   try {
-    const artifacts = await packPublishableArtifacts({ temporaryRoot: stagingRoot });
     const candidates = candidateProfiles();
     const records = [];
+    if (candidates.length === 0) {
+      const body = {
+        schemaVersion: 1,
+        kind: "npm-package-bootstrap-candidate-evidence",
+        generatedAt: new Date().toISOString(),
+        repository: NPM_PACKAGE_BOOTSTRAP.repository,
+        sourceCommit,
+        packages: records,
+      };
+      const receipt = { ...body, receiptDigest: canonicalDigest(body) };
+      await writeFile(join(outputRoot, "candidate-evidence.receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`, {
+        flag: "wx",
+        mode: 0o444,
+      });
+      return receipt;
+    }
+    const artifacts = await packPublishableArtifacts({ temporaryRoot: stagingRoot });
     for (const profile of candidates) {
       const artifact = artifacts[profile.name];
       if (artifact === undefined) {

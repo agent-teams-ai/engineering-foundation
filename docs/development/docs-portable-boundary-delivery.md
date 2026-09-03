@@ -29,6 +29,14 @@ pre-release evidence until protected bootstrap and provenance promotion finish.
 | Source Dependencies v2 | Passed | Package coverage, package/export ownership, manifest edges, cross-package relative imports, runtime/type-only cycles, and qualification coverage fail closed |
 | Disposable package install | Passed (pre-release) | Local and CI package, registry-install, published-compatibility and cross-platform qualification passed; no protected registry publication or real-consumer runtime action is claimed |
 
+Hosted execution is currently fail-closed. A project-control admission snapshot
+at `2026-09-03T02:27:43Z` reported no heavy workers running and sufficient
+memory, but denied a new producer because the old-host volume had
+`availableKb=27404996` below the `minFreeKb=31457280` threshold and retained
+the inactive dirty `docauth43-core-r2` worktree. No new hosted worker was
+dispatched against that state; the dirty output remains preserved for explicit
+review rather than being deleted or restarted.
+
 This table is not exact-head release proof. A checked item below requires its
 own current, authoritative evidence rather than this prose.
 

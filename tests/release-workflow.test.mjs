@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- workflow contract coverage remains one auditable suite.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -498,6 +499,10 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["registry-install-e2e:built"],
     "node scripts/registry-install-e2e.mjs",
   );
+  assert.equal(
+    manifest.scripts["npm-package-bootstrap:candidate-evidence"],
+    "node scripts/npm-package-bootstrap-candidate-evidence.mjs",
+  );
   assert.equal(ci.jobs["linux-registry"].steps.at(-1).run, "pnpm registry-install-e2e"); assert.equal(ci.jobs["linux-registry"]["timeout-minutes"], 25);
   const windowsRegistryCommands = ci.jobs["windows-registry"].steps
     .map((step) => step.run)
@@ -544,6 +549,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     "linux-coverage",
     "linux-package",
     "linux-registry",
+    "linux-bootstrap-evidence",
     "linux-published",
   ]);
   assert.equal(

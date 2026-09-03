@@ -38,6 +38,7 @@
     "dead-code:check": "knip --config knip.json --no-progress",
     "docs:terminology:check": "node scripts/check-documentation-terminology.mjs",
     "nx:graph:check": "nx show projects",
+    "npm-package-bootstrap:candidate-evidence": "node scripts/npm-package-bootstrap-candidate-evidence.mjs",
     "published-compatibility:e2e": "node scripts/published-compatibility-e2e.mjs",
     "public-docs-release:e2e": "node scripts/public-docs-release-e2e.mjs",
     "check:affected": "nx affected -t build --exclude=@agent-teams/engineering-foundation-repository",

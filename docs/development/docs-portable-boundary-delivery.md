@@ -1,28 +1,33 @@
 # Docs Portable Boundary Delivery and Evidence
 
 Status: the direct adapter split plus Repository Mutation and Document Authoring
-package extractions are implemented on the integration branch. Exact-head full
-qualification, protected publication, and coordinated consumer rollout remain
-pending.
+package extractions are implemented and merged at exact head
+`e4863550a0e44769987a98a9f98fa6ccc9b1d014`. Required exact-head qualification is
+green; protected publication and coordinated consumer rollout remain pending.
 
 The accepted target and sole manually maintained package DAG are in
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md).
 This document tracks delivery dependencies and evidence; it does not redefine
 the architecture or duplicate release order.
 
+The bridge step in the historical pasted plan is superseded by ADR-0043 and
+the accepted new-only direction. It is deliberately not a pending delivery
+gate: adding a bridge, legacy root export, runtime autodetection, or automatic
+migration would violate the current boundary.
+
 ## Current integration evidence
 
-Measured on the integration branch on 2026-09-02. These observations remain
-pre-release evidence until one exact reviewed head passes every required gate.
+Measured on the merged `main` head on 2026-09-03. These observations remain
+pre-release evidence until protected bootstrap and provenance promotion finish.
 
 | Evidence | State | Observation |
 | --- | --- | --- |
-| Exact base | Bound | Extraction began from `fe8beaa66ca963934fd027aa4501687d40117eb9`; integration includes current main `e000fcbfdc87bf0cfa966b45034514dcc973ec51`; the PR head and its CI run own the final exact-head coordinate |
+| Exact base | Bound | The package-boundary delivery is measured from `f73907741b6752a1ba57baaf516e7fcdb6e2aa9b`; final exact head is `e4863550a0e44769987a98a9f98fa6ccc9b1d014` and post-merge CI run `33701563366` passed |
 | Current public manifests | Measured | One manifest-derived catalog projects all six public packages and the closed ADR-0043 dependency graph |
 | Physical boundaries | Measured | Foundation authoring/mutation exports and the Foundation `docs` CLI namespace are absent; portable Docs Protocol has no adapter path |
 | Focused remediation | Passed | Bootstrap policy `26/26`; CLI/filesystem `58 passed` plus one intentional benchmark skip; transaction/recovery `125/125` and `51/51`; final stale assumptions `2/2` and `13/13` |
 | Source Dependencies v2 | Passed | Package coverage, package/export ownership, manifest edges, cross-package relative imports, runtime/type-only cycles, and qualification coverage fail closed |
-| Disposable package install | In progress | Local tarball graph defects are fixed as encountered; no registry publication or real-consumer runtime action is claimed |
+| Disposable package install | Passed (pre-release) | Local and CI package, registry-install, published-compatibility and cross-platform qualification passed; no protected registry publication or real-consumer runtime action is claimed |
 
 This table is not exact-head release proof. A checked item below requires its
 own current, authoritative evidence rather than this prose.
@@ -34,7 +39,9 @@ The qualification lane started from exact base
 Source Dependencies v2 policy, hostile fixtures, derived release graph, package
 qualification, registry-install exercise, new-only negative assertions, and
 bootstrap candidate are now integrated. They become release evidence only when
-the final physical package graph passes all required gates at one exact head.
+the final physical package graph passes all required gates at one exact head. The
+merged head now has that required CI evidence; protected bootstrap remains a
+separate release gate.
 
 `@agent-teams/document-authoring@0.0.0` and
 `@agent-teams/repository-mutation@0.0.0` are candidate bootstrap artifacts after
@@ -47,7 +54,7 @@ are neither registry evidence nor supported releases.
 
 ### 1. Foundation gate
 
-- [ ] Bind the implementation change to one exact clean head and an approved
+- [x] Bind the implementation change to one exact clean head and an approved
   ADR-0043 baseline promotion owned by integration.
 - [ ] Inventory current exports, consumers, persisted transaction generations,
   and exact recovery artifacts before moving code or deleting an entrypoint.
@@ -97,18 +104,23 @@ journals to be ignored or treated as idle.
 
 ### 5. Disposable install and hostile evidence
 
-- [ ] Pack reviewed artifacts and perform clean exact-version npm and pnpm
+- [x] Pack reviewed artifacts and perform clean exact-version npm and pnpm
   installs in disposable repositories with scripts/hooks disabled where the
   contract requires.
-- [ ] Exercise public imports, CLI startup, portable authoring, adapter commands,
+- [x] Exercise public imports, CLI startup, portable authoring, adapter commands,
   and MCP transport from installed artifacts, not workspace source.
 - [ ] Exercise path aliases, cross-package relatives, unexported subpaths,
   adapter discovery attempts, stale plans, changed preimages, crashes, version
   skew, incompatible journals, malicious document content, and resource limits.
-- [ ] Retain supported Linux, macOS, and Windows evidence without claiming POSIX
+- [x] Retain supported Linux, macOS, and Windows evidence without claiming POSIX
   hard-power-loss durability on Windows.
 
 ### 6. Current-consumer migration preparation
+
+The first inventory checkpoint is recorded in
+[Portable Documentation Consumer Inventory](docs-portable-consumer-inventory.md).
+It identifies `agent-teams-orchestrator` at an exact commit, but persisted
+transaction generations and published target coordinates are still unknown.
 
 - [ ] Inventory every current consumer at an exact commit, including legacy
   entrypoint/export use and every admitted persisted transaction generation.
@@ -121,9 +133,9 @@ journals to be ignored or treated as idle.
 
 ### 7. Exact-head integration checks
 
-- [ ] Re-read HEAD and reject a base or ownership mismatch; inspect the complete
+- [x] Re-read HEAD and reject a base or ownership mismatch; inspect the complete
   diff and accepted-decision baseline promotion at that same head.
-- [ ] Run `pnpm check:changed` while integrating, then `pnpm check:fast` before
+- [x] Run `pnpm check:changed` while integrating, then `pnpm check:fast` before
   handoff and `pnpm verify` before the pull request. Record real outcomes rather
   than treating this phase-0 NOT RUN state as success.
 - [ ] Obtain the required exact-head Linux, Windows, macOS, dependency, package,

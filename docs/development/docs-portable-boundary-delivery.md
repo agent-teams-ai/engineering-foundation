@@ -112,6 +112,11 @@ journals to be ignored or treated as idle.
 
 ### 6. Current-consumer migration preparation
 
+The first inventory checkpoint is recorded in
+[Portable Documentation Consumer Inventory](docs-portable-consumer-inventory.md).
+It identifies `agent-teams-orchestrator` at an exact commit, but persisted
+transaction generations and published target coordinates are still unknown.
+
 - [ ] Inventory every current consumer at an exact commit, including legacy
   entrypoint/export use and every admitted persisted transaction generation.
 - [ ] Prepare and review, but do not merge, explicit coordinated changes with

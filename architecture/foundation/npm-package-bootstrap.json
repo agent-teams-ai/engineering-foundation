@@ -5,7 +5,7 @@
   "packages": [
     {
       "id": "repository-mutation",
-      "state": "candidate",
+      "state": "approved",
       "name": "@agent-teams/repository-mutation",
       "root": "packages/repository-mutation",
       "manifestPath": "packages/repository-mutation/package.json",
@@ -43,11 +43,14 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": null
+      "approval": {
+        "archiveIntegrity": "sha512-mgB2IxFbAPgTp6GF2s4AX+IoVHPKHh19GZpn+Zai+I0wPondoKMOBsSo3qoeEhpnt/4wABDUyeh9XqmKcjsXWw==",
+        "packageTree": "8a87efb6a462618103ff206820e4e64329bd9aec"
+      }
     },
     {
       "id": "document-authoring",
-      "state": "candidate",
+      "state": "approved",
       "name": "@agent-teams/document-authoring",
       "root": "packages/document-authoring",
       "manifestPath": "packages/document-authoring/package.json",
@@ -141,7 +144,10 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": null
+      "approval": {
+        "archiveIntegrity": "sha512-7jtVSJt898b+/q+IuQ0iL4Z9MkQi3Gj1Db2xutbnYdkjHzzfw/gRgsBVG37c00xDfFGUGDadmK5osc1yAcU66A==",
+        "packageTree": "2dfd15f46cd3381f6c4ba1a2eaab090dd5c0f33f"
+      }
     },
     {
       "id": "docs-protocol",
@@ -201,7 +207,7 @@
     },
     {
       "id": "docs-protocol-agent-teams",
-      "state": "candidate",
+      "state": "approved",
       "name": "@agent-teams/docs-protocol-agent-teams",
       "root": "packages/docs-protocol-agent-teams",
       "manifestPath": "packages/docs-protocol-agent-teams/package.json",
@@ -268,7 +274,10 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": null
+      "approval": {
+        "archiveIntegrity": "sha512-e0UTm/ruVRardPIzaKM+FHVNm0WEF6dbX+JtXQsOa2qFy+SGL3YjNxpbMOveMLQbCC8iuF/pQbu8H7OMKuwETQ==",
+        "packageTree": "9661dd72dedb23d05fa8b320f4e26b14d4aa67d8"
+      }
     },
     {
       "id": "docs-protocol-mcp",

@@ -184,7 +184,12 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   );
   assert.ok(
     ci.jobs["linux-package"].steps.some(
-      ({ run }) => run === "node scripts/npm-package-bootstrap-local-evidence.mjs",
+      ({ run }) => run === "node scripts/npm-package-bootstrap-local-evidence.mjs --output \"${RUNNER_TEMP}/npm-package-bootstrap-writer-evidence\"",
+    ),
+  );
+  assert.ok(
+    ci.jobs["linux-package"].steps.some(({ uses, if: condition }) =>
+      uses?.startsWith("actions/upload-artifact@") && condition === "${{ always() }}",
     ),
   );
   const localEvidenceSource = await readFile(
@@ -193,6 +198,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   );
   assert.match(localEvidenceSource, /import \{ preparePackages \} from "\.\/prepare-package\.mjs";/u);
   assert.match(localEvidenceSource, /await preparePackages\(\);/u);
+  assert.match(localEvidenceSource, /npm-package-bootstrap-writer-evidence/u);
 });
 
 test("shared reconciliation resolves annotated tags and re-reads final exact state", async () => {

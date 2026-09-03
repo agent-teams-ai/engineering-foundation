@@ -142,10 +142,10 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
   assert.deepEqual(
     NPM_PACKAGE_BOOTSTRAP.packages.map(({ id, state }) => ({ id, state })),
     [
-      { id: "repository-mutation", state: "candidate" },
-      { id: "document-authoring", state: "candidate" },
+      { id: "repository-mutation", state: "approved" },
+      { id: "document-authoring", state: "approved" },
       { id: "docs-protocol", state: "historical" },
-      { id: "docs-protocol-agent-teams", state: "candidate" },
+      { id: "docs-protocol-agent-teams", state: "approved" },
       { id: "docs-protocol-mcp", state: "historical" },
     ],
   );

@@ -23,7 +23,7 @@ not repeat their rules.
 | Document authoring | [Document authoring protocol](architecture/document-authoring-protocol.md) | Portable authoring owned by Document Authoring; mutation and exact-build recovery mechanism owned by Repository Mutation |
 | Unified documentation UX | [ADR-0026](decisions/0026-retain-only-document-directory-materialization.md#carried-forward-adr-0025-decisions) | Portable application and CLI owned by Docs Protocol; no Foundation documentation CLI or compatibility bridge |
 | Portable package boundary | [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md) | New-only source package split implemented; qualification, publication, and rollout remain separately gated |
-| Portable boundary delivery | [Delivery and evidence contract](development/docs-portable-boundary-delivery.md) | Source implementation complete; qualification, publication, and rollout evidence pending |
+| Portable boundary delivery | [Delivery and evidence contract](development/docs-portable-boundary-delivery.md) | Source implementation and required exact-head qualification complete; protected publication and rollout remain gated |
 | Open-source documentation | [Open-source Docs Protocol](reference/open-source-docs-protocol.md) | Portable workflow composed directly over Document Authoring and Repository Mutation |
 | Managed consumer upgrades | [Managed Docs Protocol consumer integration](architecture/managed-docs-consumer-integration.md) | Managed behavior confined to Docs Protocol Agent Teams; activation remains explicit |
 | Managed consumer integration | [Consumer integration](architecture/managed-docs-consumer-integration.md) | New-only adapter placement implemented; qualification, publication, and rollout remain gated |

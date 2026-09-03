@@ -44,7 +44,7 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-FnICE9h22icaABWpNOOF0bugwDyRabCKVG+6PfbpzcNbhveTNdPO5Xly6ZbDZSP9Kb3qOFp9m7rykMaERyJfJg==",
+        "archiveIntegrity": "sha512-mgB2IxFbAPgTp6GF2s4AX+IoVHPKHh19GZpn+Zai+I0wPondoKMOBsSo3qoeEhpnt/4wABDUyeh9XqmKcjsXWw==",
         "packageTree": "8a87efb6a462618103ff206820e4e64329bd9aec"
       }
     },
@@ -145,7 +145,7 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-HZyTtFGZD6wQYULJ6Zsizn+0yyXLN3aegTvm8gVG3YLolLe4gcIdSGBRCfYqSqachzslaR8mSp9miCXMTznI0w==",
+        "archiveIntegrity": "sha512-7jtVSJt898b+/q+IuQ0iL4Z9MkQi3Gj1Db2xutbnYdkjHzzfw/gRgsBVG37c00xDfFGUGDadmK5osc1yAcU66A==",
         "packageTree": "2dfd15f46cd3381f6c4ba1a2eaab090dd5c0f33f"
       }
     },
@@ -275,7 +275,7 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-KWJYBDCKuPYqmMNsrJ0OkjdtT97kdCfnohFK+Y92JavFhninZPWDNeixUEP1z3VwJfdgtzgKJlbA0L2OsWODvg==",
+        "archiveIntegrity": "sha512-e0UTm/ruVRardPIzaKM+FHVNm0WEF6dbX+JtXQsOa2qFy+SGL3YjNxpbMOveMLQbCC8iuF/pQbu8H7OMKuwETQ==",
         "packageTree": "9661dd72dedb23d05fa8b320f4e26b14d4aa67d8"
       }
     },

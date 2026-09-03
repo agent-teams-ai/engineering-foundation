@@ -151,7 +151,7 @@ export async function createCandidateEvidence({ outputRoot }) {
   }
   await ensureEmptyOutput(outputRoot);
   const sourceCommit = await git(["rev-parse", "HEAD"]);
-  const dirty = await git(["status", "--porcelain", "--untracked-files=no"]);
+  const dirty = await git(["status", "--porcelain", "--untracked-files=all"]);
   if (dirty !== "") {
     fail("repository worktree must be clean.");
   }

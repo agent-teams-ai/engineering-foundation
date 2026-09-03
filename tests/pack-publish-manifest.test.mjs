@@ -4,7 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { packAndInspectArtifact } from "../scripts/pack-artifact-e2e.mjs";
-import { canonicalPublishManifest } from "../scripts/pack-artifact-stage-support.mjs";
+import { canonicalPublishManifest, npmPackManifest } from "../scripts/pack-artifact-stage-support.mjs";
 import { createPackFixture, qualifiedArchive } from "./pack-publishable-artifacts-support.mjs";
 
 test("publish manifest canonicalizes exact dependency authorities without reordering other fields", async (t) => {
@@ -48,6 +48,12 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
       catalogVersions: new Map(), internalPackageVersions: new Map(),
     }), /cannot use publishConfig\.directory/u);
   });
+});
+
+test("isolated publish manifest matches npm pack top-level key order", () => {
+  const manifest = { version: "1.0.0", name: "@fixture/app", description: "fixture" };
+  assert.deepEqual(Object.keys(npmPackManifest(manifest)), ["description", "name", "version"]);
+  assert.deepEqual(Object.keys(manifest), ["version", "name", "description"]);
 });
 
 test("packed dependency versions must match the sealed publish authority", async (t) => {

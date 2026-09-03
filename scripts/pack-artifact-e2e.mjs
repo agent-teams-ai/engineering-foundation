@@ -5,7 +5,7 @@ import { assertSecretCanaryAbsent } from "./pack-test-support.mjs";
 import {
   assertArchiveSafety, inspectCompressedTarArchive, portableEntryIdentity, readRegularArchive, sha256,
 } from "./pack-artifact-archive.mjs";
-import { boundedDirectoryEntries, canonicalPublishManifest, containsPhysicalPath, generatedPackageEntries, materializeStableTree, pathExists, publishDependencyIdentity, readBoundedStableJson, readStableRegularFile, wireStagedPackageDependencies } from "./pack-artifact-stage-support.mjs";
+import { boundedDirectoryEntries, canonicalPublishManifest, containsPhysicalPath, generatedPackageEntries, materializeStableTree, npmPackManifest, pathExists, publishDependencyIdentity, readBoundedStableJson, readStableRegularFile, wireStagedPackageDependencies } from "./pack-artifact-stage-support.mjs";
 export {
   assertArchiveListing, assertArchiveSafety, assertNoSpecialTarEntries, inspectCompressedTarArchive, readVerifiedArchive,
 } from "./pack-artifact-archive.mjs";
@@ -199,7 +199,7 @@ export async function createCleanBuildStage(input, label) {
     catalogVersions,
     internalPackageVersions: new Map([...manifestsByName].map(([name, manifest]) => [name, manifest.version])),
   });
-  await writeFile(join(packageRoot, "package.json"), `${JSON.stringify(publishManifest, null, 2)}\n`);
+  await writeFile(join(packageRoot, "package.json"), `${JSON.stringify(npmPackManifest(publishManifest), null, 2)}\n`);
   const expectedEntries = await expectedPackedEntries(packageRoot, sourceManifest, input.requiredArtifactPaths);
   return Object.freeze({ expectedEntries, packageRoot, publishManifest, sourceManifest, stageRoot });
 }

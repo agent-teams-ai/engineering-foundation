@@ -80,6 +80,19 @@ export function canonicalPublishManifest(manifest, context) {
   return canonical;
 }
 
+// npm pack serializes the top-level manifest with code-point sorted keys. The
+// isolated qualification stage must write the same byte representation as the
+// protected bootstrap writer, otherwise a reviewed SRI would describe a
+// different archive even when the payload files are identical.
+export function npmPackManifest(manifest) {
+  if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error("npm pack manifest must be a JSON object.");
+  }
+  return Object.fromEntries(Object.entries(manifest).toSorted(([left], [right]) =>
+    left < right ? -1 : left > right ? 1 : 0,
+  ));
+}
+
 export function publishDependencyIdentity(manifest) {
   return JSON.stringify(Object.fromEntries(dependencySections
     .filter((section) => Object.hasOwn(manifest, section))

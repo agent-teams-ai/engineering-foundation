@@ -3,7 +3,9 @@
 Status: the direct adapter split plus Repository Mutation and Document Authoring
 package extractions are implemented and merged at exact head
 `9fdd5e37f71ee12a228456cdebc9dd7db358ea47`. Required exact-head qualification is
-green; protected publication and coordinated consumer rollout remain pending.
+green. Candidate package trees and archive integrity are reviewed in the
+bootstrap catalog; protected publication and coordinated consumer rollout
+remain pending.
 
 The accepted target and sole manually maintained package DAG are in
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md).
@@ -29,6 +31,7 @@ remains pre-release until protected bootstrap and provenance promotion finish.
 | Focused remediation | Passed | Bootstrap policy `26/26`; CLI/filesystem `58 passed` plus one intentional benchmark skip; transaction/recovery `125/125` and `51/51`; final stale assumptions `2/2` and `13/13` |
 | Source Dependencies v2 | Passed | Package coverage, package/export ownership, manifest edges, cross-package relative imports, runtime/type-only cycles, and qualification coverage fail closed |
 | Disposable package install | Passed (pre-release) | On exact implementation tree `9fdd5e3`, post-merge CI run `33766996969` passed npm/pnpm docs-only, MCP, and Foundation registry matrices on Linux and Windows plus macOS qualification. The same run retained candidate bootstrap evidence for all three candidate packages with archive, manifest, package-tree, and SRI receipt; no protected registry publication or real-consumer runtime action is claimed |
+| Reviewed bootstrap bytes | Bound, unpublished | Ubuntu candidate-evidence job in run `33784076857` re-packed all three packages from `bdf47eb7acb41b2d08086af46552c383fc109e3c`; receipt `sha256:2f0fcf6823c91d198b38a3a2b34b382f7bdd3baff6c8ef708c2d9ca98d2f4343` binds the catalog package trees and SHA-512 archive integrity values |
 
 Hosted execution is currently fail-closed. A project-control admission snapshot
 at `2026-09-03T12:42:58Z` reported no heavy workers running and sufficient
@@ -53,11 +56,12 @@ separate release gate.
 
 `@agent-teams/repository-mutation@0.0.0`,
 `@agent-teams/document-authoring@0.0.0`, and
-`@agent-teams/docs-protocol-agent-teams@0.0.0` are candidate bootstrap artifacts
-after the shared journal kernel merge. Their previous package-tree/SRI approvals
-were invalidated because the package bytes changed; the catalog is intentionally
-fail-closed until protected bootstrap re-qualifies all three exact artifacts.
-They are neither registry evidence nor supported releases.
+`@agent-teams/docs-protocol-agent-teams@0.0.0` are reviewed bootstrap artifacts
+after the shared journal kernel merge. The catalog binds each package tree and
+archive SRI to the retained exact-head receipt. This approval permits only the
+protected bootstrap workflow to re-pack and verify the same bytes; the artifacts
+remain neither registry evidence nor supported releases until publication and
+postcondition proof complete.
 
 ## Delivery checklist
 

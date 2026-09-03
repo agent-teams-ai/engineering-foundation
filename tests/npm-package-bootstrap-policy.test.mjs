@@ -33,7 +33,7 @@ import {
 } from "../scripts/npm-package-bootstrap-cli.mjs";
 import { main as releasePublishMain } from "../scripts/release-publish.mjs";
 
-const mcpCandidateProfile = bootstrapPackageById("docs-protocol-agent-teams");
+const adapterBootstrapProfile = bootstrapPackageById("docs-protocol-agent-teams");
 const authoringProfile = bootstrapPackageById("document-authoring");
 const reviewedCommit = "a".repeat(40);
 
@@ -43,7 +43,7 @@ function integrity(bytes) {
 
 function approvedMcpCatalog(archiveBytes = Buffer.from("reviewed archive")) {
   const value = structuredClone(NPM_PACKAGE_BOOTSTRAP);
-  value.packages = [structuredClone(mcpCandidateProfile)];
+  value.packages = [structuredClone(adapterBootstrapProfile)];
   value.packages[0].state = "approved";
   value.packages[0].approval = {
     archiveIntegrity: integrity(archiveBytes),
@@ -54,7 +54,7 @@ function approvedMcpCatalog(archiveBytes = Buffer.from("reviewed archive")) {
 
 function candidateMcpCatalog() {
   const value = structuredClone(NPM_PACKAGE_BOOTSTRAP);
-  value.packages = [structuredClone(mcpCandidateProfile)];
+  value.packages = [structuredClone(adapterBootstrapProfile)];
   value.packages[0].state = "candidate";
   value.packages[0].approval = null;
   return parseBootstrapCatalog(value);
@@ -142,28 +142,28 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
   assert.deepEqual(
     NPM_PACKAGE_BOOTSTRAP.packages.map(({ id, state }) => ({ id, state })),
     [
-      { id: "repository-mutation", state: "candidate" },
-      { id: "document-authoring", state: "candidate" },
+      { id: "repository-mutation", state: "approved" },
+      { id: "document-authoring", state: "approved" },
       { id: "docs-protocol", state: "historical" },
-      { id: "docs-protocol-agent-teams", state: "candidate" },
+      { id: "docs-protocol-agent-teams", state: "approved" },
       { id: "docs-protocol-mcp", state: "historical" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
   assert.equal(authoring.bootstrapVersion, "0.0.0");
-  assert.equal(authoring.approval, null);
-  assert.throws(
-    () => bootstrapPackageById("document-authoring", { approved: true }),
-    /not approved/u,
+  assert.equal(authoring.approval.packageTree, "2dfd15f46cd3381f6c4ba1a2eaab090dd5c0f33f");
+  assert.equal(bootstrapPackageById("document-authoring", { approved: true }), authoring);
+  assert.equal(
+    adapterBootstrapProfile.approval.packageTree,
+    "9661dd72dedb23d05fa8b320f4e26b14d4aa67d8",
   );
-  assert.equal(mcpCandidateProfile.approval, null);
   assert.throws(
     () => bootstrapPackageById("unknown", { approved: true }),
     /closed bootstrap catalog/u,
   );
-  assert.throws(
-    () => bootstrapPackageById("docs-protocol-agent-teams", { approved: true }),
-    /not approved/u,
+  assert.equal(
+    bootstrapPackageById("docs-protocol-agent-teams", { approved: true }),
+    adapterBootstrapProfile,
   );
   assert.throws(() => bootstrapPackageById("docs-protocol-mcp", { approved: true }), /not approved/u);
   assert.deepEqual(mcpProfile.tags, {

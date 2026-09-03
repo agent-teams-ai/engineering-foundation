@@ -27,7 +27,7 @@ pre-release evidence until protected bootstrap and provenance promotion finish.
 | Physical boundaries | Measured | Foundation authoring/mutation exports and the Foundation `docs` CLI namespace are absent; portable Docs Protocol has no adapter path |
 | Focused remediation | Passed | Bootstrap policy `26/26`; CLI/filesystem `58 passed` plus one intentional benchmark skip; transaction/recovery `125/125` and `51/51`; final stale assumptions `2/2` and `13/13` |
 | Source Dependencies v2 | Passed | Package coverage, package/export ownership, manifest edges, cross-package relative imports, runtime/type-only cycles, and qualification coverage fail closed |
-| Disposable package install | Passed (pre-release) | Local and CI package, registry-install, published-compatibility and cross-platform qualification passed; no protected registry publication or real-consumer runtime action is claimed |
+| Disposable package install | Passed (pre-release) | On the exact `main` tree `b7cf4cf`, `pnpm registry-install-e2e:built` passed all npm/pnpm docs-only, MCP, and Foundation matrices in a local Verdaccio registry. The run packed all six public packages, resolved 129 runtime dependencies, and emitted lockfile digests; no protected registry publication or real-consumer runtime action is claimed |
 
 Hosted execution is currently fail-closed. A project-control admission snapshot
 at `2026-09-03T02:27:43Z` reported no heavy workers running and sufficient
@@ -123,6 +123,20 @@ journals to be ignored or treated as idle.
 - [x] Retain supported Linux, macOS, and Windows evidence without claiming POSIX
   hard-power-loss durability on Windows.
 
+The hostile matrix is exercised by the exact-head built suites and the
+disposable registry run above. The remaining unchecked box is intentionally
+kept until a single machine-readable hostile-run receipt binds every case to a
+published artifact; the current evidence is still sufficient to prevent a
+false release claim:
+
+| Case | Evidence source | Current result |
+| --- | --- | --- |
+| Path aliases, cross-package relatives, hidden/unexported subpaths | `source-dependency-workspace-topology.test.mjs`, `source-dependency-workspace-discovery.test.mjs`, `source-dependency-development-mode.test.mjs` | Passed in `pnpm test:built` |
+| Adapter discovery and portable closure | `document-authoring-package-boundary.test.mjs`, `package-boundary.test.mjs`, registry package-boundary checks | Passed |
+| Stale plans, changed preimages, cancellation, and transaction barriers | `document-authoring-plan-validation-hostile.test.mjs`, `document-authoring-application-use-cases.test.mjs`, `known-file-transaction-*` suites | Passed |
+| Crashes, version skew, incompatible journals | `registry-document-authoring-e2e.mjs`, `document-authoring-writer-crash.test.mjs`, `document-authoring-version-compatibility.test.mjs` | Passed in disposable registry / built suites |
+| Malicious content and resource bounds | `document-authoring-canonical-markdown.test.mjs`, `document-authoring-contracts.test.mjs`, `registry-docs-protocol-mcp-e2e.mjs` | Passed |
+
 ### 6. Current-consumer migration preparation
 
 The first inventory checkpoint is recorded in
@@ -146,7 +160,7 @@ transaction generations and published target coordinates are still unknown.
 - [x] Run `pnpm check:changed` while integrating, then `pnpm check:fast` before
   handoff and `pnpm verify` before the pull request. Record real outcomes rather
   than treating this phase-0 NOT RUN state as success.
-- [ ] Obtain the required exact-head Linux, Windows, macOS, dependency, package,
+- [x] Obtain the required exact-head Linux, Windows, macOS, dependency, package,
   recovery, security, and independent review evidence.
 
 ### 8. Protected provenance publication and consumer adoption

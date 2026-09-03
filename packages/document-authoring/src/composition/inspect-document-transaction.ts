@@ -93,6 +93,11 @@ async function inspectV2(consumerRoot: string): Promise<DocumentTransactionInspe
   }
 
   const journalPath = join(stateDirectory, FOUNDATION_TRANSACTION_FILE);
+  // Check residue before reading the canonical slot so every platform
+  // exposes the same deterministic recovery coordinate.
+  if (await hasForeignEvidence(stateDirectory)) {
+    return unsafe("journal-transition-residue");
+  }
   let stored;
   try {
     stored = await new NodeDocumentJournalStore(journalPath).read();

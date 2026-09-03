@@ -109,6 +109,26 @@ test("Document Authoring inspection reports an absent state directory as idle", 
   }
 });
 
+test("Document Authoring inspection classifies transition residue portably", async () => {
+  const root = await mkdtemp(join(tmpdir(), "document-public-inspection-"));
+  try {
+    const stateDirectory = join(root, ".agent-teams-local");
+    await mkdir(stateDirectory, { recursive: true });
+    await writeFile(
+      join(stateDirectory, "scaffolding-transaction.json.document-transition"),
+      "preserved transition evidence\n",
+      "utf8",
+    );
+    for (const inspect of [inspectDocumentTransactionV2, inspectDocumentTransactionV1]) {
+      const status = await inspect(root);
+      assert.equal(status.state, "manual-recovery-required");
+      assert.equal(status.reason, "journal-transition-residue");
+    }
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 test("Document Authoring inspection never follows a redirected state directory", async () => {
   const root = await mkdtemp(join(tmpdir(), "document-public-inspection-"));
   const outside = await mkdtemp(join(tmpdir(), "document-public-inspection-outside-"));

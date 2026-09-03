@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import test from "node:test";
 
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
@@ -808,7 +808,7 @@ test("production and generic directory adapters share the internal bind kernel",
   const productionPath = (await sourceFiles(join(
     repositoryRoot,
     "packages/document-authoring/src",
-  ))).find((path) => path.endsWith("/node-document-parent-materializer.ts"));
+  ))).find((path) => basename(path) === "node-document-parent-materializer.ts");
   assert.notEqual(productionPath, undefined);
   const production = await readFile(productionPath, "utf8");
   const generic = await readFile(join(

@@ -136,6 +136,7 @@ export async function prove(
   assertion,
   absentMessage,
   {
+    catalog = NPM_PACKAGE_BOOTSTRAP,
     assertionAttempts = 1,
     auditPackage = auditLivePackage,
     liveEvidence = livePackageEvidence,
@@ -143,7 +144,7 @@ export async function prove(
     writeEvidence = writeFile,
   } = {},
 ) {
-  const profile = bootstrapPackageById(args[0], { approved: true });
+  const profile = bootstrapPackageById(args[0], { approved: true, catalog });
   const auditEvidence = await auditPackage(profile);
   const live = await observeAssertion({
     attempts: assertionAttempts,
@@ -182,6 +183,7 @@ export async function proveQuarantine(
   args,
   assertion,
   {
+    catalog = NPM_PACKAGE_BOOTSTRAP,
     assertionAttempts = 1,
     liveEvidence = livePackageEvidence,
     observationOptions,
@@ -189,7 +191,7 @@ export async function proveQuarantine(
     writeEvidence = writeFile,
   } = {},
 ) {
-  const profile = bootstrapPackageById(args[0], { approved: true });
+  const profile = bootstrapPackageById(args[0], { approved: true, catalog });
   const live = await observeAssertion({
     attempts: assertionAttempts,
     observe: async () => {

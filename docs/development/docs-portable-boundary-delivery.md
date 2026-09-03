@@ -2,7 +2,7 @@
 
 Status: the direct adapter split plus Repository Mutation and Document Authoring
 package extractions are implemented and merged at exact head
-`e4863550a0e44769987a98a9f98fa6ccc9b1d014`. Required exact-head qualification is
+`fd5908adc793c8be657ef3e340e4fc954719b374`. Required exact-head qualification is
 green; protected publication and coordinated consumer rollout remain pending.
 
 The accepted target and sole manually maintained package DAG are in
@@ -22,7 +22,7 @@ pre-release evidence until protected bootstrap and provenance promotion finish.
 
 | Evidence | State | Observation |
 | --- | --- | --- |
-| Exact base | Bound | The package-boundary delivery is measured from `f73907741b6752a1ba57baaf516e7fcdb6e2aa9b`; final exact head is `e4863550a0e44769987a98a9f98fa6ccc9b1d014` and post-merge CI run `33701563366` passed |
+| Exact base | Bound | The package-boundary delivery is measured from `f73907741b6752a1ba57baaf516e7fcdb6e2aa9b`; final exact head is `fd5908adc793c8be657ef3e340e4fc954719b374`; post-merge CI run `33701563366` and evidence-update PR run `33705374379` passed |
 | Current public manifests | Measured | One manifest-derived catalog projects all six public packages and the closed ADR-0043 dependency graph |
 | Physical boundaries | Measured | Foundation authoring/mutation exports and the Foundation `docs` CLI namespace are absent; portable Docs Protocol has no adapter path |
 | Focused remediation | Passed | Bootstrap policy `26/26`; CLI/filesystem `58 passed` plus one intentional benchmark skip; transaction/recovery `125/125` and `51/51`; final stale assumptions `2/2` and `13/13` |

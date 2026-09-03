@@ -170,7 +170,10 @@ export function validatePackEvidence({
   }
   const integrity = `sha512-${createHash("sha512").update(archiveBytes).digest("base64")}`;
   if (integrity !== profile.approval.archiveIntegrity) {
-    fail("packed archive differs from reviewed bootstrap integrity.");
+    fail(
+      `packed archive differs from reviewed bootstrap integrity (expected ${profile.approval.archiveIntegrity}; ` +
+      `observed ${integrity}).`,
+    );
   }
   return Object.freeze({ archivePath, integrity });
 }

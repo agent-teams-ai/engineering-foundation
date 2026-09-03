@@ -10,6 +10,11 @@ The accepted target and sole manually maintained package DAG are in
 This document tracks delivery dependencies and evidence; it does not redefine
 the architecture or duplicate release order.
 
+The bridge step in the historical pasted plan is superseded by ADR-0043 and
+the accepted new-only direction. It is deliberately not a pending delivery
+gate: adding a bridge, legacy root export, runtime autodetection, or automatic
+migration would violate the current boundary.
+
 ## Current integration evidence
 
 Measured on the merged `main` head on 2026-09-03. These observations remain

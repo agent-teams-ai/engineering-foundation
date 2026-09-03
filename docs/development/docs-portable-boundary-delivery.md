@@ -50,12 +50,13 @@ the final physical package graph passes all required gates at one exact head. Th
 merged head now has that required CI evidence; protected bootstrap remains a
 separate release gate.
 
-`@agent-teams/document-authoring@0.0.0` and
-`@agent-teams/repository-mutation@0.0.0` are candidate bootstrap artifacts after
-the shared journal kernel merge. Their previous package-tree/SRI approvals were
-invalidated because the package bytes changed; the catalog is intentionally
-fail-closed until protected bootstrap re-qualifies both exact artifacts. They
-are neither registry evidence nor supported releases.
+`@agent-teams/repository-mutation@0.0.0`,
+`@agent-teams/document-authoring@0.0.0`, and
+`@agent-teams/docs-protocol-agent-teams@0.0.0` are candidate bootstrap artifacts
+after the shared journal kernel merge. Their previous package-tree/SRI approvals
+were invalidated because the package bytes changed; the catalog is intentionally
+fail-closed until protected bootstrap re-qualifies all three exact artifacts.
+They are neither registry evidence nor supported releases.
 
 ## Delivery checklist
 

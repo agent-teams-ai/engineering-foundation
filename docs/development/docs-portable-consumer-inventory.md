@@ -5,7 +5,7 @@ consumer mutation.
 
 Snapshot: 2026-09-03  
 Consumer head: `agent-teams-ai/agent-teams-orchestrator@5768a6465cdcce37a599bca4c60cc94fa967f327`  
-Source head: `engineering-foundation@9e408528917be8df539171c231049bc6347a2adc`
+Source head: `engineering-foundation@9fdd5e37f71ee12a228456cdebc9dd7db358ea47`
 
 ## Known current consumer
 

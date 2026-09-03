@@ -5,14 +5,14 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { sha256Bytes } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { NodeDocumentFileState } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-file-state.js";
-import { NodeDocumentPublisher } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-publisher.js";
+import { NodeDocumentFileState } from "../packages/document-authoring/dist/adapters/node/node-document-file-state.js";
+import { NodeDocumentPublisher } from "../packages/document-authoring/dist/adapters/node/node-document-publisher.js";
 import {
   assertDocumentPhysicalIdentity,
   assertNonzeroDocumentPhysicalIdentity
-} from "../packages/engineering-foundation/dist/document-authoring/application/model/document-physical-identity.js";
-import { documentPlanDigest } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
+} from "../packages/document-authoring/dist/application/model/document-physical-identity.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
 
 const requiresStrictDirectoryDurability = process.platform === "win32"
   ? test.skip

@@ -22,7 +22,7 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
-    { "path": "../engineering-foundation" },
+    { "path": "../document-authoring" },
     { "path": "../repository-mutation" }
   ]
 }

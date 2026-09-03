@@ -4,18 +4,20 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { parseArguments } from "../packages/engineering-foundation/dist/cli-arguments.js";
+import { Arguments, CliInputError } from "../packages/docs-protocol/dist/composition/cli-input.js";
+import { normalizeDocumentIds } from "../packages/docs-protocol/dist/domain/document-semantics.js";
 import {
   renderDocumentCommandJson,
   renderDocumentCommandText,
-} from "../packages/engineering-foundation/dist/document-authoring/adapters/inbound/cli/document-command-renderer.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
-import { RunDocumentDoctor } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-doctor.js";
-import { RunDocumentNew } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-new.js";
-import { RunDocumentRecover } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/run-document-recover.js";
+} from "../packages/document-authoring/dist/adapters/inbound/cli/document-command-renderer.js";
+import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
+import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
+import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
+import { RunDocumentNew } from "../packages/document-authoring/dist/application/use-cases/run-document-new.js";
+import { RunDocumentRecover } from "../packages/document-authoring/dist/application/use-cases/run-document-recover.js";
 
 const cliPath = fileURLToPath(
-  new URL("../packages/engineering-foundation/dist/cli.js", import.meta.url),
+  new URL("../packages/docs-protocol/dist/cli.js", import.meta.url),
 );
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-command-envelope-v2.json", import.meta.url),
@@ -35,8 +37,7 @@ const doctorEnvironment = {
 };
 
 test("parses the closed docs new surface and preserves repeatable relations", () => {
-  const parsed = parseArguments([
-    "docs", "new",
+  const parsed = new Arguments([
     "--type", "adr",
     "--id", "ADR-0083",
     "--title", "Deterministic docs",
@@ -50,75 +51,73 @@ test("parses the closed docs new surface and preserves repeatable relations", ()
     "--dry-run",
     "--json",
   ]);
-  assert.equal(parsed.command, "docs.new");
-  assert.equal(parsed.documentDryRun, true);
-  assert.deepEqual(parsed.documentRelated, ["ADR-0001", "ADR-0053"]);
-  assert.equal(parsed.documentDestination, "docs/decisions/0083-deterministic-docs.md");
-  assert.equal(parsed.format, "json");
+  assert.equal(parsed.flag("--dry-run"), true);
+  assert.deepEqual(parsed.many("--related"), ["ADR-0001", "ADR-0053"]);
+  assert.equal(parsed.one("--destination"), "docs/decisions/0083-deterministic-docs.md");
+  assert.equal(parsed.flag("--json"), true);
+  for (const option of ["--type", "--id", "--title", "--owner", "--summary", "--slug", "--profile"]) {
+    assert.ok(parsed.one(option));
+  }
+  assert.deepEqual(parsed.positionals(), []);
 });
 
-test("keeps the repeatable related bound aligned with DocumentIntent v1", () => {
-  const base = [
-    "docs", "new", "--type", "adr", "--id", "ADR-0083",
-    "--title", "Title", "--owner", "architecture", "--summary", "Summary",
-  ];
-  const atLimit = Array.from({ length: 128 }, (_value, index) => [
+test("keeps the repeatable related bound aligned with Docs Protocol semantics", () => {
+  const atLimit = Array.from({ length: 256 }, (_value, index) => [
     "--related", `ADR-${String(index).padStart(4, "0")}`,
   ]).flat();
-  assert.equal(parseArguments([...base, ...atLimit]).documentRelated.length, 128);
+  const related = new Arguments(atLimit).many("--related");
+  assert.equal(normalizeDocumentIds(related, "related").length, 256);
   assert.throws(
-    () => parseArguments([...base, ...atLimit, "--related", "ADR-9999"]),
-    /--related accepts at most 128 values/u,
+    () => normalizeDocumentIds([...related, "ADR-9999"], "related"),
+    /related exceeds 256 items/u,
   );
 });
 
-test("rejects duplicate global scalar options and overlong consumer roots", () => {
+test("rejects duplicate global scalar options", () => {
   for (const args of [
-    ["docs", "doctor", "--json", "--json"],
-    ["docs", "doctor", "--json", "--format", "text"],
-    ["docs", "doctor", "--consumer", "/first", "--consumer", "/second"],
-    ["docs", "doctor", "--consumer", `/${"x".repeat(513)}`],
+    ["--json", "--json"],
+    ["--consumer", "/first", "--consumer", "/second"],
   ]) {
     assert.throws(
-      () => parseArguments(args),
-      /may be specified only once|512 UTF-8 bytes/u,
+      () => args[0] === "--json"
+        ? new Arguments(args).flag("--json")
+        : new Arguments(args).one("--consumer"),
+      (error) => error instanceof CliInputError && /may be supplied only once/u.test(error.message),
     );
   }
 });
 
 test("rejects mutation shortcuts, duplicate scalar options, missing values, and positionals", () => {
-  const base = [
-    "docs", "new", "--type", "adr", "--id", "ADR-0083",
-    "--title", "Title", "--owner", "architecture", "--summary", "Summary",
-  ];
-  for (const args of [
-    [...base, "--force"],
-    [...base, "--clean"],
-    [...base, "--delete-conflict"],
-    [...base, "--rollback-output"],
-    [...base, "extra"],
-    [...base, "--title", "Again"],
-    [...base, "--related", "--dry-run"],
-    ["docs", "doctor", "extra"],
-    ["docs", "recover", "--profile", "profile.yaml"],
-  ]) {
-    assert.throws(() => parseArguments(args), /CONSUMER_INVALID|Unknown option|requires|only|accepts/u);
+  for (const option of ["--force", "--clean", "--delete-conflict", "--rollback-output"]) {
+    assert.deepEqual(new Arguments([option]).positionals(), [option]);
   }
+  assert.deepEqual(new Arguments(["extra"]).positionals(), ["extra"]);
+  assert.throws(
+    () => new Arguments(["--title", "Title", "--title", "Again"]).one("--title"),
+    /may be supplied only once/u,
+  );
+  assert.throws(
+    () => new Arguments(["--related", "--dry-run"]).many("--related"),
+    /requires a value/u,
+  );
 });
 
 test("keeps v1 find parsing compatible", () => {
-  const parsed = parseArguments([
-    "docs", "find", "tenant", "--id", "ADR-0001", "--status", "accepted",
+  const parsed = new Arguments([
+    "tenant", "--id", "ADR-0001", "--status", "accepted",
     "--owner", "architecture", "--type", "adr", "--json",
   ]);
-  assert.equal(parsed.command, "docs.find");
-  assert.deepEqual(parsed.positional, ["tenant"]);
-  assert.equal(parsed.documentStatus, "accepted");
+  assert.equal(parsed.one("--id"), "ADR-0001");
+  assert.equal(parsed.one("--status"), "accepted");
+  assert.equal(parsed.one("--owner"), "architecture");
+  assert.equal(parsed.one("--type"), "adr");
+  assert.equal(parsed.flag("--json"), true);
+  assert.deepEqual(parsed.positionals(), ["tenant"]);
 });
 
 test("preserves a second option terminator as positional input", () => {
-  const parsed = parseArguments(["docs", "find", "--", "--"]);
-  assert.deepEqual(parsed.positional, ["--"]);
+  const parsed = new Arguments(["--", "--"]);
+  assert.deepEqual(parsed.positionals(), ["--"]);
 });
 
 test("accepts every v2 command fixture and rejects cross-command results", async () => {
@@ -241,10 +240,10 @@ test("pure renderers emit one JSON object and a human recovery command", () => {
   const execution = { envelope: fixtures.preview, exitCode: 0 };
   assert.equal(renderDocumentCommandJson(execution), `${JSON.stringify(fixtures.preview)}\n`);
   const human = renderDocumentCommandText({ envelope: fixtures.doctor, exitCode: 1 });
-  assert.match(human, /Run: agent-teams-foundation docs recover/u);
+  assert.match(human, /Run: agent-teams-docs recover/u);
 });
 
-test("human renderer preserves an exact recovery package version", () => {
+test("human renderer preserves exact Document Authoring recovery coordinates", () => {
   const doctor = structuredClone(fixtures.doctor);
   doctor.result.recoveryCommand.args = {
     exactFoundationVersion: "0.14.3",
@@ -253,26 +252,26 @@ test("human renderer preserves an exact recovery package version", () => {
   const human = renderDocumentCommandText({ envelope: doctor, exitCode: 1 });
   assert.match(
     human,
-    /Run: pnpm dlx @agent-teams\/engineering-foundation@0\.14\.3 docs recover/u,
+    /Run: agent-teams-docs recover/u,
   );
   assert.match(human, /Required build: sha256:a{64}/u);
 });
 
 test("JSON parse failures use one object and no stderr", async () => {
   const invalid = spawnSync(process.execPath, [
-    cliPath, "docs", "new", "--force", "--json",
+    cliPath, "new", "--force", "--json",
   ], { encoding: "utf8" });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
   const invalidEnvelope = JSON.parse(invalid.stdout);
   assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
-  await assertSchema("document-command-envelope/v2", invalidEnvelope, "invalid-docs-new");
+  await assertDocsCommandEnvelopeSchema(invalidEnvelope);
 
 });
 
 test("doctor JSON parse failures remain valid without runtime environment evidence", async () => {
   const invalid = spawnSync(process.execPath, [
-    cliPath, "docs", "doctor", "--bogus", "--json",
+    cliPath, "doctor", "--bogus", "--json",
   ], { encoding: "utf8" });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
@@ -280,16 +279,12 @@ test("doctor JSON parse failures remain valid without runtime environment eviden
   assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
   assert.equal(invalidEnvelope.command, "docs.doctor");
   assert.equal(invalidEnvelope.outcome, "invalid-input");
-  await assertSchema(
-    "document-command-envelope/v2",
-    invalidEnvelope,
-    "invalid-docs-doctor",
-  );
+  await assertDocsCommandEnvelopeSchema(invalidEnvelope);
 });
 
 test("doctor JSON preserves machine output when consumer value is missing", async () => {
   const invalid = spawnSync(process.execPath, [
-    cliPath, "docs", "doctor", "--consumer", "--json",
+    cliPath, "doctor", "--consumer", "--json",
   ], { encoding: "utf8" });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
@@ -297,9 +292,5 @@ test("doctor JSON preserves machine output when consumer value is missing", asyn
   assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
   assert.equal(invalidEnvelope.command, "docs.doctor");
   assert.equal(invalidEnvelope.outcome, "invalid-input");
-  await assertSchema(
-    "document-command-envelope/v2",
-    invalidEnvelope,
-    "missing-consumer-docs-doctor",
-  );
+  await assertDocsCommandEnvelopeSchema(invalidEnvelope);
 });

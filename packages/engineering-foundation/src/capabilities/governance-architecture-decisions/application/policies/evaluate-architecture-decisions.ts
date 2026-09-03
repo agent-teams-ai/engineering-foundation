@@ -3,7 +3,7 @@ import type { FoundationDiagnostic } from "../../../../check-contract.js";
 import type {
   MarkdownDocumentObservation,
   MarkdownRepositoryObservation
-} from "../../../../documentation-observation/application/model/markdown-document.js";
+} from "@agent-teams/document-authoring/observation";
 import {
   immutableArchitectureDecisionPayload,
   type ArchitectureDecision,

@@ -6,7 +6,7 @@ import {
   type DocsFindDocument,
   type DocsFindQuery
 } from "./model.js";
-import type { DocsCommandV2, FoundationDocsPortV2 } from "./model-v2.js";
+import type { DocsCommandV2, DocumentAuthoringPortV2 } from "./model-v2.js";
 
 export type DocsCommandV3 = DocsCommandV2 | "docs.context" | "docs.init";
 
@@ -72,7 +72,7 @@ export interface DocsContextResultV1 {
   readonly content: string;
 }
 
-export interface FoundationDocsFindEvidenceV3 {
+export interface DocumentAuthoringFindEvidenceV3 {
   readonly catalogSemanticDigest: `sha256:${string}`;
   readonly catalogStatus: "complete" | "partial";
   readonly diagnostics: readonly {
@@ -84,6 +84,6 @@ export interface FoundationDocsFindEvidenceV3 {
   readonly documents: readonly DocsFindDocument[];
 }
 
-export interface FoundationDocsPortV3 extends FoundationDocsPortV2 {
-  findWithEvidence(input: Parameters<FoundationDocsPortV2["find"]>[0]): Promise<FoundationDocsFindEvidenceV3>;
+export interface DocumentAuthoringPortV3 extends DocumentAuthoringPortV2 {
+  findWithEvidence(input: Parameters<DocumentAuthoringPortV2["find"]>[0]): Promise<DocumentAuthoringFindEvidenceV3>;
 }

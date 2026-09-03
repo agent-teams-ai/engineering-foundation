@@ -7,8 +7,8 @@ import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-import { FilesystemMarkdownRepository } from "../packages/engineering-foundation/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
-import { anchorsForMarkdownDocument } from "../packages/engineering-foundation/dist/documentation-observation/application/model/markdown-document.js";
+import { FilesystemMarkdownRepository } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
+import { anchorsForMarkdownDocument } from "../packages/document-authoring/dist/documentation-observation/application/model/markdown-document.js";
 import { analyzeDocumentationLocalReferences } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/application/use-cases/analyze-documentation-local-references.js";
 import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/contract/config.js";
 

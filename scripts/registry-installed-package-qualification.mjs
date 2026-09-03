@@ -91,6 +91,7 @@ export async function verifyRegistryPackage({
 }
 
 export async function verifyFoundationFeatures({
+  authoringVersion,
   consumerRoot,
   docsVersion,
   featureImports,
@@ -98,7 +99,6 @@ export async function verifyFoundationFeatures({
   installedRoot,
   repositoryRoot,
   verifyInstalledBufQualifier,
-  version,
 }) {
   await runCommand(
     process.execPath,
@@ -131,6 +131,6 @@ export async function verifyFoundationFeatures({
     consumerRoot,
     docsVersion,
     installedDocsRoot,
-    version,
+    version: authoringVersion,
   });
 }

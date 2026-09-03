@@ -20,8 +20,8 @@ import test from "node:test";
 
 import {
   planDocumentationDocument,
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
-import {DocumentPlanningError} from "../packages/engineering-foundation/dist/document-authoring/document-planning-error.js";
+} from "../packages/document-authoring/dist/index.js";
+import {DocumentPlanningError} from "../packages/document-authoring/dist/document-planning-error.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/", import.meta.url),

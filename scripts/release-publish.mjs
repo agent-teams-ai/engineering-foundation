@@ -10,6 +10,7 @@ import {
 } from "./release-changeset-state.mjs";
 import { changesetsPublishArguments, releasePublishInvocation } from "./release-publish-command.mjs";
 import {
+  NPM_PACKAGE_BOOTSTRAP,
   assertBootstrapReleasePolicy,
   verifyReleaseBootstrapBaselines,
 } from "./npm-package-bootstrap.mjs";
@@ -371,7 +372,10 @@ export async function registryVersionExists(packageInfo, fetchImplementation = f
   return metadata.versions.includes(packageInfo.version);
 }
 
-async function verifyPublishRegistryState(state) {
+async function verifyPublishRegistryState(
+  state,
+  bootstrapCatalog = NPM_PACKAGE_BOOTSTRAP,
+) {
   const registryState = [];
   for (const packageInfo of state.packages.public) {
     const metadata = await registryPackageMetadata(packageInfo);
@@ -413,7 +417,7 @@ async function verifyPublishRegistryState(state) {
       throw new Error(`Release ${packageInfo.name}@${packageInfo.version} is not registry-monotonic.`);
     }
   }
-  assertBootstrapReleasePolicy(state, registryState);
+  assertBootstrapReleasePolicy(state, registryState, bootstrapCatalog);
   return registryState;
 }
 
@@ -432,11 +436,12 @@ export async function releaseState(cwd) {
 }
 
 export async function main({
+  bootstrapCatalog = NPM_PACKAGE_BOOTSTRAP,
   cwd = process.cwd(),
   inspectReleaseState = releaseState,
   publishOrdered = publishOrderedRelease,
   verifyBootstrapBaselines = verifyReleaseBootstrapBaselines,
-  verifyRegistry = verifyPublishRegistryState,
+  verifyRegistry = (state) => verifyPublishRegistryState(state, bootstrapCatalog),
 } = {}) {
   const initialState = await inspectReleaseState(cwd);
   const decision = releasePublishDecision(initialState);

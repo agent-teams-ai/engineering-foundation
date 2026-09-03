@@ -138,7 +138,7 @@ package-manager и Foundation mutation adapters собираются тольк�
 
 ADR-0033 явно заморозил Foundation `docs` namespace. Human mode выдаёт стабильное
 предупреждение через
-[`legacy-docs-cli-deprecation.ts`](../../packages/engineering-foundation/src/legacy-docs-cli-deprecation.ts),
+[`legacy-docs-cli-deprecation.ts` at the audited snapshot](https://github.com/agent-teams-ai/engineering-foundation/blob/ae9d022a003978e30d33006132beaa5b49fc6f80/packages/engineering-foundation/src/legacy-docs-cli-deprecation.ts),
 а machine output сохраняет опубликованный контракт. Новое поведение принадлежит
 Docs Protocol. Legacy путь пока существует, но больше не является вторым местом
 развития продукта.

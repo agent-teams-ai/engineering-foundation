@@ -265,6 +265,82 @@ test("v2 catches a forgotten fourth package while v1 remains externally loadable
   });
 });
 
+async function addQualifiedDocumentAuthoringPackage(consumerRoot) {
+  await addWorkspacePackage(consumerRoot, "document-authoring");
+  const manifestPath = join(consumerRoot, "packages", "document-authoring", "package.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.name = "@agent-teams/document-authoring";
+  manifest.dependencies = { "@fixture/core": "workspace:*" };
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await writeFile(
+    join(consumerRoot, "packages", "document-authoring", "src", "index.ts"),
+    'import { coreValue } from "@fixture/core";\nexport const authoringValue = coreValue;\n',
+    "utf8",
+  );
+  const configPath = sourceConfigPath(consumerRoot);
+  const config = await readFile(configPath, "utf8");
+  await writeFile(configPath, `${config.replace(
+    "  - packages/core/src\n",
+    "  - packages/core/src\n  - packages/document-authoring/src\n",
+  )}  - id: document-authoring.surface
+    roots:
+      - packages/document-authoring/src
+    entrypoints:
+      - packages/document-authoring/src/index.ts
+    allow:
+      boundaries: []
+      packages:
+        - "@fixture/core"
+      builtins: []
+      runtimeReferences: []
+`, "utf8");
+}
+
+test("v2 closes classification over a sixth public-package-shaped authoring leaf", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    await addQualifiedDocumentAuthoringPackage(consumerRoot);
+    assert.equal((await runSourceCapability(consumerRoot)).outcome, "passed");
+
+    await writeFile(
+      join(consumerRoot, "packages", "document-authoring", "src", "index.ts"),
+      'import { coreValue } from "../../core/src/index.js";\nexport const authoringValue = coreValue;\n',
+      "utf8",
+    );
+    assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [
+      "architecture.source-dependencies.cross-package-relative-import",
+    ]);
+  });
+});
+
+test("v2 does not let type-only imports hide a cycle through Document Authoring", async () => {
+  await withCopiedFixture("v2-valid", async (consumerRoot) => {
+    await addQualifiedDocumentAuthoringPackage(consumerRoot);
+    const coreManifestPath = join(consumerRoot, "packages", "core", "package.json");
+    const coreManifest = JSON.parse(await readFile(coreManifestPath, "utf8"));
+    coreManifest.dependencies = { "@agent-teams/document-authoring": "workspace:*" };
+    await writeFile(coreManifestPath, `${JSON.stringify(coreManifest, null, 2)}\n`, "utf8");
+    await writeFile(
+      join(consumerRoot, "packages", "core", "src", "index.ts"),
+      'import type { AuthoringType } from "@agent-teams/document-authoring";\nexport interface CoreType { authoring?: AuthoringType }\n',
+      "utf8",
+    );
+    await writeFile(
+      join(consumerRoot, "packages", "document-authoring", "src", "index.ts"),
+      'import type { CoreType } from "@fixture/core";\nexport interface AuthoringType { core?: CoreType }\n',
+      "utf8",
+    );
+    const configPath = sourceConfigPath(consumerRoot);
+    const config = await readFile(configPath, "utf8");
+    await writeFile(configPath, config.replace(
+      "  - id: core.surface\n    roots:\n      - packages/core/src\n    entrypoints:\n      - packages/core/src/index.ts\n    allow:\n      boundaries: []\n      packages: []",
+      '  - id: core.surface\n    roots:\n      - packages/core/src\n    entrypoints:\n      - packages/core/src/index.ts\n    allow:\n      boundaries: []\n      packages:\n        - "@agent-teams/document-authoring"',
+    ), "utf8");
+    assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [
+      "architecture.source-dependencies.package-type-only-cycle",
+    ]);
+  });
+});
+
 test("v2 requires every boundary to belong to exactly one npm package", async () => {
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
     await writeFile(

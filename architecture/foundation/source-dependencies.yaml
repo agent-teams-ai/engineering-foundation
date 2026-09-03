@@ -8,6 +8,8 @@ packageRoots:
 governedRoots:
   - packages/repository-mutation/src
   - packages/repository-mutation/tests
+  - packages/document-authoring/src
+  - packages/document-authoring/tests
   - packages/engineering-foundation/src
   - packages/docs-protocol/src
   - packages/docs-protocol/tests
@@ -37,7 +39,7 @@ boundaries:
       boundaries:
         - docs-protocol.domain
       packages:
-        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/document-authoring"
         - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
@@ -54,7 +56,7 @@ boundaries:
     allow:
       boundaries: []
       packages:
-        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/document-authoring"
         - "@agent-teams/repository-mutation"
       builtins:
         - node:path
@@ -73,7 +75,7 @@ boundaries:
         - docs-protocol.community.context
         - docs-protocol.domain
       packages:
-        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/document-authoring"
         - "@agent-teams/repository-mutation"
         - yaml
       builtins: []
@@ -88,7 +90,7 @@ boundaries:
         - docs-protocol.application
         - docs-protocol.domain
       packages:
-        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/document-authoring"
         - "@agent-teams/repository-mutation"
         - ajv
         - ajv-formats
@@ -101,7 +103,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/docs-protocol/src/adapters/docs-command-envelope-schema-validator.ts
-      - packages/docs-protocol/src/adapters/foundation-docs-port.ts
+      - packages/docs-protocol/src/adapters/document-authoring-port.ts
       - packages/docs-protocol/src/adapters/node-adoption-inspector.ts
       - packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts
       - packages/docs-protocol/src/adapters/node-profile-reader.ts
@@ -122,7 +124,7 @@ boundaries:
         - docs-protocol.domain
         - docs-protocol.qualification
       packages:
-        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/document-authoring"
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -179,7 +181,7 @@ boundaries:
         - docs-protocol.domain
         - docs-protocol.qualification
       packages:
-        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/document-authoring"
         - "@agent-teams/repository-mutation"
         - ajv
       builtins:
@@ -206,7 +208,7 @@ boundaries:
         - docs-protocol.community.bootstrap
         - docs-protocol.domain
       packages:
-        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/document-authoring"
         - ajv
       builtins:
         - node:child_process
@@ -247,7 +249,6 @@ boundaries:
         - docs-protocol-agent-teams.domain
         - docs-protocol-agent-teams.generated-assets
       packages:
-        - "@agent-teams/engineering-foundation"
         - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
@@ -271,7 +272,6 @@ boundaries:
         - docs-protocol-agent-teams.application
         - docs-protocol-agent-teams.domain
       packages:
-        - "@agent-teams/engineering-foundation"
         - "@agent-teams/repository-mutation"
         - ajv
         - ajv-formats
@@ -342,7 +342,6 @@ boundaries:
         - docs-protocol-agent-teams.consumer-integration.composition
       packages:
         - "@agent-teams/docs-protocol"
-        - "@agent-teams/engineering-foundation"
         - ajv
       builtins:
         - node:fs
@@ -397,7 +396,6 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
-        - foundation.document-authoring.composition
         - foundation.local-mode
         - foundation.property-testing-support
         - foundation.scaffolding.canonical-composition
@@ -410,8 +408,6 @@ boundaries:
       - packages/engineering-foundation/src/cli-arguments.ts
       - packages/engineering-foundation/src/cli.ts
       - packages/engineering-foundation/src/command-error.ts
-      - packages/engineering-foundation/src/document-command.ts
-      - packages/engineering-foundation/src/legacy-docs-cli-deprecation.ts
       - packages/engineering-foundation/src/quality-gate-cli-command.ts
     allow:
       boundaries:
@@ -423,7 +419,6 @@ boundaries:
         - capability.repository-agent-workflow.composition
         - foundation.composition
         - foundation.core
-        - foundation.document-authoring.composition
         - foundation.local-mode
         - foundation.package-identity
         - foundation.process-execution
@@ -431,7 +426,8 @@ boundaries:
         - foundation.scaffolding.canonical-composition
         - foundation.scaffolding.core
         - foundation.transaction-coordination.application
-      packages: []
+      packages:
+        - "@agent-teams/document-authoring"
       builtins:
         - node:fs/promises
         - node:path
@@ -681,6 +677,7 @@ boundaries:
       boundaries:
         - foundation.core
       packages:
+        - "@agent-teams/document-authoring"
         - ajv
       builtins:
         - node:fs/promises
@@ -904,6 +901,8 @@ boundaries:
       - packages/repository-mutation/src/transaction-coordination/mutation-lease.ts
       - packages/repository-mutation/src/transaction-coordination/adapters/node/node-operation-lock.ts
       - packages/repository-mutation/src/transaction-coordination/adapters/node/node-state-directory.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-profile.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-store.ts
   - id: repository-mutation.public-api
     packageExports:
       - "."
@@ -969,6 +968,54 @@ boundaries:
         - node:test
       runtimeReferences: []
     entrypoints: []
+  - id: document-authoring.surface
+    packageExports:
+      - "."
+      - "./observation"
+      - "./qualification"
+    roots:
+      - packages/document-authoring/src
+    allow:
+      boundaries: []
+      packages:
+        - "@agent-teams/repository-mutation"
+        - ajv
+        - github-slugger
+        - mdast-util-to-string
+        - remark-frontmatter
+        - remark-gfm
+        - remark-parse
+        - unified
+        - unist-util-visit
+        - yaml
+      builtins:
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:path
+        - node:url
+        - node:util
+        - node:util/types
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/index.ts
+      - packages/document-authoring/src/observation.ts
+      - packages/document-authoring/src/qualification/index.ts
+  - id: document-authoring.tests
+    dependencyMode: development
+    roots:
+      - packages/document-authoring/tests
+    allow:
+      boundaries:
+        - document-authoring.surface
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:path
+        - node:test
+      runtimeReferences: []
+    entrypoints: []
   - id: foundation.transaction-coordination.application
     roots:
       - packages/engineering-foundation/src/transaction-coordination/application
@@ -992,7 +1039,6 @@ boundaries:
       boundaries:
         - foundation.canonical-json
         - foundation.core
-        - foundation.document-authoring.application
         - foundation.package-identity
         - foundation.repository-input
         - foundation.schema-validation
@@ -1000,6 +1046,7 @@ boundaries:
         - foundation.scaffolding.core
         - foundation.transaction-coordination.application
       packages:
+        - "@agent-teams/document-authoring"
         - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
@@ -1018,9 +1065,6 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-state-directory.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts
-      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-journal-slot-evidence.ts
-      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-journal-slot-profile.ts
-      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-journal-slot-store.ts
   - id: foundation.scaffolding.canonical-kernel
     roots:
       - packages/engineering-foundation/src/scaffolding/kernel/authority-journal-validation.ts
@@ -1570,225 +1614,15 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/module.ts
-  - id: foundation.document-authoring.application
-    roots:
-      - packages/engineering-foundation/src/document-authoring/application
-      - packages/engineering-foundation/src/document-authoring/document-catalog-error.ts
-      - packages/engineering-foundation/src/document-authoring/document-planning-error.ts
-    allow:
-      boundaries:
-        - foundation.cancellation
-        - foundation.canonical-json
-        - foundation.core
-        - foundation.documentation-observation.application
-        - foundation.schema-validation
-      packages: []
-      builtins: []
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/document-authoring/application/model/document-authoring-profile-description.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-catalog.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-command.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-find.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-planning.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-physical-identity.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-parent-materialization.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-receipt.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-transaction.ts
-      - packages/engineering-foundation/src/document-authoring/application/model/document-transaction-inspection.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/authoring-profile-reader.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/canonical-document-renderer.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-authority-recompiler.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-contract-validator.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-environment-inspector.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-file-state.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-journal-store.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-metadata-sidecar-reader.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-parent-materializer.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-profile-reader.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-planning-state-reader.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-publisher.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-reachability-projector.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-structure-verifier.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-template-reader.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/document-transaction-coordinator.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/documentation-catalog-reader.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/documentation-catalog-reader-v2.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/similar-document-advisor.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/documentation-search-catalog-reader.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/documentation-search-catalog-reader-v2.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/metadata-instance-validator.ts
-      - packages/engineering-foundation/src/document-authoring/application/ports/owner-membership-reader.ts
-      - packages/engineering-foundation/src/document-authoring/application/projections/document-catalog-projections.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/authoring-profile-semantics.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-contract-digests.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-authoring-semantic-digests.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-logical-preimage.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-planning-policy-error.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-receipt-policy.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-repository-path.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-temporary-path.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-transaction-digests.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-transaction-envelope-policy.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/inspect-catalog-document.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/normalize-document-intent.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/resolve-document-authoring.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/build-documentation-catalog.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/compile-document-plan.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/apply-document-plan.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-command-projection.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-catalog-authority-stability.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/document-catalog-sidecar.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/project-catalog-metadata.ts
-      - packages/engineering-foundation/src/document-authoring/application/policies/project-document-reachability.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/document-transaction-continuation.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/document-transaction-error.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/find-documents.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/plan-documentation-document.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/recover-document-transaction.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-doctor.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-new.ts
-      - packages/engineering-foundation/src/document-authoring/application/use-cases/run-document-recover.ts
-      - packages/engineering-foundation/src/document-authoring/document-catalog-error.ts
-      - packages/engineering-foundation/src/document-authoring/document-planning-error.ts
-  - id: foundation.document-authoring.adapters
-    roots:
-      - packages/engineering-foundation/src/document-authoring/adapters
-    allow:
-      boundaries:
-        - foundation.cancellation
-        - foundation.core
-        - foundation.document-authoring.application
-        - foundation.canonical-json
-        - foundation.repository-input
-        - foundation.schema-validation
-        - foundation.transaction-coordination.adapters
-        - foundation.transaction-coordination.application
-      packages:
-        - "@agent-teams/repository-mutation"
-        - ajv
-        - remark-parse
-        - unified
-        - unist-util-visit
-        - yaml
-      builtins:
-        - node:crypto
-        - node:fs/promises
-        - node:path
-        - node:util
-        - node:util/types
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/document-authoring/adapters/canonical-markdown.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/inbound/cli/document-command-failure.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/inbound/cli/document-command-renderer.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-authoring-profile-reader.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-authoring-profile-reader-v2.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-contract-validator.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-environment-inspector.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-file-state.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-journal-store.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-metadata-sidecar-reader.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-parent-materializer.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-planning-profile-reader.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-planning-state-reader.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-publisher.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-reachability-projector.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-structure-verifier.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-template-reader.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-document-transaction-coordinator.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-metadata-instance-validator.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-owner-membership-reader.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/node-path-authority.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/read-document-authority-file.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/recapture-document-publication-paths.ts
-      - packages/engineering-foundation/src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts
-  - id: foundation.document-authoring.composition
-    roots:
-      - packages/engineering-foundation/src/document-authoring/composition
-      - packages/engineering-foundation/src/document-authoring/index.ts
-      - packages/engineering-foundation/src/document-authoring/find-command.ts
-    allow:
-      boundaries:
-        - foundation.cancellation
-        - foundation.canonical-json
-        - foundation.document-authoring.adapters
-        - foundation.document-authoring.application
-        - foundation.documentation-observation.adapters
-        - foundation.core
-        - foundation.package-identity
-        - foundation.transaction-coordination.adapters
-      packages: []
-      builtins:
-        - node:fs/promises
-        - node:path
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/document-authoring/composition/document-command-cli.ts
-      - packages/engineering-foundation/src/document-authoring/composition/node-document-planning.ts
-      - packages/engineering-foundation/src/document-authoring/composition/node-document-authority-recompiler.ts
-      - packages/engineering-foundation/src/document-authoring/composition/node-document-writing-private.ts
-      - packages/engineering-foundation/src/document-authoring/composition/node-document-writing.ts
-      - packages/engineering-foundation/src/document-authoring/composition/inspect-document-transaction.ts
-      - packages/engineering-foundation/src/document-authoring/index.ts
-      - packages/engineering-foundation/src/document-authoring/find-command.ts
-  - id: foundation.document-authoring.qualification
-    roots:
-      - packages/engineering-foundation/src/document-authoring/qualification
-    allow:
-      boundaries:
-        - foundation.document-authoring.application
-        - foundation.document-authoring.composition
-      packages: []
-      builtins:
-        - node:fs/promises
-        - node:path
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/document-authoring/qualification/index.ts
-  - id: foundation.documentation-observation.application
-    roots:
-      - packages/engineering-foundation/src/documentation-observation/application
-    allow:
-      boundaries: []
-      packages: []
-      builtins: []
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/documentation-observation/application/model/markdown-document.ts
-      - packages/engineering-foundation/src/documentation-observation/application/ports/markdown-repository.ts
-  - id: foundation.documentation-observation.adapters
-    roots:
-      - packages/engineering-foundation/src/documentation-observation/adapters
-    allow:
-      boundaries:
-        - foundation.core
-        - foundation.documentation-observation.application
-        - foundation.repository-input
-      packages:
-        - github-slugger
-        - mdast-util-to-string
-        - remark-frontmatter
-        - remark-gfm
-        - remark-parse
-        - unified
-        - unist-util-visit
-        - yaml
-      builtins:
-        - node:fs/promises
-        - node:path
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.ts
   - id: capability.documentation-local-references.application
     roots:
       - packages/engineering-foundation/src/capabilities/documentation-local-references/application
     allow:
       boundaries:
         - foundation.core
-        - foundation.documentation-observation.application
         - foundation.repository-input
-      packages: []
+      packages:
+        - "@agent-teams/document-authoring"
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -1817,8 +1651,8 @@ boundaries:
         - capability.documentation-local-references.application
         - capability.documentation-local-references.contract
         - foundation.core
-        - foundation.documentation-observation.adapters
-      packages: []
+      packages:
+        - "@agent-teams/document-authoring"
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -1829,9 +1663,9 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
-        - foundation.documentation-observation.application
         - foundation.repository-input
-      packages: []
+      packages:
+        - "@agent-teams/document-authoring"
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -1883,8 +1717,8 @@ boundaries:
         - capability.architecture-decisions.application
         - capability.architecture-decisions.contract
         - foundation.core
-        - foundation.documentation-observation.adapters
-      packages: []
+      packages:
+        - "@agent-teams/document-authoring"
       builtins: []
       runtimeReferences: []
     entrypoints:

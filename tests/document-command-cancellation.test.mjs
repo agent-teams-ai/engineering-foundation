@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
 
 const childPath = fileURLToPath(new URL(
   "fixtures/document-command-cancellation-child.mjs",
@@ -65,11 +65,7 @@ for (const command of ["doctor", "new", "recover"]) {
       assert.equal(`${JSON.stringify(envelope)}\n`, stdout);
       assert.equal(envelope.command, `docs.${command}`);
       assert.equal(envelope.outcome, "cancelled");
-      await assertSchema(
-        "document-command-envelope/v2",
-        envelope,
-        `docs-${command}-${signal.toLowerCase()}`,
-      );
+      await assertDocsCommandEnvelopeSchema(envelope);
     });
   }
 }

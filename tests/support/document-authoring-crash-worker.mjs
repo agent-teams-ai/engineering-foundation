@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import { applyNodeDocumentationPlanPrivately } from "../../packages/engineering-foundation/dist/document-authoring/composition/node-document-writing-private.js";
+import { applyNodeDocumentationPlanPrivately } from "../../packages/document-authoring/dist/composition/node-document-writing-private.js";
 
 const [consumerRoot, planPath, checkpoint] = process.argv.slice(2);
 if (consumerRoot === undefined || planPath === undefined || checkpoint === undefined) {

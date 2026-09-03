@@ -27,10 +27,6 @@ packages:
     entrypoints:
       - exportPath: "."
         declarationEntryPoint: packages/engineering-foundation/dist/index.d.ts
-      - exportPath: "./document-authoring"
-        declarationEntryPoint: packages/engineering-foundation/dist/document-authoring/index.d.ts
-      - exportPath: "./document-authoring/qualification"
-        declarationEntryPoint: packages/engineering-foundation/dist/document-authoring/qualification/index.d.ts
       - exportPath: "./local-mode"
         declarationEntryPoint: packages/engineering-foundation/dist/local-mode/index.d.ts
       - exportPath: "./scaffolding"
@@ -45,6 +41,8 @@ packages:
     tsconfigPath: packages/engineering-foundation/tsconfig.json
     releasedBaselinePath: architecture/public-api/engineering-foundation.json
     approvedBreakingChanges:
+      - fingerprint: sha256:711650333ab91ab523cc55659ddd5b29f116b776495f790da5bf21e358a351d4
+        decisionId: ADR-0043
       - fingerprint: sha256:b08385a793df8ea8604e90f0f636f3b394e2486b127179ce05e41da0b7fd003b
         decisionId: ADR-0043
       - fingerprint: sha256:d53672af4035cdb2a8500756f521795eec32c98c628b06df94f1c95642b9ac99
@@ -63,6 +61,24 @@ packages:
         decisionId: ADR-0013
       - fingerprint: sha256:cd3b61b7d835a912ddbd87d9c4a7b3e26efa39b9f0638cad7fba9317b1fe5d07
         decisionId: ADR-0014
+  - packageName: "@agent-teams/document-authoring"
+    packageRoot: packages/document-authoring
+    manifestPath: packages/document-authoring/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/document-authoring/dist/index.d.ts
+      - exportPath: "./observation"
+        declarationEntryPoint: packages/document-authoring/dist/observation.d.ts
+      - exportPath: "./qualification"
+        declarationEntryPoint: packages/document-authoring/dist/qualification/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/document-authoring/tsconfig.json
+    releasedBaselinePath: architecture/public-api/document-authoring.json
+    approvedBreakingChanges: []
   - packageName: "@agent-teams/docs-protocol"
     packageRoot: packages/docs-protocol
     manifestPath: packages/docs-protocol/package.json
@@ -79,6 +95,8 @@ packages:
     tsconfigPath: packages/docs-protocol/tsconfig.json
     releasedBaselinePath: architecture/public-api/docs-protocol.json
     approvedBreakingChanges:
+      - fingerprint: sha256:096e0026367471de807d7e73e7e1575f08f30a60eb94c497e557951d0fbd91fb
+        decisionId: ADR-0043
       - fingerprint: sha256:5922ed32132a25a4f6fcf3a08bc756ffee05fc9c74b2bc4964c425438cdd68e1
         decisionId: ADR-0043
       - fingerprint: sha256:181c6e224092cae9505f524005b4f6595700bb518f07cb3e5a2dcd3a68266f70

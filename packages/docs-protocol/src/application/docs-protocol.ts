@@ -1,7 +1,7 @@
 import type {
   DocumentJsonValue,
   DocumentReceiptContract
-} from "@agent-teams/engineering-foundation/document-authoring";
+} from "@agent-teams/document-authoring";
 
 import {
   DOCS_PROTOCOL_ID,
@@ -18,7 +18,7 @@ import type {
   DocsExecutionV2,
   DocsNewResultV2,
   DocsProfileReaderV2,
-  FoundationDocsPortV2
+  DocumentAuthoringPortV2
 } from "../domain/model-v2.js";
 import type {
   DocsContextRequestV1,
@@ -26,7 +26,7 @@ import type {
   DocsExecutionV3,
   DocsFindQueryV3,
   DocsFindResultV3,
-  FoundationDocsPortV3
+  DocumentAuthoringPortV3
 } from "../domain/model-v3.js";
 import { DocsProfileError, projectReachability } from "../domain/profile-policy.js";
 import { assertDocumentMetadata, normalizeCodeAnchors, normalizeDocumentIds } from "../domain/document-semantics.js";
@@ -44,7 +44,7 @@ function withSignal(signal: AbortSignal | undefined): Readonly<{ signal?: AbortS
   return signal === undefined ? Object.freeze({}) : Object.freeze({ signal });
 }
 
-function typeOrThrow(types: Awaited<ReturnType<FoundationDocsPortV2["describe"]>>["types"], type: string) {
+function typeOrThrow(types: Awaited<ReturnType<DocumentAuthoringPortV2["describe"]>>["types"], type: string) {
   const match = types.find((entry) => entry.type === type);
   if (match === undefined) {throw new DocsProfileError(`Document type ${type} is not declared by the protocol profile.`);}
   return match;
@@ -137,7 +137,7 @@ function uniqueSorted(values: readonly string[], subject: string): readonly stri
 
 function validateNewRelations(input: {
   readonly blockedBy: readonly string[];
-  readonly catalog: Awaited<ReturnType<FoundationDocsPortV2["buildCatalog"]>>;
+  readonly catalog: Awaited<ReturnType<DocumentAuthoringPortV2["buildCatalog"]>>;
   readonly documentId: string;
   readonly initialStatus: string;
   readonly related: readonly string[];
@@ -163,7 +163,7 @@ function validateNewRelations(input: {
   return Object.freeze({ blockedBy, related });
 }
 
-function projectTransaction(inspection: Awaited<ReturnType<FoundationDocsPortV2["inspect"]>>) {
+function projectTransaction(inspection: Awaited<ReturnType<DocumentAuthoringPortV2["inspect"]>>) {
   if (inspection.state === "idle") {
     return Object.freeze({ state: "idle" as const });
   }
@@ -191,10 +191,10 @@ function projectTransaction(inspection: Awaited<ReturnType<FoundationDocsPortV2[
 export class DocsProtocol {
   readonly #adoption: DocsAdoptionInspector;
   readonly #anchors: CodeAnchorMatcher;
-  readonly #foundation: FoundationDocsPortV3;
+  readonly #foundation: DocumentAuthoringPortV3;
   readonly #profiles: DocsProfileReaderV2;
 
-  constructor(input: { readonly adoption: DocsAdoptionInspector; readonly anchors: CodeAnchorMatcher; readonly foundation: FoundationDocsPortV3; readonly profiles: DocsProfileReaderV2 }) {
+  constructor(input: { readonly adoption: DocsAdoptionInspector; readonly anchors: CodeAnchorMatcher; readonly foundation: DocumentAuthoringPortV3; readonly profiles: DocsProfileReaderV2 }) {
     this.#adoption = input.adoption;
     this.#anchors = input.anchors;
     this.#foundation = input.foundation;

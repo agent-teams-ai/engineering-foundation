@@ -11,17 +11,6 @@ export interface ParsedArguments {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly format: OutputFormat;
-  readonly documentId?: string;
-  readonly documentDestination?: string;
-  readonly documentDryRun: boolean;
-  readonly documentOwner?: string;
-  readonly documentProfilePath: string;
-  readonly documentRelated: readonly string[];
-  readonly documentSlug?: string;
-  readonly documentStatus?: string;
-  readonly documentSummary?: string;
-  readonly documentTitle?: string;
-  readonly documentType?: string;
   readonly baseRef?: string;
   readonly bufExecutablePath?: string;
   readonly write: boolean;
@@ -39,10 +28,6 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   attach: 1,
   check: 1,
   detach: 0,
-  "docs.find": 1,
-  "docs.doctor": 0,
-  "docs.new": 0,
-  "docs.recover": 0,
   explain: 1,
   "gate.run": 1,
   help: 0,
@@ -63,18 +48,6 @@ interface ArgumentState {
   configPath: string;
   configPathProvided: boolean;
   format: OutputFormat;
-  documentId?: string;
-  documentDestination?: string;
-  documentDryRun: boolean;
-  documentOwner?: string;
-  documentProfilePath: string;
-  documentProfilePathProvided: boolean;
-  readonly documentRelated: string[];
-  documentSlug?: string;
-  documentStatus?: string;
-  documentSummary?: string;
-  documentTitle?: string;
-  documentType?: string;
   readonly providedOptions: Set<string>;
   baseRef?: string;
   bufExecutablePath?: string;
@@ -82,9 +55,6 @@ interface ArgumentState {
   optionsEnded: boolean;
 }
 
-const DEFAULT_DOCUMENT_AUTHORING_PROFILE_PATH =
-  "architecture/foundation/document-authoring.yaml";
-const MAXIMUM_RELATED_DOCUMENTS = 128;
 const MAXIMUM_CONSUMER_ROOT_BYTES = 512;
 
 function requiredOptionValue(
@@ -137,82 +107,6 @@ function provideScalarOption(
   state.providedOptions.add(identity);
 }
 
-function documentOptionValue(
-  args: readonly string[],
-  index: number,
-  state: ArgumentState
-): string {
-  const option = args[index] ?? "Document option";
-  const candidate = args[index + 1];
-  if (
-    candidate === undefined ||
-    candidate.length === 0 ||
-    candidate.startsWith("-")
-  ) {
-    throw new FoundationError("CONSUMER_INVALID", `${option} requires a value.`);
-  }
-  if (candidate.length > 1_024) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      `${option} exceeds the maximum supported length.`
-    );
-  }
-  if (option !== "--related" && state.providedOptions.has(option)) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      `${option} may be specified only once.`
-    );
-  }
-  state.providedOptions.add(option);
-  return candidate;
-}
-
-function consumeDocumentOption(
-  args: readonly string[],
-  index: number,
-  state: ArgumentState
-): number | undefined {
-  const value = args[index];
-  const field = value === "--id"
-    ? "documentId"
-    : value === "--destination"
-      ? "documentDestination"
-    : value === "--owner"
-      ? "documentOwner"
-      : value === "--profile"
-        ? "documentProfilePath"
-        : value === "--status"
-          ? "documentStatus"
-          : value === "--slug"
-            ? "documentSlug"
-            : value === "--summary"
-              ? "documentSummary"
-              : value === "--title"
-                ? "documentTitle"
-          : value === "--type"
-            ? "documentType"
-            : undefined;
-  if (value === "--related") {
-    if (state.documentRelated.length >= MAXIMUM_RELATED_DOCUMENTS) {
-      throw new FoundationError(
-        "CONSUMER_INVALID",
-        `--related accepts at most ${MAXIMUM_RELATED_DOCUMENTS} values.`
-      );
-    }
-    state.documentRelated.push(documentOptionValue(args, index, state));
-    return 1;
-  }
-  if (field === undefined) {
-    return undefined;
-  }
-  const candidate = documentOptionValue(args, index, state);
-  state[field] = candidate;
-  if (field === "documentProfilePath") {
-    state.documentProfilePathProvided = true;
-  }
-  return 1;
-}
-
 function consumeQualificationOption(
   args: readonly string[],
   index: number,
@@ -229,24 +123,6 @@ function consumeQualificationOption(
   const candidate = requiredOptionValue(args, index, "--buf-executable");
   state.bufExecutablePath = candidate;
   return 1;
-}
-
-function consumeDocumentBooleanOption(
-  value: string,
-  state: ArgumentState
-): boolean {
-  if (value !== "--dry-run") {
-    return false;
-  }
-  if (state.providedOptions.has(value)) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--dry-run may be specified only once."
-    );
-  }
-  state.providedOptions.add(value);
-  state.documentDryRun = true;
-  return true;
 }
 
 function consumePositionalControl(
@@ -303,13 +179,6 @@ function consumeArgument(
   if (outputFormatOption !== undefined) {
     return outputFormatOption;
   }
-  if (consumeDocumentBooleanOption(value, state)) {
-    return 0;
-  }
-  const documentOption = consumeDocumentOption(args, index, state);
-  if (documentOption !== undefined) {
-    return documentOption;
-  }
   const qualificationOption = consumeQualificationOption(args, index, state);
   if (qualificationOption !== undefined) {
     return qualificationOption;
@@ -346,60 +215,7 @@ function consumeArgument(
 }
 
 function validateCommandOptions(command: string, state: ArgumentState): void {
-  validateDocumentCommandOptions(command, state);
   validateNonDocumentCommandOptions(command, state);
-}
-
-function validateDocumentCommandOptions(
-  command: string,
-  state: ArgumentState
-): void {
-  const findOnly = state.documentStatus !== undefined;
-  if (findOnly && command !== "docs.find") {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--status is supported only by docs find."
-    );
-  }
-  const sharedDocumentOptions =
-    state.documentId !== undefined ||
-    state.documentOwner !== undefined ||
-    state.documentProfilePathProvided ||
-    state.documentType !== undefined;
-  if (sharedDocumentOptions && command !== "docs.find" && command !== "docs.new") {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--id, --owner, --profile, and --type are supported only by docs find or docs new."
-    );
-  }
-  const newOnly =
-    state.documentDestination !== undefined ||
-    state.documentDryRun ||
-    state.documentRelated.length > 0 ||
-    state.documentSlug !== undefined ||
-    state.documentSummary !== undefined ||
-    state.documentTitle !== undefined;
-  if (newOnly && command !== "docs.new") {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--destination, --dry-run, --related, --slug, --summary, and --title are supported only by docs new."
-    );
-  }
-  if (command === "docs.new") {
-    const missing = [
-      ["--type", state.documentType],
-      ["--id", state.documentId],
-      ["--title", state.documentTitle],
-      ["--owner", state.documentOwner],
-      ["--summary", state.documentSummary]
-    ].filter(([, value]) => value === undefined).map(([option]) => option);
-    if (missing.length > 0) {
-      throw new FoundationError(
-        "CONSUMER_INVALID",
-        `docs new requires ${missing.join(", ")}.`
-      );
-    }
-  }
 }
 
 function validateNonDocumentCommandOptions(
@@ -457,10 +273,6 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     configPath: DEFAULT_SCAFFOLDING_CONFIG_PATH,
     configPathProvided: false,
     consumerRoot: process.cwd(),
-    documentProfilePath: DEFAULT_DOCUMENT_AUTHORING_PROFILE_PATH,
-    documentProfilePathProvided: false,
-    documentDryRun: false,
-    documentRelated: [],
     format: "text",
     providedOptions: new Set<string>(),
     write: false,
@@ -468,7 +280,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
   };
 
   const command = commandFromArguments(args);
-  const firstArgumentIndex = args[0] === "docs" || args[0] === "gate" ||
+  const firstArgumentIndex = args[0] === "gate" ||
     (args[0] === "repo" && args[1] === "check") ? 2 : 1;
   for (let index = firstArgumentIndex; index < args.length; index += 1) {
     index += consumeArgument(args, index, state);
@@ -483,30 +295,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     consumerRoot: state.consumerRoot,
     configPath: state.configPath,
     format: state.format,
-    documentProfilePath: state.documentProfilePath,
-    documentDryRun: state.documentDryRun,
-    documentRelated: Object.freeze([...state.documentRelated]),
     write: state.write,
-    ...(state.documentId === undefined ? {} : { documentId: state.documentId }),
-    ...(state.documentDestination === undefined
-      ? {}
-      : { documentDestination: state.documentDestination }),
-    ...(state.documentOwner === undefined
-      ? {}
-      : { documentOwner: state.documentOwner }),
-    ...(state.documentStatus === undefined
-      ? {}
-      : { documentStatus: state.documentStatus }),
-    ...(state.documentSlug === undefined ? {} : { documentSlug: state.documentSlug }),
-    ...(state.documentSummary === undefined
-      ? {}
-      : { documentSummary: state.documentSummary }),
-    ...(state.documentTitle === undefined
-      ? {}
-      : { documentTitle: state.documentTitle }),
-    ...(state.documentType === undefined
-      ? {}
-      : { documentType: state.documentType }),
     ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
     ...(state.bufExecutablePath === undefined
       ? {}
@@ -515,7 +304,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
 }
 
 function commandFromArguments(args: readonly string[]): string {
-  if (args[0] === "docs" || args[0] === "gate") {
+  if (args[0] === "gate") {
     return `${args[0]}.${args[1] ?? ""}`;
   }
   if (args[0] === "repo" && args[1] === "check") {

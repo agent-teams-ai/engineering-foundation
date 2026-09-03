@@ -20,10 +20,12 @@ const expectedCapabilityIds = [
   "workspace.dependency-declarations"
 ];
 
-async function assertPrivateMutationImportsRejected(fixture) {
+async function assertRemovedFoundationPackagePathsRejected(fixture) {
   const privateSpecifiers = [
     "@agent-teams/engineering-foundation/repository-mutation",
-    "@agent-teams/engineering-foundation/dist/repository-mutation/application/model/repository-path.js"
+    "@agent-teams/engineering-foundation/dist/repository-mutation/application/model/repository-path.js",
+    "@agent-teams/engineering-foundation/document-authoring",
+    "@agent-teams/engineering-foundation/dist/document-authoring/index.js"
   ];
   for (const specifier of privateSpecifiers) {
     const failure = await captureFailure(() => runCommand(
@@ -34,27 +36,6 @@ async function assertPrivateMutationImportsRejected(fixture) {
     if (failure?.code !== 1 || !failure.stderr?.includes("ERR_PACKAGE_PATH_NOT_EXPORTED")) {
       throw new Error(`Packed private import was not rejected for ${specifier}.`);
     }
-  }
-}
-
-async function assertDocumentAuthoringPackageExport(fixture) {
-  const probe = [
-    "const module = await import('@agent-teams/engineering-foundation/document-authoring');",
-    "if (typeof module.buildDocumentationCatalog !== 'function') process.exit(2);",
-    "process.stdout.write(import.meta.resolve('@agent-teams/engineering-foundation/document-authoring'));",
-  ].join("\n");
-  const { stdout } = await runCommand(
-    process.execPath,
-    ["--input-type=module", "--eval", probe],
-    fixture.consumerRoot
-  );
-  const resolved = new URL(stdout.trim());
-  if (
-    resolved.protocol !== "file:" ||
-    !resolved.pathname.includes("/node_modules/@agent-teams/engineering-foundation/dist/document-authoring/index.js") ||
-    resolved.pathname.includes("/.worktrees/")
-  ) {
-    throw new Error("Packed document-authoring export resolved outside the installed package.");
   }
 }
 
@@ -462,29 +443,9 @@ async function assertSelfCheck(fixture) {
   }
 }
 
-async function assertDocumentFind(fixture) {
-  const result = await runFoundationJson(fixture, [
-    "docs",
-    "find",
-    "hermetic search marker",
-    "--consumer",
-    fixture.consumerRoot,
-    "--json"
-  ]);
-  if (
-    result.command !== "docs.find" ||
-    result.outcome !== "success" ||
-    result.result?.matches !== 1 ||
-    result.result?.documents?.[0]?.id !== "guide.packaged"
-  ) {
-    throw new Error("Packed docs find did not return the deterministic catalog match.");
-  }
-}
-
 export async function verifyPackedConsumer(input) {
   const fixture = input.fixture;
-  await assertPrivateMutationImportsRejected(fixture);
-  await assertDocumentAuthoringPackageExport(fixture);
+  await assertRemovedFoundationPackagePathsRejected(fixture);
   await assertAdrPromotion(fixture);
   await assertCapabilityCheck(fixture);
   await assertSourceGraphViolation(fixture);
@@ -499,7 +460,6 @@ export async function verifyPackedConsumer(input) {
   await assertBasePresets(fixture);
   await assertMaintainabilityPresets(fixture);
   await assertTypeAwarePreset(fixture);
-  await assertDocumentFind(fixture);
   await assertSelfCheck(fixture);
   await assertCapabilityCheck(fixture);
 }

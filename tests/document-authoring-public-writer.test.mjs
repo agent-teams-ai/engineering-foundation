@@ -9,7 +9,7 @@ import {
   applyDocumentationPlan,
   planDocumentationDocument,
   recoverDocumentationTransaction
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)

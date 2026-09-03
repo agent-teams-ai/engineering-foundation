@@ -17,15 +17,15 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { NodeDocumentParentMaterializerV2 } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-parent-materializer.js";
-import { captureNodeRepositoryPathAuthority } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-path-authority.js";
-import { NodeDocumentPublisher } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-publisher.js";
-import { createDocumentTransactionEnvelope } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
-import { envelopeBodyV4 } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-body.js";
-import { materializeDocumentParentDirectories } from "../packages/engineering-foundation/dist/document-authoring/application/use-cases/document-transaction-continuation.js";
+import { NodeDocumentParentMaterializerV2 } from "../packages/document-authoring/dist/adapters/node/node-document-parent-materializer.js";
+import { captureNodeRepositoryPathAuthority } from "../packages/document-authoring/dist/adapters/node/node-path-authority.js";
+import { NodeDocumentPublisher } from "../packages/document-authoring/dist/adapters/node/node-document-publisher.js";
+import { createDocumentTransactionEnvelope } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
+import { envelopeBodyV4 } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-body.js";
+import { materializeDocumentParentDirectories } from "../packages/document-authoring/dist/application/use-cases/document-transaction-continuation.js";
 import {
   planDocumentationDocument,
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 
 const planningFixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url),

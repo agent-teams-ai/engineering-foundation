@@ -11,7 +11,7 @@ import { parse as parseYaml } from "yaml";
 import {
   parseGovernedTemplateSkeleton,
   renderCanonicalDocument,
-} from "../packages/engineering-foundation/dist/document-authoring/adapters/canonical-markdown.js";
+} from "../packages/document-authoring/dist/adapters/canonical-markdown.js";
 
 const corpusRoot = fileURLToPath(
   new URL(
@@ -35,7 +35,7 @@ async function loadSchema(name) {
   return JSON.parse(
     await readFile(
       new URL(
-        `../packages/engineering-foundation/schemas/${name}/v1.schema.json`,
+        `../packages/document-authoring/schemas/${name}/v1.schema.json`,
         import.meta.url,
       ),
       "utf8",

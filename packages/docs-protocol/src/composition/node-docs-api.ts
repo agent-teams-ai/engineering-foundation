@@ -1,7 +1,7 @@
 import { DocsProtocol } from "../application/docs-protocol.js";
 import { NodeDocsAdoptionInspector } from "../adapters/node-adoption-inspector.js";
 import { NodeCodeAnchorMatcher } from "../adapters/node-code-anchor-matcher.js";
-import { NodeFoundationDocsPort } from "../adapters/foundation-docs-port.js";
+import { NodeDocumentAuthoringPort } from "../adapters/document-authoring-port.js";
 import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { discoverDocsProfilePath } from "../adapters/node-profile-discovery.js";
 import { assertDocsCommandEnvelopeSchema } from "../adapters/docs-command-envelope-schema-validator.js";
@@ -22,7 +22,7 @@ function nodeProtocol(): DocsProtocol {
   return new DocsProtocol({
     adoption: new NodeDocsAdoptionInspector(),
     anchors: new NodeCodeAnchorMatcher(),
-    foundation: new NodeFoundationDocsPort(),
+    foundation: new NodeDocumentAuthoringPort(),
     profiles: new NodeDocsProfileReader()
   });
 }

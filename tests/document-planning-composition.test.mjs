@@ -7,16 +7,16 @@ import test from "node:test";
 
 import {
   planDocumentationDocument,
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 import {
   planNodeDocumentationDocument,
-} from "../packages/engineering-foundation/dist/document-authoring/composition/node-document-planning.js";
+} from "../packages/document-authoring/dist/composition/node-document-planning.js";
 import {
   NodeDocumentAuthorityRecompiler,
-} from "../packages/engineering-foundation/dist/document-authoring/composition/node-document-authority-recompiler.js";
+} from "../packages/document-authoring/dist/composition/node-document-authority-recompiler.js";
 import {
   DocumentPlanningError,
-} from "../packages/engineering-foundation/dist/document-authoring/document-planning-error.js";
+} from "../packages/document-authoring/dist/document-planning-error.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url),

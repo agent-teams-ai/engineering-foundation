@@ -141,6 +141,7 @@
         "tests/document-authoring-contracts.test.mjs",
         "tests/document-authoring-coordinator-adapter.test.mjs",
         "tests/document-authoring-journal-store.test.mjs",
+        "tests/document-authoring-package-boundary.test.mjs",
         "tests/document-authoring-receipt-security.test.mjs",
         "tests/document-authoring-recovery-classifier.test.mjs",
         "tests/document-authoring-scaffolding-race.test.mjs",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import test from "node:test";
 
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
@@ -12,9 +12,8 @@ import { importedSpecifiers, object, packageName, pathsContaining, sourceFiles }
 import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
-const repositoryMutationName = "@agent-teams/repository-mutation";
-const foundationName = "@agent-teams/engineering-foundation";
-const docsProtocolAgentTeamsName = "@agent-teams/docs-protocol-agent-teams";
+const repositoryMutationName = "@agent-teams/repository-mutation", documentAuthoringName = "@agent-teams/document-authoring";
+const foundationName = "@agent-teams/engineering-foundation", docsProtocolAgentTeamsName = "@agent-teams/docs-protocol-agent-teams";
 const openSourceDocsRelease = JSON.parse(await readFile(
   join(repositoryRoot, "architecture/foundation/open-source-docs-release.json"),
   "utf8",
@@ -122,13 +121,15 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
     [
       repositoryMutationName,
-      foundationName,
+      documentAuthoringName,
       docsProtocolName,
       docsProtocolAgentTeamsName,
       docsProtocolMcpName,
+      foundationName,
     ],
   );
   const repositoryMutation = await json("packages/repository-mutation/package.json");
+  const documentAuthoring = await json("packages/document-authoring/package.json");
   const foundation = await json("packages/engineering-foundation/package.json");
   const docsProtocol = await json("packages/docs-protocol/package.json");
   const docsProtocolAgentTeams = await json("packages/docs-protocol-agent-teams/package.json");
@@ -154,14 +155,17 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     );
   }
   assert.equal(foundation.dependencies?.[repositoryMutationName], "workspace:*");
+  assert.equal(foundation.dependencies?.[documentAuthoringName], "workspace:*");
   assert.equal(docsProtocol.dependencies?.[repositoryMutationName], "workspace:*");
-  assert.equal(docsProtocol.dependencies?.[foundationName], "workspace:*");
+  assert.equal(docsProtocol.dependencies?.[documentAuthoringName], "workspace:*");
+  assert.equal(docsProtocol.dependencies?.[foundationName], undefined);
   assert.equal(docsProtocol.dependencies?.[docsProtocolAgentTeamsName], undefined);
   assert.equal(docsProtocol.dependencies?.[docsProtocolMcpName], undefined);
   assert.equal(docsProtocolAgentTeams.dependencies?.[docsProtocolName], "workspace:*");
-  assert.equal(docsProtocolAgentTeams.dependencies?.[foundationName], "workspace:*");
+  assert.equal(docsProtocolAgentTeams.dependencies?.[foundationName], undefined);
+  assert.equal(docsProtocolAgentTeams.dependencies?.[documentAuthoringName], undefined);
   assert.equal(docsProtocolAgentTeams.dependencies?.[repositoryMutationName], "workspace:*");
-  for (const manifest of [repositoryMutation, foundation, docsProtocol]) {
+  for (const manifest of [repositoryMutation, documentAuthoring, foundation, docsProtocol]) {
     for (const section of dependencySections) {
       assert.equal(
         manifest[section]?.[docsProtocolAgentTeamsName],
@@ -191,11 +195,12 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
       `published Foundation cannot depend on itself through ${section}`,
     );
   }
-  assert.equal(workspace.devDependencies?.[foundationName], "workspace:*");
   assert.equal(
-    docsProtocol.dependencies[foundationName] === "workspace:*" ? foundation.version : docsProtocol.dependencies[foundationName],
-    foundation.version,
-    "Docs Protocol must pack its one-way Foundation dependency to the exact Foundation version",
+    docsProtocol.dependencies[documentAuthoringName] === "workspace:*"
+      ? documentAuthoring.version
+      : docsProtocol.dependencies[documentAuthoringName],
+    documentAuthoring.version,
+    "Docs Protocol must pack its one-way Document Authoring dependency to the exact version",
   );
   assert.equal(
     docsProtocolMcp.dependencies[docsProtocolName] === "workspace:*"
@@ -209,7 +214,7 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
   });
   for (const entry of packageDirectories.filter((candidate) => candidate.isDirectory())) {
     const manifest = await json(`packages/${entry.name}/package.json`);
-    if (![docsProtocolName, docsProtocolAgentTeamsName].includes(manifest.name)) {
+    if (manifest.name !== foundationName) {
       assert.equal(
         manifest.dependencies?.[foundationName],
         undefined,
@@ -342,7 +347,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "docs-protocol.domain": {
       roots: ["packages/docs-protocol/src/domain"],
       boundaries: [],
-      packages: [foundationName, repositoryMutationName],
+      packages: [documentAuthoringName, repositoryMutationName],
       builtins: ["node:path"],
       entrypoints: [
         "packages/docs-protocol/src/domain/document-semantics.ts",
@@ -355,18 +360,18 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "docs-protocol.application": {
       roots: ["packages/docs-protocol/src/application"],
       boundaries: ["docs-protocol.community.context", "docs-protocol.domain"],
-      packages: [foundationName, repositoryMutationName, "yaml"],
+      packages: [documentAuthoringName, repositoryMutationName, "yaml"],
       builtins: [],
       entrypoints: ["packages/docs-protocol/src/application/docs-protocol.ts"],
     },
     "docs-protocol.adapters": {
       roots: ["packages/docs-protocol/src/adapters"],
       boundaries: ["docs-protocol.application", "docs-protocol.domain"],
-      packages: [foundationName, repositoryMutationName, "ajv", "ajv-formats", "yaml"],
+      packages: [documentAuthoringName, repositoryMutationName, "ajv", "ajv-formats", "yaml"],
       builtins: ["node:fs", "node:fs/promises", "node:path", "node:url"],
       entrypoints: [
         "packages/docs-protocol/src/adapters/docs-command-envelope-schema-validator.ts",
-        "packages/docs-protocol/src/adapters/foundation-docs-port.ts",
+        "packages/docs-protocol/src/adapters/document-authoring-port.ts",
         "packages/docs-protocol/src/adapters/node-adoption-inspector.ts",
         "packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts",
         "packages/docs-protocol/src/adapters/node-profile-reader.ts",
@@ -387,7 +392,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
         "docs-protocol.domain",
         "docs-protocol.qualification",
       ],
-      packages: [foundationName],
+      packages: [documentAuthoringName],
       builtins: [],
       entrypoints: [
         "packages/docs-protocol/src/index.ts",
@@ -404,7 +409,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "docs-protocol.community.bootstrap": {
       roots: ["packages/docs-protocol/src/community/bootstrap"],
       boundaries: ["docs-protocol.domain"],
-      packages: [foundationName, repositoryMutationName],
+      packages: [documentAuthoringName, repositoryMutationName],
       builtins: ["node:crypto", "node:fs", "node:fs/promises", "node:path"],
       entrypoints: [
         "packages/docs-protocol/src/community/bootstrap/index.ts",
@@ -419,7 +424,7 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
         "docs-protocol.community.bootstrap",
         "docs-protocol.domain",
       ],
-      packages: [foundationName, "ajv"],
+      packages: [documentAuthoringName, "ajv"],
       builtins: [
         "node:child_process",
         "node:crypto",
@@ -605,7 +610,6 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
         "docs-protocol-agent-teams.domain",
       ],
       packages: [
-        foundationName,
         repositoryMutationName,
         "ajv",
         "ajv-formats",
@@ -774,7 +778,7 @@ test("current authoring guidance uses only the unified explicit-mutation CLI", a
 
 test("document authoring public surface exposes no directory rollback capability", async () => {
   const runtime = await import(
-    "../packages/engineering-foundation/dist/document-authoring/index.js"
+    "../packages/document-authoring/dist/index.js"
   );
   assert.deepEqual(
     Object.keys(runtime).filter((name) => /rollback/iu.test(name)),
@@ -782,7 +786,7 @@ test("document authoring public surface exposes no directory rollback capability
   );
   const declarations = await readFile(join(
     repositoryRoot,
-    "packages/engineering-foundation/dist/document-authoring/index.d.ts",
+    "packages/document-authoring/dist/index.d.ts",
   ), "utf8");
   assert.doesNotMatch(
     declarations,
@@ -790,7 +794,7 @@ test("document authoring public surface exposes no directory rollback capability
   );
   const authoringSources = await sourceFiles(join(
     repositoryRoot,
-    "packages/engineering-foundation/src/document-authoring",
+    "packages/document-authoring/src",
   ));
   for (const path of authoringSources) {
     assert.doesNotMatch(
@@ -801,10 +805,12 @@ test("document authoring public surface exposes no directory rollback capability
   }
 });
 test("production and generic directory adapters share the internal bind kernel", async () => {
-  const production = await readFile(join(
+  const productionPath = (await sourceFiles(join(
     repositoryRoot,
-    "packages/engineering-foundation/src/document-authoring/adapters/node/node-document-parent-materializer.ts",
-  ), "utf8");
+    "packages/document-authoring/src",
+  ))).find((path) => basename(path) === "node-document-parent-materializer.ts");
+  assert.notEqual(productionPath, undefined);
+  const production = await readFile(productionPath, "utf8");
   const generic = await readFile(join(
     repositoryRoot,
     "packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts",

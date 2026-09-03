@@ -36,7 +36,7 @@ export {
 } from "./qualification-runtime.js";
 export type { PortableQualificationProtocol } from "./qualification-runtime.js";
 
-export type { DocumentJsonValue } from "@agent-teams/engineering-foundation/document-authoring";
+export type { DocumentJsonValue } from "@agent-teams/document-authoring";
 export type { DocsFindQuery, DocsNewRequest } from "../domain/model.js";
 
 export interface DocsProtocolQualificationScenario {

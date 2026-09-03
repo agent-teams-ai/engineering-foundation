@@ -18,6 +18,12 @@ export const PUBLISHABLE_PACKAGE_CATALOG = Object.freeze([
     root: "packages/repository-mutation",
   }),
   Object.freeze({
+    changelogPath: "packages/document-authoring/CHANGELOG.md",
+    manifestPath: "packages/document-authoring/package.json",
+    name: "@agent-teams/document-authoring",
+    root: "packages/document-authoring",
+  }),
+  Object.freeze({
     changelogPath: "packages/engineering-foundation/CHANGELOG.md",
     manifestPath: "packages/engineering-foundation/package.json",
     name: "@agent-teams/engineering-foundation",

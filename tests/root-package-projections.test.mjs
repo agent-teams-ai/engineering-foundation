@@ -89,21 +89,34 @@ test("manifest projection rejects cycles, unknown workspace targets, and malform
   assert.throws(() => projection([{ ...left, dependencies: [] }]), /metadata only/u);
 });
 
-test("current projection qualifies the adapter and retains current Foundation edges", () => {
+test("current projection qualifies the exact ADR-0043 six-package DAG", () => {
   assert.deepEqual(PUBLISHABLE_PACKAGES.map(({ name }) => name), [
     "@agent-teams/repository-mutation",
-    "@agent-teams/engineering-foundation",
+    "@agent-teams/document-authoring",
     "@agent-teams/docs-protocol",
     "@agent-teams/docs-protocol-agent-teams",
     "@agent-teams/docs-protocol-mcp",
+    "@agent-teams/engineering-foundation",
   ]);
   assert.deepEqual(
+    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/document-authoring"],
+    ["@agent-teams/repository-mutation"],
+  );
+  assert.deepEqual(
+    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/engineering-foundation"],
+    ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
+  );
+  assert.deepEqual(
+    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol"],
+    ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
+  );
+  assert.deepEqual(
     PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol-agent-teams"],
-    [
-      "@agent-teams/docs-protocol",
-      "@agent-teams/engineering-foundation",
-      "@agent-teams/repository-mutation",
-    ].toSorted(),
+    ["@agent-teams/docs-protocol", "@agent-teams/repository-mutation"],
+  );
+  assert.deepEqual(
+    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol-mcp"],
+    ["@agent-teams/docs-protocol"],
   );
 });
 

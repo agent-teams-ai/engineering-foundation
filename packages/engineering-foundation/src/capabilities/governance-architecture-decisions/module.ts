@@ -5,7 +5,7 @@ import {
   type CapabilityDefinition,
   type CapabilityInvocation
 } from "../../capability-runtime.js";
-import { FilesystemMarkdownRepository } from "../../documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
+import { FilesystemMarkdownRepository } from "@agent-teams/document-authoring/observation";
 import { NodeArchitectureDecisionFingerprint } from "./adapters/outbound/crypto/node-architecture-decision-fingerprint.js";
 import { FilesystemArchitectureDecisionBaselineRepository } from "./adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";
 import { parseAcceptedArchitectureDecisionBaseline } from "./application/policies/accepted-architecture-decision-baseline.js";

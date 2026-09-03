@@ -11,10 +11,11 @@ This repository contains reusable development tooling only. Product runtime code
 must not import it. Each consumer remains authoritative for its own domain model,
 package catalog, dependency permissions, security classifications, and ADRs.
 
-The current release has the original package placement. The accepted target is
-a new-only, independently versioned portable package boundary; its implementation
-and artifact qualification are pending. [ADR-0043](docs/decisions/0043-new-only-portable-documentation-package-boundary.md)
-is the single authority for the target dependency DAG, and the
+The current integration implements the accepted new-only, independently
+versioned portable package boundary. Exact-head artifact qualification,
+protected publication, and consumer rollout remain separate gates.
+[ADR-0043](docs/decisions/0043-new-only-portable-documentation-package-boundary.md)
+is the single authority for the dependency DAG, and the
 [delivery contract](docs/development/docs-portable-boundary-delivery.md) records
 the evidence still required before release. No compatibility facade or legacy
 alias is part of that target.

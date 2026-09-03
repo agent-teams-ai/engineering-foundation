@@ -20,15 +20,15 @@ not repeat their rules.
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |
 | Scaffolding compiler | [Scaffolding compiler protocol](architecture/scaffolding-compiler-protocol.md) | Kernel and generic Node TypeScript library recipe implemented; Nx deferred |
 | Scaffolding recovery | [Scoped recovery API](reference/scaffolding-recovery.md) | Immutable v1 scoped overload implemented; one-argument API and CLI retained |
-| Document authoring | [Document authoring protocol](architecture/document-authoring-protocol.md) | Catalog, Plan compiler, create-only writer, doctor, and exact-version recovery released in Docs Protocol 0.1.2 |
-| Unified documentation UX | [ADR-0026](decisions/0026-retain-only-document-directory-materialization.md#carried-forward-adr-0025-decisions) | Stable Docs Protocol cohort adopted by current consumers; legacy compatibility retirement remains evidence-gated |
-| Portable package boundary | [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md) | Accepted target; implementation and artifact qualification pending |
-| Portable boundary delivery | [Delivery and evidence contract](development/docs-portable-boundary-delivery.md) | Draft phase-0 checkpoint; review, baseline promotion, gates, implementation, publication, and rollout pending |
-| Open-source documentation | [Open-source Docs Protocol](reference/open-source-docs-protocol.md) | Current workflow implemented in the original package placement; ADR-0043 cutover pending |
-| Managed consumer upgrades | [Managed Docs Protocol consumer integration](architecture/managed-docs-consumer-integration.md) | Current integration implemented; direct adapter relocation pending |
-| Managed consumer integration | [Consumer integration](architecture/managed-docs-consumer-integration.md) | Current integration passed release qualification; target adapter and consumer rollout pending |
-| Document authoring security | [Cooperative writer threat model](security/document-authoring-threat-model.md) | Cooperative-writer boundary implemented and released; registry artifact qualification complete |
-| Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; consumer qualification remains consumer-owned |
+| Document authoring | [Document authoring protocol](architecture/document-authoring-protocol.md) | Portable authoring owned by Document Authoring; mutation and exact-build recovery mechanism owned by Repository Mutation |
+| Unified documentation UX | [ADR-0026](decisions/0026-retain-only-document-directory-materialization.md#carried-forward-adr-0025-decisions) | Portable application and CLI owned by Docs Protocol; no Foundation documentation CLI or compatibility bridge |
+| Portable package boundary | [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md) | New-only source package split implemented; qualification, publication, and rollout remain separately gated |
+| Portable boundary delivery | [Delivery and evidence contract](development/docs-portable-boundary-delivery.md) | Source implementation complete; qualification, publication, and rollout evidence pending |
+| Open-source documentation | [Open-source Docs Protocol](reference/open-source-docs-protocol.md) | Portable workflow composed directly over Document Authoring and Repository Mutation |
+| Managed consumer upgrades | [Managed Docs Protocol consumer integration](architecture/managed-docs-consumer-integration.md) | Managed behavior confined to Docs Protocol Agent Teams; activation remains explicit |
+| Managed consumer integration | [Consumer integration](architecture/managed-docs-consumer-integration.md) | New-only adapter placement implemented; qualification, publication, and rollout remain gated |
+| Document authoring security | [Cooperative writer threat model](security/document-authoring-threat-model.md) | Cooperative-writer boundary implemented and released; registry qualification complete |
+| Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |

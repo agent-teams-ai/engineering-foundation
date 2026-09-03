@@ -22,20 +22,17 @@ export function createPublishedCompatibilityInstallPolicy({
   delay = wait,
   runInstall = runNpmCommand,
 } = {}) {
-  let retryAvailable = true;
   return async function install(args, root) {
     try {
       return await runInstall(args, root, { timeoutMs: firstAttemptTimeoutMs });
     } catch (error) {
       if (
-        !retryAvailable ||
         error?.timedOut !== true ||
         error?.killed !== true ||
         error?.terminationConfirmed !== true
       ) {
         throw error;
       }
-      retryAvailable = false;
       await cleanup(root);
       await delay(retryDelayMs);
       return runInstall(args, root, { timeoutMs: retryTimeoutMs });

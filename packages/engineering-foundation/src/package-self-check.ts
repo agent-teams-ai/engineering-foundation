@@ -27,10 +27,6 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
   "dist/index.d.ts",
   "dist/index.js",
   "dist/public-api-surface.d.ts",
-  "dist/document-authoring/index.d.ts",
-  "dist/document-authoring/index.js",
-  "dist/document-authoring/qualification/index.d.ts",
-  "dist/document-authoring/qualification/index.js",
   "dist/local-mode/index.d.ts",
   "dist/local-mode/index.js",
   "dist/scaffolding/index.d.ts",
@@ -197,12 +193,9 @@ function isImportOnlyPackageResolution(error: unknown): boolean {
 }
 
 async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> {
-  const [rootExports, documentAuthoringExports, localModeExports, scaffoldingExports] =
+  const [rootExports, localModeExports, scaffoldingExports] =
     await Promise.all([
       importUnknown(pathToFileURL(join(packageRoot, "dist", "index.js")).href),
-      importUnknown(
-        pathToFileURL(join(packageRoot, "dist", "document-authoring", "index.js")).href
-      ),
       importUnknown(
         pathToFileURL(join(packageRoot, "dist", "local-mode", "index.js")).href
       ),
@@ -212,7 +205,6 @@ async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> 
     ]);
   if (
     !isRecord(rootExports) ||
-    !isRecord(documentAuthoringExports) ||
     !isRecord(localModeExports) ||
     !isRecord(scaffoldingExports)
   ) {
@@ -223,7 +215,6 @@ async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> 
   }
   const requiredRuntimeExports: readonly (readonly [string, unknown])[] = [
     ["FoundationError", rootExports.FoundationError],
-    ["buildDocumentationCatalog", documentAuthoringExports.buildDocumentationCatalog],
     ["FoundationLocalModeService", localModeExports.FoundationLocalModeService],
     ["planScaffoldFromFile", scaffoldingExports.planScaffoldFromFile],
     ["applyFilesystemScaffold", scaffoldingExports.applyFilesystemScaffold],
@@ -299,14 +290,6 @@ export async function inspectFoundationPackage(
   validateExport(manifest.exports, "./local-mode", {
     types: "./dist/local-mode/index.d.ts",
     import: "./dist/local-mode/index.js"
-  });
-  validateExport(manifest.exports, "./document-authoring", {
-    types: "./dist/document-authoring/index.d.ts",
-    import: "./dist/document-authoring/index.js"
-  });
-  validateExport(manifest.exports, "./document-authoring/qualification", {
-    types: "./dist/document-authoring/qualification/index.d.ts",
-    import: "./dist/document-authoring/qualification/index.js"
   });
   validateExport(manifest.exports, "./scaffolding", {
     types: "./dist/scaffolding/index.d.ts",

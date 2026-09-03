@@ -8,14 +8,14 @@ import test from "node:test";
 import {
   planDocumentationDocument,
   recoverDocumentationTransaction
-} from "@agent-teams/engineering-foundation/document-authoring";
+} from "../packages/document-authoring/dist/index.js";
 import {
   runDocumentAuthoringCrashQualification
-} from "@agent-teams/engineering-foundation/document-authoring/qualification";
+} from "../packages/document-authoring/dist/qualification/index.js";
 
 const fixtureRoot = new URL("fixtures/document-planning/orchestrator/", import.meta.url);
 const qualificationUrl = new URL(
-  "../packages/engineering-foundation/dist/document-authoring/qualification/index.js",
+  "../packages/document-authoring/dist/qualification/index.js",
   import.meta.url
 ).href;
 const crashPoints = [
@@ -69,15 +69,18 @@ async function writeOwnershipMarker(consumerRoot, extra = {}) {
 
 test("qualification subpath is closed and absent from normal authoring", async () => {
   const [normal, qualification] = await Promise.all([
-    import("@agent-teams/engineering-foundation/document-authoring"),
-    import("@agent-teams/engineering-foundation/document-authoring/qualification")
+    import("../packages/document-authoring/dist/index.js"),
+    import("../packages/document-authoring/dist/qualification/index.js")
   ]);
   assert.equal(normal.runDocumentAuthoringCrashQualification, undefined);
   assert.deepEqual(Object.keys(qualification), [
+    "assertDocumentPlanDigests",
+    "assertDocumentTransactionEnvelope",
+    "documentTemporaryPath",
     "runDocumentAuthoringCrashQualification"
   ]);
   const declarations = await readFile(new URL(
-    "../packages/engineering-foundation/dist/document-authoring/qualification/index.d.ts",
+    "../packages/document-authoring/dist/qualification/index.d.ts",
     import.meta.url
   ), "utf8");
   assert.doesNotMatch(

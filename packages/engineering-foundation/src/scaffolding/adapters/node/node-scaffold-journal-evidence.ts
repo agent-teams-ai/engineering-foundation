@@ -4,7 +4,7 @@ import type {
   JournalSlotAuthority,
   JournalSlotObservation,
   StoredJournalSlot
-} from "../../../transaction-coordination/adapters/node/node-journal-slot-profile.js";
+} from "@agent-teams/repository-mutation/node";
 import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.js";
 import type { AuthorityScaffoldJournal, JsonValue } from "../../contract/types.js";
 import { assertAuthorityScaffoldJournal } from "../../kernel/authority-journal-validation.js";

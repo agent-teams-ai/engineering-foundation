@@ -1,7 +1,7 @@
-import type { DocumentJsonValue } from "@agent-teams/engineering-foundation/document-authoring";
+import type { DocumentJsonValue } from "@agent-teams/document-authoring";
 
 import { DocsProtocol } from "../application/docs-protocol.js";
-import { NodeFoundationDocsPort } from "../adapters/foundation-docs-port.js";
+import { NodeDocumentAuthoringPort } from "../adapters/document-authoring-port.js";
 import { NodeDocsProfileReader } from "../adapters/node-profile-reader.js";
 import { NodeCodeAnchorMatcher } from "../adapters/node-code-anchor-matcher.js";
 import { NodeDocsAdoptionInspector } from "../adapters/node-adoption-inspector.js";
@@ -446,7 +446,7 @@ export async function runDocsCli(
   protocolFactory: () => DocsProtocol = () => new DocsProtocol({
     adoption: new NodeDocsAdoptionInspector(),
     anchors: new NodeCodeAnchorMatcher(),
-    foundation: new NodeFoundationDocsPort(),
+    foundation: new NodeDocumentAuthoringPort(),
     profiles: new NodeDocsProfileReader()
   })
 ): Promise<number> {

@@ -10,6 +10,7 @@ import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs
 import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
 import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
+import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
 import {
@@ -266,6 +267,7 @@ async function verifyPackedDocsConsumerIntegration(input) {
     private: true,
     packageManager: packageManagerVersion(),
     devDependencies: {
+      "@agent-teams/document-authoring": input.authoring.archiveFileSpecifier,
       "@agent-teams/docs-protocol-agent-teams": input.adapter.archiveFileSpecifier,
       "@agent-teams/docs-protocol": input.docs.archiveFileSpecifier,
       "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier,
@@ -274,6 +276,7 @@ async function verifyPackedDocsConsumerIntegration(input) {
   };
   await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify(installedManifest, null, 2)}\n`);
   const localArtifactOverrides = {
+    "@agent-teams/document-authoring": input.authoring.archiveFileSpecifier,
     "@agent-teams/docs-protocol": input.docs.archiveFileSpecifier,
     "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier,
     "@agent-teams/repository-mutation": input.mutation.archiveFileSpecifier
@@ -290,6 +293,55 @@ async function verifyPackedDocsConsumerIntegration(input) {
     ["install", "--offline", "--frozen-lockfile", "--ignore-scripts"],
     consumerRoot
   );
+  await writePackedConsumerDocumentAuthoringFixture(consumerRoot);
+  const authoringProbe = [
+    "const module = await import('@agent-teams/document-authoring');",
+    "if (typeof module.buildDocumentationCatalog !== 'function') process.exit(2);",
+    "process.stdout.write(import.meta.resolve('@agent-teams/document-authoring'));"
+  ].join("\n");
+  const { stdout: authoringResolution } = await runCommand(
+    process.execPath,
+    ["--input-type=module", "--eval", authoringProbe],
+    consumerRoot
+  );
+  const resolvedAuthoring = new URL(authoringResolution.trim());
+  if (
+    resolvedAuthoring.protocol !== "file:" ||
+    !resolvedAuthoring.pathname.includes("/node_modules/@agent-teams/document-authoring/dist/index.js") ||
+    resolvedAuthoring.pathname.includes("/.worktrees/")
+  ) {
+    throw new Error("Packed document-authoring export resolved outside the installed package.");
+  }
+  const docsCli = join(
+    consumerRoot,
+    "node_modules",
+    "@agent-teams",
+    "docs-protocol",
+    "dist",
+    "cli.js"
+  );
+  const found = parseDocsExecution((await runCommand(
+    process.execPath,
+    [
+      docsCli,
+      "find",
+      "hermetic search marker",
+      "--consumer",
+      consumerRoot,
+      "--profile",
+      "docs.config.yaml",
+      "--json"
+    ],
+    consumerRoot
+  )).stdout);
+  if (
+    found.command !== "docs.find" ||
+    found.outcome !== "success" ||
+    found.result?.matches !== 1 ||
+    found.result?.documents?.[0]?.id !== "guide.packaged"
+  ) {
+    throw new Error("Packed Docs Protocol find did not return the deterministic catalog match.");
+  }
 
   let cohort = input.adapter.sourceB;
   const desired = {
@@ -425,6 +477,7 @@ try {
   const artifacts = await packPublishableArtifacts({ temporaryRoot });
   const artifact = artifacts["@agent-teams/engineering-foundation"];
   const mutationArtifact = artifacts["@agent-teams/repository-mutation"];
+  const documentAuthoringArtifact = artifacts["@agent-teams/document-authoring"];
   const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
   const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
   const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
@@ -436,6 +489,7 @@ try {
   );
   await verifyPackedDocsConsumerIntegration({
     adapter: rollbackFixtureArtifact,
+    authoring: documentAuthoringArtifact,
     docs: docsProtocolArtifact,
     foundation: artifact,
     mutation: mutationArtifact
@@ -444,6 +498,7 @@ try {
   const fixture = await createPackedConsumerFixture({
     archiveFileSpecifier: artifact.archiveFileSpecifier,
     consumerRoot: join(temporaryRoot, "consumer"),
+    documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
     mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
     packageManager: packageManagerVersion(),
     runPnpm,
@@ -457,6 +512,7 @@ try {
     packageManager: packageManagerVersion(),
     repositoryRoot,
     runPnpm,
+    documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
     mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
     temporaryRoot
   });

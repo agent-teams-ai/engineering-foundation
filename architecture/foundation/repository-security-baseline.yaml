@@ -97,6 +97,7 @@ privilegedJobs:
       security-events: write
 publishablePackageManifests:
   - packages/repository-mutation/package.json
+  - packages/document-authoring/package.json
   - packages/engineering-foundation/package.json
   - packages/docs-protocol/package.json
   - packages/docs-protocol-agent-teams/package.json

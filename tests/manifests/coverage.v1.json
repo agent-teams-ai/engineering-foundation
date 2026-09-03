@@ -7,21 +7,24 @@
   "processBootstrap": "scripts/coverage-process-bootstrap.mjs",
   "include": [
     "packages/repository-mutation/dist/**/*.js",
-    "packages/engineering-foundation/dist/**/*.js",
+    "packages/document-authoring/dist/**/*.js",
     "packages/docs-protocol/dist/**/*.js",
     "packages/docs-protocol-agent-teams/dist/**/*.js",
-    "packages/docs-protocol-mcp/dist/**/*.js"
+    "packages/docs-protocol-mcp/dist/**/*.js",
+    "packages/engineering-foundation/dist/**/*.js"
   ],
   "exclude": [
     "packages/repository-mutation/dist/**/*.d.ts",
-    "packages/engineering-foundation/dist/**/*.d.ts",
+    "packages/document-authoring/dist/**/*.d.ts",
     "packages/docs-protocol/dist/**/*.d.ts",
     "packages/docs-protocol-agent-teams/dist/**/*.d.ts",
-    "packages/docs-protocol-mcp/dist/**/*.d.ts"
+    "packages/docs-protocol-mcp/dist/**/*.d.ts",
+    "packages/engineering-foundation/dist/**/*.d.ts"
   ],
   "additionalTestsByShard": {
     "1": [
       "packages/repository-mutation/tests/mutation-lease.test.mjs",
+      "packages/document-authoring/tests/package-boundary.test.mjs",
       "packages/docs-protocol-agent-teams/tests/direct-split-structure.test.mjs",
       "packages/docs-protocol/tests/adoption.test.mjs",
       "packages/docs-protocol/tests/authority-handshake.test.mjs",
@@ -59,6 +62,7 @@
   },
   "legacyTests": [
     "packages/repository-mutation/tests/mutation-lease.test.mjs",
+    "packages/document-authoring/tests/package-boundary.test.mjs",
     "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",
     "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
     "packages/docs-protocol-agent-teams/tests/consumer-integration-plan.test.mjs",

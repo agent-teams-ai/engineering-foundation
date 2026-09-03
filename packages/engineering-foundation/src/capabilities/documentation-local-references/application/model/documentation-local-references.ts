@@ -3,7 +3,7 @@ import type {
   MarkdownReferenceObservation,
   MarkdownReferenceResolution,
   MarkdownRepositoryObservation
-} from "../../../../documentation-observation/application/model/markdown-document.js";
+} from "@agent-teams/document-authoring/observation";
 
 export interface DocumentationLocalReferencesPolicy {
   readonly anchorProfile: MarkdownAnchorProfile;

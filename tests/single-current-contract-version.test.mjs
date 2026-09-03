@@ -5,6 +5,8 @@ import test from "node:test";
 
 const repositoryRoot = process.cwd();
 const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
+const documentAuthoringPackageRoot = join(repositoryRoot, "packages", "document-authoring");
+const repositoryMutationPackageRoot = join(repositoryRoot, "packages", "repository-mutation");
 const transactionEnvelopeV2Path =
   "schemas/foundation-transaction-envelope/v2.schema.json";
 const transactionEnvelopeV3Path =
@@ -23,18 +25,20 @@ const documentPlanV2Path = "schemas/document-plan/v2.schema.json";
 const documentReceiptV2Path = "schemas/document-receipt/v2.schema.json";
 const sourceDependenciesV2Path =
   "schemas/architecture-source-dependencies/v2.schema.json";
-const acceptedNonV1SchemaPaths = [
-  sourceDependenciesV2Path,
-  documentAuthoringProfileV2Path,
-  documentAuthoringProfileV3Path,
-  documentCommandEnvelopeV2Path,
-  documentParentMaterializationV2Path,
-  documentPlanV2Path,
-  documentReceiptV2Path,
-  transactionEnvelopeV2Path,
-  transactionEnvelopeV3Path,
-  transactionEnvelopeV4Path,
-];
+const acceptedNonV1SchemaPathsByRoot = new Map([
+  [packageRoot, [sourceDependenciesV2Path, transactionEnvelopeV2Path]],
+  [documentAuthoringPackageRoot, [
+    documentAuthoringProfileV2Path,
+    documentAuthoringProfileV3Path,
+    documentCommandEnvelopeV2Path,
+    documentParentMaterializationV2Path,
+    documentPlanV2Path,
+    documentReceiptV2Path,
+    transactionEnvelopeV3Path,
+    transactionEnvelopeV4Path,
+  ]],
+  [repositoryMutationPackageRoot, []],
+]);
 const acceptedTransactionEnvelopePaths = [
   transactionEnvelopeV2Path,
   transactionEnvelopeV3Path,
@@ -83,116 +87,124 @@ function assertOwnedNumericDiscriminatorsAreV1(value, source) {
 }
 
 test("ships v1 contracts plus accepted additive v2 and transaction boundaries", async () => {
-  const schemaRoot = join(packageRoot, "schemas");
-  const schemaFiles = (await filesBelow(schemaRoot)).filter((path) =>
-    path.endsWith(".schema.json"),
-  );
-  const schemaRelativePaths = schemaFiles.map((path) =>
-    relative(packageRoot, path).replaceAll("\\", "/"),
-  );
-  const nonV1SchemaPaths = schemaRelativePaths
-    .filter((path) => !path.endsWith("/v1.schema.json"));
-  assert.deepEqual(nonV1SchemaPaths, acceptedNonV1SchemaPaths);
-  const forbiddenSchemaPaths = schemaRelativePaths
-    .filter(
-      (path) =>
-        !acceptedNonV1SchemaPaths.includes(path) &&
-        /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path),
+  for (const [ownerRoot, acceptedNonV1SchemaPaths] of acceptedNonV1SchemaPathsByRoot) {
+    const schemaFiles = (await filesBelow(join(ownerRoot, "schemas")))
+      .filter((path) => path.endsWith(".schema.json"));
+    const schemaRelativePaths = schemaFiles
+      .map((path) => relative(ownerRoot, path).replaceAll("\\", "/"));
+    assert.deepEqual(
+      schemaRelativePaths.filter((path) => !path.endsWith("/v1.schema.json")),
+      acceptedNonV1SchemaPaths,
     );
-  assert.deepEqual(forbiddenSchemaPaths, []);
-
-  for (const path of schemaFiles) {
-    const schema = JSON.parse(await readFile(path, "utf8"));
-    const relativePath = relative(packageRoot, path).replaceAll("\\", "/");
-    if (acceptedNonV1SchemaPaths.includes(relativePath) &&
-      !acceptedTransactionEnvelopePaths.includes(relativePath)) {
-      const acceptedVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
-      assert.equal(schema.$id.endsWith(`/v${acceptedVersion}`), true);
-      assert.equal(schema.properties.schemaVersion.const, acceptedVersion);
-      continue;
-    }
-    if (acceptedTransactionEnvelopePaths.includes(relativePath)) {
-      const envelopeVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
-      assert.equal(schema.$id.endsWith(`/v${envelopeVersion}`), true);
-      assert.equal(schema.properties.schemaVersion.const, envelopeVersion);
+    for (const path of schemaFiles) {
+      const schema = JSON.parse(await readFile(path, "utf8"));
+      const relativePath = relative(ownerRoot, path).replaceAll("\\", "/");
+      if (acceptedNonV1SchemaPaths.includes(relativePath) &&
+        !acceptedTransactionEnvelopePaths.includes(relativePath)) {
+        const acceptedVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
+        assert.equal(schema.$id.endsWith(`/v${acceptedVersion}`), true);
+        assert.equal(schema.properties.schemaVersion.const, acceptedVersion);
+        continue;
+      }
+      if (acceptedTransactionEnvelopePaths.includes(relativePath)) {
+        const envelopeVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
+        assert.equal(schema.$id.endsWith(`/v${envelopeVersion}`), true);
+        assert.equal(schema.properties.schemaVersion.const, envelopeVersion);
+        assert.equal(
+          schema.properties.recoveryHandler.properties.contractVersion.const,
+          envelopeVersion - 1,
+        );
+        const payloadKinds = schema.properties.payloadKind.enum ?? [
+          schema.properties.payloadKind.const,
+        ];
+        assert.ok(payloadKinds.includes(`document-authoring-journal/v${envelopeVersion - 1}`));
+        continue;
+      }
       assert.equal(
-        schema.properties.recoveryHandler.properties.contractVersion.const,
-        envelopeVersion - 1,
+        typeof schema.$id === "string" && schema.$id.endsWith("/v1"),
+        true,
+        `Package-owned schema must use its sole current /v1 identity: ${relative(ownerRoot, path)}`,
       );
-      const payloadKinds = schema.properties.payloadKind.enum ?? [
-        schema.properties.payloadKind.const,
-      ];
-      assert.ok(payloadKinds.includes(
-        `document-authoring-journal/v${envelopeVersion - 1}`,
-      ));
-      continue;
+      if (
+        ownerRoot === repositoryMutationPackageRoot &&
+        relativePath === "schemas/repository-mutation-transaction-envelope/v1.schema.json"
+      ) {
+        assert.equal(schema.properties.schemaVersion.const, 6);
+        continue;
+      }
+      assertOwnedNumericDiscriminatorsAreV1(schema, relative(ownerRoot, path));
     }
-    assert.equal(
-      typeof schema.$id === "string" && schema.$id.endsWith("/v1"),
-      true,
-      `Foundation-owned schema must use its sole current /v1 identity: ${relative(packageRoot, path)}`,
-    );
-    assertOwnedNumericDiscriminatorsAreV1(schema, relative(packageRoot, path));
+    const packageManifest = JSON.parse(await readFile(join(ownerRoot, "package.json"), "utf8"));
+    if (ownerRoot === packageRoot) {
+      assert.deepEqual(packageManifest.files.filter(
+        (path) => /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path),
+      ), acceptedNonV1SchemaPaths);
+    } else {
+      assert.ok(packageManifest.files.includes("schemas"));
+    }
   }
 
-  const sourceFiles = (await filesBelow(join(packageRoot, "src"))).filter((path) =>
-    path.endsWith(".ts"),
-  );
   const versionedContractLiterals =
     /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
-  const acceptedVersionedSourceLiterals = {
-    "src/capabilities/source-dependencies/application/model/source-workspace.ts": [2],
-    "src/capabilities/source-dependencies/contract/config.ts": [2],
-    "src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts": [2, 3, 2],
-    "src/document-authoring/adapters/node/node-document-parent-materializer.ts": [2],
-    "src/document-authoring/application/model/document-authoring-profile-description.ts": [2, 3],
-    "src/document-authoring/application/model/document-command.ts": [2],
-    "src/document-authoring/application/model/document-parent-materialization.ts": [2],
-    "src/document-authoring/application/model/document-planning.ts": [2, 2],
-    "src/document-authoring/application/model/document-receipt.ts": [2, 2],
-    "src/document-authoring/application/model/document-transaction-inspection.ts": [2, 2, 2],
-    "src/document-authoring/application/model/document-transaction.ts": [2, 3, 3, 4],
-    "src/document-authoring/application/policies/document-authoring-semantic-digests.ts": [2],
-    "src/document-authoring/application/policies/document-command-projection.ts": [2],
-    "src/document-authoring/application/policies/document-receipt-policy.ts": [2, 2, 2, 2],
-    "src/document-authoring/application/policies/document-transaction-envelope-body.ts": [
+  const acceptedVersionedSourceLiteralsByRoot = new Map([
+    [packageRoot, {
+      "src/capabilities/source-dependencies/application/model/source-workspace.ts": [2],
+      "src/capabilities/source-dependencies/contract/config.ts": [2],
+      "src/transaction-coordination/adapters/node/schema6-transaction-status.ts": [6],
+    }],
+    [documentAuthoringPackageRoot, {
+      "src/adapters/node/load-validated-document-authoring-profile-v2.ts": [2, 3, 2],
+      "src/adapters/node/node-document-parent-materializer.ts": [2],
+      "src/application/model/document-authoring-profile-description.ts": [2, 3],
+      "src/application/model/document-command.ts": [2],
+      "src/application/model/document-parent-materialization.ts": [2],
+      "src/application/model/document-planning.ts": [2, 2],
+      "src/application/model/document-receipt.ts": [2, 2],
+      "src/application/model/document-transaction-inspection.ts": [2, 2, 2],
+      "src/application/model/document-transaction.ts": [2, 3, 3, 4],
+      "src/application/policies/document-authoring-semantic-digests.ts": [2],
+      "src/application/policies/document-command-projection.ts": [2],
+      "src/application/policies/document-receipt-policy.ts": [2, 2, 2, 2],
+      "src/application/policies/document-transaction-envelope-body.ts": [
       3, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3,
-    ],
-    "src/document-authoring/application/policies/document-transaction-envelope-policy.ts": [4],
-    "src/document-authoring/application/use-cases/apply-document-plan.ts": [2, 2],
-    "src/document-authoring/application/use-cases/compile-document-plan.ts": [2, 2],
-    "src/document-authoring/application/use-cases/document-parent-materialization-continuation.ts": [2],
-    "src/document-authoring/application/use-cases/document-transaction-continuation.ts": [2],
-    "src/document-authoring/application/use-cases/document-transaction-receipts.ts": [2, 2],
-    "src/document-authoring/application/use-cases/recapture-directory-receipt-evidence.ts": [2],
-    "src/document-authoring/application/use-cases/recover-document-transaction.ts": [2, 2],
-    "src/document-authoring/composition/describe-document-authoring-profile-v2.ts": [2, 3],
-    "src/document-authoring/composition/inspect-document-transaction.ts": [2, 2, 2, 2],
-    "src/transaction-coordination/adapters/node/schema6-transaction-status.ts": [6],
-  };
-  const observedVersionedSourceLiterals = {};
-  for (const path of sourceFiles) {
-    const versions = [...(await readFile(path, "utf8")).matchAll(
-      versionedContractLiterals,
-    )].map((match) => Number(match[1]));
-    if (versions.length > 0) {
-      observedVersionedSourceLiterals[
-        relative(packageRoot, path).replaceAll("\\", "/")
-      ] = versions;
+      ],
+      "src/application/policies/document-transaction-envelope-policy.ts": [4],
+      "src/application/use-cases/apply-document-plan.ts": [2, 2],
+      "src/application/use-cases/compile-document-plan.ts": [2, 2],
+      "src/application/use-cases/document-parent-materialization-continuation.ts": [2],
+      "src/application/use-cases/document-transaction-continuation.ts": [2],
+      "src/application/use-cases/document-transaction-receipts.ts": [2, 2],
+      "src/application/use-cases/recapture-directory-receipt-evidence.ts": [2],
+      "src/application/use-cases/recover-document-transaction.ts": [2, 2],
+      "src/composition/describe-document-authoring-profile-v2.ts": [2, 3],
+      "src/composition/inspect-document-transaction.ts": [2, 2, 2, 2, 2, 2],
+    }],
+    [repositoryMutationPackageRoot, {
+      "src/repository-mutation/application/model/known-file-transaction-journal.ts": [6],
+      "src/repository-mutation-envelope.ts": [6, 6],
+    }],
+  ]);
+  for (const [ownerRoot, acceptedVersionedSourceLiterals] of acceptedVersionedSourceLiteralsByRoot) {
+    const observedVersionedSourceLiterals = {};
+    const sourceFiles = (await filesBelow(join(ownerRoot, "src"))).filter((path) =>
+      path.endsWith(".ts"),
+    );
+    for (const path of sourceFiles) {
+      const versions = [...(await readFile(path, "utf8")).matchAll(
+        versionedContractLiterals,
+      )].map((match) => Number(match[1]));
+      if (versions.length > 0) {
+        observedVersionedSourceLiterals[
+          relative(ownerRoot, path).replaceAll("\\", "/")
+        ] = versions;
+      }
     }
+    assert.deepEqual(
+      observedVersionedSourceLiterals,
+      acceptedVersionedSourceLiterals,
+      "only accepted additive contracts may use newer numeric discriminators",
+    );
   }
-  assert.deepEqual(
-    observedVersionedSourceLiterals,
-    acceptedVersionedSourceLiterals,
-    "only accepted additive contracts may use newer numeric discriminators",
-  );
-
-  const packageManifest = JSON.parse(
-    await readFile(join(packageRoot, "package.json"), "utf8"),
-  );
-  assert.deepEqual(packageManifest.files.filter(
-    (path) => /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path),
-  ), acceptedNonV1SchemaPaths);
 });
 
 test("documents the transaction envelope v2 migration and retirement gate", async () => {
@@ -210,8 +222,11 @@ test("documents v4 as current while preserving exact v3 and manual v2", async ()
     join(repositoryRoot, "docs", "architecture", "document-authoring-protocol.md"),
     "utf8",
   );
-  assert.match(protocol, /scaffolding journal, envelope v2, envelope v3, and envelope v4/u);
-  assert.match(protocol, /Only envelope\s+v3\/v4[^.]+may select `docs-recover`/su);
+  assert.match(protocol, /Document Authoring recognizes immutable document envelopes v3 and v4/u);
+  assert.match(
+    protocol,
+    /only the exact recorded Document Authoring version and build identity may\s+select `docs-recover`/u,
+  );
   assert.match(protocol, /Envelope v2 is preserved as manual-recovery evidence/u);
 });
 

@@ -25,6 +25,7 @@ import {
 
 const foundation = { name: "@agent-teams/engineering-foundation", version: "0.16.0" };
 const repositoryMutation = { name: publishablePackageByName("@agent-teams/repository-mutation").name, version: "0.0.0" };
+const documentAuthoring = { name: publishablePackageByName("@agent-teams/document-authoring").name, version: "0.0.0" };
 const privateSpike = { name: "@agent-teams/source-dependency-parser-spike", version: "0.0.0" };
 const docsBootstrap = bootstrapPackageById("docs-protocol");
 const docsProtocol = {
@@ -289,11 +290,26 @@ test("creates one platform-native command shim without a shadowing extensionless
 
 async function runRelease(root, marker) {
   const harness = join(root, "release-harness.mjs");
+  const approvedBootstrapCatalog = {
+    ...NPM_PACKAGE_BOOTSTRAP,
+    packages: NPM_PACKAGE_BOOTSTRAP.packages.map((profile) =>
+      profile.state !== "candidate" ? profile : {
+        ...profile,
+        approval: {
+          archiveIntegrity: `sha512-${Buffer.alloc(64).toString("base64")}`,
+          packageTree: "0".repeat(40),
+        },
+        state: "approved",
+      },
+    ),
+  };
   await writeFile(
     harness,
     `import { appendFile, writeFile } from "node:fs/promises";\n` +
       `import { main } from ${JSON.stringify(pathToFileURL(releaseScript).href)};\n` +
+      `const approvedBootstrapCatalog = ${JSON.stringify(approvedBootstrapCatalog)};\n` +
       `await main({\n` +
+      `  bootstrapCatalog: approvedBootstrapCatalog,\n` +
       `  publishOrdered: async () => {\n` +
       `    await writeFile(process.env.PUBLISH_MARKER, "ordered publish");\n` +
       `    await appendFile(process.env.COMMAND_SHIM_MARKER, "ordered publish\\n");\n` +
@@ -364,9 +380,17 @@ async function fixture(root, registry) {
   await writeFile(join(root, ".npmrc"), "registry=https://registry.npmjs.org/\n");
   await writeFile(join(root, ".node-version"), "24.6.0\n");
   await writeFile(join(root, ".pnpmfile.cjs"), "module.exports = { hooks: {} };\n");
+  await json(join(root, "packages/document-authoring/package.json"), {
+    ...documentAuthoring,
+    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[documentAuthoring.name]
+      .map((name) => [name, "workspace:*"])),
+    publishConfig: { registry },
+  });
+  await writeFile(join(root, "packages/document-authoring/dist.js"), "export const authoring = 1;\n");
   await json(join(root, "packages/engineering-foundation/package.json"), {
     ...foundation,
-    dependencies: { [repositoryMutation.name]: "workspace:*" },
+    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[foundation.name]
+      .map((name) => [name, "workspace:*"])),
     publishConfig: { registry },
     version: docsBootstrap.dependencies[0].version,
   });
@@ -377,7 +401,8 @@ async function fixture(root, registry) {
   await writeFile(join(root, "packages/repository-mutation/dist.js"), "export const mutation = 1;\n");
   await json(join(root, "packages/docs-protocol/package.json"), {
     ...docsProtocol,
-    dependencies: { [foundation.name]: "workspace:*", [repositoryMutation.name]: "workspace:*" },
+    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocol.name]
+      .map((name) => [name, "workspace:*"])),
     publishConfig: {
       access: "public",
       provenance: true,
@@ -409,6 +434,7 @@ async function fixture(root, registry) {
       [docsProtocol.name]: docsProtocol.version,
       [docsProtocolAdapter.name]: docsProtocolAdapter.version,
       [docsProtocolMcp.name]: docsProtocolMcpBaselineVersion,
+      [documentAuthoring.name]: documentAuthoring.version,
       [repositoryMutation.name]: repositoryMutation.version,
     },
   });
@@ -555,6 +581,7 @@ test("real release entrypoint proves multi-package registry state and fails clos
     [docsProtocol.name, new Set([docsProtocol.version])],
     [docsProtocolAdapter.name, new Set([docsProtocolAdapter.version])],
     [docsProtocolMcp.name, new Set([docsProtocolMcpBaselineVersion])],
+    [documentAuthoring.name, new Set([documentAuthoring.version])],
     [foundation.name, new Set([foundation.version])],
     [repositoryMutation.name, new Set([repositoryMutation.version])],
   ]);

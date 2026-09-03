@@ -15,8 +15,8 @@ verifies the allowed owner status before planning, applying, or recovering.
 Consumers cannot provide templates, hooks, callbacks, commands, or definition
 plugins.
 
-Document authoring is available through
-`@agent-teams/engineering-foundation/document-authoring`. Its catalog and Plan
+Reusable document authoring is available directly from
+`@agent-teams/document-authoring`. Its catalog and Plan
 compiler are read-only; publication and recovery are separate explicit
 operations behind the shared Foundation transaction barrier. The catalog
 rebuilds a stable snapshot from an explicit data-only profile, consumer metadata
@@ -26,7 +26,7 @@ not a Foundation capability and never runs as part of `check`.
 
 ```ts
 import { buildDocumentationCatalog } from
-  "@agent-teams/engineering-foundation/document-authoring";
+  "@agent-teams/document-authoring";
 
 const catalog = await buildDocumentationCatalog({
   consumerRoot: process.cwd(),
@@ -65,13 +65,6 @@ agent-teams-docs new --type adr --id ADR-0083 \
 agent-teams-docs check --consumer /repo
 ```
 
-Foundation's legacy `docs` CLI namespace remains executable only as a frozen
-compatibility surface. Human invocations emit the stable diagnostic code
-`FOUNDATION_DOCS_CLI_DEPRECATED`; JSON invocations retain their published
-stdout, stderr, envelope, and exit-code contract. The legacy namespace must not
-receive new commands, options, orchestration behavior, or Docs Protocol imports.
-Removal requires the evidence defined by
-[ADR-0033](../../docs/decisions/0033-freeze-legacy-foundation-docs-cli.md).
 The canonical current workflow and JSON contract are in the
 [document authoring protocol](../../docs/architecture/document-authoring-protocol.md#canonical-agent-and-operator-cli).
 
@@ -151,10 +144,9 @@ collisions, and unsupported Windows durability fail closed. Foundation retains
 its local-mode admission and domain error mapping while holding the same leaf
 lease; the old Foundation mutation facade is not retained.
 
-Every command that accepts `--json` or `--format json` returns one JSON value on
-success and failure. Generic command failures use
-`foundation-command-error/v1`; document commands keep their command-specific
-envelopes.
+Every Foundation command that accepts `--json` or `--format json` returns one
+JSON value on success and failure. Command failures use
+`foundation-command-error/v1`.
 
 Property suites may import deterministic seed and replay helpers from the package
 root while keeping `fast-check` in the consumer's development dependencies.

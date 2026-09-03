@@ -8,8 +8,8 @@ import test from "node:test";
 
 import {
   planDocumentationDocument
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
-import { NodeDocumentFileState } from "../packages/engineering-foundation/dist/document-authoring/adapters/node/node-document-file-state.js";
+} from "../packages/document-authoring/dist/index.js";
+import { NodeDocumentFileState } from "../packages/document-authoring/dist/adapters/node/node-document-file-state.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)

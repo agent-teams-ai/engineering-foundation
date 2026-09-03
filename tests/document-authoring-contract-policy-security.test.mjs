@@ -6,19 +6,19 @@ import test from "node:test";
 import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
 import {
   documentReceiptDigest,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
+} from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
 import {
   assertDocumentReceipt,
   createDocumentReceipt,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-receipt-policy.js";
+} from "../packages/document-authoring/dist/application/policies/document-receipt-policy.js";
 import {
   assertDocumentTransactionEnvelope,
   createDocumentTransactionEnvelope,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
+} from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
 import {
   documentTransactionEnvelopeDigest,
   documentTransactionPayloadDigest,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-transaction-digests.js";
+} from "../packages/document-authoring/dist/application/policies/document-transaction-digests.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),

@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 
 import {
   captureFailure,
-  createPnpmRunner,
   runCommand
 } from "./pack-test-support.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
@@ -16,28 +15,15 @@ import {
   isSameCanonicalPath
 } from "./registry-package-paths.mjs";
 
-const packageName = "@agent-teams/engineering-foundation", docsPackageName = "@agent-teams/docs-protocol";
+const packageName = "@agent-teams/document-authoring", docsPackageName = "@agent-teams/docs-protocol";
 const docsProfilePath = "architecture/foundation/docs-protocol.yaml";
 const foundationProfilePath = "architecture/foundation/document-authoring.yaml";
-const timeoutMs = 120_000, runPnpm = createPnpmRunner();
+const timeoutMs = 120_000;
 
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
-}
-
-async function runBin(consumerRoot, args) {
-  const binRoot = join(consumerRoot, "node_modules", ".bin");
-  if (process.platform === "win32") {
-    const bin = join(binRoot, "agent-teams-foundation.cmd");
-    await lstat(bin);
-    return runCommand(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", bin, ...args],
-      consumerRoot, { timeoutMs });
-  }
-  const bin = join(binRoot, "agent-teams-foundation");
-  await lstat(bin);
-  return runCommand(bin, args, consumerRoot, { timeoutMs });
 }
 
 async function runDocsBin(consumerRoot, args) {
@@ -67,36 +53,11 @@ async function docsJsonCommand(consumerRoot, args, expectedExitCode = 0) {
   return JSON.parse(lines[0]);
 }
 
-async function jsonCommand(consumerRoot, args, expectedExitCode = 0) {
-  const execution = expectedExitCode === 0
-    ? await runBin(consumerRoot, [...args, "--json"])
-    : await captureFailure(() => runBin(consumerRoot, [...args, "--json"]));
-  if (expectedExitCode !== 0) {
-    assert(execution?.code === expectedExitCode,
-      `JSON document command exited with ${execution?.code ?? "no failure"}; expected ${expectedExitCode}.`);
-  }
-  const { stderr, stdout } = execution;
-  assert(stderr === "", "JSON document command wrote unexpected stderr output.");
-  const lines = stdout.trim().split(/\r?\n/u);
-  assert(lines.length === 1, "JSON document command did not write exactly one envelope.");
-  return JSON.parse(lines[0]);
-}
-
-async function jsonAliasCommand(consumerRoot, alias, args) {
-  const { stderr, stdout } = await runPnpm([
-    "--silent", "run", alias, ...args, "--json"
-  ], consumerRoot);
-  assert(stderr === "", `${alias} wrote unexpected stderr output.`);
-  const lines = stdout.trim().split(/\r?\n/u);
-  assert(lines.length === 1, `${alias} did not write exactly one JSON envelope.`);
-  return JSON.parse(lines[0]);
-}
-
 async function assertInstalledBoundary(input) {
   const manifest = JSON.parse(await readFile(join(input.consumerRoot, "package.json"), "utf8"));
   assert(manifest.devDependencies?.[packageName] === input.version,
-    "Clean consumer must pin the exact packed Foundation version.");
-  const packageRoot = join(input.consumerRoot, "node_modules", "@agent-teams", "engineering-foundation");
+    "Clean consumer must pin the exact packed Document Authoring version.");
+  const packageRoot = join(input.consumerRoot, "node_modules", "@agent-teams", "document-authoring");
   const entry = await lstat(packageRoot);
   assert(entry.isDirectory() && !entry.isSymbolicLink(),
     "Document E2E resolved a workspace/link fallback instead of a registry package.");
@@ -104,7 +65,7 @@ async function assertInstalledBoundary(input) {
   assert(isCanonicalPathInside(
     await realpath(join(input.consumerRoot, "node_modules")), source
   ),
-    "Installed Foundation escaped the clean consumer node_modules tree.");
+    "Installed Document Authoring escaped the clean consumer node_modules tree.");
   assert(manifest.devDependencies?.[docsPackageName] === input.docsVersion,
     "Clean consumer must pin the exact packed Docs Protocol version.");
   const docsRoot = join(input.consumerRoot, "node_modules", "@agent-teams", "docs-protocol");
@@ -117,46 +78,44 @@ async function assertInstalledBoundary(input) {
     "Installed Docs Protocol escaped the clean consumer node_modules tree.");
   assert(isSameCanonicalPath(await realpath(input.installedDocsRoot), await realpath(docsRoot)),
     "Document E2E received a different installed Docs Protocol package root.");
-  const foundationManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  assert(typeof foundationManifest.exports?.["./document-authoring/qualification"] === "object",
-    "Packed Foundation does not declare its closed document-authoring qualification export.");
+  const authoringManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  assert(typeof authoringManifest.exports?.["./qualification"] === "object",
+    "Packed Document Authoring does not declare its closed qualification export.");
+  assert(authoringManifest.dependencies?.["@agent-teams/engineering-foundation"] === undefined,
+    "Packed Document Authoring has a forbidden Foundation dependency.");
+  const docsManifest = JSON.parse(await readFile(join(docsRoot, "package.json"), "utf8"));
+  assert(docsManifest.dependencies?.[packageName] === input.version &&
+    docsManifest.dependencies?.["@agent-teams/engineering-foundation"] === undefined,
+  "Packed Docs Protocol does not use the new-only Document Authoring edge.");
+  const installedFoundationManifest = JSON.parse(await readFile(join(
+    input.consumerRoot, "node_modules", "@agent-teams", "engineering-foundation", "package.json"
+  ), "utf8"));
+  assert(installedFoundationManifest.exports?.["./document-authoring"] === undefined &&
+    installedFoundationManifest.exports?.["./document-authoring/qualification"] === undefined,
+  "Packed Foundation retained a forbidden legacy authoring export.");
   const { stdout: resolutionOutput } = await runCommand(process.execPath, [
     "--input-type=module", "--eval",
-    `const qualification=${JSON.stringify(`${packageName}/document-authoring/qualification`)};const manifest=${JSON.stringify(`${packageName}/package.json`)};const api=await import(qualification);if(typeof api.runDocumentAuthoringCrashQualification!=="function")process.exit(42);process.stdout.write(JSON.stringify({manifest:import.meta.resolve(manifest),qualification:import.meta.resolve(qualification)}));`,
+    `const qualification=${JSON.stringify(`${packageName}/qualification`)};const manifest=${JSON.stringify(`${packageName}/package.json`)};const api=await import(qualification);if(typeof api.runDocumentAuthoringCrashQualification!=="function")process.exit(42);process.stdout.write(JSON.stringify({manifest:import.meta.resolve(manifest),qualification:import.meta.resolve(qualification)}));`,
   ], docsRoot, { timeoutMs });
   const resolved = JSON.parse(resolutionOutput);
   assert(isSameCanonicalPath(
     await realpath(fileURLToPath(resolved.manifest)), await realpath(join(packageRoot, "package.json"))
   ),
-    "Docs Protocol resolves a different physical Foundation package.");
+    "Docs Protocol resolves a different physical Document Authoring package.");
   assert(isCanonicalPathInside(
     await realpath(packageRoot), await realpath(fileURLToPath(resolved.qualification))
   ),
-    "Docs Protocol qualification resolved outside the declared physical Foundation package.");
+    "Docs Protocol qualification resolved outside the declared physical Document Authoring package.");
   await runCommand(process.execPath, [
     "--input-type=module", "--eval",
-    `const api=await import(${JSON.stringify(`${packageName}/document-authoring`)});if(typeof api.planDocumentationDocument!=="function"||typeof api.applyDocumentationPlan!=="function")process.exit(41);`
+    `const api=await import(${JSON.stringify(packageName)});if(typeof api.planDocumentationDocument!=="function"||typeof api.applyDocumentationPlan!=="function")process.exit(41);`
   ], input.consumerRoot, { timeoutMs });
-}
-
-function newArgs(consumerRoot, dryRun = false) {
-  return documentArgs(consumerRoot, {
-    dryRun,
-    id: "ADR-0042",
-    slug: "packed-registry-boundary",
-    title: "Packed Registry Boundary"
-  });
-}
-
-function documentArgs(consumerRoot, input) {
-  return [
-    "docs", "new", "--type", "adr", "--id", input.id,
-    "--title", input.title, "--owner", "architecture",
-    "--summary", "Proves deterministic authoring from a clean registry install.",
-    "--slug", input.slug, "--consumer", consumerRoot,
-    "--profile", "architecture/foundation/document-authoring.yaml",
-    ...(input.dryRun === true ? ["--dry-run"] : [])
-  ];
+  const oldExport = await captureFailure(() => runCommand(process.execPath, [
+    "--input-type=module", "--eval",
+    'await import("@agent-teams/engineering-foundation/document-authoring");'
+  ], input.consumerRoot, { timeoutMs }));
+  assert(oldExport?.code !== 0,
+    "Installed resolution unexpectedly retained the old Foundation authoring export.");
 }
 
 export async function writeDocsProtocolProfileFixture(consumerRoot) {
@@ -172,13 +131,6 @@ export async function writeDocsProtocolProfileFixture(consumerRoot) {
 export async function verifyRegistryDocumentAuthoring(input) {
   await assertInstalledBoundary(input);
   await writePackedConsumerDocumentAuthoringFixture(input.consumerRoot);
-
-  await assertConsumerAliases(input.consumerRoot);
-  await assertPreview(input.consumerRoot);
-  await assertIdleCommands(input.consumerRoot);
-  if (process.platform !== "win32") {
-    await assertApplyAndReplay(input.consumerRoot);
-  }
   await verifyInstalledDocsProtocol(input);
 }
 
@@ -246,7 +198,7 @@ async function compileDocsRecoveryPlan(consumerRoot) {
   const planPath = join(consumerRoot, "docs-protocol-recovery-plan.json");
   const scriptPath = join(consumerRoot, "compile-docs-protocol-recovery-plan.mjs");
   await writeFile(scriptPath, [
-    `import { planDocumentationDocumentV2 } from ${JSON.stringify(`${packageName}/document-authoring`)};`,
+    `import { planDocumentationDocumentV2 } from ${JSON.stringify(packageName)};`,
     'import { writeFile } from "node:fs/promises";',
     "const [consumerRoot, planPath] = process.argv.slice(2);",
     "const plan = await planDocumentationDocumentV2({ consumerRoot,",
@@ -281,10 +233,10 @@ function assertDocsCrashJournal(journal, plan) {
 }
 
 async function exerciseInstalledIdentitySkew(input, plan) {
-  const foundationRoot = await installedPackageRoot(input.consumerRoot);
-  const manifestPath = join(foundationRoot, "package.json");
+  const authoringRoot = await installedPackageRoot(input.consumerRoot);
+  const manifestPath = join(authoringRoot, "package.json");
   const manifestBytes = await readFile(manifestPath);
-  const identityPath = join(foundationRoot, "dist", "index.js");
+  const identityPath = join(authoringRoot, "dist", "index.js");
   const identityBytes = await readFile(identityPath);
   try {
     const manifest = JSON.parse(manifestBytes.toString("utf8"));
@@ -363,47 +315,9 @@ async function verifyInstalledDocsProtocol(input) {
   await verifyDocsCrashAndSkew(input);
 }
 
-async function assertConsumerAliases(consumerRoot) {
-  const manifest = JSON.parse(await readFile(join(consumerRoot, "package.json"), "utf8"));
-  const expected = {
-    "docs:find": "agent-teams-foundation docs find",
-    "docs:new": "agent-teams-foundation docs new",
-    "docs:doctor": "agent-teams-foundation docs doctor",
-    check: "agent-teams-foundation repo check"
-  };
-  assert(JSON.stringify(manifest.scripts) === JSON.stringify(expected),
-    "Disposable consumer does not expose the canonical Node/pnpm aliases.");
-  const found = await jsonAliasCommand(consumerRoot, "docs:find", [
-    "Hermetic", "--consumer", consumerRoot
-  ]);
-  assert(found.command === "docs.find" && found.outcome === "success" &&
-    found.result?.matches === 1 && found.result?.documents?.length === 1 &&
-    found.result.documents[0]?.id === "guide.packaged",
-  "pnpm docs:find did not execute the installed CLI alias.");
-  const preview = await jsonAliasCommand(
-    consumerRoot,
-    "docs:new",
-    [
-      "--type", "adr", "--id", "ADR-0041", "--title", "Alias",
-      "--owner", "architecture", "--summary", "Packed-alias-preview.",
-      "--slug", "packed-alias-preview", "--consumer", consumerRoot,
-      "--profile", "architecture/foundation/document-authoring.yaml", "--dry-run"
-    ]
-  );
-  assert(preview.command === "docs.new" && preview.result?.writeState === "preview",
-    "pnpm docs:new did not execute a non-mutating installed CLI preview.");
-  if (process.platform !== "win32") {
-    const doctor = await jsonAliasCommand(consumerRoot, "docs:doctor", [
-      "--consumer", consumerRoot
-    ]);
-    assert(doctor.command === "docs.doctor" && doctor.outcome === "success",
-      "pnpm docs:doctor did not execute the installed CLI alias.");
-  }
-}
-
 async function installedPackageRoot(consumerRoot) {
   return realpath(join(
-    consumerRoot, "node_modules", "@agent-teams", "engineering-foundation"
+    consumerRoot, "node_modules", "@agent-teams", "document-authoring"
   ));
 }
 
@@ -411,7 +325,7 @@ async function writeCrashWorker(consumerRoot) {
   const workerPath = join(consumerRoot, "packed-document-crash-worker.mjs");
   await writeFile(workerPath, [
     'import { readFile } from "node:fs/promises";',
-    `import { runDocumentAuthoringCrashQualification } from ${JSON.stringify(`${packageName}/document-authoring/qualification`)};`,
+    `import { runDocumentAuthoringCrashQualification } from ${JSON.stringify(`${packageName}/qualification`)};`,
     "const [consumerRoot, planPath] = process.argv.slice(2);",
     'const plan = JSON.parse(await readFile(planPath, "utf8"));',
     'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-publishing-journal-durable" });',
@@ -468,69 +382,4 @@ async function assertAbsent(path, message) {
     throw error;
   }
   throw new Error(message);
-}
-
-async function assertPreview(consumerRoot) {
-  const preview = await jsonCommand(consumerRoot, newArgs(consumerRoot, true));
-  assert(preview.command === "docs.new" && preview.outcome === "success" &&
-    preview.result?.writeState === "preview",
-  "Packed docs new --dry-run did not produce a non-mutating preview.");
-  const destination = join(consumerRoot, "docs", "catalog", "0042-packed-registry-boundary.md");
-  try {
-    await lstat(destination);
-    throw new Error("Packed docs new --dry-run mutated the disposable consumer.");
-  } catch (error) {
-    if (error?.code !== "ENOENT") {
-      throw error;
-    }
-  }
-}
-
-async function assertIdleCommands(consumerRoot) {
-  const doctorBefore = await jsonCommand(consumerRoot, [
-    "docs", "doctor", "--consumer", consumerRoot
-  ], process.platform === "win32" ? 1 : 0);
-  const expectedDoctorOutcome = process.platform === "win32" ? "violation" : "success";
-  const expectedDurability = process.platform === "win32"
-    ? "platform-unsupported"
-    : "platform-supported";
-  assert(doctorBefore.command === "docs.doctor" &&
-    doctorBefore.outcome === expectedDoctorOutcome &&
-    doctorBefore.result?.transactionState === "none" &&
-    doctorBefore.result?.filesystem?.strictDirectoryDurability === expectedDurability,
-  "Packed docs doctor did not report the clean consumer platform contract honestly.");
-  const recoverBefore = await jsonCommand(consumerRoot, [
-    "docs", "recover", "--consumer", consumerRoot
-  ]);
-  assert(recoverBefore.outcome === "success" &&
-    recoverBefore.result?.transactionState === "no-pending-transaction",
-  "Packed docs recover was not safe on a clean consumer.");
-}
-
-async function assertApplyAndReplay(consumerRoot) {
-  const destination = join(consumerRoot, "docs", "catalog", "0042-packed-registry-boundary.md");
-  const applied = await jsonCommand(consumerRoot, newArgs(consumerRoot));
-  assert(applied.command === "docs.new" && applied.outcome === "success" &&
-    applied.result?.writeState === "applied",
-  "Packed docs new did not atomically apply the planned document.");
-  assert((await readFile(destination, "utf8")).includes("# ADR-0042: Packed Registry Boundary"),
-    "Packed docs new wrote unexpected document content.");
-
-  const doctor = await jsonCommand(consumerRoot, [
-    "docs", "doctor", "--consumer", consumerRoot
-  ]);
-  assert(doctor.command === "docs.doctor" && doctor.outcome === "success" &&
-    doctor.result?.transactionState === "none",
-  "Packed docs doctor did not prove an idle transaction after apply.");
-
-  const recovered = await jsonCommand(consumerRoot, [
-    "docs", "recover", "--consumer", consumerRoot
-  ]);
-  assert(recovered.command === "docs.recover" && recovered.outcome === "success" &&
-    recovered.result?.transactionState === "no-pending-transaction",
-  "Packed docs recover was not a safe idempotent no-op after commit.");
-
-  const replay = await jsonCommand(consumerRoot, newArgs(consumerRoot));
-  assert(replay.outcome === "success" && replay.result?.writeState === "already-applied",
-    "Packed docs new exact replay was not deterministic.");
 }

@@ -6,6 +6,7 @@ import {
 } from "./publishable-packages.mjs";
 
 export const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
+export const DOCUMENT_AUTHORING_PACKAGE = "@agent-teams/document-authoring";
 export const DOCS_PACKAGE = "@agent-teams/docs-protocol";
 export const DOCS_MCP_PACKAGE = "@agent-teams/docs-protocol-mcp";
 export const REGISTRY_OBSERVATION_ATTEMPTS = 73;

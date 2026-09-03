@@ -1,4 +1,4 @@
-import type { DocumentJsonValue, DocumentMetadataValue } from "@agent-teams/engineering-foundation/document-authoring";
+import type { DocumentJsonValue, DocumentMetadataValue } from "@agent-teams/document-authoring";
 
 import type { DocsCodeAnchor } from "./model.js";
 import { DocsProfileError } from "./profile-policy.js";

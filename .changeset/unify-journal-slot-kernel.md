@@ -1,9 +1,11 @@
 ---
 "@agent-teams/engineering-foundation": patch
+"@agent-teams/document-authoring": patch
+"@agent-teams/repository-mutation": minor
 ---
 
 Compose the document-authoring and scaffolding journal stores over one shared
-journal slot store in the Foundation transaction-coordination layer. Both owners
+journal slot store in Repository Mutation's Node-only mechanism surface. Both owners
 keep their released on-disk names, byte formats, fault phases, crash residue,
 and error wording; only the duplicated candidate, quarantine, retirement, and
 reconciliation mechanics now live in one implementation. The retired

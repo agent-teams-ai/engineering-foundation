@@ -46,9 +46,10 @@ import {
 } from "./registry-qualification-packages.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
+const DOCUMENT_AUTHORING_PACKAGE_NAME = "@agent-teams/document-authoring";
 const DOCS_PROTOCOL_MCP_PACKAGE_NAME = "@agent-teams/docs-protocol-mcp";
 const FOUNDATION_FEATURE_IMPORTS = [
-  FOUNDATION_PACKAGE_NAME, `${FOUNDATION_PACKAGE_NAME}/document-authoring`,
+  FOUNDATION_PACKAGE_NAME,
   `${FOUNDATION_PACKAGE_NAME}/local-mode`, `${FOUNDATION_PACKAGE_NAME}/scaffolding`,
 ];
 const REGISTRY_QUALIFICATION_PACKAGES = registryQualificationPackages(
@@ -451,7 +452,8 @@ async function verifyConsumer(targets, registryUrl, matrixEntry) {
     }
     return target;
   };
-  const foundationTarget = requiredTarget(FOUNDATION_PACKAGE_NAME);
+  requiredTarget(FOUNDATION_PACKAGE_NAME);
+  const authoringTarget = requiredTarget(DOCUMENT_AUTHORING_PACKAGE_NAME);
   const docsTarget = requiredTarget(DOCS_PROTOCOL_PACKAGE_NAME);
   const mcpTarget = requiredTarget(DOCS_PROTOCOL_MCP_PACKAGE_NAME);
   const selectedTargets = targets.filter((target) =>
@@ -494,21 +496,19 @@ async function verifyConsumer(targets, registryUrl, matrixEntry) {
     });
   }
   if (matrixEntry.profile === "foundation-full") {
-    const installedFoundationRoot = await resolveDependencyRoot(
-      installedDocsRoot, FOUNDATION_PACKAGE_NAME,
-    );
+    const installedFoundationRoot = installedRoots.get(FOUNDATION_PACKAGE_NAME);
     if (installedFoundationRoot === undefined) {
       throw new Error("Installed Foundation dependency is missing.");
     }
     await verifyFoundationFeatures({
       consumerRoot,
+      authoringVersion: authoringTarget.manifest.version,
       docsVersion: docsTarget.manifest.version,
       featureImports: FOUNDATION_FEATURE_IMPORTS,
       installedDocsRoot,
       installedRoot: installedFoundationRoot,
       repositoryRoot,
       verifyInstalledBufQualifier,
-      version: foundationTarget.manifest.version,
     });
   }
   const lockPath = join(
@@ -555,6 +555,7 @@ try {
     manager: "npm",
     packageNames: Object.freeze([
       FOUNDATION_PACKAGE_NAME,
+      DOCUMENT_AUTHORING_PACKAGE_NAME,
       DOCS_PROTOCOL_PACKAGE_NAME,
       DOCS_PROTOCOL_MCP_PACKAGE_NAME,
     ]),

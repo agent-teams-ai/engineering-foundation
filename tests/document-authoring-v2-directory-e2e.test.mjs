@@ -18,8 +18,8 @@ import {
   applyDocumentationPlan,
   inspectDocumentTransactionV2,
   planDocumentationDocument
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
-import { applyNodeDocumentationPlanPrivately } from "../packages/engineering-foundation/dist/document-authoring/composition/node-document-writing-private.js";
+} from "../packages/document-authoring/dist/index.js";
+import { applyNodeDocumentationPlanPrivately } from "../packages/document-authoring/dist/composition/node-document-writing-private.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)

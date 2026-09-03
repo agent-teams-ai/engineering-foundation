@@ -9,7 +9,7 @@ import {
   renderCanonicalDocument,
   renderCanonicalFrontmatter,
   YamlCanonicalDocumentRenderer,
-} from "../packages/engineering-foundation/dist/document-authoring/adapters/canonical-markdown.js";
+} from "../packages/document-authoring/dist/adapters/canonical-markdown.js";
 
 const fixtureRoot = new URL("fixtures/document-authoring-canonical-markdown/", import.meta.url);
 

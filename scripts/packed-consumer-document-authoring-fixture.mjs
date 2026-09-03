@@ -8,17 +8,33 @@ export async function writePackedConsumerDocumentAuthoringFixture(consumerRoot) 
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   manifest.scripts = {
     ...manifest.scripts,
-    "docs:find": "agent-teams-foundation docs find",
-    "docs:new": "agent-teams-foundation docs new",
-    "docs:doctor": "agent-teams-foundation docs doctor",
+    "docs:find": "agent-teams-docs find",
+    "docs:new": "agent-teams-docs new",
+    "docs:doctor": "agent-teams-docs doctor",
     check: "agent-teams-foundation repo check"
   };
   await writeJson(manifestPath, manifest);
   await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
+  await mkdir(join(consumerRoot, ".agents", "skills", "portable-docs"), { recursive: true });
   await mkdir(join(consumerRoot, "docs", "catalog"), { recursive: true });
   await writeFile(
+    join(consumerRoot, "docs.config.yaml"),
+    `schemaVersion: 3
+protocol: {id: agent-teams.docs-protocol, version: 1}
+foundationProfile:
+  path: architecture/foundation/document-authoring.yaml
+  schemaVersion: 3
+  metadataSidecarPolicy: foundation-profile-v3-strict-merge
+agentWorkflow:
+  adoption: portable-v1
+  skillPath: .agents/skills/portable-docs/SKILL.md
+semanticValidatorIds: []
+`,
+    "utf8"
+  );
+  await writeFile(
     join(consumerRoot, "architecture", "foundation", "document-authoring.yaml"),
-    `schemaVersion: 1
+    `schemaVersion: 3
 projectId: pack-consumer
 catalog:
   metadataSchemaPath: docs/metadata.schema.json
@@ -49,7 +65,14 @@ authoring:
       reachability:
         kind: manual-fixed-index
         indexPath: docs/catalog/README.md
+      allowedOwnerIds:
+        - architecture
 `,
+    "utf8"
+  );
+  await writeFile(
+    join(consumerRoot, ".agents", "skills", "portable-docs", "SKILL.md"),
+    "# Documentation authoring\n\nUse the repository Docs Protocol profile.\n",
     "utf8"
   );
   await writeJson(join(consumerRoot, "docs", "metadata.schema.json"), {

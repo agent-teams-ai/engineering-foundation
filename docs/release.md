@@ -1,9 +1,9 @@
 # Release Procedure
 
-All ordinary Repository Mutation, Foundation, Docs Protocol, Agent Teams
-adapter, and Docs Protocol MCP releases use npm Trusted Publishing from the
-protected `main` workflow with GitHub OIDC and automatic provenance. Manual
-workstation publication and persistent npm secrets are not supported.
+All ordinary releases of packages in the reviewed public-package catalog use
+npm Trusted Publishing from the protected `main` workflow with GitHub OIDC and
+automatic provenance. Manual workstation publication and persistent npm secrets
+are not supported.
 The sole exception is the reviewed one-time namespace bootstrap in ADR-0044;
 it cannot publish a supported release.
 
@@ -79,13 +79,14 @@ leaves the release run failed and blocks completion evidence.
 Release-candidate waves use committed Changesets prerelease state with the exact
 `rc` tag. Changesets remains the sole version and changelog authority, but the
 publish step is deliberately ordered rather than delegated to concurrent
-workspace publication. It packs every reviewed artifact and proves the exact
-five-package dependency DAG: `Repository Mutation -> Foundation -> Docs
-Protocol`, `Docs Protocol -> Agent Teams adapter`, and `Docs Protocol -> Docs
-Protocol MCP`; the adapter also binds exact Foundation and Repository Mutation
-versions. Publication follows the reviewed topological order Repository Mutation,
-Foundation, Docs Protocol, Agent Teams adapter, then Docs Protocol MCP under the
-final `rc` or `latest` tag using npm Trusted Publishing with the npm version
+workspace publication. It packs every reviewed artifact and derives the
+publication order by topologically sorting the exact internal dependencies from
+the reviewed workspace manifests. The projection must equal the closed
+six-package DAG owned solely by
+[ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md);
+no second hand-maintained package list or release order is authoritative.
+Publication uses the resulting order under the final `rc` or `latest` tag with
+npm Trusted Publishing and the npm version
 bundled by the pinned Node runtime. No npm token is stored. Immediately before
 each npm write, the live protected
 `refs/heads/main` must still equal the run's exact `GITHUB_SHA`; an older run may

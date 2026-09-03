@@ -20,8 +20,9 @@ A consumer owns business and repository facts:
 - domain terminology, ADRs, and open decisions;
 - project-specific capability configuration and fixtures.
 
-The consumer supplies those facts through a narrow configuration adapter. The
-foundation validates and executes them but cannot invent or override them.
+The consumer supplies those facts through narrow data-only configuration. The
+responsible portable package validates and executes them but cannot invent or
+override them.
 
 The accepted scaffolding boundary applies the same ownership rule to mutation.
 Foundation owns the closed deterministic compiler and execution protocol. A
@@ -56,8 +57,8 @@ data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md)
-accepts the new-only package ownership target. Implementation is pending, and
-that ADR is the sole authority for the target dependency DAG. In the target:
+defines the implemented new-only package ownership boundary and is the sole
+authority for its dependency DAG:
 
 - `@agent-teams/repository-mutation` owns portable operation barriers,
   exact-preimage known-file transactions, journals, and exact-build recovery;
@@ -79,17 +80,17 @@ exports, aliases, forwarding facade, or runtime autodetection; current consumers
 must be inventoried and have explicit reviewed migration changes prepared before
 publication. Those changes adopt exact published pins only after protected
 registry and provenance proof, then prove fleet closure in the approved rollout.
+Portable Docs Protocol depends directly on Document Authoring and Repository
+Mutation; it does not reach either through Engineering Foundation. All managed
+behavior is confined to Docs Protocol Agent Teams.
 
 ADR-0030's exact-preimage mutation and ADR-0037's disposable package-manager
-staging remain behavioral requirements, but their target implementations move
-to the owners above. Retiring a legacy command entrypoint does not retire a
-journal, transaction reader, or exact-build recovery handler. Incompatible or
-ambiguous persisted evidence continues to fail closed.
-
-ADR-0033 still governs its existing legacy entrypoint until its independent
-removal evidence is complete. It does not authorize a compatibility bridge in
-the new packages, and its compatibility surface is not a reason to copy legacy
-exports into the target boundary.
+staging remain behavioral requirements under the owners above. Engineering
+Foundation exposes no document-authoring API or documentation CLI. Retiring
+those user-facing surfaces does not retire a journal, transaction reader, or
+exact-build recovery handler during its support window. Incompatible or
+ambiguous persisted evidence continues to fail closed, and no new package
+provides a compatibility bridge.
 
 The corrected authoring v1 semantics remain unchanged through the split. The
 portable authoring owner retains Intent normalization, closed ID/placement

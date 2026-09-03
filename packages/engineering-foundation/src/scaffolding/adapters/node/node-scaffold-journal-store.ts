@@ -1,12 +1,12 @@
 import { join } from "node:path";
 
-import type {
-  JournalSlotFailure,
-  JournalSlotFailureContext,
-  JournalSlotFaultPoint,
-  JournalSlotSubject
-} from "../../../transaction-coordination/adapters/node/node-journal-slot-profile.js";
-import { NodeJournalSlotStore } from "../../../transaction-coordination/adapters/node/node-journal-slot-store.js";
+import {
+  NodeJournalSlotStore,
+  type JournalSlotFailure,
+  type JournalSlotFailureContext,
+  type JournalSlotFaultPoint,
+  type JournalSlotSubject
+} from "@agent-teams/repository-mutation/node";
 import {
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE,

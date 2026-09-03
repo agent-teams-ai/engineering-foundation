@@ -7,6 +7,9 @@ import {
   type ErrorObject,
   type ValidateFunction
 } from "ajv/dist/2020.js";
+import {
+  readDocumentAuthoringSchema
+} from "@agent-teams/document-authoring";
 
 import { CapabilityInputError } from "./capability-runtime.js";
 import {
@@ -26,29 +29,16 @@ const ajv = new Ajv2020({
 });
 const validators = new Map<FoundationSchemaCatalogId, ValidateFunction>();
 const schemaLoads = new Map<string, Promise<string>>();
+type AuthoringSchemaDependencyId = "document-intent/v1" | "document-plan/v1";
+type SchemaDependencyId = FoundationSchemaCatalogId | AuthoringSchemaDependencyId;
 const SCHEMA_DEPENDENCIES: Partial<
-  Readonly<Record<FoundationSchemaCatalogId, readonly FoundationSchemaCatalogId[]>>
+  Readonly<Record<FoundationSchemaCatalogId, readonly SchemaDependencyId[]>>
 > = {
-  "document-authoring-profile/v2": ["document-authoring-profile/v1"],
-  "document-authoring-profile/v3": ["document-authoring-profile/v1"],
-  "document-plan/v1": ["document-intent/v1"],
-  "document-plan/v2": ["document-intent/v1", "document-plan/v1"],
-  "document-receipt/v2": ["document-receipt/v1"],
   "foundation-transaction-envelope/v2": [
     "document-intent/v1",
     "document-plan/v1",
     "scaffold-plan/v1",
     "scaffold-recovery-journal/v1"
-  ],
-  "foundation-transaction-envelope/v3": [
-    "document-intent/v1",
-    "document-plan/v1"
-  ],
-  "foundation-transaction-envelope/v4": [
-    "document-intent/v1",
-    "document-plan/v1",
-    "document-plan/v2",
-    "foundation-transaction-envelope/v3"
   ],
   "scaffold-recovery-journal/v1": ["scaffold-plan/v1"]
 };
@@ -82,11 +72,15 @@ function safeValidationMessage(errors: readonly ErrorObject[] | null | undefined
     .slice(0, 1000);
 }
 
-async function loadSchema(schemaId: FoundationSchemaCatalogId): Promise<string> {
-  for (const dependency of SCHEMA_DEPENDENCIES[schemaId] ?? []) {
+async function loadSchema(schemaId: SchemaDependencyId): Promise<string> {
+  const authoringSchema = schemaId === "document-intent/v1" || schemaId === "document-plan/v1";
+  for (const dependency of authoringSchema ? [] : SCHEMA_DEPENDENCIES[schemaId] ?? []) {
     await registerSchema(dependency);
   }
-  const schema = JSON.parse(await readFile(schemaPath(schemaId), "utf8")) as {
+  const source = authoringSchema
+    ? await readDocumentAuthoringSchema(schemaId)
+    : await readFile(schemaPath(schemaId), "utf8");
+  const schema = JSON.parse(source) as {
     readonly $id?: unknown;
   };
   if (typeof schema.$id !== "string" || schema.$id.length === 0) {
@@ -98,8 +92,8 @@ async function loadSchema(schemaId: FoundationSchemaCatalogId): Promise<string> 
   return schema.$id;
 }
 
-function registerSchema(schemaId: FoundationSchemaCatalogId): Promise<string> {
-  const source = schemaSource(schemaId);
+function registerSchema(schemaId: SchemaDependencyId): Promise<string> {
+  const source = schemaId;
   const existing = schemaLoads.get(source);
   if (existing !== undefined) {
     return existing;

@@ -22,6 +22,8 @@ const cliPath = configuredCliPath ?? join(
   "cli.js"
 );
 const bufVersion = "1.72.0";
+const commandTimeoutMs = 60_000;
+const toolBootstrapTimeoutMs = 180_000;
 const bufConfigSource =
   "version: v2\nmodules:\n  - path: contracts/protobuf\nbreaking:\n  use:\n    - FILE\n";
 
@@ -34,13 +36,22 @@ async function writeJson(path, value) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-async function run(command, arguments_, cwd, acceptedExitCodes = [0], environment = process.env) {
+async function run(
+  command,
+  arguments_,
+  cwd,
+  {
+    acceptedExitCodes = [0],
+    environment = process.env,
+    timeoutMs = commandTimeoutMs
+  } = {}
+) {
   try {
     const result = await execFileAsync(command, arguments_, {
       cwd,
       encoding: "utf8",
       maxBuffer: 16 * 1024 * 1024,
-      timeout: 60_000,
+      timeout: timeoutMs,
       windowsHide: true,
       env: environment
     });
@@ -59,7 +70,9 @@ async function run(command, arguments_, cwd, acceptedExitCodes = [0], environmen
 }
 
 async function runCli(root, arguments_, acceptedExitCodes = [0]) {
-  return run(process.execPath, [cliPath, ...arguments_], root, acceptedExitCodes);
+  return run(process.execPath, [cliPath, ...arguments_], root, {
+    acceptedExitCodes
+  });
 }
 
 function protobufConfig(input) {
@@ -136,8 +149,10 @@ async function resolvePinnedBuf() {
     aqua.executable,
     ["exec", "--", "buf", "--version"],
     repositoryRoot,
-    [0],
-    aquaEnvironment
+    {
+      environment: aquaEnvironment,
+      timeoutMs: toolBootstrapTimeoutMs
+    }
   );
   if (aquaVersion.stdout.trim() !== bufVersion) {
     throw new Error(
@@ -148,8 +163,7 @@ async function resolvePinnedBuf() {
     aqua.executable,
     ["which", "buf"],
     repositoryRoot,
-    [0],
-    aquaEnvironment
+    { environment: aquaEnvironment }
   );
   const bufExecutable = which.stdout.trim();
   if (bufExecutable.length === 0) {

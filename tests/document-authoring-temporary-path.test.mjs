@@ -5,11 +5,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { documentPlanDigest } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-temporary-path.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
+import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
 import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const fixture = JSON.parse(await readFile(fileURLToPath(new URL(
   "fixtures/document-authoring-contracts/valid-v1.json",
@@ -104,19 +105,12 @@ test("schema requires a closed creator-handle identity", async (context) => {
     ["open shape", (identity) => { identity.extra = "open"; }],
   ]) {
     await context.test(name, async () => {
-      const envelope = structuredClone(fixture.documentEnvelope);
-      envelope.journal.plan = structuredClone(fixture.plan);
-      envelope.journal.ownedTemporary = {
-        path: "temporary.tmp",
-        digest: envelope.journal.plan.output.digest,
-        identity: {
-          adapter: "node-filesystem", version: 1,
-          dev: "1", ino: "2", birthtimeNs: "3",
-        },
-      };
-      mutate(envelope.journal.ownedTemporary.identity);
+      const envelope = createDocumentEnvelopeV3(fixture, "PUBLISHING");
+      const identity = { ...envelope.journal.ownedTemporary.identity };
+      mutate(identity);
+      envelope.journal.ownedTemporary.identity = identity;
       await assert.rejects(
-        assertSchema("foundation-transaction-envelope/v2", envelope, name),
+        assertSchema("foundation-transaction-envelope/v3", envelope, name),
         (error) => error?.problem?.code === "SCHEMA_INVALID",
       );
     });
@@ -124,15 +118,10 @@ test("schema requires a closed creator-handle identity", async (context) => {
 });
 
 test("schema accepts canonical unsigned zero identity fields", async () => {
-  const envelope = structuredClone(fixture.documentEnvelope);
-  envelope.journal.plan = structuredClone(fixture.plan);
-  envelope.journal.ownedTemporary = {
-    path: "temporary.tmp",
-    digest: envelope.journal.plan.output.digest,
-    identity: {
-      adapter: "node-filesystem", version: 1,
-      dev: "0", ino: "0", birthtimeNs: "0",
-    },
+  const envelope = createDocumentEnvelopeV3(fixture, "PUBLISHING");
+  envelope.journal.ownedTemporary.identity = {
+    adapter: "node-filesystem", version: 1,
+    dev: "0", ino: "0", birthtimeNs: "0",
   };
-  await assertSchema("foundation-transaction-envelope/v2", envelope, "zero-identity");
+  await assertSchema("foundation-transaction-envelope/v3", envelope, "zero-identity");
 });

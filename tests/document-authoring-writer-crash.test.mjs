@@ -11,7 +11,8 @@ import {
   inspectDocumentTransactionV2,
   planDocumentationDocument,
   recoverDocumentationTransaction
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
 import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 
 const fixtures = fileURLToPath(
@@ -293,9 +294,18 @@ requiresStrictDirectoryDurability("SIGKILL after temporary sync preserves orphan
     const receipt = await recoverDocumentationTransaction({ consumerRoot });
     assert.equal(receipt.outcome, "manual-recovery-required");
     assert.match(receipt.diagnostics[0].ruleId, /orphan-temporary/u);
-    await assert.rejects(
-      applyDocumentationPlan({ consumerRoot, plan }),
-      /must be recovered/u
+    const blocked = await applyDocumentationPlan({ consumerRoot, plan });
+    assert.equal(blocked.outcome, "manual-recovery-required");
+    assert.equal(
+      blocked.diagnostics[0].ruleId,
+      "document.transaction.cleanup-unproven"
+    );
+    assert.deepEqual(
+      await readFile(join(
+        consumerRoot,
+        documentTemporaryPath(plan.destination, plan.planDigest)
+      )),
+      Buffer.from(plan.output.contentBase64, "base64")
     );
   });
 });

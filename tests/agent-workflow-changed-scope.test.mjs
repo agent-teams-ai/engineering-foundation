@@ -78,7 +78,8 @@ async function invocations(consumerRoot) {
 }
 
 async function waitForProcessId(path) {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
     try {
       const pid = Number.parseInt(await readFile(path, "utf8"), 10);
       if (Number.isSafeInteger(pid) && pid > 0) {

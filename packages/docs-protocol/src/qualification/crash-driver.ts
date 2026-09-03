@@ -25,7 +25,7 @@ async function crashAtDurableCheckpoint(
   await writeFile(planPath, `${JSON.stringify(plan)}\n`, "utf8");
   await writeFile(workerPath, [
     'import { readFile } from "node:fs/promises";',
-    'import { runDocumentAuthoringCrashQualification } from "@agent-teams/engineering-foundation/document-authoring/qualification";',
+    'import { runDocumentAuthoringCrashQualification } from "@agent-teams/document-authoring/qualification";',
     "const [consumerRoot, planPath] = process.argv.slice(2);",
     'const plan = JSON.parse(await readFile(planPath, "utf8"));',
     workerInvocation[crashPoint],

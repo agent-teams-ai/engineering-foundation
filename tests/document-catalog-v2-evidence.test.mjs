@@ -10,11 +10,11 @@ import {
   describeDocumentAuthoringProfileV2,
   describeDocumentAuthoringProfileV3,
   findDocumentationDocumentsV2,
-} from "../packages/engineering-foundation/dist/document-authoring/index.js";
+} from "../packages/document-authoring/dist/index.js";
 import {
   documentAuthoringProfileSemanticDigest,
   documentAuthoringProfileSemanticDigestV3,
-} from "../packages/engineering-foundation/dist/document-authoring/application/policies/document-authoring-semantic-digests.js";
+} from "../packages/document-authoring/dist/application/policies/document-authoring-semantic-digests.js";
 
 const schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",

@@ -7,8 +7,7 @@ superseded_by: []
 
 # ADR-0043: New-Only Portable Documentation Package Boundary
 
-Status: Accepted target; implementation and exact-head qualification complete;
-protected publication and consumer rollout pending
+Status: Accepted target; implementation and qualification pending
 
 Date: 2026-08-31
 
@@ -24,9 +23,8 @@ authoring mechanisms coupled to a broader tooling release.
 
 The product owner has approved a genuinely portable, independently versioned
 package boundary with one-way layers and no compatibility bridge. This decision
-records the target and its invariants. Exact-head implementation and disposable
-qualification are tracked in the delivery evidence; protected publication and
-consumer availability must not be inferred from acceptance or CI alone.
+records the target only. The current manifests and source tree do not implement
+or qualify it yet; availability must not be inferred from acceptance.
 
 This is a scoped supersession of ADR-0039: it replaces only ADR-0039 decision 1's
 package boundary and decision 5's unchanged managed placement. Repository
@@ -188,9 +186,9 @@ is committed.
 
 The compact phase and evidence contract is
 [Docs portable boundary delivery](../development/docs-portable-boundary-delivery.md).
-Until protected publication and the separately approved consumer rollout are
-complete, this ADR describes a qualified but unreleased package set. CI and
-disposable registry evidence do not grant publication or consumer availability.
+Until every pending item there is proven at one exact head, this ADR describes
+an accepted target rather than an implemented, qualified, installable, or
+released package set.
 
 ## Consequences
 

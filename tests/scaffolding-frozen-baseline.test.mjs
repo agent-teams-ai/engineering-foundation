@@ -343,6 +343,7 @@ test("keeps packed and registry-install qualification wired", async () => {
     "linux-coverage",
     "linux-package",
     "linux-registry",
+    "linux-bootstrap-evidence",
     "linux-published",
   ]) {
     assert.match(ciSource, new RegExp(`  ${requiredLane}:`, "u"));

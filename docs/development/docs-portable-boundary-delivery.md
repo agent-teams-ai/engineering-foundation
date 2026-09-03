@@ -2,7 +2,7 @@
 
 Status: the direct adapter split plus Repository Mutation and Document Authoring
 package extractions are implemented and merged at exact head
-`fd5908adc793c8be657ef3e340e4fc954719b374`. Required exact-head qualification is
+`9e408528917be8df539171c231049bc6347a2adc`. Required exact-head qualification is
 green; protected publication and coordinated consumer rollout remain pending.
 
 The accepted target and sole manually maintained package DAG are in
@@ -22,18 +22,17 @@ pre-release evidence until protected bootstrap and provenance promotion finish.
 
 | Evidence | State | Observation |
 | --- | --- | --- |
-| Exact base | Bound | The package-boundary delivery is measured from `f73907741b6752a1ba57baaf516e7fcdb6e2aa9b`; final exact head is `fd5908adc793c8be657ef3e340e4fc954719b374`; post-merge CI run `33701563366` and evidence-update PR run `33705374379` passed |
+| Exact base | Bound | The package-boundary delivery is measured from `f73907741b6752a1ba57baaf516e7fcdb6e2aa9b`; implementation head `fd5908adc793c8be657ef3e340e4fc954719b374` and current merged `main` head `9e408528917be8df539171c231049bc6347a2adc` are bound to post-merge CI run `33756708932` (all jobs passed) |
 | Current public manifests | Measured | One manifest-derived catalog projects all six public packages and the closed ADR-0043 dependency graph |
 | Physical boundaries | Measured | Foundation authoring/mutation exports and the Foundation `docs` CLI namespace are absent; portable Docs Protocol has no adapter path |
 | Focused remediation | Passed | Bootstrap policy `26/26`; CLI/filesystem `58 passed` plus one intentional benchmark skip; transaction/recovery `125/125` and `51/51`; final stale assumptions `2/2` and `13/13` |
 | Source Dependencies v2 | Passed | Package coverage, package/export ownership, manifest edges, cross-package relative imports, runtime/type-only cycles, and qualification coverage fail closed |
-| Disposable package install | Passed (pre-release) | On the exact `main` tree `b7cf4cf`, `pnpm registry-install-e2e:built` passed all npm/pnpm docs-only, MCP, and Foundation matrices in a local Verdaccio registry. The run packed all six public packages, resolved 129 runtime dependencies, and emitted lockfile digests; no protected registry publication or real-consumer runtime action is claimed |
+| Disposable package install | Passed (pre-release) | On exact `main` tree `9e40852`, post-merge CI run `33756708932` passed npm/pnpm docs-only, MCP, and Foundation registry matrices on Linux and Windows plus macOS qualification. A local Verdaccio run also packed all six public packages, resolved 129 runtime dependencies, and emitted lockfile digests; no protected registry publication or real-consumer runtime action is claimed |
 
 Hosted execution is currently fail-closed. A project-control admission snapshot
-at `2026-09-03T02:27:43Z` reported no heavy workers running and sufficient
-memory, but denied a new producer because the old-host volume had
-`availableKb=27404996` below the `minFreeKb=31457280` threshold and retained
-the inactive dirty `docauth43-core-r2` worktree. No new hosted worker was
+at `2026-09-03T12:42:58Z` reported no heavy workers running and sufficient
+memory, but denied a new producer because the project retained the inactive
+dirty `docauth43-core-r2` worktree. No new hosted worker was
 dispatched against that state; the dirty output remains preserved for explicit
 review rather than being deleted or restarted.
 
@@ -51,12 +50,13 @@ the final physical package graph passes all required gates at one exact head. Th
 merged head now has that required CI evidence; protected bootstrap remains a
 separate release gate.
 
-`@agent-teams/document-authoring@0.0.0` and
-`@agent-teams/repository-mutation@0.0.0` are candidate bootstrap artifacts after
-the shared journal kernel merge. Their previous package-tree/SRI approvals were
-invalidated because the package bytes changed; the catalog is intentionally
-fail-closed until protected bootstrap re-qualifies both exact artifacts. They
-are neither registry evidence nor supported releases.
+`@agent-teams/repository-mutation@0.0.0`,
+`@agent-teams/document-authoring@0.0.0`, and
+`@agent-teams/docs-protocol-agent-teams@0.0.0` are candidate bootstrap artifacts
+after the shared journal kernel merge. Their previous package-tree/SRI approvals
+were invalidated because the package bytes changed; the catalog is intentionally
+fail-closed until protected bootstrap re-qualifies all three exact artifacts.
+They are neither registry evidence nor supported releases.
 
 ## Delivery checklist
 

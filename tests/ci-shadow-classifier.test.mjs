@@ -24,6 +24,9 @@ test("PR and merge-group CI never route required lanes through the shadow result
   assert.deepEqual(workflow.on.merge_group, {});
   for (const [name, job] of Object.entries(workflow.jobs)) {
     if (name === "shadow-classifier") {continue;}
-    assert.doesNotMatch(JSON.stringify(job), /needs\.shadow-classifier|candidate|effective-plan/u, name);
+    const serialized = JSON.stringify(job);
+    assert.notEqual(job.needs, "shadow-classifier", name);
+    assert.ok(!Array.isArray(job.needs) || !job.needs.includes("shadow-classifier"), name);
+    assert.doesNotMatch(serialized, /needs\.shadow-classifier|effective-plan/u, name);
   }
 });

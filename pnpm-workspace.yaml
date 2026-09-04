@@ -49,6 +49,7 @@ minimumReleaseAge: 1440
 minimumReleaseAgeStrict: true
 allowBuilds:
   "@ast-grep/cli": true
+  esbuild: false # Use the lockfile-pinned optional platform binary, without postinstall downloads.
   nx: true
 
 overrides:

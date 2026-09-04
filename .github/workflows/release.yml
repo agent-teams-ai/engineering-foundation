@@ -501,8 +501,10 @@ jobs:
               --argjson analyses "${codeql_analyses}" \
               --argjson checkRuns "${codeql_checks}" \
               --argjson checkSuite "${codeql_check_suite}" \
+              --slurpfile pullRequest "${pull_request_json}" \
               '{evidence: {run: $run, jobs: $jobs, analyses: $analyses,
-                checkRuns: $checkRuns, checkSuite: $checkSuite}}' | \
+                checkRuns: $checkRuns, checkSuite: $checkSuite,
+                pullRequest: $pullRequest[0]}}' | \
               node scripts/check-release-codeql-evidence.mjs \
                 --repository "${GITHUB_REPOSITORY}" \
                 --server "${GITHUB_SERVER_URL}" \
@@ -543,8 +545,7 @@ jobs:
             fail_attestation "Release PR changed or main advanced during CI"
           fi
 
-          read -r codeql_analysis_id codeql_check_id codeql_check_suite_id < <(jq -r \
-            '[.analysisId, .checkId, .checkSuiteId] | @tsv' <<<"${codeql_receipt}")
+          codeql_check_suite_id="$(jq -r '.checkSuiteId' <<<"${codeql_receipt}")"
           final_run_verified=0
           final_verification_deadline=$((SECONDS + 60))
           while (( SECONDS < final_verification_deadline )); do
@@ -599,12 +600,16 @@ jobs:
               "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}")" || \
               ! final_codeql_jobs="$(gh api -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}/attempts/1/jobs?per_page=100")" || \
-              ! final_codeql_check="$(gh api -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/check-runs/${codeql_check_id}")" || \
+              ! final_codeql_checks="$(gh api --method GET \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs" \
+              -f check_name=CodeQL -f filter=all -f per_page=100)" || \
               ! final_codeql_check_suite="$(gh api -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/check-suites/${codeql_check_suite_id}")" || \
-              ! final_codeql_analysis="$(gh api -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/code-scanning/analyses/${codeql_analysis_id}")"; then
+              ! final_codeql_analyses="$(gh api --method GET \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/code-scanning/analyses" \
+              -f ref=refs/heads/changeset-release/main -f tool_name=CodeQL -f per_page=100)"; then
               sleep 5
               continue
             fi
@@ -612,12 +617,14 @@ jobs:
             if ! jq -n \
               --argjson run "${final_codeql_run}" \
               --argjson jobs "${final_codeql_jobs}" \
-              --argjson analysis "${final_codeql_analysis}" \
-              --argjson checkRun "${final_codeql_check}" \
+              --argjson analyses "${final_codeql_analyses}" \
+              --argjson checkRuns "${final_codeql_checks}" \
               --argjson checkSuite "${final_codeql_check_suite}" \
               --argjson priorReceipt "${codeql_receipt}" \
-              '{evidence: {run: $run, jobs: $jobs, analyses: [$analysis],
-                checkRuns: {check_runs: [$checkRun]}, checkSuite: $checkSuite},
+              --slurpfile pullRequest "${final_pull_request_json}" \
+              '{evidence: {run: $run, jobs: $jobs, analyses: $analyses,
+                checkRuns: $checkRuns, checkSuite: $checkSuite,
+                pullRequest: $pullRequest[0]},
                 priorReceipt: $priorReceipt}' | \
               node scripts/check-release-codeql-evidence.mjs \
                 --repository "${GITHUB_REPOSITORY}" \

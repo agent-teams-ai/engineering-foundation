@@ -31,11 +31,7 @@ function requireTimestamp(value, label) {
   return timestamp;
 }
 
-function assertPullRequest(pullRequests, expected, label) {
-  if (!Array.isArray(pullRequests) || pullRequests.length !== 1) {
-    throw new Error(`${label} must identify exactly one pull request.`);
-  }
-  const [pullRequest] = pullRequests;
+function assertPullRequestTuple(pullRequest, expected, label) {
   if (
     pullRequest?.number !== expected.pullRequestNumber ||
     pullRequest.head?.ref !== expected.branch ||
@@ -44,6 +40,26 @@ function assertPullRequest(pullRequests, expected, label) {
     pullRequest.base?.sha !== expected.baseSha
   ) {
     throw new Error(`${label} pull request provenance differs.`);
+  }
+}
+
+function assertIndependentPullRequest(pullRequest, expected) {
+  assertPullRequestTuple(pullRequest, expected, "Independent release pull request");
+  if (
+    pullRequest?.state !== "open" ||
+    pullRequest.head?.repo?.full_name !== expected.repository ||
+    pullRequest.base?.repo?.full_name !== expected.repository
+  ) {
+    throw new Error("Independent release pull request identity differs.");
+  }
+}
+
+function assertRunPullRequestAssociation(pullRequests, expected) {
+  if (!Array.isArray(pullRequests) || pullRequests.length > 1) {
+    throw new Error("CodeQL workflow run pull request association is malformed.");
+  }
+  if (pullRequests.length === 1) {
+    assertPullRequestTuple(pullRequests[0], expected, "CodeQL workflow run");
   }
 }
 
@@ -90,7 +106,7 @@ function validateRun(run, expected) {
   ) {
     throw new Error("CodeQL workflow run identity differs.");
   }
-  assertPullRequest(run.pull_requests, expected, "CodeQL workflow run");
+  assertRunPullRequestAssociation(run.pull_requests, expected);
   return expectedRunUrl;
 }
 
@@ -125,7 +141,7 @@ function validateAnalyze(jobs, expected, expectedRunUrl) {
   return { analyzeCompletedAt, analyzeId, analyzeStartedAt };
 }
 
-function validateCheck(checkRuns, expected, analyzeWindow) {
+function validateCheck(checkRuns, expected, analyzeWindow, analysisCreatedAt) {
   const codeqlCheck = exactEntries(
     checkRuns?.check_runs,
     (check) => check?.name === "CodeQL" && check.app?.id === 57789,
@@ -148,9 +164,11 @@ function validateCheck(checkRuns, expected, analyzeWindow) {
     codeqlCheck.completed_at,
     "CodeQL check completion time",
   );
+  const processingDeadline = analyzeWindow.analyzeCompletedAt + 5 * 60 * 1000;
   if (
     checkStartedAt < analyzeWindow.analyzeStartedAt ||
-    checkCompletedAt > analyzeWindow.analyzeCompletedAt ||
+    checkCompletedAt > processingDeadline ||
+    Math.abs(checkStartedAt - analysisCreatedAt) > 5 * 60 * 1000 ||
     checkStartedAt > checkCompletedAt
   ) {
     throw new Error(
@@ -160,7 +178,13 @@ function validateCheck(checkRuns, expected, analyzeWindow) {
   return { checkCompletedAt, checkId, checkStartedAt, checkSuiteId };
 }
 
-function validateSuite(checkSuite, expected, analyzeWindow, checkSuiteId) {
+function validateSuite(
+  checkSuite,
+  expected,
+  analyzeWindow,
+  analysisCreatedAt,
+  checkSuiteId,
+) {
   if (
     checkSuite?.id !== checkSuiteId ||
     checkSuite.head_sha !== expected.headSha ||
@@ -171,7 +195,10 @@ function validateSuite(checkSuite, expected, analyzeWindow, checkSuiteId) {
   ) {
     throw new Error("GitHub Advanced Security check suite identity differs.");
   }
-  assertPullRequest(checkSuite.pull_requests, expected, "CodeQL check suite");
+  if (!Array.isArray(checkSuite.pull_requests) || checkSuite.pull_requests.length !== 1) {
+    throw new Error("CodeQL check suite must identify exactly one pull request.");
+  }
+  assertPullRequestTuple(checkSuite.pull_requests[0], expected, "CodeQL check suite");
   const suiteCreatedAt = requireTimestamp(
     checkSuite.created_at,
     "CodeQL suite creation time",
@@ -180,24 +207,27 @@ function validateSuite(checkSuite, expected, analyzeWindow, checkSuiteId) {
     checkSuite.updated_at,
     "CodeQL suite update time",
   );
+  const processingDeadline = analyzeWindow.analyzeCompletedAt + 5 * 60 * 1000;
   if (
     suiteCreatedAt < analyzeWindow.analyzeStartedAt ||
-    suiteUpdatedAt > analyzeWindow.analyzeCompletedAt ||
+    suiteUpdatedAt > processingDeadline ||
+    Math.abs(suiteCreatedAt - analysisCreatedAt) > 5 * 60 * 1000 ||
     suiteCreatedAt > suiteUpdatedAt
   ) {
     throw new Error("GitHub Advanced Security suite is outside the dispatched analyze job.");
   }
 }
 
-function validateAnalysis(analyses, expected, checkWindow) {
+function validateAnalysis(analyses, expected, analyzeWindow) {
   const expectedRef = `refs/heads/${expected.branch}`;
+  const expectedCategory = `release-attestation-${expected.runId}-1`;
   const analysis = exactEntries(
     analyses,
     (entry) =>
       entry?.ref === expectedRef &&
       entry.commit_sha === expected.headSha &&
       entry.analysis_key === ".github/workflows/codeql.yml:analyze" &&
-      entry.category === ".github/workflows/codeql.yml:analyze" &&
+      entry.category === expectedCategory &&
       entry.tool?.name === "CodeQL",
     "Code scanning analyses",
   );
@@ -214,22 +244,34 @@ function validateAnalysis(analyses, expected, checkWindow) {
   if (
     analysis.environment !== "{}" ||
     analysis.warning !== "" ||
-    analysisCreatedAt < checkWindow.checkStartedAt ||
-    analysisCreatedAt > checkWindow.checkCompletedAt
+    analysisCreatedAt < analyzeWindow.analyzeStartedAt ||
+    analysisCreatedAt > analyzeWindow.analyzeCompletedAt
   ) {
     throw new Error("Code scanning analysis is not bound to the exact CodeQL check.");
   }
-  return { analysisId, sarifId };
+  return { analysisCreatedAt, analysisId, sarifId };
 }
 
 export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
   const normalized = normalizedExpected(expected);
-  const { run, jobs, analyses, checkRuns, checkSuite } = payload ?? {};
+  const { run, jobs, analyses, checkRuns, checkSuite, pullRequest } = payload ?? {};
+  assertIndependentPullRequest(pullRequest, normalized);
   const expectedRunUrl = validateRun(run, normalized);
   const analyze = validateAnalyze(jobs, normalized, expectedRunUrl);
-  const check = validateCheck(checkRuns, normalized, analyze);
-  validateSuite(checkSuite, normalized, analyze, check.checkSuiteId);
-  const analysis = validateAnalysis(analyses, normalized, check);
+  const analysis = validateAnalysis(analyses, normalized, analyze);
+  const check = validateCheck(
+    checkRuns,
+    normalized,
+    analyze,
+    analysis.analysisCreatedAt,
+  );
+  validateSuite(
+    checkSuite,
+    normalized,
+    analyze,
+    analysis.analysisCreatedAt,
+    check.checkSuiteId,
+  );
 
   const receipt = Object.freeze({
     analysisId: analysis.analysisId,

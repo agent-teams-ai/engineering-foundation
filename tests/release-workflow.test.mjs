@@ -227,10 +227,17 @@ function exactCodeqlEvidence() {
     head: {
       ref: exactRunExpectation.branch,
       sha: exactRunExpectation.headSha,
+      repo: { full_name: exactRunExpectation.repository },
     },
-    base: { ref: "main", sha: exactRunExpectation.baseSha },
+    base: {
+      ref: "main",
+      sha: exactRunExpectation.baseSha,
+      repo: { full_name: exactRunExpectation.repository },
+    },
+    state: "open",
   };
   return {
+    pullRequest,
     run: {
       id: 123,
       path: ".github/workflows/codeql.yml",
@@ -264,7 +271,7 @@ function exactCodeqlEvidence() {
       ref: `refs/heads/${exactRunExpectation.branch}`,
       commit_sha: exactRunExpectation.headSha,
       analysis_key: ".github/workflows/codeql.yml:analyze",
-      category: ".github/workflows/codeql.yml:analyze",
+      category: "release-attestation-123-1",
       environment: "{}",
       warning: "",
       tool: { name: "CodeQL" },
@@ -312,6 +319,13 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
     sarifId: "dde4b0bc-a8a2-11f1-82f5-b5928a50418b",
   });
 
+  const noRunAssociation = structuredClone(evidence);
+  noRunAssociation.run.pull_requests = [];
+  assert.deepEqual(
+    validateReleaseCodeqlEvidence(noRunAssociation, expectation),
+    receipt,
+  );
+
   const attemptTwo = structuredClone(evidence);
   attemptTwo.run.run_attempt = 2;
   assert.throws(
@@ -327,7 +341,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   );
 
   const unrelatedPullRequest = structuredClone(evidence);
-  unrelatedPullRequest.checkSuite.pull_requests[0].number = 128;
+  unrelatedPullRequest.pullRequest.number = 128;
   assert.throws(
     () => validateReleaseCodeqlEvidence(unrelatedPullRequest, expectation),
     /provenance differs/u,
@@ -340,6 +354,21 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
     /outside the dispatched analyze job/u,
   );
 
+  const wrongCategory = structuredClone(evidence);
+  wrongCategory.analyses[0].category = ".github/workflows/codeql.yml:analyze";
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(wrongCategory, expectation),
+    /exactly one matching/u,
+  );
+
+  const delayedCheck = structuredClone(evidence);
+  delayedCheck.checkRuns.check_runs[0].started_at = "2026-09-04T12:02:00Z";
+  delayedCheck.checkRuns.check_runs[0].completed_at = "2026-09-04T12:02:02Z";
+  delayedCheck.checkSuite.created_at = "2026-09-04T12:01:59Z";
+  delayedCheck.checkSuite.updated_at = "2026-09-04T12:02:03Z";
+  assert.doesNotThrow(() =>
+    validateReleaseCodeqlEvidence(delayedCheck, expectation));
+
   const replacement = structuredClone(evidence);
   replacement.checkRuns.check_runs[0].id = 790;
   replacement.checkRuns.check_runs[0].details_url =
@@ -347,6 +376,30 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   assert.throws(
     () => validateReleaseCodeqlEvidence(replacement, expectation, receipt),
     /checkId changed identity/u,
+  );
+
+  const competingCheck = structuredClone(evidence);
+  competingCheck.checkRuns.check_runs.push({
+    ...structuredClone(competingCheck.checkRuns.check_runs[0]),
+    id: 791,
+    conclusion: "failure",
+    details_url:
+      "https://github.com/agent-teams-ai/engineering-foundation/runs/791",
+  });
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(competingCheck, expectation, receipt),
+    /exactly one matching/u,
+  );
+
+  const competingAnalysis = structuredClone(evidence);
+  competingAnalysis.analyses.push({
+    ...structuredClone(competingAnalysis.analyses[0]),
+    id: 902,
+    sarif_id: "eed4b0bc-a8a2-11f1-82f5-b5928a50418b",
+  });
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(competingAnalysis, expectation, receipt),
+    /exactly one matching/u,
   );
 });
 
@@ -420,6 +473,14 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   assert.equal(ci.jobs["dependency-review"].if, undefined);
   assert.equal(ci.jobs["linux-static"].if, readyPullRequestCondition);
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
+  const codeqlAnalyze = codeql.jobs.analyze.steps.find(
+    ({ uses }) => uses?.startsWith("github/codeql-action/analyze@"),
+  );
+  assert.equal(codeqlAnalyze.id, "analyze");
+  assert.equal(
+    codeqlAnalyze.with.category,
+    "${{ github.event_name == 'workflow_dispatch' && format('release-attestation-{0}-{1}', github.run_id, github.run_attempt) || '' }}",
+  );
   assert.equal(
     ci.concurrency.group,
     "foundation-ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}",
@@ -558,7 +619,9 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.match(attestation.run, /\.app\.id == 57789/u);
   assert.match(attestation.run, /code-scanning\/analyses/u);
   assert.match(attestation.run, /check-suites\/\$\{codeql_check_suite_id\}/u);
-  assert.match(attestation.run, /check-runs\/\$\{codeql_check_id\}/u);
+  assert.equal((attestation.run.match(/-f filter=all/gu) ?? []).length, 2);
+  assert.match(attestation.run, /final_codeql_analyses/u);
+  assert.match(attestation.run, /final_codeql_checks/u);
   assert.match(attestation.run, /priorReceipt: \$priorReceipt/u);
   assert.match(attestation.run, /run_head_repository.*GITHUB_REPOSITORY/su);
   assert.equal((attestation.run.match(/pull_request_count\}" != "0"[\s\S]*?pull_request_count\}" != "1"/gu) ?? []).length, 2);

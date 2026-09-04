@@ -173,7 +173,10 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   );
   assert.doesNotMatch(attestation.run, /baseline_run_id/u);
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| first/u);
-  assert.doesNotMatch(attestation.run, /commits\/\$\{head_sha\}\/check-runs/u);
+  assert.match(
+    attestation.run,
+    /commits\/\$\{head_sha\}\/check-runs[\s\S]*check_name=CodeQL[\s\S]*filter=latest/u,
+  );
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
 }
 
@@ -278,6 +281,7 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
     "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}";
   assert.deepEqual(ci.on.pull_request.types, requiredLifecycleEvents);
   assert.deepEqual(codeql.on.pull_request.types, requiredLifecycleEvents);
+  assert.equal(codeql.on.workflow_dispatch, null);
   assert.equal(ci.jobs["dependency-review"].if, undefined);
   assert.equal(ci.jobs["linux-static"].if, readyPullRequestCondition);
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
@@ -406,8 +410,21 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
       attestation.run.indexOf("actions/workflows/ci.yml/dispatches"),
   );
   assert.match(attestation.run, /if \[\[ -z "\$\{bound_run_id\}" \]\]; then/u);
+  assert.match(attestation.run, /actions\/workflows\/codeql\.yml\/dispatches/u);
+  assert.ok(
+    attestation.run.indexOf("actions/workflows/codeql.yml/dispatches") <
+      attestation.run.indexOf("deadline=$((SECONDS + 3300))"),
+  );
+  assert.match(attestation.run, /observed_codeql_path.*\.github\/workflows\/codeql\.yml/su);
+  assert.match(attestation.run, /observed_codeql_event.*workflow_dispatch/su);
+  assert.match(attestation.run, /observed_codeql_branch.*changeset-release\/main/su);
+  assert.match(attestation.run, /observed_codeql_sha.*head_sha/su);
+  assert.match(attestation.run, /analyze_count.*analyze_conclusion/su);
+  assert.match(attestation.run, /check_name=CodeQL/u);
+  assert.match(attestation.run, /codeql_check_app_id.*57789/su);
+  assert.match(attestation.run, /final_codeql_sha.*head_sha/su);
   assert.match(attestation.run, /run_head_repository.*GITHUB_REPOSITORY/su);
-  assert.equal((attestation.run.match(/pull_request_count\}" != "0"[\s\S]*?pull_request_count\}" != "1"/gu) ?? []).length, 2);
+  assert.equal((attestation.run.match(/pull_request_count\}" != "0"[\s\S]*?pull_request_count\}" != "1"/gu) ?? []).length, 3);
   assert.match(attestation.run, /run_pull_request_base_sha.*base_sha/su);
   assert.match(attestation.run, /final_run_pull_request_base_sha.*base_sha/su);
   assert.ok(

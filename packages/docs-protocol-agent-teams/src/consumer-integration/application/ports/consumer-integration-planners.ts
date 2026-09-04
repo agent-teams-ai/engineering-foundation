@@ -30,15 +30,6 @@ export interface AgentsRoutePlannerV1 {
   }): AgentsRoutePlanV1;
 }
 
-export interface PnpmManifestPlannerV1 {
-  plan(input: {
-    readonly observation: ConsumerIntegrationFileObservation;
-    readonly profilePath: string;
-    readonly cohort: QualifiedDocsCohortBindingV1;
-    readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;
-  }): PnpmManifestPlanV1;
-}
-
 export interface PnpmManifestPlanner {
   plan(input: {
     readonly observation: ConsumerIntegrationFileObservation;

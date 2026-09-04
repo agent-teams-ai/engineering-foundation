@@ -3,7 +3,7 @@ import type {
   QualifiedDocsPackageCoordinateV2
 } from "../../domain/model.js";
 
-export type QualifiedDocsCohortV2PackageKey = keyof QualifiedDocsCohortBindingV2["packages"];
+type QualifiedDocsCohortV2PackageKey = keyof QualifiedDocsCohortBindingV2["packages"];
 
 export interface QualifiedDocsCohortV2PackageDescriptor {
   readonly key: QualifiedDocsCohortV2PackageKey;

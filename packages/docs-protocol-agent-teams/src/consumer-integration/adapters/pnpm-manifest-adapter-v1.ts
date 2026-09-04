@@ -8,8 +8,7 @@ import type {
   QualifiedDocsCohortBindingV1
 } from "../domain/model.js";
 import type {
-  PnpmManifestPlanV1,
-  PnpmManifestPlannerV1
+  PnpmManifestPlanV1
 } from "../application/ports/consumer-integration-planners.js";
 import {
   canonicalConsumerIntegrationJson,
@@ -349,7 +348,3 @@ export function planPnpmManifestV1(input: {
       : { knownPriorScriptsDigest: input.knownPriorScriptsDigest })
   });
 }
-
-export const pnpmManifestPlannerV1: PnpmManifestPlannerV1 = Object.freeze({
-  plan: planPnpmManifestV1
-});

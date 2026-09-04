@@ -28,7 +28,7 @@ export interface PreparedConsumerUpgradeV1 {
   readonly operations: readonly KnownFileTransactionOperationInput[];
 }
 
-export interface ConsumerUpgradeManagedPreimageV2 {
+interface ConsumerUpgradeManagedPreimageV2 {
   readonly digest: ConsumerIntegrationDigest;
   readonly mode: number;
   readonly path: string;

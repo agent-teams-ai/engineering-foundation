@@ -271,7 +271,7 @@ async function assertQualifiedLockfile(
   return observation;
 }
 
-export async function readManagedConsumerIntegrationInput(options: {
+async function readManagedConsumerIntegrationInput(options: {
   readonly consumerRoot: string;
   readonly integrationProfilePath?: string;
 }): Promise<{

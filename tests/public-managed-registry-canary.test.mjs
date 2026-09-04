@@ -113,7 +113,7 @@ function currentPackageAuthority([key, name, direct], index) {
       workflow_run_id: workflowRunId,
       workflow_run_attempt: 1,
       registry_attestation_url: `https://registry.npmjs.org/-/npm/v1/attestations/${
-        name.replace("/", "%2f")
+        name.replaceAll("/", "%2f")
       }@${version}`,
       workflow_run_url: `https://github.com/agent-teams-ai/engineering-foundation/actions/runs/${workflowRunId}`,
       signature_verified: true,

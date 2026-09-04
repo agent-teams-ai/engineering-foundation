@@ -149,7 +149,7 @@ function v2Registry(cohort) {
     Object.assign(coordinate, cohort.packages[key]);
     coordinate.provenance.registry_attestation_url =
       `https://registry.npmjs.org/-/npm/v1/attestations/${
-        coordinate.name.replace("/", "%2f")
+        coordinate.name.replaceAll("/", "%2f")
       }@${coordinate.version}`;
     return coordinate;
   });

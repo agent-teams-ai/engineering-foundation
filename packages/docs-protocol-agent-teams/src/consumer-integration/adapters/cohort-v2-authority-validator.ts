@@ -107,7 +107,7 @@ function assertProvenance(value: unknown, packageName: string, version: string):
   const runId = provenance["workflow_run_id"];
   if (provenance["registry_attestation_url"] !==
       `https://registry.npmjs.org/-/npm/v1/attestations/${
-        packageName.replace("/", "%2f")
+        packageName.replaceAll("/", "%2f")
       }@${version}` || provenance["workflow_run_url"] !==
       `https://github.com/agent-teams-ai/engineering-foundation/actions/runs/${runId}`) {
     invalid(`${packageName} provenance URLs must bind its package release and workflow run.`);

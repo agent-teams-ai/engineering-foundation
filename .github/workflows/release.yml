@@ -222,6 +222,35 @@ jobs:
             exit 1
           }
 
+          paginated_object_collection() {
+            local collection="$1"
+            shift
+            gh api --paginate --slurp "$@" | jq -ce --arg collection "${collection}" '
+              if type != "array" or length == 0 or
+                any(.[]; type != "object" or (.[$collection] | type) != "array")
+              then error("malformed paginated object collection")
+              else
+                .[0].total_count as $total |
+                [.[].[$collection][]] as $items |
+                if ($total | type) != "number" or $total < 0 or
+                  ($total | floor) != $total or
+                  any(.[]; .total_count != $total)
+                then error("malformed paginated object count")
+                elif ($items | length) != $total
+                then error("incomplete paginated object collection")
+                else {($collection): $items}
+                end
+              end'
+          }
+
+          paginated_array_collection() {
+            gh api --paginate --slurp "$@" | jq -ce '
+              if type != "array" or length == 0 or any(.[]; type != "array")
+              then error("malformed paginated array collection")
+              else [ .[][] ]
+              end'
+          }
+
           trap mark_attestation_error ERR
 
           pull_request_json="$(mktemp)"
@@ -462,12 +491,13 @@ jobs:
             if [[ "$(jq -r '.conclusion // ""' <<<"${codeql_run}")" != "success" ]]; then
               fail_attestation "Release PR CodeQL workflow did not succeed"
             fi
-            if ! codeql_jobs="$(gh api -H 'Accept: application/vnd.github+json' \
+            if ! codeql_jobs="$(paginated_object_collection jobs \
+              -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}/attempts/1/jobs?per_page=100")"; then
               sleep 5
               continue
             fi
-            if ! codeql_checks="$(gh api --method GET \
+            if ! codeql_checks="$(paginated_object_collection check_runs --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs" \
               -f check_name=CodeQL -f filter=all -f per_page=100)"; then
@@ -487,7 +517,7 @@ jobs:
             fi
             if ! codeql_check_suite="$(gh api -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/check-suites/${codeql_check_suite_id}")" || \
-              ! codeql_analyses="$(gh api --method GET \
+              ! codeql_analyses="$(paginated_array_collection --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/code-scanning/analyses" \
               -f ref=refs/heads/changeset-release/main -f tool_name=CodeQL -f per_page=100)"; then
@@ -506,6 +536,7 @@ jobs:
                 checkRuns: $checkRuns, checkSuite: $checkSuite,
                 pullRequest: $pullRequest[0]}}' | \
               node scripts/check-release-codeql-evidence.mjs \
+                --api "${GITHUB_API_URL}" \
                 --repository "${GITHUB_REPOSITORY}" \
                 --server "${GITHUB_SERVER_URL}" \
                 --run "${codeql_run_id}" \
@@ -598,20 +629,44 @@ jobs:
             fi
             if ! final_codeql_run="$(gh api -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}")" || \
-              ! final_codeql_jobs="$(gh api -H 'Accept: application/vnd.github+json' \
+              ! final_codeql_jobs="$(paginated_object_collection jobs \
+              -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}/attempts/1/jobs?per_page=100")" || \
-              ! final_codeql_checks="$(gh api --method GET \
+              ! final_codeql_checks="$(paginated_object_collection check_runs --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs" \
               -f check_name=CodeQL -f filter=all -f per_page=100)" || \
               ! final_codeql_check_suite="$(gh api -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/check-suites/${codeql_check_suite_id}")" || \
-              ! final_codeql_analyses="$(gh api --method GET \
+              ! final_codeql_analyses="$(paginated_array_collection --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/code-scanning/analyses" \
               -f ref=refs/heads/changeset-release/main -f tool_name=CodeQL -f per_page=100)"; then
               sleep 5
               continue
+            fi
+            if ! post_codeql_run="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}")" || \
+              ! post_pull_request="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}")" || \
+              ! post_current_main_sha="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"; then
+              sleep 5
+              continue
+            fi
+            if ! jq -n \
+              --arg currentMainSha "${post_current_main_sha}" \
+              --arg expectedBaseSha "${EXPECTED_RELEASE_BASE_SHA}" \
+              --arg expectedHeadSha "${head_sha}" \
+              --arg expectedPullRequestNumber "${RELEASE_PULL_REQUEST}" \
+              --argjson pullRequest "${post_pull_request}" \
+              '{currentMainSha: $currentMainSha, expectedBaseSha: $expectedBaseSha,
+                expectedHeadSha: $expectedHeadSha,
+                expectedPullRequestNumber: $expectedPullRequestNumber,
+                pullRequest: $pullRequest}' | \
+              node scripts/check-release-pr-freshness.mjs \
+                --processed-main "${PROCESSED_MAIN_SHA}"; then
+              fail_attestation "Release PR or main changed during final evidence collection"
             fi
             : > "${codeql_evidence_error}"
             if ! jq -n \
@@ -620,13 +675,17 @@ jobs:
               --argjson analyses "${final_codeql_analyses}" \
               --argjson checkRuns "${final_codeql_checks}" \
               --argjson checkSuite "${final_codeql_check_suite}" \
+              --argjson postRun "${post_codeql_run}" \
+              --argjson postPullRequest "${post_pull_request}" \
               --argjson priorReceipt "${codeql_receipt}" \
               --slurpfile pullRequest "${final_pull_request_json}" \
               '{evidence: {run: $run, jobs: $jobs, analyses: $analyses,
                 checkRuns: $checkRuns, checkSuite: $checkSuite,
-                pullRequest: $pullRequest[0]},
+                pullRequest: $pullRequest[0], postRun: $postRun,
+                postPullRequest: $postPullRequest},
                 priorReceipt: $priorReceipt}' | \
               node scripts/check-release-codeql-evidence.mjs \
+                --api "${GITHUB_API_URL}" \
                 --repository "${GITHUB_REPOSITORY}" \
                 --server "${GITHUB_SERVER_URL}" \
                 --run "${codeql_run_id}" \

@@ -14,12 +14,32 @@ function requireString(value, label, pattern = /\S/u) {
   return value;
 }
 
-function requirePositiveInteger(value, label) {
-  const rendered = String(value);
-  if (!positiveIntegerPattern.test(rendered)) {
+function requirePositiveSafeInteger(value, label) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${label} is malformed.`);
   }
-  return Number(rendered);
+  return value;
+}
+
+function parseExpectedPositiveInteger(value, label) {
+  if (typeof value === "number") {
+    return requirePositiveSafeInteger(value, label);
+  }
+  if (typeof value !== "string" || !positiveIntegerPattern.test(value)) {
+    throw new Error(`${label} is malformed.`);
+  }
+  return requirePositiveSafeInteger(Number(value), label);
+}
+
+function isCanonicalPositiveIdUrl(value, prefix) {
+  if (typeof value !== "string" || !value.startsWith(`${prefix}/`)) {
+    return false;
+  }
+  const renderedId = value.slice(prefix.length + 1);
+  return (
+    positiveIntegerPattern.test(renderedId) &&
+    Number.isSafeInteger(Number(renderedId))
+  );
 }
 
 function requireTimestamp(value, label) {
@@ -65,16 +85,17 @@ function assertRunPullRequestAssociation(pullRequests, expected) {
 
 function normalizedExpected(expected) {
   return Object.freeze({
+    apiUrl: requireString(expected.apiUrl, "API URL").replace(/\/$/u, ""),
     repository: requireString(expected.repository, "Repository"),
     serverUrl: requireString(expected.serverUrl, "Server URL").replace(/\/$/u, ""),
     branch: requireString(expected.branch, "Release branch"),
     baseSha: requireString(expected.baseSha, "Release base SHA", exactShaPattern),
     headSha: requireString(expected.headSha, "Release head SHA", exactShaPattern),
-    pullRequestNumber: requirePositiveInteger(
+    pullRequestNumber: parseExpectedPositiveInteger(
       expected.pullRequestNumber,
       "Pull request number",
     ),
-    runId: requirePositiveInteger(expected.runId, "CodeQL run ID"),
+    runId: parseExpectedPositiveInteger(expected.runId, "CodeQL run ID"),
   });
 }
 
@@ -92,6 +113,8 @@ function exactEntries(entries, predicate, label) {
 function validateRun(run, expected) {
   const expectedRunUrl =
     `${expected.serverUrl}/${expected.repository}/actions/runs/${expected.runId}`;
+  const expectedRunApiUrl =
+    `${expected.apiUrl}/repos/${expected.repository}/actions/runs/${expected.runId}`;
   if (
     run?.id !== expected.runId ||
     run.path !== ".github/workflows/codeql.yml" ||
@@ -99,7 +122,10 @@ function validateRun(run, expected) {
     run.head_branch !== expected.branch ||
     run.head_sha !== expected.headSha ||
     run.run_attempt !== 1 ||
+    run.url !== expectedRunApiUrl ||
     run.html_url !== expectedRunUrl ||
+    run.jobs_url !== `${expectedRunApiUrl}/jobs` ||
+    run.rerun_url !== `${expectedRunApiUrl}/rerun` ||
     run.head_repository?.full_name !== expected.repository ||
     run.status !== "completed" ||
     run.conclusion !== "success"
@@ -107,21 +133,29 @@ function validateRun(run, expected) {
     throw new Error("CodeQL workflow run identity differs.");
   }
   assertRunPullRequestAssociation(run.pull_requests, expected);
-  return expectedRunUrl;
+  return { expectedRunApiUrl, expectedRunUrl };
 }
 
-function validateAnalyze(jobs, expected, expectedRunUrl) {
+function validateAnalyze(jobs, expected, runUrls) {
   const analyze = exactEntries(
     jobs?.jobs,
     (job) => job?.name === "analyze",
     "CodeQL jobs",
   );
-  const analyzeId = requirePositiveInteger(analyze.id, "Analyze job ID");
-  const expectedJobUrl = `${expectedRunUrl}/job/${analyzeId}`;
+  const analyzeId = requirePositiveSafeInteger(analyze.id, "Analyze job ID");
+  const expectedJobApiUrl =
+    `${expected.apiUrl}/repos/${expected.repository}/actions/jobs/${analyzeId}`;
+  const expectedJobUrl = `${runUrls.expectedRunUrl}/job/${analyzeId}`;
+  const checkRunUrlPrefix =
+    `${expected.apiUrl}/repos/${expected.repository}/check-runs`;
   if (
     analyze.run_id !== expected.runId ||
+    analyze.run_attempt !== 1 ||
     analyze.head_sha !== expected.headSha ||
+    analyze.url !== expectedJobApiUrl ||
     analyze.html_url !== expectedJobUrl ||
+    analyze.run_url !== runUrls.expectedRunApiUrl ||
+    !isCanonicalPositiveIdUrl(analyze.check_run_url, checkRunUrlPrefix) ||
     analyze.status !== "completed" ||
     analyze.conclusion !== "success"
   ) {
@@ -147,12 +181,16 @@ function validateCheck(checkRuns, expected, analyzeWindow, analysisCreatedAt) {
     (check) => check?.name === "CodeQL" && check.app?.id === 57789,
     "CodeQL check runs",
   );
-  const checkId = requirePositiveInteger(codeqlCheck.id, "CodeQL check ID");
-  const checkSuiteId = requirePositiveInteger(
+  const checkId = requirePositiveSafeInteger(codeqlCheck.id, "CodeQL check ID");
+  const checkSuiteId = requirePositiveSafeInteger(
     codeqlCheck.check_suite?.id,
     "CodeQL check suite ID",
   );
   if (
+    codeqlCheck.head_sha !== expected.headSha ||
+    codeqlCheck.url !==
+      `${expected.apiUrl}/repos/${expected.repository}/check-runs/${checkId}` ||
+    codeqlCheck.html_url !== `${expected.serverUrl}/${expected.repository}/runs/${checkId}` ||
     codeqlCheck.status !== "completed" ||
     codeqlCheck.conclusion !== "success" ||
     codeqlCheck.details_url !== `${expected.serverUrl}/${expected.repository}/runs/${checkId}`
@@ -187,6 +225,10 @@ function validateSuite(
 ) {
   if (
     checkSuite?.id !== checkSuiteId ||
+    checkSuite.url !==
+      `${expected.apiUrl}/repos/${expected.repository}/check-suites/${checkSuiteId}` ||
+    checkSuite.check_runs_url !==
+      `${expected.apiUrl}/repos/${expected.repository}/check-suites/${checkSuiteId}/check-runs` ||
     checkSuite.head_sha !== expected.headSha ||
     checkSuite.head_branch !== expected.branch ||
     checkSuite.app?.id !== 57789 ||
@@ -231,7 +273,10 @@ function validateAnalysis(analyses, expected, analyzeWindow) {
       entry.tool?.name === "CodeQL",
     "Code scanning analyses",
   );
-  const analysisId = requirePositiveInteger(analysis.id, "Code scanning analysis ID");
+  const analysisId = requirePositiveSafeInteger(
+    analysis.id,
+    "Code scanning analysis ID",
+  );
   const analysisCreatedAt = requireTimestamp(
     analysis.created_at,
     "Code scanning analysis creation time",
@@ -242,6 +287,8 @@ function validateAnalysis(analyses, expected, analyzeWindow) {
     /^[0-9a-f]{8}-[0-9a-f-]{27,}$/u,
   );
   if (
+    analysis.url !==
+      `${expected.apiUrl}/repos/${expected.repository}/code-scanning/analyses/${analysisId}` ||
     analysis.environment !== "{}" ||
     analysis.warning !== "" ||
     analysisCreatedAt < analyzeWindow.analyzeStartedAt ||
@@ -254,7 +301,16 @@ function validateAnalysis(analyses, expected, analyzeWindow) {
 
 export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
   const normalized = normalizedExpected(expected);
-  const { run, jobs, analyses, checkRuns, checkSuite, pullRequest } = payload ?? {};
+  const {
+    run,
+    jobs,
+    analyses,
+    checkRuns,
+    checkSuite,
+    pullRequest,
+    postRun,
+    postPullRequest,
+  } = payload ?? {};
   assertIndependentPullRequest(pullRequest, normalized);
   const expectedRunUrl = validateRun(run, normalized);
   const analyze = validateAnalyze(jobs, normalized, expectedRunUrl);
@@ -282,6 +338,8 @@ export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
     sarifId: analysis.sarifId,
   });
   if (priorReceipt !== undefined) {
+    validateRun(postRun, normalized);
+    assertIndependentPullRequest(postPullRequest, normalized);
     for (const [name, value] of Object.entries(receipt)) {
       if (priorReceipt?.[name] !== value) {
         throw new Error(`Final CodeQL ${name} changed identity.`);
@@ -295,6 +353,7 @@ async function main() {
   const { values } = parseArgs({
     options: {
       base: { type: "string" },
+      api: { type: "string" },
       branch: { type: "string" },
       head: { type: "string" },
       pr: { type: "string" },
@@ -306,6 +365,7 @@ async function main() {
   });
   const input = JSON.parse(await readStreamText(process.stdin));
   const receipt = validateReleaseCodeqlEvidence(input.evidence, {
+    apiUrl: values.api,
     baseSha: values.base,
     branch: values.branch,
     headSha: values.head,

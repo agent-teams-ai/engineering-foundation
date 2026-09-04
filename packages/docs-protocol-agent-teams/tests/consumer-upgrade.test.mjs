@@ -559,7 +559,10 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
     targetGeneration: 2,
     to: crossGenerationAuthority.cohort.cohortId
   }), /v2 activation interrupted/u);
-  assert.equal(calls.at(-1), "restore");
+  assert.equal(calls.length, 3);
+  assert.equal(Buffer.from(calls[0], "base64").toString("utf8"), "after\n");
+  assert.equal(Buffer.from(calls[1], "base64").toString("utf8"), "before\n");
+  assert.equal(calls[2], "restore");
 
   let authorityRead = 0;
   let appliedAfterAuthorityChange = false;
@@ -841,9 +844,16 @@ test("migrates one disposable profile-v1 consumer explicitly to Cohort v2", {
   ]);
   const { catalog } = await sourceCohort();
   const prior = catalog.directTargetBundles.find(({ cohort: candidate }) =>
-    candidate.cohortId === "docs-2026-08-25-stable3"
+    candidate.cohortId === "docs-2026-08-31-stable10"
   );
-  assert.ok(prior, "the released package must bundle the stable3 migration source");
+  assert.ok(prior, "the released package must bundle the stable10 migration source");
+  assert.deepEqual(catalog.currentSourceExecutors, []);
+  assert.equal(
+    prior.cohort.assets.transitionCatalogDigest,
+    "sha256:ffce6fbb813ccbdbba3ba1dca6b22219672fbcc8bd08a0f0aca37bf8bed38e21"
+  );
+  assert.notEqual(prior.cohort.assets.transitionCatalogDigest, catalog.transitionCatalogDigest);
+  assert.deepEqual(prior.cohort.rollbackTo, []);
   const current = desired(prior.cohort, 1);
   const [docsManifest, managedManifest, foundationManifest, mutationManifest, authoringManifest] =
     await Promise.all([
@@ -992,7 +1002,13 @@ minimumReleaseAgeExclude:
       workspace,
       new RegExp(`@agent-teams/docs-protocol@${target.packages.docsProtocol.version}`, "u")
     );
-    assert.ok(!workspace.includes(`@agent-teams/docs-protocol@${prior.cohort.packages.docsProtocol.version}`));
+    assert.match(
+      workspace,
+      new RegExp(
+        `@agent-teams/docs-protocol-agent-teams@${target.packages.docsProtocolAgentTeams.version}`,
+        "u"
+      )
+    );
     assert.match(workspace, /unrelated@1\.0\.0/u);
     let authorityReads = 0;
     const replay = createConsumerUpgradeUseCase({

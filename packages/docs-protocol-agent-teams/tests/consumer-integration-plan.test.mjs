@@ -261,12 +261,12 @@ test("package-owned asset sources exactly match compiler constants and split cat
   assert.deepEqual(transitionCatalog.currentSourceExecutors, []);
   assert.deepEqual(
     transitionCatalog.directTargetBundles.map(({ cohort: { cohortId } }) => cohortId),
-    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9", "docs-2026-08-18-rc1", "docs-2026-08-18-rc2", "docs-2026-08-18-rc3", "docs-2026-08-23-stable1", "docs-2026-08-24-stable2", "docs-2026-08-25-stable3", "docs-2026-08-28-stable8"]
+    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9", "docs-2026-08-18-rc1", "docs-2026-08-18-rc2", "docs-2026-08-18-rc3", "docs-2026-08-23-stable1", "docs-2026-08-24-stable2", "docs-2026-08-25-stable3", "docs-2026-08-28-stable8", "docs-2026-08-31-stable10"]
   );
   const loadedTransitions = await loadPackageConsumerAssetCatalog();
   assert.deepEqual(
     loadedTransitions.directTargetBundles.map(({ cohort: { cohortId } }) => cohortId),
-    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9", "docs-2026-08-18-rc1", "docs-2026-08-18-rc2", "docs-2026-08-18-rc3", "docs-2026-08-23-stable1", "docs-2026-08-24-stable2", "docs-2026-08-25-stable3", "docs-2026-08-28-stable8"]
+    ["docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9", "docs-2026-08-18-rc1", "docs-2026-08-18-rc2", "docs-2026-08-18-rc3", "docs-2026-08-23-stable1", "docs-2026-08-24-stable2", "docs-2026-08-25-stable3", "docs-2026-08-28-stable8", "docs-2026-08-31-stable10"]
   );
   const catalog = JSON.parse(catalogSource);
   assert.equal(catalog.skillDigest, digest(Buffer.from(skill)));

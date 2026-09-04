@@ -24,6 +24,9 @@ const REPOSITORY = {
 const repositoryMutationReceiptSchema = JSON.parse(await readFile(new URL(
   import.meta.resolve("@agent-teams/repository-mutation/schemas/known-file-transaction-receipt/v1.schema.json")
 ), "utf8"));
+const actualOrgV2Registry = JSON.parse(await readFile(new URL(
+  "./fixtures/actual-org-cohort-v2.json", import.meta.url
+), "utf8"));
 
 function centralRegistry(cohort) {
   return {
@@ -110,18 +113,41 @@ function v2Registry(cohort) {
       engineeringFoundation: cohort.packages.engineeringFoundation
     }
   });
-  registry.cohorts[0].schemas = {
-    consumer_integration: 3,
-    managed_state: 2,
-    docs_protocol: 1
-  };
+  registry.cohorts[0].schemas = actualOrgV2Registry.cohorts[0].schemas;
   registry.cohorts[0].cohort_generation = 2;
+  registry.cohorts[0].dependency_edges = actualOrgV2Registry.cohorts[0].dependency_edges;
   registry.cohorts[0].packages = V2_PACKAGE_NAMES.map(([key, name]) => ({
     name,
     ...cohort.packages[key]
   }));
   return registry;
 }
+
+test("projects the actual org Cohort v2 authority shape and rejects drift", () => {
+  const input = {
+    cohortId: actualOrgV2Registry.cohorts[0].cohort_id,
+    registry: actualOrgV2Registry,
+    repository: REPOSITORY,
+    revision: "8".repeat(40)
+  };
+  const authority = projectDocsProtocolQualificationV3Authority(input);
+  assert.equal(authority.cohort.schemaVersion, 2);
+  assert.deepEqual(Object.keys(authority.cohort.packages), V2_PACKAGE_NAMES.map(([key]) => key));
+  assert.deepEqual(authority.cohort.schemas, {
+    consumerIntegration: 3, managedState: 2, docsProtocol: 1
+  });
+  for (const mutate of [
+    (registry) => {registry.cohorts[0].dependency_edges.pop();},
+    (registry) => {registry.cohorts[0].dependency_edges[0].to = "@agent-teams/docs-protocol";},
+    (registry) => {delete registry.cohorts[0].schemas.qualification_receipt;},
+    (registry) => {registry.cohorts[0].schemas.unexpected = 1;}
+  ]) {
+    const registry = structuredClone(actualOrgV2Registry);
+    mutate(registry);
+    assert.throws(() => projectDocsProtocolQualificationV3Authority({ ...input, registry }),
+      (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+  }
+});
 
 test("binds authority reads to current protected main and rejects stale assertions", async () => {
   const { cohort } = await sourceCohort();

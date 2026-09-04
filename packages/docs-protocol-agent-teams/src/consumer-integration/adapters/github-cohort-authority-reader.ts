@@ -269,6 +269,25 @@ const LEGACY_V1_SCHEMA = Object.freeze({
   foundation_envelope: 5,
   docs_protocol: 1
 });
+const V2_SCHEMA = Object.freeze({
+  consumer_integration: 3,
+  managed_state: 2,
+  docs_protocol: 1,
+  qualification_receipt: 3,
+  foundation_plan: 1,
+  foundation_journal: 1,
+  foundation_receipt: 1,
+  foundation_envelope: 5
+});
+const V2_DEPENDENCY_EDGES = Object.freeze([
+  ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
+  ["@agent-teams/docs-protocol", "@agent-teams/document-authoring"],
+  ["@agent-teams/docs-protocol", "@agent-teams/repository-mutation"],
+  ["@agent-teams/docs-protocol-agent-teams", "@agent-teams/docs-protocol"],
+  ["@agent-teams/docs-protocol-agent-teams", "@agent-teams/repository-mutation"],
+  ["@agent-teams/engineering-foundation", "@agent-teams/document-authoring"],
+  ["@agent-teams/engineering-foundation", "@agent-teams/repository-mutation"]
+] as const);
 
 function assertSchemaGeneration(schemas: Record<string, unknown>, generation: 1 | 2): void {
   if (generation === 1) {
@@ -281,22 +300,33 @@ function assertSchemaGeneration(schemas: Record<string, unknown>, generation: 1 
     }
     return;
   }
-  if (!hasExactKeys(schemas, ["consumer_integration", "docs_protocol", "managed_state"])) {
+  if (!hasExactKeys(schemas, Object.keys(V2_SCHEMA)) ||
+    Object.entries(V2_SCHEMA).some(([key, value]) => schemas[key] !== value)) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
-      "Qualified Cohort v2 schemas must contain exactly its three version coordinates."
-    );
-  }
-  if (schemas["consumer_integration"] !== 3 || schemas["managed_state"] !== 2 ||
-    schemas["docs_protocol"] !== 1) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_AUTHORITY_INVALID",
-      "Qualified Cohort v2 schemas must be exactly (3,2,1)."
+      "Qualified Cohort v2 schemas must match the exact eight-coordinate authority shape."
     );
   }
 }
 
-function recordGeneration(source: Record<string, unknown>, requested: 1 | 2): 1 | 2 {
+function assertDependencyEdges(value: unknown): void {
+  const edges = array(value, "Cohort dependency edges").map((entry) =>
+    record(entry, "Cohort dependency edge")
+  );
+  const valid = edges.length === V2_DEPENDENCY_EDGES.length && edges.every((edge, index) =>
+    hasExactKeys(edge, ["from", "to"]) &&
+    edge["from"] === V2_DEPENDENCY_EDGES[index]?.[0] &&
+    edge["to"] === V2_DEPENDENCY_EDGES[index]?.[1]
+  );
+  if (!valid) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Qualified Cohort v2 dependency edges must match the canonical package graph."
+    );
+  }
+}
+
+function recordGeneration(source: Record<string, unknown>, requested: unknown): 1 | 2 {
   const discriminator = source["cohort_generation"];
   if (requested === 1) {
     if (discriminator !== undefined || !hasExactKeys(source, LEGACY_V1_RECORD_KEYS)) {
@@ -319,7 +349,9 @@ function recordGeneration(source: Record<string, unknown>, requested: 1 | 2): 1 
       "Cohort generation discriminator is unknown or unsupported."
     );
   }
-  if (!hasExactKeys(source, [...LEGACY_V1_RECORD_KEYS, "cohort_generation"])) {
+  if (!hasExactKeys(source, [
+    ...LEGACY_V1_RECORD_KEYS, "cohort_generation", "dependency_edges"
+  ])) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
       "Qualified Cohort v2 must match its closed discriminator-bearing record shape."
@@ -344,6 +376,7 @@ function cohortProjection(
   const schemas = record(source["schemas"], "Cohort schemas");
   const generation = recordGeneration(source, requestedGeneration);
   assertSchemaGeneration(schemas, generation);
+  if (generation === 2) {assertDependencyEdges(source["dependency_edges"]);}
   const projection = {
     schemaVersion: generation,
     cohortId: string(source["cohort_id"], "Cohort ID"),

@@ -169,7 +169,26 @@ export async function cleanupOneCommandSandbox({
   await rm(disposable, { force: true, recursive: true });
 }
 
-export function fakeCorepackSource() {
+export function historicalDocsCheckFixtureSource() {
+  return `const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const root = process.cwd();
+const args = process.argv.slice(2);
+assert.deepEqual(args, ["consumer", "check", "--consumer", root, "--json"]);
+assert.equal(fs.existsSync(path.join(root, "node_modules/@agent-teams/docs-protocol-agent-teams")), false);
+const profile = JSON.parse(fs.readFileSync(path.join(root,
+  "architecture/foundation/docs-consumer-integration.json"), "utf8"));
+assert.equal(profile.cohort.schemaVersion, 1);
+assert.ok(profile.schemaVersion === 1 || profile.schemaVersion === 2);
+fs.writeFileSync(path.join(__dirname, "../last-check.json"), JSON.stringify({
+  schemaVersion: profile.schemaVersion, cohortId: profile.cohort.cohortId, args
+}));
+process.stdout.write(JSON.stringify({ outcome: "current" }));
+`;
+}
+
+export function fakeCorepackSource(historicalDocsRoot) {
   return `#!/usr/bin/env node
 import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -186,6 +205,7 @@ const profile = JSON.parse(readFileSync(join(
 const docs = profile.cohort.packages.docsProtocol;
 const foundation = profile.cohort.packages.engineeringFoundation;
 const isV2 = profile.cohort.schemaVersion === 2;
+const historicalDocsSource = ${JSON.stringify(historicalDocsRoot ?? null)};
 if (process.argv.includes("--no-frozen-lockfile") && !isV2) {
   const workspace = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
   const lockfile = readFileSync(join(root, "pnpm-lock.yaml"), "utf8");
@@ -291,17 +311,21 @@ snapshots:
 }
 const scope = join(root, "node_modules", "@agent-teams");
 mkdirSync(scope, { recursive: true });
+if (!isV2) {
+  for (const name of ["docs-protocol-agent-teams", "repository-mutation", "document-authoring"]) {
+    rmSync(join(scope, name), { force: true, recursive: true });
+  }
+}
 const packageSources = [
-  ["docs-protocol", process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE],
-  ["engineering-foundation", process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE],
-  ["docs-protocol-agent-teams", process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE],
-  ["repository-mutation", process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE]
+  ["docs-protocol", isV2 ? process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE : historicalDocsSource],
+  ["engineering-foundation", process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE]
 ];
 if (isV2) {
-  packageSources.push([
-    "document-authoring",
-    process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE
-  ]);
+  packageSources.push(
+    ["docs-protocol-agent-teams", process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE],
+    ["repository-mutation", process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE],
+    ["document-authoring", process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE]
+  );
 }
 for (const [name, source] of packageSources) {
   if (typeof source !== "string" || source === "") { throw new Error("missing package path"); }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -24,6 +25,33 @@ const REPOSITORY = {
 const repositoryMutationReceiptSchema = JSON.parse(await readFile(new URL(
   import.meta.resolve("@agent-teams/repository-mutation/schemas/known-file-transaction-receipt/v1.schema.json")
 ), "utf8"));
+const actualOrgV2Registry = JSON.parse(await readFile(new URL(
+  "./fixtures/actual-org-cohort-v2.json", import.meta.url
+), "utf8"));
+
+const canonical = (entry) => Array.isArray(entry)
+    ? `[${entry.map(canonical).join(",")}]`
+    : entry !== null && typeof entry === "object"
+      ? `{${Object.keys(entry).toSorted().map((key) => `${JSON.stringify(key)}:${canonical(entry[key])}`).join(",")}}`
+      : JSON.stringify(entry);
+function authorityDigest(value, field, domain) {
+  const body = Object.fromEntries(Object.entries(value).filter(([key]) => key !== field));
+  return `sha256:${createHash("sha256").update(canonical({ domain, body })).digest("hex")}`;
+}
+
+function bindRegistry(registry) {
+  for (const source of registry.cohorts) {
+    source.record_digest = authorityDigest(source, "record_digest", "agent-teams.docs-qualified-cohort/v2");
+  }
+  let previous = null;
+  for (const event of registry.events) {
+    event.previous_event_digest = previous;
+    event.event_digest = authorityDigest(event, "event_digest", "agent-teams.docs-qualified-cohort-event/v1");
+    previous = event.event_digest;
+  }
+  return registry;
+}
+bindRegistry(actualOrgV2Registry);
 
 function centralRegistry(cohort) {
   return {
@@ -97,6 +125,7 @@ function v2Cohort(source) {
     ...structuredClone(source),
     schemaVersion: 2,
     cohortId: "docs-cohort-v2-authority",
+    upgradeFrom: source.upgradeFrom.length === 0 ? ["docs-v1"] : source.upgradeFrom,
     packages: Object.fromEntries(V2_PACKAGE_NAMES.map(([key]) => [key, coordinate])),
     schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 }
   };
@@ -110,18 +139,214 @@ function v2Registry(cohort) {
       engineeringFoundation: cohort.packages.engineeringFoundation
     }
   });
-  registry.cohorts[0].schemas = {
-    consumer_integration: 3,
-    managed_state: 2,
-    docs_protocol: 1
+  const source = registry.cohorts[0];
+  const current = actualOrgV2Registry.cohorts[0];
+  source.schemas = structuredClone(current.schemas);
+  source.cohort_generation = 2;
+  source.dependency_edges = structuredClone(current.dependency_edges);
+  source.packages = V2_PACKAGE_NAMES.map(([key], index) => {
+    const coordinate = structuredClone(current.packages[index]);
+    Object.assign(coordinate, cohort.packages[key]);
+    coordinate.provenance.registry_attestation_url =
+      `https://registry.npmjs.org/-/npm/v1/attestations/${
+        coordinate.name.replaceAll("/", "%2f")
+      }@${coordinate.version}`;
+    return coordinate;
+  });
+  source.reusable_workflow = {
+    ...structuredClone(current.reusable_workflow),
+    revision: cohort.workflow.revision,
+    blob_sha: cohort.workflow.blobSha
   };
-  registry.cohorts[0].cohort_generation = 2;
-  registry.cohorts[0].packages = V2_PACKAGE_NAMES.map(([key, name]) => ({
-    name,
-    ...cohort.packages[key]
-  }));
-  return registry;
+  source.assets = structuredClone(current.assets);
+  source.assets.skill.digest = cohort.assets.skillDigest;
+  source.assets.caller_workflow.rendered_digest = cohort.assets.callerWorkflowDigest;
+  source.assets.asset_catalog.digest = cohort.assets.assetCatalogDigest;
+  source.assets.transition_catalog.digest = cohort.assets.transitionCatalogDigest;
+  source.runtime = structuredClone(current.runtime);
+  source.runtime_closure = {
+    ...structuredClone(current.runtime_closure),
+    projection_path: `governance/docs-runtime-closures/${
+      cohort.runtime.runtimeClosureDigest.replace(":", "-")
+    }.json`,
+    digest: cohort.runtime.runtimeClosureDigest
+  };
+  source.canary_repositories = structuredClone(current.canary_repositories);
+  source.evidence_references = ["test:synthetic-v2"];
+  registry.events = [structuredClone(actualOrgV2Registry.events[0])];
+  registry.events[0].cohort_id = cohort.cohortId;
+  registry.events[0].event_digest = cohort.qualificationEventDigest;
+  return bindRegistry(registry);
 }
+
+test("projects the actual org Cohort v2 authority shape and rejects drift", () => {
+  const input = {
+    cohortId: actualOrgV2Registry.cohorts[0].cohort_id,
+    registry: actualOrgV2Registry,
+    repository: REPOSITORY,
+    revision: "8".repeat(40)
+  };
+  const authority = projectDocsProtocolQualificationV3Authority(input);
+  assert.equal(authority.cohort.schemaVersion, 2);
+  assert.deepEqual(Object.keys(authority.cohort.packages), V2_PACKAGE_NAMES.map(([key]) => key));
+  assert.deepEqual(authority.cohort.schemas, {
+    consumerIntegration: 3, managedState: 2, docsProtocol: 1
+  });
+  for (const mutate of [
+    (registry) => {registry.cohorts[0].dependency_edges.pop();},
+    (registry) => {registry.cohorts[0].dependency_edges[0].to = "@agent-teams/docs-protocol";},
+    (registry) => {delete registry.cohorts[0].schemas.qualification_receipt;},
+    (registry) => {registry.cohorts[0].schemas.unexpected = 1;}
+  ]) {
+    const registry = structuredClone(actualOrgV2Registry);
+    mutate(registry);
+    assert.throws(() => projectDocsProtocolQualificationV3Authority({ ...input, registry }),
+      (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+  }
+});
+
+test("fails closed on current Cohort v2 nested authority drift", () => {
+  const input = {
+    cohortId: actualOrgV2Registry.cohorts[0].cohort_id,
+    repository: REPOSITORY,
+    revision: "8".repeat(40)
+  };
+  const mutations = [
+    ["wrong package role", (cohort) => {cohort.packages[0].role = "direct";}],
+    ["reordered packages", (cohort) => {cohort.packages.reverse();}],
+    ["extra package key", (cohort) => {cohort.packages[0].unexpected = true;}],
+    ["missing package key", (cohort) => {delete cohort.packages[0].published_at;}],
+    ["extra provenance key", (cohort) => {cohort.packages[0].provenance.unexpected = true;}],
+    ["missing provenance key", (cohort) => {
+      delete cohort.packages[0].provenance.source_repository_id;
+    }],
+    ["unbound provenance attestation", (cohort) => {
+      cohort.packages[0].provenance.registry_attestation_url =
+        cohort.packages[1].provenance.registry_attestation_url;
+    }],
+    ["wrong asset package", (cohort) => {
+      cohort.assets.skill.package = "@agent-teams/docs-protocol";
+    }],
+    ["extra asset entry key", (cohort) => {cohort.assets.asset_catalog.unexpected = true;}],
+    ["missing asset container key", (cohort) => {delete cohort.assets.transition_catalog;}],
+    ["wrong reusable workflow repository ID", (cohort) => {
+      cohort.reusable_workflow.repository_id += 1;
+    }],
+    ["extra reusable workflow key", (cohort) => {
+      cohort.reusable_workflow.unexpected = true;
+    }],
+    ["wrong runtime platforms", (cohort) => {cohort.runtime.apply_platforms.reverse();}],
+    ["missing runtime key", (cohort) => {delete cohort.runtime.check_plan_platforms;}],
+    ["wrong runtime closure domain", (cohort) => {cohort.runtime_closure.domain = "wrong";}],
+    ["unbound runtime closure path", (cohort) => {
+      cohort.runtime_closure.projection_path =
+        `governance/docs-runtime-closures/sha256-${"1".repeat(64)}.json`;
+    }],
+    ["extra runtime closure key", (cohort) => {cohort.runtime_closure.unexpected = true;}],
+    ["missing runtime closure key", (cohort) => {delete cohort.runtime_closure.package_count;}],
+    ["extra canary repository key", (cohort) => {
+      cohort.canary_repositories[0].unexpected = true;
+    }],
+    ["missing canary repository key", (cohort) => {
+      delete cohort.canary_repositories[0].repository;
+    }],
+    ["duplicate evidence reference", (cohort) => {
+      cohort.evidence_references.push(cohort.evidence_references[0]);
+    }],
+    ["missing evidence reference", (cohort) => {cohort.evidence_references.length = 0;}],
+    ["missing upgrade origin", (cohort) => {cohort.upgrade_from.length = 0;}]
+  ];
+  for (const [description, mutate] of mutations) {
+    const registry = structuredClone(actualOrgV2Registry);
+    mutate(registry.cohorts[0]);
+    assert.throws(
+      () => projectQualifiedCohortAuthority({ ...input, generation: 2, registry }),
+      (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID",
+      description
+    );
+  }
+  for (const [description, mutate] of [
+    ["extra lifecycle event key", (event) => {event.unexpected = true;}],
+    ["missing lifecycle event key", (event) => {delete event.support_until;}],
+    ["duplicate lifecycle evidence reference", (event) => {
+      event.evidence_references.push(event.evidence_references[0]);
+    }]
+  ]) {
+    const registry = structuredClone(actualOrgV2Registry);
+    mutate(registry.events[0]);
+    assert.throws(
+      () => projectQualifiedCohortAuthority({ ...input, generation: 2, registry }),
+      (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID",
+      description
+    );
+  }
+});
+
+test("rejects digest, global chain and CANARY semantic substitution", () => {
+  const registry = structuredClone(actualOrgV2Registry);
+  const source = registry.cohorts[0];
+  const qualified = registry.events[0];
+  registry.events.push({
+    ...structuredClone(qualified), sequence: 2, state: "CANARY",
+    canary_evidence: [{
+      ...source.canary_repositories[0],
+      merge_revision: "a".repeat(40), observed_cohort_id: source.cohort_id,
+      observed_record_digest: source.record_digest, observed_event_digest: qualified.event_digest,
+      required_context: "Docs Protocol", integration_id: 1, conclusion: "success",
+      check_run_id: 22, check_run_url: "https://github.com/agent-teams-ai/docs-upgrade-sandbox/actions/runs/33/job/22",
+      workflow_run_id: 33, workflow_id: 4,
+      caller_workflow_path: ".github/workflows/docs.yml", caller_workflow_digest: source.assets.caller_workflow.rendered_digest
+    }]
+  });
+  bindRegistry(registry);
+  const project = (candidate) => projectQualifiedCohortAuthority({
+    cohortId: source.cohort_id, generation: 2, registry: candidate,
+    repository: REPOSITORY, revision: "8".repeat(40)
+  });
+  assert.equal(project(registry).cohort.recordDigest, source.record_digest);
+  const interleaved = structuredClone(registry);
+  interleaved.events.splice(1, 0, {
+    ...structuredClone(qualified), cohort_id: "unrelated-cohort", sequence: 2
+  });
+  interleaved.events[2].sequence = 3;
+  bindRegistry(interleaved);
+  assert.equal(project(interleaved).cohort.cohortId, source.cohort_id);
+  interleaved.events[1].event_digest = `sha256:${"f".repeat(64)}`;
+  assert.throws(() => project(interleaved), (error) =>
+    error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID", "unselected global event corruption");
+  const invalidRecord = structuredClone(actualOrgV2Registry);
+  invalidRecord.cohorts[0].record_digest = `sha256:${"c".repeat(64)}`;
+  assert.throws(() => project(invalidRecord), /record_digest does not bind/u);
+  const mutations = [
+    ["wrong repository ID", (value) => {value.events[1].canary_evidence[0].repository_id++;}],
+    ["wrong repository name", (value) => {value.events[1].canary_evidence[0].repository = "agent-teams-ai/other";}],
+    ["wrong observed cohort", (value) => {value.events[1].canary_evidence[0].observed_cohort_id = "other";}],
+    ["wrong observed record", (value) => {value.events[1].canary_evidence[0].observed_record_digest = `sha256:${"a".repeat(64)}`;}],
+    ["wrong observed event", (value) => {value.events[1].canary_evidence[0].observed_event_digest = `sha256:${"b".repeat(64)}`;}],
+    ["duplicate evidence", (value) => {value.events[1].canary_evidence.push(value.events[1].canary_evidence[0]);}],
+    ["incomplete declared set", (value) => {value.cohorts[0].canary_repositories.push({ repository_id: 2, repository: "agent-teams-ai/other" });}],
+    ["global sequence gap", (value) => {value.events[1].sequence = 3;}]
+  ];
+  for (const [description, mutate] of mutations) {
+    const candidate = structuredClone(registry);
+    mutate(candidate);
+    bindRegistry(candidate);
+    assert.throws(() => project(candidate), (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID", description);
+  }
+  for (const [description, mutate] of [
+    ["arbitrary record digest", (value) => {value.cohorts[0].record_digest = `sha256:${"c".repeat(64)}`;}],
+    ["arbitrary event digest", (value) => {value.events[1].event_digest = `sha256:${"d".repeat(64)}`;}],
+    ["broken predecessor", (value) => {
+      value.events[1].previous_event_digest = `sha256:${"e".repeat(64)}`;
+      value.events[1].event_digest = authorityDigest(value.events[1], "event_digest", "agent-teams.docs-qualified-cohort-event/v1");
+    }],
+    ["global event reordering", (value) => {value.events.reverse();}]
+  ]) {
+    const candidate = structuredClone(registry);
+    mutate(candidate);
+    assert.throws(() => project(candidate), (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID", description);
+  }
+});
 
 test("binds authority reads to current protected main and rejects stale assertions", async () => {
   const { cohort } = await sourceCohort();

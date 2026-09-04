@@ -29,8 +29,14 @@ function parseExecution(result: ProcessResult): Record<string, unknown> {
   );
 }
 
-async function invoke(root: string, args: readonly string[], execute: Execute) {
-  const cli = join(root, "node_modules", "@agent-teams", "docs-protocol-agent-teams", "dist", "cli.js");
+async function invoke(
+  root: string,
+  args: readonly string[],
+  execute: Execute,
+  owner: "managed-target" | "historical-source" = "managed-target"
+) {
+  const packageName = owner === "historical-source" ? "docs-protocol" : "docs-protocol-agent-teams";
+  const cli = join(root, "node_modules", "@agent-teams", packageName, "dist", "cli.js");
   const metadata = await lstat(cli);
   if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.nlink > 1) {
     throw new ConsumerIntegrationNodeError(
@@ -54,6 +60,19 @@ export async function assertInstalledIntegrationCurrent(
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UPGRADE_TARGET_BLOCKED",
       "Target Docs Protocol check did not converge in the disposable repository."
+    );
+  }
+}
+
+export async function assertInstalledHistoricalIntegrationCurrent(
+  root: string,
+  execute: Execute
+): Promise<void> {
+  const result = await invoke(root, ["consumer", "check"], execute, "historical-source");
+  if (result["outcome"] !== "current") {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT",
+      "Restored historical Docs Protocol check did not converge."
     );
   }
 }

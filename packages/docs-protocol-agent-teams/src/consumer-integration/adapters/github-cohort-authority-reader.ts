@@ -16,6 +16,10 @@ import {
 import {
   QUALIFIED_DOCS_COHORT_V2_PACKAGES
 } from "../application/policies/qualified-docs-cohort-v2.js";
+import {
+  assertCohortAuthorityV2,
+  assertCohortEventChainV2
+} from "./cohort-v2-authority-validator.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 
@@ -269,34 +273,17 @@ const LEGACY_V1_SCHEMA = Object.freeze({
   foundation_envelope: 5,
   docs_protocol: 1
 });
-
-function assertSchemaGeneration(schemas: Record<string, unknown>, generation: 1 | 2): void {
-  if (generation === 1) {
-    if (!hasExactKeys(schemas, Object.keys(LEGACY_V1_SCHEMA)) ||
-      Object.entries(LEGACY_V1_SCHEMA).some(([key, value]) => schemas[key] !== value)) {
-      throw new ConsumerIntegrationNodeError(
-        "DOCS_CONSUMER_AUTHORITY_INVALID",
-        "Historical Cohort v1 schemas must match the immutable eight-coordinate legacy shape."
-      );
-    }
-    return;
-  }
-  if (!hasExactKeys(schemas, ["consumer_integration", "docs_protocol", "managed_state"])) {
+function assertLegacySchema(schemas: Record<string, unknown>): void {
+  if (!hasExactKeys(schemas, Object.keys(LEGACY_V1_SCHEMA)) ||
+    Object.entries(LEGACY_V1_SCHEMA).some(([key, value]) => schemas[key] !== value)) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
-      "Qualified Cohort v2 schemas must contain exactly its three version coordinates."
-    );
-  }
-  if (schemas["consumer_integration"] !== 3 || schemas["managed_state"] !== 2 ||
-    schemas["docs_protocol"] !== 1) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_AUTHORITY_INVALID",
-      "Qualified Cohort v2 schemas must be exactly (3,2,1)."
+      "Historical Cohort v1 schemas must match the immutable eight-coordinate legacy shape."
     );
   }
 }
 
-function recordGeneration(source: Record<string, unknown>, requested: 1 | 2): 1 | 2 {
+function recordGeneration(source: Record<string, unknown>, requested: unknown): 1 | 2 {
   const discriminator = source["cohort_generation"];
   if (requested === 1) {
     if (discriminator !== undefined || !hasExactKeys(source, LEGACY_V1_RECORD_KEYS)) {
@@ -319,7 +306,9 @@ function recordGeneration(source: Record<string, unknown>, requested: 1 | 2): 1 
       "Cohort generation discriminator is unknown or unsupported."
     );
   }
-  if (!hasExactKeys(source, [...LEGACY_V1_RECORD_KEYS, "cohort_generation"])) {
+  if (!hasExactKeys(source, [
+    ...LEGACY_V1_RECORD_KEYS, "cohort_generation", "dependency_edges"
+  ])) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
       "Qualified Cohort v2 must match its closed discriminator-bearing record shape."
@@ -343,7 +332,11 @@ function cohortProjection(
   const runtimeClosure = record(source["runtime_closure"], "Cohort runtime closure");
   const schemas = record(source["schemas"], "Cohort schemas");
   const generation = recordGeneration(source, requestedGeneration);
-  assertSchemaGeneration(schemas, generation);
+  if (generation === 1) {
+    assertLegacySchema(schemas);
+  } else {
+    assertCohortAuthorityV2(source);
+  }
   const projection = {
     schemaVersion: generation,
     cohortId: string(source["cohort_id"], "Cohort ID"),
@@ -412,6 +405,9 @@ export function projectQualifiedCohortAuthority(input: {
     );
   }
   const source = matches[0]!;
+  if (input.generation === 2) {
+    assertCohortEventChainV2(array(input.registry["events"], "Cohort lifecycle events"), source);
+  }
   const lifecycle = selectedLifecycleState(
     array(input.registry["events"], "Cohort lifecycle events"),
     input.cohortId

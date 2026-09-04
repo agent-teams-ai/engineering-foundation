@@ -169,7 +169,8 @@ test("upgrade file projection rejects cross-generation requests", async () => {
   );
 });
 
-test("stages exact v1 and v2 exclusions but commits only v2 authority", async () => {
+for (const sourceProfileVersion of [1, 2]) {
+test(`migrates historical profile ${sourceProfileVersion} with exact source and target exclusions`, async () => {
   const target = {
     ...cohort("target", "2.0.0"),
     upgradeFrom: ["docs-v1-source"],
@@ -199,6 +200,11 @@ test("stages exact v1 and v2 exclusions but commits only v2 authority", async ()
     cohort: source
   };
   delete legacyProfile.qualification;
+  const sourceProfile = {
+    ...legacyProfile,
+    schemaVersion: sourceProfileVersion,
+    ...(sourceProfileVersion === 2 ? { qualification: profile(target).qualification } : {})
+  };
   const workspace = Buffer.from(`packages: []
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
@@ -206,7 +212,7 @@ minimumReleaseAgeExclude:
   - '@agent-teams/docs-protocol@1.0.0'
   - '@agent-teams/engineering-foundation@1.0.0'
 `);
-  const projected = await projectConsumerUpgradeFiles({
+  const projectionInput = {
     authority: {
       repository: "agent-teams-ai/.github",
       path: "governance/docs-qualified-cohorts.json",
@@ -222,9 +228,25 @@ minimumReleaseAgeExclude:
         "@agent-teams/engineering-foundation": "1.0.0"
       }
     })}\n`),
-    profile: Buffer.from(`${JSON.stringify(legacyProfile)}\n`),
+    profile: Buffer.from(`${JSON.stringify(sourceProfile, null, 2)}\r\n`),
     workspace
-  });
+  };
+  if (sourceProfileVersion === 2) {
+    for (const qualification of [undefined, null, {}, {
+      ...sourceProfile.qualification, gateCommand: "pnpm arbitrary:command"
+    }]) {
+      await assert.rejects(projectConsumerUpgradeFiles({
+        ...projectionInput,
+        profile: Buffer.from(JSON.stringify({ ...sourceProfile, qualification }))
+      }), /docs-consumer-integration-profile-v2 validation failed/u);
+    }
+  }
+  const projected = await projectConsumerUpgradeFiles(projectionInput);
+  const projectedProfile = JSON.parse(Buffer.from(projected.profile).toString("utf8"));
+  assert.equal(projectedProfile.schemaVersion, 3);
+  assert.deepEqual(projectedProfile.cohort, target);
+  assert.deepEqual(projectedProfile.qualification, profile(target).qualification);
+  assert.deepEqual(projectedProfile.governedDocsRoots, sourceProfile.governedDocsRoots);
   const migration = workspaceExclusions(projected.migrationWorkspace);
   const committed = workspaceExclusions(projected.targetWorkspace);
   const targetEntries = [
@@ -245,3 +267,4 @@ minimumReleaseAgeExclude:
   assert.equal(migration.filter((entry) => entry === "unrelated@3.0.0").length, 1);
   assert.equal(committed.filter((entry) => entry === "unrelated@3.0.0").length, 1);
 });
+}

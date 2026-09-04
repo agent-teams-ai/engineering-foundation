@@ -85,16 +85,16 @@ export async function projectConsumerIntegrationProfileV3(input: {
   return Buffer.from(postimage, "utf8");
 }
 
-async function migrateConsumerIntegrationProfileV1ToV3(input: {
+async function migrateHistoricalConsumerIntegrationProfileToV3(input: {
   readonly bytes: Uint8Array;
   readonly cohort: QualifiedDocsCohortBindingV2;
 }): Promise<Uint8Array> {
   let source = decode(input.bytes, "Consumer integration profile");
   const profile = parseJsonRecord(source);
-  if (profile["schemaVersion"] !== 1) {
+  if (profile["schemaVersion"] !== 1 && profile["schemaVersion"] !== 2) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UPGRADE_GENERATION_MISMATCH",
-      "Explicit v1-to-v2 migration requires one historical profile v1 source."
+      "Explicit Cohort v1-to-v2 migration requires one historical profile v1 or v2 source."
     );
   }
   await assertConsumerIntegrationProfileSchema(profile);
@@ -429,7 +429,7 @@ export async function projectConsumerUpgradeFiles(
         cohort: input.authority.cohort
       });
     return {
-      profile: await migrateConsumerIntegrationProfileV1ToV3({
+      profile: await migrateHistoricalConsumerIntegrationProfileToV3({
         bytes: input.profile,
         cohort: input.authority.cohort
       }),

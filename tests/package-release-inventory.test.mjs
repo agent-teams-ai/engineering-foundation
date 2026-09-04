@@ -171,7 +171,7 @@ test("registry qualification includes Docs Protocol exactly once across bootstra
   );
 });
 
-test("reviewed catalog owns the standalone Document Authoring package", async () => {
+test("reviewed catalog and API baseline own the standalone Document Authoring package", async () => {
   const entries = PUBLISHABLE_PACKAGES.filter(
     ({ name }) => name === "@agent-teams/document-authoring",
   );
@@ -186,12 +186,16 @@ test("reviewed catalog owns the standalone Document Authoring package", async ()
     "utf8",
   ));
   assert.equal(manifest.private, undefined);
-  assert.equal(manifest.version, "0.0.0");
+  assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
   assert.equal(manifest.dependencies?.["@agent-teams/repository-mutation"], "workspace:*");
   assert.equal(manifest.dependencies?.["@agent-teams/engineering-foundation"], undefined);
   assert.deepEqual(Object.keys(manifest.exports).toSorted(), [
     ".", "./observation", "./package.json", "./qualification", "./schemas/*",
   ]);
+  const baseline = JSON.parse(
+    await readFile(new URL("../architecture/public-api/document-authoring.json", import.meta.url), "utf8"),
+  );
+  assertInitialBaselineMatchesManifest(baseline, manifest);
 });
 
 test("reviewed catalog owns the public Docs Protocol manifest", async () => {

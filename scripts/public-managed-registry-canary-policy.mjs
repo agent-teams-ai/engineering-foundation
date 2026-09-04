@@ -12,6 +12,10 @@ export const CENTRAL_AUTHORITY = Object.freeze({
   repository: "agent-teams-ai/.github",
   schemaPath: "governance/docs-qualified-cohorts.schema.json",
 });
+export const SUPPORTING_MCP_PACKAGE = Object.freeze({
+  name: "@agent-teams/docs-protocol-mcp",
+  version: "0.2.0",
+});
 
 async function fetchAuthorityJson(url, fetcher) {
   const response = await fetcher(url, {
@@ -233,6 +237,20 @@ export function assertRegistryObservations(authority, observations) {
     }
   }
   return observations;
+}
+
+export function supportingMcpCoordinate(packument) {
+  const exact = packument?.versions?.[SUPPORTING_MCP_PACKAGE.version];
+  if (exact?.name !== SUPPORTING_MCP_PACKAGE.name ||
+      exact.version !== SUPPORTING_MCP_PACKAGE.version ||
+      packument?.["dist-tags"]?.latest !== SUPPORTING_MCP_PACKAGE.version) {
+    fail(`supporting release package must be exact latest ${SUPPORTING_MCP_PACKAGE.name}@${SUPPORTING_MCP_PACKAGE.version}`);
+  }
+  return Object.freeze({
+    integrity: canonicalIntegrity(exact?.dist?.integrity, SUPPORTING_MCP_PACKAGE.name),
+    name: SUPPORTING_MCP_PACKAGE.name,
+    version: SUPPORTING_MCP_PACKAGE.version,
+  });
 }
 
 export function publicationClosureDecision(authority, observations) {

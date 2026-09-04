@@ -47,7 +47,12 @@ import {
   NodeConsumerUpgradeSandbox
 } from "../dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js";
 import {
+  assertInstalledHistoricalIntegrationCurrent,
+  assertInstalledIntegrationCurrent
+} from "../dist/consumer-integration/adapters/node-consumer-upgrade-target.js";
+import {
   fakeCorepackSource,
+  historicalDocsCheckFixtureSource,
   foundationRoot,
   lockfileFor,
   packageRoot,
@@ -69,6 +74,34 @@ const REPOSITORY = {
 };
 const coreRoot = join(packageRoot, "..", "docs-protocol");
 const V2_INTEGRITY = `sha512-${"A".repeat(86)}==`;
+
+test("historical recovery selects only the explicit source CLI without adapter fallback", async () => {
+  const root = await mkdtemp(join(tmpdir(), "docs-historical-check-"));
+  const docsRoot = join(root, "node_modules", "@agent-teams", "docs-protocol");
+  try {
+    await mkdir(join(docsRoot, "dist"), { recursive: true });
+    await writeFile(join(docsRoot, "dist", "cli.js"), "// historical fixture\n");
+    const calls = [];
+    await assertInstalledHistoricalIntegrationCurrent(root, async (...args) => {
+      calls.push(args);
+      return { code: 0, stdout: '{"outcome":"current"}', stderr: "" };
+    });
+    assert.deepEqual(calls, [[
+      process.execPath,
+      [join(docsRoot, "dist", "cli.js"), "consumer", "check", "--consumer", root, "--json"],
+      root,
+      [0, 1]
+    ]]);
+    await assert.rejects(assertInstalledIntegrationCurrent(root, async () => {
+      throw new Error("managed target must not fall back to the historical CLI");
+    }), (error) => error?.code === "ENOENT");
+    await assert.rejects(assertInstalledHistoricalIntegrationCurrent(root, async () => ({
+      code: 1, stdout: '{"outcome":"blocked"}', stderr: ""
+    })), (error) => error?.code === "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 
 function fileObservation(bytes) {
@@ -559,7 +592,10 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
     targetGeneration: 2,
     to: crossGenerationAuthority.cohort.cohortId
   }), /v2 activation interrupted/u);
-  assert.equal(calls.at(-1), "restore");
+  assert.equal(calls.length, 3);
+  assert.equal(Buffer.from(calls[0], "base64").toString("utf8"), "after\n");
+  assert.equal(Buffer.from(calls[1], "base64").toString("utf8"), "before\n");
+  assert.equal(calls[2], "restore");
 
   let authorityRead = 0;
   let appliedAfterAuthorityChange = false;
@@ -825,13 +861,21 @@ test("coordinates a profile-v3 rollback with exact source HEAD and managed preim
   }
 });
 
-test("migrates one disposable profile-v1 consumer explicitly to Cohort v2", {
+for (const [sourceCohortId, sourceProfileVersion, historicalTransitionDigest] of [
+  ["docs-2026-08-31-stable10", 1, "ffce6fbb813ccbdbba3ba1dca6b22219672fbcc8bd08a0f0aca37bf8bed38e21"],
+  ["docs-2026-08-31-stable10", 2, "ffce6fbb813ccbdbba3ba1dca6b22219672fbcc8bd08a0f0aca37bf8bed38e21"],
+  ["docs-2026-08-28-stable8", 2, "7f8df2679785c9495a73c99362987e5d2ae63e120f4bf76801b2ad72d3b66ed4"],
+  ["docs-2026-08-28-stable9.1", 2, "ffce6fbb813ccbdbba3ba1dca6b22219672fbcc8bd08a0f0aca37bf8bed38e21"]
+]) {
+test(`migrates one disposable profile-v${sourceProfileVersion} consumer from ${sourceCohortId} explicitly to Cohort v2`, {
   skip: process.platform === "win32"
 }, async () => {
   const disposable = await mkdtemp(join(tmpdir(), "docs-one-command-e2e-"));
   const consumerRoot = join(disposable, "consumer");
   const fakeBin = join(disposable, "bin");
+  const historicalDocsRoot = join(disposable, "historical-docs");
   await Promise.all([
+    mkdir(join(historicalDocsRoot, "dist"), { recursive: true }),
     mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true }),
     mkdir(join(consumerRoot, ".agents", "skills", "docs-authoring"), {
       recursive: true
@@ -841,10 +885,17 @@ test("migrates one disposable profile-v1 consumer explicitly to Cohort v2", {
   ]);
   const { catalog } = await sourceCohort();
   const prior = catalog.directTargetBundles.find(({ cohort: candidate }) =>
-    candidate.cohortId === "docs-2026-08-25-stable3"
+    candidate.cohortId === sourceCohortId
   );
-  assert.ok(prior, "the released package must bundle the stable3 migration source");
-  const current = desired(prior.cohort, 1);
+  assert.ok(prior, `the released package must bundle the ${sourceCohortId} migration source`);
+  assert.deepEqual(catalog.currentSourceExecutors, []);
+  assert.equal(
+    prior.cohort.assets.transitionCatalogDigest,
+    `sha256:${historicalTransitionDigest}`
+  );
+  assert.notEqual(prior.cohort.assets.transitionCatalogDigest, catalog.transitionCatalogDigest);
+  assert.deepEqual(prior.cohort.rollbackTo, []);
+  const current = desired(prior.cohort, sourceProfileVersion);
   const [docsManifest, managedManifest, foundationManifest, mutationManifest, authoringManifest] =
     await Promise.all([
       readFile(join(coreRoot, "package.json"), "utf8").then(JSON.parse),
@@ -915,7 +966,10 @@ minimumReleaseAgeExclude:
   - "@agent-teams/engineering-foundation@${prior.cohort.packages.engineeringFoundation.version}"
   - "unrelated@1.0.0"
 `),
-    writeFile(fakeCorepack, fakeCorepackSource())
+    writeFile(fakeCorepack, fakeCorepackSource(historicalDocsRoot)),
+    writeFile(join(consumerRoot, ".gitignore"), "node_modules/\n"),
+    writeFile(join(historicalDocsRoot, "package.json"), '{"type":"commonjs"}\n'),
+    writeFile(join(historicalDocsRoot, "dist", "cli.js"), historicalDocsCheckFixtureSource())
   ]);
   await chmod(fakeCorepack, 0o755);
   runGit(consumerRoot, ["init", "-q"]);
@@ -939,14 +993,15 @@ minimumReleaseAgeExclude:
   process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE = documentAuthoringRoot;
   process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE = repositoryMutationRoot;
   try {
-    const upgrade = createConsumerUpgradeUseCase({
+    const createUpgrade = (sandbox) => createConsumerUpgradeUseCase({
       assets: packageConsumerAssetCatalogReader,
       authority: { read: async () => authority },
       input: nodeConsumerIntegrationInputReader,
       planning: consumerIntegrationPlanningPorts,
-      sandbox: new NodeConsumerUpgradeSandbox(),
+      sandbox,
       transaction: foundationKnownFileTransaction
     });
+    const upgrade = createUpgrade(new NodeConsumerUpgradeSandbox());
     const dirtyPath = join(consumerRoot, "uncommitted.txt");
     await writeFile(dirtyPath, "must block\n");
     await assert.rejects(
@@ -954,6 +1009,30 @@ minimumReleaseAgeExclude:
       (error) => error?.code === "DOCS_CONSUMER_UPGRADE_DIRTY_WORKTREE"
     );
     await rm(dirtyPath);
+    if (sourceProfileVersion === 2) {
+      const originalProfile = await readFile(profilePath);
+      const activationFailure = new Error("forced historical profile-v2 activation failure");
+      const rollbackSandbox = new NodeConsumerUpgradeSandbox();
+      const failedUpgrade = createUpgrade({
+        prepareV1ToV2: (options) => rollbackSandbox.prepareV1ToV2(options),
+        activateAndVerifyV2: async (options) => {
+          await rollbackSandbox.activateAndVerifyV2(options);
+          throw activationFailure;
+        },
+        restoreAndVerifyV1: (options) => rollbackSandbox.restoreAndVerifyV1(options)
+      });
+      await assert.rejects(
+        failedUpgrade({ consumerRoot, targetGeneration: 2, to: target.cohortId }),
+        (error) => error === activationFailure
+      );
+      assert.deepEqual(await readFile(profilePath), originalProfile);
+      assert.equal(runGit(consumerRoot, ["diff", "--exit-code", "HEAD"]), "");
+      const historicalCheck = JSON.parse(await readFile(
+        join(historicalDocsRoot, "last-check.json"), "utf8"
+      ));
+      assert.equal(historicalCheck.schemaVersion, 2);
+      assert.equal(historicalCheck.cohortId, prior.cohort.cohortId);
+    }
     const execution = await upgrade({
       consumerRoot,
       targetGeneration: 2,
@@ -992,7 +1071,13 @@ minimumReleaseAgeExclude:
       workspace,
       new RegExp(`@agent-teams/docs-protocol@${target.packages.docsProtocol.version}`, "u")
     );
-    assert.ok(!workspace.includes(`@agent-teams/docs-protocol@${prior.cohort.packages.docsProtocol.version}`));
+    assert.match(
+      workspace,
+      new RegExp(
+        `@agent-teams/docs-protocol-agent-teams@${target.packages.docsProtocolAgentTeams.version}`,
+        "u"
+      )
+    );
     assert.match(workspace, /unrelated@1\.0\.0/u);
     let authorityReads = 0;
     const replay = createConsumerUpgradeUseCase({
@@ -1022,6 +1107,8 @@ minimumReleaseAgeExclude:
       });
   }
 });
+
+}
 
 test("upgrades, reverses a failed activation, and downgrades one disposable profile-v3 consumer", {
   skip: process.platform === "win32"

@@ -43,6 +43,7 @@ import {
 } from "./node-consumer-repository-files.js";
 import {
   applyTargetIntegration,
+  assertInstalledHistoricalIntegrationCurrent,
   assertInstalledIntegrationCurrent
 } from "./node-consumer-upgrade-target.js";
 import {
@@ -439,7 +440,11 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly current: UpgradeDesiredState;
   }): Promise<void> {
     await installCohort(options.consumerRoot, true);
-    await assertInstalledIntegrationCurrent(options.consumerRoot, execute);
+    if (options.current.schemaVersion === 1) {
+      await assertInstalledHistoricalIntegrationCurrent(options.consumerRoot, execute);
+    } else {
+      await assertInstalledIntegrationCurrent(options.consumerRoot, execute);
+    }
   }
 
   public restoreAndVerifyV1(options: {

@@ -1,4 +1,5 @@
 architecture/public-api/*.json text eol=lf
+scripts/markdown-licenses/*.txt text eol=lf
 packages/docs-protocol/assets/** text eol=lf
 packages/docs-protocol/skills/** text eol=lf
 packages/docs-protocol-agent-teams/assets/** text eol=lf

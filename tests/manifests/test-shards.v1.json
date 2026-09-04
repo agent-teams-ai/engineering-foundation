@@ -25,6 +25,7 @@
         "tests/foundation-transaction-coordinator.test.mjs",
         "tests/local-mode.test.mjs",
         "tests/markdown-bundle-evidence.test.mjs",
+        "tests/markdown-checkout.test.mjs",
         "tests/markdown-distribution.test.mjs",
         "tests/known-file-transaction-characterization.test.mjs",
         "tests/known-file-transaction-node.test.mjs",

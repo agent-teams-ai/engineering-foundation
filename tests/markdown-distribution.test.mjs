@@ -11,7 +11,7 @@ import { buildMarkdownDistribution, projectMarkdownManifest } from "../scripts/m
 import { canonicalMarkdownGraph } from "../scripts/markdown-canonical-graph.mjs";
 import { markdownSnapshotPlan, markdownSnapshotSha256 } from "../scripts/markdown-source-snapshot.mjs";
 import { acquireMarkdownArchives } from "../scripts/markdown-archive-cache.mjs";
-import { projectMarkdownPublication } from "../scripts/markdown-publication.mjs";
+import { markdownSbom, projectMarkdownPublication } from "../scripts/markdown-publication.mjs";
 import { sha256 } from "../scripts/pack-artifact-archive.mjs";
 import { tarArchive } from "./pack-publishable-artifacts-support.mjs";
 
@@ -19,6 +19,25 @@ const names = [
   "github-slugger", "mdast-util-to-string", "remark-frontmatter", "remark-gfm",
   "remark-parse", "unified", "unist-util-visit", "vfile",
 ];
+
+test("SBOM package URLs encode every segment and version without escaping the scope separator", () => {
+  for (const [name, version, expected] of [
+    ["parser", "1.0.0", "pkg:npm/parser@1.0.0"],
+    ["@scope/parser", "1.0.0", "pkg:npm/%40scope/parser@1.0.0"],
+    ["@scope/parser", "1.0.0+build.7", "pkg:npm/%40scope/parser@1.0.0%2Bbuild.7"],
+    // Synthetic delimiters exercise encoding, not admission of invalid npm names.
+    ["@scope/parser@%?#", "1.0.0+build@%?#", "pkg:npm/%40scope/parser%40%25%3F%23@1.0.0%2Bbuild%40%25%3F%23"],
+  ]) {
+    const coordinate = { name, version };
+    const sbom = markdownSbom(coordinate, {
+      components: [{ ...coordinate, integrity: `sha512-${Buffer.alloc(64).toString("base64")}`, licenses: [] }],
+      sourceClosureSha256: "a".repeat(64), outputSha256: "b".repeat(64),
+    });
+    assert.equal(sbom.metadata.component.purl, expected);
+    assert.equal(sbom.components[0].purl, expected);
+    assert.equal(sbom.components[0]["bom-ref"], expected);
+  }
+});
 
 async function fixture(t, { entrySuffix = "", componentName, alternativeEntry = false } = {}) {
   const packageRoot = await mkdtemp(join(tmpdir(), "markdown-distribution-test-"));

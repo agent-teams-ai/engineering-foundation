@@ -89,7 +89,8 @@ async function qualifyRemainingFiles(packageRoot, manifest) {
   [manifest.exports, manifest.imports, manifest.typesVersions, manifest.types, manifest.typings, manifest.main, manifest.bin].forEach(checkExport);
 }
 
-const purl = ({ name, version }) => `pkg:npm/${name.replace("@", "%40")}@${version}`;
+const purl = ({ name, version }) =>
+  `pkg:npm/${name.split("/").map(encodeURIComponent).join("/")}@${encodeURIComponent(version)}`;
 
 export function markdownSbom(manifest, evidence) {
   return {

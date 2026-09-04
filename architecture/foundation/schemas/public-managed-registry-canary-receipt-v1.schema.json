@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.dev/schemas/public-managed-registry-canary-receipt-v1.schema.json",
+  "title": "Public managed registry canary receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "run", "authority", "packages", "installs", "portableNegative", "managedQualification", "hostile", "receiptDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "runId", "runAttempt", "createdAt"],
+      "properties": {
+        "repository": { "const": "agent-teams-ai/engineering-foundation" },
+        "runId": { "type": "integer", "minimum": 1 },
+        "runAttempt": { "type": "integer", "minimum": 1 },
+        "createdAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3})?Z$" }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["central", "cohort", "expectedCommit", "registry"],
+      "properties": {
+        "central": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "path", "schemaPath", "revision"],
+          "properties": {
+            "repository": { "const": "agent-teams-ai/.github" },
+            "path": { "const": "governance/docs-qualified-cohorts.json" },
+            "schemaPath": { "const": "governance/docs-qualified-cohorts.schema.json" },
+            "revision": { "$ref": "#/$defs/commit" }
+          }
+        },
+        "cohort": { "$ref": "#/$defs/cohort" },
+        "expectedCommit": { "$ref": "#/$defs/commit" },
+        "registry": { "const": "https://registry.npmjs.org/" }
+      }
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "prefixItems": [
+        { "$ref": "#/$defs/repositoryMutationProvenance" },
+        { "$ref": "#/$defs/documentAuthoringProvenance" },
+        { "$ref": "#/$defs/docsProtocolProvenance" },
+        { "$ref": "#/$defs/docsProtocolAgentTeamsProvenance" },
+        { "$ref": "#/$defs/engineeringFoundationProvenance" }
+      ],
+      "items": false
+    },
+    "installs": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        { "$ref": "#/$defs/npmInstall" },
+        { "$ref": "#/$defs/pnpmInstall" }
+      ],
+      "items": false
+    },
+    "portableNegative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapterAbsent", "forbiddenTermsAbsent", "lockfileDigest"],
+      "properties": {
+        "adapterAbsent": { "const": true },
+        "forbiddenTermsAbsent": { "const": true },
+        "lockfileDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "managedQualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actualRuntimeClosureDigest", "managedState", "qualificationReceipt", "schemaEvidence"],
+      "properties": {
+        "actualRuntimeClosureDigest": { "$ref": "#/$defs/nonzeroSha256" },
+        "managedState": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "schemaValidated", "serialization", "stateDigest"],
+          "properties": {
+            "schemaVersion": { "const": 2 },
+            "schemaValidated": { "const": true },
+            "serialization": { "type": "string", "pattern": "^\\{.*\\}\\n$" },
+            "stateDigest": { "$ref": "#/$defs/nonzeroSha256" }
+          }
+        },
+        "qualificationReceipt": { "$ref": "#/$defs/qualificationReceipt" },
+        "schemaEvidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["consumerIntegration", "managedState", "docsProtocol", "validated"],
+          "properties": {
+            "consumerIntegration": { "const": 3 },
+            "managedState": { "const": 2 },
+            "docsProtocol": { "const": 1 },
+            "validated": { "const": true }
+          }
+        }
+      }
+    },
+    "hostile": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "mode", "outcome"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "mode": { "enum": ["deterministic-policy", "installed-execution"] },
+          "outcome": { "enum": ["passed", "rejected"] }
+        }
+      }
+    },
+    "receiptDigest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "nonzeroSha256": { "type": "string", "pattern": "^sha256:(?!0{64}$)[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^(?!0{40}$)[a-f0-9]{40}$" },
+    "integrity": { "type": "string", "pattern": "^sha512-[A-Za-z0-9+/]{86}==$" },
+    "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$" },
+    "coordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "integrity"],
+      "properties": { "version": { "$ref": "#/$defs/version" }, "integrity": { "$ref": "#/$defs/integrity" } }
+    },
+    "coordinates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryMutation", "documentAuthoring", "docsProtocol", "docsProtocolAgentTeams", "engineeringFoundation"],
+      "properties": {
+        "repositoryMutation": { "$ref": "#/$defs/coordinate" },
+        "documentAuthoring": { "$ref": "#/$defs/coordinate" },
+        "docsProtocol": { "$ref": "#/$defs/coordinate" },
+        "docsProtocolAgentTeams": { "$ref": "#/$defs/coordinate" },
+        "engineeringFoundation": { "$ref": "#/$defs/coordinate" }
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumerIntegration", "managedState", "docsProtocol"],
+      "properties": { "consumerIntegration": { "const": 3 }, "managedState": { "const": 2 }, "docsProtocol": { "const": 1 } }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "pnpm", "runtimeClosureDigest"],
+      "properties": {
+        "node": { "const": ">=24.18.0 <25" },
+        "pnpm": { "const": ">=11.17.0 <12" },
+        "runtimeClosureDigest": { "$ref": "#/$defs/nonzeroSha256" }
+      }
+    },
+    "cohort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest", "eligibleAfter", "upgradeFrom", "rollbackTo", "packages", "workflow", "assets", "schemas", "runtime"],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+        "channel": { "enum": ["rc", "stable"] },
+        "recordDigest": { "$ref": "#/$defs/nonzeroSha256" },
+        "qualificationEventDigest": { "$ref": "#/$defs/nonzeroSha256" },
+        "eligibleAfter": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "upgradeFrom": { "$ref": "#/$defs/cohortIds" },
+        "rollbackTo": { "$ref": "#/$defs/cohortIds" },
+        "packages": { "$ref": "#/$defs/coordinates" },
+        "workflow": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "path", "revision", "blobSha"],
+          "properties": {
+            "repository": { "const": "agent-teams-ai/.github" },
+            "path": { "const": ".github/workflows/docs-protocol-check.yml" },
+            "revision": { "$ref": "#/$defs/commit" },
+            "blobSha": { "$ref": "#/$defs/commit" }
+          }
+        },
+        "assets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest"],
+          "properties": {
+            "skillDigest": { "$ref": "#/$defs/nonzeroSha256" },
+            "callerWorkflowDigest": { "$ref": "#/$defs/nonzeroSha256" },
+            "assetCatalogDigest": { "$ref": "#/$defs/nonzeroSha256" },
+            "transitionCatalogDigest": { "$ref": "#/$defs/nonzeroSha256" }
+          }
+        },
+        "schemas": { "$ref": "#/$defs/schemas" },
+        "runtime": { "$ref": "#/$defs/runtime" }
+      }
+    },
+    "cohortIds": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" }
+    },
+    "packageProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "integrity", "latest", "provenanceCommit", "provenanceAncestorOfExpectedCommit", "tarballEntries"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "$ref": "#/$defs/version" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "latest": { "$ref": "#/$defs/version" },
+        "provenanceCommit": { "$ref": "#/$defs/commit" },
+        "provenanceAncestorOfExpectedCommit": { "const": true },
+        "tarballEntries": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "repositoryMutationProvenance": { "allOf": [{ "$ref": "#/$defs/packageProvenance" }, { "type": "object", "properties": { "name": { "const": "@agent-teams/repository-mutation" } } }] },
+    "documentAuthoringProvenance": { "allOf": [{ "$ref": "#/$defs/packageProvenance" }, { "type": "object", "properties": { "name": { "const": "@agent-teams/document-authoring" } } }] },
+    "docsProtocolProvenance": { "allOf": [{ "$ref": "#/$defs/packageProvenance" }, { "type": "object", "properties": { "name": { "const": "@agent-teams/docs-protocol" } } }] },
+    "docsProtocolAgentTeamsProvenance": { "allOf": [{ "$ref": "#/$defs/packageProvenance" }, { "type": "object", "properties": { "name": { "const": "@agent-teams/docs-protocol-agent-teams" } } }] },
+    "engineeringFoundationProvenance": { "allOf": [{ "$ref": "#/$defs/packageProvenance" }, { "type": "object", "properties": { "name": { "const": "@agent-teams/engineering-foundation" } } }] },
+    "install": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manager", "lockfileDigest", "rootCount", "fivePackageLockValidated", "mcpAbsent"],
+      "properties": {
+        "manager": { "type": "string" },
+        "lockfileDigest": { "$ref": "#/$defs/sha256" },
+        "rootCount": { "const": 3 },
+        "fivePackageLockValidated": { "const": true },
+        "mcpAbsent": { "const": true }
+      }
+    },
+    "npmInstall": { "allOf": [{ "$ref": "#/$defs/install" }, { "type": "object", "properties": { "manager": { "const": "npm" } } }] },
+    "pnpmInstall": { "allOf": [{ "$ref": "#/$defs/install" }, { "type": "object", "properties": { "manager": { "const": "pnpm" } } }] },
+    "qualificationPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "name", "version", "integrity"],
+      "properties": { "key": { "type": "string" }, "name": { "type": "string" }, "version": { "$ref": "#/$defs/version" }, "integrity": { "$ref": "#/$defs/integrity" } }
+    },
+    "qualificationReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "receiptDigest", "cohortAdmissible", "profileSchemaVersion", "cohort", "packages", "schemas", "runtime", "checks"],
+      "properties": {
+        "schemaVersion": { "const": 3 },
+        "receiptDigest": { "$ref": "#/$defs/nonzeroSha256" },
+        "cohortAdmissible": { "const": true },
+        "profileSchemaVersion": { "const": 3 },
+        "cohort": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "cohortId", "recordDigest", "qualificationEventDigest"],
+          "properties": {
+            "schemaVersion": { "const": 2 },
+            "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+            "recordDigest": { "$ref": "#/$defs/nonzeroSha256" },
+            "qualificationEventDigest": { "$ref": "#/$defs/nonzeroSha256" }
+          }
+        },
+        "packages": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "prefixItems": [
+            { "allOf": [{ "$ref": "#/$defs/qualificationPackage" }, { "type": "object", "properties": { "key": { "const": "repositoryMutation" }, "name": { "const": "@agent-teams/repository-mutation" } } }] },
+            { "allOf": [{ "$ref": "#/$defs/qualificationPackage" }, { "type": "object", "properties": { "key": { "const": "documentAuthoring" }, "name": { "const": "@agent-teams/document-authoring" } } }] },
+            { "allOf": [{ "$ref": "#/$defs/qualificationPackage" }, { "type": "object", "properties": { "key": { "const": "docsProtocol" }, "name": { "const": "@agent-teams/docs-protocol" } } }] },
+            { "allOf": [{ "$ref": "#/$defs/qualificationPackage" }, { "type": "object", "properties": { "key": { "const": "docsProtocolAgentTeams" }, "name": { "const": "@agent-teams/docs-protocol-agent-teams" } } }] },
+            { "allOf": [{ "$ref": "#/$defs/qualificationPackage" }, { "type": "object", "properties": { "key": { "const": "engineeringFoundation" }, "name": { "const": "@agent-teams/engineering-foundation" } } }] }
+          ],
+          "items": false
+        },
+        "schemas": { "$ref": "#/$defs/schemas" },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["runtimeClosureDigest"],
+          "properties": { "runtimeClosureDigest": { "$ref": "#/$defs/nonzeroSha256" } }
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "prefixItems": [
+            { "const": "profile-v3" }, { "const": "cohort-v2" }, { "const": "five-package-closure" },
+            { "const": "exact-package-versions" }, { "const": "exact-package-integrities" },
+            { "const": "schema-bindings-3-2-1" }, { "const": "runtime-closure-digest" }
+          ],
+          "items": false
+        }
+      }
+    }
+  }
+}

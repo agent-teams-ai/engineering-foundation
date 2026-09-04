@@ -41,6 +41,7 @@
     "npm-package-bootstrap:candidate-evidence": "node scripts/npm-package-bootstrap-candidate-evidence.mjs",
     "published-compatibility:e2e": "node scripts/published-compatibility-e2e.mjs",
     "public-docs-release:e2e": "node scripts/public-docs-release-e2e.mjs",
+    "public-managed-registry-canary": "node scripts/public-managed-registry-canary.mjs",
     "check:affected": "nx affected -t build --exclude=@agent-teams/engineering-foundation-repository",
     "package:check": "pnpm build && pnpm package:check:built",
     "package:check:built": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs",

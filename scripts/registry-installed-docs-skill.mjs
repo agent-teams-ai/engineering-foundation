@@ -1,4 +1,5 @@
-import { readFile, realpath } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -29,4 +30,29 @@ export async function readInstalledPortableDocsSkill(installedDocsRoot) {
     skill.byteLength <= maximumPortableSkillBytes,
   "Installed Docs Protocol returned an invalid portable Skill asset.");
   return Buffer.from(skill);
+}
+
+export async function readInstalledManagedDocsSkill(installedAdapterRoot) {
+  assert((await lstat(installedAdapterRoot)).isDirectory(),
+    "Managed Skill must resolve from a physical installed adapter package.");
+  const root = await realpath(installedAdapterRoot);
+  const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  assert(manifest.name === "@agent-teams/docs-protocol-agent-teams",
+    "Managed Skill requires the installed Agent Teams adapter.");
+  const paths = ["skills/docs/SKILL.md", "assets/catalog.json"];
+  const bytes = await Promise.all(paths.map(async (path) => {
+    const resolved = await realpath(join(root, path));
+    assert(isCanonicalPathInside(root, resolved) &&
+      (await lstat(join(root, path))).isFile(), "Managed Skill authority escapes its installed package.");
+    const value = await readFile(resolved);
+    assert(value.byteLength > 0 && value.byteLength <= maximumPortableSkillBytes,
+      "Installed managed Skill authority exceeds its byte limit.");
+    return value;
+  }));
+  const [skill, catalogBytes] = bytes;
+  const catalog = JSON.parse(catalogBytes.toString("utf8"));
+  assert(catalog.skillPath === paths[0] && catalog.skillDigest ===
+    `sha256:${createHash("sha256").update(skill).digest("hex")}`,
+  "Installed managed Skill differs from its published catalog authority.");
+  return skill;
 }

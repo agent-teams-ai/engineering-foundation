@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
-  readInstalledPortableDocsSkill
+  readInstalledPortableDocsSkill,
+  readInstalledManagedDocsSkill
 } from "../scripts/registry-installed-docs-skill.mjs";
 import {
   isCanonicalPathInside,
@@ -102,6 +104,24 @@ test("portable Skill resolves from the qualified installed Docs Protocol root", 
     (await readInstalledPortableDocsSkill(installedRoot)).toString("utf8"),
     "# installed portable skill\n"
   );
+});
+
+test("managed Skill uses installed catalog bytes and rejects changed authority", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "registry-installed-managed-skill-"));
+  context.after(() => rm(root, { force: true, recursive: true }));
+  await mkdir(join(root, "skills", "docs"), { recursive: true });
+  await mkdir(join(root, "assets"));
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "@agent-teams/docs-protocol-agent-teams" }));
+  const skillPath = join(root, "skills", "docs", "SKILL.md");
+  const skill = "# Installed managed Skill\n";
+  await writeFile(skillPath, skill);
+  await writeFile(join(root, "assets", "catalog.json"), JSON.stringify({
+    skillPath: "skills/docs/SKILL.md",
+    skillDigest: `sha256:${createHash("sha256").update(skill).digest("hex")}`
+  }));
+  assert.equal((await readInstalledManagedDocsSkill(root)).toString("utf8"), skill);
+  await writeFile(skillPath, `${skill}changed\n`);
+  await assert.rejects(readInstalledManagedDocsSkill(root), /differs from its published catalog/u);
 });
 
 test("portable Skill rejects an installed qualification export outside its package root", async (context) => {

@@ -12,6 +12,7 @@ import {
   GENERATED_CALLER_WORKFLOW_TEMPLATE,
   GENERATED_DOCS_SKILL,
   GENERATED_DOCS_SKILL_V2,
+  GENERATED_PRIOR_DOCS_SKILL_V2,
   GENERATED_TRANSITION_CATALOG
 } from "../../generated/canonical-assets.js";
 
@@ -27,7 +28,7 @@ export const CANONICAL_CALLER_WORKFLOW_TEMPLATE = CATALOG_SOURCE.callerWorkflowT
 
 export const BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS: readonly Uint8Array[] = Object.freeze([
   Buffer.from(CANONICAL_DOCS_SKILL, "utf8"),
-  Buffer.from(CANONICAL_DOCS_SKILL_V2
+  Buffer.from(GENERATED_PRIOR_DOCS_SKILL_V2
     .replace(
       "--type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --dry-run",
       "--type TYPE --id ID --dry-run"
@@ -192,7 +193,7 @@ export function canonicalConsumerIntegrationJson(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(canonicalConsumerIntegrationJson).join(",")}]`;
   }
-  if (typeof value !== "object" || value === undefined) {
+  if (typeof value !== "object") {
     throw new TypeError("Managed state contains a non-JSON value.");
   }
   return `{${Object.entries(value as Record<string, unknown>)

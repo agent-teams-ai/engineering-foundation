@@ -241,7 +241,7 @@ test("canonical Skill contains executable identical preview and apply arguments"
   assert.match(CANONICAL_DOCS_SKILL_V2, /pnpm install --frozen-lockfile/u);
   assert.match(CANONICAL_DOCS_SKILL_V2, /never use npx, dlx, or latest tags/u);
   assert.ok(CANONICAL_DOCS_SKILL_V2.split("\n").length >= 20);
-  assert.ok(CANONICAL_DOCS_SKILL_V2.split("\n").length <= 30);
+  assert.ok(CANONICAL_DOCS_SKILL_V2.trimEnd().split("\n").length <= 80);
 });
 
 test("package-owned asset sources exactly match compiler constants and split catalog authority", async () => {

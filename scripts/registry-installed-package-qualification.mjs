@@ -95,6 +95,7 @@ export async function verifyFoundationFeatures({
   consumerRoot,
   docsVersion,
   featureImports,
+  installedAdapterRoot,
   installedDocsRoot,
   installedRoot,
   repositoryRoot,
@@ -130,6 +131,7 @@ export async function verifyFoundationFeatures({
   await verifyRegistryDocumentAuthoring({
     consumerRoot,
     docsVersion,
+    installedAdapterRoot,
     installedDocsRoot,
     version: authoringVersion,
   });

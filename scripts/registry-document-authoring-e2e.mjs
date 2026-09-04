@@ -9,7 +9,7 @@ import {
 } from "./pack-test-support.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyWindowsDocsRecoveryQualification } from "./registry-document-authoring-policy.mjs";
-import { readInstalledPortableDocsSkill } from "./registry-installed-docs-skill.mjs";
+import { readInstalledManagedDocsSkill } from "./registry-installed-docs-skill.mjs";
 import {
   isCanonicalPathInside,
   isSameCanonicalPath
@@ -163,7 +163,7 @@ async function prepareDocsProtocolFixture(input) {
   };
   await writeFile(metadataSchemaPath, `${JSON.stringify(metadataSchema, null, 2)}\n`, "utf8");
   await mkdir(join(input.consumerRoot, ".agents", "skills", "docs-authoring"), { recursive: true });
-  const installedDocsSkill = await readInstalledPortableDocsSkill(input.installedDocsRoot);
+  const installedDocsSkill = await readInstalledManagedDocsSkill(input.installedAdapterRoot);
   await writeFile(
     join(input.consumerRoot, ".agents", "skills", "docs-authoring", "SKILL.md"),
     installedDocsSkill
@@ -296,6 +296,14 @@ async function verifyInstalledDocsProtocol(input) {
   "Generated registry Docs Profile did not parse under the installed portable profile policy.");
   const found = await docsJsonCommand(input.consumerRoot, ["find", "Hermetic", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
   assertDocsInfoAndFind(info, found);
+  const contextOutput = await runCommand("pnpm", ["exec", "docs-protocol", "context",
+    "--consumer", ".", "--profile", docsProfilePath, "--max-documents", "8",
+    "--max-bytes", "32768", "--json"], input.consumerRoot, { timeoutMs });
+  assert(contextOutput.stderr === "", "Installed managed context command wrote unexpected stderr.");
+  const context = JSON.parse(contextOutput.stdout);
+  assert(context.outcome === "success" && context.result?.includedDocuments > 0 &&
+    context.result?.limits?.maxDocuments === 8 && context.result?.limits?.maxBytes === 32768,
+  "Managed Skill could not project bounded context through installed portable core.");
   const preview = await docsJsonCommand(input.consumerRoot, docsNewArguments({ id: "ADR-0050", title: "Unified Registry Boundary", slug: "unified-registry-boundary" }, "--dry-run"));
   await assertAbsent(join(input.consumerRoot, preview.result.documentPath), "Installed Docs Protocol preview mutated the consumer.");
   const applyArguments = docsNewArguments({ id: "ADR-0050", title: "Unified Registry Boundary", slug: "unified-registry-boundary" }, "--apply");

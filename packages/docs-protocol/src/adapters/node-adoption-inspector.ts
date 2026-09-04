@@ -51,7 +51,7 @@ function inspectPortableSkill(source: string): readonly string[] {
 
 function inspectAgentsRoute(source: string, skillPath: string): readonly string[] {
   const expected = `Use [${skillPath}](${skillPath}) for documentation.`;
-  const occurrences = source.split("\n").filter((line) => line === expected).length;
+  const occurrences = source.split(/\r?\n/u).filter((line) => line === expected).length;
   return occurrences === 1 ? [] : [`AGENTS.md must contain exactly one route: ${expected}`];
 }
 

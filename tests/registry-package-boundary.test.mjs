@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { cp, mkdir, mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
-  readInstalledPortableDocsSkill
+  readInstalledPortableDocsSkill,
+  readInstalledManagedDocsSkill
 } from "../scripts/registry-installed-docs-skill.mjs";
 import {
   isCanonicalPathInside,
@@ -22,6 +24,32 @@ import {
 import {
   NodeDocsProfileReader
 } from "../packages/docs-protocol/dist/adapters/node-profile-reader.js";
+import { docsCheckV2, docsContextV1 } from "../packages/docs-protocol/dist/index.js";
+import { canonicalDocsScripts } from "../packages/docs-protocol-agent-teams/dist/index.js";
+
+test("managed canonical Skill supports portable adoption and bounded context with a custom profile", async () => {
+  const root = await mkdtemp(join(tmpdir(), "managed-portable-adoption-"));
+  const profilePath = "config/custom-docs.yaml";
+  try {
+    await cp(new URL("../packages/docs-protocol/tests/fixtures/portable-qualification/", import.meta.url), root, { recursive: true });
+    await mkdir(join(root, "config"));
+    await rename(join(root, "docs.config.yaml"), join(root, profilePath));
+    const skill = await readFile(new URL("../packages/docs-protocol-agent-teams/skills/docs/SKILL.md", import.meta.url));
+    await writeFile(join(root, ".agents/skills/docs-authoring/SKILL.md"), skill);
+    const scripts = canonicalDocsScripts(profilePath);
+    assert.equal(scripts["docs:context"], undefined, "context must not expand historical managed script ownership");
+    assert.equal(scripts["docs:info"], `agent-teams-docs info --consumer . --profile ${profilePath}`);
+    const check = await docsCheckV2({ consumerRoot: root, profilePath });
+    assert.equal(check.envelope.outcome, "success", JSON.stringify(check.envelope.diagnostics));
+    const context = await docsContextV1({ consumerRoot: root, profilePath, query: {},
+      limits: { maxDocuments: 1, maxBytes: 4096 } });
+    assert.equal(context.envelope.outcome, "success", JSON.stringify(context.envelope.diagnostics));
+    assert.deepEqual(context.envelope.result.limits, { maxDocuments: 1, maxBytes: 4096 });
+    assert.ok(context.envelope.result.includedDocuments > 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("registry Docs Profile fixture satisfies the current portable profile policy", async (context) => {
   const consumerRoot = await mkdtemp(join(tmpdir(), "registry-docs-profile-"));
@@ -102,6 +130,24 @@ test("portable Skill resolves from the qualified installed Docs Protocol root", 
     (await readInstalledPortableDocsSkill(installedRoot)).toString("utf8"),
     "# installed portable skill\n"
   );
+});
+
+test("managed Skill uses installed catalog bytes and rejects changed authority", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "registry-installed-managed-skill-"));
+  context.after(() => rm(root, { force: true, recursive: true }));
+  await mkdir(join(root, "skills", "docs"), { recursive: true });
+  await mkdir(join(root, "assets"));
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "@agent-teams/docs-protocol-agent-teams" }));
+  const skillPath = join(root, "skills", "docs", "SKILL.md");
+  const skill = "# Installed managed Skill\n";
+  await writeFile(skillPath, skill);
+  await writeFile(join(root, "assets", "catalog.json"), JSON.stringify({
+    skillPath: "skills/docs/SKILL.md",
+    skillDigest: `sha256:${createHash("sha256").update(skill).digest("hex")}`
+  }));
+  assert.equal((await readInstalledManagedDocsSkill(root)).toString("utf8"), skill);
+  await writeFile(skillPath, `${skill}changed\n`);
+  await assert.rejects(readInstalledManagedDocsSkill(root), /differs from its published catalog/u);
 });
 
 test("portable Skill rejects an installed qualification export outside its package root", async (context) => {

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   exactPublicCoordinateDecision,
+  registryFoundationQualificationProfile,
   registryInstallMatrix,
 } from "../scripts/registry-install-policy.mjs";
 
@@ -21,6 +22,27 @@ test("registry qualification covers npm and pnpm with docs-only and MCP profiles
     { id: "pnpm-docs-only", manager: "pnpm", packageNames: [coordinates[0].name], profile: "docs-only" },
     { id: "pnpm-docs-mcp", manager: "pnpm", packageNames: coordinates.map(({ name }) => name), profile: "docs-mcp" },
   ]);
+});
+
+test("Foundation registry qualification installs the managed Skill authority", () => {
+  assert.deepEqual(registryFoundationQualificationProfile({
+    adapterPackageName: "@example/docs-adapter",
+    authoringPackageName: "@example/document-authoring",
+    docsPackageName: "@example/docs",
+    foundationPackageName: "@example/foundation",
+    mcpPackageName: "@example/docs-mcp",
+  }), {
+    id: "npm-foundation",
+    manager: "npm",
+    packageNames: [
+      "@example/foundation",
+      "@example/document-authoring",
+      "@example/docs",
+      "@example/docs-adapter",
+      "@example/docs-mcp",
+    ],
+    profile: "foundation-full",
+  });
 });
 
 test("public exact-coordinate policy stays pending until every exact version exists", () => {

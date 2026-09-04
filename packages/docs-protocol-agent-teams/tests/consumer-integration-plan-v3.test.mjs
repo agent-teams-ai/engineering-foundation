@@ -3,8 +3,10 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
+  BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS,
   CANONICAL_DOCS_SKILL_V2,
   canonicalCallerWorkflow,
+  canonicalDocsScriptsDigest,
   describeCanonicalConsumerAssets
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
 import {
@@ -15,6 +17,15 @@ const INTEGRITY = `sha512-${"A".repeat(86)}==`;
 const absent = Object.freeze({ state: "absent" });
 const file = (value) => ({ state: "file", bytes: Buffer.from(value), mode: 0o644 });
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+
+test("portable Skill evolution preserves historical bootstrap bytes and six-script custody", () => {
+  assert.deepEqual(BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS.map(digest), [
+    "sha256:7b31cd257532247f64c55a014dc926c601e4d742176cfb8513b6b0d8ab48213e",
+    "sha256:d56716113038dc7b8335aed11ccf258123d976e036dec17fc9afcca920e199a5"
+  ]);
+  assert.equal(canonicalDocsScriptsDigest("architecture/foundation/docs-protocol.yaml"),
+    "sha256:7a502ddeda5e3d0296b712b5c07e0905a9b7a8fcd374d37db8a02cb026a37881");
+});
 
 function desired() {
   const provisional = {

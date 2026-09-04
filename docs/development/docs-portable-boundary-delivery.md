@@ -1,7 +1,7 @@
 # Docs Portable Boundary Delivery and Evidence
 
-Status: the direct adapter split plus Repository Mutation and Document Authoring
-package extractions are implemented and merged on protected `main`. The three
+Status snapshot (2026-09-04): the direct adapter split plus Repository Mutation
+and Document Authoring package extractions are implemented and merged on protected `main`. The three
 ADR-0044 namespace baselines are now published as exact `0.0.0` artifacts with
 npm provenance, quarantined by deprecation, and retired to historical catalog
 state. They are bootstrap-only evidence, not supported releases. The repository
@@ -38,11 +38,11 @@ publication and public-registry qualification.
 | Bootstrap lifecycle | Historical | All three exact `0.0.0` entries are deprecated bootstrap-only artifacts. Historical catalog state blocks another bootstrap operation while ordinary release verification continues to audit their immutable registry baselines |
 | Bootstrap credentials | Cleaned up | `NPM_PACKAGE_BOOTSTRAP_ENABLED=false` and the GitHub secret `NPM_PACKAGE_BOOTSTRAP_TOKEN` is absent. No persistent npm token is retained by the repository |
 
-Hosted execution is currently fail-closed. A project-control admission snapshot
-at `2026-09-03T12:42:58Z` reported no heavy workers running and sufficient
-memory, but denied a new producer because the project retained the inactive
+Historical hosted observation, not current capacity or account authority: a
+project-control admission snapshot at `2026-09-03T12:42:58Z` reported no heavy
+workers running and sufficient memory, but denied a new producer because the project retained the inactive
 dirty `docauth43-core-r2` worktree. No new hosted worker was
-dispatched against that state; the dirty output remains preserved for explicit
+dispatched against that state; the dirty output was preserved for explicit
 review rather than being deleted or restarted.
 
 This table is not exact-head release proof. A checked item below requires its
@@ -150,19 +150,28 @@ false release claim:
 
 ### 6. Current-consumer migration preparation
 
-The first inventory checkpoint is recorded in
+The 2026-09-04 read-only inventory checkpoint is recorded in
 [Portable Documentation Consumer Inventory](docs-portable-consumer-inventory.md).
-It identifies `agent-teams-orchestrator` at an exact commit, but persisted
-transaction generations and published target coordinates are still unknown.
+It identifies six managed consumers and one portable consumer at exact commits,
+superseding the earlier only-orchestrator search result. The managed consumers
+use raw integration profile v2, managed state v1, and qualification contract v2;
+this is not proof of new-only profile v3 adoption. Historical transaction and
+recovery generations remain unknown. No prepared new-only migration PR was
+identified in the inspected open-PR listings; preparation and cutover remain
+pending.
 
 - [ ] Inventory every current consumer at an exact commit, including legacy
   entrypoint/export use and every admitted persisted transaction generation.
 - [ ] Prepare and review, but do not merge, explicit coordinated changes with
-  intended exact coordinates, lockfile updates, new-only imports,
+  intended exact coordinates, planned lockfile changes, new-only imports,
   managed-adapter placement, recovery instructions, and required-check plans.
 - [ ] Bind an approved publication, consumer-rollout, and recovery plan to the
-  exact packed artifacts and inventoried commits. Prove the prepared path needs
-  no bridge, runtime autodetection, or automatic migration.
+  reviewed packed artifacts and inventoried commits. Prepublication preparation
+  uses intended coordinates and reviewed plans, not unavailable published
+  artifacts. After publication and before adoption, bind actual SRI,
+  signatures/provenance, and the final registry-resolved lockfile diff to the
+  approved plan. Prove the path needs no bridge, runtime autodetection, or
+  automatic migration.
 
 ### 7. Exact-head integration checks
 

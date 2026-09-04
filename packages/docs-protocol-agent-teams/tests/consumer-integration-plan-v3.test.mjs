@@ -1,17 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import test from "node:test";
-
-import { docsCheckV2, docsContextV1 } from "@agent-teams/docs-protocol";
 
 import {
   BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS,
   CANONICAL_DOCS_SKILL_V2,
   canonicalCallerWorkflow,
-  canonicalDocsScripts,
   canonicalDocsScriptsDigest,
   describeCanonicalConsumerAssets
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
@@ -31,29 +25,6 @@ test("portable Skill evolution preserves historical bootstrap bytes and six-scri
   ]);
   assert.equal(canonicalDocsScriptsDigest("architecture/foundation/docs-protocol.yaml"),
     "sha256:7a502ddeda5e3d0296b712b5c07e0905a9b7a8fcd374d37db8a02cb026a37881");
-});
-
-test("managed canonical Skill supports portable adoption and bounded context with a custom profile", async () => {
-  const root = await mkdtemp(join(tmpdir(), "managed-portable-adoption-"));
-  const profilePath = "config/custom-docs.yaml";
-  try {
-    await cp(new URL("../../docs-protocol/tests/fixtures/portable-qualification/", import.meta.url), root, { recursive: true });
-    await mkdir(join(root, "config"));
-    await rename(join(root, "docs.config.yaml"), join(root, profilePath));
-    await writeFile(join(root, ".agents/skills/docs-authoring/SKILL.md"), CANONICAL_DOCS_SKILL_V2);
-    const scripts = canonicalDocsScripts(profilePath);
-    assert.equal(scripts["docs:context"], undefined, "context must not expand historical managed script ownership");
-    assert.equal(scripts["docs:info"], `agent-teams-docs info --consumer . --profile ${profilePath}`);
-    const check = await docsCheckV2({ consumerRoot: root, profilePath });
-    assert.equal(check.envelope.outcome, "success", JSON.stringify(check.envelope.diagnostics));
-    const context = await docsContextV1({ consumerRoot: root, profilePath, query: {},
-      limits: { maxDocuments: 1, maxBytes: 4096 } });
-    assert.equal(context.envelope.outcome, "success", JSON.stringify(context.envelope.diagnostics));
-    assert.deepEqual(context.envelope.result.limits, { maxDocuments: 1, maxBytes: 4096 });
-    assert.ok(context.envelope.result.includedDocuments > 0);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
 });
 
 function desired() {

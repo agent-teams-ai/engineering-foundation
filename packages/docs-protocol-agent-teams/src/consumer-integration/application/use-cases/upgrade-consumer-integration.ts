@@ -1,10 +1,14 @@
 import {
   compileKnownFileTransactionPlan,
-  type KnownFileTransactionOperationInput
+  type KnownFileTransactionOperationInput,
+  type KnownFileTransactionReceiptV1
 } from "@agent-teams/repository-mutation";
 
 import type {
+  ConsumerUpgradeAuthority,
   ConsumerUpgradeAuthorityReader,
+  ConsumerUpgradeManagedPreimagesV2,
+  PreparedConsumerUpgradeV1,
   ConsumerUpgradeSandboxPort
 } from "../ports/consumer-upgrade.js";
 import type {
@@ -13,7 +17,11 @@ import type {
 import { compileConsumerIntegration } from "./plan-consumer-integration.js";
 import type {
   ConsumerIntegrationIssue,
-  ConsumerUpgradeAuthorityV1
+  ConsumerIntegrationDesiredState,
+  ConsumerIntegrationPlanV1,
+  ConsumerIntegrationSnapshot,
+  ConsumerUpgradeAuthorityV1,
+  ConsumerUpgradeAuthorityV2
 } from "../../domain/model.js";
 import type {
   ConsumerUpgradeExecutionV1
@@ -33,7 +41,7 @@ function issue(code: string, subject: string, message: string): ConsumerIntegrat
 
 function blocked(
   problem: ConsumerIntegrationIssue,
-  authority?: ConsumerUpgradeAuthorityV1
+  authority?: ConsumerUpgradeAuthority
 ): ConsumerUpgradeExecutionV1 {
   return Object.freeze({
     schemaVersion: 1,
@@ -44,7 +52,7 @@ function blocked(
   });
 }
 
-function authorityEvidence(authority: ConsumerUpgradeAuthorityV1) {
+function authorityEvidence(authority: ConsumerUpgradeAuthority) {
   return Object.freeze({
     repository: authority.repository,
     path: authority.path,
@@ -55,33 +63,115 @@ function authorityEvidence(authority: ConsumerUpgradeAuthorityV1) {
   });
 }
 
-function reverseOperations(
-  operations: readonly KnownFileTransactionOperationInput[]
+function incompatibleGeneration(
+  current: ConsumerIntegrationDesiredState,
+  authority: ConsumerUpgradeAuthority
+): ConsumerIntegrationIssue {
+  return issue(
+    "DOCS_CONSUMER_COHORT_GENERATION_MISMATCH",
+    authority.cohort.cohortId,
+    `Profile schema ${current.schemaVersion} cannot upgrade to Cohort schema ${
+      authority.cohort.schemaVersion
+    }; only 1->1 and 3->2 are supported.`
+  );
+}
+
+function isAuthorityV1(
+  authority: ConsumerUpgradeAuthority
+): authority is ConsumerUpgradeAuthorityV1 {
+  return authority.cohort.schemaVersion === 1;
+}
+
+function isAuthorityV2(
+  authority: ConsumerUpgradeAuthority
+): authority is ConsumerUpgradeAuthorityV2 {
+  return authority.cohort.schemaVersion === 2;
+}
+
+function reverseFullyOwnedOperations(
+  operations: readonly KnownFileTransactionOperationInput[],
+  receipt: KnownFileTransactionReceiptV1
 ): readonly KnownFileTransactionOperationInput[] {
-  return operations.map((operation) => {
+  if (receipt.operations.length !== operations.length) {
+    throw new TypeError("Upgrade receipt must classify every prepared operation exactly once.");
+  }
+  const receiptByPath = new Map(receipt.operations.map((operation) => [operation.path, operation]));
+  if (receiptByPath.size !== operations.length ||
+    operations.some((operation) => !receiptByPath.has(operation.path))) {
+    throw new TypeError("Upgrade receipt paths must exactly match the prepared operation set.");
+  }
+  const reverseOperations = operations.flatMap((operation) => {
     if (operation.precondition.state !== "known-file" ||
       operation.precondition.acceptedPreimages.length !== 1) {
       throw new TypeError(
         "A Cohort-to-Cohort upgrade may replace only one exact existing preimage."
       );
     }
+    const outcome = receiptByPath.get(operation.path)!.outcome;
+    if (outcome === "already-satisfied") {return [];}
+    if (outcome !== "replaced") {
+      throw new TypeError(`Unexpected Cohort upgrade receipt outcome: ${outcome}.`);
+    }
     const preimage = operation.precondition.acceptedPreimages[0]!;
     const postimageMode = operation.postimage.mode;
     if (postimageMode === undefined) {
       throw new TypeError("A Cohort-to-Cohort upgrade postimage must retain an exact file mode.");
     }
-    return Object.freeze({
+    return [Object.freeze({
       path: operation.path,
       precondition: {
         state: "known-file" as const,
         acceptedPreimages: [{ bytes: operation.postimage.bytes, mode: postimageMode }]
       },
       postimage: { bytes: preimage.bytes, mode: preimage.mode }
-    });
+    })];
+  });
+  return reverseOperations.length === operations.length ? reverseOperations : [];
+}
+
+function managedPreimagesV2(
+  current: Extract<ConsumerIntegrationDesiredState, { readonly schemaVersion: 3 }>,
+  snapshot: ConsumerIntegrationSnapshot,
+  plan: ConsumerIntegrationPlanV1
+): ConsumerUpgradeManagedPreimagesV2 {
+  function proof(
+    id: "caller-workflow" | "managed-state" | "skill",
+    observation: ConsumerIntegrationSnapshot["callerWorkflow"],
+    path: string
+  ) {
+    const asset = plan.assets.find((candidate) => candidate.id === id);
+    if (observation.state !== "file" || asset?.state !== "exact-current" ||
+      asset.path !== path || asset.currentDigest === undefined) {
+      throw new TypeError(`Current managed asset proof is unavailable: ${path}.`);
+    }
+    return Object.freeze({ digest: asset.currentDigest, mode: observation.mode, path });
+  }
+  return Object.freeze({
+    callerWorkflow: proof("caller-workflow", snapshot.callerWorkflow, current.callerWorkflowPath),
+    managedState: proof("managed-state", snapshot.managedState, current.managedStatePath),
+    skill: proof("skill", snapshot.skill, current.skillPath)
   });
 }
 
+async function rollbackReceiptOwnedReplacements(
+  consumerRoot: string,
+  operations: readonly KnownFileTransactionOperationInput[],
+  receipt: KnownFileTransactionReceiptV1,
+  restoreAndVerify: () => Promise<void>,
+  transaction: ConsumerIntegrationLifecyclePorts["transaction"]
+): Promise<void> {
+  const rollbackOperations = reverseFullyOwnedOperations(operations, receipt);
+  if (rollbackOperations.length > 0) {
+    const rollbackPlan = compileKnownFileTransactionPlan({ operations: rollbackOperations });
+    await transaction.apply({ consumerRoot, plan: rollbackPlan });
+  }
+  if (rollbackOperations.length === operations.length) {
+    await restoreAndVerify();
+  }
+}
+
 export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
+  // oxlint-disable-next-line complexity
   return async function upgrade(options: {
     readonly consumerRoot: string;
     readonly authorityRevision?: string;
@@ -91,15 +181,17 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
     if (inspection.state !== "idle") {
       return blocked(issue(inspection.code, "foundation-transaction", inspection.message));
     }
-    const [input, assetCatalog] = await Promise.all([
-      ports.input.read({ consumerRoot: options.consumerRoot }),
-      ports.assets.read()
-    ]);
-    const source = compileConsumerIntegration({
-      desired: input.desired,
-      snapshot: input.snapshot,
-      assetCatalog
-    }, ports.planning).plan;
+    const input = await ports.input.read({ consumerRoot: options.consumerRoot });
+    const source = input.desired.schemaVersion === 1
+      ? compileConsumerIntegration({
+          desired: input.desired,
+          snapshot: input.snapshot,
+          assetCatalog: await ports.assets.read()
+        }, ports.planning).plan
+      : compileConsumerIntegration({
+          desired: input.desired,
+          snapshot: input.snapshot
+        }, ports.planning).plan;
     if (source.outcome !== "current") {
       return blocked(issue(
         "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT",
@@ -115,6 +207,13 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
         issues: Object.freeze([])
       });
     }
+    if (input.repositoryHead === undefined) {
+      return blocked(issue(
+        "DOCS_CONSUMER_UPGRADE_GIT_INVALID",
+        input.root,
+        "Cohort upgrade requires one exact committed source Git HEAD."
+      ));
+    }
     const authority = await ports.authority.read({
       cohortId: options.to,
       repository: input.desired.repository,
@@ -122,18 +221,63 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
         ? {}
         : { revision: options.authorityRevision })
     });
-    if (!authority.cohort.upgradeFrom.includes(input.desired.cohort.cohortId)) {
+    const supportedGeneration =
+      (input.desired.schemaVersion === 1 && isAuthorityV1(authority)) ||
+      (input.desired.schemaVersion === 3 && isAuthorityV2(authority));
+    if (!supportedGeneration) {
+      return blocked(incompatibleGeneration(input.desired, authority), authority);
+    }
+    const transitionAllowed = authority.cohort.upgradeFrom.includes(
+      input.desired.cohort.cohortId
+    ) || input.desired.cohort.rollbackTo.includes(authority.cohort.cohortId);
+    if (!transitionAllowed) {
       return blocked(issue(
         "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN",
         options.to,
-        `Central authority does not permit an upgrade from ${input.desired.cohort.cohortId}.`
+        `Central authority does not permit a transition from ${input.desired.cohort.cohortId}.`
       ), authority);
     }
-    const prepared = await ports.sandbox.prepare({
-      authority,
-      consumerRoot: input.root,
-      current: input.desired
-    });
+    let prepared: PreparedConsumerUpgradeV1;
+    let activateAndVerify: () => Promise<void>;
+    let restoreAndVerify: () => Promise<void>;
+    if (input.desired.schemaVersion === 1 && isAuthorityV1(authority)) {
+      const current = input.desired;
+      prepared = await ports.sandbox.prepareV1({
+        authority,
+        consumerRoot: input.root,
+        current,
+        expectedSourceRevision: input.repositoryHead,
+        expectedSourceSnapshot: input.snapshot
+      });
+      activateAndVerify = () => ports.sandbox.activateAndVerifyV1({
+        authority,
+        consumerRoot: input.root
+      });
+      restoreAndVerify = () => ports.sandbox.restoreAndVerifyV1({
+        consumerRoot: input.root,
+        current
+      });
+    } else if (input.desired.schemaVersion === 3 && isAuthorityV2(authority)) {
+      const current = input.desired;
+      prepared = await ports.sandbox.prepareV2({
+        authority,
+        consumerRoot: input.root,
+        current,
+        expectedSourceRevision: input.repositoryHead,
+        expectedSourceSnapshot: input.snapshot,
+        managedPreimages: managedPreimagesV2(current, input.snapshot, source)
+      });
+      activateAndVerify = () => ports.sandbox.activateAndVerifyV2({
+        authority,
+        consumerRoot: input.root
+      });
+      restoreAndVerify = () => ports.sandbox.restoreAndVerifyV2({
+        consumerRoot: input.root,
+        current
+      });
+    } else {
+      return blocked(incompatibleGeneration(input.desired, authority), authority);
+    }
     if (prepared.operations.length === 0) {
       throw new TypeError("The staged successor produced no repository changes.");
     }
@@ -157,20 +301,13 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
       consumerRoot: input.root,
       plan: mutationPlan
     });
+    if (receipt.planDigest !== mutationPlan.planDigest) {
+      throw new TypeError("Upgrade receipt does not bind the exact submitted mutation plan.");
+    }
     try {
-      await ports.sandbox.activateAndVerify({
-        authority,
-        consumerRoot: input.root
-      });
+      await activateAndVerify();
     } catch (activationError) {
-      const rollbackPlan = compileKnownFileTransactionPlan({
-        operations: reverseOperations(prepared.operations)
-      });
-      await ports.transaction.apply({ consumerRoot: input.root, plan: rollbackPlan });
-      await ports.sandbox.restoreAndVerify({
-        consumerRoot: input.root,
-        current: input.desired
-      });
+      await rollbackReceiptOwnedReplacements(input.root, prepared.operations, receipt, restoreAndVerify, ports.transaction);
       throw activationError;
     }
     return Object.freeze({

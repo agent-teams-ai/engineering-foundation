@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines, max-lines-per-function -- Disposable E2E keeps setup and cleanup local. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -11,6 +12,7 @@ import {
   canonicalDocsScriptsDigest,
   canonicalManagedRoute,
   canonicalManagedState,
+  describeCanonicalConsumerAssets,
   digestBytes
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
 import {
@@ -36,6 +38,9 @@ import {
   foundationKnownFileTransaction
 } from "../dist/consumer-integration/adapters/foundation-known-file-transaction.js";
 import {
+  computePnpmRuntimeClosureDigestV2
+} from "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
+import {
   nodeConsumerIntegrationInputReader
 } from "../dist/consumer-integration/adapters/node-consumer-integration-repository.js";
 import {
@@ -48,8 +53,13 @@ import {
   packageRoot,
   runGit,
   cleanupOneCommandSandbox,
+  documentAuthoringRoot,
+  lockfileForV2,
+  lockfileObjectForV2,
+  repositoryMutationRoot,
   sourceCohort,
-  sourceManifest
+  sourceManifest,
+  sourceManifestV2
 } from "./consumer-upgrade-e2e-fixtures.mjs";
 
 const REPOSITORY = {
@@ -58,7 +68,7 @@ const REPOSITORY = {
   nameWithOwner: "agent-teams-ai/docs-upgrade-sandbox"
 };
 const coreRoot = join(packageRoot, "..", "docs-protocol");
-const repositoryMutationRoot = join(packageRoot, "..", "repository-mutation");
+const V2_INTEGRITY = `sha512-${"A".repeat(86)}==`;
 
 
 function fileObservation(bytes) {
@@ -126,6 +136,96 @@ function sourceSnapshot(source, catalog) {
   }));
   return {
     integrationProfile: fileObservation(Buffer.from("{}\n")),
+    lockfile: fileObservation(Buffer.from("lockfile\n")),
+    packageManifest: fileObservation(manifest),
+    agents: fileObservation(route),
+    skill: fileObservation(skill),
+    callerWorkflow: fileObservation(caller),
+    managedState: fileObservation(managed)
+  };
+}
+
+function cohortV2(cohortId, options = {}) {
+  const version = options.version ?? "1.0.0";
+  const coordinate = { version, integrity: V2_INTEGRITY };
+  const provisional = {
+    schemaVersion: 2,
+    cohortId,
+    channel: "stable",
+    recordDigest: `sha256:${"1".repeat(64)}`,
+    qualificationEventDigest: `sha256:${"2".repeat(64)}`,
+    eligibleAfter: "2026-09-04T00:00:00Z",
+    upgradeFrom: options.upgradeFrom ?? [],
+    rollbackTo: options.rollbackTo ?? [],
+    packages: {
+      repositoryMutation: { ...coordinate },
+      documentAuthoring: { ...coordinate },
+      docsProtocol: { ...coordinate },
+      docsProtocolAgentTeams: { ...coordinate },
+      engineeringFoundation: { ...coordinate }
+    },
+    workflow: {
+      repository: "agent-teams-ai/.github",
+      path: ".github/workflows/docs-protocol-check.yml",
+      revision: options.workflowRevision ?? "3".repeat(40),
+      blobSha: "4".repeat(40)
+    },
+    assets: {},
+    schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 },
+    runtime: {
+      node: ">=24.18.0 <25",
+      pnpm: ">=11.17.0 <12",
+      runtimeClosureDigest: options.runtimeClosureDigest ?? `sha256:${"9".repeat(64)}`
+    }
+  };
+  return { ...provisional, assets: describeCanonicalConsumerAssets(provisional) };
+}
+
+function desiredV3(cohort) {
+  return {
+    schemaVersion: 3,
+    repository: REPOSITORY,
+    integrationRoot: ".",
+    packageManager: "pnpm",
+    profilePath: "architecture/foundation/docs-protocol.yaml",
+    skillPath: ".agents/skills/docs-authoring/SKILL.md",
+    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
+    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
+    governedDocsRoots: ["docs"],
+    qualification: {
+      contractPath: "architecture/foundation/docs-protocol-qualification.json",
+      gateCommand: "pnpm docs:protocol:check"
+    },
+    cohort
+  };
+}
+
+function sourceSnapshotV3(source) {
+  const route = Buffer.from(canonicalManagedRoute(source.skillPath));
+  const skill = Buffer.from(readFileSync(join(packageRoot, "skills/docs/SKILL.md")));
+  const caller = Buffer.from(canonicalCallerWorkflow(source.cohort));
+  const manifest = Buffer.from(`${JSON.stringify({
+    name: "upgrade-source-v3",
+    private: true,
+    scripts: canonicalDocsScripts(source.profilePath),
+    devDependencies: {
+      "@agent-teams/docs-protocol": source.cohort.packages.docsProtocol.version,
+      "@agent-teams/docs-protocol-agent-teams":
+        source.cohort.packages.docsProtocolAgentTeams.version,
+      "@agent-teams/engineering-foundation":
+        source.cohort.packages.engineeringFoundation.version
+    }
+  }, null, 2)}\n`);
+  const managed = Buffer.from(canonicalManagedState(source, {
+    skillDigest: digestBytes(skill),
+    callerWorkflowDigest: digestBytes(caller),
+    assetCatalogDigest: source.cohort.assets.assetCatalogDigest,
+    transitionCatalogDigest: source.cohort.assets.transitionCatalogDigest,
+    agentsRouteDigest: digestBytes(route),
+    docsScriptsDigest: canonicalDocsScriptsDigest(source.profilePath)
+  }));
+  return {
+    integrationProfile: fileObservation(Buffer.from(`${JSON.stringify(source)}\n`)),
     lockfile: fileObservation(Buffer.from("lockfile\n")),
     packageManifest: fileObservation(manifest),
     agents: fileObservation(route),
@@ -302,10 +402,15 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
   const ports = {
     assets: { read: async () => catalog },
     authority: { read: async () => authority },
-    input: { read: async () => ({ desired: current, root: "/consumer", snapshot }) },
+    input: { read: async () => ({
+      desired: current,
+      repositoryHead: "a".repeat(40),
+      root: "/consumer",
+      snapshot
+    }) },
     planning: consumerIntegrationPlanningPorts,
     sandbox: {
-      prepare: async () => ({ operations: [{
+      prepareV1: async () => ({ operations: [{
         path: "package.json",
         precondition: {
           state: "known-file",
@@ -313,11 +418,14 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
         },
         postimage: { bytes: postimage, mode: 0o644 }
       }] }),
-      activateAndVerify: async () => {
+      activateAndVerifyV1: async () => {
         calls.push("activate");
         if (activationFailure) {throw new Error("activation failed");}
       },
-      restoreAndVerify: async () => {calls.push("restore");}
+      restoreAndVerifyV1: async () => {calls.push("restore");},
+      prepareV2: async () => {throw new Error("unused");},
+      activateAndVerifyV2: async () => {throw new Error("unused");},
+      restoreAndVerifyV2: async () => {throw new Error("unused");}
     },
     transaction: {
       inspect: async () => ({ state: "idle" }),
@@ -356,6 +464,270 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
   assert.equal(calls[1], "activate");
   assert.equal(Buffer.from(calls[2], "base64").toString("utf8"), "before\n");
   assert.equal(calls[3], "restore");
+
+  let crossGenerationStaged = false;
+  const coordinate = target.packages.docsProtocol;
+  const crossGenerationAuthority = {
+    ...authority,
+    cohort: {
+      ...target,
+      schemaVersion: 2,
+      packages: {
+        repositoryMutation: coordinate,
+        documentAuthoring: coordinate,
+        docsProtocol: coordinate,
+        docsProtocolAgentTeams: coordinate,
+        engineeringFoundation: target.packages.engineeringFoundation
+      },
+      schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 }
+    }
+  };
+  const crossGeneration = createConsumerUpgradeUseCase({
+    ...ports,
+    authority: { read: async () => crossGenerationAuthority },
+    sandbox: {
+      ...ports.sandbox,
+      prepareV2: async () => {
+        crossGenerationStaged = true;
+        throw new Error("cross-generation staging must not run");
+      }
+    }
+  });
+  const mismatch = await crossGeneration({
+    consumerRoot: "/consumer",
+    to: crossGenerationAuthority.cohort.cohortId
+  });
+  assert.equal(mismatch.outcome, "blocked");
+  assert.equal(mismatch.issues[0].code, "DOCS_CONSUMER_COHORT_GENERATION_MISMATCH");
+  assert.equal(crossGenerationStaged, false);
+});
+
+test("keeps an exact V1 Cohort current when the repository has an unborn HEAD", async () => {
+  const { cohort, catalog } = await sourceCohort();
+  const current = desired(cohort, 1);
+  const snapshot = sourceSnapshot(current, catalog);
+  let authorityReads = 0;
+  let staged = false;
+  const upgrade = createConsumerUpgradeUseCase({
+    assets: { read: async () => catalog },
+    authority: { read: async () => {
+      authorityReads += 1;
+      throw new Error("same-Cohort no-op must not read authority");
+    } },
+    input: { read: async () => ({
+      desired: current,
+      root: "/unborn-consumer",
+      snapshot
+    }) },
+    planning: consumerIntegrationPlanningPorts,
+    sandbox: {
+      prepareV1: async () => {staged = true; throw new Error("must not stage");},
+      activateAndVerifyV1: async () => {throw new Error("must not activate");},
+      restoreAndVerifyV1: async () => {throw new Error("must not restore");},
+      prepareV2: async () => {throw new Error("must not stage");},
+      activateAndVerifyV2: async () => {throw new Error("must not activate");},
+      restoreAndVerifyV2: async () => {throw new Error("must not restore");}
+    },
+    transaction: {
+      inspect: async () => ({ state: "idle" }),
+      apply: async () => {throw new Error("must not mutate");},
+      recover: async () => {throw new Error("must not recover");}
+    }
+  });
+  const result = await upgrade({ consumerRoot: "/unborn-consumer", to: cohort.cohortId });
+  assert.deepEqual(result, {
+    schemaVersion: 1,
+    command: "consumer.upgrade",
+    outcome: "current",
+    issues: []
+  });
+  assert.equal(authorityReads, 0);
+  assert.equal(staged, false);
+});
+
+test("leaves one coherent target when a mixed receipt proves concurrent satisfaction", async () => {
+  const { cohort, catalog } = await sourceCohort();
+  const current = desired(cohort, 1);
+  const snapshot = sourceSnapshot(current, catalog);
+  const target = {
+    ...structuredClone(cohort),
+    cohortId: "docs-target-mixed-receipt",
+    recordDigest: `sha256:${"6".repeat(64)}`,
+    qualificationEventDigest: `sha256:${"7".repeat(64)}`,
+    upgradeFrom: [cohort.cohortId]
+  };
+  const authority = {
+    repository: "agent-teams-ai/.github",
+    path: "governance/docs-qualified-cohorts.json",
+    revision: "8".repeat(40),
+    cohort: target
+  };
+  const packageBefore = Buffer.from("package-before\n");
+  const packageAfter = Buffer.from("package-after\n");
+  const lockBefore = Buffer.from("lock-before\n");
+  const lockAfter = Buffer.from("lock-after\n");
+  const submitted = [];
+  const filesystem = new Map([
+    ["package.json", packageBefore.toString("utf8")],
+    ["pnpm-lock.yaml", lockAfter.toString("utf8")]
+  ]);
+  let restored = false;
+  const upgrade = createConsumerUpgradeUseCase({
+    assets: { read: async () => catalog },
+    authority: { read: async () => authority },
+    input: { read: async () => ({
+      desired: current,
+      repositoryHead: "a".repeat(40),
+      root: "/mixed-consumer",
+      snapshot
+    }) },
+    planning: consumerIntegrationPlanningPorts,
+    sandbox: {
+      prepareV1: async () => ({ operations: [{
+        path: "package.json",
+        precondition: {
+          state: "known-file",
+          acceptedPreimages: [{ bytes: packageBefore, mode: 0o644 }]
+        },
+        postimage: { bytes: packageAfter, mode: 0o644 }
+      }, {
+        path: "pnpm-lock.yaml",
+        precondition: {
+          state: "known-file",
+          acceptedPreimages: [{ bytes: lockBefore, mode: 0o644 }]
+        },
+        postimage: { bytes: lockAfter, mode: 0o644 }
+      }] }),
+      activateAndVerifyV1: async () => {throw new Error("mixed activation failed");},
+      restoreAndVerifyV1: async () => {restored = true;},
+      prepareV2: async () => {throw new Error("unused");},
+      activateAndVerifyV2: async () => {throw new Error("unused");},
+      restoreAndVerifyV2: async () => {throw new Error("unused");}
+    },
+    transaction: {
+      inspect: async () => ({ state: "idle" }),
+      apply: async ({ plan }) => {
+        submitted.push(plan);
+        for (const operation of plan.operations) {
+          filesystem.set(
+            operation.path,
+            Buffer.from(operation.postimage.contentBase64, "base64").toString("utf8")
+          );
+        }
+        return {
+          schemaVersion: 1,
+          protocol: "agent-teams.repository-mutation.known-file/v1",
+          planDigest: plan.planDigest,
+          outcome: "applied",
+          operations: plan.operations.length === 2 ? [{
+            path: "package.json",
+            outcome: "replaced",
+            resultDigest: plan.operations[0].postimage.digest
+          }, {
+            path: "pnpm-lock.yaml",
+            outcome: "already-satisfied",
+            resultDigest: plan.operations[1].postimage.digest
+          }] : [{
+            path: "package.json",
+            outcome: "replaced",
+            resultDigest: plan.operations[0].postimage.digest
+          }],
+          receiptDigest: `sha256:${"9".repeat(64)}`
+        };
+      },
+      recover: async () => {throw new Error("unused");}
+    }
+  });
+  await assert.rejects(
+    upgrade({ consumerRoot: "/mixed-consumer", to: target.cohortId }),
+    /mixed activation failed/u
+  );
+  assert.equal(submitted.length, 1, "mixed ownership must not start a reverse transaction");
+  assert.equal(filesystem.get("package.json"), "package-after\n");
+  assert.equal(filesystem.get("pnpm-lock.yaml"), "lock-after\n");
+  assert.equal(restored, false);
+});
+
+test("coordinates a profile-v3 rollback with exact source HEAD and managed preimages", async () => {
+  const targetId = "docs-v2-rollback-target";
+  const current = desiredV3(cohortV2("docs-v2-current", {
+    rollbackTo: [targetId],
+    upgradeFrom: [targetId]
+  }));
+  const snapshot = sourceSnapshotV3(current);
+  const target = cohortV2(targetId, {
+    version: "0.9.0",
+    workflowRevision: "5".repeat(40)
+  });
+  const authority = {
+    repository: "agent-teams-ai/.github",
+    path: "governance/docs-qualified-cohorts.json",
+    revision: "8".repeat(40),
+    cohort: target
+  };
+  let prepared;
+  let activated = false;
+  const preimage = Buffer.from("before-v3\n");
+  const postimage = Buffer.from("after-v3\n");
+  const upgrade = createConsumerUpgradeUseCase({
+    assets: { read: async () => {throw new Error("V3 must not read the V1 catalog");} },
+    authority: { read: async () => authority },
+    input: { read: async () => ({
+      desired: current,
+      repositoryHead: "a".repeat(40),
+      root: "/consumer-v3",
+      snapshot
+    }) },
+    planning: consumerIntegrationPlanningPorts,
+    sandbox: {
+      prepareV1: async () => {throw new Error("unused");},
+      activateAndVerifyV1: async () => {throw new Error("unused");},
+      restoreAndVerifyV1: async () => {throw new Error("unused");},
+      prepareV2: async (options) => {
+        prepared = options;
+        return { operations: [{
+          path: "package.json",
+          precondition: {
+            state: "known-file",
+            acceptedPreimages: [{ bytes: preimage, mode: 0o644 }]
+          },
+          postimage: { bytes: postimage, mode: 0o644 }
+        }] };
+      },
+      activateAndVerifyV2: async () => {activated = true;},
+      restoreAndVerifyV2: async () => {throw new Error("unused");}
+    },
+    transaction: {
+      inspect: async () => ({ state: "idle" }),
+      apply: async ({ plan }) => ({
+        schemaVersion: 1,
+        protocol: "foundation.replace-known-file/v1",
+        planDigest: plan.planDigest,
+        outcome: "applied",
+        operations: [{
+          path: "package.json",
+          outcome: "replaced",
+          resultDigest: plan.operations[0].postimage.digest
+        }],
+        receiptDigest: `sha256:${"9".repeat(64)}`
+      }),
+      recover: async () => {throw new Error("unused");}
+    }
+  });
+
+  const result = await upgrade({ consumerRoot: "/consumer-v3", to: targetId });
+  assert.equal(result.outcome, "upgraded");
+  assert.equal(activated, true);
+  assert.equal(prepared.expectedSourceRevision, "a".repeat(40));
+  assert.equal(prepared.expectedSourceSnapshot, snapshot);
+  assert.deepEqual(
+    Object.values(prepared.managedPreimages).map(({ path }) => path).toSorted(),
+    [current.callerWorkflowPath, current.managedStatePath, current.skillPath].toSorted()
+  );
+  for (const proof of Object.values(prepared.managedPreimages)) {
+    assert.equal(proof.mode, 0o644);
+    assert.match(proof.digest, /^sha256:[0-9a-f]{64}$/u);
+  }
 });
 
 test("upgrades one disposable consumer end to end without authority or lockfile prework", {
@@ -436,7 +808,13 @@ minimumReleaseAgeExclude:
   runGit(consumerRoot, ["add", "--all"]);
   runGit(consumerRoot, ["commit", "-qm", "test: seed disposable docs consumer"]);
 
-  const originalPath = process.env.PATH, originalDocs = process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE, originalFoundation = process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE, originalManaged = process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE, originalRepositoryMutation = process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE;
+  const originalPath = process.env.PATH;
+  const originalDocs = process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE;
+  const originalFoundation = process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE;
+  const originalManaged = process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE;
+  const originalDocumentAuthoring = process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE;
+  const originalRepositoryMutation =
+    process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE;
   const restoreGitHubIdentity = useGitHubRepositoryIdentity(REPOSITORY);
   process.env.PATH = `${fakeBin}:${originalPath ?? ""}`;
   process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE = coreRoot;
@@ -506,6 +884,279 @@ minimumReleaseAgeExclude:
     assert.equal(repeated.outcome, "current");
     assert.equal(authorityReads, 0);
   } finally {
-      await cleanupOneCommandSandbox({ disposable, originalPath, originalDocs, originalFoundation, originalManaged, originalRepositoryMutation, restoreGitHubIdentity });
+      await cleanupOneCommandSandbox({
+        disposable,
+        originalPath,
+        originalDocs,
+        originalFoundation,
+        originalManaged,
+        originalDocumentAuthoring,
+        originalRepositoryMutation,
+        restoreGitHubIdentity
+      });
+  }
+});
+
+test("upgrades, reverses a failed activation, and downgrades one disposable profile-v3 consumer", {
+  skip: process.platform === "win32"
+}, async () => {
+  const disposable = await mkdtemp(join(tmpdir(), "docs-v3-one-command-e2e-"));
+  const consumerRoot = join(disposable, "consumer");
+  const fakeBin = join(disposable, "bin");
+  await Promise.all([
+    mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true }),
+    mkdir(join(consumerRoot, ".agents", "skills", "docs-authoring"), { recursive: true }),
+    mkdir(join(consumerRoot, ".github", "workflows"), { recursive: true }),
+    mkdir(fakeBin, { recursive: true })
+  ]);
+  const [docsManifest, managedManifest, foundationManifest, mutationManifest, authoringManifest] =
+    await Promise.all([
+      readFile(join(coreRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(packageRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(foundationRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(repositoryMutationRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(documentAuthoringRoot, "package.json"), "utf8").then(JSON.parse)
+    ]);
+  let sourceBinding = cohortV2("docs-v2-e2e-source");
+  sourceBinding = {
+    ...sourceBinding,
+    packages: {
+      repositoryMutation: { version: mutationManifest.version, integrity: V2_INTEGRITY },
+      documentAuthoring: { version: authoringManifest.version, integrity: V2_INTEGRITY },
+      docsProtocol: { version: docsManifest.version, integrity: V2_INTEGRITY },
+      docsProtocolAgentTeams: { version: managedManifest.version, integrity: V2_INTEGRITY },
+      engineeringFoundation: { version: foundationManifest.version, integrity: V2_INTEGRITY }
+    }
+  };
+  sourceBinding = {
+    ...sourceBinding,
+    assets: describeCanonicalConsumerAssets(sourceBinding),
+    runtime: {
+      ...sourceBinding.runtime,
+      runtimeClosureDigest: computePnpmRuntimeClosureDigestV2(
+        lockfileObjectForV2(sourceBinding),
+        sourceBinding
+      )
+    }
+  };
+  const current = desiredV3(sourceBinding);
+  const targetProvisional = {
+    ...structuredClone(sourceBinding),
+    cohortId: "docs-v2-e2e-target",
+    recordDigest: `sha256:${"6".repeat(64)}`,
+    qualificationEventDigest: `sha256:${"7".repeat(64)}`,
+    upgradeFrom: [sourceBinding.cohortId],
+    rollbackTo: [sourceBinding.cohortId],
+    workflow: {
+      ...sourceBinding.workflow,
+      revision: "5".repeat(40),
+      blobSha: "6".repeat(40)
+    }
+  };
+  const target = {
+    ...targetProvisional,
+    assets: describeCanonicalConsumerAssets(targetProvisional)
+  };
+  const authority = Object.freeze({
+    repository: "agent-teams-ai/.github",
+    path: "governance/docs-qualified-cohorts.json",
+    revision: "8".repeat(40),
+    cohort: target
+  });
+  const route = Buffer.from(canonicalManagedRoute(current.skillPath));
+  const skill = Buffer.from(readFileSync(join(packageRoot, "skills/docs/SKILL.md")));
+  const caller = Buffer.from(canonicalCallerWorkflow(sourceBinding));
+  const managedState = canonicalManagedState(current, {
+    skillDigest: digestBytes(skill),
+    callerWorkflowDigest: digestBytes(caller),
+    assetCatalogDigest: sourceBinding.assets.assetCatalogDigest,
+    transitionCatalogDigest: sourceBinding.assets.transitionCatalogDigest,
+    agentsRouteDigest: digestBytes(route),
+    docsScriptsDigest: canonicalDocsScriptsDigest(current.profilePath)
+  });
+  const profilePath = join(
+    consumerRoot,
+    "architecture",
+    "foundation",
+    "docs-consumer-integration.json"
+  );
+  const fakeCorepack = join(fakeBin, "corepack");
+  await Promise.all([
+    writeFile(profilePath, `${JSON.stringify(current, null, 2)}\n`),
+    writeFile(
+      join(consumerRoot, "package.json"),
+      `${JSON.stringify(sourceManifestV2(sourceBinding, current.profilePath), null, 2)}\n`
+    ),
+    writeFile(join(consumerRoot, "pnpm-lock.yaml"), lockfileForV2(sourceBinding)),
+    writeFile(join(consumerRoot, ".node-version"), "24.18.0\n"),
+    writeFile(join(consumerRoot, ".gitignore"), "node_modules/\n"),
+    writeFile(join(consumerRoot, "AGENTS.md"), route),
+    writeFile(join(consumerRoot, current.skillPath), skill),
+    writeFile(join(consumerRoot, current.callerWorkflowPath), caller),
+    writeFile(join(consumerRoot, current.managedStatePath), managedState),
+    writeFile(join(consumerRoot, "pnpm-workspace.yaml"), `packages: []
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+${Object.entries(sourceBinding.packages).map(([key, coordinate]) => {
+    const names = {
+      repositoryMutation: "repository-mutation",
+      documentAuthoring: "document-authoring",
+      docsProtocol: "docs-protocol",
+      docsProtocolAgentTeams: "docs-protocol-agent-teams",
+      engineeringFoundation: "engineering-foundation"
+    };
+    return `  - "@agent-teams/${names[key]}@${coordinate.version}"`;
+  }).join("\n")}
+  - "unrelated@1.0.0"
+`),
+    writeFile(fakeCorepack, fakeCorepackSource())
+  ]);
+  await chmod(fakeCorepack, 0o755);
+  runGit(consumerRoot, ["init", "-q"]);
+  runGit(consumerRoot, ["config", "user.email", "sandbox@example.invalid"]);
+  runGit(consumerRoot, ["config", "user.name", "Docs V3 Upgrade Sandbox"]);
+  runGit(consumerRoot, ["add", "--all"]);
+  runGit(consumerRoot, ["commit", "-qm", "test: seed disposable docs v3 consumer"]);
+  const sourceHead = runGit(consumerRoot, ["rev-parse", "HEAD"]);
+  const sourceTree = runGit(consumerRoot, ["rev-parse", "HEAD^{tree}"]);
+
+  const originalPath = process.env.PATH;
+  const originalDocs = process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE;
+  const originalFoundation = process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE;
+  const originalManaged = process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE;
+  const originalDocumentAuthoring = process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE;
+  const originalRepositoryMutation =
+    process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE;
+  const restoreGitHubIdentity = useGitHubRepositoryIdentity(REPOSITORY);
+  process.env.PATH = `${fakeBin}:${originalPath ?? ""}`;
+  process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE = coreRoot;
+  process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE = foundationRoot;
+  process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE = packageRoot;
+  process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE = documentAuthoringRoot;
+  process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE = repositoryMutationRoot;
+  try {
+    const realSandbox = new NodeConsumerUpgradeSandbox();
+    const upgrade = createConsumerUpgradeUseCase({
+      assets: packageConsumerAssetCatalogReader,
+      authority: { read: async () => authority },
+      input: nodeConsumerIntegrationInputReader,
+      planning: consumerIntegrationPlanningPorts,
+      sandbox: realSandbox,
+      transaction: foundationKnownFileTransaction
+    });
+    const execution = await upgrade({ consumerRoot, to: target.cohortId });
+    assert.deepEqual(
+      [execution.outcome, execution.authority.revision],
+      ["upgraded", authority.revision]
+    );
+    const [profile, manifest, callerAfter, stateAfter] = await Promise.all([
+      readFile(profilePath, "utf8").then(JSON.parse),
+      readFile(join(consumerRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(consumerRoot, current.callerWorkflowPath), "utf8"),
+      readFile(join(consumerRoot, current.managedStatePath), "utf8").then(JSON.parse)
+    ]);
+    assert.deepEqual(profile.cohort, target);
+    assert.equal(callerAfter, canonicalCallerWorkflow(target));
+    assert.deepEqual(
+      Object.keys(manifest.devDependencies).filter((name) => name.startsWith("@agent-teams/"))
+        .toSorted(),
+      [
+        "@agent-teams/docs-protocol",
+        "@agent-teams/docs-protocol-agent-teams",
+        "@agent-teams/engineering-foundation"
+      ]
+    );
+    assert.equal(stateAfter.schemaVersion, 2);
+    assert.equal(stateAfter.cohortId, target.cohortId);
+    const checked = await nodeConsumerIntegrationInputReader.read({ consumerRoot });
+    assert.equal(checked.desired.cohort.cohortId, target.cohortId);
+
+    runGit(consumerRoot, [
+      "add", "--all", "--", ".",
+      ":(exclude).agent-teams-local", ":(exclude).agent-teams-local/**"
+    ]);
+    runGit(consumerRoot, ["commit", "-qm", "test: checkpoint disposable v3 target"]);
+    const targetHead = runGit(consumerRoot, ["rev-parse", "HEAD"]);
+    const targetTree = runGit(consumerRoot, ["rev-parse", "HEAD^{tree}"]);
+    const rollbackAuthority = Object.freeze({
+      ...authority,
+      cohort: sourceBinding
+    });
+    const activationFailure = new Error("forced disposable v3 activation failure");
+    const failingRollback = createConsumerUpgradeUseCase({
+      assets: packageConsumerAssetCatalogReader,
+      authority: { read: async () => rollbackAuthority },
+      input: nodeConsumerIntegrationInputReader,
+      planning: consumerIntegrationPlanningPorts,
+      sandbox: {
+        prepareV1: (options) => realSandbox.prepareV1(options),
+        activateAndVerifyV1: (options) => realSandbox.activateAndVerifyV1(options),
+        restoreAndVerifyV1: (options) => realSandbox.restoreAndVerifyV1(options),
+        prepareV2: (options) => realSandbox.prepareV2(options),
+        activateAndVerifyV2: async () => {throw activationFailure;},
+        restoreAndVerifyV2: (options) => realSandbox.restoreAndVerifyV2(options)
+      },
+      transaction: foundationKnownFileTransaction
+    });
+    await assert.rejects(
+      failingRollback({ consumerRoot, to: sourceBinding.cohortId }),
+      (error) => error === activationFailure
+    );
+    assert.equal(runGit(consumerRoot, ["rev-parse", "HEAD"]), targetHead);
+    assert.equal(runGit(consumerRoot, ["write-tree"]), targetTree);
+    assert.equal(runGit(consumerRoot, [
+      "status", "--porcelain=v1", "--untracked-files=all", "--", ".",
+      ":(exclude).agent-teams-local", ":(exclude).agent-teams-local/**"
+    ]), "");
+    assert.equal(
+      JSON.parse(await readFile(profilePath, "utf8")).cohort.cohortId,
+      target.cohortId
+    );
+
+    const downgrade = createConsumerUpgradeUseCase({
+      assets: packageConsumerAssetCatalogReader,
+      authority: { read: async () => rollbackAuthority },
+      input: nodeConsumerIntegrationInputReader,
+      planning: consumerIntegrationPlanningPorts,
+      sandbox: realSandbox,
+      transaction: foundationKnownFileTransaction
+    });
+    const downgraded = await downgrade({ consumerRoot, to: sourceBinding.cohortId });
+    assert.equal(downgraded.outcome, "upgraded");
+    const [sourceProfile, sourceManifestAfter, sourceCaller, sourceState] = await Promise.all([
+      readFile(profilePath, "utf8").then(JSON.parse),
+      readFile(join(consumerRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(consumerRoot, current.callerWorkflowPath), "utf8"),
+      readFile(join(consumerRoot, current.managedStatePath), "utf8").then(JSON.parse)
+    ]);
+    assert.deepEqual(sourceProfile.cohort, sourceBinding);
+    assert.equal(sourceCaller, canonicalCallerWorkflow(sourceBinding));
+    assert.equal(sourceState.cohortId, sourceBinding.cohortId);
+    assert.deepEqual(
+      Object.fromEntries(Object.entries(sourceManifestAfter.devDependencies).filter(
+        ([name]) => name.startsWith("@agent-teams/")
+      )),
+      sourceManifestV2(sourceBinding, current.profilePath).devDependencies
+    );
+    runGit(consumerRoot, [
+      "add", "--all", "--", ".",
+      ":(exclude).agent-teams-local", ":(exclude).agent-teams-local/**"
+    ]);
+    assert.equal(
+      runGit(consumerRoot, ["write-tree"]),
+      sourceTree,
+      runGit(consumerRoot, ["diff", "--cached", "--name-status", sourceHead])
+    );
+  } finally {
+    await cleanupOneCommandSandbox({
+      disposable,
+      originalPath,
+      originalDocs,
+      originalFoundation,
+      originalManaged,
+      originalDocumentAuthoring,
+      originalRepositoryMutation,
+      restoreGitHubIdentity
+    });
   }
 });

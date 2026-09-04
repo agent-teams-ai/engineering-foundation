@@ -39,6 +39,7 @@ No proposed decisions.
 - [ADR-0039: Open-Source Documentation Protocol](0039-open-source-documentation-protocol.md)
 - [ADR-0043: New-Only Portable Documentation Package Boundary](0043-new-only-portable-documentation-package-boundary.md)
 - [ADR-0044: Registry-Neutral npm Bootstrap Tags](0044-registry-neutral-npm-bootstrap-tags.md)
+- [ADR-0045: Five-Coordinate Qualified Docs Cohort](0045-five-coordinate-qualified-docs-cohort.md)
 
 ## Superseded
 

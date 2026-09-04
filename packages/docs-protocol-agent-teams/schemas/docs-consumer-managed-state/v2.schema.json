@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-consumer-managed-state/v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "cohortId",
+    "cohortAuthority",
+    "repository",
+    "packages",
+    "schemas",
+    "runtime",
+    "profilePath",
+    "skillPath",
+    "callerWorkflowPath",
+    "managedStatePath",
+    "assets",
+    "stateDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "cohortId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "cohortAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "recordDigest",
+        "qualificationEventDigest",
+        "eligibleAfter",
+        "upgradeFrom",
+        "rollbackTo"
+      ],
+      "properties": {
+        "channel": { "enum": ["rc", "stable"] },
+        "recordDigest": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+        },
+        "qualificationEventDigest": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+        },
+        "eligibleAfter": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "upgradeFrom": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/cohortIds"
+        },
+        "rollbackTo": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/cohortIds"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "id", "nameWithOwner"],
+      "properties": {
+        "provider": { "const": "github" },
+        "id": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "nameWithOwner": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        }
+      }
+    },
+    "packages": {
+      "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/cohortCore/properties/packages"
+    },
+    "schemas": {
+      "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/cohortCore/properties/schemas"
+    },
+    "runtime": {
+      "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/cohortCore/properties/runtime"
+    },
+    "profilePath": { "type": "string", "minLength": 1 },
+    "skillPath": { "type": "string", "minLength": 1 },
+    "callerWorkflowPath": { "type": "string", "minLength": 1 },
+    "managedStatePath": { "type": "string", "minLength": 1 },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skillDigest",
+        "callerWorkflowDigest",
+        "assetCatalogDigest",
+        "transitionCatalogDigest",
+        "agentsRouteDigest",
+        "docsScriptsDigest"
+      ],
+      "properties": {
+        "skillDigest": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+        },
+        "callerWorkflowDigest": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+        },
+        "assetCatalogDigest": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+        },
+        "transitionCatalogDigest": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+        },
+        "agentsRouteDigest": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+        },
+        "docsScriptsDigest": {
+          "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+        }
+      }
+    },
+    "stateDigest": {
+      "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/nonzeroSha256"
+    }
+  }
+}

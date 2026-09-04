@@ -14,6 +14,8 @@ import {
 
 export const packageRoot = join(import.meta.dirname, "..");
 export const foundationRoot = join(packageRoot, "..", "engineering-foundation");
+export const documentAuthoringRoot = join(packageRoot, "..", "document-authoring");
+export const repositoryMutationRoot = join(packageRoot, "..", "repository-mutation");
 const INTEGRITY = `sha512-${"A".repeat(86)}==`;
 
 function restoreEnvironment(name, value) {
@@ -58,6 +60,80 @@ snapshots:
 `;
 }
 
+export function lockfileObjectForV2(cohort) {
+  const packages = {
+    "@agent-teams/repository-mutation": cohort.packages.repositoryMutation,
+    "@agent-teams/document-authoring": cohort.packages.documentAuthoring,
+    "@agent-teams/docs-protocol": cohort.packages.docsProtocol,
+    "@agent-teams/docs-protocol-agent-teams": cohort.packages.docsProtocolAgentTeams,
+    "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation
+  };
+  const entry = (name) => ({
+    specifier: packages[name].version,
+    version: packages[name].version
+  });
+  const locator = (name) => `${name}@${packages[name].version}`;
+  return {
+    lockfileVersion: "9.0",
+    settings: { autoInstallPeers: true, excludeLinksFromLockfile: false },
+    importers: { ".": { devDependencies: {
+      "@agent-teams/docs-protocol": entry("@agent-teams/docs-protocol"),
+      "@agent-teams/docs-protocol-agent-teams":
+        entry("@agent-teams/docs-protocol-agent-teams"),
+      "@agent-teams/engineering-foundation": entry("@agent-teams/engineering-foundation")
+    } } },
+    packages: Object.fromEntries(Object.entries(packages).map(([name, coordinate]) => [
+      locator(name),
+      { resolution: { integrity: coordinate.integrity } }
+    ])),
+    snapshots: {
+      [locator("@agent-teams/repository-mutation")]: {},
+      [locator("@agent-teams/document-authoring")]: {
+        dependencies: {
+          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version
+        }
+      },
+      [locator("@agent-teams/docs-protocol")]: {
+        dependencies: {
+          "@agent-teams/document-authoring": packages["@agent-teams/document-authoring"].version,
+          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version
+        }
+      },
+      [locator("@agent-teams/docs-protocol-agent-teams")]: {
+        dependencies: {
+          "@agent-teams/docs-protocol": packages["@agent-teams/docs-protocol"].version,
+          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version
+        }
+      },
+      [locator("@agent-teams/engineering-foundation")]: {
+        dependencies: {
+          "@agent-teams/document-authoring": packages["@agent-teams/document-authoring"].version,
+          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version
+        }
+      }
+    }
+  };
+}
+
+export function lockfileForV2(cohort) {
+  return `${JSON.stringify(lockfileObjectForV2(cohort), null, 2)}\n`;
+}
+
+export function sourceManifestV2(cohort, profilePath) {
+  return {
+    name: "docs-upgrade-v2-disposable-consumer",
+    private: true,
+    packageManager: "pnpm@11.20.0",
+    scripts: canonicalDocsScripts(profilePath),
+    devDependencies: {
+      "@agent-teams/docs-protocol": cohort.packages.docsProtocol.version,
+      "@agent-teams/docs-protocol-agent-teams": cohort.packages.docsProtocolAgentTeams.version,
+      "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version
+    },
+    untouched: { retained: true }
+  };
+}
+
 export function sourceManifest(cohort, profilePath) {
   return {
     name: "docs-upgrade-disposable-consumer",
@@ -79,6 +155,7 @@ export async function cleanupOneCommandSandbox({
   originalDocs,
   originalFoundation,
   originalManaged,
+  originalDocumentAuthoring,
   originalRepositoryMutation,
   restoreGitHubIdentity
 }) {
@@ -86,6 +163,7 @@ export async function cleanupOneCommandSandbox({
   restoreEnvironment("DOCS_UPGRADE_TEST_DOCS_PACKAGE", originalDocs);
   restoreEnvironment("DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE", originalFoundation);
   restoreEnvironment("DOCS_UPGRADE_TEST_MANAGED_PACKAGE", originalManaged);
+  restoreEnvironment("DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE", originalDocumentAuthoring);
   restoreEnvironment("DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE", originalRepositoryMutation);
   restoreGitHubIdentity();
   await rm(disposable, { force: true, recursive: true });
@@ -107,7 +185,8 @@ const profile = JSON.parse(readFileSync(join(
 ), "utf8"));
 const docs = profile.cohort.packages.docsProtocol;
 const foundation = profile.cohort.packages.engineeringFoundation;
-if (process.argv.includes("--no-frozen-lockfile")) {
+const isV2 = profile.cohort.schemaVersion === 2;
+if (process.argv.includes("--no-frozen-lockfile") && !isV2) {
   const workspace = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
   const lockfile = readFileSync(join(root, "pnpm-lock.yaml"), "utf8");
   const lockSpecifier = (name) => {
@@ -130,6 +209,59 @@ if (process.argv.includes("--no-frozen-lockfile")) {
     }
   }
 }
+if (isV2) {
+  const coordinates = {
+    "@agent-teams/repository-mutation": profile.cohort.packages.repositoryMutation,
+    "@agent-teams/document-authoring": profile.cohort.packages.documentAuthoring,
+    "@agent-teams/docs-protocol": docs,
+    "@agent-teams/docs-protocol-agent-teams": profile.cohort.packages.docsProtocolAgentTeams,
+    "@agent-teams/engineering-foundation": foundation
+  };
+  if (process.argv.includes("--no-frozen-lockfile")) {
+    const workspace = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
+    for (const [name, coordinate] of Object.entries(coordinates)) {
+      if (!workspace.includes(name + "@" + coordinate.version)) {
+        throw new Error("migration workspace omitted " + name + "@" + coordinate.version);
+      }
+    }
+  }
+  const entry = (name) => ({
+    specifier: coordinates[name].version,
+    version: coordinates[name].version
+  });
+  const locator = (name) => name + "@" + coordinates[name].version;
+  const lock = {
+    lockfileVersion: "9.0",
+    settings: { autoInstallPeers: true, excludeLinksFromLockfile: false },
+    importers: { ".": { devDependencies: {
+      "@agent-teams/docs-protocol": entry("@agent-teams/docs-protocol"),
+      "@agent-teams/docs-protocol-agent-teams": entry("@agent-teams/docs-protocol-agent-teams"),
+      "@agent-teams/engineering-foundation": entry("@agent-teams/engineering-foundation")
+    } } },
+    packages: Object.fromEntries(Object.entries(coordinates).map(([name, coordinate]) => [
+      locator(name), { resolution: { integrity: coordinate.integrity } }
+    ])),
+    snapshots: {
+      [locator("@agent-teams/repository-mutation")]: {},
+      [locator("@agent-teams/document-authoring")]: { dependencies: {
+        "@agent-teams/repository-mutation": coordinates["@agent-teams/repository-mutation"].version
+      } },
+      [locator("@agent-teams/docs-protocol")]: { dependencies: {
+        "@agent-teams/document-authoring": coordinates["@agent-teams/document-authoring"].version,
+        "@agent-teams/repository-mutation": coordinates["@agent-teams/repository-mutation"].version
+      } },
+      [locator("@agent-teams/docs-protocol-agent-teams")]: { dependencies: {
+        "@agent-teams/docs-protocol": coordinates["@agent-teams/docs-protocol"].version,
+        "@agent-teams/repository-mutation": coordinates["@agent-teams/repository-mutation"].version
+      } },
+      [locator("@agent-teams/engineering-foundation")]: { dependencies: {
+        "@agent-teams/document-authoring": coordinates["@agent-teams/document-authoring"].version,
+        "@agent-teams/repository-mutation": coordinates["@agent-teams/repository-mutation"].version
+      } }
+    }
+  };
+  writeFileSync(join(root, "pnpm-lock.yaml"), JSON.stringify(lock, null, 2) + "\\n");
+} else {
 writeFileSync(join(root, "pnpm-lock.yaml"), \`lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true
@@ -156,14 +288,22 @@ snapshots:
       '@agent-teams/engineering-foundation': \${foundation.version}
   '@agent-teams/engineering-foundation@\${foundation.version}': {}
 \`);
+}
 const scope = join(root, "node_modules", "@agent-teams");
 mkdirSync(scope, { recursive: true });
-for (const [name, source] of [
+const packageSources = [
   ["docs-protocol", process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE],
   ["engineering-foundation", process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE],
   ["docs-protocol-agent-teams", process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE],
   ["repository-mutation", process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE]
-]) {
+];
+if (isV2) {
+  packageSources.push([
+    "document-authoring",
+    process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE
+  ]);
+}
+for (const [name, source] of packageSources) {
   if (typeof source !== "string" || source === "") { throw new Error("missing package path"); }
   const target = join(scope, name);
   rmSync(target, { force: true, recursive: true });

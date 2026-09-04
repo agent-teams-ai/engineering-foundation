@@ -75,6 +75,45 @@ function centralRegistry(cohort) {
   };
 }
 
+const V2_PACKAGE_NAMES = [
+  ["repositoryMutation", "@agent-teams/repository-mutation"],
+  ["documentAuthoring", "@agent-teams/document-authoring"],
+  ["docsProtocol", "@agent-teams/docs-protocol"],
+  ["docsProtocolAgentTeams", "@agent-teams/docs-protocol-agent-teams"],
+  ["engineeringFoundation", "@agent-teams/engineering-foundation"]
+];
+
+function v2Cohort(source) {
+  const coordinate = source.packages.docsProtocol;
+  return {
+    ...structuredClone(source),
+    schemaVersion: 2,
+    cohortId: "docs-cohort-v2-authority",
+    packages: Object.fromEntries(V2_PACKAGE_NAMES.map(([key]) => [key, coordinate])),
+    schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 }
+  };
+}
+
+function v2Registry(cohort) {
+  const registry = centralRegistry({
+    ...cohort,
+    packages: {
+      docsProtocol: cohort.packages.docsProtocol,
+      engineeringFoundation: cohort.packages.engineeringFoundation
+    }
+  });
+  registry.cohorts[0].schemas = {
+    consumer_integration: 3,
+    managed_state: 2,
+    docs_protocol: 1
+  };
+  registry.cohorts[0].packages = V2_PACKAGE_NAMES.map(([key, name]) => ({
+    name,
+    ...cohort.packages[key]
+  }));
+  return registry;
+}
+
 test("binds authority reads to current protected main and rejects stale assertions", async () => {
   const { cohort } = await sourceCohort();
   const revision = "8".repeat(40);
@@ -149,6 +188,39 @@ test("rejects duplicate managed package authority", async () => {
     repository: REPOSITORY,
     revision: "8".repeat(40)
   }), (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+});
+
+test("dispatches authority only by the exact per-Cohort schema tuple", async () => {
+  const { cohort: source } = await sourceCohort();
+  const cohort = v2Cohort(source);
+  const input = {
+    cohortId: cohort.cohortId,
+    repository: REPOSITORY,
+    revision: "8".repeat(40)
+  };
+  const registry = v2Registry(cohort);
+  const authority = projectQualifiedCohortAuthority({ ...input, registry });
+  assert.equal(authority.cohort.schemaVersion, 2);
+  assert.deepEqual(authority.cohort.packages, cohort.packages);
+
+  const incompleteV2 = structuredClone(registry);
+  incompleteV2.cohorts[0].packages.length = 2;
+  assert.throws(() => projectQualifiedCohortAuthority({ ...input, registry: incompleteV2 }),
+    (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+
+  const fivePackageV1 = structuredClone(registry);
+  fivePackageV1.cohorts[0].schemas = {
+    consumer_integration: 1,
+    managed_state: 1,
+    docs_protocol: 1
+  };
+  assert.throws(() => projectQualifiedCohortAuthority({ ...input, registry: fivePackageV1 }),
+    (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+
+  const unknownTuple = structuredClone(registry);
+  unknownTuple.cohorts[0].schemas.managed_state = 3;
+  assert.throws(() => projectQualifiedCohortAuthority({ ...input, registry: unknownTuple }),
+    (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
 });
 
 test("temporarily exempts exact source and target package pins during lock migration", async () => {

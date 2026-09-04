@@ -18,17 +18,19 @@ import type {
 } from "@agent-teams/repository-mutation";
 
 import type {
+  ConsumerUpgradeManagedPreimagesV2,
   ConsumerUpgradeSandboxPort,
   PreparedConsumerUpgradeV1
 } from "../application/ports/consumer-upgrade.js";
 import type {
   ConsumerIntegrationDesiredStateV1,
-  ConsumerUpgradeAuthorityV1
+  ConsumerIntegrationDesiredStateV3,
+  ConsumerIntegrationSnapshot,
+  ConsumerUpgradeAuthorityV1,
+  ConsumerUpgradeAuthorityV2
 } from "../domain/model.js";
 import {
-  projectConsumerIntegrationProfileV1,
-  projectPnpmWorkspaceCohortExclusionsV1,
-  projectPnpmWorkspaceMigrationExclusionsV1
+  projectConsumerUpgradeFiles
 } from "./consumer-upgrade-file-projectors.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import {
@@ -41,26 +43,33 @@ import {
   readStableConsumerFile
 } from "./node-consumer-repository-files.js";
 import {
-  projectPnpmManifestCohortPinsV1
-} from "./pnpm-manifest-adapter-v1.js";
+  allowedUpgradePaths,
+  assertCleanConsumerGitSource,
+  assertManagedAssetsCreatedV2,
+  assertProvedSourceSnapshot,
+  resetProvedManagedAssetsV2
+} from "./node-consumer-upgrade-source-proof.js";
+type ConsumerUpgradeAuthority = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+type UpgradeDesiredState = ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3;
+
+function isAuthorityV1(value: ConsumerUpgradeAuthority): value is ConsumerUpgradeAuthorityV1 {
+  return value.cohort.schemaVersion === 1;
+}
 
 const WORKSPACE_PATH = "pnpm-workspace.yaml";
 const MAXIMUM_PROCESS_OUTPUT_BYTES = 4 * 1024 * 1024;
 const MAXIMUM_INVENTORY_FILES = 100_000;
 const MAXIMUM_INVENTORY_BYTES = 1024 * 1024 * 1024;
 const MAXIMUM_INVENTORY_FILE_BYTES = 64 * 1024 * 1024;
-
 interface ProcessResult {
   readonly code: number;
   readonly stderr: string;
   readonly stdout: string;
 }
-
 interface InventoryEntry {
   readonly digest: string;
   readonly kind: "file" | "symlink";
 }
-
 function execute(
   executable: string,
   args: readonly string[],
@@ -90,27 +99,8 @@ function execute(
   });
 }
 
-async function assertCleanGitRoot(root: string): Promise<string> {
-  const status = await execute(
-    "git",
-    ["status", "--porcelain=v1", "--untracked-files=all"],
-    root
-  );
-  if (status.stdout !== "") {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UPGRADE_DIRTY_WORKTREE",
-      "One-command Cohort upgrade requires a clean consumer Git worktree."
-    );
-  }
-  const head = (await execute("git", ["rev-parse", "HEAD"], root)).stdout.trim();
-  if (!/^(?!0{40}$)[0-9a-f]{40}$/u.test(head)) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UPGRADE_GIT_INVALID",
-      "Consumer worktree must have one exact Git HEAD."
-    );
-  }
-  return head;
-}
+const assertCleanGitRoot = (root: string): Promise<string> =>
+  assertCleanConsumerGitSource(root, execute);
 
 function contained(root: string, repositoryPath: string): string {
   const path = resolvePath(root, repositoryPath);
@@ -305,26 +295,13 @@ function maximumBytes(path: string): number {
   return MAXIMUM_MANAGED_ASSET_BYTES;
 }
 
-function allowedUpgradePaths(current: ConsumerIntegrationDesiredStateV1): ReadonlySet<string> {
-  return new Set([
-    "AGENTS.md",
-    INTEGRATION_PROFILE_PATH,
-    "package.json",
-    "pnpm-lock.yaml",
-    WORKSPACE_PATH,
-    current.skillPath,
-    current.callerWorkflowPath,
-    current.managedStatePath
-  ]);
-}
-
 async function operationForChangedPath(input: {
-  readonly consumerRoot: string;
+  readonly sourceRoot: string;
   readonly path: string;
   readonly stagedRoot: string;
 }): Promise<KnownFileTransactionOperationInput> {
   const [preimage, postimage] = await Promise.all([
-    readStableConsumerFile(input.consumerRoot, input.path, maximumBytes(input.path), true),
+    readStableConsumerFile(input.sourceRoot, input.path, maximumBytes(input.path), true),
     readStableConsumerFile(input.stagedRoot, input.path, maximumBytes(input.path), true)
   ]);
   if (preimage.state !== "file" || postimage.state !== "file") {throw new Error("unreachable");}
@@ -358,12 +335,21 @@ async function installCohort(root: string, offline: boolean): Promise<void> {
 }
 
 export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
-  public async prepare(options: {
-    readonly authority: ConsumerUpgradeAuthorityV1;
+  private async prepareGeneration(options: {
+    readonly authority: ConsumerUpgradeAuthority;
     readonly consumerRoot: string;
-    readonly current: ConsumerIntegrationDesiredStateV1;
+    readonly current: UpgradeDesiredState;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+    readonly managedPreimages?: ConsumerUpgradeManagedPreimagesV2;
   }): Promise<PreparedConsumerUpgradeV1> {
     const head = await assertCleanGitRoot(options.consumerRoot);
+    if (head !== options.expectedSourceRevision) {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+        "Consumer Git HEAD changed after the source Cohort was proved current."
+      );
+    }
     const temporary = await realpath(
       await mkdtemp(join(tmpdir(), "docs-consumer-upgrade-"))
     );
@@ -374,50 +360,65 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
         extractHead(options.consumerRoot, head, beforeRoot),
         extractHead(options.consumerRoot, head, stagedRoot)
       ]);
+      await assertProvedSourceSnapshot({
+        current: options.current,
+        expected: options.expectedSourceSnapshot,
+        sourceRoot: beforeRoot
+      });
       await execute("git", ["init", "-q"], stagedRoot);
       const [profile, manifest] = await Promise.all([
         readStableConsumerFile(stagedRoot, INTEGRATION_PROFILE_PATH, MAXIMUM_PROFILE_BYTES, true),
         readStableConsumerFile(stagedRoot, "package.json", MAXIMUM_MANIFEST_BYTES, true)
       ]);
       if (profile.state !== "file" || manifest.state !== "file") {throw new Error("unreachable");}
-      await Promise.all([
-        writeProjectedFile(stagedRoot, INTEGRATION_PROFILE_PATH,
-          await projectConsumerIntegrationProfileV1({
-            bytes: profile.bytes,
-            cohort: options.authority.cohort
-          })),
-        writeProjectedFile(stagedRoot, "package.json", projectPnpmManifestCohortPinsV1({
-          bytes: manifest.bytes,
-          cohort: options.authority.cohort
-        }))
-      ]);
       const workspace = await readStableConsumerFile(
         stagedRoot,
         WORKSPACE_PATH,
         MAXIMUM_WORKSPACE_BYTES,
         false
       );
-      let targetWorkspace: Uint8Array | undefined;
-      if (workspace.state === "file") {
-        targetWorkspace = projectPnpmWorkspaceCohortExclusionsV1({
-          bytes: workspace.bytes,
-          cohort: options.authority.cohort
+      const fileInput = {
+        profile: profile.bytes,
+        manifest: manifest.bytes,
+        ...(workspace.state === "file" ? { workspace: workspace.bytes } : {})
+      };
+      let projected;
+      if (options.current.schemaVersion === 1 && isAuthorityV1(options.authority)) {
+        projected = await projectConsumerUpgradeFiles({
+          ...fileInput,
+          authority: options.authority,
+          current: options.current
         });
-        await writeProjectedFile(
-          stagedRoot,
-          WORKSPACE_PATH,
-          projectPnpmWorkspaceMigrationExclusionsV1({
-            bytes: workspace.bytes,
-            source: options.current.cohort,
-            target: options.authority.cohort
-          })
-        );
-      }
+      } else if (options.current.schemaVersion === 3 && !isAuthorityV1(options.authority)) {
+        projected = await projectConsumerUpgradeFiles({
+          ...fileInput,
+          authority: options.authority,
+          current: options.current
+        });
+      } else {throw new Error("unreachable");}
+      await Promise.all([
+        writeProjectedFile(stagedRoot, INTEGRATION_PROFILE_PATH, projected.profile),
+        writeProjectedFile(stagedRoot, "package.json", projected.manifest),
+        ...(projected.migrationWorkspace === undefined ? [] : [
+          writeProjectedFile(stagedRoot, WORKSPACE_PATH, projected.migrationWorkspace)
+        ])
+      ]);
       await installCohort(stagedRoot, false);
-      if (targetWorkspace !== undefined) {
-        await writeProjectedFile(stagedRoot, WORKSPACE_PATH, targetWorkspace);
+      if (projected.targetWorkspace !== undefined) {
+        await writeProjectedFile(stagedRoot, WORKSPACE_PATH, projected.targetWorkspace);
+      }
+      if (options.current.schemaVersion === 3) {
+        if (options.managedPreimages === undefined) {throw new Error("unreachable");}
+        await resetProvedManagedAssetsV2({
+          current: options.current,
+          managedPreimages: options.managedPreimages,
+          stagedRoot
+        });
       }
       await applyTargetIntegration(stagedRoot, options.authority.cohort.cohortId);
+      if (options.current.schemaVersion === 3) {
+        await assertManagedAssetsCreatedV2(stagedRoot, options.current);
+      }
       const changed = changedInventoryPaths(
         await repositoryInventory(beforeRoot),
         await repositoryInventory(stagedRoot)
@@ -438,10 +439,15 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
           "Cohort upgrade cannot introduce a previously absent pnpm workspace authority."
         );
       }
-      await assertCleanGitRoot(options.consumerRoot);
+      if (await assertCleanGitRoot(options.consumerRoot) !== head) {
+        throw new ConsumerIntegrationNodeError(
+          "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+          "Consumer Git HEAD changed while the successor was staged."
+        );
+      }
       const operations = await Promise.all(changed.map((path) => operationForChangedPath({
-        consumerRoot: options.consumerRoot,
         path,
+        sourceRoot: beforeRoot,
         stagedRoot
       })));
       return Object.freeze({ operations: Object.freeze(operations) });
@@ -450,20 +456,71 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     }
   }
 
-  public async activateAndVerify(options: {
+  public prepareV1(options: {
     readonly authority: ConsumerUpgradeAuthorityV1;
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV1;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+  }): Promise<PreparedConsumerUpgradeV1> {
+    return this.prepareGeneration(options);
+  }
+
+  public prepareV2(options: {
+    readonly authority: ConsumerUpgradeAuthorityV2;
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV3;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+    readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
+  }): Promise<PreparedConsumerUpgradeV1> {
+    return this.prepareGeneration(options);
+  }
+
+  private async activateAndVerifyGeneration(options: {
+    readonly authority: ConsumerUpgradeAuthority;
     readonly consumerRoot: string;
   }): Promise<void> {
     await installCohort(options.consumerRoot, true);
     await assertInstalledIntegrationCurrent(options.consumerRoot);
   }
 
-  public async restoreAndVerify(options: {
+  public activateAndVerifyV1(options: {
+    readonly authority: ConsumerUpgradeAuthorityV1;
     readonly consumerRoot: string;
-    readonly current: ConsumerIntegrationDesiredStateV1;
+  }): Promise<void> {
+    return this.activateAndVerifyGeneration(options);
+  }
+
+  public activateAndVerifyV2(options: {
+    readonly authority: ConsumerUpgradeAuthorityV2;
+    readonly consumerRoot: string;
+  }): Promise<void> {
+    return this.activateAndVerifyGeneration(options);
+  }
+
+  private async restoreAndVerifyGeneration(options: {
+    readonly consumerRoot: string;
+    readonly current: UpgradeDesiredState;
   }): Promise<void> {
     await installCohort(options.consumerRoot, true);
     await assertInstalledIntegrationCurrent(options.consumerRoot);
+  }
+
+  public restoreAndVerifyV1(options: {
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV1;
+  }): Promise<void> {
+    return this.restoreAndVerifyGeneration(options);
+  }
+
+  public async restoreAndVerifyV2(options: {
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV3;
+  }): Promise<void> {
+    await assertCleanGitRoot(options.consumerRoot);
+    await this.restoreAndVerifyGeneration(options);
+    await assertCleanGitRoot(options.consumerRoot);
   }
 }
 

@@ -1,10 +1,13 @@
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { runCommand } from "./pack-test-support.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+import { stageBuiltMarkdownPublication } from "./markdown-publication.mjs";
 
 const repositoryRoot = resolvePath(dirname(fileURLToPath(import.meta.url)), "..");
 const requireFromRepository = createRequire(import.meta.url);
@@ -50,12 +53,20 @@ export async function runPublishablePackageChecks({
     publint: packageBinary("publint", "publint"),
   },
 } = {}) {
-  for (const step of publishablePackageCheckPlan()) {
-    const toolPath = toolPaths[step.tool];
-    if (typeof toolPath !== "string" || toolPath === "") {
-      throw new Error(`Publishable package check tool is unavailable: ${step.tool}.`);
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "publishable-package-checks-"));
+  try {
+    const packages = await Promise.all(PUBLISHABLE_PACKAGES.map(async entry => ({
+      ...entry, root: await stageBuiltMarkdownPublication({ repositoryRoot, packageRoot: join(repositoryRoot, entry.root), temporaryRoot }),
+    })));
+    for (const step of publishablePackageCheckPlan(packages)) {
+      const toolPath = toolPaths[step.tool];
+      if (typeof toolPath !== "string" || toolPath === "") {
+        throw new Error(`Publishable package check tool is unavailable: ${step.tool}.`);
+      }
+      await execute(process.execPath, [toolPath, ...step.arguments], repositoryRoot);
     }
-    await execute(process.execPath, [toolPath, ...step.arguments], repositoryRoot);
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
   }
 }
 

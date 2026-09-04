@@ -85,6 +85,37 @@ leaves the release run failed and blocks completion evidence.
 
 ## Current stable procedure
 
+### Private Markdown distribution
+
+Document Authoring keeps its maintained parser dependencies in the source
+manifest. The shared `scripts/markdown-publication.mjs` projection bundles only
+its private Markdown adapter in disposable post-build packages. Clean pack,
+registry qualification, protected publication, publint, and ATTW use that same
+projection; ordinary builds never rewrite the source package.
+
+Before hermetic staging, acquisition uses npm with lifecycle scripts disabled
+and empty authentication configs. Original pnpm-lock v9 identities authenticate
+each archive by SHA-512. Cached archives are reverified; the build has no network
+fallback. Resolution uses a private archive-derived dependency snapshot rather
+than installed package metadata. Each clean stage rebuilds independently.
+
+The projection rejects surviving parser imports and public declaration references
+before removing runtime dependency entries and unreachable private declaration
+maps. All first-party packages, AJV, and YAML stay external. Archives retain full
+upstream notices, a CycloneDX 1.6 SBOM, and a source-lock/input/output digest proof.
+The packaged lock digest covers only the canonical Markdown snapshot closure;
+the complete source-lock digest is retained in a sibling build receipt outside
+the packed payload. Unrelated monorepo lock edits must not change an unchanged
+published version's archive.
+Embedded components still require upstream vulnerability review and lock upgrades;
+fewer installed packages does not mean fewer third-party components.
+
+When updating the parser or bundler, use the normal source catalog/lock workflow
+and rerun package qualification. Unsupported lock references, platform-conditional
+archives, missing licenses, and changed archive bytes fail closed. Do not fix
+these failures by editing generated notices, weakening integrity checks, or
+removing dependencies from the source manifest.
+
 ### Public managed registry canary
 
 After the pre-registration registry E2E has proved all five packages and the

@@ -1,8 +1,6 @@
-import remarkParse from "remark-parse";
-import { unified } from "unified";
-import { visit as visitMarkdown } from "unist-util-visit";
 import { isAlias, isNode, parseDocument, stringify, visit } from "yaml";
 
+import { remarkParse, unified, visit as visitMarkdown } from "./markdown-runtime.js";
 import { compareBinaryStrings } from "../binary-string-comparator.js";
 import type {
   CanonicalDocumentInput,

@@ -22,6 +22,7 @@ import {
   parseCanaryInputs,
   publicationClosureDecision,
 } from "./public-managed-registry-canary-policy.mjs";
+import { observeSupportingMcp, qualifySupportingMcp } from "./public-managed-registry-canary-mcp.mjs";
 import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtime.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -30,9 +31,7 @@ const commandTimeout = 240_000;
 const adapterSegments = ["node_modules", "@agent-teams", "docs-protocol-agent-teams"];
 const FORBIDDEN_MCP = "@agent-teams/docs-protocol-mcp";
 
-function sha256(bytes) {
-  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-}
+function sha256(bytes) { return `sha256:${createHash("sha256").update(bytes).digest("hex")}`; }
 
 async function fetchJson(url, fetcher = globalThis.fetch) {
   const response = await fetcher(url, {
@@ -406,7 +405,9 @@ async function validateReceipt(receipt) {
 export async function runPublicManagedRegistryCanary({ authority, outputPath, repository, run }) {
   const temporaryRoot = await realpath(await mkdtemp(join(tmpdir(), "public-managed-registry-canary-")));
   try {
-    const observations = await observeCoordinates(authority);
+    const [observations, supportingMcpCoordinateValue] = await Promise.all(
+      [observeCoordinates(authority), observeSupportingMcp(authority)],
+    );
     const closure = publicationClosureDecision(authority, observations);
     if (closure.status !== "ready") {
       throw new Error(`Public package graph is incomplete: ${closure.missing.join(", ")}.`);
@@ -417,6 +418,9 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
     const pnpmRoot = join(temporaryRoot, "pnpm-three-root");
     const npmInstall = await installConsumer(npmRoot, authority, "npm");
     const pnpmInstall = await installConsumer(pnpmRoot, authority, "pnpm");
+    const supportingReleasePrecondition = await qualifySupportingMcp(
+      join(temporaryRoot, "npm-supporting-mcp"), authority, supportingMcpCoordinateValue,
+    );
     const signatureEvidence = await npmSignatureEvidence(npmRoot, authority);
     const inventories = new Map();
     const packages = [];
@@ -463,12 +467,14 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
         registry: authority.registry,
       },
       packages,
+      supportingReleasePrecondition,
       installs: [npmInstall.receipt, pnpmInstall.receipt],
       portableNegative: portable,
       managedQualification: qualification,
       hostile,
     });
-    if (new Set(packages.map(({ name }) => name)).size !== packages.length ||
+    const releasePackageNames = [...packages.map(({ name }) => name), supportingReleasePrecondition.package.name];
+    if (new Set(releasePackageNames).size !== releasePackageNames.length ||
         new Set(hostile.map(({ id }) => id)).size !== hostile.length) {
       throw new Error("Canary receipt evidence contains duplicate identities.");
     }
@@ -489,13 +495,11 @@ async function main() {
     expectedCommit: process.env.PUBLIC_CANARY_EXPECTED_COMMIT,
   });
   const outputPath = resolve(process.env.PUBLIC_CANARY_RECEIPT_PATH ?? "public-managed-registry-canary-receipt.json");
-  const runId = Number(process.env.GITHUB_RUN_ID);
-  const runAttempt = Number(process.env.GITHUB_RUN_ATTEMPT);
+  const runId = Number(process.env.GITHUB_RUN_ID), runAttempt = Number(process.env.GITHUB_RUN_ATTEMPT);
   if (!Number.isSafeInteger(runId) || runId < 1 || !Number.isSafeInteger(runAttempt) || runAttempt < 1) {
     throw new Error("Public canary requires exact GitHub run identity.");
   }
-  const repositoryId = process.env.GITHUB_REPOSITORY_ID;
-  const repositoryName = process.env.GITHUB_REPOSITORY;
+  const repositoryId = process.env.GITHUB_REPOSITORY_ID, repositoryName = process.env.GITHUB_REPOSITORY;
   if (!/^[1-9][0-9]*$/u.test(repositoryId ?? "") ||
       !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repositoryName ?? "")) {
     throw new Error("Public canary requires actual GitHub repository identity.");
@@ -513,7 +517,9 @@ async function main() {
       createdAt: new Date().toISOString(),
     },
   });
-  process.stdout.write(`Public managed registry canary PASS: ${receipt.packages.length} exact packages, receipt ${receipt.receiptDigest}.\n`);
+  const releasePackageCount = receipt.packages.length + 1;
+  if (releasePackageCount !== 6) { throw new Error("Public canary receipt does not contain exactly six release package identities."); }
+  process.stdout.write(`Public managed registry canary PASS: 6 exact release packages (5 Cohort + supporting MCP), receipt ${receipt.receiptDigest}.\n`);
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === process.argv[1]) {

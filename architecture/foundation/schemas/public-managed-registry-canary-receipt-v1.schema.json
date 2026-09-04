@@ -4,7 +4,7 @@
   "title": "Public managed registry canary receipt v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "run", "authority", "packages", "installs", "portableNegative", "managedQualification", "hostile", "receiptDigest"],
+  "required": ["schemaVersion", "run", "authority", "packages", "supportingReleasePrecondition", "installs", "portableNegative", "managedQualification", "hostile", "receiptDigest"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "run": {
@@ -51,6 +51,67 @@
         { "$ref": "#/$defs/engineeringFoundationProvenance" }
       ],
       "items": false
+    },
+    "supportingReleasePrecondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "package", "install", "mcp"],
+      "properties": {
+        "status": { "const": "passed" },
+        "package": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version", "integrity", "latest", "signatureVerified", "provenanceCommit", "provenanceAncestorOfExpectedCommit", "tarballEntries"],
+          "properties": {
+            "name": { "const": "@agent-teams/docs-protocol-mcp" },
+            "version": { "const": "0.2.0" },
+            "integrity": { "$ref": "#/$defs/integrity" },
+            "latest": { "const": "0.2.0" },
+            "signatureVerified": { "const": true },
+            "provenanceCommit": { "$ref": "#/$defs/commit" },
+            "provenanceAncestorOfExpectedCommit": { "const": true },
+            "tarballEntries": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "install": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["manager", "lockfileDigest", "rootCount", "exactPackageLockValidated", "cohortDocsProtocolLockValidated", "exactRegistryResolved", "manifestValidated"],
+          "properties": {
+            "manager": { "const": "npm" },
+            "lockfileDigest": { "$ref": "#/$defs/sha256" },
+            "rootCount": { "const": 2 },
+            "exactPackageLockValidated": { "const": true },
+            "cohortDocsProtocolLockValidated": { "const": true },
+            "exactRegistryResolved": { "const": true },
+            "manifestValidated": { "const": true }
+          }
+        },
+        "mcp": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["serverName", "serverVersion", "startupValidated", "readOnlyToolNames", "readOnlyToolsValidated", "consumerTreeUnchanged", "cleanShutdown"],
+          "properties": {
+            "serverName": { "const": "@agent-teams/docs-protocol-mcp" },
+            "serverVersion": { "const": "0.2.0" },
+            "startupValidated": { "const": true },
+            "readOnlyToolNames": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "prefixItems": [
+                { "const": "docs_info" },
+                { "const": "docs_find" },
+                { "const": "docs_context" }
+              ],
+              "items": false
+            },
+            "readOnlyToolsValidated": { "const": true },
+            "consumerTreeUnchanged": { "const": true },
+            "cleanShutdown": { "const": true }
+          }
+        }
+      }
     },
     "installs": {
       "type": "array",

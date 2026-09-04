@@ -105,12 +105,25 @@ ancestor relationship to the integration commit, and re-observes `latest` and
 SRI. On the disposable pnpm lockfile, qualification v3 first observes the actual
 runtime closure digest and then admits the same trusted Cohort v2. It also
 generates managed-state v2 and validates it against the installed schema without
-running a real consumer or mutation flow. A separate portable-only install proves that core
-does not resolve the managed adapter. Tarball path/alias checks and bounded
-hostile policy cases fail closed. The retained JSON artifact is the sole canary
-receipt; its canonical SHA-256 digest covers every field except the digest
-itself. A successful canary is release evidence, not permission to modify a real
-consumer.
+running a real consumer or mutation flow. Cohort authority remains exactly these
+five packages and continues to reject MCP in its npm and pnpm closures.
+
+The six-package release claim has one separate supporting precondition:
+`@agent-teams/docs-protocol-mcp@0.2.0`. A fresh npm consumer pins that package
+beside the Cohort's exact Docs Protocol coordinate. The gate requires the MCP
+version to own `latest`, captures and validates its registry lock and SHA-512
+SRI, verifies its npm signature and SLSA provenance, proves the provenance
+commit is an ancestor of the integration commit, and checks the downloaded
+tarball inventory. Only after those checks does it start the installed stdio
+server, validate the three read-only tools, execute them against a disposable
+fixture, prove the fixture tree is unchanged, and require a clean shutdown.
+
+A separate portable-only install proves that core does not resolve the managed
+adapter. Tarball path/alias checks and bounded hostile policy cases fail closed.
+The retained JSON artifact is the sole canary receipt; it represents the five
+Cohort packages and the separate supporting MCP precondition, and its canonical
+SHA-256 digest covers every field except the digest itself. A successful canary
+is release evidence, not permission to modify a real consumer.
 
 Release-candidate waves use committed Changesets prerelease state with the exact
 `rc` tag. Changesets remains the sole version and changelog authority, but the

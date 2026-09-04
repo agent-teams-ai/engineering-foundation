@@ -50,7 +50,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm build
-      - name: Run read-only public managed registry canary
+      - name: Run read-only six-package public managed registry canary
         env:
           PUBLIC_CANARY_RECEIPT_PATH: ${{ runner.temp }}/public-managed-registry-canary/receipt.json
         run: node scripts/public-managed-registry-canary.mjs

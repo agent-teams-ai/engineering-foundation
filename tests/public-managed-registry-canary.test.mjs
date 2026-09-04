@@ -14,6 +14,7 @@ import {
   assertPnpmLockCoordinates,
   assertQualificationReceiptDigest,
 } from "../scripts/public-managed-registry-canary.mjs";
+import { assertSupportingMcpNpmLockCoordinates } from "../scripts/public-managed-registry-canary-mcp.mjs";
 import {
   assertCanaryReceiptDigest,
   assertPortableCoreClosure,
@@ -25,6 +26,8 @@ import {
   hostilePolicyMatrix,
   parseCanaryInputs,
   publicationClosureDecision,
+  SUPPORTING_MCP_PACKAGE,
+  supportingMcpCoordinate,
 } from "../scripts/public-managed-registry-canary-policy.mjs";
 
 const commit = "a".repeat(40);
@@ -68,6 +71,10 @@ const cohort = {
 const inputs = parseCanaryInputs({ authorityRevision, cohortId: cohort.cohortId, expectedCommit: commit });
 const projected = { repository: "agent-teams-ai/.github", path: "governance/docs-qualified-cohorts.json", revision: authorityRevision, cohort };
 const authority = createCanaryAuthority(projected, inputs);
+const supportingMcp = {
+  ...SUPPORTING_MCP_PACKAGE,
+  integrity: integrity(40),
+};
 const repository = { provider: "github", id: "1316243988", nameWithOwner: "agent-teams-ai/engineering-foundation" };
 
 function canonicalJson(value) {
@@ -123,6 +130,28 @@ test("workflow inputs are minimal non-circular authority references", () => {
   assert.throws(() => parseCanaryInputs({ ...inputs, authorityRevision: "0".repeat(40) }), /nonzero/u);
   assert.throws(() => parseCanaryInputs({ ...inputs, cohortId: "../escape" }), /cohort ID/u);
   assert.deepEqual(authority.roots.map(({ name }) => name), descriptors.filter(([, , direct]) => direct).map(([, name]) => name));
+  assert.equal(authority.coordinates.length, 5);
+  assert.equal(authority.coordinates.some(({ name }) => name === SUPPORTING_MCP_PACKAGE.name), false);
+});
+
+test("supporting MCP precondition has one fixed exact public coordinate", () => {
+  const packument = {
+    "dist-tags": { latest: SUPPORTING_MCP_PACKAGE.version },
+    versions: {
+      [SUPPORTING_MCP_PACKAGE.version]: {
+        ...SUPPORTING_MCP_PACKAGE,
+        dist: { integrity: supportingMcp.integrity },
+      },
+    },
+  };
+  assert.deepEqual(supportingMcpCoordinate(packument), supportingMcp);
+  assert.throws(
+    () => supportingMcpCoordinate({ ...packument, "dist-tags": { latest: "0.1.1" } }),
+    /exact latest/u,
+  );
+  const drift = structuredClone(packument);
+  drift.versions[SUPPORTING_MCP_PACKAGE.version].dist.integrity = "sha512-not-canonical";
+  assert.throws(() => supportingMcpCoordinate(drift), /canonical sha512 SRI/u);
 });
 
 test("central authority must be current protected main and binds exact registry path/revision", async () => {
@@ -271,6 +300,38 @@ test("npm and isolated pnpm lock evidence proves five coordinates and excludes M
   assert.throws(() => assertPnpmLockCoordinates(Buffer.from(stringify({ packages: pnpmPackages })), authority), /MCP/u);
 });
 
+test("supporting MCP npm lock pins its fixed package and the Cohort Docs Protocol coordinate", () => {
+  const docs = authority.coordinates.find(({ key }) => key === "docsProtocol");
+  const lock = {
+    lockfileVersion: 3,
+    packages: {
+      "": {
+        devDependencies: {
+          [docs.name]: docs.version,
+          [supportingMcp.name]: supportingMcp.version,
+        },
+      },
+      [`node_modules/${docs.name}`]: {
+        version: docs.version,
+        integrity: docs.integrity,
+        resolved: `https://registry.npmjs.org/${docs.name}/-/${docs.name.split("/").at(-1)}-${docs.version}.tgz`,
+      },
+      [`node_modules/${supportingMcp.name}`]: {
+        version: supportingMcp.version,
+        integrity: supportingMcp.integrity,
+        resolved: `https://registry.npmjs.org/${supportingMcp.name}/-/${supportingMcp.name.split("/").at(-1)}-${supportingMcp.version}.tgz`,
+      },
+    },
+  };
+  const bytes = () => Buffer.from(JSON.stringify(lock));
+  assert.doesNotThrow(() => assertSupportingMcpNpmLockCoordinates(bytes(), authority, supportingMcp));
+  lock.packages[`node_modules/${supportingMcp.name}`].version = "0.1.1";
+  assert.throws(() => assertSupportingMcpNpmLockCoordinates(bytes(), authority, supportingMcp), /lock evidence/u);
+  lock.packages[`node_modules/${supportingMcp.name}`].version = supportingMcp.version;
+  lock.packages[""].devDependencies[supportingMcp.name] = "latest";
+  assert.throws(() => assertSupportingMcpNpmLockCoordinates(bytes(), authority, supportingMcp), /exact trusted versions/u);
+});
+
 test("partial publication and missing adapter fail closed", () => {
   const observations = Object.fromEntries(authority.coordinates.map(({ name, version }) => [name, { version }]));
   assert.equal(publicationClosureDecision(authority, observations).status, "ready");
@@ -332,6 +393,35 @@ test("canonical canary receipt validates central binding and exact unique packag
     run: { repository: "agent-teams-ai/engineering-foundation", runId: 1, runAttempt: 1, createdAt: "2026-09-04T12:00:00.000Z" },
     authority: { central: authority.central, cohort, expectedCommit: commit, registry: authority.registry },
     packages: authority.coordinates.map(({ name, version, integrity: sri }) => ({ name, version, integrity: sri, latest: version, provenanceCommit: commit, provenanceAncestorOfExpectedCommit: true, tarballEntries: 3 })),
+    supportingReleasePrecondition: {
+      status: "passed",
+      package: {
+        ...supportingMcp,
+        latest: supportingMcp.version,
+        signatureVerified: true,
+        provenanceCommit: commit,
+        provenanceAncestorOfExpectedCommit: true,
+        tarballEntries: 3,
+      },
+      install: {
+        manager: "npm",
+        lockfileDigest: sha256("d"),
+        rootCount: 2,
+        exactPackageLockValidated: true,
+        cohortDocsProtocolLockValidated: true,
+        exactRegistryResolved: true,
+        manifestValidated: true,
+      },
+      mcp: {
+        serverName: supportingMcp.name,
+        serverVersion: supportingMcp.version,
+        startupValidated: true,
+        readOnlyToolNames: ["docs_info", "docs_find", "docs_context"],
+        readOnlyToolsValidated: true,
+        consumerTreeUnchanged: true,
+        cleanShutdown: true,
+      },
+    },
     installs: ["npm", "pnpm"].map((manager) => ({ manager, lockfileDigest: sha256("b"), rootCount: 3, fivePackageLockValidated: true, mcpAbsent: true })),
     portableNegative: { adapterAbsent: true, forbiddenTermsAbsent: true, lockfileDigest: sha256("c") },
     managedQualification: {
@@ -350,14 +440,20 @@ test("canonical canary receipt validates central binding and exact unique packag
   const validate = new Ajv2020({ strict: true }).compile(schema);
   assert.equal(validate(receipt), true, JSON.stringify(validate.errors));
   assert.doesNotThrow(() => assertCanaryReceiptDigest(receipt));
+  assert.equal(receipt.packages.length, 5);
+  assert.equal(receipt.supportingReleasePrecondition.package.name, SUPPORTING_MCP_PACKAGE.name);
   const duplicate = structuredClone(receipt);
   duplicate.packages[1].name = duplicate.packages[0].name;
   assert.equal(validate(duplicate), false);
+  const falseSupportingClaim = structuredClone(receipt);
+  falseSupportingClaim.supportingReleasePrecondition.mcp.consumerTreeUnchanged = false;
+  assert.equal(validate(falseSupportingClaim), false);
 });
 
 test("workflow is manual and capture plus digest precede the earliest installed import", async () => {
   const source = await readFile(new URL("../.github/workflows/public-managed-registry-canary.yml", import.meta.url), "utf8");
   const runnerSource = await readFile(new URL("../scripts/public-managed-registry-canary.mjs", import.meta.url), "utf8");
+  const mcpRunnerSource = await readFile(new URL("../scripts/public-managed-registry-canary-mcp.mjs", import.meta.url), "utf8");
   const workflow = parseYaml(source);
   assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs).toSorted(), ["authority_revision", "cohort_id", "expected_commit"]);
@@ -366,6 +462,7 @@ test("workflow is manual and capture plus digest precede the earliest installed 
   assert.equal(JSON.stringify(workflow).includes("secrets."), false);
   assert.doesNotMatch(source, /npm\s+(?:publish|unpublish|deprecate|dist-tag)|pnpm\s+publish/u);
   assert.match(source, /pnpm build/u);
+  assert.match(source, /Run read-only six-package public managed registry canary/u);
   const capture = runnerSource.indexOf("const lockfile = await readFile");
   const copy = runnerSource.indexOf("const lockfileBytes = Buffer.from(lockfile)", capture);
   const digestCapture = runnerSource.indexOf("const lockfileDigest = sha256(lockfileBytes)", copy);
@@ -382,4 +479,22 @@ test("workflow is manual and capture plus digest precede the earliest installed 
     /readFile\('pnpm-lock\.yaml'\)/u,
   );
   assert.match(runnerSource, /GITHUB_REPOSITORY_ID/u);
+  const supportingInstall = mcpRunnerSource.indexOf("async function installSupportingMcp");
+  const supportingCapture = mcpRunnerSource.indexOf("const lockfile = await readFile", supportingInstall);
+  const supportingCopy = mcpRunnerSource.indexOf("const lockfileBytes = Buffer.from(lockfile)", supportingCapture);
+  const supportingDigest = mcpRunnerSource.indexOf("const lockfileDigest = sha256(lockfileBytes)", supportingCopy);
+  const supportingLockValidation = mcpRunnerSource.indexOf("assertSupportingMcpNpmLockCoordinates", supportingDigest);
+  const supportingQualification = mcpRunnerSource.indexOf("async function qualifySupportingMcp");
+  const supportingSignature = mcpRunnerSource.indexOf("const signatureEvidence = await npmSignatureEvidence", supportingQualification);
+  const supportingInventory = mcpRunnerSource.indexOf("const inventory = await packInventory", supportingSignature);
+  const supportingProvenance = mcpRunnerSource.indexOf("const provenance = verifiedProvenanceFromNpmAudit", supportingInventory);
+  const supportingExecution = mcpRunnerSource.indexOf("await verifyRegistryDocsProtocolMcp", supportingProvenance);
+  assert.ok(
+    supportingInstall >= 0 && supportingCapture > supportingInstall && supportingCopy > supportingCapture &&
+    supportingDigest > supportingCopy && supportingLockValidation > supportingDigest &&
+    supportingQualification >= 0 && supportingSignature > supportingQualification &&
+    supportingInventory > supportingSignature && supportingProvenance > supportingInventory &&
+    supportingExecution > supportingProvenance,
+  );
+  assert.match(runnerSource, /6 exact release packages \(5 Cohort \+ supporting MCP\)/u);
 });

@@ -861,8 +861,13 @@ test("coordinates a profile-v3 rollback with exact source HEAD and managed preim
   }
 });
 
-for (const sourceProfileVersion of [1, 2]) {
-test(`migrates one disposable profile-v${sourceProfileVersion} consumer explicitly to Cohort v2`, {
+for (const [sourceCohortId, sourceProfileVersion, historicalTransitionDigest] of [
+  ["docs-2026-08-31-stable10", 1, "ffce6fbb813ccbdbba3ba1dca6b22219672fbcc8bd08a0f0aca37bf8bed38e21"],
+  ["docs-2026-08-31-stable10", 2, "ffce6fbb813ccbdbba3ba1dca6b22219672fbcc8bd08a0f0aca37bf8bed38e21"],
+  ["docs-2026-08-28-stable8", 2, "7f8df2679785c9495a73c99362987e5d2ae63e120f4bf76801b2ad72d3b66ed4"],
+  ["docs-2026-08-28-stable9.1", 2, "ffce6fbb813ccbdbba3ba1dca6b22219672fbcc8bd08a0f0aca37bf8bed38e21"]
+]) {
+test(`migrates one disposable profile-v${sourceProfileVersion} consumer from ${sourceCohortId} explicitly to Cohort v2`, {
   skip: process.platform === "win32"
 }, async () => {
   const disposable = await mkdtemp(join(tmpdir(), "docs-one-command-e2e-"));
@@ -880,13 +885,13 @@ test(`migrates one disposable profile-v${sourceProfileVersion} consumer explicit
   ]);
   const { catalog } = await sourceCohort();
   const prior = catalog.directTargetBundles.find(({ cohort: candidate }) =>
-    candidate.cohortId === "docs-2026-08-31-stable10"
+    candidate.cohortId === sourceCohortId
   );
-  assert.ok(prior, "the released package must bundle the stable10 migration source");
+  assert.ok(prior, `the released package must bundle the ${sourceCohortId} migration source`);
   assert.deepEqual(catalog.currentSourceExecutors, []);
   assert.equal(
     prior.cohort.assets.transitionCatalogDigest,
-    "sha256:ffce6fbb813ccbdbba3ba1dca6b22219672fbcc8bd08a0f0aca37bf8bed38e21"
+    `sha256:${historicalTransitionDigest}`
   );
   assert.notEqual(prior.cohort.assets.transitionCatalogDigest, catalog.transitionCatalogDigest);
   assert.deepEqual(prior.cohort.rollbackTo, []);

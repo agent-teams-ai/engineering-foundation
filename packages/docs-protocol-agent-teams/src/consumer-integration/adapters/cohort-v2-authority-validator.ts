@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   QUALIFIED_DOCS_COHORT_V2_PACKAGES
 } from "../application/policies/qualified-docs-cohort-v2.js";
@@ -244,6 +245,70 @@ export function assertCohortAuthorityV2(source: Record<string, unknown>): void {
   if (array(source["upgrade_from"], "Cohort upgrade origins").length < 1) {
     invalid("Qualified Cohort v2 must name at least one upgrade origin.");
   }
+  assertDigest(source, "record_digest", "agent-teams.docs-qualified-cohort/v2");
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number" && Number.isSafeInteger(value)) {return JSON.stringify(value);}
+  if (Array.isArray(value)) {return `[${value.map(canonicalJson).join(",")}]`;}
+  const object = record(value, "Cohort canonical JSON");
+  return `{${Object.keys(object).toSorted().map((key) =>
+    `${JSON.stringify(key)}:${canonicalJson(object[key])}`
+  ).join(",")}}`;
+}
+
+function assertDigest(value: Record<string, unknown>, key: string, domain: string): void {
+  const body = Object.fromEntries(Object.entries(value).filter(([name]) => name !== key));
+  const expected = `sha256:${createHash("sha256").update(canonicalJson({ domain, body })).digest("hex")}`;
+  if (value[key] !== expected) {invalid(`Cohort ${key} does not bind its canonical body.`);}
+}
+
+function assertCanaryBindings(
+  event: Record<string, unknown>, source: Record<string, unknown>, qualifiedDigest: unknown
+): void {
+  const declared = array(source["canary_repositories"], "Declared canaries")
+    .map((entry) => record(entry, "Declared canary"));
+  const evidence = array(event["canary_evidence"], "Canary evidence")
+    .map((entry) => record(entry, "Canary evidence"));
+  const ids = declared.map((entry) => entry["repository_id"]);
+  const names = declared.map((entry) => entry["repository"]);
+  if (new Set(ids).size !== ids.length || new Set(names).size !== names.length ||
+    evidence.length !== declared.length ||
+    new Set(evidence.map((entry) => entry["repository_id"])).size !== evidence.length) {
+    invalid("CANARY evidence must cover the exact unique declared repository set.");
+  }
+  for (const entry of evidence) {
+    const match = declared.find((candidate) => candidate["repository_id"] === entry["repository_id"]);
+    if (match === undefined || match["repository"] !== entry["repository"] ||
+      entry["observed_cohort_id"] !== source["cohort_id"] ||
+      entry["observed_record_digest"] !== source["record_digest"] ||
+      qualifiedDigest === undefined || entry["observed_event_digest"] !== qualifiedDigest) {
+      invalid("CANARY evidence must bind its declared repository, Cohort, record and QUALIFIED event.");
+    }
+  }
+}
+
+/** Global chain integrity precedes selection; only selected v2 evidence is authorized here. */
+export function assertCohortEventChainV2(
+  values: readonly unknown[], source: Record<string, unknown>
+): void {
+  let previousDigest: unknown = null;
+  let qualifiedDigest: unknown;
+  for (const [index, value] of values.entries()) {
+    const event = record(value, "Cohort lifecycle event");
+    if (event["sequence"] !== index + 1 || event["previous_event_digest"] !== previousDigest) {
+      invalid("Cohort event sequence and predecessor must form one contiguous global chain.");
+    }
+    assertDigest(event, "event_digest", "agent-teams.docs-qualified-cohort-event/v1");
+    previousDigest = event["event_digest"];
+    if (event["cohort_id"] !== source["cohort_id"]) {continue;}
+    assertLifecycleEventV2(event);
+    if (event["state"] === "QUALIFIED") {qualifiedDigest = event["event_digest"];}
+    if (event["state"] === "CANARY") {assertCanaryBindings(event, source, qualifiedDigest);}
+  }
 }
 
 function assertCanaryEvidence(value: unknown): void {
@@ -279,7 +344,7 @@ function assertCanaryEvidence(value: unknown): void {
 }
 
 /** Validates selected lifecycle state before it can authorize a Cohort v2 projection. */
-export function assertLifecycleEventV2(event: Record<string, unknown>): void {
+function assertLifecycleEventV2(event: Record<string, unknown>): void {
   if (!hasExactKeys(event, [
     "sequence", "cohort_id", "state", "effective_at", "support_until",
     "evidence_references", "canary_evidence", "previous_event_digest", "event_digest"

@@ -18,7 +18,7 @@ import {
 } from "../application/policies/qualified-docs-cohort-v2.js";
 import {
   assertCohortAuthorityV2,
-  assertLifecycleEventV2
+  assertCohortEventChainV2
 } from "./cohort-v2-authority-validator.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { parseJsonRecord } from "./strict-json-record.js";
@@ -141,13 +141,11 @@ async function readAuthorityRegistry(
 
 function selectedLifecycleState(
   events: readonly unknown[],
-  cohortId: string,
-  generation: 1 | 2
+  cohortId: string
 ): { readonly qualificationEventDigest: string; readonly state: string } {
   const selected = events.map((value) => record(value, "Cohort lifecycle event"))
     .filter((event) => event["cohort_id"] === cohortId)
     .map((event) => {
-      if (generation === 2) {assertLifecycleEventV2(event);}
       const sequence = event["sequence"];
       if (!Number.isSafeInteger(sequence) || Number(sequence) < 1) {
         throw new ConsumerIntegrationNodeError(
@@ -407,10 +405,12 @@ export function projectQualifiedCohortAuthority(input: {
     );
   }
   const source = matches[0]!;
+  if (input.generation === 2) {
+    assertCohortEventChainV2(array(input.registry["events"], "Cohort lifecycle events"), source);
+  }
   const lifecycle = selectedLifecycleState(
     array(input.registry["events"], "Cohort lifecycle events"),
-    input.cohortId,
-    input.generation
+    input.cohortId
   );
   assertSelectable(source, lifecycle.state, input.repository);
   const cohort = cohortProjection(source, lifecycle.qualificationEventDigest, input.generation);

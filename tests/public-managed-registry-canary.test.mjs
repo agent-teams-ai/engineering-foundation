@@ -285,11 +285,22 @@ test("central authority uses the production generation-2 projector", async () =>
       event_digest: cohort.qualificationEventDigest,
     }],
   };
+  const { record_digest: _recordDigest, ...recordBody } = registry.cohorts[0];
+  registry.cohorts[0].record_digest = digest(canonicalJson({
+    domain: "agent-teams.docs-qualified-cohort/v2", body: recordBody,
+  }));
+  const { event_digest: _eventDigest, ...eventBody } = registry.events[0];
+  registry.events[0].event_digest = digest(canonicalJson({
+    domain: "agent-teams.docs-qualified-cohort-event/v1", body: eventBody,
+  }));
   const observed = await observeCentralCohortAuthority(
     { inputs, repository },
     { fetcher: centralFetcher({ registry }) },
   );
-  assert.deepEqual(observed.cohort, cohort);
+  assert.deepEqual(observed.cohort, {
+    ...cohort, recordDigest: registry.cohorts[0].record_digest,
+    qualificationEventDigest: registry.events[0].event_digest,
+  });
   assert.deepEqual(observed.coordinates.map(({ name }) => name), descriptors.map(([, name]) => name));
 });
 

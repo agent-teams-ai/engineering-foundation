@@ -1,10 +1,4 @@
-import GithubSlugger from "github-slugger";
-import { toString } from "mdast-util-to-string";
-import remarkFrontmatter from "remark-frontmatter";
-import remarkGfm from "remark-gfm";
-import remarkParse from "remark-parse";
-import { unified } from "unified";
-import { visit as visitMarkdown } from "unist-util-visit";
+import { GithubSlugger, toString, remarkFrontmatter, remarkGfm, remarkParse, unified, visit as visitMarkdown } from "../../../../adapters/markdown-runtime.js";
 import {
   isAlias,
   isMap,

@@ -75,6 +75,7 @@
     "@types/node": "catalog:",
     "ajv": "catalog:",
     "c8": "catalog:",
+    "esbuild": "catalog:",
     "fast-check": "catalog:",
     "knip": "catalog:",
     "nx": "catalog:",

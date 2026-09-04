@@ -158,6 +158,7 @@
         "tests/public-api-export-coverage.test.mjs",
         "tests/public-api-promotion.test.mjs",
         "tests/public-docs-install-e2e.test.mjs",
+        "tests/public-managed-registry-canary.test.mjs",
         "tests/quality-gate-runner-remediation.test.mjs",
         "tests/quality-gate-runner.test.mjs",
         "tests/registry-docs-protocol-mcp-e2e.test.mjs",

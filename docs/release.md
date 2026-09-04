@@ -85,6 +85,25 @@ leaves the release run failed and blocks completion evidence.
 
 ## Current stable procedure
 
+### Public managed registry canary
+
+After all six exact versions are public, dispatch `Public managed registry
+canary` from the exact protected-main provenance commit. Supply the ordered JSON
+coordinates projected by the public package catalog, including each exact
+version and SHA-512 integrity. The workflow has read-only repository permission,
+receives no secrets or OIDC authority, and never publishes, deprecates,
+unpublishes, or moves a dist-tag.
+
+The canary installs the exact six-package graph with both npm and pnpm in fresh
+temporary projects, cryptographically verifies npm signatures and SLSA
+provenance, re-observes `latest` and SRI, and runs managed qualification only in
+an owned disposable fixture. A separate portable-only install proves that core
+does not resolve the managed adapter. Tarball path/alias checks and bounded
+hostile policy cases fail closed. The retained JSON artifact is the sole canary
+receipt; its canonical SHA-256 digest covers every field except the digest
+itself. A successful canary is release evidence, not permission to modify a real
+consumer.
+
 Release-candidate waves use committed Changesets prerelease state with the exact
 `rc` tag. Changesets remains the sole version and changelog authority, but the
 publish step is deliberately ordered rather than delegated to concurrent

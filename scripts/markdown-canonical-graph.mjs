@@ -15,7 +15,7 @@ export function canonicalMarkdownGraph({ captured, entry, identities, metafile, 
     if (path === entry) { return [path, "markdown-entry.js"]; }
     const identity = identities.get(input.root);
     if (identity === undefined) { fail("input has no authenticated component"); }
-    return [path, `${identity.name}@${identity.version}/${relative(input.root, path).split(sep).join("/")}`];
+    return [path, `${identity.snapshotKey ?? `${identity.name}@${identity.version}`}/${relative(input.root, path).split(sep).join("/")}`];
   }));
   const nodes = new Map();
   for (const [physicalPath, input] of captured) {

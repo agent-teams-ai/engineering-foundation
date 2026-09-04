@@ -2,6 +2,7 @@ import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { assertSecretCanaryAbsent } from "./pack-test-support.mjs";
+import { projectMarkdownPublication } from "./markdown-publication.mjs";
 import {
   assertArchiveSafety, inspectCompressedTarArchive, portableEntryIdentity, readRegularArchive, sha256,
 } from "./pack-artifact-archive.mjs";
@@ -195,9 +196,12 @@ export async function createCleanBuildStage(input, label) {
   if (releaseManifestIdentity(packedManifest) !== releaseManifestIdentity(sourceManifest)) {
     throw new Error(`Package build changed release manifest identity for ${input.packageName}.`);
   }
-  const publishManifest = canonicalPublishManifest(sourceManifest, {
+  const canonicalManifest = canonicalPublishManifest(sourceManifest, {
     catalogVersions,
     internalPackageVersions: new Map([...manifestsByName].map(([name, manifest]) => [name, manifest.version])),
+  });
+  const publishManifest = await projectMarkdownPublication({
+    ...input.markdownPublication, packageRoot, manifest: canonicalManifest,
   });
   await writeFile(join(packageRoot, "package.json"), `${JSON.stringify(npmPackManifest(publishManifest), null, 2)}\n`);
   const expectedEntries = await expectedPackedEntries(packageRoot, sourceManifest, input.requiredArtifactPaths);

@@ -79,6 +79,7 @@
     "fast-check": "catalog:",
     "knip": "catalog:",
     "nx": "catalog:",
+    "oxc-parser": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "publint": "catalog:",

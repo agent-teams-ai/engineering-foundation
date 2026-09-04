@@ -2,4 +2,4 @@
 "@agent-teams/document-authoring": patch
 ---
 
-Centralize maintained Markdown parser imports behind a private adapter seam and add offline, source-lock-authenticated distribution preparation. Source dependencies and published package contents are unchanged until the shared packaging projection is qualified and enabled.
+Bundle the private Markdown parser adapter when preparing published packages, reducing installation dependencies without replacing the maintained parser or changing public types. Authenticate bundled code against original lockfile archives and retain upstream notices, a CycloneDX SBOM, and reproducible build evidence. Source dependencies remain explicit; clean pack, registry qualification, release, and package checks use the same disposable distribution projection.

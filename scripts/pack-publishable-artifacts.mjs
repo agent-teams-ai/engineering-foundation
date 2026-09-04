@@ -9,6 +9,7 @@ import {
   PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS,
 } from "./publishable-packages.mjs";
 import { createPnpmRunner } from "./pack-test-support.mjs";
+import { prepareMarkdownPublication } from "./markdown-publication.mjs";
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u;
 const PORTABLE_ARTIFACT_PATH = /^(?!\/)(?!.*\\)(?!.*\/\/)(?!.*\/$)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9._@/-]+$/u;
@@ -340,6 +341,7 @@ export async function packPublishableArtifacts(input) {
   const runPnpm = createPnpmRunner();
   const runBuild = async (stagedPackageRoot) => runPnpm(["run", "build"], stagedPackageRoot);
   const pending = [];
+  const markdownPublication = await prepareMarkdownPublication(repositoryRoot);
   for (const item of plan) {
     const entry = item.package;
     const artifact = await packAndInspectArtifact({
@@ -349,6 +351,7 @@ export async function packPublishableArtifacts(input) {
       buildPackageNames: item.buildPackageNames,
       dependencyDeclarations: PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS,
       packageName: entry.name,
+      markdownPublication,
       packageRoot: resolve(repositoryRoot, entry.root),
       repositoryRoot,
       requiredArtifactPaths: item.requiredArtifactPaths,

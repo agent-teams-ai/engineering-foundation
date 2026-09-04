@@ -39,6 +39,7 @@ import {
   seedRegistryInParallel,
 } from "./registry-seed-scheduler.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+import { stageBuiltMarkdownPublication } from "./markdown-publication.mjs";
 import {
   DOCS_PROTOCOL_PACKAGE_NAME,
   registryQualificationPackages,
@@ -199,11 +200,14 @@ async function collectRuntimeDependencyClosure() {
 async function createTargetArchive(releasePackage, index) {
   const destination = join(temporaryRoot, "target", String(index));
   await mkdir(destination, { recursive: true });
-  const packageRoot = await stageQualificationPackage({
+  const builtPackageRoot = await stageQualificationPackage({
     destination,
     foundationPackageName: FOUNDATION_PACKAGE_NAME,
     releasePackage,
     repositoryRoot,
+  });
+  const packageRoot = await stageBuiltMarkdownPublication({
+    repositoryRoot, packageRoot: builtPackageRoot, temporaryRoot: destination,
   });
   await runPnpm(["pack", "--pack-destination", destination], packageRoot);
   const manifest = await readManifest(packageRoot);

@@ -12,17 +12,21 @@ function fail(message) {
   throw new Error(`Markdown bundle evidence is invalid: ${message}.`);
 }
 
-function regularMembers(archive) {
+function regularMembers(archive, name) {
   const members = new Map();
   const identities = new Set();
+  let root;
   for (const entry of inspectCompressedTarArchive(archive).entries) {
     if (entry.type === "x" || entry.type === "g") {continue;}
     if (entry.type !== "0" && entry.type !== "5") {fail("upstream archive contains a special entry");}
-    if (!entry.name.startsWith("package/")) {fail("upstream member escapes package root");}
+    root ??= entry.name.split("/")[0];
+    if (!["package", name.split("/").at(-1)].includes(root) || !entry.name.startsWith(`${root}/`)) {
+      fail("upstream member escapes package root");
+    }
     const identity = portableEntryIdentity(entry.name);
     if (identities.has(identity)) {fail("upstream archive contains colliding members");}
     identities.add(identity);
-    if (entry.type === "0") {members.set(entry.name.slice("package/".length), entry.data);}
+    if (entry.type === "0") {members.set(entry.name.slice(root.length + 1), entry.data);}
   }
   return members;
 }
@@ -60,9 +64,7 @@ function supplementaryNotice(supplement, members, files) {
   return Object.freeze({ path: "upstream-license-supplement", sha256: supplement.sha256, source: supplement.source, text });
 }
 
-// This proves actual esbuild input bytes against the original source-lock SRI.
-// It deliberately does not accept a hermetic registry's repacked archive SRI.
-export function verifyBundledComponent({ name, version, integrity, archive, inputs, supplement }) {
+export function authenticatedMarkdownArchive({ name, version, integrity, archive }) {
   if (!packageName.test(name ?? "") || !exactVersion.test(version ?? "") || !sha512Integrity.test(integrity ?? "")) {
     fail("component needs an exact name, version and canonical SHA-512 integrity");
   }
@@ -70,12 +72,19 @@ export function verifyBundledComponent({ name, version, integrity, archive, inpu
       `sha512-${createHash("sha512").update(archive).digest("base64")}` !== integrity) {
     fail("upstream archive integrity mismatch");
   }
-  if (!Array.isArray(inputs) || inputs.length === 0 || inputs.length > 2500) {fail("component needs bounded bundle inputs");}
-  const members = regularMembers(archive);
+  const members = regularMembers(archive, name);
   const manifestBytes = members.get("package.json");
   if (manifestBytes === undefined) {fail("upstream manifest is missing");}
   const manifest = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(manifestBytes));
   if (manifest.name !== name || manifest.version !== version) {fail("upstream manifest identity mismatch");}
+  return { manifest, manifestBytes, members };
+}
+
+// This proves actual esbuild input bytes against the original source-lock SRI.
+// It deliberately does not accept a hermetic registry's repacked archive SRI.
+export function verifyBundledComponent({ name, version, integrity, archive, inputs, supplement }) {
+  if (!Array.isArray(inputs) || inputs.length === 0 || inputs.length > 2500) {fail("component needs bounded bundle inputs");}
+  const { manifestBytes, members } = authenticatedMarkdownArchive({ name, version, integrity, archive });
   const seen = new Set();
   const files = inputs.map((input) => validateInput(input, members, seen))
     .toSorted((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);

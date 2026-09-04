@@ -111,3 +111,13 @@ test("component identity and archive/input bounds fail closed", () => {
     { archive: Buffer.alloc(8 * 1024 * 1024 + 1) }, { inputs: Array(2501).fill(input.inputs[0]) },
   ]) {assert.throws(() => verifyBundledComponent({ ...input, ...override }));}
 });
+
+test("npm type-package leaf roots remain authenticated without accepting mixed archive roots", () => {
+  const archive = tarArchive([
+    { name: "parser/package.json", data: Buffer.from(JSON.stringify(manifest)) },
+    { name: "parser/index.js", data: source },
+    { name: "parser/LICENSE", data: license },
+  ]);
+  const proof = verifyBundledComponent({ ...component(), archive, integrity: integrityFor(archive) });
+  assert.equal(proof.files[0].sha256, sha256(source));
+});

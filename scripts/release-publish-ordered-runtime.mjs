@@ -15,6 +15,7 @@ import {
   reconcileGithubTagRelease,
 } from "./github-release-reconciliation.mjs";
 import { publishablePackageByName } from "./publishable-packages.mjs";
+import { stageBuiltMarkdownPublication } from "./markdown-publication.mjs";
 
 const EXPECTED_NPM_VERSION = "11.16.0";
 export { GITHUB_RECONCILIATION_ATTEMPTS, GITHUB_RECONCILIATION_RETRY_MILLISECONDS };
@@ -235,10 +236,13 @@ async function packArtifacts(cwd, state, destination) {
   const artifacts = [];
   for (const packageInfo of state.packages.public) {
     const catalog = publishablePackageByName(packageInfo.name);
+    const packageRoot = await stageBuiltMarkdownPublication({
+      repositoryRoot: cwd, packageRoot: join(cwd, catalog.root), temporaryRoot: destination,
+    });
     const report = JSON.parse(executeCommand(
       "pnpm",
       ["pack", "--json", "--pack-destination", destination],
-      { cwd: join(cwd, catalog.root) },
+      { cwd: packageRoot },
     ));
     const item = Array.isArray(report) ? report[0] : report;
     if (item?.name !== packageInfo.name || item.version !== packageInfo.version || typeof item.filename !== "string") {

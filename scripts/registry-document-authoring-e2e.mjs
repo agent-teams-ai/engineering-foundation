@@ -163,9 +163,7 @@ async function prepareDocsProtocolFixture(input) {
   };
   await writeFile(metadataSchemaPath, `${JSON.stringify(metadataSchema, null, 2)}\n`, "utf8");
   await mkdir(join(input.consumerRoot, ".agents", "skills", "docs-authoring"), { recursive: true });
-  const installedDocsSkill = await readInstalledManagedDocsSkill(join(
-    input.consumerRoot, "node_modules", "@agent-teams", "docs-protocol-agent-teams"
-  ));
+  const installedDocsSkill = await readInstalledManagedDocsSkill(input.installedAdapterRoot);
   await writeFile(
     join(input.consumerRoot, ".agents", "skills", "docs-authoring", "SKILL.md"),
     installedDocsSkill

@@ -24,7 +24,10 @@ import {
   verifyRegistryDocsProtocolCli,
   verifyRegistryDocsProtocolMcp,
 } from "./registry-docs-protocol-mcp-e2e.mjs";
-import { registryInstallMatrix } from "./registry-install-policy.mjs";
+import {
+  registryFoundationQualificationProfile,
+  registryInstallMatrix,
+} from "./registry-install-policy.mjs";
 import {
   verifyFoundationFeatures,
   verifyInstalledBufQualifierForPackage,
@@ -48,6 +51,7 @@ import {
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const DOCUMENT_AUTHORING_PACKAGE_NAME = "@agent-teams/document-authoring";
+const DOCS_PROTOCOL_ADAPTER_PACKAGE_NAME = "@agent-teams/docs-protocol-agent-teams";
 const DOCS_PROTOCOL_MCP_PACKAGE_NAME = "@agent-teams/docs-protocol-mcp";
 const FOUNDATION_FEATURE_IMPORTS = [
   FOUNDATION_PACKAGE_NAME,
@@ -479,6 +483,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry) {
     installedRoots.set(target.manifest.name, targetRoot);
   }
   const installedDocsRoot = installedRoots.get(DOCS_PROTOCOL_PACKAGE_NAME);
+  const installedAdapterRoot = installedRoots.get(DOCS_PROTOCOL_ADAPTER_PACKAGE_NAME);
   const installedMcpRoot = installedRoots.get(DOCS_PROTOCOL_MCP_PACKAGE_NAME);
   if (installedDocsRoot === undefined) {
     throw new Error("Installed Docs Protocol qualification target is missing.");
@@ -501,14 +506,15 @@ async function verifyConsumer(targets, registryUrl, matrixEntry) {
   }
   if (matrixEntry.profile === "foundation-full") {
     const installedFoundationRoot = installedRoots.get(FOUNDATION_PACKAGE_NAME);
-    if (installedFoundationRoot === undefined) {
-      throw new Error("Installed Foundation dependency is missing.");
+    if (installedFoundationRoot === undefined || installedAdapterRoot === undefined) {
+      throw new Error("Installed Foundation qualification package is missing.");
     }
     await verifyFoundationFeatures({
       consumerRoot,
       authoringVersion: authoringTarget.manifest.version,
       docsVersion: docsTarget.manifest.version,
       featureImports: FOUNDATION_FEATURE_IMPORTS,
+      installedAdapterRoot,
       installedDocsRoot,
       installedRoot: installedFoundationRoot,
       repositoryRoot,
@@ -554,16 +560,12 @@ try {
     docsPackageName: DOCS_PROTOCOL_PACKAGE_NAME,
     mcpPackageName: DOCS_PROTOCOL_MCP_PACKAGE_NAME,
   });
-  const foundationEntry = Object.freeze({
-    id: "npm-foundation",
-    manager: "npm",
-    packageNames: Object.freeze([
-      FOUNDATION_PACKAGE_NAME,
-      DOCUMENT_AUTHORING_PACKAGE_NAME,
-      DOCS_PROTOCOL_PACKAGE_NAME,
-      DOCS_PROTOCOL_MCP_PACKAGE_NAME,
-    ]),
-    profile: "foundation-full",
+  const foundationEntry = registryFoundationQualificationProfile({
+    adapterPackageName: DOCS_PROTOCOL_ADAPTER_PACKAGE_NAME,
+    authoringPackageName: DOCUMENT_AUTHORING_PACKAGE_NAME,
+    docsPackageName: DOCS_PROTOCOL_PACKAGE_NAME,
+    foundationPackageName: FOUNDATION_PACKAGE_NAME,
+    mcpPackageName: DOCS_PROTOCOL_MCP_PACKAGE_NAME,
   });
   const lockDigests = [];
   for (const matrixEntry of [...matrix, foundationEntry]) {

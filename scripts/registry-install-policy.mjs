@@ -1,5 +1,30 @@
 export const registryInstallManagers = Object.freeze(["npm", "pnpm"]);
 
+export function registryFoundationQualificationProfile({
+  adapterPackageName,
+  authoringPackageName,
+  docsPackageName,
+  foundationPackageName,
+  mcpPackageName,
+}) {
+  const packageNames = [
+    foundationPackageName,
+    authoringPackageName,
+    docsPackageName,
+    adapterPackageName,
+    mcpPackageName,
+  ];
+  if (packageNames.some((name) => typeof name !== "string" || name.length === 0)) {
+    throw new Error("Foundation registry qualification requires every package name.");
+  }
+  return Object.freeze({
+    id: "npm-foundation",
+    manager: "npm",
+    packageNames: Object.freeze(packageNames),
+    profile: "foundation-full",
+  });
+}
+
 export function registryInstallMatrix({
   docsPackageName,
   managers = registryInstallManagers,

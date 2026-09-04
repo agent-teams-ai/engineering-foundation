@@ -601,9 +601,10 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
   const adapterBoundary = policy.boundaries.find(
     ({ id }) => id === "docs-protocol-agent-teams.adapters",
   );
+  const adapterRoot = "packages/docs-protocol-agent-teams/src/consumer-integration/adapters";
   assert.deepEqual(adapterBoundary, {
     id: "docs-protocol-agent-teams.adapters",
-    roots: ["packages/docs-protocol-agent-teams/src/consumer-integration/adapters"],
+    roots: [adapterRoot],
     allow: {
       boundaries: [
         "docs-protocol-agent-teams.application",
@@ -627,17 +628,15 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       runtimeReferences: [],
     },
     entrypoints: [
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-schema-validator.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts",
-      "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v1.ts",
-    ],
+      "agents-route-adapter-v1.ts", "consumer-integration-schema-validator.ts",
+      "consumer-upgrade-file-projectors.ts", "foundation-known-file-transaction.ts",
+      "github-cohort-authority-reader.ts", "node-consumer-integration-repository.ts",
+      "node-consumer-repository-files.ts", "node-consumer-upgrade-source-proof.ts",
+      "node-consumer-upgrade-sandbox.ts", "package-consumer-asset-catalog.ts",
+      "pnpm-manifest-adapter-v1.ts", "pnpm-manifest-adapter-v2.ts",
+      "pnpm-lockfile-validator-v2.ts", "pnpm-runtime-closure-v1.ts",
+      "pnpm-runtime-closure-v2.ts",
+    ].map((name) => `${adapterRoot}/${name}`),
   });
 
   const applicationSources = await sourceFiles(join(

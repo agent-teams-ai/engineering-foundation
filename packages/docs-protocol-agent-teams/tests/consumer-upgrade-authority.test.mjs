@@ -12,6 +12,8 @@ import {
   GitHubCohortAuthorityReader,
   projectQualifiedCohortAuthority
 } from "../dist/consumer-integration/adapters/github-cohort-authority-reader.js";
+import { projectDocsProtocolQualificationV3Authority } from
+  "../dist/qualification/index.js";
 import { sourceCohort } from "./consumer-upgrade-e2e-fixtures.mjs";
 
 const REPOSITORY = {
@@ -33,6 +35,7 @@ function centralRegistry(cohort) {
       eligible_after: cohort.eligibleAfter,
       upgrade_from: cohort.upgradeFrom,
       rollback_to: cohort.rollbackTo,
+      evidence_references: [],
       packages: [
         { name: "@agent-teams/docs-protocol", ...cohort.packages.docsProtocol },
         {
@@ -54,7 +57,12 @@ function centralRegistry(cohort) {
       },
       schemas: {
         consumer_integration: cohort.schemas.consumerIntegration,
+        consumer_plan: 1,
         managed_state: cohort.schemas.managedState,
+        foundation_plan: 1,
+        foundation_journal: 1,
+        foundation_receipt: 1,
+        foundation_envelope: 5,
         docs_protocol: cohort.schemas.docsProtocol
       },
       runtime: { node: cohort.runtime.node, pnpm: cohort.runtime.pnpm },
@@ -107,6 +115,7 @@ function v2Registry(cohort) {
     managed_state: 2,
     docs_protocol: 1
   };
+  registry.cohorts[0].cohort_generation = 2;
   registry.cohorts[0].packages = V2_PACKAGE_NAMES.map(([key, name]) => ({
     name,
     ...cohort.packages[key]
@@ -127,6 +136,7 @@ test("binds authority reads to current protected main and rejects stale assertio
   });
   const authority = await reader.read({
     cohortId: cohort.cohortId,
+    generation: 1,
     repository: REPOSITORY,
     revision
   });
@@ -139,6 +149,7 @@ test("binds authority reads to current protected main and rejects stale assertio
   requests.length = 0;
   await assert.rejects(reader.read({
     cohortId: cohort.cohortId,
+    generation: 1,
     repository: REPOSITORY,
     revision: "7".repeat(40)
   }), (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_REVISION_STALE");
@@ -153,6 +164,7 @@ test("rejects ambiguous lifecycle sequencing and closes the upgrade envelope", a
   registry.events[1].sequence = 1;
   assert.throws(() => projectQualifiedCohortAuthority({
     cohortId: cohort.cohortId,
+    generation: 1,
     registry,
     repository: REPOSITORY,
     revision: "8".repeat(40)
@@ -184,17 +196,19 @@ test("rejects duplicate managed package authority", async () => {
   registry.cohorts[0].packages.push(structuredClone(registry.cohorts[0].packages[0]));
   assert.throws(() => projectQualifiedCohortAuthority({
     cohortId: cohort.cohortId,
+    generation: 1,
     registry,
     repository: REPOSITORY,
     revision: "8".repeat(40)
   }), (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
 });
 
-test("dispatches authority only by the exact per-Cohort schema tuple", async () => {
+test("dispatches new authority only by its explicit per-record generation", async () => {
   const { cohort: source } = await sourceCohort();
   const cohort = v2Cohort(source);
   const input = {
     cohortId: cohort.cohortId,
+    generation: 2,
     repository: REPOSITORY,
     revision: "8".repeat(40)
   };
@@ -202,6 +216,12 @@ test("dispatches authority only by the exact per-Cohort schema tuple", async () 
   const authority = projectQualifiedCohortAuthority({ ...input, registry });
   assert.equal(authority.cohort.schemaVersion, 2);
   assert.deepEqual(authority.cohort.packages, cohort.packages);
+  assert.deepEqual(projectDocsProtocolQualificationV3Authority({
+    cohortId: input.cohortId,
+    registry,
+    repository: input.repository,
+    revision: input.revision
+  }), authority);
 
   const incompleteV2 = structuredClone(registry);
   incompleteV2.cohorts[0].packages.length = 2;
@@ -209,6 +229,7 @@ test("dispatches authority only by the exact per-Cohort schema tuple", async () 
     (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
 
   const fivePackageV1 = structuredClone(registry);
+  delete fivePackageV1.cohorts[0].cohort_generation;
   fivePackageV1.cohorts[0].schemas = {
     consumer_integration: 1,
     managed_state: 1,
@@ -217,9 +238,31 @@ test("dispatches authority only by the exact per-Cohort schema tuple", async () 
   assert.throws(() => projectQualifiedCohortAuthority({ ...input, registry: fivePackageV1 }),
     (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
 
+  const implicitLegacy = centralRegistry(source);
+  assert.throws(() => projectQualifiedCohortAuthority({
+    ...input, cohortId: source.cohortId, registry: implicitLegacy
+  }),
+    (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+  assert.equal(projectQualifiedCohortAuthority({
+    ...input,
+    cohortId: source.cohortId,
+    generation: 1,
+    registry: implicitLegacy
+  }).cohort.schemaVersion, 1);
+
   const unknownTuple = structuredClone(registry);
   unknownTuple.cohorts[0].schemas.managed_state = 3;
   assert.throws(() => projectQualifiedCohortAuthority({ ...input, registry: unknownTuple }),
+    (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+
+  const unknownGeneration = structuredClone(registry);
+  unknownGeneration.cohorts[0].cohort_generation = 3;
+  assert.throws(() => projectQualifiedCohortAuthority({ ...input, registry: unknownGeneration }),
+    (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+
+  const mixedGeneration = structuredClone(registry);
+  mixedGeneration.cohorts[0].schemas = centralRegistry(source).cohorts[0].schemas;
+  assert.throws(() => projectQualifiedCohortAuthority({ ...input, registry: mixedGeneration }),
     (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
 });
 

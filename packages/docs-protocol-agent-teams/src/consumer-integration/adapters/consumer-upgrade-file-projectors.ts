@@ -85,6 +85,35 @@ export async function projectConsumerIntegrationProfileV3(input: {
   return Buffer.from(postimage, "utf8");
 }
 
+async function migrateConsumerIntegrationProfileV1ToV3(input: {
+  readonly bytes: Uint8Array;
+  readonly cohort: QualifiedDocsCohortBindingV2;
+}): Promise<Uint8Array> {
+  let source = decode(input.bytes, "Consumer integration profile");
+  const profile = parseJsonRecord(source);
+  if (profile["schemaVersion"] !== 1) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_GENERATION_MISMATCH",
+      "Explicit v1-to-v2 migration requires one historical profile v1 source."
+    );
+  }
+  await assertConsumerIntegrationProfileSchema(profile);
+  for (const [path, value] of [
+    [["schemaVersion"], 3],
+    [["qualification"], {
+      contractPath: "architecture/foundation/docs-protocol-qualification.json",
+      gateCommand: "pnpm docs:protocol:check"
+    }],
+    [["cohort"], input.cohort]
+  ] as const) {
+    source = applyEdits(source, modify(source, [...path], value, {
+      formattingOptions: formatting(source)
+    }));
+  }
+  await assertConsumerIntegrationProfileSchema(parseJsonRecord(source));
+  return Buffer.from(source, "utf8");
+}
+
 function managedPackageName(value: string): string | undefined {
   if (value === DOCS_PACKAGE || value.startsWith(`${DOCS_PACKAGE}@`)) {return DOCS_PACKAGE;}
   if (value === FOUNDATION_PACKAGE || value.startsWith(`${FOUNDATION_PACKAGE}@`)) {
@@ -283,7 +312,41 @@ export function projectPnpmWorkspaceMigrationExclusionsV2(input: {
   return Buffer.from(String(document), "utf8");
 }
 
+function projectPnpmWorkspaceMigrationExclusionsV1ToV2(input: {
+  readonly bytes: Uint8Array;
+  readonly source: QualifiedDocsCohortBindingV1;
+  readonly target: QualifiedDocsCohortBindingV2;
+}): Uint8Array {
+  const targetBytes = projectPnpmWorkspaceCohortExclusionsV2({
+    bytes: input.bytes,
+    cohort: input.target
+  });
+  const source = decode(targetBytes, "pnpm-workspace.yaml");
+  const document = parseDocument(source, { uniqueKeys: true });
+  if (document.errors.length > 0 || !isMap(document.contents)) {throw new Error("unreachable");}
+  const current = document.get("minimumReleaseAgeExclude", true);
+  const hasAgePolicy = document.has("minimumReleaseAge") ||
+    document.get("minimumReleaseAgeStrict") === true;
+  if (current === undefined && !hasAgePolicy) {return targetBytes;}
+  if (!isSeq(current)) {throw new Error("unreachable");}
+  const existing = new Set(scalarItems(current).map(({ value }) => value));
+  for (const exclusion of exactExclusions(input.source).values()) {
+    if (!existing.has(exclusion)) {
+      current.add(exclusion);
+      existing.add(exclusion);
+    }
+  }
+  return Buffer.from(String(document), "utf8");
+}
+
 export type ConsumerUpgradeFileProjectionInput =
+  | {
+      readonly authority: ConsumerUpgradeAuthorityV2;
+      readonly current: ConsumerIntegrationDesiredStateV1;
+      readonly manifest: Uint8Array;
+      readonly profile: Uint8Array;
+      readonly workspace?: Uint8Array;
+    }
   | {
       readonly authority: ConsumerUpgradeAuthorityV1;
       readonly current: ConsumerIntegrationDesiredStateV1;
@@ -352,6 +415,31 @@ export async function projectConsumerUpgradeFiles(
       ...(targetWorkspace === undefined ? {} : {
         targetWorkspace,
         migrationWorkspace: projectPnpmWorkspaceMigrationExclusionsV2({
+          bytes: input.workspace!,
+          source: input.current.cohort,
+          target: input.authority.cohort
+        })
+      })
+    };
+  }
+  if (input.current.schemaVersion === 1 && input.authority.cohort.schemaVersion === 2) {
+    const targetWorkspace = input.workspace === undefined ? undefined :
+      projectPnpmWorkspaceCohortExclusionsV2({
+        bytes: input.workspace,
+        cohort: input.authority.cohort
+      });
+    return {
+      profile: await migrateConsumerIntegrationProfileV1ToV3({
+        bytes: input.profile,
+        cohort: input.authority.cohort
+      }),
+      manifest: projectPnpmManifestCohortPinsV2({
+        bytes: input.manifest,
+        cohort: input.authority.cohort
+      }),
+      ...(targetWorkspace === undefined ? {} : {
+        targetWorkspace,
+        migrationWorkspace: projectPnpmWorkspaceMigrationExclusionsV1ToV2({
           bytes: input.workspace!,
           source: input.current.cohort,
           target: input.authority.cohort

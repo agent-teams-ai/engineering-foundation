@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import {
-  lstat,
   mkdir,
   mkdtemp,
   readdir,
@@ -42,6 +41,10 @@ import {
   MAXIMUM_WORKSPACE_BYTES,
   readStableConsumerFile
 } from "./node-consumer-repository-files.js";
+import {
+  applyTargetIntegration,
+  assertInstalledIntegrationCurrent
+} from "./node-consumer-upgrade-target.js";
 import {
   allowedUpgradePaths,
   assertCleanConsumerGitSource,
@@ -124,92 +127,6 @@ async function runPnpm(root: string, args: readonly string[]): Promise<void> {
   await execute("corepack", ["pnpm", ...args], root);
 }
 
-function parseConsumerExecution(result: ProcessResult): Record<string, unknown> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(result.stdout) as unknown;
-  } catch {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UPGRADE_TARGET_INVALID",
-      "Target Docs Protocol CLI did not return one JSON execution envelope."
-    );
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UPGRADE_TARGET_INVALID",
-      "Target Docs Protocol CLI returned an invalid execution envelope."
-    );
-  }
-  return parsed as Record<string, unknown>;
-}
-
-async function invokeInstalledDocs(
-  root: string,
-  args: readonly string[]
-): Promise<Record<string, unknown>> {
-  const cli = join(
-    root,
-    "node_modules",
-    "@agent-teams",
-    "docs-protocol-agent-teams",
-    "dist",
-    "cli.js"
-  );
-  const metadata = await lstat(cli);
-  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.nlink > 1) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UPGRADE_TARGET_INVALID",
-      "Installed target Docs Protocol CLI is not one regular package file."
-    );
-  }
-  const result = await execute(
-    process.execPath,
-    [cli, ...args, "--consumer", root, "--json"],
-    root,
-    [0, 1]
-  );
-  return parseConsumerExecution(result);
-}
-
-async function applyTargetIntegration(root: string, cohortId: string): Promise<void> {
-  const plan = await invokeInstalledDocs(root, ["plan", "--to", cohortId]);
-  if (plan["outcome"] === "change-required") {
-    const planValue = plan["plan"];
-    const digest = typeof planValue === "object" && planValue !== null &&
-      !Array.isArray(planValue) ? (planValue as Record<string, unknown>)["planDigest"] : undefined;
-    if (typeof digest !== "string") {
-      throw new ConsumerIntegrationNodeError(
-        "DOCS_CONSUMER_UPGRADE_TARGET_INVALID",
-        "Target Docs Protocol Plan did not expose one exact digest."
-      );
-    }
-    const applied = await invokeInstalledDocs(root, ["apply", "--expect", digest]);
-    if (!(["applied", "current"] as const).includes(
-      applied["outcome"] as "applied" | "current"
-    )) {
-      throw new ConsumerIntegrationNodeError(
-        "DOCS_CONSUMER_UPGRADE_TARGET_BLOCKED",
-        "Target Docs Protocol apply did not converge in the disposable repository."
-      );
-    }
-  } else if (plan["outcome"] !== "current") {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UPGRADE_TARGET_BLOCKED",
-      "Target Docs Protocol rejected the projected Cohort in the disposable repository."
-    );
-  }
-  await assertInstalledIntegrationCurrent(root);
-}
-
-async function assertInstalledIntegrationCurrent(root: string): Promise<void> {
-  const checked = await invokeInstalledDocs(root, ["check"]);
-  if (checked["outcome"] !== "current") {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UPGRADE_TARGET_BLOCKED",
-      "Target Docs Protocol check did not converge in the disposable repository."
-    );
-  }
-}
 
 function ignoredInventoryPath(prefix: string, name: string): boolean {
   return name === "node_modules" ||
@@ -389,12 +306,14 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
           authority: options.authority,
           current: options.current
         });
-      } else if (options.current.schemaVersion === 3 && !isAuthorityV1(options.authority)) {
-        projected = await projectConsumerUpgradeFiles({
-          ...fileInput,
-          authority: options.authority,
-          current: options.current
-        });
+      } else if (!isAuthorityV1(options.authority)) {
+        projected = options.current.schemaVersion === 1
+          ? await projectConsumerUpgradeFiles({
+              ...fileInput, authority: options.authority, current: options.current
+            })
+          : await projectConsumerUpgradeFiles({
+              ...fileInput, authority: options.authority, current: options.current
+            });
       } else {throw new Error("unreachable");}
       await Promise.all([
         writeProjectedFile(stagedRoot, INTEGRATION_PROFILE_PATH, projected.profile),
@@ -414,9 +333,15 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
           managedPreimages: options.managedPreimages,
           stagedRoot
         });
+      } else if (!isAuthorityV1(options.authority)) {
+        await Promise.all([
+          options.current.callerWorkflowPath,
+          options.current.managedStatePath,
+          options.current.skillPath
+        ].map((path) => rm(contained(stagedRoot, path))));
       }
-      await applyTargetIntegration(stagedRoot, options.authority.cohort.cohortId);
-      if (options.current.schemaVersion === 3) {
+      await applyTargetIntegration(stagedRoot, options.authority.cohort.cohortId, execute);
+      if (!isAuthorityV1(options.authority)) {
         await assertManagedAssetsCreatedV2(stagedRoot, options.current);
       }
       const changed = changedInventoryPaths(
@@ -477,12 +402,22 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     return this.prepareGeneration(options);
   }
 
+  public prepareV1ToV2(options: {
+    readonly authority: ConsumerUpgradeAuthorityV2;
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV1;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+  }): Promise<PreparedConsumerUpgradeV1> {
+    return this.prepareGeneration(options);
+  }
+
   private async activateAndVerifyGeneration(options: {
     readonly authority: ConsumerUpgradeAuthority;
     readonly consumerRoot: string;
   }): Promise<void> {
     await installCohort(options.consumerRoot, true);
-    await assertInstalledIntegrationCurrent(options.consumerRoot);
+    await assertInstalledIntegrationCurrent(options.consumerRoot, execute);
   }
 
   public activateAndVerifyV1(options: {
@@ -504,7 +439,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly current: UpgradeDesiredState;
   }): Promise<void> {
     await installCohort(options.consumerRoot, true);
-    await assertInstalledIntegrationCurrent(options.consumerRoot);
+    await assertInstalledIntegrationCurrent(options.consumerRoot, execute);
   }
 
   public restoreAndVerifyV1(options: {

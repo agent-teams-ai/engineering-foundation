@@ -1,11 +1,9 @@
 import { createHash } from "node:crypto";
 
 import {
-  assertConsumerIntegrationDesiredStateV3,
-  assertQualifiedPnpmLockfileV2,
-  describeCanonicalConsumerAssets,
   QUALIFIED_DOCS_COHORT_V2_PACKAGES
 } from "../consumer-integration/composition/qualification-v3-boundary.js";
+import { observeDocsProtocolQualificationV3Lockfile } from "./qualification-v3-observer.js";
 import type {
   DocsProtocolQualificationCheckV3,
   DocsProtocolQualificationEvidenceV3,
@@ -14,7 +12,6 @@ import type {
 } from "./v3-contract.js";
 
 const NONZERO_SHA256 = /^sha256:(?!0{64}$)[0-9a-f]{64}$/u;
-const MAXIMUM_LOCKFILE_BYTES = 32 * 1024 * 1024;
 const PACKAGE_KEYS = QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key);
 const CHECKS: readonly DocsProtocolQualificationCheckV3[] = Object.freeze([
   "profile-v3",
@@ -65,20 +62,9 @@ function assertEvidenceShape(evidence: DocsProtocolQualificationEvidenceV3): voi
 export function runDocsProtocolQualificationV3(
   request: DocsProtocolQualificationV3Request
 ): DocsProtocolQualificationReceiptV3 {
-  if (!(request.lockfileBytes instanceof Uint8Array) || request.lockfileBytes.byteLength === 0 ||
-    request.lockfileBytes.byteLength > MAXIMUM_LOCKFILE_BYTES) {
-    throw new TypeError(`Qualification v3 lockfile must contain 1..${MAXIMUM_LOCKFILE_BYTES} bytes.`);
-  }
-  assertConsumerIntegrationDesiredStateV3(request.profile);
+  const lockfileObservation = observeDocsProtocolQualificationV3Lockfile(request);
   assertEvidenceShape(request.evidence);
   const { cohort } = request.profile;
-  const canonicalAssets = describeCanonicalConsumerAssets(cohort);
-  if (canonicalAssets.skillDigest !== cohort.assets.skillDigest ||
-    canonicalAssets.callerWorkflowDigest !== cohort.assets.callerWorkflowDigest ||
-    canonicalAssets.assetCatalogDigest !== cohort.assets.assetCatalogDigest ||
-    canonicalAssets.transitionCatalogDigest !== cohort.assets.transitionCatalogDigest) {
-    throw new Error("Qualification v3 Cohort asset digests do not match this exact package build.");
-  }
   for (const { key, name } of QUALIFIED_DOCS_COHORT_V2_PACKAGES) {
     const expected = cohort.packages[key];
     const observed = request.evidence.packages[key];
@@ -97,7 +83,9 @@ export function runDocsProtocolQualificationV3(
   if (request.evidence.runtimeClosureDigest !== cohort.runtime.runtimeClosureDigest) {
     throw new Error("Qualification v3 runtime closure digest mismatch.");
   }
-  assertQualifiedPnpmLockfileV2(request.lockfileBytes, request.profile);
+  if (lockfileObservation.runtimeClosureDigest !== cohort.runtime.runtimeClosureDigest) {
+    throw new Error("Qualification v3 lockfile runtime closure digest mismatch.");
+  }
 
   const body = Object.freeze({
     schemaVersion: 3 as const,

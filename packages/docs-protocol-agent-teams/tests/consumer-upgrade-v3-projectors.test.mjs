@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { parse } from "yaml";
 
 import {
   projectConsumerIntegrationProfileV3,
@@ -74,6 +75,12 @@ function profile(binding) {
     cohort: binding
   };
 }
+
+const workspaceExclusions = (bytes) => parse(Buffer.from(bytes).toString("utf8"))
+  .minimumReleaseAgeExclude;
+const managedExclusions = (entries) => entries.filter((entry) =>
+  entry.startsWith("@agent-teams/")
+);
 
 test("projects one explicit profile v3 and the three public entrypoint pins", async () => {
   const source = cohort("source", "1.0.0");
@@ -160,4 +167,81 @@ test("upgrade file projection rejects cross-generation requests", async () => {
     }),
     (error) => error?.code === "DOCS_CONSUMER_UPGRADE_GENERATION_MISMATCH"
   );
+});
+
+test("stages exact v1 and v2 exclusions but commits only v2 authority", async () => {
+  const target = {
+    ...cohort("target", "2.0.0"),
+    upgradeFrom: ["docs-v1-source"],
+    rollbackTo: []
+  };
+  const source = {
+    schemaVersion: 1,
+    cohortId: "docs-v1-source",
+    channel: "stable",
+    recordDigest: `sha256:${"a".repeat(64)}`,
+    qualificationEventDigest: `sha256:${"b".repeat(64)}`,
+    eligibleAfter: "2026-09-03T00:00:00Z",
+    upgradeFrom: [],
+    rollbackTo: [],
+    packages: {
+      docsProtocol: coordinate("1.0.0"),
+      engineeringFoundation: coordinate("1.0.0")
+    },
+    workflow: target.workflow,
+    assets: target.assets,
+    schemas: { consumerIntegration: 1, managedState: 1, docsProtocol: 1 },
+    runtime: target.runtime
+  };
+  const legacyProfile = {
+    ...profile(target),
+    schemaVersion: 1,
+    cohort: source
+  };
+  delete legacyProfile.qualification;
+  const workspace = Buffer.from(`packages: []
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - unrelated@3.0.0
+  - '@agent-teams/docs-protocol@1.0.0'
+  - '@agent-teams/engineering-foundation@1.0.0'
+`);
+  const projected = await projectConsumerUpgradeFiles({
+    authority: {
+      repository: "agent-teams-ai/.github",
+      path: "governance/docs-qualified-cohorts.json",
+      revision: "c".repeat(40),
+      cohort: target
+    },
+    current: legacyProfile,
+    manifest: Buffer.from(`${JSON.stringify({
+      name: "consumer",
+      private: true,
+      devDependencies: {
+        "@agent-teams/docs-protocol": "1.0.0",
+        "@agent-teams/engineering-foundation": "1.0.0"
+      }
+    })}\n`),
+    profile: Buffer.from(`${JSON.stringify(legacyProfile)}\n`),
+    workspace
+  });
+  const migration = workspaceExclusions(projected.migrationWorkspace);
+  const committed = workspaceExclusions(projected.targetWorkspace);
+  const targetEntries = [
+    "repository-mutation", "document-authoring", "docs-protocol",
+    "docs-protocol-agent-teams", "engineering-foundation"
+  ].map((name) => `@agent-teams/${name}@2.0.0`);
+  const sourceEntries = ["docs-protocol", "engineering-foundation"]
+    .map((name) => `@agent-teams/${name}@1.0.0`);
+  assert.equal(managedExclusions(migration).length, 7);
+  assert.equal(managedExclusions(committed).length, 5);
+  for (const entry of [...sourceEntries, ...targetEntries]) {
+    assert.equal(migration.filter((candidate) => candidate === entry).length, 1);
+  }
+  for (const entry of targetEntries) {
+    assert.equal(committed.filter((candidate) => candidate === entry).length, 1);
+  }
+  assert.deepEqual(committed.filter((entry) => sourceEntries.includes(entry)), []);
+  assert.equal(migration.filter((entry) => entry === "unrelated@3.0.0").length, 1);
+  assert.equal(committed.filter((entry) => entry === "unrelated@3.0.0").length, 1);
 });

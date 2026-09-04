@@ -3,6 +3,13 @@ import {
   MAXIMUM_PROFILE_BYTES,
   readStableConsumerFile
 } from "../adapters/node-consumer-repository-files.js";
+import { projectQualifiedCohortAuthority } from
+  "../adapters/github-cohort-authority-reader.js";
+import type {
+  ConsumerIntegrationDesiredStateV1,
+  ConsumerUpgradeAuthorityV1,
+  ConsumerUpgradeAuthorityV2
+} from "../domain/model.js";
 
 export {
   describeCanonicalConsumerAssets
@@ -14,18 +21,38 @@ export {
   QUALIFIED_DOCS_COHORT_V2_PACKAGES
 } from "../application/policies/qualified-docs-cohort-v2.js";
 export {
-  assertQualifiedPnpmLockfileV2
+  observeQualifiedPnpmLockfileV2
 } from "../adapters/pnpm-lockfile-validator-v2.js";
 export type {
   ConsumerIntegrationDigest,
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
+  ConsumerUpgradeAuthorityV2,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2,
   QualifiedDocsCohortV1,
   QualifiedDocsPackageCoordinateV2,
   QualifiedDocsCohortV2
 } from "../domain/model.js";
+
+export function projectQualificationAuthorityV2(input: {
+  readonly cohortId: string;
+  readonly registry: Record<string, unknown>;
+  readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
+  readonly revision: string;
+}): ConsumerUpgradeAuthorityV2 {
+  const authority = projectQualifiedCohortAuthority({ ...input, generation: 2 });
+  if (!isAuthorityV2(authority)) {
+    throw new TypeError("Qualification authority projector requires Cohort generation 2.");
+  }
+  return authority;
+}
+
+function isAuthorityV2(
+  authority: ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2
+): authority is ConsumerUpgradeAuthorityV2 {
+  return authority.cohort.schemaVersion === 2;
+}
 
 /** Filesystem observation stays behind the consumer-integration adapter boundary. */
 export async function readManagedQualificationProfileInput(

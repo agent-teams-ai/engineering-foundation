@@ -19,6 +19,7 @@ export type ConsumerUpgradeAuthority =
 export interface ConsumerUpgradeAuthorityReader {
   read(options: {
     readonly cohortId: string;
+    readonly generation: 1 | 2;
     readonly repository: ConsumerIntegrationDesiredState["repository"];
     readonly revision?: string;
   }): Promise<ConsumerUpgradeAuthority>;
@@ -55,6 +56,13 @@ export interface ConsumerUpgradeSandboxPort {
     readonly expectedSourceRevision: string;
     readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
     readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
+  }): Promise<PreparedConsumerUpgradeV1>;
+  prepareV1ToV2(options: {
+    readonly authority: ConsumerUpgradeAuthorityV2;
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV1;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
   }): Promise<PreparedConsumerUpgradeV1>;
   activateAndVerifyV1(options: {
     readonly authority: ConsumerUpgradeAuthorityV1;

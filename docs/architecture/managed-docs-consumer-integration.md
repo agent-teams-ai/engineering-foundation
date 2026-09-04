@@ -99,7 +99,7 @@ discover -> check source -> stage successor -> prove target -> publish -> check 
 The normal migration is one explicit command:
 
 ```bash
-agent-teams-docs-managed upgrade --to docs-YYYY-MM-DD-N --json
+agent-teams-docs-managed upgrade --to docs-YYYY-MM-DD-N --target-generation 2 --json
 ```
 
 It resolves current protected `.github` main, projects the qualified Cohort and
@@ -108,6 +108,11 @@ copy, and runs the successor CLI there. Repository Mutation then publishes the
 closed postimage set once, after revalidating that the captured SHA is still
 protected main. Activation is a frozen offline install plus read-only check;
 failure publishes exact reverse operations and restores the source installation.
+
+`--target-generation 2` is also the explicit one-time v1-to-v2 migration route.
+It preserves exact v1 source evidence for rollback while committing only Profile
+v3/Cohort v2 output. It does not install a compatibility bridge, dual writer, or
+runtime generation detector.
 
 The source must be current, transaction-idle, and clean at one Git HEAD. The
 optional `--authority-revision` is a freshness assertion and must equal current

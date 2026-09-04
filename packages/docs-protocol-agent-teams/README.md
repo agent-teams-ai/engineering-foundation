@@ -29,7 +29,7 @@ Managed operations use the distinct executable:
 agent-teams-docs-managed check --consumer .
 agent-teams-docs-managed plan --consumer . --to COHORT
 agent-teams-docs-managed apply --consumer . --expect sha256:DIGEST
-agent-teams-docs-managed upgrade --consumer . --to COHORT
+agent-teams-docs-managed upgrade --consumer . --to COHORT --target-generation 2
 agent-teams-docs-managed recover --consumer .
 agent-teams-docs-managed qualify --consumer .
 ```
@@ -41,3 +41,9 @@ version detection. V1 records are immutable historical migration and rollback
 evidence. Existing V1 consumers retain exact check, recovery, and same-generation
 upgrade commands, but those commands never infer or synthesize V2 and are not a
 cross-generation compatibility mode.
+
+The explicit `--target-generation 2` route performs the bounded, reversible,
+one-time Profile v1/Cohort v1 to Profile v3/Cohort v2 migration. It stages and
+proves the successor in a disposable copy, publishes once, and restores exact
+source evidence if activation fails. It is not a bridge, alias, dual writer, or
+permission to emit new v1 records.

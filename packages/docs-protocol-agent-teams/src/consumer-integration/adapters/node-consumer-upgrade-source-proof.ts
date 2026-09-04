@@ -155,7 +155,7 @@ export async function resetProvedManagedAssetsV2(input: {
 
 export async function assertManagedAssetsCreatedV2(
   root: string,
-  current: ConsumerIntegrationDesiredStateV3
+  current: UpgradeDesiredState
 ): Promise<void> {
   await Promise.all([
     current.callerWorkflowPath,

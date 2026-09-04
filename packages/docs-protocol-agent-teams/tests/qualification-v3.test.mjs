@@ -8,7 +8,10 @@ import { stringify } from "yaml";
 import { describeCanonicalConsumerAssets } from "../dist/consumer-integration/index.js";
 import { computePnpmRuntimeClosureDigestV2 } from
   "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
-import { runDocsProtocolQualificationV3 } from "../dist/qualification/index.js";
+import {
+  observeDocsProtocolQualificationV3Lockfile,
+  runDocsProtocolQualificationV3
+} from "../dist/qualification/index.js";
 
 const sha256 = (character) => `sha256:${character.repeat(64)}`;
 const integrity = (character) => `sha512-${character.repeat(86)}==`;
@@ -205,5 +208,81 @@ test("qualification v3 rejects an oversized lockfile before YAML parsing", () =>
   assert.throws(
     () => runDocsProtocolQualificationV3({ profile, evidence, lockfileBytes: oversized }),
     /lockfile must contain 1\.\.33554432 bytes/u
+  );
+});
+
+test("qualification v3 lockfile observation returns a deterministic actual closure digest", () => {
+  const first = observeDocsProtocolQualificationV3Lockfile({ profile, lockfileBytes });
+  const second = observeDocsProtocolQualificationV3Lockfile({
+    profile: structuredClone(profile),
+    lockfileBytes: Buffer.from(lockfileBytes)
+  });
+  assert.deepEqual(first, second);
+  assert.equal(first.runtimeClosureDigest, profile.cohort.runtime.runtimeClosureDigest);
+  assert.equal(Object.isFrozen(first), true);
+
+  const withConsumerTransitive = structuredClone(lockfile);
+  const transitiveName = "consumer-transitive";
+  const transitiveVersion = "1.2.3";
+  withConsumerTransitive.packages[`${transitiveName}@${transitiveVersion}`] = {
+    resolution: { integrity: integrity("F") }
+  };
+  withConsumerTransitive.snapshots[`${transitiveName}@${transitiveVersion}`] = {};
+  withConsumerTransitive.snapshots[
+    `${packageNames.docsProtocol}@${packages.docsProtocol.version}`
+  ].dependencies[transitiveName] = transitiveVersion;
+  const observedConsumerClosure = observeDocsProtocolQualificationV3Lockfile({
+    profile,
+    lockfileBytes: Buffer.from(stringify(withConsumerTransitive))
+  });
+  assert.notEqual(
+    observedConsumerClosure.runtimeClosureDigest,
+    profile.cohort.runtime.runtimeClosureDigest
+  );
+});
+
+test("qualification v3 lockfile observation fails closed on malformed and oversized bytes", () => {
+  assert.throws(
+    () => observeDocsProtocolQualificationV3Lockfile({
+      profile,
+      lockfileBytes: Buffer.from("lockfileVersion: [\n")
+    }),
+    (error) => error?.code === "DOCS_CONSUMER_LOCKFILE_INVALID"
+  );
+  assert.throws(
+    () => observeDocsProtocolQualificationV3Lockfile({
+      profile,
+      lockfileBytes: new Uint8Array(32 * 1024 * 1024 + 1)
+    }),
+    /lockfile must contain 1\.\.33554432 bytes/u
+  );
+});
+
+test("qualification v3 lockfile observation rejects five roots and wrong transitive edges", () => {
+  const fiveRoots = structuredClone(lockfile);
+  for (const key of ["repositoryMutation", "documentAuthoring"]) {
+    fiveRoots.importers["."].devDependencies[packageNames[key]] = {
+      specifier: packages[key].version,
+      version: packages[key].version
+    };
+  }
+  assert.throws(
+    () => observeDocsProtocolQualificationV3Lockfile({
+      profile,
+      lockfileBytes: Buffer.from(stringify(fiveRoots))
+    }),
+    (error) => error?.code === "DOCS_CONSUMER_LOCKFILE_COHORT_MISMATCH"
+  );
+
+  const wrongEdge = structuredClone(lockfile);
+  delete wrongEdge.snapshots[
+    `${packageNames.docsProtocol}@${packages.docsProtocol.version}`
+  ].dependencies[packageNames.documentAuthoring];
+  assert.throws(
+    () => observeDocsProtocolQualificationV3Lockfile({
+      profile,
+      lockfileBytes: Buffer.from(stringify(wrongEdge))
+    }),
+    (error) => error?.code === "DOCS_CONSUMER_COHORT_DEPENDENCY_MISMATCH"
   );
 });

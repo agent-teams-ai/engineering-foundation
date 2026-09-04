@@ -40,6 +40,15 @@ export interface DocsProtocolQualificationV3Request {
   readonly lockfileBytes: Uint8Array;
 }
 
+export interface DocsProtocolQualificationLockfileObservationV3Request {
+  readonly profile: ConsumerIntegrationDesiredStateV3;
+  readonly lockfileBytes: Uint8Array;
+}
+
+export interface DocsProtocolQualificationLockfileObservationV3 {
+  readonly runtimeClosureDigest: `sha256:${string}`;
+}
+
 export interface DocsProtocolQualificationPackageReceiptV3 {
   readonly key: DocsProtocolQualificationPackageKeyV3;
   readonly name: `@agent-teams/${string}`;

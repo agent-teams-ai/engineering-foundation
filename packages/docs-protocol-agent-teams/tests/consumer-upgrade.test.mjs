@@ -245,6 +245,7 @@ function rawRegistry(cohort, state = "RECOMMENDED", repositoryId = Number(REPOSI
       eligible_after: cohort.eligibleAfter,
       upgrade_from: cohort.upgradeFrom,
       rollback_to: cohort.rollbackTo,
+      evidence_references: [],
       packages: [
         { name: "@agent-teams/docs-protocol", ...cohort.packages.docsProtocol },
         {
@@ -266,7 +267,12 @@ function rawRegistry(cohort, state = "RECOMMENDED", repositoryId = Number(REPOSI
       },
       schemas: {
         consumer_integration: cohort.schemas.consumerIntegration,
+        consumer_plan: 1,
         managed_state: cohort.schemas.managedState,
+        foundation_plan: 1,
+        foundation_journal: 1,
+        foundation_receipt: 1,
+        foundation_envelope: 5,
         docs_protocol: cohort.schemas.docsProtocol
       },
       runtime: cohort.runtime,
@@ -299,6 +305,7 @@ test("projects the protected central authority without lifecycle metadata drift"
   };
   const authority = projectQualifiedCohortAuthority({
     cohortId: target.cohortId,
+    generation: 1,
     registry: rawRegistry(target),
     repository: REPOSITORY,
     revision: "8".repeat(40)
@@ -309,12 +316,14 @@ test("projects the protected central authority without lifecycle metadata drift"
 
   assert.throws(() => projectQualifiedCohortAuthority({
     cohortId: target.cohortId,
+    generation: 1,
     registry: rawRegistry(target, "SUSPENDED"),
     repository: REPOSITORY,
     revision: "8".repeat(40)
   }), (error) => error?.code === "DOCS_CONSUMER_COHORT_NOT_SELECTABLE");
   assert.throws(() => projectQualifiedCohortAuthority({
     cohortId: target.cohortId,
+    generation: 1,
     registry: rawRegistry(target, "CANARY", 123),
     repository: REPOSITORY,
     revision: "8".repeat(40)
@@ -448,7 +457,7 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
     }
   };
   const upgrade = createConsumerUpgradeUseCase(ports);
-  const result = await upgrade({ consumerRoot: "/consumer", to: target.cohortId });
+  const result = await upgrade({ consumerRoot: "/consumer", targetGeneration: 1, to: target.cohortId });
   assert.equal(result.outcome, "upgraded");
   assert.equal(result.authority.revision, authority.revision);
   assert.deepEqual(calls.slice(-1), ["activate"]);
@@ -456,7 +465,7 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
   calls.length = 0;
   activationFailure = true;
   await assert.rejects(
-    upgrade({ consumerRoot: "/consumer", to: target.cohortId }),
+    upgrade({ consumerRoot: "/consumer", targetGeneration: 1, to: target.cohortId }),
     /activation failed/u
   );
   assert.equal(calls.length, 4);
@@ -466,6 +475,8 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
   assert.equal(calls[3], "restore");
 
   let crossGenerationStaged = false;
+  let crossGenerationActivated = false;
+  let crossGenerationActivationFailure = false;
   const coordinate = target.packages.docsProtocol;
   const crossGenerationAuthority = {
     ...authority,
@@ -487,19 +498,106 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
     authority: { read: async () => crossGenerationAuthority },
     sandbox: {
       ...ports.sandbox,
-      prepareV2: async () => {
+      prepareV1ToV2: async () => {
         crossGenerationStaged = true;
-        throw new Error("cross-generation staging must not run");
+        return { operations: [{
+          path: "package.json",
+          precondition: {
+            state: "known-file",
+            acceptedPreimages: [{ bytes: preimage, mode: 0o644 }]
+          },
+          postimage: { bytes: postimage, mode: 0o644 }
+        }] };
+      },
+      activateAndVerifyV2: async () => {
+        crossGenerationActivated = true;
+        if (crossGenerationActivationFailure) {throw new Error("v2 activation interrupted");}
       }
     }
   });
-  const mismatch = await crossGeneration({
+  const missingGeneration = await crossGeneration({
     consumerRoot: "/consumer",
     to: crossGenerationAuthority.cohort.cohortId
   });
-  assert.equal(mismatch.outcome, "blocked");
-  assert.equal(mismatch.issues[0].code, "DOCS_CONSUMER_COHORT_GENERATION_MISMATCH");
+  assert.equal(missingGeneration.issues[0].code, "DOCS_CONSUMER_TARGET_GENERATION_REQUIRED");
+
+  const discriminatorMismatch = await crossGeneration({
+    consumerRoot: "/consumer",
+    targetGeneration: 1,
+    to: crossGenerationAuthority.cohort.cohortId
+  });
+  assert.equal(discriminatorMismatch.issues[0].code,
+    "DOCS_CONSUMER_COHORT_GENERATION_MISMATCH");
   assert.equal(crossGenerationStaged, false);
+
+  const forbidden = await createConsumerUpgradeUseCase({
+    ...ports,
+    authority: { read: async () => ({
+      ...crossGenerationAuthority,
+      cohort: { ...crossGenerationAuthority.cohort, upgradeFrom: [] }
+    }) }
+  })({
+    consumerRoot: "/consumer",
+    targetGeneration: 2,
+    to: crossGenerationAuthority.cohort.cohortId
+  });
+  assert.equal(forbidden.issues[0].code, "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN");
+
+  const migration = await crossGeneration({
+    consumerRoot: "/consumer",
+    targetGeneration: 2,
+    to: crossGenerationAuthority.cohort.cohortId
+  });
+  assert.equal(migration.outcome, "upgraded");
+  assert.equal(crossGenerationStaged, true);
+  assert.equal(crossGenerationActivated, true);
+
+  crossGenerationActivationFailure = true;
+  calls.length = 0;
+  await assert.rejects(crossGeneration({
+    consumerRoot: "/consumer",
+    targetGeneration: 2,
+    to: crossGenerationAuthority.cohort.cohortId
+  }), /v2 activation interrupted/u);
+  assert.equal(calls.at(-1), "restore");
+
+  let authorityRead = 0;
+  let appliedAfterAuthorityChange = false;
+  const interrupted = createConsumerUpgradeUseCase({
+    ...ports,
+    authority: { read: async () => {
+      authorityRead += 1;
+      return authorityRead === 1 ? crossGenerationAuthority : {
+        ...crossGenerationAuthority,
+        cohort: {
+          ...crossGenerationAuthority.cohort,
+          recordDigest: `sha256:${"a".repeat(64)}`
+        }
+      };
+    } },
+    sandbox: {
+      ...ports.sandbox,
+      prepareV1ToV2: async () => ({ operations: [{
+        path: "package.json",
+        precondition: {
+          state: "known-file",
+          acceptedPreimages: [{ bytes: preimage, mode: 0o644 }]
+        },
+        postimage: { bytes: postimage, mode: 0o644 }
+      }] })
+    },
+    transaction: {
+      ...ports.transaction,
+      apply: async () => {appliedAfterAuthorityChange = true; throw new Error("must not apply");}
+    }
+  });
+  const interruptedResult = await interrupted({
+    consumerRoot: "/consumer",
+    targetGeneration: 2,
+    to: crossGenerationAuthority.cohort.cohortId
+  });
+  assert.equal(interruptedResult.issues[0].code, "DOCS_CONSUMER_AUTHORITY_CHANGED");
+  assert.equal(appliedAfterAuthorityChange, false);
 });
 
 test("keeps an exact V1 Cohort current when the repository has an unborn HEAD", async () => {
@@ -534,7 +632,7 @@ test("keeps an exact V1 Cohort current when the repository has an unborn HEAD", 
       recover: async () => {throw new Error("must not recover");}
     }
   });
-  const result = await upgrade({ consumerRoot: "/unborn-consumer", to: cohort.cohortId });
+  const result = await upgrade({ consumerRoot: "/unborn-consumer", targetGeneration: 1, to: cohort.cohortId });
   assert.deepEqual(result, {
     schemaVersion: 1,
     command: "consumer.upgrade",
@@ -549,13 +647,9 @@ test("leaves one coherent target when a mixed receipt proves concurrent satisfac
   const { cohort, catalog } = await sourceCohort();
   const current = desired(cohort, 1);
   const snapshot = sourceSnapshot(current, catalog);
-  const target = {
-    ...structuredClone(cohort),
-    cohortId: "docs-target-mixed-receipt",
-    recordDigest: `sha256:${"6".repeat(64)}`,
-    qualificationEventDigest: `sha256:${"7".repeat(64)}`,
+  const target = cohortV2("docs-target-mixed-receipt", {
     upgradeFrom: [cohort.cohortId]
-  };
+  });
   const authority = {
     repository: "agent-teams-ai/.github",
     path: "governance/docs-qualified-cohorts.json",
@@ -583,7 +677,9 @@ test("leaves one coherent target when a mixed receipt proves concurrent satisfac
     }) },
     planning: consumerIntegrationPlanningPorts,
     sandbox: {
-      prepareV1: async () => ({ operations: [{
+      prepareV1: async () => {throw new Error("unused");},
+      activateAndVerifyV1: async () => {throw new Error("unused");},
+      prepareV1ToV2: async () => ({ operations: [{
         path: "package.json",
         precondition: {
           state: "known-file",
@@ -598,10 +694,9 @@ test("leaves one coherent target when a mixed receipt proves concurrent satisfac
         },
         postimage: { bytes: lockAfter, mode: 0o644 }
       }] }),
-      activateAndVerifyV1: async () => {throw new Error("mixed activation failed");},
+      activateAndVerifyV2: async () => {throw new Error("mixed activation failed");},
       restoreAndVerifyV1: async () => {restored = true;},
       prepareV2: async () => {throw new Error("unused");},
-      activateAndVerifyV2: async () => {throw new Error("unused");},
       restoreAndVerifyV2: async () => {throw new Error("unused");}
     },
     transaction: {
@@ -639,7 +734,7 @@ test("leaves one coherent target when a mixed receipt proves concurrent satisfac
     }
   });
   await assert.rejects(
-    upgrade({ consumerRoot: "/mixed-consumer", to: target.cohortId }),
+    upgrade({ consumerRoot: "/mixed-consumer", targetGeneration: 2, to: target.cohortId }),
     /mixed activation failed/u
   );
   assert.equal(submitted.length, 1, "mixed ownership must not start a reverse transaction");
@@ -715,7 +810,7 @@ test("coordinates a profile-v3 rollback with exact source HEAD and managed preim
     }
   });
 
-  const result = await upgrade({ consumerRoot: "/consumer-v3", to: targetId });
+  const result = await upgrade({ consumerRoot: "/consumer-v3", targetGeneration: 2, to: targetId });
   assert.equal(result.outcome, "upgraded");
   assert.equal(activated, true);
   assert.equal(prepared.expectedSourceRevision, "a".repeat(40));
@@ -730,7 +825,7 @@ test("coordinates a profile-v3 rollback with exact source HEAD and managed preim
   }
 });
 
-test("upgrades one disposable consumer end to end without authority or lockfile prework", {
+test("migrates one disposable profile-v1 consumer explicitly to Cohort v2", {
   skip: process.platform === "win32"
 }, async () => {
   const disposable = await mkdtemp(join(tmpdir(), "docs-one-command-e2e-"));
@@ -744,19 +839,40 @@ test("upgrades one disposable consumer end to end without authority or lockfile 
     mkdir(join(consumerRoot, ".github", "workflows"), { recursive: true }),
     mkdir(fakeBin, { recursive: true })
   ]);
-  const { cohort: packageCohort, catalog } = await sourceCohort();
+  const { catalog } = await sourceCohort();
   const prior = catalog.directTargetBundles.find(({ cohort: candidate }) =>
     candidate.cohortId === "docs-2026-08-25-stable3"
   );
   assert.ok(prior, "the released package must bundle the stable3 migration source");
-  const current = desired(prior.cohort);
-  const target = {
-    ...structuredClone(packageCohort),
-    cohortId: "docs-one-command-target",
-    recordDigest: `sha256:${"6".repeat(64)}`,
-    qualificationEventDigest: `sha256:${"7".repeat(64)}`,
-    eligibleAfter: "2099-01-01T00:00:00Z",
+  const current = desired(prior.cohort, 1);
+  const [docsManifest, managedManifest, foundationManifest, mutationManifest, authoringManifest] =
+    await Promise.all([
+      readFile(join(coreRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(packageRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(foundationRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(repositoryMutationRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(documentAuthoringRoot, "package.json"), "utf8").then(JSON.parse)
+    ]);
+  let target = cohortV2("docs-one-command-v2-target", {
     upgradeFrom: [prior.cohort.cohortId]
+  });
+  target = {
+    ...target,
+    packages: {
+      repositoryMutation: { version: mutationManifest.version, integrity: V2_INTEGRITY },
+      documentAuthoring: { version: authoringManifest.version, integrity: V2_INTEGRITY },
+      docsProtocol: { version: docsManifest.version, integrity: V2_INTEGRITY },
+      docsProtocolAgentTeams: { version: managedManifest.version, integrity: V2_INTEGRITY },
+      engineeringFoundation: { version: foundationManifest.version, integrity: V2_INTEGRITY }
+    }
+  };
+  target = {
+    ...target,
+    assets: describeCanonicalConsumerAssets(target),
+    runtime: {
+      ...target.runtime,
+      runtimeClosureDigest: computePnpmRuntimeClosureDigestV2(lockfileObjectForV2(target), target)
+    }
   };
   const authority = Object.freeze({
     repository: "agent-teams-ai/.github",
@@ -820,6 +936,7 @@ minimumReleaseAgeExclude:
   process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE = coreRoot;
   process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE = foundationRoot;
   process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE = packageRoot;
+  process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE = documentAuthoringRoot;
   process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE = repositoryMutationRoot;
   try {
     const upgrade = createConsumerUpgradeUseCase({
@@ -833,12 +950,13 @@ minimumReleaseAgeExclude:
     const dirtyPath = join(consumerRoot, "uncommitted.txt");
     await writeFile(dirtyPath, "must block\n");
     await assert.rejects(
-      upgrade({ consumerRoot, to: target.cohortId }),
+      upgrade({ consumerRoot, targetGeneration: 2, to: target.cohortId }),
       (error) => error?.code === "DOCS_CONSUMER_UPGRADE_DIRTY_WORKTREE"
     );
     await rm(dirtyPath);
     const execution = await upgrade({
       consumerRoot,
+      targetGeneration: 2,
       to: target.cohortId
     });
     assert.deepEqual(
@@ -852,6 +970,7 @@ minimumReleaseAgeExclude:
       readFile(join(consumerRoot, "pnpm-workspace.yaml"), "utf8")
     ]);
     assert.deepEqual(profile.cohort, target);
+    assert.equal(profile.schemaVersion, 3);
     assert.equal(
       manifest.devDependencies["@agent-teams/docs-protocol"],
       target.packages.docsProtocol.version
@@ -860,8 +979,15 @@ minimumReleaseAgeExclude:
       manifest.devDependencies["@agent-teams/engineering-foundation"],
       target.packages.engineeringFoundation.version
     );
+    assert.equal(
+      manifest.devDependencies["@agent-teams/docs-protocol-agent-teams"],
+      target.packages.docsProtocolAgentTeams.version
+    );
     assert.deepEqual(manifest.untouched, { retained: true });
-    assert.match(lockfile, new RegExp(`specifier: ${target.packages.docsProtocol.version}`, "u"));
+    assert.equal(
+      JSON.parse(lockfile).importers["."].devDependencies["@agent-teams/docs-protocol"].specifier,
+      target.packages.docsProtocol.version
+    );
     assert.match(
       workspace,
       new RegExp(`@agent-teams/docs-protocol@${target.packages.docsProtocol.version}`, "u")
@@ -880,7 +1006,7 @@ minimumReleaseAgeExclude:
       sandbox: new NodeConsumerUpgradeSandbox(),
       transaction: foundationKnownFileTransaction
     });
-    const repeated = await replay({ consumerRoot, to: target.cohortId });
+    const repeated = await replay({ consumerRoot, targetGeneration: 2, to: target.cohortId });
     assert.equal(repeated.outcome, "current");
     assert.equal(authorityReads, 0);
   } finally {
@@ -1044,7 +1170,7 @@ ${Object.entries(sourceBinding.packages).map(([key, coordinate]) => {
       sandbox: realSandbox,
       transaction: foundationKnownFileTransaction
     });
-    const execution = await upgrade({ consumerRoot, to: target.cohortId });
+    const execution = await upgrade({ consumerRoot, targetGeneration: 2, to: target.cohortId });
     assert.deepEqual(
       [execution.outcome, execution.authority.revision],
       ["upgraded", authority.revision]
@@ -1099,7 +1225,7 @@ ${Object.entries(sourceBinding.packages).map(([key, coordinate]) => {
       transaction: foundationKnownFileTransaction
     });
     await assert.rejects(
-      failingRollback({ consumerRoot, to: sourceBinding.cohortId }),
+      failingRollback({ consumerRoot, targetGeneration: 2, to: sourceBinding.cohortId }),
       (error) => error === activationFailure
     );
     assert.equal(runGit(consumerRoot, ["rev-parse", "HEAD"]), targetHead);
@@ -1121,7 +1247,7 @@ ${Object.entries(sourceBinding.packages).map(([key, coordinate]) => {
       sandbox: realSandbox,
       transaction: foundationKnownFileTransaction
     });
-    const downgraded = await downgrade({ consumerRoot, to: sourceBinding.cohortId });
+    const downgraded = await downgrade({ consumerRoot, targetGeneration: 2, to: sourceBinding.cohortId });
     assert.equal(downgraded.outcome, "upgraded");
     const [sourceProfile, sourceManifestAfter, sourceCaller, sourceState] = await Promise.all([
       readFile(profilePath, "utf8").then(JSON.parse),

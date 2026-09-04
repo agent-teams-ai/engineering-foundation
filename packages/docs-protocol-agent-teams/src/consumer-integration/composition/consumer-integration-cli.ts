@@ -3,7 +3,7 @@ import {
   checkConsumerIntegration,
   planNodeConsumerIntegration,
   recoverConsumerIntegration,
-  upgradeConsumerIntegration,
+  upgradeConsumerIntegrationToGeneration,
   type ConsumerIntegrationExecutionV1
 } from "./node-consumer-integration.js";
 import {
@@ -163,7 +163,7 @@ Commands:
   check                         Verify the selected Cohort without writing
   plan --to COHORT              Print a deterministic, write-free semantic plan
   apply --expect SHA256         Rebuild and apply the reviewed plan through Foundation
-  upgrade --to COHORT           Project authority, pins, lockfile, and assets in one command
+  upgrade --to COHORT --target-generation 1|2  Project authority, pins, lockfile, and assets
   recover                       Recover the Foundation transaction (profile not read)
 
 Options:
@@ -212,10 +212,15 @@ export async function runManagedConsumerCommand(argv: readonly string[]): Promis
       if (authorityRevision !== undefined && !GIT_SHA.test(authorityRevision)) {
         throw new ConsumerCliInputError("--authority-revision must be one nonzero lowercase Git SHA.");
       }
+      const generation = args.one("--target-generation", true)!;
+      if (generation !== "1" && generation !== "2") {
+        throw new ConsumerCliInputError("--target-generation must be exactly 1 or 2.");
+      }
       args.assertConsumed();
-      execution = await upgradeConsumerIntegration({
+      execution = await upgradeConsumerIntegrationToGeneration({
         consumerRoot,
         to,
+        targetGeneration: Number(generation) as 1 | 2,
         ...(authorityRevision === undefined ? {} : { authorityRevision })
       });
     } else if (command === "recover") {

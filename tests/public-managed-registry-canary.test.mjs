@@ -42,6 +42,25 @@ const descriptors = [
   ["docsProtocolAgentTeams", "@agent-teams/docs-protocol-agent-teams", true],
   ["engineeringFoundation", "@agent-teams/engineering-foundation", true],
 ];
+const cohortV2DependencyEdges = [
+  ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
+  ["@agent-teams/docs-protocol", "@agent-teams/document-authoring"],
+  ["@agent-teams/docs-protocol", "@agent-teams/repository-mutation"],
+  ["@agent-teams/docs-protocol-agent-teams", "@agent-teams/docs-protocol"],
+  ["@agent-teams/docs-protocol-agent-teams", "@agent-teams/repository-mutation"],
+  ["@agent-teams/engineering-foundation", "@agent-teams/document-authoring"],
+  ["@agent-teams/engineering-foundation", "@agent-teams/repository-mutation"],
+];
+const cohortV2Schemas = {
+  consumer_integration: 3,
+  managed_state: 2,
+  docs_protocol: 1,
+  qualification_receipt: 3,
+  foundation_plan: 1,
+  foundation_journal: 1,
+  foundation_receipt: 1,
+  foundation_envelope: 5,
+};
 const cohort = {
   schemaVersion: 2,
   cohortId: "docs-v2-canary",
@@ -192,6 +211,7 @@ test("central authority uses the production generation-2 projector", async () =>
       rollback_to: cohort.rollbackTo,
       evidence_references: [],
       packages: descriptors.map(([key, name]) => ({ name, ...cohort.packages[key] })),
+      dependency_edges: cohortV2DependencyEdges.map(([from, to]) => ({ from, to })),
       reusable_workflow: {
         repository: cohort.workflow.repository, path: cohort.workflow.path,
         revision: cohort.workflow.revision, blob_sha: cohort.workflow.blobSha,
@@ -202,7 +222,7 @@ test("central authority uses the production generation-2 projector", async () =>
         asset_catalog: { digest: cohort.assets.assetCatalogDigest },
         transition_catalog: { digest: cohort.assets.transitionCatalogDigest },
       },
-      schemas: { consumer_integration: 3, managed_state: 2, docs_protocol: 1 },
+      schemas: cohortV2Schemas,
       runtime: { node: cohort.runtime.node, pnpm: cohort.runtime.pnpm },
       runtime_closure: { digest: cohort.runtime.runtimeClosureDigest },
       canary_repositories: [{ repository_id: Number(repository.id) }],

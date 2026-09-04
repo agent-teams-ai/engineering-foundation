@@ -298,16 +298,16 @@ test("snapshot plan preserves peer context, optional edges and cycles without re
 });
 
 test("canonical identity deduplicates copies only when bytes, manifests and outgoing resolutions agree", () => {
-  const packageRoot = "/fixture";
-  const entry = "/fixture/entry.js";
-  const first = "/fixture/node_modules/one";
-  const copy = "/fixture/node_modules/parent/node_modules/one";
-  const dependency = "/fixture/node_modules/dep";
+  const packageRoot = join(tmpdir(), "markdown-graph-fixture");
+  const entry = join(packageRoot, "entry.js");
+  const first = join(packageRoot, "node_modules/one");
+  const copy = join(packageRoot, "node_modules/parent/node_modules/one");
+  const dependency = join(packageRoot, "node_modules/dep");
   const captured = new Map([
     [entry, { bytes: Buffer.from("entry") }],
-    [`${first}/index.js`, { bytes: Buffer.from("one"), root: first }],
-    [`${copy}/index.js`, { bytes: Buffer.from("one"), root: copy }],
-    [`${dependency}/index.js`, { bytes: Buffer.from("dep"), root: dependency }],
+    [join(first, "index.js"), { bytes: Buffer.from("one"), root: first }],
+    [join(copy, "index.js"), { bytes: Buffer.from("one"), root: copy }],
+    [join(dependency, "index.js"), { bytes: Buffer.from("dep"), root: dependency }],
   ]);
   const identity = { name: "one", version: "1.0.0", manifestSha256: "a".repeat(64) };
   const identities = new Map([[first, identity], [copy, identity],
@@ -320,8 +320,9 @@ test("canonical identity deduplicates copies only when bytes, manifests and outg
     "node_modules/dep/index.js": { imports: [] },
   } };
   const input = { captured, entry, identities, metafile, packageRoot };
-  assert.equal(canonicalMarkdownGraph(input).nodes.size, 3);
-  const alteredBytes = new Map(captured).set(`${copy}/index.js`, { bytes: Buffer.from("different"), root: copy });
+  assert.deepEqual([...canonicalMarkdownGraph(input).nodes.keys()].toSorted(),
+    ["dep@1.0.0/index.js", "markdown-entry.js", "one@1.0.0/index.js"]);
+  const alteredBytes = new Map(captured).set(join(copy, "index.js"), { bytes: Buffer.from("different"), root: copy });
   assert.throws(() => canonicalMarkdownGraph({ ...input, captured: alteredBytes }), /copies have different/u);
   const alteredManifests = new Map(identities).set(copy, { ...identity, manifestSha256: "c".repeat(64) });
   assert.throws(() => canonicalMarkdownGraph({ ...input, identities: alteredManifests }), /copies have different/u);

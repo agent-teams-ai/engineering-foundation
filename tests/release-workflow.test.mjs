@@ -13,6 +13,7 @@ import {
   releasePullRequestContentViolations,
   releasePullRequestFileViolations,
 } from "../scripts/check-release-pr-files.mjs";
+import { validateReleaseCodeqlEvidence } from "../scripts/check-release-codeql-evidence.mjs";
 import { selectReleaseCiRun } from "../scripts/select-release-ci-run.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -175,7 +176,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| first/u);
   assert.match(
     attestation.run,
-    /commits\/\$\{head_sha\}\/check-runs[\s\S]*check_name=CodeQL[\s\S]*filter=latest/u,
+    /commits\/\$\{head_sha\}\/check-runs[\s\S]*check_name=CodeQL[\s\S]*filter=all/u,
   );
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
 }
@@ -214,6 +215,140 @@ const exactRunExpectation = {
   headSha: "b".repeat(40),
   pullRequestNumber: 127,
 };
+
+function exactCodeqlEvidence() {
+  const startedAt = "2026-09-04T12:00:00Z";
+  const checkStartedAt = "2026-09-04T12:00:30Z";
+  const analysisCreatedAt = "2026-09-04T12:00:31Z";
+  const checkCompletedAt = "2026-09-04T12:00:32Z";
+  const completedAt = "2026-09-04T12:00:40Z";
+  const pullRequest = {
+    number: exactRunExpectation.pullRequestNumber,
+    head: {
+      ref: exactRunExpectation.branch,
+      sha: exactRunExpectation.headSha,
+    },
+    base: { ref: "main", sha: exactRunExpectation.baseSha },
+  };
+  return {
+    run: {
+      id: 123,
+      path: ".github/workflows/codeql.yml",
+      event: "workflow_dispatch",
+      head_branch: exactRunExpectation.branch,
+      head_sha: exactRunExpectation.headSha,
+      run_attempt: 1,
+      html_url:
+        "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123",
+      head_repository: { full_name: exactRunExpectation.repository },
+      pull_requests: [pullRequest],
+      status: "completed",
+      conclusion: "success",
+    },
+    jobs: {
+      jobs: [{
+        id: 456,
+        run_id: 123,
+        head_sha: exactRunExpectation.headSha,
+        html_url:
+          "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123/job/456",
+        name: "analyze",
+        status: "completed",
+        conclusion: "success",
+        started_at: startedAt,
+        completed_at: completedAt,
+      }],
+    },
+    analyses: [{
+      id: 901,
+      ref: `refs/heads/${exactRunExpectation.branch}`,
+      commit_sha: exactRunExpectation.headSha,
+      analysis_key: ".github/workflows/codeql.yml:analyze",
+      category: ".github/workflows/codeql.yml:analyze",
+      environment: "{}",
+      warning: "",
+      tool: { name: "CodeQL" },
+      created_at: analysisCreatedAt,
+      sarif_id: "dde4b0bc-a8a2-11f1-82f5-b5928a50418b",
+    }],
+    checkRuns: {
+      check_runs: [{
+        id: 789,
+        name: "CodeQL",
+        app: { id: 57789 },
+        check_suite: { id: 900 },
+        details_url:
+          "https://github.com/agent-teams-ai/engineering-foundation/runs/789",
+        status: "completed",
+        conclusion: "success",
+        started_at: checkStartedAt,
+        completed_at: checkCompletedAt,
+      }],
+    },
+    checkSuite: {
+      id: 900,
+      head_sha: exactRunExpectation.headSha,
+      head_branch: exactRunExpectation.branch,
+      app: { id: 57789 },
+      pull_requests: [pullRequest],
+      status: "completed",
+      conclusion: "success",
+      created_at: checkStartedAt,
+      updated_at: checkCompletedAt,
+    },
+  };
+}
+
+test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple", () => {
+  const evidence = exactCodeqlEvidence();
+  const expectation = { ...exactRunExpectation, runId: 123 };
+  const receipt = validateReleaseCodeqlEvidence(evidence, expectation);
+  assert.deepEqual(receipt, {
+    analysisId: 901,
+    analyzeId: 456,
+    checkId: 789,
+    checkSuiteId: 900,
+    runId: 123,
+    sarifId: "dde4b0bc-a8a2-11f1-82f5-b5928a50418b",
+  });
+
+  const attemptTwo = structuredClone(evidence);
+  attemptTwo.run.run_attempt = 2;
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(attemptTwo, expectation),
+    /workflow run identity differs/u,
+  );
+
+  const duplicateAnalyze = structuredClone(evidence);
+  duplicateAnalyze.jobs.jobs.push(structuredClone(duplicateAnalyze.jobs.jobs[0]));
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(duplicateAnalyze, expectation),
+    /exactly one matching/u,
+  );
+
+  const unrelatedPullRequest = structuredClone(evidence);
+  unrelatedPullRequest.checkSuite.pull_requests[0].number = 128;
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(unrelatedPullRequest, expectation),
+    /provenance differs/u,
+  );
+
+  const unrelatedCheck = structuredClone(evidence);
+  unrelatedCheck.checkRuns.check_runs[0].started_at = "2026-09-04T11:59:59Z";
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(unrelatedCheck, expectation),
+    /outside the dispatched analyze job/u,
+  );
+
+  const replacement = structuredClone(evidence);
+  replacement.checkRuns.check_runs[0].id = 790;
+  replacement.checkRuns.check_runs[0].details_url =
+    "https://github.com/agent-teams-ai/engineering-foundation/runs/790";
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(replacement, expectation, receipt),
+    /checkId changed identity/u,
+  );
+});
 
 test("release CI selection reuses only one exact attempt-1 pull request run", () => {
   assert.deepEqual(
@@ -415,16 +550,18 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     attestation.run.indexOf("actions/workflows/codeql.yml/dispatches") <
       attestation.run.indexOf("deadline=$((SECONDS + 3300))"),
   );
-  assert.match(attestation.run, /observed_codeql_path.*\.github\/workflows\/codeql\.yml/su);
-  assert.match(attestation.run, /observed_codeql_event.*workflow_dispatch/su);
-  assert.match(attestation.run, /observed_codeql_branch.*changeset-release\/main/su);
-  assert.match(attestation.run, /observed_codeql_sha.*head_sha/su);
-  assert.match(attestation.run, /analyze_count.*analyze_conclusion/su);
+  assert.equal(
+    (attestation.run.match(/check-release-codeql-evidence\.mjs/gu) ?? []).length,
+    2,
+  );
   assert.match(attestation.run, /check_name=CodeQL/u);
-  assert.match(attestation.run, /codeql_check_app_id.*57789/su);
-  assert.match(attestation.run, /final_codeql_sha.*head_sha/su);
+  assert.match(attestation.run, /\.app\.id == 57789/u);
+  assert.match(attestation.run, /code-scanning\/analyses/u);
+  assert.match(attestation.run, /check-suites\/\$\{codeql_check_suite_id\}/u);
+  assert.match(attestation.run, /check-runs\/\$\{codeql_check_id\}/u);
+  assert.match(attestation.run, /priorReceipt: \$priorReceipt/u);
   assert.match(attestation.run, /run_head_repository.*GITHUB_REPOSITORY/su);
-  assert.equal((attestation.run.match(/pull_request_count\}" != "0"[\s\S]*?pull_request_count\}" != "1"/gu) ?? []).length, 3);
+  assert.equal((attestation.run.match(/pull_request_count\}" != "0"[\s\S]*?pull_request_count\}" != "1"/gu) ?? []).length, 2);
   assert.match(attestation.run, /run_pull_request_base_sha.*base_sha/su);
   assert.match(attestation.run, /final_run_pull_request_base_sha.*base_sha/su);
   assert.ok(
@@ -442,10 +579,14 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assertExactReleaseRunBinding(attestation, release, ci);
   assert.match(attestation.run, /for context in "\$\{ci_contexts\[@\]\}"/u);
-  assert.equal(
-    release.jobs["attest-release-pr"].permissions.actions,
-    "write",
-  );
+  assert.deepEqual(release.jobs["attest-release-pr"].permissions, {
+    actions: "write",
+    checks: "read",
+    contents: "read",
+    "pull-requests": "read",
+    "security-events": "read",
+    statuses: "write",
+  });
   assert.equal(review.on.workflow_dispatch, undefined);
   assert.deepEqual(review.on.pull_request_target.types, [
     "opened",

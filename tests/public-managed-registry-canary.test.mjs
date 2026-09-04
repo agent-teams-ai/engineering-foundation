@@ -150,6 +150,47 @@ test("central authority must be current protected main and binds exact registry 
   );
 });
 
+test("central authority uses the production generation-2 projector", async () => {
+  const registry = {
+    schema_version: 1,
+    cohorts: [{
+      cohort_generation: 2,
+      cohort_id: cohort.cohortId,
+      channel: cohort.channel,
+      record_digest: cohort.recordDigest,
+      eligible_after: cohort.eligibleAfter,
+      upgrade_from: cohort.upgradeFrom,
+      rollback_to: cohort.rollbackTo,
+      evidence_references: [],
+      packages: descriptors.map(([key, name]) => ({ name, ...cohort.packages[key] })),
+      reusable_workflow: {
+        repository: cohort.workflow.repository, path: cohort.workflow.path,
+        revision: cohort.workflow.revision, blob_sha: cohort.workflow.blobSha,
+      },
+      assets: {
+        skill: { digest: cohort.assets.skillDigest },
+        caller_workflow: { rendered_digest: cohort.assets.callerWorkflowDigest },
+        asset_catalog: { digest: cohort.assets.assetCatalogDigest },
+        transition_catalog: { digest: cohort.assets.transitionCatalogDigest },
+      },
+      schemas: { consumer_integration: 3, managed_state: 2, docs_protocol: 1 },
+      runtime: { node: cohort.runtime.node, pnpm: cohort.runtime.pnpm },
+      runtime_closure: { digest: cohort.runtime.runtimeClosureDigest },
+      canary_repositories: [{ repository_id: Number(repository.id) }],
+    }],
+    events: [{
+      sequence: 1, cohort_id: cohort.cohortId, state: "QUALIFIED",
+      event_digest: cohort.qualificationEventDigest,
+    }],
+  };
+  const observed = await observeCentralCohortAuthority(
+    { inputs, repository },
+    { fetcher: centralFetcher({ registry }) },
+  );
+  assert.deepEqual(observed.cohort, cohort);
+  assert.deepEqual(observed.coordinates.map(({ name }) => name), descriptors.map(([, name]) => name));
+});
+
 test("central selection rejects missing, duplicate, wrong-generation, and non-canary Cohorts", async () => {
   for (const registry of [
     registryFixture([]),

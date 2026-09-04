@@ -201,7 +201,7 @@ export async function createCleanBuildStage(input, label) {
     internalPackageVersions: new Map([...manifestsByName].map(([name, manifest]) => [name, manifest.version])),
   });
   const publishManifest = await projectMarkdownPublication({
-    ...input.markdownPublication, packageRoot, manifest: canonicalManifest,
+    ...input.markdownPublication, packageRoot, manifest: canonicalManifest, receiptPath: join(stageRoot, "markdown-build-receipt.json"),
   });
   await writeFile(join(packageRoot, "package.json"), `${JSON.stringify(npmPackManifest(publishManifest), null, 2)}\n`);
   const expectedEntries = await expectedPackedEntries(packageRoot, sourceManifest, input.requiredArtifactPaths);

@@ -59,6 +59,11 @@ export function markdownSnapshotPlan(lock) {
   return { roots: roots.map(([name, reference]) => [name, visit(name, reference)]), nodes };
 }
 
+export function markdownSnapshotSha256(plan) {
+  return sha256(JSON.stringify({ schemaVersion: 1, lockfileVersion: "9.0", roots: plan.roots,
+    nodes: [...plan.nodes.values()].toSorted((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0) }));
+}
+
 async function materializeArchive(node, root, readArchive, context) {
   const { archives, budget, inputs } = context;
   let archive = archives.get(node.integrity);
@@ -107,7 +112,8 @@ export async function prepareMarkdownSource({ lock, entryBytes, readArchive }) {
     await writeFile(join(packageRoot, "dist/adapters/markdown-runtime.js"), entryBytes, { flag: "wx", mode: 0o444 });
     inputs.set(join(packageRoot, "dist/adapters/markdown-runtime.js"), entryBytes);
     await writeFile(join(packageRoot, "package.json"), '{"type":"module"}\n', { flag: "wx", mode: 0o444 });
-    return { packageRoot, archives, inputs, snapshotKeys: new Map([...roots].map(([key, path]) => [path, key])),
+    return { packageRoot, archives, inputs, sourceClosureSha256: markdownSnapshotSha256(plan),
+      snapshotKeys: new Map([...roots].map(([key, path]) => [path, key])),
       dispose: () => rm(root, { recursive: true, force: true }) };
   } catch (error) {
     await rm(root, { recursive: true, force: true });

@@ -103,6 +103,10 @@ The projection rejects surviving parser imports and public declaration reference
 before removing runtime dependency entries and unreachable private declaration
 maps. All first-party packages, AJV, and YAML stay external. Archives retain full
 upstream notices, a CycloneDX 1.6 SBOM, and a source-lock/input/output digest proof.
+The packaged lock digest covers only the canonical Markdown snapshot closure;
+the complete source-lock digest is retained in a sibling build receipt outside
+the packed payload. Unrelated monorepo lock edits must not change an unchanged
+published version's archive.
 Embedded components still require upstream vulnerability review and lock upgrades;
 fewer installed packages does not mean fewer third-party components.
 

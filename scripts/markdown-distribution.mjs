@@ -114,7 +114,7 @@ function assertCapturedInputs(result, captured, packageRoot) {
 
 // No network or source-tree writes: callers pre-acquire original lock-authenticated
 // archives before entering hermetic package staging. Cache misses must reject.
-async function buildFromAuthenticatedSource({ packageRoot, sourceLockBytes, readArchive, lock, inputs, snapshotKeys }) {
+async function buildFromAuthenticatedSource({ packageRoot, sourceLockBytes, sourceClosureSha256, readArchive, lock, inputs, snapshotKeys }) {
   const physicalRoot = await realpath(packageRoot);
   const entry = resolve(physicalRoot, runtimePath);
   const captured = new Map();
@@ -135,6 +135,7 @@ async function buildFromAuthenticatedSource({ packageRoot, sourceLockBytes, read
     code,
     evidence: Object.freeze({
       sourceLockSha256: sha256(sourceLockBytes), entrySha256: sha256(captured.get(entry).bytes),
+      sourceClosureSha256,
       bundler: Object.freeze({ name: "esbuild", version: esbuildVersion, options: buildOptions }),
       outputSha256: sha256(code), canonicalGraphSha256: graph.digest, components: Object.freeze(components),
     }),
@@ -155,6 +156,7 @@ export async function buildMarkdownDistribution({ packageRoot, sourceLockBytes, 
   try {
     const distribution = await buildFromAuthenticatedSource({
       packageRoot: source.packageRoot, sourceLockBytes: capturedLock, lock, inputs: source.inputs, snapshotKeys: source.snapshotKeys,
+      sourceClosureSha256: source.sourceClosureSha256,
       readArchive: async ({ integrity }) => source.archives.get(integrity),
     });
     verifiedDistributions.add(distribution);

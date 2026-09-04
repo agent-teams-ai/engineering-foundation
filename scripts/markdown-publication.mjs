@@ -104,7 +104,7 @@ export function markdownSbom(manifest, evidence) {
       properties: [{ name: "agent-teams:distribution", value: "embedded in the Markdown adapter, not eliminated" }],
     })),
     properties: [
-      { name: "agent-teams:source-lock-sha256", value: evidence.sourceLockSha256 },
+      { name: "agent-teams:source-closure-sha256", value: evidence.sourceClosureSha256 },
       { name: "agent-teams:markdown-output-sha256", value: evidence.outputSha256 },
     ],
   };
@@ -112,12 +112,16 @@ export function markdownSbom(manifest, evidence) {
 
 // Invoke only on an owned disposable post-build tree, before sealing its payload.
 // Every stage rebuilds independently from its own compiled entry and original lock.
-export async function projectMarkdownPublication({ packageRoot, manifest, sourceLockBytes, readArchive }) {
+export async function projectMarkdownPublication({ packageRoot, manifest, sourceLockBytes, readArchive, receiptPath }) {
   if (manifest.name !== authoringName) { return manifest; }
   const distribution = await buildMarkdownDistribution({ packageRoot, sourceLockBytes, readArchive });
   // Archive callbacks have finished; they cannot invalidate an earlier scan.
   await qualifyRemainingFiles(packageRoot, manifest);
   const projected = projectMarkdownManifest(manifest, distribution);
+  // Unrelated monorepo lock edits must not change an already published version.
+  // Keep the complete source-lock binding outside the package's sealed payload.
+  const publicationEvidence = { ...distribution.evidence };
+  delete publicationEvidence.sourceLockSha256;
   const notices = distribution.evidence.components.map(component =>
     `${component.name}@${component.version}\n${component.integrity}\n\n${component.licenses.map(license =>
       `${license.path}${license.source === undefined ? "" : ` (${license.source})`}\n${license.text}`).join("\n\n")}`,
@@ -125,11 +129,12 @@ export async function projectMarkdownPublication({ packageRoot, manifest, source
   const artifacts = {
     [runtimePath]: distribution.code,
     "dist/markdown-upstream-notices.txt": `${notices}\n`,
-    "dist/markdown-upstream.cdx.json": `${JSON.stringify(markdownSbom(projected, distribution.evidence), null, 2)}\n`,
-    "dist/markdown-distribution-proof.json": `${JSON.stringify(distribution.evidence, null, 2)}\n`,
+    "dist/markdown-upstream.cdx.json": `${JSON.stringify(markdownSbom(projected, publicationEvidence), null, 2)}\n`,
+    "dist/markdown-distribution-proof.json": `${JSON.stringify(publicationEvidence, null, 2)}\n`,
   };
   for (const [path, bytes] of Object.entries(artifacts)) { await writeFile(join(packageRoot, path), bytes); }
   for (const path of privateArtifacts) { await rm(join(packageRoot, path), { force: true }); }
+  if (receiptPath !== undefined) { await writeFile(receiptPath, `${JSON.stringify(distribution.evidence, null, 2)}\n`, { flag: "wx" }); }
   return projected;
 }
 
@@ -157,7 +162,7 @@ export async function stageBuiltMarkdownPublication({ repositoryRoot, packageRoo
     [entry.name, (await readBoundedStableJson(join(repositoryRoot, entry.manifestPath), "Workspace package manifest")).version])));
   const canonical = canonicalPublishManifest(manifest, { catalogVersions: new Map(Object.entries(parse(bytes.toString("utf8")).catalog)), internalPackageVersions });
   const projected = await projectMarkdownPublication({ packageRoot: stagedRoot, manifest: canonical,
-    sourceLockBytes: authority.sourceLockBytes, readArchive: authority.readArchive });
+    sourceLockBytes: authority.sourceLockBytes, readArchive: authority.readArchive, receiptPath: join(root, "markdown-build-receipt.json") });
   await writeFile(join(stagedRoot, "package.json"), `${JSON.stringify(npmPackManifest(projected), null, 2)}\n`);
   return stagedRoot;
 }

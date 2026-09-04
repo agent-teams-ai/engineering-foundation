@@ -9,7 +9,7 @@ import { version as esbuildVersion } from "esbuild";
 
 import { buildMarkdownDistribution, projectMarkdownManifest } from "../scripts/markdown-distribution.mjs";
 import { canonicalMarkdownGraph } from "../scripts/markdown-canonical-graph.mjs";
-import { markdownSnapshotPlan } from "../scripts/markdown-source-snapshot.mjs";
+import { markdownSnapshotPlan, markdownSnapshotSha256 } from "../scripts/markdown-source-snapshot.mjs";
 import { acquireMarkdownArchives } from "../scripts/markdown-archive-cache.mjs";
 import { projectMarkdownPublication } from "../scripts/markdown-publication.mjs";
 import { sha256 } from "../scripts/pack-artifact-archive.mjs";
@@ -157,6 +157,29 @@ test("archive callbacks cannot add an unchecked declaration reference before pro
     return input.readArchive(coordinate);
   } }), /remaining reference/u);
   assert.deepEqual(await readFile(join(input.packageRoot, "dist/adapters/markdown-runtime.js")), original);
+});
+
+test("unrelated lock edits change the external receipt but not any published Markdown bytes", async (t) => {
+  const first = await fixture(t);
+  const second = await fixture(t);
+  const lock = JSON.parse(second.sourceLockBytes.toString());
+  lock.importers["unrelated-tooling"] = { devDependencies: { unrelated: { version: "2.0.0" } } };
+  lock.packages["unrelated@2.0.0"] = { resolution: { integrity: "unrelated-lock-identity" } };
+  second.sourceLockBytes = Buffer.from(JSON.stringify(lock));
+  const [firstBuild, secondBuild] = await Promise.all([buildMarkdownDistribution(first), buildMarkdownDistribution(second)]);
+  assert.notEqual(firstBuild.evidence.sourceLockSha256, secondBuild.evidence.sourceLockSha256);
+  assert.equal(firstBuild.evidence.sourceClosureSha256, secondBuild.evidence.sourceClosureSha256);
+  for (const input of [first, second]) {
+    const receiptPath = join(input.packageRoot, "test-external-build-receipt.json");
+    await projectMarkdownPublication({ ...input, receiptPath });
+    assert.equal(JSON.parse(await readFile(receiptPath)).sourceLockSha256, sha256(input.sourceLockBytes));
+  }
+  for (const path of ["adapters/markdown-runtime.js", "markdown-upstream-notices.txt", "markdown-upstream.cdx.json", "markdown-distribution-proof.json"]) {
+    assert.deepEqual(await readFile(join(first.packageRoot, "dist", path)), await readFile(join(second.packageRoot, "dist", path)), path);
+  }
+  const selected = markdownSnapshotPlan(lock);
+  selected.nodes.get("unified@1.0.0").integrity = "changed-selected-archive";
+  assert.notEqual(markdownSnapshotSha256(selected), firstBuild.evidence.sourceClosureSha256);
 });
 
 test("installed source and resolution manifests cannot influence lock-authenticated build inputs", async (t) => {

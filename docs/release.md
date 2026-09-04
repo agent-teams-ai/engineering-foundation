@@ -87,17 +87,25 @@ leaves the release run failed and blocks completion evidence.
 
 ### Public managed registry canary
 
-After all six exact versions are public, dispatch `Public managed registry
-canary` from the exact protected-main provenance commit. Supply the ordered JSON
-coordinates projected by the public package catalog, including each exact
-version and SHA-512 integrity. The workflow has read-only repository permission,
+After the pre-registration registry E2E has proved all five packages and the
+candidate is explicitly registered in the central Cohort registry, dispatch
+`Public managed registry canary` from the exact protected-main integration
+commit. Supply only the Cohort ID and the exact current protected-main revision
+of `agent-teams-ai/.github`. Trusted code reads and schema-validates the registry
+at that immutable revision, explicitly requests generation 2, and projects the
+single canary-eligible record. The workflow has read-only repository permission,
 receives no secrets or OIDC authority, and never publishes, deprecates,
 unpublishes, or moves a dist-tag.
 
-The canary installs the exact six-package graph with both npm and pnpm in fresh
-temporary projects, cryptographically verifies npm signatures and SLSA
-provenance, re-observes `latest` and SRI, and runs managed qualification only in
-an owned disposable fixture. A separate portable-only install proves that core
+The canary installs exactly Foundation, Docs Protocol, and the managed adapter as
+three roots in fresh npm and pnpm projects; Repository Mutation and Document
+Authoring must resolve only as their exact transitives. It cryptographically
+verifies npm signatures, records each package's SLSA provenance commit and its
+ancestor relationship to the integration commit, and re-observes `latest` and
+SRI. On the disposable pnpm lockfile, qualification v3 first observes the actual
+runtime closure digest and then admits the same trusted Cohort v2. It also
+generates managed-state v2 and validates it against the installed schema without
+running a real consumer or mutation flow. A separate portable-only install proves that core
 does not resolve the managed adapter. Tarball path/alias checks and bounded
 hostile policy cases fail closed. The retained JSON artifact is the sole canary
 receipt; its canonical SHA-256 digest covers every field except the digest

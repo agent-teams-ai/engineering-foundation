@@ -7,8 +7,12 @@ on:
         description: Exact protected-main release provenance commit
         required: true
         type: string
-      coordinates:
-        description: Ordered JSON array of six exact name/version/integrity coordinates
+      cohort_id:
+        description: Explicit Cohort v2 ID already registered as a central canary candidate
+        required: true
+        type: string
+      authority_revision:
+        description: Exact nonzero current protected-main SHA of agent-teams-ai/.github
         required: true
         type: string
 
@@ -28,12 +32,14 @@ jobs:
     env:
       NPM_CONFIG_AUDIT: "false"
       NPM_CONFIG_FUND: "false"
-      PUBLIC_CANARY_COORDINATES: ${{ inputs.coordinates }}
+      PUBLIC_CANARY_AUTHORITY_REVISION: ${{ inputs.authority_revision }}
+      PUBLIC_CANARY_COHORT_ID: ${{ inputs.cohort_id }}
       PUBLIC_CANARY_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
           ref: ${{ inputs.expected_commit }}
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
@@ -43,6 +49,7 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm build
       - name: Run read-only public managed registry canary
         env:
           PUBLIC_CANARY_RECEIPT_PATH: ${{ runner.temp }}/public-managed-registry-canary/receipt.json

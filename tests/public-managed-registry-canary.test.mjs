@@ -96,6 +96,31 @@ const supportingMcp = {
 };
 const repository = { provider: "github", id: "1316243988", nameWithOwner: "agent-teams-ai/engineering-foundation" };
 
+function currentPackageAuthority([key, name, direct], index) {
+  const version = cohort.packages[key].version;
+  const workflowRunId = 123;
+  return {
+    name,
+    role: direct ? "direct" : "transitive",
+    ...cohort.packages[key],
+    registry: "https://registry.npmjs.org/",
+    published_at: "2026-09-03T00:00:00Z",
+    provenance: {
+      source_repository: "agent-teams-ai/engineering-foundation",
+      source_repository_id: 1316243988,
+      source_workflow: ".github/workflows/release.yml",
+      source_commit: `${index + 1}`.repeat(40),
+      workflow_run_id: workflowRunId,
+      workflow_run_attempt: 1,
+      registry_attestation_url: `https://registry.npmjs.org/-/npm/v1/attestations/${
+        name.replace("/", "%2f")
+      }@${version}`,
+      workflow_run_url: `https://github.com/agent-teams-ai/engineering-foundation/actions/runs/${workflowRunId}`,
+      signature_verified: true,
+    },
+  };
+}
+
 function canonicalJson(value) {
   if (Array.isArray(value)) { return `[${value.map(canonicalJson).join(",")}]`; }
   if (value !== null && typeof value === "object") {
@@ -209,26 +234,54 @@ test("central authority uses the production generation-2 projector", async () =>
       eligible_after: cohort.eligibleAfter,
       upgrade_from: cohort.upgradeFrom,
       rollback_to: cohort.rollbackTo,
-      evidence_references: [],
-      packages: descriptors.map(([key, name]) => ({ name, ...cohort.packages[key] })),
+      evidence_references: ["test:public-managed-registry-canary"],
+      packages: descriptors.map(currentPackageAuthority),
       dependency_edges: cohortV2DependencyEdges.map(([from, to]) => ({ from, to })),
       reusable_workflow: {
-        repository: cohort.workflow.repository, path: cohort.workflow.path,
+        repository: cohort.workflow.repository, repository_id: 1316243981,
+        path: cohort.workflow.path,
         revision: cohort.workflow.revision, blob_sha: cohort.workflow.blobSha,
       },
       assets: {
-        skill: { digest: cohort.assets.skillDigest },
-        caller_workflow: { rendered_digest: cohort.assets.callerWorkflowDigest },
-        asset_catalog: { digest: cohort.assets.assetCatalogDigest },
-        transition_catalog: { digest: cohort.assets.transitionCatalogDigest },
+        skill: { package: descriptors[3][1], path: "skills/docs/SKILL.md", digest: cohort.assets.skillDigest },
+        caller_workflow: {
+          package: descriptors[3][1], path: "assets/docs-protocol.yml", digest: sha256("a"),
+          rendered_digest: cohort.assets.callerWorkflowDigest,
+        },
+        asset_catalog: {
+          package: descriptors[3][1], path: "assets/catalog.json",
+          digest: cohort.assets.assetCatalogDigest,
+        },
+        transition_catalog: {
+          package: descriptors[3][1], path: "assets/transition-catalog.json",
+          digest: cohort.assets.transitionCatalogDigest,
+        },
       },
       schemas: cohortV2Schemas,
-      runtime: { node: cohort.runtime.node, pnpm: cohort.runtime.pnpm },
-      runtime_closure: { digest: cohort.runtime.runtimeClosureDigest },
-      canary_repositories: [{ repository_id: Number(repository.id) }],
+      runtime: {
+        node: cohort.runtime.node, pnpm: cohort.runtime.pnpm,
+        apply_platforms: ["linux", "macos"],
+        check_plan_platforms: ["linux", "macos", "windows"],
+      },
+      runtime_closure: {
+        schema_version: 2, domain: "agent-teams.docs-runtime-closure/v2",
+        package_manager: "pnpm@11.20.0", lockfile_version: "9.0", package_count: 5,
+        projection_path: `governance/docs-runtime-closures/${
+          cohort.runtime.runtimeClosureDigest.replace(":", "-")
+        }.json`,
+        digest: cohort.runtime.runtimeClosureDigest,
+      },
+      canary_repositories: [{
+        repository_id: Number(repository.id), repository: repository.nameWithOwner,
+      }],
     }],
     events: [{
       sequence: 1, cohort_id: cohort.cohortId, state: "QUALIFIED",
+      effective_at: cohort.eligibleAfter,
+      support_until: null,
+      evidence_references: ["test:public-managed-registry-canary-qualified"],
+      canary_evidence: [],
+      previous_event_digest: null,
       event_digest: cohort.qualificationEventDigest,
     }],
   };

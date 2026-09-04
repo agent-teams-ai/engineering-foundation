@@ -27,12 +27,16 @@ async function compile(
   }
 ) {
   const input = await ports.input.read(options);
-  const assetCatalog = await ports.assets.read();
-  const compiled = compileConsumerIntegration({
-    desired: input.desired,
-    snapshot: input.snapshot,
-    assetCatalog
-  }, ports.planning);
+  const compiled = input.desired.schemaVersion === 1
+    ? compileConsumerIntegration({
+        desired: input.desired,
+        snapshot: input.snapshot,
+        assetCatalog: await ports.assets.read()
+      }, ports.planning)
+    : compileConsumerIntegration({
+        desired: input.desired,
+        snapshot: input.snapshot
+      }, ports.planning);
   return {
     root: input.root,
     ...compiled

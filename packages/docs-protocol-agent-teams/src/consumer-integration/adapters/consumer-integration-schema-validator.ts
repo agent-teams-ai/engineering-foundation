@@ -4,9 +4,14 @@ import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 
 const validators = new Map<string, Promise<ValidateFunction>>();
 
+type SchemaId = "docs-consumer-integration-execution" |
+  "docs-consumer-integration-profile" |
+  "docs-consumer-integration-profile-v2" |
+  "docs-consumer-integration-profile-v3" |
+  "docs-consumer-upgrade-execution";
+
 async function validator(
-  id: "docs-consumer-integration-execution" | "docs-consumer-integration-profile" |
-    "docs-consumer-integration-profile-v2" | "docs-consumer-upgrade-execution"
+  id: SchemaId
 ): Promise<ValidateFunction> {
   const existing = validators.get(id);
   if (existing !== undefined) {return existing;}
@@ -26,9 +31,21 @@ async function validator(
       ajv.addSchema(JSON.parse(plan) as object);
       ajv.addSchema(JSON.parse(mutationReceipt) as object);
     }
-    const schemaUrl = new URL(id === "docs-consumer-integration-profile-v2"
-      ? "../../../schemas/docs-consumer-integration-profile/v2.schema.json"
-      : `../../../schemas/${id}/v1.schema.json`, import.meta.url);
+    if (id === "docs-consumer-integration-profile-v3") {
+      const cohort = JSON.parse(await readFile(new URL(
+        "../../../schemas/qualified-docs-cohort/v2.schema.json",
+        import.meta.url
+      ), "utf8")) as object;
+      ajv.addSchema(cohort);
+    }
+    const schemaUrl = new URL(
+      id === "docs-consumer-integration-profile-v2"
+        ? "../../../schemas/docs-consumer-integration-profile/v2.schema.json"
+        : id === "docs-consumer-integration-profile-v3"
+          ? "../../../schemas/docs-consumer-integration-profile/v3.schema.json"
+          : `../../../schemas/${id}/v1.schema.json`,
+      import.meta.url
+    );
     return ajv.compile(JSON.parse(await readFile(schemaUrl, "utf8")) as object);
   })();
   validators.set(id, loading);
@@ -36,8 +53,7 @@ async function validator(
 }
 
 async function assertSchema(
-  id: "docs-consumer-integration-execution" | "docs-consumer-integration-profile" |
-    "docs-consumer-integration-profile-v2" | "docs-consumer-upgrade-execution",
+  id: SchemaId,
   value: unknown
 ): Promise<void> {
   const validate = await validator(id);
@@ -47,14 +63,25 @@ async function assertSchema(
     .map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`)
     .join("; ")
     .slice(0, 1000);
-  throw new TypeError(`${id}${id.endsWith("-v2") ? "" : "/v1"} validation failed: ${problems}`);
+  throw new TypeError(`${id}${/-v[23]$/u.test(id) ? "" : "/v1"} validation failed: ${problems}`);
 }
 
 export function assertConsumerIntegrationProfileSchema(value: unknown): Promise<void> {
   const version = typeof value === "object" && value !== null && "schemaVersion" in value
     ? (value as { readonly schemaVersion?: unknown }).schemaVersion
     : undefined;
-  return assertSchema(version === 2 ? "docs-consumer-integration-profile-v2" : "docs-consumer-integration-profile", value);
+  if (version === 1) {
+    return assertSchema("docs-consumer-integration-profile", value);
+  }
+  if (version === 2) {
+    return assertSchema("docs-consumer-integration-profile-v2", value);
+  }
+  if (version === 3) {
+    return assertSchema("docs-consumer-integration-profile-v3", value);
+  }
+  return Promise.reject(new TypeError(
+    "docs-consumer-integration-profile schemaVersion must be exactly 1, 2, or 3."
+  ));
 }
 
 export function assertConsumerIntegrationExecutionSchema(value: unknown): Promise<void> {

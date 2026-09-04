@@ -6,13 +6,23 @@ governedRoots:
 nonWaivableRulePrefixes:
   - access-control.
 waivers:
-  - id: DOCS-CONSUMER-BOUNDED-JSON-COMPLEXITY
-    path: packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
-    line: 44
+  - id: DOCS-CONSUMER-UPGRADE-GENERATION-COMPLEXITY
+    path: packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts
+    line: 174
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers
-    reason: The closed V1 input guard rejects every non-JSON runtime category within one bounded traversal.
+    reason: The upgrade coordinator keeps V1 and V2 authority, transition, staging, activation, and rollback dispatch explicit so cross-generation paths fail closed.
+    createdOn: 2026-09-04
+    expiresOn: 2026-12-03
+    decisionRef: ADR-0045
+  - id: DOCS-CONSUMER-BOUNDED-JSON-COMPLEXITY
+    path: packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
+    line: 47
+    directive: oxlint-disable-next-line
+    rules: [complexity]
+    owner: foundation-maintainers
+    reason: The closed V1/V3 input guard rejects every non-JSON runtime category within one bounded traversal.
     createdOn: 2026-08-23
     expiresOn: 2026-11-21
     decisionRef: ADR-0031

@@ -3,11 +3,16 @@ import {
   DOCS_PROTOCOL_VERSION
 } from "@agent-teams/docs-protocol";
 
+import { readManagedQualificationProfileInput } from
+  "../consumer-integration/composition/qualification-v3-boundary.js";
 import {
   assertManagedQualificationEnvelopeSchema,
   type ManagedQualificationEnvelope
 } from "../qualification/managed-command-envelope-validator.js";
-import { runDocsProtocolQualificationV2, type DocsProtocolQualificationReceiptV2 } from "../qualification/index.js";
+import {
+  runDocsProtocolQualificationV2,
+  type DocsProtocolQualificationReceiptV2
+} from "../qualification/index.js";
 import { Arguments, CliInputError } from "./managed-cli-input.js";
 
 class QualificationOutputError extends Error {
@@ -67,18 +72,38 @@ function qualificationFailure(error: unknown): QualificationFailure {
 }
 
 function qualificationHelpText(): string {
-  return "Usage: agent-teams-docs-managed qualify [--consumer PATH] [--integration PATH] [--local-development] [--json]\nRuns only the adapter-owned managed suite in an owned disposable copy; the declared consumer gate is never executed. --local-development overlays the portable qualification Skill only in that copy and emits evidence that is not cohort-admissible.\n";
+  return "Usage: agent-teams-docs-managed qualify [--consumer PATH] [--integration PATH] [--local-development] [--json]\nProfiles v1/v2 run the adapter-owned suite in a disposable copy. Profile v3 requires a trusted registry/canary receipt produced outside this consumer CLI. The declared consumer gate is never executed. --local-development applies only to profiles v1/v2 and emits evidence that is not cohort-admissible.\n";
 }
 
-async function qualificationSuccess(args: Arguments, signal: AbortSignal): Promise<{
+async function qualificationSuccess(
+  args: Arguments,
+  signal: AbortSignal
+): Promise<{
   readonly envelope: ManagedQualificationEnvelope<DocsProtocolQualificationReceiptV2>;
   readonly exitCode: 0;
 }> {
   const localDevelopment = args.flag("--local-development");
   const consumerRoot = args.one("--consumer") ?? ".";
-  const integrationPath = args.one("--integration");
+  const integrationPath = args.one("--integration") ??
+    "architecture/foundation/docs-consumer-integration.json";
   if (args.positionals().length !== 0) {throw new CliInputError("qualify accepts no positional arguments.");}
-  const receipt = await runDocsProtocolQualificationV2({ consumerRoot, localDevelopment, signal, ...(integrationPath === undefined ? {} : { integrationPath }) });
+  const input = await readManagedQualificationProfileInput(consumerRoot, integrationPath);
+  const integration = input.profile;
+  if (integration.schemaVersion !== 1 && integration.schemaVersion !== 2 &&
+    integration.schemaVersion !== 3) {
+    throw new CliInputError("Managed qualification requires explicit integration profile schemaVersion 1, 2, or 3.");
+  }
+  if (integration.schemaVersion === 3) {
+    throw new CliInputError(
+      "Qualification profile v3 requires a trusted registry/canary receipt produced outside the consumer CLI."
+    );
+  }
+  const receipt = await runDocsProtocolQualificationV2({
+    consumerRoot: input.consumerRoot,
+    localDevelopment,
+    signal,
+    integrationPath
+  });
   return {
     exitCode: 0,
     envelope: {

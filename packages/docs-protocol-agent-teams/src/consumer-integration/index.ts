@@ -8,10 +8,14 @@ export {
   canonicalManagedState,
   describeCanonicalConsumerAssets
 } from "./application/policies/consumer-integration-assets.js";
+export type {
+  CanonicalManagedAssetDigests
+} from "./application/policies/consumer-integration-assets.js";
 export { planConsumerIntegration } from "./composition/consumer-integration-planner.js";
 export { planAgentsRouteV1 } from "./adapters/agents-route-adapter-v1.js";
 export type { AgentsRoutePlanV1 } from "./adapters/agents-route-adapter-v1.js";
 export { planPnpmManifestV1 } from "./adapters/pnpm-manifest-adapter-v1.js";
+export { planPnpmManifestV2 } from "./adapters/pnpm-manifest-adapter-v2.js";
 export type { PnpmManifestPlanV1 } from "./adapters/pnpm-manifest-adapter-v1.js";
 export {
   applyConsumerIntegration,
@@ -31,13 +35,19 @@ export {
 export type {
   ConsumerIntegrationAssetPlan,
   ConsumerIntegrationAssetState,
+  ConsumerIntegrationDesiredState,
   ConsumerIntegrationDesiredStateV1,
+  ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationDigest,
   ConsumerIntegrationFileObservation,
   ConsumerIntegrationIssue,
   ConsumerIntegrationPlanV1,
   ConsumerIntegrationSnapshot,
   ConsumerUpgradeAuthorityV1,
+  ConsumerUpgradeAuthorityV2,
   QualifiedDocsCohortBindingV1,
-  QualifiedDocsCohortV1
+  QualifiedDocsCohortBindingV2,
+  QualifiedDocsCohortV1,
+  QualifiedDocsCohortV2,
+  QualifiedDocsPackageCoordinateV2
 } from "./domain/model.js";

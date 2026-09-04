@@ -25,6 +25,13 @@ interface SourceClosureEdge extends ClosureEdge {
 
 type ClosureRoot = SourceClosureEdge;
 
+export interface PnpmRuntimeClosureTarget {
+  readonly name: string;
+  readonly version: string;
+  readonly integrity: string;
+  readonly direct?: boolean;
+}
+
 interface ProjectedClosurePackage {
   readonly locator: string;
   readonly integrity: string;
@@ -240,9 +247,9 @@ function projectRuntimeClosure(
   return { packages: projectedPackages, snapshots: projectedByLocator };
 }
 
-export function computePnpmRuntimeClosureDigestV1(
+export function computePnpmRuntimeClosureDigestForTargets(
   lock: JsonRecord,
-  cohort: QualifiedDocsCohortBindingV1
+  expected: readonly PnpmRuntimeClosureTarget[]
 ): `sha256:${string}` {
   if (String(lock["lockfileVersion"]) !== LOCKFILE_VERSION) {
     fail("Runtime closure requires pnpm lockfileVersion 9.0.");
@@ -251,8 +258,7 @@ export function computePnpmRuntimeClosureDigestV1(
   const packages = record(lock["packages"], "Runtime closure packages");
   const snapshots = record(lock["snapshots"], "Runtime closure snapshots");
   const root = record(importers["."], "Runtime closure root importer");
-  const expected = packageRoots(cohort);
-  const roots = expected.map((entry) => {
+  const roots = expected.filter(({ direct }) => direct ?? true).map((entry) => {
     const bindings = binding(root, entry.name);
     if (bindings.length !== 1) {
       fail(`${entry.name} runtime closure root binding is not exact.`);
@@ -280,6 +286,15 @@ export function computePnpmRuntimeClosureDigestV1(
   const projectedRoots = roots.map(({ name, locator: value }) => ({ name, locator: value }));
 
   const closure = projectRuntimeClosure(packages, snapshots, roots);
+  for (const entry of expected) {
+    const physicalLocator = `${entry.name}@${entry.version}`;
+    const matches = closure.packages.filter(({ locator: value }) =>
+      value.split("(", 1)[0] === physicalLocator
+    );
+    if (matches.length !== 1 || matches[0]!.integrity !== entry.integrity) {
+      fail(`${entry.name} runtime closure coordinate differs from the Cohort.`);
+    }
+  }
   const projection = {
     schemaVersion: 1,
     packageManager: PACKAGE_MANAGER,
@@ -321,4 +336,11 @@ export function computePnpmRuntimeClosureDigestV1(
     fail(`Runtime closure evidence exceeds ${MAXIMUM_BYTES} bytes.`);
   }
   return `sha256:${createHash("sha256").update(source).digest("hex")}`;
+}
+
+export function computePnpmRuntimeClosureDigestV1(
+  lock: JsonRecord,
+  cohort: QualifiedDocsCohortBindingV1
+): `sha256:${string}` {
+  return computePnpmRuntimeClosureDigestForTargets(lock, packageRoots(cohort));
 }

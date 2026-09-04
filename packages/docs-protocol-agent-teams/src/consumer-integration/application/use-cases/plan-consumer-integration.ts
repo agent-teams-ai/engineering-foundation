@@ -7,10 +7,9 @@ import type {
   ConsumerIntegrationPlanningPorts
 } from "../ports/consumer-integration-planners.js";
 import type {
-  ConsumerIntegrationAssetPlan,
+  ConsumerIntegrationDesiredState,
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDigest,
-  ConsumerIntegrationFileObservation,
   ConsumerIntegrationIssue,
   ConsumerIntegrationPlanV1,
   ConsumerIntegrationSnapshot
@@ -33,193 +32,20 @@ import {
   type KnownPriorCohortCatalogEntryV1
 } from "../policies/consumer-integration-assets.js";
 import { consumerIntegrationAuthorityGuards } from "../policies/consumer-integration-authority-guards.js";
-import { assertConsumerIntegrationDesiredStateV1 } from "../policies/consumer-integration-desired-state.js";
+import { assertConsumerIntegrationDesiredStateV1 } from
+  "../policies/consumer-integration-desired-state.js";
 import {
   trustedPriorCohort,
   type TrustedPriorCohort
 } from "../policies/consumer-integration-prior-cohort.js";
-
-interface FullAssetResult {
-  readonly plan: ConsumerIntegrationAssetPlan;
-  readonly operation?: KnownFileTransactionOperationInput;
-  readonly issue?: ConsumerIntegrationIssue;
-}
-
-function issue(code: string, subject: string, message: string): ConsumerIntegrationIssue {
-  return { code, severity: "error", subject, message };
-}
-
-function assertSnapshotRuntime(snapshot: ConsumerIntegrationSnapshot): void {
-  const expected = [
-    "agents", "callerWorkflow", "integrationProfile", "lockfile",
-    "managedState", "packageManifest", "skill"
-  ];
-  if (Object.getPrototypeOf(snapshot) !== Object.prototype ||
-    Object.keys(snapshot).toSorted().join("\u0000") !== expected.join("\u0000")) {
-    throw new TypeError("Consumer snapshot must contain only the seven V1 observations.");
-  }
-  let totalBytes = 0;
-  for (const key of expected) {
-    const observation = snapshot[key as keyof ConsumerIntegrationSnapshot];
-    if (Object.getPrototypeOf(observation) !== Object.prototype) {
-      throw new TypeError(`Consumer snapshot observation is invalid: ${key}.`);
-    }
-    if (observation.state === "absent") {
-      if (Object.keys(observation).length !== 1) {
-        throw new TypeError(`Absent snapshot observation has extra fields: ${key}.`);
-      }
-      continue;
-    }
-    if (observation.state !== "file" || !(observation.bytes instanceof Uint8Array) ||
-      !Number.isInteger(observation.mode) || observation.mode < 0 || observation.mode > 0o777 ||
-      Object.keys(observation).toSorted().join("\u0000") !== "bytes\u0000mode\u0000state") {
-      throw new TypeError(`File snapshot observation is invalid: ${key}.`);
-    }
-    totalBytes += observation.bytes.byteLength;
-    if (totalBytes > 64 * 1024 * 1024) {
-      throw new TypeError("Consumer snapshot exceeds the bounded 64 MiB runtime contract.");
-    }
-  }
-}
-
-function fullAsset(input: {
-  readonly id: ConsumerIntegrationAssetPlan["id"];
-  readonly path: string;
-  readonly observation: ConsumerIntegrationFileObservation;
-  readonly postimage: Uint8Array;
-  readonly knownPrior: readonly Uint8Array[];
-  readonly ownership?: ConsumerIntegrationAssetPlan["ownership"];
-}): FullAssetResult {
-  const expectedDigest = digestBytes(input.postimage);
-  if (input.observation.state === "absent") {
-    return {
-      plan: {
-        id: input.id,
-        path: input.path,
-        ownership: input.ownership ?? "full-bytes",
-        state: "absent",
-        expectedDigest,
-        action: "create"
-      },
-      operation: {
-        path: input.path,
-        precondition: { state: "absent" },
-        postimage: { bytes: input.postimage }
-      }
-    };
-  }
-  const currentBytes = input.observation.bytes;
-  const currentMode = input.observation.mode;
-  const currentDigest = digestBytes(currentBytes);
-  if (currentDigest === expectedDigest &&
-    Buffer.from(input.observation.bytes).equals(Buffer.from(input.postimage))) {
-    return {
-      plan: {
-        id: input.id,
-        path: input.path,
-        ownership: input.ownership ?? "full-bytes",
-        state: "exact-current",
-        currentDigest,
-        expectedDigest,
-        action: "none"
-      }
-    };
-  }
-  const known = input.knownPrior.some((candidate) =>
-    Buffer.from(candidate).equals(Buffer.from(currentBytes))
-  );
-  if (!known) {
-    return {
-      plan: {
-        id: input.id,
-        path: input.path,
-        ownership: input.ownership ?? "full-bytes",
-        state: "unknown-modified",
-        currentDigest,
-        expectedDigest,
-        action: "blocked"
-      },
-      issue: issue(
-        "DOCS_CONSUMER_UNKNOWN_MANAGED_ASSET",
-        input.path,
-        "Managed bytes are not exact-current or a known prior revision and were not overwritten."
-      )
-    };
-  }
-  return {
-    plan: {
-      id: input.id,
-      path: input.path,
-      ownership: input.ownership ?? "full-bytes",
-      state: "known-prior",
-      currentDigest,
-      expectedDigest,
-      action: "replace"
-    },
-    operation: {
-      path: input.path,
-      precondition: {
-        state: "known-file",
-        acceptedPreimages: [{
-          bytes: currentBytes,
-          mode: currentMode
-        }]
-      },
-      postimage: {
-        bytes: input.postimage,
-        mode: currentMode
-      }
-    }
-  };
-}
-
-function partialAsset(input: {
-  readonly id: "agents-route" | "package-manifest";
-  readonly path: string;
-  readonly ownership: "managed-block" | "partial-fields";
-  readonly state: "absent" | "conflict" | "exact-current" | "known-prior";
-  readonly currentDigest: ConsumerIntegrationDigest;
-  readonly expectedDigest: ConsumerIntegrationDigest;
-  readonly current: ConsumerIntegrationFileObservation;
-  readonly postimage?: Uint8Array;
-}): { readonly plan: ConsumerIntegrationAssetPlan; readonly operation?: KnownFileTransactionOperationInput } {
-  const action = input.state === "conflict" ? "blocked" : input.state === "absent" ? "create" :
-    input.state === "exact-current" ? "none" : "replace";
-  const plan: ConsumerIntegrationAssetPlan = {
-    id: input.id,
-    path: input.path,
-    ownership: input.ownership,
-    state: input.state,
-    currentDigest: input.currentDigest,
-    expectedDigest: input.expectedDigest,
-    action
-  };
-  if ((action !== "replace" && action !== "create") || input.postimage === undefined) {
-    return { plan };
-  }
-  if (action === "create") {
-    return {
-      plan,
-      operation: {
-        path: input.path,
-        precondition: { state: "absent" },
-        postimage: { bytes: input.postimage }
-      }
-    };
-  }
-  if (input.current.state !== "file") {return { plan };}
-  return {
-    plan,
-    operation: {
-      path: input.path,
-      precondition: {
-        state: "known-file",
-        acceptedPreimages: [{ bytes: input.current.bytes, mode: input.current.mode }]
-      },
-      postimage: { bytes: input.postimage, mode: input.current.mode }
-    }
-  };
-}
+import {
+  assertSnapshotRuntime,
+  compileConsumerIntegrationV3,
+  fullAsset,
+  issue,
+  partialAsset,
+  type FullAssetResult
+} from "./compile-consumer-integration-v3.js";
 
 function cohortIssues(
   desired: ConsumerIntegrationDesiredStateV1,
@@ -338,7 +164,7 @@ function planFullAssets(input: {
   ];
 }
 
-export function compileConsumerIntegration(input: {
+function compileConsumerIntegrationV1(input: {
   readonly desired: ConsumerIntegrationDesiredStateV1;
   readonly snapshot: ConsumerIntegrationSnapshot;
   readonly assetCatalog?: ConsumerAssetCatalogV1;
@@ -463,4 +289,35 @@ export function compileConsumerIntegration(input: {
     plan,
     ...(mutationPlan === undefined ? {} : { mutationPlan })
   });
+}
+
+export function compileConsumerIntegration(input: {
+  readonly desired: ConsumerIntegrationDesiredState;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly assetCatalog?: ConsumerAssetCatalogV1;
+  /** Unit-level compatibility input; production composition loads package assets. */
+  readonly knownPriorCohorts?: readonly KnownPriorCohortCatalogEntryV1[];
+}, ports: ConsumerIntegrationPlanningPorts): {
+  readonly plan: ConsumerIntegrationPlanV1;
+  readonly mutationPlan?: ReturnType<typeof compileKnownFileTransactionPlan>;
+} {
+  switch (input.desired.schemaVersion) {
+    case 1:
+      return compileConsumerIntegrationV1({
+        desired: input.desired,
+        snapshot: input.snapshot,
+        ...(input.assetCatalog === undefined ? {} : { assetCatalog: input.assetCatalog }),
+        ...(input.knownPriorCohorts === undefined
+          ? {}
+          : { knownPriorCohorts: input.knownPriorCohorts })
+      }, ports);
+    case 3:
+      if (input.assetCatalog !== undefined || input.knownPriorCohorts !== undefined) {
+        throw new TypeError("Consumer integration profile v3 does not accept V1 asset catalogs.");
+      }
+      return compileConsumerIntegrationV3({
+        desired: input.desired,
+        snapshot: input.snapshot
+      }, ports);
+  }
 }

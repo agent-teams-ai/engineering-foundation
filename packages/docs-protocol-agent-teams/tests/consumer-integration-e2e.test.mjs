@@ -165,6 +165,12 @@ test("consumer JSON mode survives bounded argv failures without accepting aliase
   assert.equal(formerPrefixEnvelope.command, "consumer.check");
   assert.equal(formerPrefixEnvelope.outcome, "blocked");
   assert.equal(formerPrefixEnvelope.issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
+
+  const missingGeneration = invoke(["upgrade", "--to", "docs-v2-target", "--json"]);
+  assert.equal(missingGeneration.status, 2, missingGeneration.stderr);
+  const missingGenerationEnvelope = JSON.parse(missingGeneration.stdout);
+  assert.equal(missingGenerationEnvelope.issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
+  assert.match(missingGenerationEnvelope.issues[0].message, /--target-generation/u);
 });
 
 test("plans, applies, verifies, and repeats the full consumer lifecycle offline", async () => {

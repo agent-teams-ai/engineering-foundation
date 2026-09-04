@@ -8,8 +8,7 @@ import type {
   QualifiedDocsCohortBindingV1
 } from "../domain/model.js";
 import type {
-  PnpmManifestPlanV1,
-  PnpmManifestPlannerV1
+  PnpmManifestPlanV1
 } from "../application/ports/consumer-integration-planners.js";
 import {
   canonicalConsumerIntegrationJson,
@@ -19,6 +18,11 @@ import {
 
 const DOCS_PACKAGE = "@agent-teams/docs-protocol";
 const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
+
+export interface CohortManifestTarget {
+  readonly name: string;
+  readonly version: string;
+}
 
 export type { PnpmManifestPlanV1 } from "../application/ports/consumer-integration-planners.js";
 
@@ -92,10 +96,10 @@ function cohortDependencyIssues(
   devDependencies: Record<string, unknown>,
   optionalDependencies: Record<string, unknown>,
   peerDependencies: Record<string, unknown>,
-  cohort: QualifiedDocsCohortBindingV1
+  targets: readonly CohortManifestTarget[]
 ): ConsumerIntegrationIssue[] {
   const issues: ConsumerIntegrationIssue[] = [];
-  for (const packageName of [DOCS_PACKAGE, FOUNDATION_PACKAGE]) {
+  for (const { name: packageName } of targets) {
     for (const [field, declarations] of [
       ["dependencies", dependencies],
       ["optionalDependencies", optionalDependencies],
@@ -110,11 +114,7 @@ function cohortDependencyIssues(
       }
     }
   }
-  const requiredVersions = {
-    [DOCS_PACKAGE]: cohort.packages.docsProtocol.version,
-    [FOUNDATION_PACKAGE]: cohort.packages.engineeringFoundation.version
-  } as const;
-  for (const [packageName, version] of Object.entries(requiredVersions)) {
+  for (const { name: packageName, version } of targets) {
     if (devDependencies[packageName] !== version) {
       issues.push(issue(`package.json#devDependencies.${packageName}`, "DOCS_CONSUMER_COHORT_PIN_REQUIRED", `Update ${packageName} and pnpm-lock.yaml together to exact version ${version} before consumer apply.`));
     }
@@ -122,16 +122,71 @@ function cohortDependencyIssues(
   return issues;
 }
 
-export function projectPnpmManifestCohortPinsV1(input: {
+function forbiddenRootDeclarationIssues(
+  declarationsByField: readonly (readonly [string, Record<string, unknown>])[],
+  packageNames: readonly string[]
+): ConsumerIntegrationIssue[] {
+  return packageNames.flatMap((packageName) => declarationsByField.flatMap(
+    ([field, declarations]) => declarations[packageName] === undefined ? [] : [issue(
+      `package.json#${field}.${packageName}`,
+      "DOCS_CONSUMER_TRANSITIVE_ROOT_DECLARATION",
+      `${packageName} is a transitive Cohort coordinate and must not be a root declaration.`
+    )]
+  ));
+}
+
+function targetsNpmAlias(value: unknown, packageNames: readonly string[]): boolean {
+  return typeof value === "string" && packageNames.some((packageName) =>
+    value === `npm:${packageName}` || value.startsWith(`npm:${packageName}@`)
+  );
+}
+
+function cohortAliasIssues(
+  declarationsByField: readonly (readonly [string, Record<string, unknown>])[],
+  packageNames: readonly string[]
+): ConsumerIntegrationIssue[] {
+  return declarationsByField.flatMap(([field, declarations]) =>
+    Object.entries(declarations).flatMap(([alias, value]) =>
+      targetsNpmAlias(value, packageNames) ? [issue(
+        `package.json#${field}.${alias}`,
+        "DOCS_CONSUMER_COHORT_ALIAS_FORBIDDEN",
+        `npm alias ${alias} must not target a Cohort package.`
+      )] : []
+    )
+  );
+}
+
+function cohortManifestTargetsV1(
+  cohort: QualifiedDocsCohortBindingV1
+): readonly CohortManifestTarget[] {
+  return Object.freeze([
+    Object.freeze({ name: DOCS_PACKAGE, version: cohort.packages.docsProtocol.version }),
+    Object.freeze({
+      name: FOUNDATION_PACKAGE,
+      version: cohort.packages.engineeringFoundation.version
+    })
+  ]);
+}
+
+export function projectPnpmManifestCohortTargets(input: {
   readonly bytes: Uint8Array;
-  readonly cohort: QualifiedDocsCohortBindingV1;
+  readonly targets: readonly CohortManifestTarget[];
+  readonly transitivePackageNames?: readonly string[];
+  readonly forbiddenAliasTargetPackageNames?: readonly string[];
 }): Uint8Array {
   const { manifest, source } = parseManifest(input.bytes);
   const issues = manifestShapeIssues(manifest);
   const dependencies = recordField(manifest, "dependencies");
+  const devDependencies = recordField(manifest, "devDependencies");
   const optionalDependencies = recordField(manifest, "optionalDependencies");
   const peerDependencies = recordField(manifest, "peerDependencies");
-  for (const packageName of [DOCS_PACKAGE, FOUNDATION_PACKAGE]) {
+  const declarationsByField = [
+    ["dependencies", dependencies],
+    ["devDependencies", devDependencies],
+    ["optionalDependencies", optionalDependencies],
+    ["peerDependencies", peerDependencies]
+  ] as const;
+  for (const { name: packageName } of input.targets) {
     for (const [field, declarations] of [
       ["dependencies", dependencies],
       ["optionalDependencies", optionalDependencies],
@@ -146,23 +201,43 @@ export function projectPnpmManifestCohortPinsV1(input: {
       }
     }
   }
+  issues.push(...cohortAliasIssues(
+    declarationsByField,
+    input.forbiddenAliasTargetPackageNames ?? []
+  ));
   if (issues.length > 0) {
     throw new TypeError(issues.map(({ message }) => message).join(" "));
   }
   let postimage = source;
-  for (const [packageName, version] of [
-    [DOCS_PACKAGE, input.cohort.packages.docsProtocol.version],
-    [FOUNDATION_PACKAGE, input.cohort.packages.engineeringFoundation.version]
-  ] as const) {
+  for (const packageName of input.transitivePackageNames ?? []) {
+    for (const [field, declarations] of declarationsByField) {
+      if (declarations[packageName] !== undefined) {
+        postimage = applyField(postimage, [field, packageName], void 0);
+      }
+    }
+  }
+  for (const { name: packageName, version } of input.targets) {
     postimage = applyField(postimage, ["devDependencies", packageName], version);
   }
   return Buffer.from(postimage, "utf8");
 }
 
-export function planPnpmManifestV1(input: {
+export function projectPnpmManifestCohortPinsV1(input: {
+  readonly bytes: Uint8Array;
+  readonly cohort: QualifiedDocsCohortBindingV1;
+}): Uint8Array {
+  return projectPnpmManifestCohortTargets({
+    bytes: input.bytes,
+    targets: cohortManifestTargetsV1(input.cohort)
+  });
+}
+
+export function planPnpmManifestTargets(input: {
   readonly observation: ConsumerIntegrationFileObservation;
   readonly profilePath: string;
-  readonly cohort: QualifiedDocsCohortBindingV1;
+  readonly targets: readonly CohortManifestTarget[];
+  readonly forbiddenRootPackageNames?: readonly string[];
+  readonly forbiddenAliasTargetPackageNames?: readonly string[];
   readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;
 }): PnpmManifestPlanV1 {
   if (input.observation.state === "absent") {
@@ -194,12 +269,26 @@ export function planPnpmManifestV1(input: {
   const devDependencies = recordField(manifest, "devDependencies");
   const optionalDependencies = recordField(manifest, "optionalDependencies");
   const peerDependencies = recordField(manifest, "peerDependencies");
+  const declarationsByField = [
+    ["dependencies", dependencies],
+    ["devDependencies", devDependencies],
+    ["optionalDependencies", optionalDependencies],
+    ["peerDependencies", peerDependencies]
+  ] as const;
   issues.push(...cohortDependencyIssues(
     dependencies,
     devDependencies,
     optionalDependencies,
     peerDependencies,
-    input.cohort
+    input.targets
+  ));
+  issues.push(...forbiddenRootDeclarationIssues(
+    declarationsByField,
+    input.forbiddenRootPackageNames ?? []
+  ));
+  issues.push(...cohortAliasIssues(
+    declarationsByField,
+    input.forbiddenAliasTargetPackageNames ?? []
   ));
   const desiredScripts = canonicalDocsScripts(input.profilePath);
   const observedScripts = Object.fromEntries(Object.keys(desiredScripts).map((script) => [
@@ -244,6 +333,18 @@ export function planPnpmManifestV1(input: {
   };
 }
 
-export const pnpmManifestPlannerV1: PnpmManifestPlannerV1 = Object.freeze({
-  plan: planPnpmManifestV1
-});
+export function planPnpmManifestV1(input: {
+  readonly observation: ConsumerIntegrationFileObservation;
+  readonly profilePath: string;
+  readonly cohort: QualifiedDocsCohortBindingV1;
+  readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;
+}): PnpmManifestPlanV1 {
+  return planPnpmManifestTargets({
+    observation: input.observation,
+    profilePath: input.profilePath,
+    targets: cohortManifestTargetsV1(input.cohort),
+    ...(input.knownPriorScriptsDigest === undefined
+      ? {}
+      : { knownPriorScriptsDigest: input.knownPriorScriptsDigest })
+  });
+}

@@ -2,13 +2,20 @@ import type {
   ConsumerUpgradeAuthorityReader
 } from "../application/ports/consumer-upgrade.js";
 import type {
+  ConsumerIntegrationDesiredState,
   ConsumerIntegrationDesiredStateV1,
   ConsumerUpgradeAuthorityV1,
-  QualifiedDocsCohortBindingV1
+  ConsumerUpgradeAuthorityV2,
+  QualifiedDocsCohortBindingV1,
+  QualifiedDocsCohortBindingV2
 } from "../domain/model.js";
 import {
-  assertQualifiedDocsCohortBindingV1
+  assertQualifiedDocsCohortBindingV1,
+  assertQualifiedDocsCohortBindingV2
 } from "../application/policies/consumer-integration-desired-state.js";
+import {
+  QUALIFIED_DOCS_COHORT_V2_PACKAGES
+} from "../application/policies/qualified-docs-cohort-v2.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 
@@ -18,7 +25,7 @@ const AUTHORITY_API = `https://api.github.com/repos/${AUTHORITY_REPOSITORY}`;
 const AUTHORITY_RAW = `https://raw.githubusercontent.com/${AUTHORITY_REPOSITORY}`;
 const GIT_SHA = /^(?!0{40}$)[0-9a-f]{40}$/u;
 const MAXIMUM_AUTHORITY_BYTES = 8 * 1024 * 1024;
-const MANAGED_PACKAGES = [
+const V1_MANAGED_PACKAGES = [
   "@agent-teams/docs-protocol",
   "@agent-teams/engineering-foundation"
 ] as const;
@@ -185,20 +192,30 @@ function assertSelectable(
   );
 }
 
-function packageProjection(source: Record<string, unknown>) {
+function packageRecords(source: Record<string, unknown>): Map<unknown, Record<string, unknown>> {
   const entries = array(source["packages"], "Cohort packages")
     .map((value) => record(value, "Cohort package"));
   const packageByName = new Map(entries.map((entry) => [entry["name"], entry]));
-  if (entries.length !== MANAGED_PACKAGES.length ||
-    packageByName.size !== MANAGED_PACKAGES.length ||
-    MANAGED_PACKAGES.some((name) => !packageByName.has(name))) {
+  if (packageByName.size !== entries.length) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
-      "Qualified Cohort must select exactly the two managed packages."
+      "Qualified Cohort package identities must be unique."
     );
   }
-  const docs = packageByName.get(MANAGED_PACKAGES[0])!;
-  const foundation = packageByName.get(MANAGED_PACKAGES[1])!;
+  return packageByName;
+}
+
+function packageProjectionV1(source: Record<string, unknown>) {
+  const packageByName = packageRecords(source);
+  if (packageByName.size !== V1_MANAGED_PACKAGES.length ||
+    V1_MANAGED_PACKAGES.some((name) => !packageByName.has(name))) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Qualified Cohort v1 must select exactly its two canonical packages."
+    );
+  }
+  const docs = packageByName.get(V1_MANAGED_PACKAGES[0])!;
+  const foundation = packageByName.get(V1_MANAGED_PACKAGES[1])!;
   return {
     docsProtocol: {
       version: string(docs["version"], "Docs Protocol version"),
@@ -211,10 +228,111 @@ function packageProjection(source: Record<string, unknown>) {
   };
 }
 
+function packageProjectionV2(source: Record<string, unknown>) {
+  const packageByName = packageRecords(source);
+  if (packageByName.size !== QUALIFIED_DOCS_COHORT_V2_PACKAGES.length ||
+    QUALIFIED_DOCS_COHORT_V2_PACKAGES.some(({ name }) => !packageByName.has(name))) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Qualified Cohort v2 must select exactly its five canonical packages."
+    );
+  }
+  return Object.fromEntries(QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key, name }) => {
+    const coordinate = packageByName.get(name)!;
+    return [key, {
+      version: string(coordinate["version"], `${name} version`),
+      integrity: string(coordinate["integrity"], `${name} integrity`)
+    }];
+  })) as QualifiedDocsCohortBindingV2["packages"];
+}
+
+type AuthorityProjection = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+type CohortProjection = QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2;
+
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  return Object.keys(value).toSorted().join("\u0000") === [...keys].toSorted().join("\u0000");
+}
+
+const LEGACY_V1_RECORD_KEYS = [
+  "assets", "canary_repositories", "channel", "cohort_id", "eligible_after",
+  "evidence_references", "packages", "record_digest", "reusable_workflow", "rollback_to",
+  "runtime", "runtime_closure", "schemas", "upgrade_from"
+] as const;
+
+const LEGACY_V1_SCHEMA = Object.freeze({
+  consumer_integration: 1,
+  consumer_plan: 1,
+  managed_state: 1,
+  foundation_plan: 1,
+  foundation_journal: 1,
+  foundation_receipt: 1,
+  foundation_envelope: 5,
+  docs_protocol: 1
+});
+
+function assertSchemaGeneration(schemas: Record<string, unknown>, generation: 1 | 2): void {
+  if (generation === 1) {
+    if (!hasExactKeys(schemas, Object.keys(LEGACY_V1_SCHEMA)) ||
+      Object.entries(LEGACY_V1_SCHEMA).some(([key, value]) => schemas[key] !== value)) {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_AUTHORITY_INVALID",
+        "Historical Cohort v1 schemas must match the immutable eight-coordinate legacy shape."
+      );
+    }
+    return;
+  }
+  if (!hasExactKeys(schemas, ["consumer_integration", "docs_protocol", "managed_state"])) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Qualified Cohort v2 schemas must contain exactly its three version coordinates."
+    );
+  }
+  if (schemas["consumer_integration"] !== 3 || schemas["managed_state"] !== 2 ||
+    schemas["docs_protocol"] !== 1) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Qualified Cohort v2 schemas must be exactly (3,2,1)."
+    );
+  }
+}
+
+function recordGeneration(source: Record<string, unknown>, requested: 1 | 2): 1 | 2 {
+  const discriminator = source["cohort_generation"];
+  if (requested === 1) {
+    if (discriminator !== undefined || !hasExactKeys(source, LEGACY_V1_RECORD_KEYS)) {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_AUTHORITY_INVALID",
+        "Requested Cohort v1 must have no discriminator and match the immutable legacy shape."
+      );
+    }
+    return 1;
+  }
+  if (requested !== 2) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Requested Cohort generation is unknown or unsupported."
+    );
+  }
+  if (discriminator !== 2) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Cohort generation discriminator is unknown or unsupported."
+    );
+  }
+  if (!hasExactKeys(source, [...LEGACY_V1_RECORD_KEYS, "cohort_generation"])) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Qualified Cohort v2 must match its closed discriminator-bearing record shape."
+    );
+  }
+  return 2;
+}
+
 function cohortProjection(
   source: Record<string, unknown>,
-  qualificationEventDigest: string
-): QualifiedDocsCohortBindingV1 {
+  qualificationEventDigest: string,
+  requestedGeneration: 1 | 2
+): CohortProjection {
   const workflow = record(source["reusable_workflow"], "Cohort reusable workflow");
   const assets = record(source["assets"], "Cohort assets");
   const skill = record(assets["skill"], "Cohort Skill asset");
@@ -224,8 +342,10 @@ function cohortProjection(
   const runtime = record(source["runtime"], "Cohort runtime");
   const runtimeClosure = record(source["runtime_closure"], "Cohort runtime closure");
   const schemas = record(source["schemas"], "Cohort schemas");
+  const generation = recordGeneration(source, requestedGeneration);
+  assertSchemaGeneration(schemas, generation);
   const projection = {
-    schemaVersion: 1 as const,
+    schemaVersion: generation,
     cohortId: string(source["cohort_id"], "Cohort ID"),
     channel: string(source["channel"], "Cohort channel"),
     recordDigest: string(source["record_digest"], "Cohort record digest"),
@@ -237,7 +357,7 @@ function cohortProjection(
     rollbackTo: array(source["rollback_to"], "Cohort rollback targets").map((entry) =>
       string(entry, "Cohort rollback target")
     ),
-    packages: packageProjection(source),
+    packages: generation === 1 ? packageProjectionV1(source) : packageProjectionV2(source),
     workflow: {
       repository: string(workflow["repository"], "Workflow repository"),
       path: string(workflow["path"], "Workflow path"),
@@ -260,17 +380,28 @@ function cohortProjection(
       pnpm: string(runtime["pnpm"], "pnpm runtime"),
       runtimeClosureDigest: string(runtimeClosure["digest"], "Runtime closure digest")
     }
-  } as unknown as QualifiedDocsCohortBindingV1;
-  assertQualifiedDocsCohortBindingV1(projection);
+  } as CohortProjection;
+  if (projection.schemaVersion === 1) {
+    assertQualifiedDocsCohortBindingV1(projection);
+  } else {
+    assertQualifiedDocsCohortBindingV2(projection);
+  }
   return Object.freeze(projection);
 }
 
 export function projectQualifiedCohortAuthority(input: {
   readonly cohortId: string;
+  readonly generation: 1 | 2;
   readonly registry: Record<string, unknown>;
-  readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
+  readonly repository: ConsumerIntegrationDesiredState["repository"];
   readonly revision: string;
-}): ConsumerUpgradeAuthorityV1 {
+}): ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 {
+  if (input.registry["schema_version"] !== 1) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_INVALID",
+      "Central Cohort registry must use contract schema_version 1."
+    );
+  }
   const matches = array(input.registry["cohorts"], "Qualified Cohorts")
     .map((value) => record(value, "Qualified Cohort"))
     .filter((cohort) => cohort["cohort_id"] === input.cohortId);
@@ -286,12 +417,13 @@ export function projectQualifiedCohortAuthority(input: {
     input.cohortId
   );
   assertSelectable(source, lifecycle.state, input.repository);
+  const cohort = cohortProjection(source, lifecycle.qualificationEventDigest, input.generation);
   return Object.freeze({
     repository: AUTHORITY_REPOSITORY,
     path: AUTHORITY_PATH,
     revision: input.revision,
-    cohort: cohortProjection(source, lifecycle.qualificationEventDigest)
-  });
+    cohort
+  }) as AuthorityProjection;
 }
 
 export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityReader {
@@ -303,9 +435,10 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
 
   public async read(options: {
     readonly cohortId: string;
+    readonly generation: 1 | 2;
     readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
     readonly revision?: string;
-  }): Promise<ConsumerUpgradeAuthorityV1> {
+  }): Promise<AuthorityProjection> {
     if (options.revision !== undefined && !GIT_SHA.test(options.revision)) {
       throw new ConsumerIntegrationNodeError(
         "DOCS_CONSUMER_AUTHORITY_REVISION_INVALID",

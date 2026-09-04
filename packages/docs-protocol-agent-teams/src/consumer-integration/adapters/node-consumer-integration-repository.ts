@@ -2,7 +2,9 @@ import { realpath } from "node:fs/promises";
 import { dirname } from "node:path";
 import { execFile } from "node:child_process";
 import type {
+  ConsumerIntegrationDesiredState,
   ConsumerIntegrationDesiredStateV1,
+  ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationFileObservation,
   ConsumerIntegrationSnapshot
 } from "../domain/model.js";
@@ -12,6 +14,7 @@ import type {
 import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-schema-validator.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
+import { assertQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 import {
   scanConsumerRepositoryTopology,
@@ -47,20 +50,20 @@ function assertSingleIntegrationTopology(topology: ConsumerRepositoryTopology): 
   if (topology.lockfiles.length !== 1 || topology.lockfiles[0] !== "pnpm-lock.yaml") {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_NESTED_LOCKFILE_UNSUPPORTED",
-      "V1 requires exactly one root pnpm-lock.yaml and no nested lockfiles."
+      "Managed consumer integration requires exactly one root pnpm-lock.yaml and no nested lockfiles."
     );
   }
   if (topology.integrationProfiles.length !== 1 ||
     topology.integrationProfiles[0] !== INTEGRATION_PROFILE_PATH) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_MULTIPLE_INTEGRATION_UNITS",
-      `V1 requires exactly one integration profile at ${INTEGRATION_PROFILE_PATH}.`
+      `Managed consumer integration requires exactly one profile at ${INTEGRATION_PROFILE_PATH}.`
     );
   }
   if (topology.pnpmfiles.length > 0) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_PNPMFILE_UNSUPPORTED",
-      "V1 does not permit .pnpmfile.cjs in the integration repository."
+      "Managed consumer integration does not permit .pnpmfile.cjs."
     );
   }
 }
@@ -86,6 +89,22 @@ async function assertGitRepositoryRoot(root: string): Promise<void> {
       "Consumer root must equal the Git repository top-level directory."
     );
   }
+}
+
+async function exactGitHead(root: string): Promise<string | undefined> {
+  let head: string;
+  try {
+    head = (await executeGit(root, ["rev-parse", "--verify", "HEAD"], 64 * 1024)).trim();
+  } catch {
+    return undefined;
+  }
+  if (!/^(?!0{40}$)[0-9a-f]{40}$/u.test(head)) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_GIT_INVALID",
+      "Consumer repository must have one exact Git HEAD."
+    );
+  }
+  return head;
 }
 
 function assertNestedAgentsAuthority(
@@ -130,7 +149,7 @@ function rejectPrototypeKeys(value: unknown, path = "integration profile"): void
   }
 }
 
-function assertGitHubRuntimeIdentity(desired: ConsumerIntegrationDesiredStateV1): void {
+function assertGitHubRuntimeIdentity(desired: ConsumerIntegrationDesiredState): void {
   const runtimeId = process.env["GITHUB_REPOSITORY_ID"];
   const runtimeName = process.env["GITHUB_REPOSITORY"];
   if (runtimeId !== undefined && runtimeId !== desired.repository.id) {
@@ -153,7 +172,7 @@ async function assertQualifiedPnpmRoot(root: string): Promise<void> {
   if (major !== 24 || (minor ?? 0) < 18) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UNSUPPORTED_NODE",
-      "V1 check and plan require Node >=24.18.0 <25."
+      "Managed consumer check and plan require Node >=24.18.0 <25."
     );
   }
   const manifestObservation = await readStableConsumerFile(
@@ -180,7 +199,7 @@ async function assertQualifiedPnpmRoot(root: string): Promise<void> {
   if (match === null || Number(match[2]) < 17) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UNSUPPORTED_PACKAGE_MANAGER",
-      "V1 requires one exact root packageManager declaration within >=11.17.0 <12."
+      "Managed consumer integration requires an exact root packageManager within >=11.17.0 <12."
     );
   }
   const nodeVersion = await readStableConsumerFile(root, ".node-version", 128, true);
@@ -204,7 +223,7 @@ async function assertQualifiedPnpmRoot(root: string): Promise<void> {
 
 async function assertSnapshotStillStable(input: {
   readonly root: string;
-  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly desired: ConsumerIntegrationDesiredState;
   readonly snapshot: ConsumerIntegrationSnapshot;
 }): Promise<void> {
   const paths = [
@@ -232,7 +251,7 @@ async function assertSnapshotStillStable(input: {
 
 async function assertQualifiedLockfile(
   root: string,
-  desired: ConsumerIntegrationDesiredStateV1
+  desired: ConsumerIntegrationDesiredState
 ): Promise<ConsumerIntegrationFileObservation> {
   const observation = await readStableConsumerFile(
     root,
@@ -241,20 +260,29 @@ async function assertQualifiedLockfile(
     true
   );
   if (observation.state !== "file") {throw new Error("unreachable");}
-  assertQualifiedPnpmLockfileV1(observation.bytes, desired);
+  switch (desired.schemaVersion) {
+    case 1:
+      assertQualifiedPnpmLockfileV1(observation.bytes, desired);
+      break;
+    case 3:
+      assertQualifiedPnpmLockfileV2(observation.bytes, desired);
+      break;
+  }
   return observation;
 }
 
-export async function readConsumerIntegrationInput(options: {
+async function readManagedConsumerIntegrationInput(options: {
   readonly consumerRoot: string;
   readonly integrationProfilePath?: string;
 }): Promise<{
-  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly desired: ConsumerIntegrationDesiredState;
+  readonly repositoryHead?: string;
   readonly root: string;
   readonly snapshot: ConsumerIntegrationSnapshot;
 }> {
   const root = await canonicalConsumerRoot(options.consumerRoot);
   await assertGitRepositoryRoot(root);
+  const repositoryHead = await exactGitHead(root);
   const topology = await scanConsumerRepositoryTopology(root);
   assertSingleIntegrationTopology(topology);
   await assertQualifiedPnpmRoot(root);
@@ -262,7 +290,7 @@ export async function readConsumerIntegrationInput(options: {
   if (profilePath !== INTEGRATION_PROFILE_PATH) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_PROFILE_PATH_UNSUPPORTED",
-      `V1 requires the integration profile at ${INTEGRATION_PROFILE_PATH}.`
+      `Managed consumer integration requires the profile at ${INTEGRATION_PROFILE_PATH}.`
     );
   }
   const profile = await readStableConsumerFile(
@@ -272,22 +300,32 @@ export async function readConsumerIntegrationInput(options: {
     true
   );
   if (profile.state !== "file") {throw new Error("unreachable");}
-  let desired: ConsumerIntegrationDesiredStateV1;
+  let desired: ConsumerIntegrationDesiredState;
   let lockfile: ConsumerIntegrationFileObservation;
   try {
     const parsed = parseJsonRecord(
       Buffer.from(profile.bytes).toString("utf8")
-    ) as unknown as Omit<ConsumerIntegrationDesiredStateV1, "schemaVersion"> & {
-      readonly schemaVersion: 1 | 2;
-      readonly qualification?: unknown;
-    };
+    ) as unknown as (
+      | (Omit<ConsumerIntegrationDesiredStateV1, "schemaVersion"> & {
+          readonly schemaVersion: 1 | 2;
+          readonly qualification?: unknown;
+        })
+      | ConsumerIntegrationDesiredStateV3
+    );
     rejectPrototypeKeys(parsed);
     await assertConsumerIntegrationProfileSchema(parsed);
-    if (parsed.schemaVersion === 2) {
-      const { qualification: _qualification, ...v1 } = parsed;
-      desired = { ...v1, schemaVersion: 1 };
-    } else {
-      desired = parsed as ConsumerIntegrationDesiredStateV1;
+    switch (parsed.schemaVersion) {
+      case 1:
+        desired = parsed as ConsumerIntegrationDesiredStateV1;
+        break;
+      case 2: {
+        const { qualification: _qualification, ...v1 } = parsed;
+        desired = { ...v1, schemaVersion: 1 };
+        break;
+      }
+      case 3:
+        desired = parsed;
+        break;
     }
     assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
@@ -317,12 +355,37 @@ export async function readConsumerIntegrationInput(options: {
     managedState
   };
   await assertSnapshotStillStable({ root, desired, snapshot });
+  if (await exactGitHead(root) !== repositoryHead) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_SNAPSHOT_UNSTABLE",
+      "Consumer Git HEAD changed while the repository snapshot was assembled."
+    );
+  }
   return {
     desired,
+    ...(repositoryHead === undefined ? {} : { repositoryHead }),
     root,
     snapshot
   };
 }
 
+export async function readConsumerIntegrationInput(options: {
+  readonly consumerRoot: string;
+  readonly integrationProfilePath?: string;
+}): Promise<{
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly root: string;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+}> {
+  const { desired, root, snapshot } = await readManagedConsumerIntegrationInput(options);
+  if (desired.schemaVersion !== 1) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_PROFILE_INVALID",
+      "The legacy public reader accepts only consumer integration profile V1/V2."
+    );
+  }
+  return { desired, root, snapshot };
+}
+
 export const nodeConsumerIntegrationInputReader: ConsumerIntegrationInputReader =
-  Object.freeze({ read: readConsumerIntegrationInput });
+  Object.freeze({ read: readManagedConsumerIntegrationInput });

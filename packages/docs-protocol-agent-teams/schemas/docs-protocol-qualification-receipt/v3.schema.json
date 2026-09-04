@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-qualification-receipt/v3",
+  "title": "Docs Protocol Cohort v2 admission receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptDigest",
+    "cohortAdmissible",
+    "profileSchemaVersion",
+    "cohort",
+    "packages",
+    "schemas",
+    "runtime",
+    "checks"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 3 },
+    "receiptDigest": { "$ref": "#/$defs/digest" },
+    "cohortAdmissible": { "const": true },
+    "profileSchemaVersion": { "const": 3 },
+    "cohort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "cohortId", "recordDigest", "qualificationEventDigest"],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+        "recordDigest": { "$ref": "#/$defs/digest" },
+        "qualificationEventDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "prefixItems": [
+        { "$ref": "#/$defs/repositoryMutation" },
+        { "$ref": "#/$defs/documentAuthoring" },
+        { "$ref": "#/$defs/docsProtocol" },
+        { "$ref": "#/$defs/docsProtocolAgentTeams" },
+        { "$ref": "#/$defs/engineeringFoundation" }
+      ],
+      "items": false
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumerIntegration", "managedState", "docsProtocol"],
+      "properties": {
+        "consumerIntegration": { "const": 3 },
+        "managedState": { "const": 2 },
+        "docsProtocol": { "const": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtimeClosureDigest"],
+      "properties": { "runtimeClosureDigest": { "$ref": "#/$defs/digest" } }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "prefixItems": [
+        { "const": "profile-v3" },
+        { "const": "cohort-v2" },
+        { "const": "five-package-closure" },
+        { "const": "exact-package-versions" },
+        { "const": "exact-package-integrities" },
+        { "const": "schema-bindings-3-2-1" },
+        { "const": "runtime-closure-digest" }
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$" },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "name", "version", "integrity"],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+        "integrity": { "type": "string", "pattern": "^sha512-[A-Za-z0-9+/]{86}==$" }
+      }
+    },
+    "repositoryMutation": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/package" }],
+      "properties": { "key": { "const": "repositoryMutation" }, "name": { "const": "@agent-teams/repository-mutation" } }
+    },
+    "documentAuthoring": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/package" }],
+      "properties": { "key": { "const": "documentAuthoring" }, "name": { "const": "@agent-teams/document-authoring" } }
+    },
+    "docsProtocol": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/package" }],
+      "properties": { "key": { "const": "docsProtocol" }, "name": { "const": "@agent-teams/docs-protocol" } }
+    },
+    "docsProtocolAgentTeams": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/package" }],
+      "properties": { "key": { "const": "docsProtocolAgentTeams" }, "name": { "const": "@agent-teams/docs-protocol-agent-teams" } }
+    },
+    "engineeringFoundation": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/package" }],
+      "properties": { "key": { "const": "engineeringFoundation" }, "name": { "const": "@agent-teams/engineering-foundation" } }
+    }
+  }
+}

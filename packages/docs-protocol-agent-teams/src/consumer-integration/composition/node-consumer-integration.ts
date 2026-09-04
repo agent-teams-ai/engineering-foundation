@@ -77,3 +77,12 @@ export function upgradeConsumerIntegration(options: {
 }): Promise<ConsumerUpgradeExecutionV1> {
   return upgrade(options);
 }
+
+export function upgradeConsumerIntegrationToGeneration(options: {
+  readonly consumerRoot: string;
+  readonly authorityRevision?: string;
+  readonly targetGeneration: 1 | 2;
+  readonly to: string;
+}): Promise<ConsumerUpgradeExecutionV1> {
+  return upgrade(options);
+}

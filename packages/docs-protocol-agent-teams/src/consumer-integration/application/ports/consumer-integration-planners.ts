@@ -2,7 +2,8 @@ import type {
   ConsumerIntegrationDigest,
   ConsumerIntegrationFileObservation,
   ConsumerIntegrationIssue,
-  QualifiedDocsCohortBindingV1
+  QualifiedDocsCohortBindingV1,
+  QualifiedDocsCohortBindingV2
 } from "../../domain/model.js";
 
 export interface AgentsRoutePlanV1 {
@@ -29,16 +30,16 @@ export interface AgentsRoutePlannerV1 {
   }): AgentsRoutePlanV1;
 }
 
-export interface PnpmManifestPlannerV1 {
+export interface PnpmManifestPlanner {
   plan(input: {
     readonly observation: ConsumerIntegrationFileObservation;
     readonly profilePath: string;
-    readonly cohort: QualifiedDocsCohortBindingV1;
+    readonly cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2;
     readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;
   }): PnpmManifestPlanV1;
 }
 
 export interface ConsumerIntegrationPlanningPorts {
   readonly agentsRoute: AgentsRoutePlannerV1;
-  readonly packageManifest: PnpmManifestPlannerV1;
+  readonly packageManifest: PnpmManifestPlanner;
 }

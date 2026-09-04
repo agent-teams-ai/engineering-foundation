@@ -51,6 +51,49 @@ export type QualifiedDocsCohortBindingV1 = Omit<
   "canaryRepositoryIds" | "lifecycleState"
 >;
 
+export interface QualifiedDocsPackageCoordinateV2 {
+  readonly version: string;
+  readonly integrity: `sha512-${string}`;
+}
+
+/**
+ * Closed managed-documentation release set. The five coordinates are explicit so
+ * consumers never infer a Cohort generation from whichever packages happen to be
+ * installed.
+ */
+export interface QualifiedDocsCohortV2 {
+  readonly schemaVersion: 2;
+  readonly cohortId: string;
+  readonly channel: "rc" | "stable";
+  readonly recordDigest: ConsumerIntegrationDigest;
+  readonly qualificationEventDigest: ConsumerIntegrationDigest;
+  readonly lifecycleState: "QUALIFIED" | "CANARY" | "RECOMMENDED";
+  readonly eligibleAfter: string;
+  readonly upgradeFrom: readonly string[];
+  readonly rollbackTo: readonly string[];
+  readonly canaryRepositoryIds: readonly string[];
+  readonly packages: {
+    readonly repositoryMutation: QualifiedDocsPackageCoordinateV2;
+    readonly documentAuthoring: QualifiedDocsPackageCoordinateV2;
+    readonly docsProtocol: QualifiedDocsPackageCoordinateV2;
+    readonly docsProtocolAgentTeams: QualifiedDocsPackageCoordinateV2;
+    readonly engineeringFoundation: QualifiedDocsPackageCoordinateV2;
+  };
+  readonly workflow: QualifiedDocsCohortV1["workflow"];
+  readonly assets: QualifiedDocsCohortV1["assets"];
+  readonly schemas: {
+    readonly consumerIntegration: 3;
+    readonly managedState: 2;
+    readonly docsProtocol: 1;
+  };
+  readonly runtime: QualifiedDocsCohortV1["runtime"];
+}
+
+export type QualifiedDocsCohortBindingV2 = Omit<
+  QualifiedDocsCohortV2,
+  "canaryRepositoryIds" | "lifecycleState"
+>;
+
 export interface ConsumerIntegrationDesiredStateV1 {
   readonly schemaVersion: 1;
   readonly repository: {
@@ -67,6 +110,28 @@ export interface ConsumerIntegrationDesiredStateV1 {
   readonly governedDocsRoots?: readonly string[];
   readonly cohort: QualifiedDocsCohortBindingV1;
 }
+
+/** New-only managed profile. V1/V2 profiles remain immutable migration evidence. */
+export interface ConsumerIntegrationDesiredStateV3 {
+  readonly schemaVersion: 3;
+  readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
+  readonly integrationRoot: ".";
+  readonly packageManager: "pnpm";
+  readonly profilePath: string;
+  readonly skillPath: string;
+  readonly callerWorkflowPath: string;
+  readonly managedStatePath: string;
+  readonly governedDocsRoots?: readonly string[];
+  readonly qualification: {
+    readonly contractPath: "architecture/foundation/docs-protocol-qualification.json";
+    readonly gateCommand: "pnpm docs:protocol:check";
+  };
+  readonly cohort: QualifiedDocsCohortBindingV2;
+}
+
+export type ConsumerIntegrationDesiredState =
+  | ConsumerIntegrationDesiredStateV1
+  | ConsumerIntegrationDesiredStateV3;
 
 export type ConsumerIntegrationFileObservation =
   | { readonly state: "absent" }
@@ -133,4 +198,11 @@ export interface ConsumerUpgradeAuthorityV1 {
   readonly path: "governance/docs-qualified-cohorts.json";
   readonly revision: string;
   readonly cohort: QualifiedDocsCohortBindingV1;
+}
+
+export interface ConsumerUpgradeAuthorityV2 {
+  readonly repository: "agent-teams-ai/.github";
+  readonly path: "governance/docs-qualified-cohorts.json";
+  readonly revision: string;
+  readonly cohort: QualifiedDocsCohortBindingV2;
 }

@@ -258,9 +258,11 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/model/consumer-upgrade-execution.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-assets.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/qualified-docs-cohort-v2.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-integration-planners.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-upgrade.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/compile-consumer-integration-v3.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/plan-consumer-integration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/run-consumer-integration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts
@@ -292,10 +294,15 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-repository-files.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-source-proof.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v2.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-validator-v2.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v2.ts
   - id: docs-protocol-agent-teams.composition
     packageExports:
       - "."
@@ -331,6 +338,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/composition/consumer-integration-cli.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/composition/consumer-integration-planner.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/composition/node-consumer-integration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/composition/qualification-v3-boundary.ts
   - id: docs-protocol-agent-teams.qualification
     packageExports:
       - "./qualification"
@@ -344,6 +352,7 @@ boundaries:
         - "@agent-teams/docs-protocol"
         - ajv
       builtins:
+        - node:crypto
         - node:fs
         - node:fs/promises
         - node:os
@@ -364,7 +373,9 @@ boundaries:
         - docs-protocol-agent-teams.application
         - docs-protocol-agent-teams.consumer-integration.composition
         - docs-protocol-agent-teams.qualification
-      packages: []
+      packages:
+        - ajv
+        - yaml
       builtins:
         - node:assert/strict
         - node:child_process

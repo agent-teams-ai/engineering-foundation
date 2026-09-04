@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
 
 import type {
+  ConsumerIntegrationDesiredState,
   ConsumerIntegrationDesiredStateV1,
+  ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationDigest,
-  QualifiedDocsCohortBindingV1
+  QualifiedDocsCohortBindingV1,
+  QualifiedDocsCohortBindingV2
 } from "../../domain/model.js";
 import {
   GENERATED_CALLER_WORKFLOW_TEMPLATE,
@@ -91,6 +94,15 @@ export interface ConsumerAssetCatalogV1 {
   readonly directTargetBundles: readonly KnownPriorCohortCatalogEntryV1[];
 }
 
+export interface CanonicalManagedAssetDigests {
+  readonly skillDigest: ConsumerIntegrationDigest;
+  readonly callerWorkflowDigest: ConsumerIntegrationDigest;
+  readonly assetCatalogDigest: ConsumerIntegrationDigest;
+  readonly transitionCatalogDigest: ConsumerIntegrationDigest;
+  readonly agentsRouteDigest: ConsumerIntegrationDigest;
+  readonly docsScriptsDigest: ConsumerIntegrationDigest;
+}
+
 export const BUNDLED_KNOWN_PRIOR_COHORTS: readonly KnownPriorCohortCatalogEntryV1[] =
   Object.freeze([]);
 export const BUNDLED_CURRENT_SOURCE_EXECUTORS: readonly CurrentSourceExecutorV1[] =
@@ -135,7 +147,11 @@ export function digestBytes(value: Uint8Array): ConsumerIntegrationDigest {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-export function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV1): string {
+export function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV1): string;
+export function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV2): string;
+export function canonicalCallerWorkflow(
+  cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2
+): string {
   return CANONICAL_CALLER_WORKFLOW_TEMPLATE
     .replace("{{REUSABLE_WORKFLOW_REPOSITORY}}", cohort.workflow.repository)
     .replace("{{REUSABLE_WORKFLOW_PATH}}", cohort.workflow.path)
@@ -195,7 +211,19 @@ export function canonicalManagedState(
     readonly agentsRouteDigest: ConsumerIntegrationDigest;
     readonly docsScriptsDigest: ConsumerIntegrationDigest;
   }
+): string;
+export function canonicalManagedState(
+  desired: ConsumerIntegrationDesiredStateV3,
+  assets: CanonicalManagedAssetDigests
+): string;
+export function canonicalManagedState(
+  desired: ConsumerIntegrationDesiredState,
+  assets: CanonicalManagedAssetDigests
 ): string {
+  if (desired.schemaVersion === 3) {
+    return canonicalManagedStateV2(desired, assets);
+  }
+
   const body = {
     schemaVersion: 1,
     cohortId: desired.cohort.cohortId,
@@ -227,14 +255,66 @@ export function canonicalManagedState(
   return `${canonicalConsumerIntegrationJson({ ...body, stateDigest })}\n`;
 }
 
+function canonicalManagedStateV2(
+  desired: ConsumerIntegrationDesiredStateV3,
+  assets: CanonicalManagedAssetDigests
+): string {
+  const body = {
+    schemaVersion: 2,
+    cohortId: desired.cohort.cohortId,
+    cohortAuthority: {
+      channel: desired.cohort.channel,
+      recordDigest: desired.cohort.recordDigest,
+      qualificationEventDigest: desired.cohort.qualificationEventDigest,
+      eligibleAfter: desired.cohort.eligibleAfter,
+      upgradeFrom: desired.cohort.upgradeFrom,
+      rollbackTo: desired.cohort.rollbackTo
+    },
+    repository: desired.repository,
+    packages: desired.cohort.packages,
+    schemas: desired.cohort.schemas,
+    runtime: desired.cohort.runtime,
+    profilePath: desired.profilePath,
+    skillPath: desired.skillPath,
+    callerWorkflowPath: desired.callerWorkflowPath,
+    managedStatePath: desired.managedStatePath,
+    assets
+  };
+  const stateDigest = digestBytes(Buffer.from(
+    canonicalConsumerIntegrationJson({
+      domain: "agent-teams.docs-protocol.managed-state/v2",
+      body
+    }),
+    "utf8"
+  ));
+  return `${canonicalConsumerIntegrationJson({ ...body, stateDigest })}\n`;
+}
+
 export function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortBindingV1): {
+  readonly skillDigest: ConsumerIntegrationDigest;
+  readonly callerWorkflowDigest: ConsumerIntegrationDigest;
+  readonly assetCatalogDigest: ConsumerIntegrationDigest;
+  readonly transitionCatalogDigest: ConsumerIntegrationDigest;
+};
+export function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortBindingV2): {
+  readonly skillDigest: ConsumerIntegrationDigest;
+  readonly callerWorkflowDigest: ConsumerIntegrationDigest;
+  readonly assetCatalogDigest: ConsumerIntegrationDigest;
+  readonly transitionCatalogDigest: ConsumerIntegrationDigest;
+};
+export function describeCanonicalConsumerAssets(
+  cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2
+): {
   readonly skillDigest: ConsumerIntegrationDigest;
   readonly callerWorkflowDigest: ConsumerIntegrationDigest;
   readonly assetCatalogDigest: ConsumerIntegrationDigest;
   readonly transitionCatalogDigest: ConsumerIntegrationDigest;
 } {
   const skillDigest = digestBytes(Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8"));
-  const callerWorkflowDigest = digestBytes(Buffer.from(canonicalCallerWorkflow(cohort), "utf8"));
+  const callerWorkflow = cohort.schemaVersion === 1
+    ? canonicalCallerWorkflow(cohort)
+    : canonicalCallerWorkflow(cohort);
+  const callerWorkflowDigest = digestBytes(Buffer.from(callerWorkflow, "utf8"));
   const assetCatalogDigest = digestBytes(Buffer.from(CANONICAL_ASSET_CATALOG, "utf8"));
   return Object.freeze({
     skillDigest,

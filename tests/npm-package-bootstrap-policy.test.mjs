@@ -138,21 +138,24 @@ function releaseState(profile, version) {
   };
 }
 
-test("bootstrap catalog is closed, data-only, and owns approved and historical package states", () => {
+test("bootstrap catalog is closed, data-only, and retires completed bootstrap authorities", () => {
   assert.deepEqual(
     NPM_PACKAGE_BOOTSTRAP.packages.map(({ id, state }) => ({ id, state })),
     [
-      { id: "repository-mutation", state: "approved" },
-      { id: "document-authoring", state: "approved" },
+      { id: "repository-mutation", state: "historical" },
+      { id: "document-authoring", state: "historical" },
       { id: "docs-protocol", state: "historical" },
-      { id: "docs-protocol-agent-teams", state: "approved" },
+      { id: "docs-protocol-agent-teams", state: "historical" },
       { id: "docs-protocol-mcp", state: "historical" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
   assert.equal(authoring.bootstrapVersion, "0.0.0");
   assert.equal(authoring.approval.packageTree, "2dfd15f46cd3381f6c4ba1a2eaab090dd5c0f33f");
-  assert.equal(bootstrapPackageById("document-authoring", { approved: true }), authoring);
+  assert.throws(
+    () => bootstrapPackageById("document-authoring", { approved: true }),
+    /not approved/u,
+  );
   assert.equal(
     adapterBootstrapProfile.approval.packageTree,
     "9661dd72dedb23d05fa8b320f4e26b14d4aa67d8",
@@ -161,9 +164,9 @@ test("bootstrap catalog is closed, data-only, and owns approved and historical p
     () => bootstrapPackageById("unknown", { approved: true }),
     /closed bootstrap catalog/u,
   );
-  assert.equal(
-    bootstrapPackageById("docs-protocol-agent-teams", { approved: true }),
-    adapterBootstrapProfile,
+  assert.throws(
+    () => bootstrapPackageById("docs-protocol-agent-teams", { approved: true }),
+    /not approved/u,
   );
   assert.throws(() => bootstrapPackageById("docs-protocol-mcp", { approved: true }), /not approved/u);
   assert.deepEqual(mcpProfile.tags, {
@@ -829,12 +832,18 @@ test("ordinary release proves full bootstrap evidence before registry reads or w
   assert.deepEqual(events, ["bootstrap"]);
 });
 
-test("ordinary release baseline proof never skips a local bootstrap manifest", async () => {
-  const catalog = approvedMcpCatalog();
+test("ordinary release baseline proof never skips a historical bootstrap manifest", async () => {
+  const value = structuredClone(approvedMcpCatalog());
+  value.packages[0].state = "historical";
+  const catalog = parseBootstrapCatalog(value);
   const profile = catalog.packages[0];
+  let audits = 0;
   let fetches = 0;
   await assert.rejects(() => verifyReleaseBootstrapBaselines({
-    auditPackage: async () => auditEvidence(profile),
+    auditPackage: async () => {
+      audits += 1;
+      return auditEvidence(profile);
+    },
     catalog,
     fetchImplementation: async () => {
       fetches += 1;
@@ -851,6 +860,7 @@ test("ordinary release baseline proof never skips a local bootstrap manifest", a
     observationOptions: { attempts: 1, wait: async () => {} },
     readManifest: async () => ({ name: profile.name, version: profile.bootstrapVersion }),
   }), /does not match reviewed immutable evidence/u);
+  assert.equal(audits, 1);
   assert.equal(fetches, 2);
 });
 

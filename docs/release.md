@@ -32,6 +32,15 @@ closed-catalog mechanism for an explicitly approved future namespace and keeps i
 separate from ordinary OIDC release authority. Never edit package versions or
 `.changeset/pre.json` by hand.
 
+The ADR-0044 batch completed on 2026-09-04. Exact `0.0.0` namespace baselines for
+`@agent-teams/repository-mutation`, `@agent-teams/document-authoring`, and
+`@agent-teams/docs-protocol-agent-teams` were provenance-verified and deprecated
+as bootstrap-only artifacts by runs `33820083046`, `33825555921`, and
+`33839138339`. Their catalog entries are historical, but ordinary releases still
+verify each immutable baseline. The bootstrap repository variable is disabled,
+the short-lived GitHub secret was removed, and no persistent npm credential is
+part of the release path.
+
 ## One-time namespace bootstrap
 
 `architecture/foundation/npm-package-bootstrap.json` is the only package-specific

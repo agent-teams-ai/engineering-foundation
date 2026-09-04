@@ -6,12 +6,13 @@ import type {
 
 import type { ConsumerAssetCatalogV1 } from "../policies/consumer-integration-assets.js";
 import type {
-  ConsumerIntegrationDesiredStateV1,
+  ConsumerIntegrationDesiredState,
   ConsumerIntegrationSnapshot
 } from "../../domain/model.js";
 
 interface ConsumerIntegrationInput {
-  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly desired: ConsumerIntegrationDesiredState;
+  readonly repositoryHead?: string;
   readonly root: string;
   readonly snapshot: ConsumerIntegrationSnapshot;
 }

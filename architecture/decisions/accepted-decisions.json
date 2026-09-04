@@ -221,6 +221,11 @@
       "id": "ADR-0044",
       "path": "docs/decisions/0044-registry-neutral-npm-bootstrap-tags.md",
       "immutableDigest": "sha256:533d1427003e5e3b87b48f8ee1a1bafffb99dfebbe5a77e700e3bdd31873eac9"
+    },
+    {
+      "id": "ADR-0045",
+      "path": "docs/decisions/0045-five-coordinate-qualified-docs-cohort.md",
+      "immutableDigest": "sha256:619268aa0c3e108ee32f7db35c8c5c7a9a84a973092dec5214cbe7c1c6d6e421"
     }
   ]
 }

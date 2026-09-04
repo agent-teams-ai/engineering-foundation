@@ -16,10 +16,12 @@ export function validPnpmPeerContext(value: unknown, exactVersion: string): valu
   return contentByDepth.length === 0;
 }
 
-export function targetsManagedPackage(value: unknown): boolean {
+export function targetsManagedPackage(
+  value: unknown,
+  packageNames: readonly string[]
+): boolean {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {return false;}
   return Object.keys(value).some((key) =>
-    key.includes("@agent-teams/docs-protocol") ||
-    key.includes("@agent-teams/engineering-foundation")
+    packageNames.some((packageName) => key.includes(packageName))
   );
 }

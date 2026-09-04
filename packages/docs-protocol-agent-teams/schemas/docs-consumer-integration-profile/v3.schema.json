@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "repository",
+    "integrationRoot",
+    "packageManager",
+    "profilePath",
+    "skillPath",
+    "callerWorkflowPath",
+    "managedStatePath",
+    "cohort",
+    "qualification"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 3 },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "id", "nameWithOwner"],
+      "properties": {
+        "provider": { "const": "github" },
+        "id": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "nameWithOwner": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        }
+      }
+    },
+    "integrationRoot": { "const": "." },
+    "packageManager": { "const": "pnpm" },
+    "profilePath": { "const": "architecture/foundation/docs-protocol.yaml" },
+    "skillPath": { "const": ".agents/skills/docs-authoring/SKILL.md" },
+    "callerWorkflowPath": { "const": ".github/workflows/docs-protocol.yml" },
+    "managedStatePath": {
+      "const": "architecture/foundation/docs-protocol-managed-state.json"
+    },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractPath", "gateCommand"],
+      "properties": {
+        "contractPath": {
+          "const": "architecture/foundation/docs-protocol-qualification.json"
+        },
+        "gateCommand": { "const": "pnpm docs:protocol:check" }
+      }
+    },
+    "governedDocsRoots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$"
+      }
+    },
+    "cohort": {
+      "$ref": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2#/$defs/cohortBinding"
+    }
+  }
+}

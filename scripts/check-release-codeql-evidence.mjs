@@ -99,9 +99,19 @@ function normalizedExpected(expected) {
   });
 }
 
-function exactEntries(entries, predicate, label) {
+function requireObject(value, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} is malformed.`);
+  }
+  return value;
+}
+
+function exactEntries(entries, predicate, label, validateEntry) {
   if (!Array.isArray(entries)) {
     throw new Error(`${label} response is malformed.`);
+  }
+  for (const [index, entry] of entries.entries()) {
+    validateEntry(entry, `${label} entry ${index}`);
   }
   const matches = entries.filter(predicate);
   if (matches.length !== 1) {
@@ -137,17 +147,44 @@ function validateRun(run, expected) {
 }
 
 function validateAnalyze(jobs, expected, runUrls) {
+  const jobUrlPrefix =
+    `${expected.apiUrl}/repos/${expected.repository}/actions/jobs`;
+  const checkRunUrlPrefix =
+    `${expected.apiUrl}/repos/${expected.repository}/check-runs`;
   const analyze = exactEntries(
     jobs?.jobs,
     (job) => job?.name === "analyze",
     "CodeQL jobs",
+    (job, label) => {
+      requireObject(job, label);
+      const jobId = requirePositiveSafeInteger(job.id, `${label} ID`);
+      requireString(job.name, `${label} name`);
+      requirePositiveSafeInteger(job.run_id, `${label} run ID`);
+      requirePositiveSafeInteger(job.run_attempt, `${label} run attempt`);
+      requireString(job.head_sha, `${label} head SHA`, exactShaPattern);
+      if (
+        job.url !== `${jobUrlPrefix}/${jobId}` ||
+        job.html_url !== `${runUrls.expectedRunUrl}/job/${jobId}` ||
+        job.run_url !== runUrls.expectedRunApiUrl ||
+        !isCanonicalPositiveIdUrl(job.check_run_url, checkRunUrlPrefix)
+      ) {
+        throw new Error(`${label} identity differs.`);
+      }
+    },
   );
   const analyzeId = requirePositiveSafeInteger(analyze.id, "Analyze job ID");
   const expectedJobApiUrl =
     `${expected.apiUrl}/repos/${expected.repository}/actions/jobs/${analyzeId}`;
   const expectedJobUrl = `${runUrls.expectedRunUrl}/job/${analyzeId}`;
-  const checkRunUrlPrefix =
-    `${expected.apiUrl}/repos/${expected.repository}/check-runs`;
+  const analyzeCheckId = isCanonicalPositiveIdUrl(
+    analyze.check_run_url,
+    checkRunUrlPrefix,
+  )
+    ? requirePositiveSafeInteger(
+      Number(analyze.check_run_url.slice(checkRunUrlPrefix.length + 1)),
+      "Analyze check ID",
+    )
+    : undefined;
   if (
     analyze.run_id !== expected.runId ||
     analyze.run_attempt !== 1 ||
@@ -155,7 +192,7 @@ function validateAnalyze(jobs, expected, runUrls) {
     analyze.url !== expectedJobApiUrl ||
     analyze.html_url !== expectedJobUrl ||
     analyze.run_url !== runUrls.expectedRunApiUrl ||
-    !isCanonicalPositiveIdUrl(analyze.check_run_url, checkRunUrlPrefix) ||
+    analyzeCheckId === undefined ||
     analyze.status !== "completed" ||
     analyze.conclusion !== "success"
   ) {
@@ -172,7 +209,37 @@ function validateAnalyze(jobs, expected, runUrls) {
   if (analyzeStartedAt > analyzeCompletedAt) {
     throw new Error("CodeQL analyze job timestamps are inverted.");
   }
-  return { analyzeCompletedAt, analyzeId, analyzeStartedAt };
+  return {
+    analyzeCheckId,
+    analyzeCompletedAt,
+    analyzeId,
+    analyzeJobUrl: expectedJobUrl,
+    analyzeStartedAt,
+  };
+}
+
+function validateAnalyzeCheck(analyzeCheck, expected, analyzeWindow) {
+  requireObject(analyzeCheck, "Analyze check run");
+  const analyzeCheckSuiteId = requirePositiveSafeInteger(
+    analyzeCheck.check_suite?.id,
+    "Analyze check suite ID",
+  );
+  if (
+    analyzeCheck.id !== analyzeWindow.analyzeCheckId ||
+    analyzeCheck.id !== analyzeWindow.analyzeId ||
+    analyzeCheck.url !==
+      `${expected.apiUrl}/repos/${expected.repository}/check-runs/${analyzeWindow.analyzeCheckId}` ||
+    analyzeCheck.html_url !== analyzeWindow.analyzeJobUrl ||
+    analyzeCheck.name !== "analyze" ||
+    analyzeCheck.app?.id !== 15368 ||
+    analyzeCheck.head_sha !== expected.headSha ||
+    analyzeCheck.details_url !== analyzeWindow.analyzeJobUrl ||
+    analyzeCheck.status !== "completed" ||
+    analyzeCheck.conclusion !== "success"
+  ) {
+    throw new Error("CodeQL analyze check run identity differs.");
+  }
+  return { analyzeCheckSuiteId };
 }
 
 function validateCheck(checkRuns, expected, analyzeWindow, analysisCreatedAt) {
@@ -180,6 +247,27 @@ function validateCheck(checkRuns, expected, analyzeWindow, analysisCreatedAt) {
     checkRuns?.check_runs,
     (check) => check?.name === "CodeQL" && check.app?.id === 57789,
     "CodeQL check runs",
+    (check, label) => {
+      requireObject(check, label);
+      const checkId = requirePositiveSafeInteger(check.id, `${label} ID`);
+      requireString(check.name, `${label} name`);
+      requireObject(check.app, `${label} app`);
+      requirePositiveSafeInteger(check.app.id, `${label} app ID`);
+      requireObject(check.check_suite, `${label} check suite`);
+      requirePositiveSafeInteger(
+        check.check_suite.id,
+        `${label} check suite ID`,
+      );
+      requireString(check.head_sha, `${label} head SHA`, exactShaPattern);
+      requireString(check.html_url, `${label} HTML URL`);
+      requireString(check.details_url, `${label} details URL`);
+      if (
+        check.url !==
+          `${expected.apiUrl}/repos/${expected.repository}/check-runs/${checkId}`
+      ) {
+        throw new Error(`${label} identity differs.`);
+      }
+    },
   );
   const checkId = requirePositiveSafeInteger(codeqlCheck.id, "CodeQL check ID");
   const checkSuiteId = requirePositiveSafeInteger(
@@ -272,6 +360,24 @@ function validateAnalysis(analyses, expected, analyzeWindow) {
       entry.category === expectedCategory &&
       entry.tool?.name === "CodeQL",
     "Code scanning analyses",
+    (entry, label) => {
+      requireObject(entry, label);
+      const analysisId = requirePositiveSafeInteger(entry.id, `${label} ID`);
+      requireString(entry.ref, `${label} ref`);
+      requireString(entry.commit_sha, `${label} commit SHA`, exactShaPattern);
+      requireString(entry.analysis_key, `${label} analysis key`);
+      requireString(entry.category, `${label} category`);
+      requireObject(entry.tool, `${label} tool`);
+      requireString(entry.tool.name, `${label} tool name`);
+      requireString(entry.sarif_id, `${label} SARIF ID`);
+      requireTimestamp(entry.created_at, `${label} creation time`);
+      if (
+        entry.url !==
+          `${expected.apiUrl}/repos/${expected.repository}/code-scanning/analyses/${analysisId}`
+      ) {
+        throw new Error(`${label} identity differs.`);
+      }
+    },
   );
   const analysisId = requirePositiveSafeInteger(
     analysis.id,
@@ -305,6 +411,7 @@ export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
     run,
     jobs,
     analyses,
+    analyzeCheck,
     checkRuns,
     checkSuite,
     pullRequest,
@@ -314,6 +421,11 @@ export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
   assertIndependentPullRequest(pullRequest, normalized);
   const expectedRunUrl = validateRun(run, normalized);
   const analyze = validateAnalyze(jobs, normalized, expectedRunUrl);
+  const analyzeCheckEvidence = validateAnalyzeCheck(
+    analyzeCheck,
+    normalized,
+    analyze,
+  );
   const analysis = validateAnalysis(analyses, normalized, analyze);
   const check = validateCheck(
     checkRuns,
@@ -331,6 +443,8 @@ export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
 
   const receipt = Object.freeze({
     analysisId: analysis.analysisId,
+    analyzeCheckId: analyze.analyzeCheckId,
+    analyzeCheckSuiteId: analyzeCheckEvidence.analyzeCheckSuiteId,
     analyzeId: analyze.analyzeId,
     checkId: check.checkId,
     checkSuiteId: check.checkSuiteId,

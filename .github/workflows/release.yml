@@ -497,6 +497,25 @@ jobs:
               sleep 5
               continue
             fi
+            read -r codeql_analyze_count codeql_analyze_check_id < <(jq -r \
+              '[.jobs[] | select(.name == "analyze")] | \
+              [length, first.check_run_url // "missing"] | @tsv' \
+              <<<"${codeql_jobs}")
+            codeql_analyze_check_id="${codeql_analyze_check_id##*/}"
+            if [[ "${codeql_analyze_count}" == "0" ]]; then
+              sleep 5
+              continue
+            fi
+            if [[ "${codeql_analyze_count}" != "1" || \
+              ! "${codeql_analyze_check_id}" =~ ^[1-9][0-9]*$ ]]; then
+              fail_attestation "Release PR CodeQL analyze identity is ambiguous"
+            fi
+            if ! codeql_analyze_check="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/check-runs/${codeql_analyze_check_id}")"; then
+              sleep 5
+              continue
+            fi
             if ! codeql_checks="$(paginated_object_collection check_runs --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs" \
@@ -528,11 +547,13 @@ jobs:
             if codeql_receipt="$(jq -n \
               --argjson run "${codeql_run}" \
               --argjson jobs "${codeql_jobs}" \
+              --argjson analyzeCheck "${codeql_analyze_check}" \
               --argjson analyses "${codeql_analyses}" \
               --argjson checkRuns "${codeql_checks}" \
               --argjson checkSuite "${codeql_check_suite}" \
               --slurpfile pullRequest "${pull_request_json}" \
-              '{evidence: {run: $run, jobs: $jobs, analyses: $analyses,
+              '{evidence: {run: $run, jobs: $jobs, analyzeCheck: $analyzeCheck,
+                analyses: $analyses,
                 checkRuns: $checkRuns, checkSuite: $checkSuite,
                 pullRequest: $pullRequest[0]}}' | \
               node scripts/check-release-codeql-evidence.mjs \
@@ -577,6 +598,7 @@ jobs:
           fi
 
           codeql_check_suite_id="$(jq -r '.checkSuiteId' <<<"${codeql_receipt}")"
+          codeql_analyze_check_id="$(jq -r '.analyzeCheckId' <<<"${codeql_receipt}")"
           final_run_verified=0
           final_verification_deadline=$((SECONDS + 60))
           while (( SECONDS < final_verification_deadline )); do
@@ -632,6 +654,9 @@ jobs:
               ! final_codeql_jobs="$(paginated_object_collection jobs \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}/attempts/1/jobs?per_page=100")" || \
+              ! final_codeql_analyze_check="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/check-runs/${codeql_analyze_check_id}")" || \
               ! final_codeql_checks="$(paginated_object_collection check_runs --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs" \
@@ -672,6 +697,7 @@ jobs:
             if ! jq -n \
               --argjson run "${final_codeql_run}" \
               --argjson jobs "${final_codeql_jobs}" \
+              --argjson analyzeCheck "${final_codeql_analyze_check}" \
               --argjson analyses "${final_codeql_analyses}" \
               --argjson checkRuns "${final_codeql_checks}" \
               --argjson checkSuite "${final_codeql_check_suite}" \
@@ -679,7 +705,8 @@ jobs:
               --argjson postPullRequest "${post_pull_request}" \
               --argjson priorReceipt "${codeql_receipt}" \
               --slurpfile pullRequest "${final_pull_request_json}" \
-              '{evidence: {run: $run, jobs: $jobs, analyses: $analyses,
+              '{evidence: {run: $run, jobs: $jobs, analyzeCheck: $analyzeCheck,
+                analyses: $analyses,
                 checkRuns: $checkRuns, checkSuite: $checkSuite,
                 pullRequest: $pullRequest[0], postRun: $postRun,
                 postPullRequest: $postPullRequest},
@@ -693,8 +720,8 @@ jobs:
                 --branch changeset-release/main \
                 --base "${base_sha}" \
                 --head "${head_sha}" >/dev/null 2>"${codeql_evidence_error}"; then
-              sleep 5
-              continue
+              cat "${codeql_evidence_error}" >&2
+              fail_attestation "Final release PR CodeQL evidence changed identity"
             fi
             final_run_verified=1
             break

@@ -40,6 +40,18 @@ test("portable adoption accepts only the generic Skill route and contained autho
   }
 });
 
+test("portable adoption accepts the exact AGENTS route with Windows CRLF lines", async () => {
+  const root = await createFixture();
+  try {
+    const agentsPath = join(root, "AGENTS.md");
+    const source = await readFile(agentsPath, "utf8");
+    await writeFile(agentsPath, source.replaceAll("\n", "\r\n"), "utf8");
+    assert.deepEqual(await inspect(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("portable adoption rejects symlinked and hardlinked workflow authority", async () => {
   const symlinkRoot = await createFixture();
   const hardlinkRoot = await createFixture();

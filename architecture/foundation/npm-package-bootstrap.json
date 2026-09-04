@@ -5,7 +5,7 @@
   "packages": [
     {
       "id": "repository-mutation",
-      "state": "approved",
+      "state": "historical",
       "name": "@agent-teams/repository-mutation",
       "root": "packages/repository-mutation",
       "manifestPath": "packages/repository-mutation/package.json",
@@ -50,7 +50,7 @@
     },
     {
       "id": "document-authoring",
-      "state": "approved",
+      "state": "historical",
       "name": "@agent-teams/document-authoring",
       "root": "packages/document-authoring",
       "manifestPath": "packages/document-authoring/package.json",
@@ -207,7 +207,7 @@
     },
     {
       "id": "docs-protocol-agent-teams",
-      "state": "approved",
+      "state": "historical",
       "name": "@agent-teams/docs-protocol-agent-teams",
       "root": "packages/docs-protocol-agent-teams",
       "manifestPath": "packages/docs-protocol-agent-teams/package.json",

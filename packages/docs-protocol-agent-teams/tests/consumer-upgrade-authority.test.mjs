@@ -100,6 +100,7 @@ function v2Cohort(source) {
     ...structuredClone(source),
     schemaVersion: 2,
     cohortId: "docs-cohort-v2-authority",
+    upgradeFrom: source.upgradeFrom.length === 0 ? ["docs-v1"] : source.upgradeFrom,
     packages: Object.fromEntries(V2_PACKAGE_NAMES.map(([key]) => [key, coordinate])),
     schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 }
   };
@@ -113,13 +114,43 @@ function v2Registry(cohort) {
       engineeringFoundation: cohort.packages.engineeringFoundation
     }
   });
-  registry.cohorts[0].schemas = actualOrgV2Registry.cohorts[0].schemas;
-  registry.cohorts[0].cohort_generation = 2;
-  registry.cohorts[0].dependency_edges = actualOrgV2Registry.cohorts[0].dependency_edges;
-  registry.cohorts[0].packages = V2_PACKAGE_NAMES.map(([key, name]) => ({
-    name,
-    ...cohort.packages[key]
-  }));
+  const source = registry.cohorts[0];
+  const current = actualOrgV2Registry.cohorts[0];
+  source.schemas = structuredClone(current.schemas);
+  source.cohort_generation = 2;
+  source.dependency_edges = structuredClone(current.dependency_edges);
+  source.packages = V2_PACKAGE_NAMES.map(([key], index) => {
+    const coordinate = structuredClone(current.packages[index]);
+    Object.assign(coordinate, cohort.packages[key]);
+    coordinate.provenance.registry_attestation_url =
+      `https://registry.npmjs.org/-/npm/v1/attestations/${
+        coordinate.name.replace("/", "%2f")
+      }@${coordinate.version}`;
+    return coordinate;
+  });
+  source.reusable_workflow = {
+    ...structuredClone(current.reusable_workflow),
+    revision: cohort.workflow.revision,
+    blob_sha: cohort.workflow.blobSha
+  };
+  source.assets = structuredClone(current.assets);
+  source.assets.skill.digest = cohort.assets.skillDigest;
+  source.assets.caller_workflow.rendered_digest = cohort.assets.callerWorkflowDigest;
+  source.assets.asset_catalog.digest = cohort.assets.assetCatalogDigest;
+  source.assets.transition_catalog.digest = cohort.assets.transitionCatalogDigest;
+  source.runtime = structuredClone(current.runtime);
+  source.runtime_closure = {
+    ...structuredClone(current.runtime_closure),
+    projection_path: `governance/docs-runtime-closures/${
+      cohort.runtime.runtimeClosureDigest.replace(":", "-")
+    }.json`,
+    digest: cohort.runtime.runtimeClosureDigest
+  };
+  source.canary_repositories = structuredClone(current.canary_repositories);
+  source.evidence_references = ["test:synthetic-v2"];
+  registry.events = [structuredClone(actualOrgV2Registry.events[0])];
+  registry.events[0].cohort_id = cohort.cohortId;
+  registry.events[0].event_digest = cohort.qualificationEventDigest;
   return registry;
 }
 
@@ -146,6 +177,83 @@ test("projects the actual org Cohort v2 authority shape and rejects drift", () =
     mutate(registry);
     assert.throws(() => projectDocsProtocolQualificationV3Authority({ ...input, registry }),
       (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
+  }
+});
+
+test("fails closed on current Cohort v2 nested authority drift", () => {
+  const input = {
+    cohortId: actualOrgV2Registry.cohorts[0].cohort_id,
+    repository: REPOSITORY,
+    revision: "8".repeat(40)
+  };
+  const mutations = [
+    ["wrong package role", (cohort) => {cohort.packages[0].role = "direct";}],
+    ["reordered packages", (cohort) => {cohort.packages.reverse();}],
+    ["extra package key", (cohort) => {cohort.packages[0].unexpected = true;}],
+    ["missing package key", (cohort) => {delete cohort.packages[0].published_at;}],
+    ["extra provenance key", (cohort) => {cohort.packages[0].provenance.unexpected = true;}],
+    ["missing provenance key", (cohort) => {
+      delete cohort.packages[0].provenance.source_repository_id;
+    }],
+    ["unbound provenance attestation", (cohort) => {
+      cohort.packages[0].provenance.registry_attestation_url =
+        cohort.packages[1].provenance.registry_attestation_url;
+    }],
+    ["wrong asset package", (cohort) => {
+      cohort.assets.skill.package = "@agent-teams/docs-protocol";
+    }],
+    ["extra asset entry key", (cohort) => {cohort.assets.asset_catalog.unexpected = true;}],
+    ["missing asset container key", (cohort) => {delete cohort.assets.transition_catalog;}],
+    ["wrong reusable workflow repository ID", (cohort) => {
+      cohort.reusable_workflow.repository_id += 1;
+    }],
+    ["extra reusable workflow key", (cohort) => {
+      cohort.reusable_workflow.unexpected = true;
+    }],
+    ["wrong runtime platforms", (cohort) => {cohort.runtime.apply_platforms.reverse();}],
+    ["missing runtime key", (cohort) => {delete cohort.runtime.check_plan_platforms;}],
+    ["wrong runtime closure domain", (cohort) => {cohort.runtime_closure.domain = "wrong";}],
+    ["unbound runtime closure path", (cohort) => {
+      cohort.runtime_closure.projection_path =
+        `governance/docs-runtime-closures/sha256-${"1".repeat(64)}.json`;
+    }],
+    ["extra runtime closure key", (cohort) => {cohort.runtime_closure.unexpected = true;}],
+    ["missing runtime closure key", (cohort) => {delete cohort.runtime_closure.package_count;}],
+    ["extra canary repository key", (cohort) => {
+      cohort.canary_repositories[0].unexpected = true;
+    }],
+    ["missing canary repository key", (cohort) => {
+      delete cohort.canary_repositories[0].repository;
+    }],
+    ["duplicate evidence reference", (cohort) => {
+      cohort.evidence_references.push(cohort.evidence_references[0]);
+    }],
+    ["missing evidence reference", (cohort) => {cohort.evidence_references.length = 0;}],
+    ["missing upgrade origin", (cohort) => {cohort.upgrade_from.length = 0;}]
+  ];
+  for (const [description, mutate] of mutations) {
+    const registry = structuredClone(actualOrgV2Registry);
+    mutate(registry.cohorts[0]);
+    assert.throws(
+      () => projectQualifiedCohortAuthority({ ...input, generation: 2, registry }),
+      (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID",
+      description
+    );
+  }
+  for (const [description, mutate] of [
+    ["extra lifecycle event key", (event) => {event.unexpected = true;}],
+    ["missing lifecycle event key", (event) => {delete event.support_until;}],
+    ["duplicate lifecycle evidence reference", (event) => {
+      event.evidence_references.push(event.evidence_references[0]);
+    }]
+  ]) {
+    const registry = structuredClone(actualOrgV2Registry);
+    mutate(registry.events[0]);
+    assert.throws(
+      () => projectQualifiedCohortAuthority({ ...input, generation: 2, registry }),
+      (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID",
+      description
+    );
   }
 });
 

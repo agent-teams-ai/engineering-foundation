@@ -7,7 +7,8 @@ import { loadQualityGatePolicy } from "../contract/config.js";
 const ACTIVE_GATE_ENVIRONMENT_VARIABLE = "AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE";
 
 export function createNodeQualityGateCommand(
-  environment: NodeJS.ProcessEnv
+  environment: NodeJS.ProcessEnv,
+  processExecutor: import("../application/ports/managed-process-executor.js").QualityGateManagedProcessExecutor
 ): QualityGateCommand {
   const snapshot = Object.freeze({ ...environment });
   return async (input) => createQualityGateCommand({
@@ -27,7 +28,7 @@ export function createNodeQualityGateCommand(
       ...(snapshot.PATH === undefined
         ? {}
         : { pathValue: snapshot.PATH })
-    }),
+    }, processExecutor),
     policyLoader: loadQualityGatePolicy,
     qualityGateActive:
       snapshot[ACTIVE_GATE_ENVIRONMENT_VARIABLE] !== undefined

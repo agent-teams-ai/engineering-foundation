@@ -4,8 +4,9 @@ import {
   type CapabilityDefinition,
   type CapabilityInvocation
 } from "../../features/validation-reporting/api.js";
-import { FilesystemSourceTreeReader } from "../../source-inventory/adapters/outbound/filesystem/filesystem-source-tree-reader.js";
-import { PnpmWorkspaceInventoryReader } from "../../workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
+import type { SourceTreeReader } from "./application/ports/source-tree-reader.js";
+import type { WorkspaceInventoryReader } from "../../workspace-inventory/api.js";
+import type { SourceWorkspaceInventorySnapshotReader } from "./application/ports/source-workspace-topology-inspector.js";
 import { NodeSourceDependencyResolver } from "./adapters/outbound/node/node-source-dependency-resolver.js";
 import { PnpmSourceWorkspaceTopologyInspector } from "./adapters/outbound/node/pnpm-source-workspace-topology-inspector.js";
 import { OxcSourceDependencyParser } from "./adapters/outbound/oxc/oxc-source-dependency-parser.js";
@@ -19,13 +20,18 @@ import {
 
 export { SOURCE_DEPENDENCY_RULES_BY_ID };
 
-export function createSourceDependenciesCapability(): CapabilityDefinition {
-  const inventoryReader = new PnpmWorkspaceInventoryReader();
+export interface SourceDependenciesCapabilityDependencies {
+  readonly inventoryReader: WorkspaceInventoryReader & SourceWorkspaceInventorySnapshotReader;
+  readonly sourceReader: SourceTreeReader;
+}
+
+export function createSourceDependenciesCapability(input: SourceDependenciesCapabilityDependencies): CapabilityDefinition {
+  const inventoryReader = input.inventoryReader;
   const dependencies = Object.freeze({
     inventoryReader,
     parser: new OxcSourceDependencyParser(),
     resolver: new NodeSourceDependencyResolver(),
-    sourceReader: new FilesystemSourceTreeReader(),
+    sourceReader: input.sourceReader,
     topologyInspector: new PnpmSourceWorkspaceTopologyInspector({ inventoryReader })
   });
   return Object.freeze({

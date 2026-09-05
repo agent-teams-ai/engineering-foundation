@@ -1,4 +1,4 @@
-import type { JsonSchemaInspection } from "../../../contract-json-schema-releases/application/model/json-schema-release.js";
+import type { JsonSchemaInspection } from "../../../contract-json-schema-releases/api.js";
 
 export interface ExecutableSpecificationDocument {
   readonly path: string;
@@ -64,3 +64,5 @@ export interface ExecutableSpecificationObservation {
   readonly gates: Readonly<Record<string, ObservedGateBinding>>;
   readonly artifactDigest: `sha256:${string}`;
 }
+
+export type { JsonSchemaFixture } from "../../../contract-json-schema-releases/api.js";

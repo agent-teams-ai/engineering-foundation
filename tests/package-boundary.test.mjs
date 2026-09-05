@@ -1,3 +1,4 @@
+import { sourceDependencyAdapters } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -553,7 +554,7 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
         sourcePath,
         `import { marker } from "../${targetLayer}/index.js";\nexport const probe = marker;\n`,
       );
-      const rejected = await createSourceDependenciesCapability().run({
+      const rejected = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
         consumerRoot: temporaryRoot,
         configPath: "architecture/foundation/source-dependencies.yaml",
       });
@@ -568,7 +569,7 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
       join(temporaryRoot, "packages/docs-protocol/src/composition/index.ts"),
       "import { marker } from \"../adapters/index.js\";\nexport const probe = marker;\n",
     );
-    const accepted = await createSourceDependenciesCapability().run({
+    const accepted = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
       consumerRoot: temporaryRoot,
       configPath: "architecture/foundation/source-dependencies.yaml",
     });
@@ -731,7 +732,7 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
       ),
     ]);
 
-    const rejected = await createSourceDependenciesCapability().run({
+    const rejected = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
       consumerRoot: temporaryRoot,
       configPath: "architecture/foundation/source-dependencies.yaml",
     });
@@ -744,7 +745,7 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
       paths.application,
       "import type { DomainMarker } from \"../../domain/model.js\";\nexport type UseCaseMarker = DomainMarker;\n",
     );
-    const accepted = await createSourceDependenciesCapability().run({
+    const accepted = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
       consumerRoot: temporaryRoot,
       configPath: "architecture/foundation/source-dependencies.yaml",
     });
@@ -755,7 +756,7 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
 });
 
 test("source dependency capability accepts the exact repository allowlist", async () => {
-  const report = await createSourceDependenciesCapability().run({
+  const report = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
     consumerRoot: repositoryRoot,
     configPath: "architecture/foundation/source-dependencies.yaml",
   });

@@ -13,7 +13,6 @@ import type {
 } from "../../../ports/buf-qualification-runner.js";
 import type { BufExecutable } from "../../../ports/buf-executable.js";
 import { verifyPinnedBufVersion } from "../../../use-cases/verify-pinned-buf-version.js";
-import { ProcessBufExecutable } from "./process-buf-executable.js";
 
 const MAX_DESCRIPTOR_BYTES = 64 * 1024 * 1024;
 
@@ -59,7 +58,7 @@ async function readBoundedDescriptor(root: string, path: string): Promise<Uint8A
 export class ProcessBufQualificationRunner implements BufQualificationRunner {
   readonly #executable: BufExecutable;
 
-  constructor(executable: BufExecutable = new ProcessBufExecutable()) {
+  constructor(executable: BufExecutable) {
     this.#executable = executable;
   }
 

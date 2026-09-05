@@ -1,3 +1,4 @@
+import { sourceDependencyAdapters } from "../support/capability-adapters.mjs";
 import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -80,7 +81,7 @@ export async function withCopiedFixture(name, callback) {
 }
 
 export async function runSourceCapability(consumerRoot, signal) {
-  return createSourceDependenciesCapability().run({
+  return createSourceDependenciesCapability(sourceDependencyAdapters()).run({
     consumerRoot,
     configPath: "architecture/foundation/source-dependencies.yaml",
     ...(signal === undefined ? {} : { signal }),

@@ -1,8 +1,8 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { assertNotCancelled } from "../../../../cancellation.js";
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
-import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
-import type { WorkspaceInventory } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
+import type { SourceFileSnapshot } from "../model/source-file-snapshot.js";
+import type { WorkspaceInventory } from "../../../../workspace-inventory/api.js";
 import {
   normalizeRepositoryPath
 } from "../model/repository-path.js";

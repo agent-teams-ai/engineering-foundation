@@ -1,5 +1,5 @@
 import { NodeProcessRunner } from "../process-execution/node-process-runner.js";
-import type { ProcessRequest, ProcessRunner } from "../process-execution/types.js";
+import type { ProcessRequest, ProcessRunner } from "../process-execution/api.js";
 
 export { NodeProcessRunner };
 

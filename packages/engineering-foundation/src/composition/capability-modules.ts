@@ -1,9 +1,13 @@
+import { createSourceTreeReader } from "../source-inventory/module.js";
+import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
 import type { CapabilityDefinition, RuleExplanation } from "../features/validation-reporting/api.js";
 import {
+  createJsonSchemaInspector,
   createJsonSchemaReleaseCapability,
   JSON_SCHEMA_RELEASE_RULES_BY_ID
 } from "../capabilities/contract-json-schema-releases/module.js";
 import {
+  GovernanceAcceptedDecisionEvidenceAcl,
   createProtobufEvolutionCapability,
   PROTOBUF_EVOLUTION_RULES_BY_ID
 } from "../capabilities/contract-protobuf-evolution/module.js";
@@ -17,7 +21,8 @@ import {
 } from "../capabilities/executable-specifications/module.js";
 import {
   ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID,
-  createArchitectureDecisionGovernanceCapability
+  createArchitectureDecisionGovernanceCapability,
+  readAcceptedArchitectureDecisionEvidence
 } from "../capabilities/governance-architecture-decisions/module.js";
 import {
   createPublicApiCompatibilityCapability,
@@ -69,7 +74,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       JSON_SCHEMA_RELEASE_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createProtobufEvolutionCapability(),
+      createProtobufEvolutionCapability({ acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence) }),
       PROTOBUF_EVOLUTION_RULES_BY_ID
     ),
     defineCapabilityModule(
@@ -77,7 +82,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createExecutableSpecificationsCapability(),
+      createExecutableSpecificationsCapability({ workspaceManifestPathReader: createWorkspaceInventoryReader(), createJsonSchemaInspector }),
       EXECUTABLE_SPECIFICATION_RULES_BY_ID
     ),
     defineCapabilityModule(
@@ -85,7 +90,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createPublicApiCompatibilityCapability(),
+      createPublicApiCompatibilityCapability(readAcceptedArchitectureDecisionEvidence),
       PUBLIC_API_COMPATIBILITY_RULES_BY_ID
     ),
     defineCapabilityModule(
@@ -101,15 +106,15 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       REPOSITORY_SECURITY_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createSourceDependenciesCapability(),
+      createSourceDependenciesCapability({ inventoryReader: createWorkspaceInventoryReader(), sourceReader: createSourceTreeReader() }),
       SOURCE_DEPENDENCY_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createSuppressionGovernanceCapability(),
+      createSuppressionGovernanceCapability(createSourceTreeReader()),
       SUPPRESSION_GOVERNANCE_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createWorkspaceDependencyDeclarationsCapability(),
+      createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader()),
       WORKSPACE_RULES_BY_ID
     )
   ]);

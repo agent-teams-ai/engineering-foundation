@@ -1,18 +1,21 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { assertNotCancelled } from "../../../../cancellation.js";
-import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
-import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
-import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
-import type { SourceTreeReader } from "../../../../source-inventory/application/ports/source-tree-reader.js";
-import type {
-  WorkspaceInventory,
-  WorkspacePackage
-} from "../../../../workspace-inventory/application/model/workspace-inventory.js";
-import type { WorkspaceInventoryReader } from "../../../../workspace-inventory/application/ports/workspace-inventory-reader.js";
 import {
+  CapabilityInputError,
+  type FoundationDiagnostic
+} from "../../../../features/validation-reporting/api.js";
+
+import type { SourceFileSnapshot } from "../model/source-file-snapshot.js";
+import type { SourceTreeReader } from "../ports/source-tree-reader.js";
+import {
+  type WorkspaceInventory,
+  type WorkspacePackage,
+  type WorkspaceInventoryReader,
   exactAvailablePackageExport,
   exactPackageExportTargetPaths
-} from "../../../../workspace-inventory/application/policies/package-export-matcher.js";
+} from "../../../../workspace-inventory/api.js";
+
+
 import type {
   ArchitectureBoundaryPolicy,
   ClassifiedSourceFile,

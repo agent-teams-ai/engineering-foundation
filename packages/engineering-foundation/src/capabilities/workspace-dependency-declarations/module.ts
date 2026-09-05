@@ -15,8 +15,8 @@ import { RULES_BY_ID } from "./application/rules.js";
 
 export { RULES_BY_ID };
 
-export function createWorkspaceDependencyDeclarationsCapability(): CapabilityDefinition {
-  const workspaceReader = new PnpmWorkspaceReader();
+export function createWorkspaceDependencyDeclarationsCapability(inventoryReader: import("./application/ports/workspace-reader.js").WorkspaceReader): CapabilityDefinition {
+  const workspaceReader = new PnpmWorkspaceReader(inventoryReader);
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,

@@ -1,3 +1,4 @@
+import { createManagedProcessExecutor, protobufAdapters, readAcceptedArchitectureDecisionEvidence } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
@@ -550,7 +551,7 @@ test("rejects a fabricated accepted-decision baseline without immutable governan
       })}\n`,
       "utf8",
     );
-    const capability = protobufModule.createProtobufEvolutionCapability();
+    const capability = protobufModule.createProtobufEvolutionCapability(protobufAdapters());
     const result = await capability.run({
       consumerRoot: root,
       configPath: "contract.yaml",
@@ -573,6 +574,7 @@ test("loads a breaking approval only from a complete immutable governance catalo
   await withConfig(config, async (root) => {
     await writeGovernedDecisionEvidence(root);
     const result = await protobufModule.createProtobufEvolutionCapability({
+      ...protobufAdapters(),
       bufBreakingQualificationEvidence: breakingQualificationEvidence(),
     }).run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(result.outcome, "passed");
@@ -584,7 +586,7 @@ test("governance evidence ACL preserves deterministic mapping, cancellation, and
   const external = await mkdtemp(join(tmpdir(), "foundation-protobuf-governance-external-"));
   try {
     await writeGovernedDecisionEvidence(root);
-    const acl = new protobufGovernanceAcl.GovernanceAcceptedDecisionEvidenceAcl();
+    const acl = new protobufGovernanceAcl.GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence);
     assert.deepEqual(
       await acl.readAcceptedDecisionEvidence({
         consumerRoot: root,
@@ -649,17 +651,17 @@ test("runs as a deterministic read-only Foundation capability with closed input 
       "utf8",
     );
     assert.doesNotMatch(moduleSource, /child_process|node:child_process|ProcessBuf/u);
-    const cliSource = await readFile(join(distRoot, "cli.js"), "utf8");
+    const cliSource = await readFile(join(distRoot, "composition", "command-host.js"), "utf8");
     assert.doesNotMatch(
       cliSource,
       /^import .*contract-protobuf-evolution\/qualification\/module/mu,
     );
     assert.match(
       cliSource,
-      /await import\(\s*"\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,
+      /await import\(\s*"\.\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,
     );
 
-    const capability = protobufModule.createProtobufEvolutionCapability();
+    const capability = protobufModule.createProtobufEvolutionCapability(protobufAdapters());
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(first.outcome, "passed");
@@ -685,7 +687,7 @@ test("runs as a deterministic read-only Foundation capability with closed input 
 });
 
 test("requires an explicitly supported root configuration schema version", async () => {
-  const capability = protobufModule.createProtobufEvolutionCapability();
+  const capability = protobufModule.createProtobufEvolutionCapability(protobufAdapters());
 
   const missingVersion = capabilityConfig();
   delete missingVersion.schemaVersion;
@@ -733,7 +735,7 @@ test("checks the pinned Buf executable through an injected port", async () => {
 });
 
 test("Buf process adapter rejects relative executables and control-character arguments before spawning", async () => {
-  const executable = new protobufQualification.ProcessBufExecutable();
+  const executable = new protobufQualification.ProcessBufExecutable(createManagedProcessExecutor());
   await assert.rejects(
     executable.run({
       executablePath: "buf",
@@ -810,7 +812,7 @@ test("Protobuf contract config and released baseline schemas accept verified sha
 
 test("loads a separate released Protobuf baseline deterministically and rejects inline substitution", async () => {
   await withConfig(capabilityConfig(), async (root) => {
-    const capability = protobufModule.createProtobufEvolutionCapability();
+    const capability = protobufModule.createProtobufEvolutionCapability(protobufAdapters());
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(first.outcome, "passed");
@@ -828,7 +830,7 @@ test("loads a separate released Protobuf baseline deterministically and rejects 
 
 test("rejects missing, escaping, and invalid released Protobuf baselines", async () => {
   await withConfig(capabilityConfig(), async (root) => {
-    const capability = protobufModule.createProtobufEvolutionCapability();
+    const capability = protobufModule.createProtobufEvolutionCapability(protobufAdapters());
     await unlink(join(root, "architecture", "contracts", "released.yaml"));
     const missing = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(missing.outcome, "invalid-input");

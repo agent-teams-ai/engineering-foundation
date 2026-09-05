@@ -7,7 +7,7 @@ import type {
   RepositoryChangeGroup,
   RepositoryChangeGroups
 } from "../../../application/model/changed-workflow.js";
-import { execute } from "../process/process-execution.js";
+import type { ExecuteWorkflowProcess } from "../../../application/ports/process-execution.js";
 
 const AUTO_BASE_REFS = [
   { display: "origin/main", ref: "refs/remotes/origin/main" },
@@ -74,7 +74,7 @@ function assertSafeRepositoryPath(path: string): void {
   }
 }
 
-async function git(root: string, args: readonly string[], signal?: AbortSignal) {
+async function git(execute: ExecuteWorkflowProcess, root: string, args: readonly string[], signal?: AbortSignal) {
   try {
     return await execute("git", [...GIT_HARDENING, ...args], {
       cwd: root,
@@ -97,12 +97,12 @@ function exactCommit(value: string, context: string): string {
   return commit.toLowerCase();
 }
 
-async function resolveCommit(
+async function resolveCommit(execute: ExecuteWorkflowProcess,
   root: string,
   ref: string,
   signal?: AbortSignal
 ): Promise<string | null> {
-  const resolved = await git(
+  const resolved = await git(execute,
     root,
     ["rev-parse", "--verify", "--quiet", "--end-of-options", `${ref}^{commit}`],
     signal
@@ -118,12 +118,12 @@ async function resolveCommit(
   );
 }
 
-async function assertExactRef(
+async function assertExactRef(execute: ExecuteWorkflowProcess,
   root: string,
   ref: string,
   signal?: AbortSignal
 ): Promise<void> {
-  const result = await git(root, ["check-ref-format", ref], signal);
+  const result = await git(execute, root, ["check-ref-format", ref], signal);
   if (result.exitCode === 0) {
     return;
   }
@@ -137,18 +137,18 @@ async function assertExactRef(
   );
 }
 
-async function resolveRequestedRef(
+async function resolveRequestedRef(execute: ExecuteWorkflowProcess,
   root: string,
   requested: string,
   signal?: AbortSignal
 ): Promise<{ readonly ref: string; readonly commit: string } | null> {
   if (requested === "HEAD" || FULL_COMMIT.test(requested)) {
-    const commit = await resolveCommit(root, requested, signal);
+    const commit = await resolveCommit(execute, root, requested, signal);
     return commit === null ? null : { ref: requested, commit };
   }
   if (requested.startsWith("refs/")) {
-    await assertExactRef(root, requested, signal);
-    const commit = await resolveCommit(root, requested, signal);
+    await assertExactRef(execute, root, requested, signal);
+    const commit = await resolveCommit(execute, root, requested, signal);
     return commit === null ? null : { ref: requested, commit };
   }
   const candidates = [
@@ -156,10 +156,10 @@ async function resolveRequestedRef(
     `refs/remotes/${requested}`,
     `refs/tags/${requested}`
   ];
-  await assertExactRef(root, `refs/heads/${requested}`, signal);
+  await assertExactRef(execute, root, `refs/heads/${requested}`, signal);
   const matches = (
     await Promise.all(
-      candidates.map(async (ref) => ({ ref, commit: await resolveCommit(root, ref, signal) }))
+      candidates.map(async (ref) => ({ ref, commit: await resolveCommit(execute, root, ref, signal) }))
     )
   ).filter((match): match is { readonly ref: string; readonly commit: string } =>
     match.commit !== null
@@ -172,13 +172,13 @@ async function resolveRequestedRef(
   return matches[0] ?? null;
 }
 
-async function uniqueMergeBase(
+async function uniqueMergeBase(execute: ExecuteWorkflowProcess,
   root: string,
   headCommit: string,
   baseCommit: string,
   signal?: AbortSignal
 ): Promise<string | null> {
-  const result = await git(
+  const result = await git(execute,
     root,
     ["merge-base", "--all", "--", headCommit, baseCommit],
     signal
@@ -217,12 +217,12 @@ interface BaselineResolution {
   readonly baselineCommit: string | null;
 }
 
-async function resolveBaseline(
+async function resolveBaseline(execute: ExecuteWorkflowProcess,
   root: string,
   requested: string | undefined,
   signal?: AbortSignal
 ): Promise<BaselineResolution> {
-  const headCommit = await resolveCommit(root, "HEAD", signal);
+  const headCommit = await resolveCommit(execute, root, "HEAD", signal);
   if (headCommit === null) {
     if (requested !== undefined) {
       invalid("An explicit base cannot be resolved before the repository has an initial commit.");
@@ -244,15 +244,15 @@ async function resolveBaseline(
   let resolvedCandidateCount = 0;
   for (const candidate of candidates) {
     const resolved = requested === undefined
-      ? await resolveCommit(root, candidate.ref, signal).then((commit) =>
+      ? await resolveCommit(execute, root, candidate.ref, signal).then((commit) =>
           commit === null ? null : { ref: candidate.ref, commit }
         )
-      : await resolveRequestedRef(root, candidate.ref, signal);
+      : await resolveRequestedRef(execute, root, candidate.ref, signal);
     if (resolved === null) {
       continue;
     }
     resolvedCandidateCount += 1;
-    const mergeBaseCommit = await uniqueMergeBase(
+    const mergeBaseCommit = await uniqueMergeBase(execute,
       root,
       headCommit,
       resolved.commit,
@@ -320,14 +320,14 @@ const DIFF_PATH_OPTIONS = [
   "-z"
 ] as const;
 
-async function diffGroup(
+async function diffGroup(execute: ExecuteWorkflowProcess,
   root: string,
   prefix: readonly string[],
   signal?: AbortSignal
 ): Promise<RepositoryChangeGroup> {
   const [all, deleted] = await Promise.all([
-    git(root, ["diff", ...prefix, ...DIFF_PATH_OPTIONS, "--end-of-options", "--"], signal),
-    git(
+    git(execute, root, ["diff", ...prefix, ...DIFF_PATH_OPTIONS, "--end-of-options", "--"], signal),
+    git(execute,
       root,
       ["diff", ...prefix, "--diff-filter=D", ...DIFF_PATH_OPTIONS, "--end-of-options", "--"],
       signal
@@ -352,22 +352,22 @@ async function diffGroup(
   });
 }
 
-async function changedPathGroups(
+async function changedPathGroups(execute: ExecuteWorkflowProcess,
   root: string,
   baseline: BaselineResolution,
   signal?: AbortSignal
 ): Promise<RepositoryChangeGroups> {
   const committed = baseline.baselineCommit === null || baseline.headCommit === null
     ? Object.freeze({ paths: Object.freeze([]), deletedPaths: Object.freeze([]) })
-    : await diffGroup(
+    : await diffGroup(execute,
         root,
         [`${baseline.baselineCommit}..${baseline.headCommit}`],
         signal
       );
   const [staged, unstaged, untrackedResult] = await Promise.all([
-    diffGroup(root, ["--cached"], signal),
-    diffGroup(root, [], signal),
-    git(
+    diffGroup(execute, root, ["--cached"], signal),
+    diffGroup(execute, root, [], signal),
+    git(execute,
       root,
       ["ls-files", "--others", "--exclude-standard", "-z", "--"],
       signal
@@ -411,18 +411,21 @@ async function scopeDigest(
 }
 
 export class GitRepositoryChangesReader implements RepositoryChangesReader {
+  constructor(private readonly execute: ExecuteWorkflowProcess) {}
+
   async collect(input: {
     readonly consumerRoot: string;
     readonly baseRef?: string;
     readonly signal?: AbortSignal;
   }) {
+    const execute = this.execute;
     if (input.baseRef !== undefined && input.baseRef.startsWith("-")) {
       invalid("The base ref cannot start with a dash.");
     }
     const root = await realpath(input.consumerRoot).catch(() =>
       invalid("The consumer root is unavailable.")
     );
-    const topLevel = await git(
+    const topLevel = await git(execute,
       root,
       ["rev-parse", "--show-toplevel"],
       input.signal
@@ -434,8 +437,8 @@ export class GitRepositoryChangesReader implements RepositoryChangesReader {
     if (gitRoot !== root) {
       invalid("The consumer root must be the Git repository root.");
     }
-    const baseline = await resolveBaseline(root, input.baseRef, input.signal);
-    const changeGroups = await changedPathGroups(root, baseline, input.signal);
+    const baseline = await resolveBaseline(execute, root, input.baseRef, input.signal);
+    const changeGroups = await changedPathGroups(execute, root, baseline, input.signal);
     const groups: readonly RepositoryChangeGroup[] = [
       changeGroups.committed,
       changeGroups.staged,

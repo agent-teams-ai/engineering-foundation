@@ -1,7 +1,7 @@
 import { parseSync, type Comment } from "oxc-parser";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import type { SourceFileSnapshot } from "../../../../../source-inventory/application/model/source-file-snapshot.js";
+import type { SourceFileSnapshot } from "../../../application/model/source-file-snapshot.js";
 import type {
   SuppressionDirective,
   SuppressionDirectiveKind,

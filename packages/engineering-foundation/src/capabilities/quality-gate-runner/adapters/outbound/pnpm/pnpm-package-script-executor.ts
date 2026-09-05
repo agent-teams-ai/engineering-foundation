@@ -3,14 +3,11 @@ import { delimiter, isAbsolute, resolve } from "node:path";
 
 import { FoundationError } from "../../../../../errors.js";
 import {
-  executeManagedProcess,
   ProcessCancellationError,
   ProcessTimeoutError
-} from "../../../../../process-execution/node-process-runner.js";
-import type {
-  ManagedProcessResult,
-  ProcessRequest
-} from "../../../../../process-execution/types.js";
+} from "../../../application/ports/managed-process-executor.js";
+import type { QualityGateManagedProcessExecutor } from "../../../application/ports/managed-process-executor.js";
+export type { QualityGateManagedProcessExecutor } from "../../../application/ports/managed-process-executor.js";
 import {
   PackageScriptCancellationError,
   PackageScriptTimeoutError,
@@ -24,17 +21,6 @@ export interface QualityGatePnpmEnvironment {
   readonly pathValue?: string;
 }
 
-interface QualityGateManagedProcessRequest extends ProcessRequest {
-  readonly environment: Readonly<NodeJS.ProcessEnv>;
-}
-
-export interface QualityGateManagedProcessExecutor {
-  run(request: QualityGateManagedProcessRequest): Promise<ManagedProcessResult>;
-}
-
-const nodeManagedProcessExecutor: QualityGateManagedProcessExecutor = {
-  run: executeManagedProcess
-};
 
 interface PnpmInvocation {
   readonly command: string;
@@ -110,8 +96,7 @@ async function resolvePnpmInvocation(
 export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
   constructor(
     private readonly environment: QualityGatePnpmEnvironment,
-    private readonly processExecutor: QualityGateManagedProcessExecutor =
-      nodeManagedProcessExecutor
+    private readonly processExecutor: QualityGateManagedProcessExecutor
   ) {}
 
   async run(input: {

@@ -20,12 +20,12 @@ import {
 
 export { PUBLIC_API_COMPATIBILITY_RULES_BY_ID };
 
-function createDependencies() {
+function createDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader) {
   return Object.freeze({
     extractor: new MicrosoftPublicApiExtractor(),
     fingerprint: new NodeChangeFingerprint(),
     repository: new FilesystemPublicApiRepository(),
-    acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl()
+    acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedDecisions)
   });
 }
 
@@ -33,7 +33,7 @@ export async function promotePublicApiRelease(input: {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly signal?: AbortSignal;
-}) {
+}, readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader) {
   const policy = await loadCapabilityConfig(
     input.consumerRoot,
     input.configPath,
@@ -45,12 +45,12 @@ export async function promotePublicApiRelease(input: {
       policy,
       ...(input.signal === undefined ? {} : { signal: input.signal })
     },
-    createDependencies()
+    createDependencies(readAcceptedDecisions)
   );
 }
 
-export function createPublicApiCompatibilityCapability(): CapabilityDefinition {
-  const dependencies = createDependencies();
+export function createPublicApiCompatibilityCapability(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader): CapabilityDefinition {
+  const dependencies = createDependencies(readAcceptedDecisions);
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,

@@ -1,3 +1,4 @@
+import { createManagedProcessExecutor } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -609,7 +610,7 @@ test("evidence writer cancels while waiting for its cooperative lock", async () 
 
 test("Buf process execution enforces a bounded deadline", async () => {
   await withFixture(async ({ root }) => {
-    const executable = new qualificationModule.ProcessBufExecutable(50);
+    const executable = new qualificationModule.ProcessBufExecutable(createManagedProcessExecutor(), 50);
     await assert.rejects(
       executable.run({
         executablePath: process.execPath,

@@ -136,4 +136,4 @@ export function managedProcessCleanupFailure(
   );
 }
 import { FoundationError } from "../errors.js";
-import type { ProcessRequest } from "./types.js";
+import type { ProcessRequest } from "./api.js";

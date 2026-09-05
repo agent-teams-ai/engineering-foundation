@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { ProcessCancellationError, ProcessTimeoutError } from "./api.js";
 import { FoundationError } from "../errors.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
@@ -11,20 +12,17 @@ import {
   waitForWindowsManagedProcessContainment
 } from "./windows-managed-process.js";
 import type {
+  ManagedProcessRequest,
   ManagedProcessResult,
   ProcessRequest,
   ProcessResult,
   ProcessRunner
-} from "./types.js";
+} from "./api.js";
 
 const MAX_PROCESS_TIMEOUT_MS = 2_147_483_647;
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 const TERMINATION_GRACE_MS = 1_000;
 
-interface ManagedProcessRequest extends ProcessRequest {
-  /** Reject process output that is not well-formed UTF-8 instead of replacing bytes. */
-  readonly strictUtf8?: boolean;
-}
 
 interface ObservedProcessExit {
   readonly exitCode: number | null;
@@ -52,26 +50,6 @@ function processFailure(
   );
 }
 
-export class ProcessCancellationError extends FoundationError {
-  constructor(message: string, options?: ErrorOptions) {
-    super("PROCESS_FAILED", message, options);
-    this.name = "ProcessCancellationError";
-  }
-}
-
-export class ProcessTimeoutError extends FoundationError {
-  constructor(
-    readonly timeoutMs: number,
-    options?: ErrorOptions & { readonly requestDescription?: string }
-  ) {
-    super(
-      "PROCESS_FAILED",
-      `${options?.requestDescription ?? "Process"} timed out after ${String(timeoutMs)}ms.`,
-      options
-    );
-    this.name = "ProcessTimeoutError";
-  }
-}
 
 function processCancelled(
   request: ProcessRequest,

@@ -4,7 +4,7 @@ import { join, posix } from "node:path";
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../../strict-yaml.js";
-import type { WorkspacePackage } from "../../../../../workspace-inventory/application/model/workspace-inventory.js";
+import type { WorkspacePackage } from "../../../application/model/workspace-inventory.js";
 import { portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
 import type { SourceWorkspacePackageTopology } from "../../../application/model/source-workspace-topology.js";
 import {

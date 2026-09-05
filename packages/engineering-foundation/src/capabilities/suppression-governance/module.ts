@@ -4,7 +4,7 @@ import {
   type CapabilityDefinition,
   type CapabilityInvocation
 } from "../../features/validation-reporting/api.js";
-import { FilesystemSourceTreeReader } from "../../source-inventory/adapters/outbound/filesystem/filesystem-source-tree-reader.js";
+import type { SourceTreeReader } from "./application/ports/source-tree-reader.js";
 import { OxcSuppressionScanner } from "./adapters/outbound/oxc/oxc-suppression-scanner.js";
 import { SystemCalendarClock } from "./adapters/outbound/time/system-clock.js";
 import { SUPPRESSION_GOVERNANCE_RULES_BY_ID } from "./application/rules.js";
@@ -17,11 +17,11 @@ import {
 
 export { SUPPRESSION_GOVERNANCE_RULES_BY_ID };
 
-export function createSuppressionGovernanceCapability(): CapabilityDefinition {
+export function createSuppressionGovernanceCapability(sourceReader: SourceTreeReader): CapabilityDefinition {
   const dependencies = Object.freeze({
     clock: new SystemCalendarClock(),
     scanner: new OxcSuppressionScanner(),
-    sourceReader: new FilesystemSourceTreeReader()
+    sourceReader
   });
   return Object.freeze({
     id: CAPABILITY_ID,

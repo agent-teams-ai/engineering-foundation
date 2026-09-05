@@ -7,16 +7,17 @@ import {
   ContainedFileReadError,
   readContainedRegularFile
 } from "../../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../../../cancellation.js";
 import { parseStrictJson, StrictJsonError } from "../../../../../strict-json.js";
-import { PnpmWorkspaceInventoryReader } from "../../../../../workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
-import { AjvJsonSchemaReleaseInspector } from "../../../../contract-json-schema-releases/adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
-import type { JsonSchemaFixture } from "../../../../contract-json-schema-releases/application/model/json-schema-release.js";
+import type { JsonSchemaInspectorFactory } from "../../../application/ports/json-schema-inspector-factory.js";
+import type { WorkspaceManifestPathReader } from "../../../application/ports/workspace-manifest-path-reader.js";
 import type {
+  JsonSchemaFixture,
   ConsumerGateBinding,
   ExecutableSpecification,
   ObservedGateBinding
 } from "../../../application/model/executable-specification.js";
+
 import type { ExecutableSpecificationInspector } from "../../../application/ports/executable-specification-inspector.js";
 import {
   executableSpecificationArtifactPaths,
@@ -33,13 +34,6 @@ interface PackageScripts {
   readonly scripts: ReadonlySet<string>;
 }
 
-interface WorkspaceManifestPathReader {
-  discoverManifestPaths(
-    consumerRoot: string,
-    workspaceManifestPath: string,
-    signal?: AbortSignal
-  ): Promise<readonly string[]>;
-}
 
 function inputError(code: string, message: string): never {
   throw new CapabilityInputError({
@@ -222,7 +216,8 @@ export class FilesystemExecutableSpecificationInspector
   readonly #maxAggregateArtifactBytes: number;
 
   constructor(
-    workspaceManifestPathReader: WorkspaceManifestPathReader = new PnpmWorkspaceInventoryReader(),
+    workspaceManifestPathReader: WorkspaceManifestPathReader,
+    private readonly createJsonSchemaInspector: JsonSchemaInspectorFactory,
     maxAggregateArtifactBytes = MAX_AGGREGATE_ARTIFACT_BYTES
   ) {
     if (
@@ -246,7 +241,7 @@ export class FilesystemExecutableSpecificationInspector
       input.consumerRoot,
       this.#maxAggregateArtifactBytes
     );
-    const jsonSchemaInspector = new AjvJsonSchemaReleaseInspector((repositoryPath) =>
+    const jsonSchemaInspector = this.createJsonSchemaInspector((repositoryPath) =>
       artifacts.read(repositoryPath)
     );
     const manifestPaths = await this.#workspaceManifestPathReader.discoverManifestPaths(

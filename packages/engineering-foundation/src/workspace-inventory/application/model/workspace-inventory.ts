@@ -7,7 +7,7 @@ export const DEPENDENCY_SECTIONS = [
 
 export type DependencySection = (typeof DEPENDENCY_SECTIONS)[number];
 
-export type DependencyDeclarationProvenance =
+type DependencyDeclarationProvenance =
   | { readonly kind: "manifest" }
   | { readonly kind: "catalog"; readonly catalogName: string };
 

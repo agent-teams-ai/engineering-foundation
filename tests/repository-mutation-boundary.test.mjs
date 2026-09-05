@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { sourceFiles } from "./package-boundary-support.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const packageRoot = join(repositoryRoot, "packages", "repository-mutation");
@@ -34,4 +35,26 @@ test("keeps Repository Mutation a zero-monorepo-dependency packed closure", asyn
     assert.doesNotMatch(source, /@agent-teams\/(?:engineering-foundation|docs-protocol)/u,
       relative(repositoryRoot, path));
   }
+});
+
+test("production and generic directory adapters share the internal bind kernel", async () => {
+  const productionPath = (await sourceFiles(join(
+    repositoryRoot,
+    "packages/document-authoring/src",
+  ))).find((path) => basename(path) === "node-document-parent-materializer.ts");
+  assert.notEqual(productionPath, undefined);
+  const production = await readFile(productionPath, "utf8");
+  const generic = await readFile(join(
+    repositoryRoot,
+    "packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts",
+  ), "utf8");
+  assert.match(production, /@agent-teams\/repository-mutation\/node/iu); assert.match(generic, /node-create-and-bind-directory\.js/iu);
+  for (const source of [production, generic]) {
+    assert.match(source, /createAndBindNodeDirectory\s*\(/u);
+  }
+  const publicMutationBarrel = await readFile(join(
+    repositoryRoot,
+    "packages/repository-mutation/src/index.ts",
+  ), "utf8");
+  assert.doesNotMatch(publicMutationBarrel, /createAndBindNodeDirectory/u);
 });

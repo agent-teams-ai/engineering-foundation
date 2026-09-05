@@ -337,6 +337,10 @@ test("permits type-only imports from development dependencies but blocks runtime
       dependencyName: "fixture-types",
       section: "devDependencies",
       specifier: "1.0.0",
+      targetPackageName: "fixture-types",
+      effectiveSpecifier: "1.0.0",
+      effectiveVersionSpecifier: "1.0.0",
+      provenance: { kind: "manifest" },
     },
   ]);
   const appBoundary = boundary("app.application", ["packages/app/src"], {

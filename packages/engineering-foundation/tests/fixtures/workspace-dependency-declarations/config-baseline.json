@@ -1,0 +1,221 @@
+{
+  "originalBase": "588a50d99fcb02dce5389407ebd5eba9d901b6b3",
+  "cases": [
+    {
+      "name": "valid",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "settings": {
+        "packageManagerKind": "pnpm",
+        "workspaceManifestPath": "pnpm-workspace.yaml",
+        "policy": {
+          "reservedScopes": [
+            "@fixture/"
+          ],
+          "developmentOnlyPackages": [
+            "oxlint",
+            "typescript"
+          ],
+          "exactRegistryDevelopmentOnlyPackages": [
+            "@agent-teams/engineering-foundation"
+          ]
+        }
+      }
+    },
+    {
+      "name": "empty-policy",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes: []\n  developmentOnlyPackages: []\n  exactRegistryDevelopmentOnlyPackages: []\n",
+      "settings": {
+        "packageManagerKind": "pnpm",
+        "workspaceManifestPath": "pnpm-workspace.yaml",
+        "policy": {
+          "reservedScopes": [],
+          "developmentOnlyPackages": [],
+          "exactRegistryDevelopmentOnlyPackages": []
+        }
+      }
+    },
+    {
+      "name": "null",
+      "yaml": "null\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/ must be object",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "array",
+      "yaml": "[]\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/ must be object",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "missing-fields",
+      "yaml": "{}\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/ must have required property 'schemaVersion'; / must have required property 'packageManager'; / must have required property 'policies'",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "extra-root",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\nunexpected: true\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/ must NOT have additional properties",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "future-version",
+      "yaml": "schemaVersion: 2\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/schemaVersion must be equal to constant",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "wrong-manager",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: npm\n  workspaceManifest: other.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/packageManager/kind must be equal to constant; /packageManager/workspaceManifest must be equal to constant",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "missing-externalDependencies",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/policies must have required property 'externalDependencies'",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "missing-catalogVersions",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/policies must have required property 'catalogVersions'",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "missing-internalDependencies",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/policies must have required property 'internalDependencies'",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "missing-reservedScopes",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/policies must have required property 'reservedScopes'",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "missing-developmentOnlyPackages",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/policies must have required property 'developmentOnlyPackages'",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "missing-exactRegistryDevelopmentOnlyPackages",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/policies must have required property 'exactRegistryDevelopmentOnlyPackages'",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "duplicate-packages",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - \"@fixture/\"\n  developmentOnlyPackages:\n    - oxlint\n    - oxlint\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/policies/developmentOnlyPackages must NOT have duplicate items (items ## 1 and 0 are identical)",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "bad-scopes",
+      "yaml": "schemaVersion: 1\npackageManager:\n  kind: pnpm\n  workspaceManifest: pnpm-workspace.yaml\npolicies:\n  externalDependencies: catalog\n  catalogVersions: exact\n  internalDependencies: workspace-protocol\n  reservedScopes:\n    - bad\n  developmentOnlyPackages:\n    - oxlint\n    - typescript\n  exactRegistryDevelopmentOnlyPackages:\n    - \"@agent-teams/engineering-foundation\"\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/policies/reservedScopes/0 must match pattern \"^@[a-z0-9][a-z0-9._-]*/$\"",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "many-errors",
+      "yaml": "schemaVersion: 5\npackageManager: {}\npolicies:\n  extra: 1\nextra: 1\n",
+      "problem": {
+        "code": "SCHEMA_INVALID",
+        "message": "/ must NOT have additional properties; /schemaVersion must be equal to constant; /packageManager must have required property 'kind'; /packageManager must have required property 'workspaceManifest'; /policies must have required property 'externalDependencies'; /policies must have required property 'catalogVersions'; /policies must have required property 'internalDependencies'; /policies must have required property 'reservedScopes'",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      }
+    },
+    {
+      "name": "duplicate-yaml",
+      "yaml": "schemaVersion: 1\nschemaVersion: 1\n",
+      "problem": {
+        "code": "YAML_INVALID",
+        "message": "Map keys must be unique at line 2, column 1:\n\nschemaVersion: 1\nschemaVersion: 1\n^\n",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      },
+      "loaderOnly": true
+    },
+    {
+      "name": "yaml-anchor",
+      "yaml": "schemaVersion: &v 1\n",
+      "problem": {
+        "code": "YAML_FEATURE_PROHIBITED",
+        "message": "YAML anchors and explicit tags are prohibited.",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      },
+      "loaderOnly": true
+    },
+    {
+      "name": "yaml-tag",
+      "yaml": "schemaVersion: !custom 1\n",
+      "problem": {
+        "code": "YAML_INVALID",
+        "message": "Unresolved tag: !custom at line 1, column 16:\n\nschemaVersion: !custom 1\n               ^^^^^^^\n",
+        "phase": "workspace-dependency-declarations-config",
+        "retryable": false
+      },
+      "loaderOnly": true
+    }
+  ]
+}

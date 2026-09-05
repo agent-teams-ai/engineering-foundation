@@ -1,0 +1,500 @@
+{
+  "originalBase": "588a50d99fcb02dce5389407ebd5eba9d901b6b3",
+  "cases": [
+    {
+      "name": "internal",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "@fixture/core": "workspace:*"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "passed",
+        "summary": {
+          "errors": 0,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "internal-registry",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "@fixture/core": "0.0.0"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.internal-dependency-without-workspace-protocol",
+            "severity": "error",
+            "subject": "@fixture/app:dependencies:@fixture/core",
+            "message": "Internal dependency @fixture/core must use the workspace protocol.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [
+              {
+                "kind": "specifier",
+                "value": "0.0.0"
+              }
+            ],
+            "remediation": "Use a workspace: specifier for the internal package dependency.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "reserved",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "@fixture/missing": "1.2.3"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.reserved-scope-package-not-in-workspace",
+            "severity": "error",
+            "subject": "@fixture/app:dependencies:@fixture/missing",
+            "message": "Reserved-scope dependency @fixture/missing is not a workspace package.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [],
+            "remediation": "Add the package to this workspace or remove the reserved-scope dependency.",
+            "requiresArchitectureReview": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "external-direct",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "ajv": "8.20.0"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.external-version-not-cataloged",
+            "severity": "error",
+            "subject": "@fixture/app:dependencies:ajv",
+            "message": "External dependency ajv must use a catalog reference.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [
+              {
+                "kind": "specifier",
+                "value": "8.20.0"
+              }
+            ],
+            "remediation": "Move the exact version to pnpm-workspace.yaml and use catalog: in package.json.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "external-catalog",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "ajv": "catalog:"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "passed",
+        "summary": {
+          "errors": 0,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "missing-catalog",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "unknown": "catalog:missing"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.catalog-reference-missing",
+            "severity": "error",
+            "subject": "@fixture/app:dependencies:unknown",
+            "message": "Catalog missing does not declare unknown.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [
+              {
+                "kind": "catalog",
+                "value": "missing"
+              }
+            ],
+            "remediation": "Add the dependency to the referenced catalog or correct the catalog reference.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "tool-runtime",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "typescript": "catalog:"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.development-only-package-in-runtime-section",
+            "severity": "error",
+            "subject": "@fixture/app:dependencies:typescript",
+            "message": "Development-only package typescript cannot be declared in dependencies.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [],
+            "remediation": "Move the package to devDependencies and remove all runtime declarations.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "tool-dev",
+      "manifest": {
+        "name": "@fixture/app",
+        "devDependencies": {
+          "typescript": "catalog:"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "passed",
+        "summary": {
+          "errors": 0,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "tool-direct",
+      "manifest": {
+        "name": "@fixture/app",
+        "devDependencies": {
+          "typescript": "7.0.2"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.external-version-not-cataloged",
+            "severity": "error",
+            "subject": "@fixture/app:devDependencies:typescript",
+            "message": "External dependency typescript must use a catalog reference.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [
+              {
+                "kind": "specifier",
+                "value": "7.0.2"
+              }
+            ],
+            "remediation": "Move the exact version to pnpm-workspace.yaml and use catalog: in package.json.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "registry-dev",
+      "manifest": {
+        "name": "@fixture/app",
+        "devDependencies": {
+          "@agent-teams/engineering-foundation": "0.1.1"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "passed",
+        "summary": {
+          "errors": 0,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "registry-runtime",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "@agent-teams/engineering-foundation": "0.1.1"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.development-only-package-in-runtime-section",
+            "severity": "error",
+            "subject": "@fixture/app:dependencies:@agent-teams/engineering-foundation",
+            "message": "Development-only package @agent-teams/engineering-foundation cannot be declared in dependencies.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [],
+            "remediation": "Move the package to devDependencies and remove all runtime declarations.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "registry-catalog",
+      "manifest": {
+        "name": "@fixture/app",
+        "devDependencies": {
+          "@agent-teams/engineering-foundation": "catalog:"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.exact-registry-development-only-package-version-not-exact",
+            "severity": "error",
+            "subject": "@fixture/app:devDependencies:@agent-teams/engineering-foundation",
+            "message": "Development-only package @agent-teams/engineering-foundation must use an exact registry version.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [
+              {
+                "kind": "specifier",
+                "value": "catalog:"
+              }
+            ],
+            "remediation": "Pin the development-only package to an exact registry version.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "registry-range",
+      "manifest": {
+        "name": "@fixture/app",
+        "devDependencies": {
+          "@agent-teams/engineering-foundation": "^0.1.1"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.exact-registry-development-only-package-version-not-exact",
+            "severity": "error",
+            "subject": "@fixture/app:devDependencies:@agent-teams/engineering-foundation",
+            "message": "Development-only package @agent-teams/engineering-foundation must use an exact registry version.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [
+              {
+                "kind": "specifier",
+                "value": "^0.1.1"
+              }
+            ],
+            "remediation": "Pin the development-only package to an exact registry version.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "registry-bundle",
+      "manifest": {
+        "name": "@fixture/app",
+        "devDependencies": {
+          "@agent-teams/engineering-foundation": "0.1.1"
+        },
+        "bundledDependencies": [
+          "@agent-teams/engineering-foundation"
+        ]
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.development-only-package-bundled",
+            "severity": "error",
+            "subject": "@fixture/app:bundle:@agent-teams/engineering-foundation",
+            "message": "Development-only package @agent-teams/engineering-foundation cannot be bundled.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [],
+            "remediation": "Remove the development-only package from bundleDependencies and bundledDependencies.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate",
+      "manifest": {
+        "name": "@fixture/app",
+        "dependencies": {
+          "ajv": "catalog:"
+        },
+        "devDependencies": {
+          "ajv": "catalog:"
+        }
+      },
+      "report": {
+        "capabilityId": "workspace.dependency-declarations",
+        "capabilityConfigSchemaVersion": 1,
+        "outcome": "violations",
+        "summary": {
+          "errors": 1,
+          "warnings": 0,
+          "infos": 0
+        },
+        "diagnostics": [
+          {
+            "ruleId": "workspace.dependency-declarations.dependency-declared-multiple-times",
+            "severity": "error",
+            "subject": "@fixture/app:ajv",
+            "message": "Dependency ajv is declared in multiple dependency sections.",
+            "location": {
+              "path": "packages/app/package.json"
+            },
+            "relatedLocations": [],
+            "evidence": [
+              {
+                "kind": "sections",
+                "value": "dependencies, devDependencies"
+              }
+            ],
+            "remediation": "Keep the dependency in exactly one dependency section.",
+            "requiresArchitectureReview": false
+          }
+        ]
+      }
+    }
+  ]
+}

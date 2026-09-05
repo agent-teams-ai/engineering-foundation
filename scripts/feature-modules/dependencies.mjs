@@ -9,7 +9,7 @@ const capability = `${foundation}capabilities/source-dependencies/`;
 // Decorate the accepted resolver to retain the exact observations used by the
 // existing capability. No second parser/resolver or package dependency catalog.
 export async function observeDependencies(repositoryRoot, configPath) {
-  const [config, analysis, inventory, source, parser, resolver, topology, exports, schema, configuration] = await Promise.all([
+  const [config, analysis, inventory, source, parser, resolver, topology, exports, schema, configuration, fileSafety] = await Promise.all([
     import(`${capability}adapters/inbound/configuration/load-capability-config.js`),
     import(`${capability}application/use-cases/analyze-source-dependencies.js`),
     import(`${foundation}workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js`),
@@ -19,7 +19,8 @@ export async function observeDependencies(repositoryRoot, configPath) {
     import(`${capability}adapters/outbound/node/pnpm-source-workspace-topology-inspector.js`),
     import(`${foundation}workspace-inventory/application/policies/package-export-matcher.js`),
     import(`${foundation}schema-catalog.js`),
-    import(`${foundation}features/configuration-input/node.js`)
+    import(`${foundation}features/configuration-input/node.js`),
+    import(`${foundation}source-inventory/node.js`)
   ]);
   const policy = await config.loadCapabilityConfig({ readYaml: configuration.loadStrictYamlFile, assertSchema: schema.assertSchema }, repositoryRoot, configPath);
   const observations = [];
@@ -27,7 +28,10 @@ export async function observeDependencies(repositoryRoot, configPath) {
   const packageExportTargets = new Map();
   const inventoryReader = new inventory.PnpmWorkspaceInventoryReader();
   const nodeResolver = new resolver.NodeSourceDependencyResolver();
-  const topologyInspector = new topology.PnpmSourceWorkspaceTopologyInspector({ inventoryReader });
+  const topologyInspector = new topology.PnpmSourceWorkspaceTopologyInspector({
+    inventoryReader, fileReader: { read: fileSafety.readContainedRegularFile },
+    workspaceManifestLoader: configuration.loadStrictYamlFile
+  });
   const diagnostics = await analysis.analyzeSourceDependencies({ consumerRoot: repositoryRoot, policy }, {
     inventoryReader,
     sourceReader: new source.FilesystemSourceTreeReader(),

@@ -1,5 +1,9 @@
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import {
+  sourceTopologyInputError as inputError,
+  type SourceWorkspaceFileReader,
+  type SourceWorkspaceManifestLoader
+} from "../../../api.js";
 import type { SourceWorkspaceTopology } from "../../../application/model/source-workspace-topology.js";
 import type {
   InspectSourceWorkspaceTopologyInput,
@@ -16,8 +20,7 @@ import {
 } from "./selected-package-source-discovery.js";
 import { readGovernedSourceFiles } from "./selected-package-source-snapshot-reader.js";
 import {
-  capturePnpmSourceWorkspaceSnapshot,
-  type WorkspaceManifestLoader
+  capturePnpmSourceWorkspaceSnapshot
 } from "./pnpm-source-workspace-snapshot.js";
 import {
   createSourceWorkspaceFileSystem,
@@ -29,20 +32,12 @@ import {
 } from "./source-workspace-root-snapshot.js";
 
 export interface PnpmSourceWorkspaceTopologyInspectorDependencies {
+  readonly fileReader: SourceWorkspaceFileReader;
   readonly fileSystem?: Partial<SourceWorkspaceFileSystem>;
   readonly hooks?: SourceWorkspaceDiscoveryHooks;
   readonly inventoryReader: SourceWorkspaceInventorySnapshotReader;
   readonly limits?: Partial<SourceWorkspaceDiscoveryLimits>;
-  readonly workspaceManifestLoader?: WorkspaceManifestLoader;
-}
-
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "source-workspace-topology",
-    retryable: false
-  });
+  readonly workspaceManifestLoader: SourceWorkspaceManifestLoader;
 }
 
 function boundaryRootPaths(
@@ -66,7 +61,7 @@ export class PnpmSourceWorkspaceTopologyInspector
 
   constructor(dependencies: PnpmSourceWorkspaceTopologyInspectorDependencies) {
     this.#dependencies = dependencies;
-    this.#fileSystem = createSourceWorkspaceFileSystem(dependencies.fileSystem);
+    this.#fileSystem = createSourceWorkspaceFileSystem(dependencies.fileReader, dependencies.fileSystem);
     this.#limits = sourceWorkspaceDiscoveryLimits(dependencies.limits);
   }
 
@@ -90,9 +85,7 @@ export class PnpmSourceWorkspaceTopologyInspector
       ...(this.#dependencies.hooks === undefined
         ? {}
         : { hooks: this.#dependencies.hooks }),
-      ...(this.#dependencies.workspaceManifestLoader === undefined
-        ? {}
-        : { workspaceManifestLoader: this.#dependencies.workspaceManifestLoader })
+      workspaceManifestLoader: this.#dependencies.workspaceManifestLoader
     });
     const outsideRoot = [
       ...input.governedRoots,

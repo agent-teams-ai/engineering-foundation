@@ -1061,7 +1061,8 @@
           ],
           "testRoots": [
             "tests/source-dependency-graph.test.mjs",
-            "tests/source-dependency-workspace-topology.test.mjs"
+            "tests/source-dependency-workspace-topology.test.mjs",
+            "tests/source-dependency-topology-ports.test.mjs"
           ]
         },
         {

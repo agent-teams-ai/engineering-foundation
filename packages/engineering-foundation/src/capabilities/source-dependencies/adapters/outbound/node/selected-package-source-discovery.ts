@@ -2,16 +2,19 @@ import type { Dirent } from "node:fs";
 import { join, posix } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
+import {
+  assertSourceTopologyActive as assertNotCancelled,
+  sourceTopologyInputError as inputError
+} from "../../../api.js";
 import type { WorkspacePackage } from "../../../application/model/workspace-inventory.js";
 import { portablePathIsInside, portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
 import type { SourceWorkspacePackageTopology } from "../../../application/model/source-workspace-topology.js";
 import {
   assertSafeRepositoryPath,
   captureStableRepositoryPath,
-  createSourceWorkspaceFileSystem,
+  createSourceWorkspaceDirectorySystem,
   revalidateStableRepositoryPath,
-  type SourceWorkspaceFileSystem,
+  type SourceWorkspaceDirectorySystem,
   type StableRepositoryPath
 } from "./source-workspace-filesystem.js";
 
@@ -72,17 +75,8 @@ interface StableDirectoryReadInput {
   readonly cursor: DirectoryCursor;
   readonly hooks: SourceWorkspaceDiscoveryHooks;
   readonly limits: SourceWorkspaceDiscoveryLimits;
-  readonly operations: SourceWorkspaceFileSystem;
+  readonly operations: SourceWorkspaceDirectorySystem;
   readonly signal?: AbortSignal;
-}
-
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "source-workspace-topology",
-    retryable: false
-  });
 }
 
 export function sourceWorkspaceDiscoveryLimits(
@@ -181,7 +175,7 @@ async function readStableDirectoryEntries(
     );
   }
   assertNotCancelled(input.signal);
-  let directory: Awaited<ReturnType<SourceWorkspaceFileSystem["opendir"]>>;
+  let directory: Awaited<ReturnType<SourceWorkspaceDirectorySystem["opendir"]>>;
   try {
     directory = await input.operations.opendir(captured.absolutePath, input.signal);
   } catch {
@@ -316,13 +310,13 @@ export async function discoverSourceWorkspacePaths(
     readonly selectedPackageRoots?: readonly string[];
     readonly governedRoots?: readonly string[];
     readonly boundaryRoots?: readonly string[];
-    readonly fileSystem?: Partial<SourceWorkspaceFileSystem>;
+    readonly fileSystem?: Partial<SourceWorkspaceDirectorySystem>;
     readonly hooks?: SourceWorkspaceDiscoveryHooks;
     readonly limits?: Partial<SourceWorkspaceDiscoveryLimits>;
     readonly signal?: AbortSignal;
   }
 ): Promise<DiscoveredSourceWorkspacePaths> {
-  const operations = createSourceWorkspaceFileSystem(options.fileSystem);
+  const operations = createSourceWorkspaceDirectorySystem(options.fileSystem);
   const limits = sourceWorkspaceDiscoveryLimits(options.limits);
   const hooks = options.hooks ?? {};
   const budget: DiscoveryBudget = { entries: 0, manifests: 0, sourceFiles: 0 };

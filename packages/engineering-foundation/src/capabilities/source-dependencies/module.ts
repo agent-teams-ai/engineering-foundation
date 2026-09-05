@@ -19,6 +19,10 @@ import {
 
 import { loadCapabilityConfig, type SourceArchitectureConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
+import { readContainedRegularFile } from "../../source-inventory/node.js";
+import type { SourceWorkspaceFileReader } from "./api.js";
+
+const fileReader: SourceWorkspaceFileReader = { read: readContainedRegularFile };
 
 export { SOURCE_DEPENDENCY_RULES_BY_ID };
 
@@ -35,7 +39,9 @@ export function createSourceDependenciesCapability(input: SourceDependenciesCapa
     parser: new OxcSourceDependencyParser(),
     resolver: new NodeSourceDependencyResolver(),
     sourceReader: input.sourceReader,
-    topologyInspector: new PnpmSourceWorkspaceTopologyInspector({ inventoryReader })
+    topologyInspector: new PnpmSourceWorkspaceTopologyInspector({
+      inventoryReader, fileReader, workspaceManifestLoader: loadStrictYamlFile
+    })
   });
   return Object.freeze({
     id: CAPABILITY_ID,

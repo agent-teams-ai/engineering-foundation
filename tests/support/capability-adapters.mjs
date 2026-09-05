@@ -25,6 +25,9 @@ export const createWorkflowProcess = () => workflow.createProcessExecution(creat
 export function sourceDependencyAdapters() {
   return { sourceReader: source.createSourceTreeReader(), inventoryReader: workspace.createWorkspaceInventoryReader(), assertSchema: schemaCatalog.assertSchema };
 }
+export function sourceTopologyAdapters() {
+  return { fileReader: { read: fileSafety.readContainedRegularFile }, workspaceManifestLoader: configurationInput.loadStrictYamlFile };
+}
 export function schemaConfigurationDependencies() {
   return { readYaml: configurationInput.loadStrictYamlFile, assertSchema: schemaCatalog.assertSchema };
 }

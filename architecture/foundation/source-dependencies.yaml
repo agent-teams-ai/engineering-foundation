@@ -2068,6 +2068,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/source-dependencies/api.ts
     allow:
       boundaries:
+        - foundation.source-inventory.application
         - foundation.validation-reporting.application
         - foundation.core
         - foundation.workspace-inventory.application
@@ -2245,10 +2246,6 @@ boundaries:
       boundaries:
         - capability.source-dependencies.application
         - foundation.core
-        - foundation.validation-reporting.application
-        - foundation.configuration-input.composition
-        - foundation.source-inventory.composition
-        - foundation.source-inventory.application
       packages:
         - oxc-parser
       builtins:
@@ -2267,6 +2264,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/source-dependencies/module.ts
     allow:
       boundaries:
+        - foundation.source-inventory.composition
         - foundation.configuration-input.composition
         - capability.source-dependencies.adapters
         - capability.source-dependencies.application

@@ -1,4 +1,4 @@
-import { sourceDependencyAdapters, schemaConfigurationDependencies } from "../support/capability-adapters.mjs";
+import { sourceDependencyAdapters, sourceTopologyAdapters, schemaConfigurationDependencies } from "../support/capability-adapters.mjs";
 import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -97,6 +97,7 @@ export async function inspectV2Topology(consumerRoot, dependencies = {}, signal)
   );
   const inspector = new PnpmSourceWorkspaceTopologyInspector({
     inventoryReader: new PnpmWorkspaceInventoryReader(),
+    ...sourceTopologyAdapters(),
     ...dependencies,
   });
   return inspector.inspect({

@@ -1,8 +1,13 @@
 import { join, posix } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
-import { loadStrictYamlFile } from "../../../../../features/configuration-input/node.js";
+import {
+  assertSourceManifestByteLimit,
+  assertSourceTopologyActive as assertNotCancelled,
+  isSourceTopologyProblem,
+  sourceTopologyInputError as inputError,
+  type SourceWorkspaceManifestLoader
+} from "../../../api.js";
 import type { WorkspaceInventory } from "../../../application/model/workspace-inventory.js";
 import { portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
 import type {
@@ -22,7 +27,7 @@ import {
 } from "./source-workspace-filesystem.js";
 import { inspectUniqueRoots } from "./source-workspace-root-snapshot.js";
 
-export type WorkspaceManifestLoader = typeof loadStrictYamlFile;
+export type WorkspaceManifestLoader = SourceWorkspaceManifestLoader;
 
 interface CapturePnpmSourceWorkspaceSnapshotInput {
   readonly fileSystem: SourceWorkspaceFileSystem;
@@ -30,7 +35,7 @@ interface CapturePnpmSourceWorkspaceSnapshotInput {
   readonly input: InspectSourceWorkspaceTopologyInput;
   readonly inventoryReader: SourceWorkspaceInventorySnapshotReader;
   readonly limits: SourceWorkspaceDiscoveryLimits;
-  readonly workspaceManifestLoader?: WorkspaceManifestLoader;
+  readonly workspaceManifestLoader: WorkspaceManifestLoader;
 }
 
 export interface PnpmSourceWorkspaceSnapshot {
@@ -45,15 +50,6 @@ export interface PnpmSourceWorkspaceSnapshot {
   }[];
   readonly selectedManifestPaths: readonly string[];
   readonly selectedPackages: WorkspaceInventory["packages"];
-}
-
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "source-workspace-topology",
-    retryable: false
-  });
 }
 
 async function readPackageTypeScopes(
@@ -72,7 +68,8 @@ async function readPackageTypeScopes(
         maxBytes: 2 * 1024 * 1024,
         root: canonicalConsumerRoot
       });
-      value = JSON.parse(bytes.toString("utf8")) as unknown;
+      assertSourceManifestByteLimit(bytes.byteLength, 2 * 1024 * 1024, manifestPath);
+      value = JSON.parse(Buffer.from(bytes).toString("utf8")) as unknown;
     } catch {
       assertNotCancelled(signal);
       inputError(
@@ -172,9 +169,7 @@ export async function capturePnpmSourceWorkspaceSnapshot(
 ): Promise<PnpmSourceWorkspaceSnapshot> {
   const { fileSystem, input } = snapshotInput;
   assertNotCancelled(input.signal);
-  const workspaceManifest = await (
-    snapshotInput.workspaceManifestLoader ?? loadStrictYamlFile
-  )(
+  const workspaceManifest = await snapshotInput.workspaceManifestLoader(
     input.consumerRoot,
     input.workspaceManifestPath,
     "source-workspace-topology",
@@ -215,10 +210,7 @@ export async function capturePnpmSourceWorkspaceSnapshot(
         input.signal
       );
   } catch (error) {
-    if (
-      error instanceof CapabilityInputError &&
-      error.problem.code === "PACKAGE_PATH_CASE_COLLISION"
-    ) {
+    if (isSourceTopologyProblem(error, "PACKAGE_PATH_CASE_COLLISION")) {
       // Workspace glob discovery necessarily observes non-package directories.
       // Give the source topology owner the opportunity to classify an alias in
       // the configured source closure before retaining the package diagnostic.

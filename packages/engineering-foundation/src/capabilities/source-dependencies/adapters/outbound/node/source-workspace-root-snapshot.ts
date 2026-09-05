@@ -1,9 +1,9 @@
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import { sourceTopologyInputError as inputError } from "../../../api.js";
 import {
   captureStableRepositoryPath,
   revalidateStableRepositoryPath,
-  type SourceWorkspaceFileSystem,
+  type SourceWorkspaceDirectorySystem,
   type StableRepositoryPath
 } from "./source-workspace-filesystem.js";
 
@@ -11,7 +11,7 @@ interface InspectUniqueRootsInput {
   readonly canonicalConsumerRoot: string;
   readonly expectedKind: "directory" | "source";
   readonly label: string;
-  readonly operations: SourceWorkspaceFileSystem;
+  readonly operations: SourceWorkspaceDirectorySystem;
   readonly roots: readonly string[];
   readonly signal?: AbortSignal;
   readonly symbolicLinkCode?: string;
@@ -19,18 +19,9 @@ interface InspectUniqueRootsInput {
 
 interface RevalidateRootsInput {
   readonly canonicalConsumerRoot: string;
-  readonly operations: SourceWorkspaceFileSystem;
+  readonly operations: SourceWorkspaceDirectorySystem;
   readonly roots: readonly StableRepositoryPath[];
   readonly signal?: AbortSignal;
-}
-
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "source-workspace-topology",
-    retryable: false
-  });
 }
 
 function filesystemIdentity(path: StableRepositoryPath): string {

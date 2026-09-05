@@ -440,38 +440,41 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
   });
 });
 
-test("Docs Protocol MCP retains one governed read-only package boundary", async () => {
-  const policy = parseYaml(await readFile(join(
-    repositoryRoot,
-    "architecture/foundation/source-dependencies.yaml",
-  ), "utf8"));
-  const boundary = policy.boundaries.find(({ id }) => id === "docs-protocol-mcp.surface");
-  assert.deepEqual(boundary, {
-    id: "docs-protocol-mcp.surface",
-    packageExports: ["."],
-    roots: ["packages/docs-protocol-mcp/src"],
-    allow: {
-      boundaries: [],
-      packages: [docsProtocolName, "@modelcontextprotocol/server"],
-      builtins: ["node:fs/promises", "node:module", "node:path"],
-      runtimeReferences: [],
-    },
-    entrypoints: [
-      "packages/docs-protocol-mcp/src/index.ts",
-      "packages/docs-protocol-mcp/src/cli.ts",
-    ],
-  });
-  const sources = await sourceFiles(join(repositoryRoot, "packages/docs-protocol-mcp/src"));
-  const specifiers = (await Promise.all(sources.map((path) => readFile(path, "utf8"))))
-    .flatMap(importedSpecifiers);
-  assert.deepEqual(
-    [...new Set(specifiers.filter((specifier) => specifier.startsWith("node:")))].toSorted(),
-    boundary.allow.builtins.toSorted(),
-  );
-  assert.deepEqual(
-    [...new Set(specifiers.map(packageName).filter(Boolean))].toSorted(),
-    boundary.allow.packages.toSorted(),
-  );
+test("Docs Protocol MCP retains six governed read-only feature boundaries", async () => {
+  const mcp = "packages/docs-protocol-mcp/src", feature = `${mcp}/read-only-docs`;
+  const policy = parseYaml(await readFile(join(repositoryRoot, "architecture/foundation/source-dependencies.yaml"), "utf8"));
+  // Select by source ownership so unexpected boundaries cannot escape the snapshot.
+  const boundaries = policy.boundaries.filter(({ roots }) => roots.some((root) => root === mcp || root.startsWith(`${mcp}/`)));
+  const emptyAllow = { boundaries: [], packages: [], builtins: [], runtimeReferences: [] };
+  assert.deepEqual(boundaries, [
+    { id: "docs-protocol-mcp.application", roots: [`${feature}/application`],
+      allow: { ...emptyAllow, packages: [docsProtocolName] },
+      entrypoints: [`${feature}/application/ports/docs-reader.ts`] },
+    { id: "docs-protocol-mcp.package-identity", roots: [`${feature}/adapters/outbound/installed-package-version.ts`],
+      allow: { ...emptyAllow, builtins: ["node:fs"] },
+      entrypoints: [`${feature}/adapters/outbound/installed-package-version.ts`] },
+    { id: "docs-protocol-mcp.reader", roots: [`${feature}/adapters/outbound/node-docs-reader.ts`],
+      allow: { ...emptyAllow, boundaries: ["docs-protocol-mcp.application"], packages: [docsProtocolName] },
+      entrypoints: [`${feature}/adapters/outbound/node-docs-reader.ts`] },
+    { id: "docs-protocol-mcp.transport", roots: [`${feature}/adapters/inbound`],
+      allow: { ...emptyAllow, boundaries: ["docs-protocol-mcp.application", "docs-protocol-mcp.package-identity"],
+        packages: [docsProtocolName, "@modelcontextprotocol/server"], builtins: ["node:fs/promises", "node:path"] },
+      entrypoints: [`${feature}/adapters/inbound/cli-input.ts`, `${feature}/adapters/inbound/server.ts`,
+        `${feature}/adapters/inbound/tools.ts`, `${feature}/adapters/inbound/tool-contracts.ts`, `${feature}/adapters/inbound/output-schemas.ts`] },
+    { id: "docs-protocol-mcp.composition", roots: [`${feature}/composition`, `${feature}/module.ts`],
+      allow: { ...emptyAllow, boundaries: ["docs-protocol-mcp.application", "docs-protocol-mcp.transport",
+        "docs-protocol-mcp.reader", "docs-protocol-mcp.package-identity"], packages: ["@modelcontextprotocol/server"] },
+      entrypoints: [`${feature}/module.ts`] },
+    { id: "docs-protocol-mcp.surface", packageExports: ["."], roots: [`${mcp}/index.ts`, `${mcp}/cli.ts`],
+      allow: { ...emptyAllow, boundaries: ["docs-protocol-mcp.composition"] },
+      entrypoints: [`${mcp}/index.ts`, `${mcp}/cli.ts`] },
+  ]);
+  const sources = await sourceFiles(join(repositoryRoot, mcp));
+  const specifiers = (await Promise.all(sources.map((path) => readFile(path, "utf8")))).flatMap(importedSpecifiers);
+  assert.deepEqual([...new Set(specifiers.filter((specifier) => specifier.startsWith("node:")))].toSorted(),
+    [...new Set(boundaries.flatMap((boundary) => boundary.allow.builtins))].toSorted());
+  assert.deepEqual([...new Set(specifiers.map(packageName).filter(Boolean))].toSorted(),
+    [...new Set(boundaries.flatMap((boundary) => boundary.allow.packages))].toSorted());
 });
 
 test("Docs Protocol clean-layer policy rejects outward imports and permits composition wiring", async () => {

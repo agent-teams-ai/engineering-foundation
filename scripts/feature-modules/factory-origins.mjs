@@ -5,6 +5,8 @@ const functions = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFu
 const unknown = () => [undefined];
 // A terminal selector for runtime identity, distinct from object enumeration.
 export const callableSelection = Symbol("callable");
+export const stableIdentitySelection = Symbol("stable-identity");
+const immutableIdentity = (node) => functions.has(node.type) || (node.type === "Literal" && !node.regex);
 const propertyName = (node) => node?.type === "Identifier" ? node.name : node?.type === "Literal" && ["string", "number"].includes(typeof node.value) ? String(node.value) : undefined;
 
 export function flatBindings(pattern) {
@@ -154,9 +156,12 @@ export function factoryOrigins(hooks) {
     if (staticMember(node)) {return resolve({ ...value, node: node.object }, [node.property.name, ...selection], next);}
     // Copying or passing a primitive cannot mutate its value. RegExp literals
     // are objects; binding reassignment is still rejected above for every type.
-    const immutableValue = functions.has(node.type) || (node.type === "Literal" && !node.regex);
-    if (value.contentsUnstable && !immutableValue) {return unknown();}
-    if (value.receiverUnstable && !immutableValue) {
+    const immutableValue = immutableIdentity(node);
+    // A bounded factory may return an immutable function or primitive. Resolve
+    // that result before applying escape flags; do not discard those flags.
+    const deferredResult = node.type === "CallExpression";
+    if (value.contentsUnstable && !immutableValue && !deferredResult) {return unknown();}
+    if (value.receiverUnstable && !immutableValue && !deferredResult) {
       const stable = { ...value, receiverUnstable: false };
       const members = resolve(stable, [], active);
       if (!members.length || members.some((member) => !member || !functions.has(member.node.type) || !receiverIndependent(member.node))) {return unknown();}
@@ -170,10 +175,11 @@ export function factoryOrigins(hooks) {
       const callees = resolve({ ...value, node: node.callee }, [callableSelection], next);
       return callees.flatMap((callee) => {
         const frame = callee && factoryFrame(callee, value);
-        return frame ? resolve(frame, selection, next) : unknown();
+        return frame ? resolve(inheritStability(frame, value), selection, next) : unknown();
       });
     }
     if (node.type === "ObjectExpression") {return projectObject(value, selection, next);}
+    if (selection.length === 1 && selection[0] === stableIdentitySelection && immutableIdentity(node)) {return hooks.owned(value);}
     if (selection.length) {return selection.length === 1 && selection[0] === callableSelection && functions.has(node.type) ? hooks.owned(value) : unknown();}
     if (functions.has(node.type) && hooks.isComposition(value.path)) {
       const forwarded = forwardedCall(value);

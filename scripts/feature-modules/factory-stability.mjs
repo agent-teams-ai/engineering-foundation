@@ -64,12 +64,18 @@ export function unstableFactoryBindings(body, bindings) {
   const names = new Set(bindings.keys());
   const unstable = new Map();
   const pending = [];
-  function mark(node, hidden, reason = "contentsUnstable") {
-    const name = rootName(node);
+  function trackBinding(name, hidden, reason) {
     if (name && names.has(name) && !hidden.has(name) && !unstable.get(name)?.[reason]) {
       unstable.set(name, { ...unstable.get(name), [reason]: true });
       pending.push([name, reason]);
     }
+  }
+  function mark(node, hidden, reason = "contentsUnstable") {
+    const name = rootName(node);
+    trackBinding(name, hidden, reason);
+    // A target or receiver can be a temporary returned by a call rather than a
+    // named alias. Carry the mutation context through that value expression.
+    if (!name && node && !node.type.endsWith("Pattern") && node.type !== "RestElement") {scan(node, hidden, reason);}
     if (node?.type === "ArrayPattern") {for (const child of node.elements) {mark(child, hidden, reason);}}
     if (node?.type === "ObjectPattern") {for (const child of node.properties) {mark(child.value ?? child.argument, hidden, reason);}}
     if (node?.type === "RestElement") {mark(node.argument, hidden, reason);}
@@ -95,6 +101,7 @@ export function unstableFactoryBindings(body, bindings) {
     scan(node.body, nestedScope(node, hidden), node.body?.type === "BlockStatement" ? undefined : escaped, escaped);
   }
   function scanEffects(node, scope) {
+    if (node.type === "ThrowStatement") {scan(node.argument, scope, "contentsUnstable");}
     if (["AssignmentExpression", "AssignmentPattern"].includes(node.type)) {scan(node.right, scope, "contentsUnstable");}
     if (node.type === "VariableDeclarator" && [...bindingNames(node.id)].some((name) => scope.has(name) || !names.has(name))) {
       // A value copied into an untracked inner binding has escaped this finite

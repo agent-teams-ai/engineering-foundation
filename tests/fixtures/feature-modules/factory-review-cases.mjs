@@ -49,19 +49,7 @@ export function registerFactoryReviewCases({ test, assert }) {
   };
   const owned = (result, path, role) => assert.deepEqual(result.owners, [{path, role}]);
   const importedFactory = 'import {createApi} from "../adapters/factory.js"; export const {execute}=createApi();';
-  for (const literal of ['"marker"', "42", "42n", "true", "null"]) {
-    test(`factory review preserves escaped primitive ${literal}`, () => {
-      const result=inspect({code:importedFactory,factory:'const marker='+literal+'; function use(alias=marker){} export function createApi(){return {execute:marker};}'});
-      owned(result,afactory,"adapters");
-      assert.ok(result.problems.some(({code})=>code==='layer-direction'));
-    });
-  }
-  test("factory review escaped RegExp literal remains unknown", () => unknown(inspect({
-    code:importedFactory,factory:'const marker=/x/g; function use(alias=marker){alias.lastIndex=1;} use(); export function createApi(){return {execute:marker};}'
-  })));
-  test("factory review reassigned primitive remains unknown", () => unknown(inspect({
-    code:importedFactory,factory:'let marker="safe"; marker="changed"; export function createApi(){return {execute:marker};}'
-  })));
+  registerFactoryValueCases({test, assert, unknown, owned, importedFactory});
   for (const [name, code] of [
     ["module object write", 'const state={execute:safe}; state.execute=read; function createApi(){return state;}'],
     ["module factory reassignment", 'function createApi(){return {execute:safe};} createApi=()=>({execute:read});'],
@@ -81,6 +69,14 @@ export function registerFactoryReviewCases({ test, assert }) {
     ["for-of declaration alias", 'for(const alias of [state]){alias.execute=read;}'],
     ["for-of destructured alias", 'for(const {alias} of [{alias:state}]){alias.execute=read;}'],
     ["for-of var alias", 'for(var alias of [state]){alias.execute=read;}'],
+    ["temporary returned property write", 'function expose(){return state;} expose().execute=read;'],
+    ["temporary returned destructuring target", 'function expose(){return state;} ({value:expose().execute}={value:read});'],
+    ["temporary returned loop target", 'function expose(){return state;} for(expose().execute of [read]){}'],
+    ["temporary IIFE target", '(()=>state)().execute=read;'],
+    ["temporary returned update", 'function expose(){return state;} expose().execute++;'],
+    ["temporary returned delete", 'function expose(){return state;} delete expose().execute;'],
+    ["throw catch alias", 'try{throw state;}catch(alias){alias.execute=read;}'],
+    ["throw returned alias", 'function expose(){return state;} try{throw expose();}catch(alias){alias.execute=read;}'],
     ["returned alias write", 'function expose(){return state;} const alias=expose(); alias.execute=read;'],
     ["arrow returned alias write", 'const expose=()=>state; const alias=expose(); alias.execute=read;'],
     ["block arrow returned alias write", 'const expose=()=>{return state;}; const alias=expose(); alias.execute=read;'],
@@ -101,6 +97,8 @@ export function registerFactoryReviewCases({ test, assert }) {
     ["factory default alias", 'function change(alias=api){alias.execute=provided;}'],
     ["factory destructured default alias", 'function change({alias=api}={}){alias.execute=provided;}'],
     ["factory loop alias", 'function change(){for(const alias of [api]){alias.execute=provided;}}'],
+    ["factory temporary IIFE target", 'function change(){(()=>api)().execute=provided;}'],
+    ["factory thrown alias", 'function change(){try{throw api;}catch(alias){alias.execute=provided;}}'],
     ["factory returned alias", 'function change(){function expose(){return api;} const alias=expose(); alias.execute=provided;}'],
     ["factory binding execution", 'function change(){const {value=(api.execute=provided)}={};}'],
     ["factory switch discriminant", 'function change(){switch(api.execute=provided){default:const api={};}}'],
@@ -110,6 +108,15 @@ export function registerFactoryReviewCases({ test, assert }) {
       extra:{[fsroot+'/application/factory.js']:'import {safe} from "../domain/index.js"; export function createApi(provided){const api={execute:safe}; '+change+' return {api,change};}'}
     })));
   }
+  for (const inner of ['function unused(){return state;}', 'const unused=()=>state;']) {
+    // The finite frame analysis does not prove that an inner closure is unused.
+    test(`factory review records conservative untracked closure ${inner}`, () => unknown(inspect({
+      code:imports+' const state={execute:safe}; function outer(){'+inner+'} function createApi(){return state;} export const {execute}=createApi();'
+    })));
+  }
+  test("factory review temporary returned receiver mutation stays unknown", () => unknown(inspect({
+    code:imports+' const state={execute:safe,change(){this.execute=read;}}; function expose(){return state;} expose().change(); function createApi(){return state;} export const {execute}=createApi();'
+  })));
   for (const [name, action] of [
     ["unused returned alias", 'function expose(){return state;} const alias=expose();'],
     ["unused arrow returned alias", 'const expose=()=>state; const alias=expose();'],
@@ -249,4 +256,53 @@ export function registerFactoryReviewCases({ test, assert }) {
     const result=inspect({code:imports+' function createApi(provided){return {execute:provided};} const good=createApi(safe); const bad=createApi(read); const opaque=createApi(missing); export const execute={good,bad,opaque};'});
     assert.ok(result.owners.some(x=>x?.path===domain)); assert.ok(result.owners.some(x=>x?.path===adapter)); unknown(result);
   });
+}
+
+function registerFactoryValueCases({test, assert, unknown, owned, importedFactory}) {
+  for (const literal of ['"marker"', "42", "42n", "true", "null"]) {
+    test(`factory review preserves escaped primitive ${literal}`, () => {
+      const result=inspect({code:importedFactory,factory:'const marker='+literal+'; function use(alias=marker){} export function createApi(){return {execute:marker};}'});
+      owned(result,afactory,"adapters");
+      assert.ok(result.problems.some(({code})=>code==='layer-direction'));
+    });
+  }
+  for (const literal of ['"marker"', "42", "42n", "false", "null"]) {
+    test(`factory review preserves escaped imported primitive ${literal}`, () => {
+      const result=inspect({code:importedFactory,factory:'import {marker} from "../domain/index.js"; function use(alias=marker){} export function createApi(){return {execute:marker};}',extra:{[domain]:'export const marker='+literal+';'}});
+      owned(result,domain,"domain"); assert.deepEqual(result.problems,[]);
+    });
+  }
+  for (const value of ['{value:42}', '/x/g']) {
+    test(`factory review escaped imported mutable value stays unknown ${value}`, () => unknown(inspect({
+      code:importedFactory,factory:'import {marker} from "../domain/index.js"; function use(alias=marker){alias.value=2;} use(); export function createApi(){return {execute:marker};}',extra:{[domain]:'export const marker='+value+';'}
+    })));
+  }
+  test("factory review stable imported primitive is not callable", () => unknown(inspect({
+    code:'import {marker} from "../domain/index.js"; function copy(value=marker){} export const {execute}=marker();',extra:{[domain]:'export const marker=42;'}
+  })));
+  for (const [name,value] of [["function","safe"],["primitive","42"]]) {
+    test(`factory review retains escaped factory result ${name}`, () => {
+      const result=inspect({code:imports+' function make(){return '+value+';} const operation=make(); function use(value){} use(operation); export const execute=operation;'});
+      owned(result,name==='function'?domain:comp,name==='function'?"domain":"composition");
+    });
+  }
+  test("factory review escaped mutable factory result remains unknown", () => unknown(inspect({
+    code:imports+' function make(){return {execute:safe};} const api=make(); function use(value){value.execute=read;} use(api); export const execute=api.execute;'
+  })));
+  test("factory review escaped imported factory function keeps its owner", () => {
+    const operation=fsroot+'/application/operation.js';
+    const result=inspect({code:'import {createOperation} from "../application/operation.js"; const operation=createOperation(); function wire(execute){return {execute};} export const {execute}=wire(operation);',extra:{[operation]:'export function createOperation(){return async function execute(input){return input;};}'}});
+    owned(result,operation,"application"); assert.deepEqual(result.problems,[]);
+  });
+  test("factory review escaped RegExp literal remains unknown", () => unknown(inspect({
+    code:importedFactory,factory:'const marker=/x/g; function use(alias=marker){alias.lastIndex=1;} use(); export function createApi(){return {execute:marker};}'
+  })));
+  test("factory review reassigned primitive remains unknown", () => unknown(inspect({
+    code:importedFactory,factory:'let marker="safe"; marker="changed"; export function createApi(){return {execute:marker};}'
+  })));
+  for (const selection of ['namespace', 'namespace()']) {
+    test(`factory review escaped namespace is not a stable scalar ${selection}`, () => unknown(inspect({
+      code:'import * as namespace from "../domain/index.js"; function use(value){} use(namespace); export const execute='+selection+';'
+    })));
+  }
 }

@@ -1,5 +1,5 @@
 import { unstableFactoryBindings } from "./factory-stability.mjs";
-import { callableSelection, factoryOrigins, flatBindings, inheritStability } from "./factory-origins.mjs";
+import { callableSelection, stableIdentitySelection, factoryOrigins, flatBindings, inheritStability } from "./factory-origins.mjs";
 import { parseSync } from "oxc-parser";
 import { classify, problem, sourceTarget, within } from "./profile.mjs";
 
@@ -136,9 +136,10 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     if (value.unstable) {return [undefined];}
     const binding = value.imported;
     const typeOnly = binding.node.importKind === "type" || binding.node.specifiers.find((item) => item.local.name === value.name)?.importKind === "type";
-    // Escaping a function cannot replace its implementation. An escaped object
-    // import has no proven contents; callable selection never flattens it.
-    const projected = value.contentsUnstable || value.receiverUnstable ? [callableSelection] : selection;
+    // A copied primitive and a function implementation keep their identity.
+    // This terminal projection never enumerates object members or establishes
+    // callability for primitive values.
+    const projected = value.contentsUnstable || value.receiverUnstable ? [stableIdentitySelection] : selection;
     const origins = imported(value.path, binding.node.source, binding.name, active, projected);
     return origins.flatMap((entry) => {
       if (!entry) {return [undefined];}
@@ -185,7 +186,7 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     const next = enter(active, key);
     if (!surface || !next) {return [undefined];}
     if (name === "*") {
-      if (selection[0] === callableSelection) {return [undefined];}
+      if (selection[0] === callableSelection || selection[0] === stableIdentitySelection) {return [undefined];}
       return surface.exports.size ? [...surface.exports.keys()].flatMap((item) => exported(path, item, next, selection)) : [undefined];
     }
     const binding = surface.exports.get(name);

@@ -86,6 +86,7 @@
         "tests/scaffolding-adversarial.test.mjs",
         "tests/source-dependency-development-mode.test.mjs",
         "tests/source-dependency-export-authority.test.mjs",
+        "tests/source-dependency-source-coverage.test.mjs",
         "tests/source-dependency-workspace-discovery.test.mjs",
         "tests/source-dependency-workspace-topology.test.mjs"
       ]

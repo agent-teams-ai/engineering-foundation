@@ -124,6 +124,7 @@
     "tests/scaffolding-frozen-baseline.test.mjs",
     "tests/source-dependency-export-authority.test.mjs",
     "tests/source-dependency-graph.test.mjs",
+    "tests/source-dependency-source-coverage.test.mjs",
     "tests/source-dependency-workspace-discovery.test.mjs",
     "tests/source-dependency-workspace-topology.test.mjs"
   ],

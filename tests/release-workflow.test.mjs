@@ -246,13 +246,13 @@ function runAttestationFragment(source, fragment, setup = "") {
         printf '%s' '{"id":42,"login":"github-actions[bot]","type":"Bot"}'
         return 0
       fi
-      if [[ "$*" == "api --paginate --slurp repos/owner/repo/commits/${"a".repeat(40)}/status?per_page=100" ]]; then
+      if [[ "$*" == "api --paginate --slurp repos/owner/repo/statuses/${"a".repeat(40)}?per_page=100" ]]; then
         local reads=0
         read -r reads < "$REMOTE/reads" || :
         reads=$((reads + 1)); echo "$reads" > "$REMOTE/reads"
         (( reads > \${read_failures:-0} )) || return 43
-        jq -sc --arg sha '${"a".repeat(40)}' '
-          reverse | unique_by(.context) | [{sha:$sha,statuses:.}]
+        jq -sc '
+          reverse | [.]
         ' "$REMOTE/statuses" | jq -c "\${read_transform:-.}" || return 44
         return 0
       fi
@@ -290,6 +290,7 @@ function runAttestationFragment(source, fragment, setup = "") {
       status="$(jq -nc --arg context "$context" --arg state "$state" \
         --arg target "$target_url" --arg description "$description" \
         '{context:$context,state:$state,target_url:$target,description:$description,
+          avatar_url:"https://avatars.githubusercontent.com/in/15368?v=4",
           creator:{id:42,login:"github-actions[bot]",type:"Bot"}}')"
       echo "$status" >> "$REMOTE/statuses"
       [[ "$mode" != lost ]] || return 42
@@ -466,8 +467,8 @@ function assertStatusReconciliation(source) {
     ["fault_context=analyze:success; fault_mode=reject", 2],
     ["fault_context=analyze:success; fault_mode=malformed", 1],
     ["fault_context=analyze:success; fault_mode=phantom", 2],
-    ["read_transform='.[0] as $page | $page.statuses | map({sha:$page.sha,statuses:[.]})'", 1],
-    ["read_transform='.[0].statuses += [{context: \"unrelated\", description: null, target_url: null}]'", 1],
+    ["read_transform='.[0] | map([.])'", 1],
+    ["read_transform='.[0] += [{context: \"unrelated\", description: null, target_url: null}]'", 1],
     ["fault_context=analyze:success; fault_mode=lost", 1],
     ["read_failures=2", 3],
     ["fault_context=analyze:success; fault_mode=lost; fault_count=3; read_failures=2", 3],
@@ -478,27 +479,46 @@ function assertStatusReconciliation(source) {
     assert.equal(result.attempts.length, attempts, setup);
     assert.doesNotMatch(result.stderr, /Unreconciled|Recovery incomplete/u);
   }
+  // Preserve API order across pages: skip unrelated writers, then take the newest
+  // requested context, even when older statuses conflict or lack a creator.
   for (const transform of [
-    '.[0].sha = "wrong"',
-    '.[0].statuses[0].state = "pending"',
-    '.[0].statuses[0].context = "other"',
-    '.[0].statuses[0].target_url = "other"',
-    '.[0].statuses[0].description = "other"',
-    '.[0].statuses[0].creator.id = 99',
-    '.[0].statuses[0].creator.login = "impostor"',
-    '.[0].statuses[0].creator.type = "User"',
-    '.[0].statuses += .[0].statuses',
-    '.[0].statuses = null',
-    '.[0].statuses += [null]',
-    '.[0].statuses += [{"state":"failure"}]',
-    '. += [{sha: .[0].sha, statuses: [null]}]',
-    '. += [{sha: .[0].sha, statuses: [{"state":"failure"}]}]',
-    '.[0].statuses += [{"context":42}]',
+    '.[0] += [.[0][0] | .state = "pending" | del(.creator)]',
+    '.[0] += .[0]',
+    '.[0] as $entries | [[{context:"unrelated",creator:{id:99}}], $entries, [$entries[0] | .state = "error"]]',
+  ]) {
+    const result = runAttestationFragment(source, publish, `read_transform='${transform}'`);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.attempts.length, 1);
+  }
+  for (const transform of [
+    '.[0] = [.[0][0] | .state = "pending"] + .[0]',
+    '.[0] as $entries | [[$entries[0] | .state = "pending"], $entries]',
+    'del(.[0][0].creator)',
+    '.[0][0].creator = null',
+    '.[0][0].avatar_url = "https://avatars.githubusercontent.com/in/999?v=4"',
+    'del(.[0][0].avatar_url)',
+    '[{sha:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",statuses:(.[0] | map(del(.creator)))}]',
+    '[{}]',
+    '[[]]',
+    '.[0] |= {entry:.[0]}',
+    '.[0][0].state = "pending"',
+    '.[0] |= map(.context = "other")',
+    '.[0][0].target_url = "other"',
+    '.[0][0].description = "other"',
+    '.[0][0].creator.id = 99',
+    '.[0][0].creator.login = "impostor"',
+    '.[0][0].creator.type = "User"',
+    '.[0] = null',
+    '.[0] += [null]',
+    '.[0] += [{"state":"failure"}]',
+    '. += [[null]]',
+    '. += [[{"state":"failure"}]]',
+    '.[0] += [{"context":42}]',
     '[]',
     '"invalid-json-shape"',
   ]) {
     const result = runAttestationFragment(source, publish, `read_transform='${transform}'`);
-    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.status, 1, `${transform}: ${result.stderr}`);
     assert.match(result.stderr, /Unreconciled status: analyze/u);
   }
   const seed = 'for context in "${attestation_contexts[@]}"; do post_status "$context" success "verified" "target"; done';
@@ -555,12 +575,17 @@ test("release reconciliation rejects fail-open mutations", {
     ["ignore creator", ".creator.id == $creator", "true"],
     ["ignore creator login", '.creator.login == "github-actions[bot]"', "true"],
     ["ignore creator type", '.creator.type == "Bot"', "true"],
-    ["ignore SHA", ".sha == $sha", "true"],
+    ["combined endpoint", "statuses/${head_sha}?per_page=100", "commits/${head_sha}/status?per_page=100"],
+    ["wrong endpoint SHA", "statuses/${head_sha}?per_page=100", "statuses/wrong?per_page=100"],
+    ["ignore app", '.avatar_url == "https://avatars.githubusercontent.com/in/15368?v=4"', "true"],
+    ["oldest context", ".[0] | type", ".[-1] | type"],
+    ["first entry before context", "[.[][] | select(.context == $context)]", "[.[][]][0:1]"],
     ["ignore state", ".state == $state", "true"],
     ["ignore target", ".target_url == $target", "true"],
     ["ignore description", ".description == $description", "true"],
-    ["ignore duplicate context", "length == 1 and all", "length > 0 and all"],
-    ["omit complete-set shape guard", 'all(.[].statuses[]; type == "object" and (.context | type) == "string") and', ""],
+    ["unique historical context", '.[0] | type == "object"', 'select(length == 1) | .[0] | type == "object"'],
+    ["omit page shape guard", 'all(.[]; type == "array") and', ""],
+    ["omit complete-set shape guard", 'all(.[][]; type == "object" and (.context | type) == "string") and', ""],
     ["silence recovery exhaustion", 'unreconciled+=("${context}")', ":"],
     ["erase original exit", 'exit "${exit_code}"', "exit 1"],
   ]) {

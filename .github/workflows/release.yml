@@ -224,19 +224,23 @@ jobs:
                   -f target_url="${target_url}" >/dev/null; then
                   :
                 fi
+                # List pages retain newest-first order and historical duplicates.
+                # The requested endpoint binds the SHA; entries have no sha field.
+                # The top-level avatar identifies the GitHub Actions app (15368).
                 if statuses="$(trap - ERR; timeout --kill-after=1s 3s gh api --paginate --slurp \
-                  "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status?per_page=100")" &&
-                  jq -e --arg sha "${head_sha}" --arg context "${context}" \
+                  "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}?per_page=100")" &&
+                  jq -e --arg context "${context}" \
                     --arg state "${status_state}" --arg description "${description}" \
                     --arg target "${target_url}" --argjson creator "${status_creator_id}" '
                     type == "array" and length > 0 and
-                    all(.[]; .sha == $sha and (.statuses | type) == "array") and
-                    all(.[].statuses[]; type == "object" and (.context | type) == "string") and
-                    ([.[].statuses[] | select(.context == $context)] |
-                      length == 1 and all(.[];
+                    all(.[]; type == "array") and
+                    all(.[][]; type == "object" and (.context | type) == "string") and
+                    ([.[][] | select(.context == $context)] |
+                      .[0] | type == "object" and
                         .state == $state and .description == $description and
                         .target_url == $target and .creator.id == $creator and
-                        .creator.login == "github-actions[bot]" and .creator.type == "Bot"))
+                        .creator.login == "github-actions[bot]" and .creator.type == "Bot" and
+                        .avatar_url == "https://avatars.githubusercontent.com/in/15368?v=4")
                   ' <<<"${statuses}" >/dev/null; then
                   return 0
                 fi

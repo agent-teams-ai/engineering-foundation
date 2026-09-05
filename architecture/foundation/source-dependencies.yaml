@@ -131,20 +131,87 @@ boundaries:
     entrypoints:
       - packages/docs-protocol/src/index.ts
       - packages/docs-protocol/src/cli.ts
-  - id: docs-protocol-mcp.surface
-    packageExports:
-      - "."
+  - id: docs-protocol-mcp.application
     roots:
-      - packages/docs-protocol-mcp/src
+      - packages/docs-protocol-mcp/src/read-only-docs/application
     allow:
       boundaries: []
+      packages:
+        - "@agent-teams/docs-protocol"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-mcp/src/read-only-docs/application/ports/docs-reader.ts
+  - id: docs-protocol-mcp.package-identity
+    roots:
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/outbound/installed-package-version.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:fs
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/outbound/installed-package-version.ts
+  - id: docs-protocol-mcp.reader
+    roots:
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/outbound/node-docs-reader.ts
+    allow:
+      boundaries:
+        - docs-protocol-mcp.application
+      packages:
+        - "@agent-teams/docs-protocol"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/outbound/node-docs-reader.ts
+  - id: docs-protocol-mcp.transport
+    roots:
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/inbound
+    allow:
+      boundaries:
+        - docs-protocol-mcp.application
+        - docs-protocol-mcp.package-identity
       packages:
         - "@agent-teams/docs-protocol"
         - "@modelcontextprotocol/server"
       builtins:
         - node:fs/promises
-        - node:module
         - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/inbound/cli-input.ts
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/inbound/server.ts
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/inbound/tools.ts
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/inbound/tool-contracts.ts
+      - packages/docs-protocol-mcp/src/read-only-docs/adapters/inbound/output-schemas.ts
+  - id: docs-protocol-mcp.composition
+    roots:
+      - packages/docs-protocol-mcp/src/read-only-docs/composition
+      - packages/docs-protocol-mcp/src/read-only-docs/module.ts
+    allow:
+      boundaries:
+        - docs-protocol-mcp.application
+        - docs-protocol-mcp.transport
+        - docs-protocol-mcp.reader
+        - docs-protocol-mcp.package-identity
+      packages:
+        - "@modelcontextprotocol/server"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-mcp/src/read-only-docs/module.ts
+  - id: docs-protocol-mcp.surface
+    packageExports:
+      - "."
+    roots:
+      - packages/docs-protocol-mcp/src/index.ts
+      - packages/docs-protocol-mcp/src/cli.ts
+    allow:
+      boundaries:
+        - docs-protocol-mcp.composition
+      packages: []
+      builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/docs-protocol-mcp/src/index.ts
@@ -161,11 +228,13 @@ boundaries:
       builtins:
         - node:assert/strict
         - node:child_process
+        - node:crypto
         - node:fs/promises
         - node:os
         - node:path
         - node:test
         - node:util
+        - node:url
       runtimeReferences: []
     entrypoints: []
   - id: docs-protocol.tests

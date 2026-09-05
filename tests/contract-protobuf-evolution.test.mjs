@@ -651,11 +651,6 @@ test("runs as a deterministic read-only Foundation capability with closed input 
       "utf8",
     );
     assert.doesNotMatch(moduleSource, /child_process|node:child_process|ProcessBuf/u);
-    const cliSource = await readFile(join(distRoot, "composition", "command-host.js"), "utf8");
-    assert.doesNotMatch(
-      cliSource,
-      /^import .*contract-protobuf-evolution\/qualification\/module/mu,
-    );
     const commandHostSource = await readFile(join(distRoot, "composition", "command-host.js"), "utf8");
     assert.doesNotMatch(commandHostSource, /^import .*contract-protobuf-evolution\/qualification\/module/mu);
     assert.match(

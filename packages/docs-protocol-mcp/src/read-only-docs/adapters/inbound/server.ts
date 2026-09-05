@@ -1,8 +1,9 @@
 import { McpServer, type ServerContext, type StandardSchemaWithJSON } from "@modelcontextprotocol/server";
 
-import type { DocsBinding, DocsReader } from "./contracts.js";
-import { createDocsTools, type DocsTool } from "./tools.js";
-import { DOCS_PROTOCOL_MCP_PACKAGE_VERSION } from "./version.js";
+import type { DocsBinding, DocsReader } from "../../application/ports/docs-reader.js";
+import { createDocsTools } from "./tools.js";
+import type { DocsTool } from "./tool-contracts.js";
+import { DOCS_PROTOCOL_MCP_PACKAGE_VERSION } from "../outbound/installed-package-version.js";
 
 const SERVER_IDENTITY = Object.freeze({
   name: "@agent-teams/docs-protocol-mcp",

@@ -50,7 +50,9 @@
         "tests/single-current-contract-version.test.mjs",
         "tests/source-dependency-graph.test.mjs",
         "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",
-        "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs"
+        "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs",
+        "tests/source-dependency-loader-edges.test.mjs",
+        "tests/source-dependency-loader-cli.test.mjs"
       ]
     },
     {

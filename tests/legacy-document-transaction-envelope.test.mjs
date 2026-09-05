@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { sha256Json as sha256DocumentJson } from "../packages/engineering-foundation/dist/canonical-json.js";
 import { installedFoundationBuildIdentity } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 import {
   planScaffoldFromFile,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
@@ -65,7 +65,7 @@ test("preserves an exact 0.13.1 document envelope as verified legacy evidence", 
   try {
     await writeEnvelope(root, fixture);
     const before = await readFile(slotPath(root));
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: "0.13.1",
@@ -93,7 +93,7 @@ test("does not use legacy digest semantics for an unrecognized build", async () 
     envelope.envelopeDigest = sha256DocumentJson(body);
     await writeEnvelope(root, envelope);
     const before = await readFile(slotPath(root));
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: "0.13.1",
@@ -145,7 +145,7 @@ test("does not route a same-build scaffolding envelope through the document lega
     };
     envelope.envelopeDigest = sha256ScaffoldingJson(envelope);
     await writeEnvelope(root, envelope);
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: "0.13.1",
@@ -203,7 +203,7 @@ test("verifies current scaffolding envelope digests with frozen scaffolding cano
     await mkdir(dirname(slotPath(root)), { recursive: true });
     await writeFile(slotPath(root), serialized, "utf8");
 
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: plan.compiler.version,
@@ -230,7 +230,7 @@ test("does not accept frozen scaffolding digest semantics for a current document
     envelope.envelopeDigest = sha256LegacyJson(body);
     await writeEnvelope(root, envelope);
 
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: "0.13.1",
@@ -254,7 +254,7 @@ test("does not reinterpret a corrected-shape Intent as a legacy envelope", async
     const { envelopeDigest: _envelopeDigest, ...envelopeBody } = envelope;
     envelope.envelopeDigest = sha256DocumentJson(envelopeBody);
     await writeEnvelope(root, envelope);
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: "0.13.1",
@@ -294,7 +294,7 @@ for (const vector of [
       );
       await writeEnvelope(root, envelope);
       const before = await readFile(slotPath(root));
-      const status = await new NodeFoundationTransactionSlot({
+      const status = await createNodeFoundationTransactionSlot({
         consumerRoot: root,
         installedBuildIdentity,
         installedVersion: vector.version,

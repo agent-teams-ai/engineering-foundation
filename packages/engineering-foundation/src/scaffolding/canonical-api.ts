@@ -5,19 +5,19 @@ import type {
   ScaffoldReceipt
 } from "./contract/scaffold-contract.js";
 import {
-  applyAuthorityFilesystemScaffold
-} from "./adapters/node/filesystem-authority-workspace.js";
-import { recoverAuthorityFilesystemScaffold } from "./adapters/node/filesystem-authority-recovery.js";
+  applyAuthorityFilesystemScaffoldWithFaultInjection as applyAuthorityFilesystemScaffold,
+  recoverAuthorityFilesystemScaffoldWithFaultInjection as recoverAuthorityFilesystemScaffold
+} from "../composition/scaffold-filesystem.js";
 import { readAuthorityScaffoldPlanFile } from "./adapters/node/node-authority-input-loader.js";
 import { validateAuthorityScaffoldReceipt } from "./adapters/node/node-authority-receipt-validator.js";
 import {
   assertScaffoldAuthorityEvidenceDigest as assertAuthorityEvidenceDigest
 } from "./kernel/authority-evidence.js";
 import { assertAuthorityScaffoldPlanDigest } from "./kernel/plan-validation.js";
-import { assertAuthorityScaffoldReceiptDigest } from "./kernel/authority-receipt.js";
+import { assertAuthorityScaffoldReceiptDigest } from "./adapters/inbound/authority-scaffold-receipt.js";
 import { snapshotAuthorityScaffoldRecoveryScope } from "./kernel/recovery-scope.js";
 import { ScaffoldError } from "./scaffold-error.js";
-import { planAuthorityScaffoldFromFile } from "./authority-service.js";
+import { planAuthorityScaffoldFromFile } from "./adapters/inbound/plan-authority-scaffold-from-file.js";
 
 export async function planScaffoldFromFile(options: {
   readonly consumerRoot: string;

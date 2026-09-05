@@ -3,15 +3,19 @@ import { join, resolve } from "node:path";
 
 import type {
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan,
-  AuthorityScaffoldReceipt
+  AuthorityScaffoldOperationReceipt
 } from "../../contract/types.js";
+import type {
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
+  AuthorityScaffoldReceipt
+} from "../../contract/receipt-authority-types.js";
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { LOCAL_STATE_DIRECTORY } from "../../../foundation-state-contract.js";
-import { createNodeFoundationTransactionCoordinator } from "../../../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+import type { ScaffoldTransactions, ScaffoldTransactionProvider } from "../../application/ports/scaffold-transactions.js";
 import { FoundationTransactionError } from "../../../transaction-coordination/application/foundation-transaction-error.js";
 import type { FoundationTransactionLease } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
 import { releaseFoundationTransactionLeaseSafely } from "../../../transaction-coordination/application/release-foundation-transaction-lease.js";
@@ -50,8 +54,6 @@ import {
   type StoredScaffoldJournal
 } from "./node-scaffold-journal-store.js";
 import { scaffoldTransactionEvidenceExists } from "./node-scaffold-journal-transaction-evidence.js";
-import { createNodeFoundationCleanupTransition } from "../../../transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
-import { syncFoundationStateDirectory } from "../../../transaction-coordination/adapters/node/node-foundation-state-directory.js";
 import { sha256Text } from "../../kernel/canonical-json.js";
 
 interface ScaffoldAuthorityFaultPoint {
@@ -86,6 +88,7 @@ function recoveryRequired(
 }
 
 interface AuthorityContinuationOptions {
+  readonly transactions: ScaffoldTransactions;
   readonly root: string;
   readonly journalPath: string;
   readonly record: StoredScaffoldJournal;
@@ -131,9 +134,8 @@ function snapshotAuthorityScaffoldPlan(
 }
 
 export async function acquireScaffoldingTransaction(
-  canonicalRoot: string
+  coordinator: ScaffoldTransactions["coordinator"]
 ): Promise<FoundationTransactionLease> {
-  const coordinator = await createNodeFoundationTransactionCoordinator(canonicalRoot);
   try {
     return await coordinator.acquire({
       requestedMutation: "scaffolding",
@@ -284,12 +286,10 @@ async function publishPendingOperations(options: {
         ...(continuation.faultInjector === undefined
           ? {}
           : { faultInjector: continuation.faultInjector }),
-        cleanupTransition: createNodeFoundationCleanupTransition(
-          continuation.root,
+        cleanupTransition: continuation.transactions.createCleanupTransition(
           sha256Text(
             `${journal.plan.planDigest}:${operation.id}:cleanup`
-          ).slice("sha256:".length),
-          { syncStateDirectory: syncFoundationStateDirectory }
+          ).slice("sha256:".length)
         )
       }
     );
@@ -337,18 +337,12 @@ export async function continueAuthorityScaffoldJournal(
   return finalizeAuthorityScaffoldJournal({ ...options, ...published });
 }
 
-export async function applyAuthorityFilesystemScaffold(
-  consumerRoot: string,
-  plan: AuthorityScaffoldPlan
-): Promise<AuthorityScaffoldReceipt> {
-  return applyAuthorityFilesystemScaffoldWithFaultInjection(consumerRoot, plan);
-}
-
 /** Internal conformance seam. It is intentionally absent from package exports. */
 export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   consumerRoot: string,
   callerPlan: AuthorityScaffoldPlan,
-  faultInjector?: ScaffoldAuthorityFaultInjector
+  faultInjector: ScaffoldAuthorityFaultInjector | undefined,
+  createTransactions: ScaffoldTransactionProvider
 ): Promise<AuthorityScaffoldReceipt> {
   const plan = snapshotAuthorityScaffoldPlan(callerPlan);
   await assertSchema("scaffold-plan/v1", plan, "scaffold-apply-plan");
@@ -380,7 +374,8 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       }
     }
   });
-  const lease = await acquireScaffoldingTransaction(canonicalRoot);
+  const transactions = await createTransactions(canonicalRoot);
+  const lease = await acquireScaffoldingTransaction(transactions.coordinator);
   try {
     const existing = await readScaffoldJournal(journalStore);
     if (existing !== undefined) {
@@ -391,6 +386,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
         );
       }
       return await continueAuthorityScaffoldJournal({
+        transactions,
         root: canonicalRoot,
         journalPath,
         record: {
@@ -473,6 +469,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
     );
     await faultInjector?.({ phase: "after-journal-prepared" });
     return await continueAuthorityScaffoldJournal({
+      transactions,
       root: canonicalRoot,
       journalPath,
       record: { journal, authority: journalAuthority },

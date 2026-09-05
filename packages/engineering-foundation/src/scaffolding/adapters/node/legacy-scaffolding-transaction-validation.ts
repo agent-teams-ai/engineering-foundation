@@ -1,25 +1,15 @@
 import { sha256Json as sha256DocumentJson } from "../../../canonical-json.js";
-import type { AuthorityScaffoldJournal, JsonValue } from "../../../scaffolding/contract/types.js";
-import { assertAuthorityScaffoldJournal } from "../../../scaffolding/kernel/authority-journal-validation.js";
-import { legacyFoundationEnvelopeSha256Json } from "./legacy-document-envelope-v2.js";
+import type {
+  AuthorityScaffoldJournal
+} from "../../contract/types.js";
+import type {
+  JsonValue
+} from "../../application/model/scaffold-values.js";
+import { assertAuthorityScaffoldJournal } from "../inbound/assert-authority-scaffold-journal.js";
+import { legacyFoundationEnvelopeSha256Json } from "../../../transaction-coordination/adapters/node/legacy-document-envelope-v2.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-export function assertEnvelopeDigests(envelope: Record<string, unknown>): void {
-  const sha256EnvelopeJson = (value: unknown): string =>
-    envelope["operationKind"] === "scaffolding"
-      ? legacyFoundationEnvelopeSha256Json(value)
-      : sha256DocumentJson(value as JsonValue);
-  const journal = envelope["journal"];
-  if (envelope["payloadDigest"] !== sha256EnvelopeJson(journal)) {
-    throw new Error("Foundation transaction payload digest is invalid.");
-  }
-  const { envelopeDigest, ...body } = envelope;
-  if (envelopeDigest !== sha256EnvelopeJson(body)) {
-    throw new Error("Foundation transaction envelope digest is invalid.");
-  }
 }
 
 function normalizeLegacyScaffoldingValue(value: unknown): unknown {

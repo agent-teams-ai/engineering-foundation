@@ -19,7 +19,7 @@ import {
 } from "./types.js";
 import { installedFoundationVersion } from "../package-version.js";
 import { installedFoundationBuildIdentity } from "../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
-import { NodeFoundationTransactionSlot } from "../transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionSlot } from "../composition/node-foundation-transaction-slot.js";
 import type { FoundationTransactionStatus } from "../transaction-coordination/application/model/transaction-status.js";
 import type { InternalFoundationTransactionStatus } from "../transaction-coordination/application/model/internal-transaction-status.js";
 
@@ -330,7 +330,7 @@ export async function inspectFoundationTransactionAwareMode(
     issues
   );
   const transaction = localStateDirectoryIsSafe
-    ? await new NodeFoundationTransactionSlot({
+    ? await createNodeFoundationTransactionSlot({
         consumerRoot,
         installedVersion: await installedFoundationVersion(),
         installedBuildIdentity: await installedFoundationBuildIdentity()

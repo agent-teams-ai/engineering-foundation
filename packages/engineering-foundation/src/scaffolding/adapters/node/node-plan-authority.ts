@@ -1,5 +1,7 @@
-import type { AuthorityScaffoldPlan } from "../../contract/types.js";
-import { createAuthorityScaffoldRegistry } from "../../definitions/registry.js";
+import type {
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import { createAuthorityScaffoldRegistry } from "../../composition/scaffold-registry.js";
 import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
 import { installedFoundationVersion } from "./installed-foundation-version.js";
 import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";

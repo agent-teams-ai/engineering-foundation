@@ -18,8 +18,8 @@ import test from "node:test";
 
 import { FoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-coordinator.js";
 import { FoundationTransactionError } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-error.js";
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
-import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
 import {
   installedFoundationBuildIdentity,
 } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
@@ -40,9 +40,7 @@ const coordinatorModulePath = join(
   "packages",
   "engineering-foundation",
   "dist",
-  "transaction-coordination",
-  "adapters",
-  "node",
+  "composition",
   "node-foundation-transaction-coordinator.js",
 );
 const transactionHolderFixture = join(
@@ -365,7 +363,7 @@ test("recognizes a frozen legacy scaffolding v1 journal and its exact compiler",
       })),
     };
     await writeJson(slotPath(root), journal);
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: plan.compiler.version,
@@ -398,7 +396,7 @@ test("preserves exact verified envelope v2 evidence until its recovery handler e
   const root = await createRoot();
   try {
     await writeJson(slotPath(root), buildDocumentEnvelope("0.12.0"));
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: "0.13.0",
@@ -441,7 +439,7 @@ test("accepts the schema-defined preexisting document lifecycle", async () => {
     const { envelopeDigest: _digest, ...body } = envelope;
     envelope.envelopeDigest = sha256Json(body);
     await writeJson(slotPath(root), envelope);
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: "0.12.0",
@@ -544,7 +542,7 @@ test("fails closed when an envelope is rebound across compiler or installed buil
         envelope.envelopeDigest = sha256Json(body);
         await writeJson(slotPath(root), envelope);
         const before = await readFile(slotPath(root));
-        const status = await new NodeFoundationTransactionSlot({
+        const status = await createNodeFoundationTransactionSlot({
           consumerRoot: root,
           installedBuildIdentity,
           installedVersion: "0.12.0",
@@ -561,7 +559,7 @@ test("fails closed when an envelope is rebound across compiler or installed buil
     const root = await createRoot();
     try {
       await writeJson(slotPath(root), buildDocumentEnvelope());
-      const status = await new NodeFoundationTransactionSlot({
+      const status = await createNodeFoundationTransactionSlot({
         consumerRoot: root,
         installedBuildIdentity: otherBuildIdentity,
         installedVersion: "0.12.0",
@@ -604,7 +602,7 @@ test("rejects a schema-valid legacy journal whose operation evidence is not Plan
     };
     await writeJson(slotPath(root), journal);
     const before = await readFile(slotPath(root));
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: plan.compiler.version,
@@ -664,7 +662,7 @@ test("fails closed and preserves unknown, corrupt, replaced, and temporary evide
         const absentBefore = await observeEvidence(
           scenario.name === "orphan temporary" ? slotPath(root) : `${slotPath(root)}.tmp`,
         );
-        const status = await new NodeFoundationTransactionSlot({
+        const status = await createNodeFoundationTransactionSlot({
           consumerRoot: root,
           installedBuildIdentity,
           installedVersion: "0.12.0",
@@ -702,7 +700,7 @@ test("preserves both journal and temporary evidence when the slot has two candid
     await writeFile(`${path}.tmp`, "independent candidate\n", "utf8");
     const journalBefore = await readFile(path);
     const temporaryBefore = await readFile(`${path}.tmp`);
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity,
       installedVersion: "0.12.0",
@@ -798,3 +796,31 @@ test(
     }
   },
 );
+
+
+test("physical transaction slot delegates payload meaning to its supplied inspector", async () => {
+  const { NodeFoundationTransactionSlot } = await import("../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js");
+  const root = await createRoot();
+  const value = { schemaVersion: 999, opaque: "test-owned inspection" };
+  const expected = { state: "manual-recovery-required", reason: "unsupported-schema", diagnostics: [] };
+  try {
+    await writeJson(slotPath(root), value);
+    let calls = 0;
+    const slot = new NodeFoundationTransactionSlot({
+      consumerRoot: root,
+      inspection: { inspect: async (observed) => {
+        calls += 1;
+        assert.deepEqual(observed, value);
+        return expected;
+      } }
+    });
+    assert.deepEqual(await slot.inspect(), expected);
+    assert.equal(calls, 1);
+    assert.deepEqual(JSON.parse(await readFile(slotPath(root), "utf8")), value);
+    const failing = new NodeFoundationTransactionSlot({
+      consumerRoot: root, inspection: { inspect: async () => { throw new Error("unverifiable"); } }
+    });
+    assert.equal((await failing.inspect()).reason, "corrupt-or-incompatible");
+    assert.deepEqual(JSON.parse(await readFile(slotPath(root), "utf8")), value);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

@@ -1,43 +1,23 @@
+import { FOUNDATION_LINK_STATE_FILE, FOUNDATION_REGISTRY_BACKUP } from "../../../foundation-state-contract.js";
 import { opendir } from "node:fs/promises";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
 import {
   FOUNDATION_TRANSACTION_FILE,
-  FOUNDATION_LINK_STATE_FILE,
-  FOUNDATION_REGISTRY_BACKUP,
   KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
   LOCAL_STATE_DIRECTORY
-} from "../../../foundation-state-contract.js";
-import { assertSchema } from "../../../schema-catalog.js";
-import type {
-  AuthorityScaffoldJournal
-} from "../../../scaffolding/contract/types.js";
+} from "../../application/model/foundation-transaction-identity.js";
 import { parseStrictJson } from "../../../strict-json.js";
-import type {
-  FoundationRecoveryRoute,
-  FoundationTransactionDiagnostic
-} from "../../application/model/transaction-status.js";
 import type {
   InternalFoundationManualRecoveryReason,
   InternalFoundationTransactionStatus
 } from "../../application/model/internal-transaction-status.js";
 import type { FoundationTransactionSlot } from "../../application/ports/foundation-transaction-slot.js";
+import type { FoundationTransactionInspection } from "../../application/ports/foundation-transaction-inspection.js";
 import { readBoundedRegularFile } from "@agent-teams/repository-mutation/node";
 import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation";
-import {
-  assertLegacyDocumentEnvelope,
-  isKnownLegacyDocumentEnvelope
-} from "./legacy-document-envelope-v2.js";
-import {
-  inspectCurrentDocumentEnvelope,
-  inspectDocumentTransactionBindings
-} from "./document-envelope-bindings.js";
 import { inspectFoundationTransitionEvidence } from "./foundation-transition-evidence.js";
-import { inspectKnownFileTransactionStatus } from "./known-file-transaction-status.js";
-import { pendingDocumentTransaction } from "./document-transaction-status.js";
-import { inspectSchema6TransactionStatus } from "./schema6-transaction-status.js";
-import { assertEnvelopeDigests, assertLegacyScaffoldingJournal } from "./legacy-scaffolding-transaction-validation.js";
 
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
@@ -69,42 +49,6 @@ function manual(
         message
       }
     ]
-  };
-}
-
-function recoveryRoute(exactFoundationVersion: string): FoundationRecoveryRoute {
-  return {
-    commandId: "scaffold-recover",
-    exactFoundationVersion
-  };
-}
-
-function pending(options: {
-  readonly operationKind: "scaffolding";
-  readonly format: "foundation-scaffolding-envelope-v6" | "legacy-scaffolding-v1";
-  readonly foundationVersion: string;
-  readonly installedVersion: string;
-  readonly installedBuildIdentity: string;
-}): InternalFoundationTransactionStatus {
-  const diagnostics: FoundationTransactionDiagnostic[] = [];
-  if (options.foundationVersion !== options.installedVersion) {
-    diagnostics.push({
-      code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-      message: `Foundation ${options.foundationVersion} must recover the pending ${options.operationKind} transaction before package ${options.installedVersion} (${options.installedBuildIdentity}) can mutate this repository.`
-    });
-  } else {
-    diagnostics.push({
-      code: "FOUNDATION_TRANSACTION_ACTIVE",
-      message: `A pending ${options.operationKind} transaction must be recovered before another Foundation mutation can start.`
-    });
-  }
-  return {
-    state: "pending",
-    operationKind: options.operationKind,
-    format: options.format,
-    foundationVersion: options.foundationVersion,
-    recovery: recoveryRoute(options.foundationVersion),
-    diagnostics
   };
 }
 
@@ -239,179 +183,17 @@ async function inspectLocalModeEvidence(
 }
 
 
-async function inspectLegacyScaffoldingJournal(options: {
-  readonly value: Record<string, unknown>;
-  readonly installedVersion: string;
-  readonly installedBuildIdentity: string;
-}): Promise<InternalFoundationTransactionStatus> {
-  await assertSchema(
-    "scaffold-recovery-journal/v1",
-    options.value,
-    "foundation-transaction-slot"
-  );
-  const journal = options.value as unknown as AuthorityScaffoldJournal;
-  assertLegacyScaffoldingJournal(options.value);
-  const compiler = journal.plan["compiler"];
-  if (!isRecord(compiler) || typeof compiler["version"] !== "string") {
-    throw new Error("Legacy scaffolding journal compiler version is invalid.");
-  }
-  return pending({
-    operationKind: "scaffolding",
-    format: "legacy-scaffolding-v1",
-    foundationVersion: compiler["version"],
-    installedVersion: options.installedVersion,
-    installedBuildIdentity: options.installedBuildIdentity
-  });
-}
-
-function transactionSchemaVersion(value: Record<string, unknown>): number {
-  const schemaVersion = value["schemaVersion"];
-  return typeof schemaVersion === "number" ? schemaVersion : Number.NaN;
-}
-
-function inspectUnsupportedTransaction(options: {
-  readonly value: Record<string, unknown>;
-  readonly schemaVersion: number;
-  readonly installedVersion: string;
-  readonly installedBuildIdentity: string;
-}): InternalFoundationTransactionStatus {
-  return inspectKnownFileTransactionStatus(options) ?? manual(
-    "unsupported-schema",
-    `Foundation transaction schema version ${String(options.schemaVersion)} is unsupported and was preserved.`
-  );
-}
-
-async function inspectParsedTransaction(
-  value: unknown,
-  installedVersion: string,
-  installedBuildIdentity: string
-): Promise<InternalFoundationTransactionStatus> {
-  if (!isRecord(value)) {
-    return manual(
-      "invalid-slot",
-      "The Foundation transaction slot is invalid and was preserved."
-    );
-  }
-  const schemaVersion = transactionSchemaVersion(value);
-  switch (schemaVersion) {
-  case 1:
-    return inspectLegacyScaffoldingJournal({
-      value,
-      installedVersion,
-      installedBuildIdentity
-    });
-  case 3:
-    return inspectCurrentDocumentEnvelope({
-      value, installedVersion, installedBuildIdentity, pending: pendingDocumentTransaction
-    });
-  case 4:
-    return inspectCurrentDocumentEnvelope({
-      value,
-      installedVersion,
-      installedBuildIdentity,
-      pending: (identity) => pendingDocumentTransaction({
-        ...identity,
-        format: "document-authoring-envelope-v4"
-      })
-    });
-  case 6: {
-    return inspectSchema6TransactionStatus({
-      value,
-      installedFoundationVersion: installedVersion,
-      installedFoundationBuildIdentity: installedBuildIdentity
-    });
-  }
-  case 2: {
-    const legacyDocumentEnvelope = isKnownLegacyDocumentEnvelope(value);
-    if (legacyDocumentEnvelope) {
-      assertLegacyDocumentEnvelope(value);
-    } else {
-      await assertSchema(
-        "foundation-transaction-envelope/v2",
-        value,
-        "foundation-transaction-slot"
-      );
-      assertEnvelopeDigests(value);
-    }
-    const foundation = value["foundation"];
-    const operationKind = value["operationKind"];
-    const journal = value["journal"];
-    if (
-      !isRecord(foundation) ||
-      typeof foundation["version"] !== "string" ||
-      typeof foundation["buildIdentity"] !== "string" ||
-      !isRecord(journal) ||
-      !["document-authoring", "scaffolding"].includes(String(operationKind))
-    ) {
-      throw new Error("Foundation transaction envelope binding is invalid.");
-    }
-    const plan = journal["plan"];
-    if (!isRecord(plan)) {
-      throw new Error("Foundation transaction Plan binding is invalid.");
-    }
-    const compiler = plan["compiler"];
-    if (
-      !isRecord(compiler) ||
-      compiler["version"] !== foundation["version"] ||
-      (operationKind === "document-authoring" &&
-        compiler["buildIdentity"] !== foundation["buildIdentity"])
-    ) {
-      throw new Error("Foundation transaction compiler binding is invalid.");
-    }
-    if (operationKind === "document-authoring") {
-      const documentStatus = inspectDocumentTransactionBindings({
-        foundation,
-        journal,
-        journalVersion: 1,
-        legacyDigestSemantics: legacyDocumentEnvelope,
-        plan,
-        state: value["state"]
-      });
-      if (documentStatus !== undefined) {
-        return documentStatus;
-      }
-    } else {
-      assertLegacyScaffoldingJournal(journal);
-    }
-    return {
-      state: "manual-recovery-required",
-      reason: "recovery-handler-unavailable",
-      operationKind: operationKind as "document-authoring" | "scaffolding",
-      format: "envelope-v2",
-      foundationVersion: foundation["version"],
-      foundationBuildIdentity: foundation["buildIdentity"],
-      diagnostics: [
-        {
-          code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
-          message: `A verified ${String(operationKind)} envelope v2 from Foundation ${foundation["version"]} (${foundation["buildIdentity"]}) was preserved, but this release does not yet provide its recovery handler.`
-        }
-      ]
-    };
-  }
-  default:
-    return inspectUnsupportedTransaction({
-      value,
-      schemaVersion,
-      installedVersion,
-      installedBuildIdentity
-    });
-  }
-}
-
 export class NodeFoundationTransactionSlot implements FoundationTransactionSlot {
-  readonly #installedBuildIdentity: string;
-  readonly #installedVersion: string;
+  readonly #inspection: FoundationTransactionInspection;
   readonly #stateDirectory: string;
   readonly #slotPath: string;
   readonly #knownFileTemporaryPath: string;
 
   constructor(options: {
     readonly consumerRoot: string;
-    readonly installedBuildIdentity: string;
-    readonly installedVersion: string;
+    readonly inspection: FoundationTransactionInspection;
   }) {
-    this.#installedBuildIdentity = options.installedBuildIdentity;
-    this.#installedVersion = options.installedVersion;
+    this.#inspection = options.inspection;
     const stateDirectory = join(options.consumerRoot, LOCAL_STATE_DIRECTORY);
     this.#stateDirectory = stateDirectory;
     this.#slotPath = join(stateDirectory, FOUNDATION_TRANSACTION_FILE);
@@ -471,11 +253,7 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
     }
     try {
       const source = strictUtf8.decode(record.bytes);
-      return await inspectParsedTransaction(
-        parseStrictJson(source),
-        this.#installedVersion,
-        this.#installedBuildIdentity
-      );
+      return await this.#inspection.inspect(parseStrictJson(source));
     } catch {
       return manual(
         "corrupt-or-incompatible",

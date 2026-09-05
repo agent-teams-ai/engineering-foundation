@@ -1,4 +1,6 @@
-import type { AuthorityScaffoldPlan } from "../contract/types.js";
+import type {
+  AuthorityScaffoldPlan
+} from "../application/model/scaffold-compilation.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import { assertAuthorityEvidenceSourceBindings } from "./authority-evidence.js";
 import { assertScaffoldPlanContent } from "./plan-content-validation.js";

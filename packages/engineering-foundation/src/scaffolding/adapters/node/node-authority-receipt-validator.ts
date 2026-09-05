@@ -1,8 +1,10 @@
 import type {
-  AuthorityScaffoldPlan,
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
   AuthorityScaffoldReceipt
-} from "../../contract/types.js";
-import { assertAuthorityScaffoldReceiptDigest } from "../../kernel/authority-receipt.js";
+} from "../../contract/receipt-authority-types.js";
+import { assertAuthorityScaffoldReceiptDigest } from "../inbound/authority-scaffold-receipt.js";
 import { assertSchema } from "../../../schema-catalog.js";
 
 /** Validates an untrusted canonical Receipt against structural and semantic evidence. */

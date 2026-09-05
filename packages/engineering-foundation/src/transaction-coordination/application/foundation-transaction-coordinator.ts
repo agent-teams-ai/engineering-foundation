@@ -38,10 +38,6 @@ function preservePrimaryFailure(
       );
 }
 
-function observedStatusFormat(status: InternalFoundationTransactionStatus): unknown {
-  return Reflect.get(status, "format") as unknown;
-}
-
 function isDocumentRecoveryAllowed(
   status: InternalFoundationTransactionStatus,
   options: {
@@ -53,7 +49,7 @@ function isDocumentRecoveryAllowed(
     status.state === "pending" &&
     status.operationKind === "document-authoring" &&
     ["document-authoring-envelope-v3", "document-authoring-envelope-v4"].includes(
-      String(observedStatusFormat(status))
+      status.format
     ) &&
     status.recovery.exactFoundationVersion === status.foundationVersion &&
     status.recovery.exactFoundationBuildIdentity ===
@@ -115,7 +111,7 @@ export class FoundationTransactionCoordinator {
         status.state === "pending" &&
         status.operationKind === "scaffolding" &&
         ["foundation-scaffolding-envelope-v6", "legacy-scaffolding-v1"].includes(
-          String(observedStatusFormat(status))
+          status.format
         ) &&
         options.allowRecoveryOf === status.operationKind &&
         options.requestedMutation === status.operationKind &&
@@ -125,7 +121,7 @@ export class FoundationTransactionCoordinator {
       const localModeRecoveryAllowed =
         status.state === "pending" &&
         status.operationKind === "local-mode" &&
-        observedStatusFormat(status) === "local-mode-v1" &&
+        ["local-mode-v1"].includes(status.format) &&
         options.allowRecoveryOf === "local-mode" &&
         options.requestedMutation === "detach";
       const documentRecoveryAllowed = isDocumentRecoveryAllowed(status, options);

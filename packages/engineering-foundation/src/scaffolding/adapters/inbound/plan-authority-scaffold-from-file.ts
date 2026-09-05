@@ -1,11 +1,13 @@
 import {
   loadAuthorityScaffoldCompilationInputFromFile
-} from "./adapters/node/node-authority-input-loader.js";
-import { installedFoundationVersion } from "./adapters/node/installed-foundation-version.js";
-import type { AuthorityScaffoldPlan } from "./contract/types.js";
-import { createAuthorityScaffoldRegistry } from "./definitions/registry.js";
-import { compileAuthorityScaffoldPlan } from "./kernel/authority-compiler.js";
-import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffold-defaults.js";
+} from "../node/node-authority-input-loader.js";
+import { installedFoundationVersion } from "../node/installed-foundation-version.js";
+import type {
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import { createAuthorityScaffoldRegistry } from "../../composition/scaffold-registry.js";
+import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
+import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "../../scaffold-defaults.js";
 
 export async function planAuthorityScaffoldFromFile(options: {
   readonly consumerRoot: string;

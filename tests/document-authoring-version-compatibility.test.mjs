@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
 import {
   createDocumentEnvelopeV3,
@@ -30,7 +30,7 @@ async function inspectEnvelope(envelope, installed = {}) {
   const bytes = Buffer.from(`${JSON.stringify(envelope, null, 2)}\n`, "utf8");
   await writeFile(path, bytes);
   try {
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedVersion: installed.version ?? documentEnvelopeV3Version,
       installedBuildIdentity:

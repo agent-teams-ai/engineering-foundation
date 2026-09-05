@@ -24,7 +24,7 @@ import {
   applyFilesystemScaffold,
   planScaffoldFromFile
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
-import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
+import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
 import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-plan-authority.js";
 import { ownedTemporaryCleanupResiduePrefix } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 
@@ -529,3 +529,44 @@ test(
     }
   }
 );
+
+
+test("scaffolding uses alternate coordinator, lease and cleanup ports through apply and recovery", async () => {
+  const { applyAuthorityFilesystemScaffoldWithFaultInjection: apply } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js");
+  const { recoverAuthorityFilesystemScaffoldWithFaultInjection: recover } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-recovery.js");
+  const root = await createConsumer();
+  await mkdir(join(root, ".agent-teams-local"));
+  const calls = [];
+  const provider = async (canonicalRoot) => {
+    assert.equal(canonicalRoot, root);
+    return {
+      coordinator: {
+        acquire: async (request) => {
+          assert.deepEqual(request, { requestedMutation: "scaffolding", allowRecoveryOf: "scaffolding" });
+          calls.push("acquire");
+          return { status: { state: "idle", diagnostics: [] }, release: async (options) => { calls.push(options.retainTransactionBarrier ? "retain" : "release"); } };
+        }
+      },
+      createCleanupTransition: (identity) => {
+        assert.match(identity, /^[a-f0-9]{64}$/u);
+        return { begin: async () => {
+          calls.push("cleanup-begin");
+          return { complete: async () => { calls.push("cleanup-complete"); } };
+        } };
+      }
+    };
+  };
+  try {
+    const scaffoldPlan = await plan(root);
+    await assert.rejects(apply(root, scaffoldPlan, ({ phase }) => {
+      if (phase === "after-journal-prepared") { throw new Error("interrupted"); }
+    }, provider), /interrupted/u);
+    assert.deepEqual(calls, ["acquire", "retain"]);
+    const receipt = await recover(root, undefined, undefined, provider);
+    assert.equal(receipt.outcome, "failed-recovered");
+    assert.equal(calls.at(-1), "release");
+    assert.equal(calls.filter((x) => x === "cleanup-begin").length, scaffoldPlan.operations.length);
+    assert.equal(calls.filter((x) => x === "cleanup-complete").length, scaffoldPlan.operations.length);
+    await assertMissing(journalPath(root));
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

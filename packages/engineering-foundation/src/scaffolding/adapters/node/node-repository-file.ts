@@ -1,7 +1,9 @@
 import { realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type { ScaffoldReadAssertionV1 } from "../../contract/types.js";
+import type {
+  ScaffoldReadAssertionV1
+} from "../../application/model/scaffold-compilation.js";
 import { sha256Bytes } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { pathTraversesSymbolicLink } from "../../../filesystem-path-safety.js";

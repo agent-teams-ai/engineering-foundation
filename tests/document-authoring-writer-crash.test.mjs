@@ -13,7 +13,7 @@ import {
   recoverDocumentationTransaction
 } from "../packages/document-authoring/dist/index.js";
 import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)
@@ -232,7 +232,7 @@ requiresStrictDirectoryDurability("v4 recovery routing requires exact version an
       ".agent-teams-local",
       "scaffolding-transaction.json"
     ), "utf8"));
-    const exact = await new NodeFoundationTransactionSlot({
+    const exact = await createNodeFoundationTransactionSlot({
       consumerRoot,
       installedVersion: envelope.foundation.version,
       installedBuildIdentity: envelope.foundation.buildIdentity
@@ -249,7 +249,7 @@ requiresStrictDirectoryDurability("v4 recovery routing requires exact version an
         buildIdentity: `sha256:${"9".repeat(64)}`
       }
     ]) {
-      const mismatch = await new NodeFoundationTransactionSlot({
+      const mismatch = await createNodeFoundationTransactionSlot({
         consumerRoot,
         installedVersion: installed.version,
         installedBuildIdentity: installed.buildIdentity

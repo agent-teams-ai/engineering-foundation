@@ -1,10 +1,12 @@
 import type {
-  JsonValue,
+  JsonValue
+} from "../application/model/scaffold-values.js";
+import type {
   ScaffoldAuthorityEvidenceV1,
   ScaffoldAuthoritySourceAssertionV1,
   ScaffoldReadAssertionV1,
   AuthorityScaffoldTarget
-} from "../contract/types.js";
+} from "../application/model/scaffold-compilation.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import { canonicalJson, sha256Json } from "./canonical-json.js";
 

@@ -1,3 +1,4 @@
+import { mapAuthorityCatalog } from "../inbound/map-authority-catalog.js";
 import type {
   AuthorityScaffoldReadSet,
   ScaffoldAuthorityEvidenceV1,
@@ -8,7 +9,7 @@ import type {
   ScaffoldRenderingIntent,
   AuthorityScaffoldingConfig,
   AuthorityScaffoldTargetCatalog
-} from "../../contract/types.js";
+} from "../../application/model/scaffold-compilation.js";
 import { sha256Json } from "../../kernel/canonical-json.js";
 import { createScaffoldAuthorityEvidence } from "../../kernel/authority-evidence.js";
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
@@ -38,48 +39,6 @@ function requireExactlyOne<T>(
     throw new ScaffoldError("SCAFFOLD_INPUT_INVALID", message);
   }
   return matches[0] as T;
-}
-
-interface UnresolvedAuthorityScaffoldTarget {
-  readonly id: string;
-  readonly role: string;
-  readonly path: string;
-  readonly packageName: string;
-  readonly ownerDocumentId: string;
-}
-
-interface UnresolvedAuthorityScaffoldTargetCatalog {
-  readonly version: 1;
-  readonly packages: readonly UnresolvedAuthorityScaffoldTarget[];
-}
-
-function mapAuthorityCatalog(
-  value: unknown
-): UnresolvedAuthorityScaffoldTargetCatalog {
-  const raw = value as {
-    readonly version: 1;
-    readonly packages: readonly {
-      readonly id: string;
-      readonly role: string;
-      readonly path: string;
-      readonly package_name: string;
-      readonly owner_document: string;
-    }[];
-  };
-  return Object.freeze({
-    version: 1,
-    packages: Object.freeze(
-      raw.packages.map((entry) =>
-        Object.freeze({
-          id: entry.id,
-          role: entry.role,
-          path: entry.path,
-          packageName: entry.package_name,
-          ownerDocumentId: entry.owner_document
-        })
-      )
-    )
-  });
 }
 
 async function assertAuthoritySourceSetStable(options: {

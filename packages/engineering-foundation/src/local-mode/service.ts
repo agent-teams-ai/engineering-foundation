@@ -12,7 +12,7 @@ import {
   removeLinkState,
   writeLinkState
 } from "./local-state-store.js";
-import { createNodeFoundationTransactionCoordinator } from "../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { createNodeFoundationTransactionCoordinator } from "../composition/node-foundation-transaction-coordinator.js";
 import { releaseFoundationTransactionLeaseSafely } from "../transaction-coordination/application/release-foundation-transaction-lease.js";
 import {
   restoreRegistryEntry

@@ -7,7 +7,7 @@ import test from "node:test";
 import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
 import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/foundation-transition-evidence.js";
 import { FoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-coordinator.js";
 
@@ -90,7 +90,7 @@ test("recognizes every strict document journal v2 lifecycle as recoverable only 
     const root = await createRoot();
     try {
       await writeEnvelope(root, envelopeFor(state));
-      const status = await new NodeFoundationTransactionSlot({
+      const status = await createNodeFoundationTransactionSlot({
         consumerRoot: root,
         installedVersion: version,
         installedBuildIdentity: buildIdentity,
@@ -115,7 +115,7 @@ test("fails closed for a different installed build and never admits zero physica
   const zeroRoot = await createRoot();
   try {
     await writeEnvelope(mismatchedRoot, envelopeFor("PREPARED"));
-    const mismatch = await new NodeFoundationTransactionSlot({
+    const mismatch = await createNodeFoundationTransactionSlot({
       consumerRoot: mismatchedRoot,
       installedVersion: version,
       installedBuildIdentity: `sha256:${"3".repeat(64)}`,
@@ -132,7 +132,7 @@ test("fails closed for a different installed build and never admits zero physica
     const { envelopeDigest: _ignored, ...body } = zero;
     zero.envelopeDigest = sha256Json(body);
     await writeEnvelope(zeroRoot, zero);
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: zeroRoot,
       installedVersion: version,
       installedBuildIdentity: buildIdentity,
@@ -224,7 +224,7 @@ test("transition residue alone is preserved and blocks every Foundation mutation
     await mkdir(dirname(residue), { recursive: true });
     await writeFile(residue, "durable candidate evidence\n", "utf8");
     const before = await readFile(residue);
-    const slot = new NodeFoundationTransactionSlot({
+    const slot = createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedVersion: version,
       installedBuildIdentity: buildIdentity,
@@ -270,7 +270,7 @@ test("common coordinator discovers every operation-neutral transition residue af
         await mkdir(dirname(residue), { recursive: true });
         await writeFile(residue, "preserved transition evidence\n", "utf8");
         const before = await readFile(residue);
-        const slot = new NodeFoundationTransactionSlot({
+        const slot = createNodeFoundationTransactionSlot({
           consumerRoot: root,
           installedVersion: version,
           installedBuildIdentity: buildIdentity,
@@ -304,7 +304,7 @@ test("unknown common transaction-like state names block without deletion", async
       writeFile(join(state, "foundation-transaction.cleanup-residue"), "x"),
       writeFile(join(state, "scaffolding-transaction.json.scaffold-quarantined.x"), "x"),
     ]);
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedVersion: version,
       installedBuildIdentity: buildIdentity,
@@ -327,7 +327,7 @@ test("canonical journal plus quarantine residue preserves both and reports trans
       readFile(canonical),
       readFile(residue),
     ]);
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedVersion: version,
       installedBuildIdentity: buildIdentity,
@@ -357,7 +357,7 @@ test("retired journal evidence blocks every Foundation mutation without deletion
         const before = kind === "directory"
           ? await readFile(join(residue, "evidence"))
           : await readFile(residue);
-        const slot = new NodeFoundationTransactionSlot({
+        const slot = createNodeFoundationTransactionSlot({
           consumerRoot: root,
           installedVersion: version,
           installedBuildIdentity: buildIdentity,

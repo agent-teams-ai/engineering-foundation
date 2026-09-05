@@ -8,7 +8,7 @@ import test from "node:test";
 import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
 import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
 import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
@@ -45,7 +45,7 @@ async function inspectPublishingEnvelope(temporaryPath, mutateIdentity = () => {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(envelope)}\n`, "utf8");
   try {
-    return await new NodeFoundationTransactionSlot({
+    return await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedBuildIdentity: envelope.foundation.buildIdentity,
       installedVersion: envelope.foundation.version,

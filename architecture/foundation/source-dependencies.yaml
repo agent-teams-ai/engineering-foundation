@@ -448,7 +448,9 @@ boundaries:
   - id: foundation.composition
     roots:
       - packages/engineering-foundation/src/check-runner.ts
-      - packages/engineering-foundation/src/composition
+      - packages/engineering-foundation/src/composition/capability-modules.ts
+      - packages/engineering-foundation/src/composition/capability-registry.ts
+      - packages/engineering-foundation/src/composition/rule-registry.ts
       - packages/engineering-foundation/src/foundation-config.ts
       - packages/engineering-foundation/src/report-renderer.ts
     allow:
@@ -628,7 +630,6 @@ boundaries:
       - packages/engineering-foundation/src/capability-runtime.ts
       - packages/engineering-foundation/src/check-contract.ts
       - packages/engineering-foundation/src/errors.ts
-      - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
       - packages/engineering-foundation/src/unexpected-failure.ts
@@ -643,7 +644,6 @@ boundaries:
       - packages/engineering-foundation/src/capability-runtime.ts
       - packages/engineering-foundation/src/check-contract.ts
       - packages/engineering-foundation/src/errors.ts
-      - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
       - packages/engineering-foundation/src/unexpected-failure.ts
@@ -711,7 +711,9 @@ boundaries:
       - packages/engineering-foundation/src/canonical-json.ts
   - id: foundation.scaffolding.core
     roots:
+      - packages/engineering-foundation/src/scaffolding/application/model
       - packages/engineering-foundation/src/scaffolding/contract
+      - packages/engineering-foundation/src/scaffolding/application/ports/parameter-validation.ts
       - packages/engineering-foundation/src/scaffolding/definitions
       - packages/engineering-foundation/src/scaffolding/kernel/canonical-json.ts
       - packages/engineering-foundation/src/scaffolding/kernel/compiler.ts
@@ -724,15 +726,20 @@ boundaries:
       boundaries: []
       packages:
         - "@agent-teams/repository-mutation"
-        - ajv
       builtins:
         - node:crypto
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/scaffolding/application/model/scaffold-values.ts
+      - packages/engineering-foundation/src/scaffolding/application/model/recovery-scope.ts
+      - packages/engineering-foundation/src/scaffolding/application/model/scaffold-compilation.ts
+      - packages/engineering-foundation/src/scaffolding/contract/receipt-authority-types.ts
+      - packages/engineering-foundation/src/scaffolding/application/ports/parameter-validation.ts
+      - packages/engineering-foundation/src/scaffolding/definitions/conformance-fixture.ts
+      - packages/engineering-foundation/src/scaffolding/definitions/node-typescript-library.ts
       - packages/engineering-foundation/src/scaffolding/contract/types.ts
       - packages/engineering-foundation/src/scaffolding/contract/scaffold-contract.ts
-      - packages/engineering-foundation/src/scaffolding/definitions/registry.ts
       - packages/engineering-foundation/src/scaffolding/kernel/canonical-json.ts
       - packages/engineering-foundation/src/scaffolding/kernel/compiler.ts
       - packages/engineering-foundation/src/scaffolding/kernel/definition-registry.ts
@@ -1036,6 +1043,8 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/transaction-coordination/application/model/foundation-transaction-identity.ts
+      - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-inspection.ts
       - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-error.ts
       - packages/engineering-foundation/src/transaction-coordination/application/release-foundation-transaction-lease.ts
@@ -1048,13 +1057,12 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/adapters
     allow:
       boundaries:
+        - foundation.state-assembly
         - foundation.canonical-json
         - foundation.core
         - foundation.package-identity
         - foundation.repository-input
         - foundation.schema-validation
-        - foundation.scaffolding.canonical-kernel
-        - foundation.scaffolding.core
         - foundation.transaction-coordination.application
       packages:
         - "@agent-teams/document-authoring"
@@ -1069,19 +1077,23 @@ boundaries:
         - node:util
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/transaction-coordination/adapters/node/foundation-scaffold-envelope.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-transaction-artifacts.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/legacy-envelope-digests.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/legacy-document-envelope-v2.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/legacy-document-transaction-status.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/document-envelope-bindings.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/document-transaction-status.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/known-file-transaction-status.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/schema6-transaction-status.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-build-identity.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-operation-lock.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-cleanup-transition.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-state-directory.ts
-      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts
   - id: foundation.scaffolding.canonical-kernel
     roots:
-      - packages/engineering-foundation/src/scaffolding/kernel/authority-journal-validation.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-compiler.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts
-      - packages/engineering-foundation/src/scaffolding/kernel/authority-receipt.ts
       - packages/engineering-foundation/src/scaffolding/kernel/plan-validation.ts
       - packages/engineering-foundation/src/scaffolding/kernel/recovery-scope.ts
     allow:
@@ -1091,10 +1103,8 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/scaffolding/kernel/authority-journal-validation.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-compiler.ts
       - packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts
-      - packages/engineering-foundation/src/scaffolding/kernel/authority-receipt.ts
       - packages/engineering-foundation/src/scaffolding/kernel/plan-validation.ts
       - packages/engineering-foundation/src/scaffolding/kernel/recovery-scope.ts
   - id: foundation.scaffolding.shared-adapters
@@ -1128,6 +1138,13 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-limits.ts
   - id: foundation.scaffolding.canonical-adapters
     roots:
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/authority-scaffold-receipt.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/assert-authority-scaffold-journal.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-catalog.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/plan-authority-scaffold-from-file.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/legacy-scaffolding-transaction-validation.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-transaction-status.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-workspace.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-recovery.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority.ts
@@ -1145,6 +1162,9 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
     allow:
       boundaries:
+        - foundation.canonical-json
+        - foundation.scaffolding.parameters
+        - foundation.scaffolding.transactions
         - foundation.core
         - foundation.local-mode
         - foundation.repository-input
@@ -1163,6 +1183,13 @@ boundaries:
         - node:util
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/authority-scaffold-receipt.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/assert-authority-scaffold-journal.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-catalog.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/plan-authority-scaffold-from-file.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/legacy-scaffolding-transaction-validation.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-transaction-status.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-workspace.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority-recovery.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-authority.ts
@@ -1179,12 +1206,12 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
   - id: foundation.scaffolding.canonical-composition
     roots:
-      - packages/engineering-foundation/src/scaffolding/authority-service.ts
       - packages/engineering-foundation/src/scaffolding/canonical-api.ts
       - packages/engineering-foundation/src/scaffolding/cli-command.ts
       - packages/engineering-foundation/src/scaffolding/index.ts
     allow:
       boundaries:
+        - foundation.transactions.composition
         - foundation.scaffolding.canonical-adapters
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
@@ -1195,7 +1222,6 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/scaffolding/authority-service.ts
       - packages/engineering-foundation/src/scaffolding/canonical-api.ts
       - packages/engineering-foundation/src/scaffolding/cli-command.ts
       - packages/engineering-foundation/src/scaffolding/index.ts
@@ -1205,6 +1231,8 @@ boundaries:
       - packages/engineering-foundation/src/package-self-check.ts
     allow:
       boundaries:
+        - foundation.state-assembly
+        - foundation.transactions.composition
         - foundation.core
         - foundation.package-identity
         - foundation.process-execution
@@ -2007,3 +2035,63 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - spikes/source-dependency-parser/run.mjs
+  - id: foundation.scaffolding.parameters
+    roots:
+      - packages/engineering-foundation/src/scaffolding/adapters/outbound/ajv-parameter-validation.ts
+      - packages/engineering-foundation/src/scaffolding/composition/scaffold-registry.ts
+    allow:
+      boundaries:
+        - foundation.scaffolding.core
+      packages:
+        - ajv
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/composition/scaffold-registry.ts
+  - id: foundation.scaffolding.transactions
+    roots:
+      - packages/engineering-foundation/src/scaffolding/application/ports/scaffold-transactions.ts
+    allow:
+      boundaries:
+        - foundation.transaction-coordination.application
+      packages:
+        - "@agent-teams/repository-mutation"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/application/ports/scaffold-transactions.ts
+  - id: foundation.transactions.composition
+    roots:
+      - packages/engineering-foundation/src/composition/foundation-transaction-inspection.ts
+      - packages/engineering-foundation/src/composition/node-foundation-transaction-coordinator.ts
+      - packages/engineering-foundation/src/composition/node-foundation-transaction-slot.ts
+      - packages/engineering-foundation/src/composition/scaffold-filesystem.ts
+    allow:
+      boundaries:
+        - foundation.package-identity
+        - foundation.scaffolding.canonical-adapters
+        - foundation.scaffolding.core
+        - foundation.scaffolding.transactions
+        - foundation.transaction-coordination.adapters
+        - foundation.transaction-coordination.application
+      packages:
+        - "@agent-teams/repository-mutation"
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/composition/node-foundation-transaction-coordinator.ts
+      - packages/engineering-foundation/src/composition/node-foundation-transaction-slot.ts
+      - packages/engineering-foundation/src/composition/scaffold-filesystem.ts
+  - id: foundation.state-assembly
+    roots:
+      - packages/engineering-foundation/src/foundation-state-contract.ts
+    allow:
+      boundaries:
+        - foundation.transaction-coordination.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/foundation-state-contract.ts

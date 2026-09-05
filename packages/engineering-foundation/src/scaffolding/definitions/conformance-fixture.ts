@@ -1,9 +1,11 @@
 import { posix } from "node:path";
 
 import type {
-  JsonObject,
+  JsonObject
+} from "../application/model/scaffold-values.js";
+import type {
   ScaffoldFileContribution
-} from "../contract/types.js";
+} from "../application/model/scaffold-compilation.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import type {
   ScaffoldDefinition,

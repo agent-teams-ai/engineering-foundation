@@ -1,7 +1,9 @@
 import { lstat, opendir, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type { Sha256Digest } from "../../contract/types.js";
+import type {
+  Sha256Digest
+} from "../../application/model/scaffold-values.js";
 import { sha256Json } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { pathTraversesSymbolicLink } from "../../../filesystem-path-safety.js";

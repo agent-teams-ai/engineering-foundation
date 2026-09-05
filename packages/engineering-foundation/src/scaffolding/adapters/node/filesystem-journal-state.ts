@@ -1,12 +1,16 @@
 import type {
   ScaffoldDiagnosticV1,
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
   AuthorityScaffoldJournalOperation,
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan,
-  AuthorityScaffoldReceipt
+  AuthorityScaffoldOperationReceipt
 } from "../../contract/types.js";
-import { createAuthorityScaffoldReceipt } from "../../kernel/authority-receipt.js";
+import type {
+  AuthorityScaffoldReceipt
+} from "../../contract/receipt-authority-types.js";
+import { createAuthorityScaffoldReceipt } from "../inbound/authority-scaffold-receipt.js";
 import { assertSafeExistingAncestors } from "./filesystem-path-guard.js";
 import {
   assertNoOwnedCleanupResidue,

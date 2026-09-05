@@ -1,10 +1,14 @@
 import type {
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan,
-  AuthorityScaffoldReceipt
+  AuthorityScaffoldOperationReceipt
 } from "../../contract/types.js";
-import { createAuthorityScaffoldReceipt } from "../../kernel/authority-receipt.js";
+import type {
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
+  AuthorityScaffoldReceipt
+} from "../../contract/receipt-authority-types.js";
+import { createAuthorityScaffoldReceipt } from "../inbound/authority-scaffold-receipt.js";
 import {
   recoveryRequiredForAuthority,
   resolveAuthority,

@@ -49,6 +49,7 @@ const jsonSchemaConfig = await import(
 const filesystemPathSafety = await import(
   pathToFileURL(join(distRoot, "source-inventory/node.js")).href,
 );
+const schemaFiles = { read: filesystemPathSafety.readContainedRegularFile };
 
 function digest(character) {
   return `sha256:${character.repeat(64)}`;
@@ -201,9 +202,75 @@ async function writeSeparatedPolicy(
   await writeYaml(root, "contract.yaml", capabilityConfig(observation, releasedBaselinePath));
 }
 
+test("schema file port preserves fixture results and supplies every bounded read", async () => {
+  await withContractFixture(async (root) => {
+    const expected = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles).inspect(request(root));
+    const calls = [];
+    const files = {
+      calls,
+      async read(input) {
+        this.calls.push(input);
+        return new Uint8Array(await schemaFiles.read(input));
+      },
+    };
+    const actual = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root));
+    assert.deepEqual(actual, expected);
+    const canonicalRoot = await realpath(root);
+    assert.deepEqual(calls.map(({ candidate }) => candidate).toSorted(), [
+      "schemas/common.schema.json", "schemas/root.schema.json", "fixtures/invalid.json", "fixtures/valid.json",
+    ].map((path) => join(canonicalRoot, path)).toSorted());
+    for (const call of calls) {
+      assert.equal(call.root, canonicalRoot);
+      assert.equal(call.maxBytes, 4 * 1024 * 1024);
+    }
+  });
+});
+
+for (const [failure, code] of [
+  ["escape", "JSON_SCHEMA_PATH_ESCAPE"], ["symlink", "JSON_SCHEMA_SYMLINK_PROHIBITED"],
+  ["invalid", "JSON_SCHEMA_FILE_INVALID"], ["changed", "JSON_SCHEMA_FILE_UNAVAILABLE"],
+  ["missing", "JSON_SCHEMA_FILE_UNAVAILABLE"], ["unavailable", "JSON_SCHEMA_FILE_UNAVAILABLE"],
+]) {
+  test(`schema file port preserves ${failure} diagnostics`, async () => {
+    await withContractFixture(async (root) => {
+      const files = { async read() { throw new filesystemPathSafety.ContainedFileReadError(failure); } };
+      await assert.rejects(new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
+        ({ problem }) => problem?.code === code && problem.phase === "json-schema-release-inspection" && problem.retryable === false);
+    });
+  });
+}
+
+test("schema file port propagates unknown failures without a filesystem fallback", async () => {
+  await withContractFixture(async (root) => {
+    const failure = new Error("injected read failed");
+    const files = { async read() { throw failure; } };
+    await assert.rejects(new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
+      (actual) => actual === failure);
+  });
+});
+
+test("schema file port cannot bypass the JSON evidence byte limit", async () => {
+  await withContractFixture(async (root) => {
+    const files = { async read() { return new Uint8Array(4 * 1024 * 1024 + 1); } };
+    await assert.rejects(new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
+      ({ problem }) => problem?.code === "JSON_SCHEMA_FILE_INVALID");
+  });
+});
+
+test("schema file port is not invoked after pre-cancellation", async () => {
+  await withContractFixture(async (root) => {
+    let calls = 0;
+    const files = { async read() { calls += 1; throw new Error("must not read"); } };
+    await assert.rejects(new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect({
+      ...request(root), signal: AbortSignal.abort(),
+    }), ({ problem }) => problem?.code === "EXECUTION_CANCELLED");
+    assert.equal(calls, 0);
+  });
+});
+
 test("uses Ajv strict 2020-12 over an explicit local schema set and fixture corpus", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     const reorderedObservation = await inspector.inspect({
       ...request(root),
@@ -255,6 +322,7 @@ test("accepts exact 4 MiB Ajv schema and document evidence and rejects one byte 
         [fixturePath, Buffer.from(fixtureSource.padEnd(4 * 1024 * 1024, " "))],
       ]);
       const exact = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(
+        schemaFiles,
         async (path) => sources.get(path),
       ).inspect(requestAtLimit);
       assert.deepEqual(exact.fixtureResults, [
@@ -263,6 +331,7 @@ test("accepts exact 4 MiB Ajv schema and document evidence and rejects one byte 
       sources.set(oversizedPath, Buffer.concat([sources.get(oversizedPath), Buffer.from(" ")]));
       await assert.rejects(
         new jsonSchemaModule.AjvJsonSchemaReleaseInspector(
+          schemaFiles,
           async (path) => sources.get(path),
         ).inspect(requestAtLimit),
         ({ problem }) => problem?.code === "JSON_SCHEMA_FILE_INVALID",
@@ -347,7 +416,7 @@ test("fails closed when the named JSON file identity changes after descriptor va
 
 test("requires both positive and negative JSON Schema release fixtures", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     await assert.rejects(
       inspector.inspect({ ...request(root), fixtures: [] }),
@@ -368,7 +437,7 @@ test("requires both positive and negative JSON Schema release fixtures", async (
 
 test("rejects a JSON Schema released-baseline pointer outside the release-owned anchor", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     await writeSeparatedPolicy(root, observation);
     const config = capabilityConfig(observation, "tmp/reset-history.yaml");
@@ -382,7 +451,7 @@ test("rejects a JSON Schema released-baseline pointer outside the release-owned 
 
 test("rejects remote references and duplicate IDs before AJV can resolve anything", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     await writeJson(root, "schemas/root.schema.json", {
       $schema: "https://json-schema.org/draft/2020-12/schema",
       $id: "https://schemas.example.test/agent/root.schema.json",
@@ -431,7 +500,7 @@ test("resolves local references from nested schema resource IDs", async () => {
       },
     });
 
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     assert.equal(observation.fixtureResults.every((fixture) => fixture.matched), true);
   });
@@ -448,7 +517,7 @@ test("rejects duplicate nested schema resource IDs before compilation", async ()
       },
     });
 
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     await assert.rejects(inspector.inspect(request(root)), /must be unique/u);
   });
 });
@@ -465,7 +534,7 @@ test("does not interpret instance data named $ref as a schema reference", async 
         },
       },
     });
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     await assert.doesNotReject(inspector.inspect(request(root)));
   });
 });
@@ -482,7 +551,7 @@ test("rejects schema evidence that escapes through a symbolic link", async () =>
       const target = join(root, "schemas", "root.schema.json");
       await unlink(target);
       await symlink(join(external, "outside.json"), target);
-      const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+      const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
       await assert.rejects(inspector.inspect(request(root)), /symbolic link/u);
     } finally {
       await rm(external, { force: true, recursive: true });
@@ -492,7 +561,7 @@ test("rejects schema evidence that escapes through a symbolic link", async () =>
 
 test("detects immutable same-version changes and missing supported-consumer evidence", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const released = await inspector.inspect(request(root));
     await writeJson(root, "schemas/root.schema.json", {
       $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -523,7 +592,7 @@ test("detects immutable same-version changes and missing supported-consumer evid
 
 test("treats fixture corpus mutation as immutable same-version contract mutation", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const released = await inspector.inspect(request(root));
     await writeJson(root, "fixtures/valid.json", {
       id: "task-2",
@@ -545,7 +614,7 @@ test("treats fixture corpus mutation as immutable same-version contract mutation
 
 test("binds consumer evidence to contract and schema digest and handles public SemVer ordering", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     const incoherentReleased = policy(observation);
     incoherentReleased.released.supportedConsumers[0].schemaSetDigest = digest("f");
@@ -575,7 +644,7 @@ test("binds consumer evidence to contract and schema digest and handles public S
 
 test("runs as a deterministic capability and closes unexpected inspector failures", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     await writeSeparatedPolicy(root, observation, "architecture/contracts/released.json");
     const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
@@ -619,7 +688,7 @@ test("runs as a deterministic capability and closes unexpected inspector failure
 
 test("requires an explicitly supported root configuration schema version", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
 
@@ -641,7 +710,7 @@ test("requires an explicitly supported root configuration schema version", async
 
 test("rejects a released consumer baseline that was never proven passing", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     const evidence = policy(observation);
     evidence.released.supportedConsumers[0].outcome = "failed";
@@ -654,7 +723,7 @@ test("rejects a released consumer baseline that was never proven passing", async
 
 test("JSON Schema contract config and released baseline schemas accept verified shapes", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     const source = await readFile(
       join(
@@ -703,7 +772,7 @@ test("JSON Schema contract config and released baseline schemas accept verified 
 
 test("loads a separate released baseline deterministically and rejects inline substitution", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     await writeSeparatedPolicy(root, observation);
     const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
@@ -726,7 +795,7 @@ test("loads a separate released baseline deterministically and rejects inline su
 
 test("rejects missing, escaping, and invalid released JSON Schema baselines", async () => {
   await withContractFixture(async (root) => {
-    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
+    const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
     const config = capabilityConfig(observation);

@@ -6,9 +6,14 @@ import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
-import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../../../source-inventory/api.js";
-import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import {
+  assertJsonSchemaEvidencePath,
+  assertJsonSchemaInspectionActive,
+  assertJsonSchemaRepositoryPath,
+  jsonSchemaInputError as inputError,
+  rejectJsonSchemaFileFailure,
+  type JsonSchemaFileReader
+} from "../../../api.js";
 
 import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 import type {
@@ -28,15 +33,6 @@ interface SchemaDocument {
   readonly id: string;
   readonly path: string;
   readonly value: Record<string, unknown>;
-}
-
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "json-schema-release-inspection",
-    retryable: false
-  });
 }
 
 function hasControlCharacter(value: string): boolean {
@@ -90,50 +86,33 @@ type JsonEvidenceReader = (repositoryPath: string) => Promise<Buffer | undefined
 async function safeJsonFile(
   root: string,
   repositoryPath: string,
+  files: JsonSchemaFileReader,
   evidenceReader?: JsonEvidenceReader
 ): Promise<unknown> {
-  assertRepositoryRelativePath(repositoryPath, "json-schema-release-inspection");
-  if (!repositoryPath.endsWith(".json")) {
-    inputError("JSON_SCHEMA_PATH_INVALID", `JSON evidence path must end with .json: ${repositoryPath}.`);
-  }
-  let bytes: Buffer;
+  assertJsonSchemaEvidencePath(repositoryPath);
+  let bytes: Uint8Array;
   if (evidenceReader !== undefined) {
     const observed = await evidenceReader(repositoryPath);
     if (observed === undefined) {
       inputError("JSON_SCHEMA_FILE_UNAVAILABLE", `JSON evidence is unavailable: ${repositoryPath}.`);
     }
-    if (observed.byteLength > MAX_JSON_BYTES) {
-      inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is not a supported file: ${repositoryPath}.`);
-    }
     bytes = observed;
   } else {
-  try {
-    bytes = await readContainedRegularFile({
-      candidate: resolve(root, repositoryPath),
-      maxBytes: MAX_JSON_BYTES,
-      root
-    });
-  } catch (error) {
-    if (error instanceof ContainedFileReadError) {
-      if (error.failure === "escape") {
-        inputError("JSON_SCHEMA_PATH_ESCAPE", `JSON evidence escapes the consumer root: ${repositoryPath}.`);
-      }
-      if (error.failure === "symlink") {
-        inputError(
-          "JSON_SCHEMA_SYMLINK_PROHIBITED",
-          `JSON evidence cannot traverse a symbolic link: ${repositoryPath}.`
-        );
-      }
-      if (error.failure === "invalid") {
-        inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is not a supported file: ${repositoryPath}.`);
-      }
-      inputError("JSON_SCHEMA_FILE_UNAVAILABLE", `JSON evidence is unavailable: ${repositoryPath}.`);
+    try {
+      bytes = await files.read({
+        candidate: resolve(root, repositoryPath),
+        maxBytes: MAX_JSON_BYTES,
+        root
+      });
+    } catch (error) {
+      rejectJsonSchemaFileFailure(error, repositoryPath);
     }
-    throw error;
   }
+  if (bytes.byteLength > MAX_JSON_BYTES) {
+    inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is not a supported file: ${repositoryPath}.`);
   }
   try {
-    return parseStrictJson(bytes.toString("utf8"));
+    return parseStrictJson(Buffer.from(bytes).toString("utf8"));
   } catch (error) {
     if (error instanceof StrictJsonError && error.failure === "duplicate-key") {
       inputError(
@@ -338,7 +317,7 @@ function assertFixtures(
       inputError("JSON_SCHEMA_FIXTURE_INVALID", "Fixture IDs must be unique normalized identifiers.");
     }
     ids.add(fixture.id);
-    assertRepositoryRelativePath(fixture.path, "json-schema-release-inspection");
+    assertJsonSchemaRepositoryPath(fixture.path);
     const expectation: unknown = fixture.expectation;
     if (expectation !== "valid" && expectation !== "invalid") {
       inputError("JSON_SCHEMA_FIXTURE_INVALID", `Fixture expectation is invalid: ${fixture.id}.`);
@@ -409,7 +388,10 @@ function fixtureCorpusDigest(
 }
 
 export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector {
-  constructor(private readonly evidenceReader?: JsonEvidenceReader) {}
+  constructor(
+    private readonly files: JsonSchemaFileReader,
+    private readonly evidenceReader?: JsonEvidenceReader
+  ) {}
 
   async inspect(input: {
     readonly consumerRoot: string;
@@ -418,7 +400,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     readonly requireMixedExpectations?: boolean;
     readonly signal?: AbortSignal;
   }): Promise<JsonSchemaInspection> {
-    assertNotCancelled(input.signal);
+    assertJsonSchemaInspectionActive(input.signal);
     if (input.schemaPaths.length === 0 || input.schemaPaths.length > 1_000) {
       inputError("JSON_SCHEMA_PATHS_INVALID", "Contract must declare between one and 1000 schemas.");
     }
@@ -434,9 +416,9 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     }
     const documents: SchemaDocument[] = [];
     for (const path of input.schemaPaths.toSorted(compareBinaryStrings)) {
-      assertNotCancelled(input.signal);
+      assertJsonSchemaInspectionActive(input.signal);
       const value = record(
-        await safeJsonFile(root, path, this.evidenceReader),
+        await safeJsonFile(root, path, this.files, this.evidenceReader),
         `schema ${path}`
       );
       if (value["$schema"] !== DRAFT_2020_12) {
@@ -464,8 +446,8 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     for (const fixture of input.fixtures.toSorted((left, right) =>
       compareBinaryStrings(left.id, right.id)
     )) {
-      assertNotCancelled(input.signal);
-      const value = await safeJsonFile(root, fixture.path, this.evidenceReader);
+      assertJsonSchemaInspectionActive(input.signal);
+      const value = await safeJsonFile(root, fixture.path, this.files, this.evidenceReader);
       fixtureValues.set(fixture.id, value);
       const validate = ajv.getSchema(fixture.schemaId) as ValidateFunction | undefined;
       if (validate === undefined) {

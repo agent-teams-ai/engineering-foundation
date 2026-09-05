@@ -14,6 +14,10 @@ import {
 
 import { loadCapabilityConfig, type JsonSchemaConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
+import { readContainedRegularFile } from "../../source-inventory/node.js";
+import type { JsonSchemaFileReader } from "./api.js";
+
+const schemaFiles: JsonSchemaFileReader = { read: readContainedRegularFile };
 
 export { AjvJsonSchemaReleaseInspector } from "./adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
 export {
@@ -44,7 +48,7 @@ export interface JsonSchemaReleaseCapabilityDependencies {
 export function createJsonSchemaReleaseCapability(
   dependencies: JsonSchemaReleaseCapabilityDependencies
 ): CapabilityDefinition {
-  const inspector = dependencies.inspector ?? new AjvJsonSchemaReleaseInspector();
+  const inspector = dependencies.inspector ?? new AjvJsonSchemaReleaseInspector(schemaFiles);
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
@@ -84,5 +88,5 @@ export function createJsonSchemaReleaseCapability(
 export function createJsonSchemaInspector(
   readArtifact: (repositoryPath: string) => Promise<Buffer | undefined>
 ): JsonSchemaReleaseInspector {
-  return new AjvJsonSchemaReleaseInspector(readArtifact);
+  return new AjvJsonSchemaReleaseInspector(schemaFiles, readArtifact);
 }

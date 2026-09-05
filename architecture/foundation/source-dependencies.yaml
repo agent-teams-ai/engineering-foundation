@@ -2645,9 +2645,6 @@ boundaries:
         - capability.contract-json-schema.contract
         - capability.contract-json-schema.application
         - foundation.core
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
       packages:
         - ajv
         - ajv-formats
@@ -2671,6 +2668,7 @@ boundaries:
         - capability.contract-json-schema.contract
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.source-inventory.composition
       packages: []
       builtins: []
       runtimeReferences: []

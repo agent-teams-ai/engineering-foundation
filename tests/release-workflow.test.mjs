@@ -347,6 +347,9 @@ function exactCodeqlEvidence() {
     pullRequest,
     run: {
       id: 123,
+      check_suite_id: 458,
+      check_suite_url:
+        "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/458",
       url:
         "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/runs/123",
       path: ".github/workflows/codeql.yml",
@@ -360,6 +363,9 @@ function exactCodeqlEvidence() {
         "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/runs/123/jobs",
       rerun_url:
         "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/runs/123/rerun",
+      workflow_id: 321,
+      workflow_url:
+        "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/workflows/321",
       head_repository: { full_name: exactRunExpectation.repository },
       pull_requests: [pullRequest],
       status: "completed",
@@ -380,6 +386,7 @@ function exactCodeqlEvidence() {
         html_url:
           "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123/job/456",
         name: "analyze",
+        workflow_name: "CodeQL",
         status: "completed",
         conclusion: "success",
         started_at: startedAt,
@@ -472,7 +479,9 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
     checkId: 789,
     checkSuiteId: 900,
     runId: 123,
+    runCheckSuiteId: 458,
     sarifId: "dde4b0bc-a8a2-11f1-82f5-b5928a50418b",
+    workflowId: 321,
   });
 
   const noRunAssociation = structuredClone(evidence);
@@ -724,6 +733,45 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   );
 });
 
+test("release CodeQL receipt retains workflow and run suite identity", () => {
+  const evidence = exactCodeqlEvidence();
+  const expectation = { ...exactRunExpectation, runId: 123 };
+  const receipt = validateReleaseCodeqlEvidence(evidence, expectation);
+  for (const [field, value, urlField, url] of [
+    ["workflow_id", 322, "workflow_url", "actions/workflows/322"],
+    ["check_suite_id", 459, "check_suite_url", "check-suites/459"],
+  ]) {
+    const race = asFinalEvidence(evidence);
+    race.postRun[field] = value;
+    race.postRun[urlField] =
+      `https://api.github.com/repos/agent-teams-ai/engineering-foundation/${url}`;
+    assert.throws(
+      () => validateReleaseCodeqlEvidence(race, expectation, receipt),
+      /workflow run changed identity/u,
+    );
+  }
+
+  const nearMax = exactCodeqlEvidence();
+  nearMax.run.check_suite_id = Number.MAX_SAFE_INTEGER;
+  nearMax.run.check_suite_url =
+    `https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/${Number.MAX_SAFE_INTEGER}`;
+  nearMax.analyzeCheck.check_suite.id = Number.MAX_SAFE_INTEGER;
+  nearMax.run.workflow_id = Number.MAX_SAFE_INTEGER - 1;
+  nearMax.run.workflow_url =
+    `https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/workflows/${Number.MAX_SAFE_INTEGER - 1}`;
+  const nearMaxReceipt = validateReleaseCodeqlEvidence(nearMax, expectation);
+  assert.equal(nearMaxReceipt.runCheckSuiteId, Number.MAX_SAFE_INTEGER);
+  assert.equal(nearMaxReceipt.workflowId, Number.MAX_SAFE_INTEGER - 1);
+  assert.deepEqual(
+    validateReleaseCodeqlEvidence(
+      asFinalEvidence(nearMax),
+      expectation,
+      nearMaxReceipt,
+    ),
+    nearMaxReceipt,
+  );
+});
+
 test("release CodeQL evidence rejects cross-producer identity aliases", () => {
   const expectation = { ...exactRunExpectation, runId: 123 };
   const aliasedProducerCheck = exactCodeqlEvidence();
@@ -803,6 +851,35 @@ test("release CodeQL collection validation rejects malformed entries before retr
     /check suite ID is malformed/u,
   );
 
+  for (const [kind, collection, entries] of [
+    ["jobs", evidence.jobs, (value) => value.jobs],
+    ["check-runs", evidence.checkRuns, (value) => value.check_runs],
+  ]) {
+    for (const malformedStatus of [{ value: "queued" }, "unknown"]) {
+      const malformedLifecycle = structuredClone(collection);
+      entries(malformedLifecycle)[0].status = malformedStatus;
+      entries(malformedLifecycle)[0].conclusion = null;
+      assert.throws(
+        () => validateReleaseCodeqlCollectionEntries(kind, malformedLifecycle),
+        /status is malformed/u,
+      );
+    }
+    const malformedConclusion = structuredClone(collection);
+    entries(malformedConclusion)[0].status = "completed";
+    entries(malformedConclusion)[0].conclusion = "unknown";
+    assert.throws(
+      () => validateReleaseCodeqlCollectionEntries(kind, malformedConclusion),
+      /conclusion is malformed/u,
+    );
+    const pendingWithConclusion = structuredClone(collection);
+    entries(pendingWithConclusion)[0].status = "queued";
+    entries(pendingWithConclusion)[0].conclusion = "success";
+    assert.throws(
+      () => validateReleaseCodeqlCollectionEntries(kind, pendingWithConclusion),
+      /status is malformed/u,
+    );
+  }
+
   const malformedTool = structuredClone(evidence.analyses);
   malformedTool[0].tool = null;
   assert.throws(
@@ -848,6 +925,32 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
     () => observe("run", { run: pendingRun }),
     /workflow run ID is malformed/u,
   );
+  for (const field of ["check_suite_id", "workflow_id"]) {
+    for (const value of ["321", { value: 321 }, 2 ** 53]) {
+      const malformedRunProvenance = structuredClone(evidence.run);
+      malformedRunProvenance[field] = value;
+      assert.throws(
+        () => observe("run", { run: malformedRunProvenance }),
+        /ID is malformed/u,
+      );
+    }
+  }
+  for (const field of ["check_suite_url", "workflow_url"]) {
+    const wrongRunUrl = structuredClone(evidence.run);
+    wrongRunUrl[field] = `${wrongRunUrl[field]}/wrong`;
+    assert.throws(
+      () => observe("run", { run: wrongRunUrl }),
+      /workflow run identity differs/u,
+    );
+  }
+  const wrongRunSuite = structuredClone(evidence.run);
+  wrongRunSuite.check_suite_id = 459;
+  wrongRunSuite.check_suite_url =
+    "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/459";
+  assert.throws(
+    () => observe("analyze-check", { run: wrongRunSuite }),
+    /analyze check run identity differs/u,
+  );
 
   const absentAnalyze = structuredClone(evidence.jobs);
   absentAnalyze.jobs[0].name = "setup";
@@ -868,6 +971,37 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
       () => observe("jobs", { jobs: unrelatedJob }),
       /entry 0 identity differs/u,
     );
+  }
+  const wrongJobWorkflow = structuredClone(evidence.jobs);
+  wrongJobWorkflow.jobs[0].name = "setup";
+  wrongJobWorkflow.jobs[0].workflow_name = "Other";
+  assert.throws(
+    () => validateReleaseCodeqlCollectionEntries("jobs", wrongJobWorkflow),
+    /workflow name differs/u,
+  );
+  assert.throws(
+    () => observe("jobs", { jobs: wrongJobWorkflow }),
+    /workflow name differs/u,
+  );
+  for (const status of [{ value: "queued" }, "unknown"]) {
+    const malformedUnrelatedJob = structuredClone(evidence.jobs);
+    malformedUnrelatedJob.jobs[0].name = "setup";
+    malformedUnrelatedJob.jobs[0].status = status;
+    malformedUnrelatedJob.jobs[0].conclusion = null;
+    assert.throws(
+      () => observe("jobs", { jobs: malformedUnrelatedJob }),
+      /entry 0 status is malformed/u,
+    );
+  }
+  for (const [status, conclusion] of [
+    ["completed", "failure"],
+    ["queued", null],
+  ]) {
+    const validUnrelatedJob = structuredClone(evidence.jobs);
+    validUnrelatedJob.jobs[0].name = "setup";
+    validUnrelatedJob.jobs[0].status = status;
+    validUnrelatedJob.jobs[0].conclusion = conclusion;
+    assert.equal(observe("jobs", { jobs: validUnrelatedJob }).state, "pending");
   }
 
   const pendingAnalyze = structuredClone(evidence.jobs);
@@ -908,12 +1042,63 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
 
   const absentCheck = { check_runs: [] };
   assert.equal(observe("check-runs", { checkRuns: absentCheck }).state, "pending");
+  for (const analyzeCheck of [
+    undefined,
+    { ...evidence.analyzeCheck, status: "queued", conclusion: null },
+    { ...evidence.analyzeCheck, check_suite: { id: 459 } },
+  ]) {
+    assert.throws(
+      () => observe("check-runs", { analyzeCheck, checkRuns: absentCheck }),
+      /(?:Analyze|analyze) check run/u,
+    );
+  }
   const unrelatedCheck = structuredClone(evidence.checkRuns);
   unrelatedCheck.check_runs[0].name = "setup";
   unrelatedCheck.check_runs[0].head_sha = "d".repeat(40);
   assert.throws(
     () => observe("check-runs", { checkRuns: unrelatedCheck }),
     /entry 0 identity differs/u,
+  );
+  for (const status of [{ value: "queued" }, "unknown"]) {
+    const malformedUnrelatedCheck = structuredClone(evidence.checkRuns);
+    malformedUnrelatedCheck.check_runs[0].name = "setup";
+    malformedUnrelatedCheck.check_runs[0].status = status;
+    malformedUnrelatedCheck.check_runs[0].conclusion = null;
+    assert.throws(
+      () => observe("check-runs", { checkRuns: malformedUnrelatedCheck }),
+      /entry 0 status is malformed/u,
+    );
+  }
+  for (const [status, conclusion] of [
+    ["completed", "failure"],
+    ["queued", null],
+  ]) {
+    const validUnrelatedCheck = structuredClone(evidence.checkRuns);
+    validUnrelatedCheck.check_runs[0].name = "setup";
+    validUnrelatedCheck.check_runs[0].status = status;
+    validUnrelatedCheck.check_runs[0].conclusion = conclusion;
+    assert.equal(
+      observe("check-runs", { checkRuns: validUnrelatedCheck }).state,
+      "pending",
+    );
+  }
+  const aliasedInitialCheck = structuredClone(evidence.checkRuns);
+  aliasedInitialCheck.check_runs[0].id = 456;
+  aliasedInitialCheck.check_runs[0].url =
+    "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/456";
+  aliasedInitialCheck.check_runs[0].html_url =
+    "https://github.com/agent-teams-ai/engineering-foundation/runs/456";
+  aliasedInitialCheck.check_runs[0].details_url =
+    "https://github.com/agent-teams-ai/engineering-foundation/runs/456";
+  assert.throws(
+    () => observe("check-runs", { checkRuns: aliasedInitialCheck }),
+    /check identities must differ/u,
+  );
+  const aliasedInitialSuite = structuredClone(evidence.checkRuns);
+  aliasedInitialSuite.check_runs[0].check_suite.id = 458;
+  assert.throws(
+    () => observe("check-runs", { checkRuns: aliasedInitialSuite }),
+    /suite identities must differ/u,
   );
   const pendingCheck = structuredClone(evidence.checkRuns);
   pendingCheck.check_runs[0].status = "requested";
@@ -1198,7 +1383,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assert.equal(
     (attestation.run.match(/--argjson analyzeCheck/gu) ?? []).length,
-    3,
+    5,
   );
   assert.match(
     attestation.run,

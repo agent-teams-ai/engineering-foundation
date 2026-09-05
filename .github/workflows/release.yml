@@ -585,8 +585,10 @@ jobs:
             if ! codeql_observation="$(jq -n \
               --argjson run "${codeql_run}" \
               --argjson jobs "${codeql_jobs}" \
+              --argjson analyzeCheck "${codeql_analyze_check}" \
               --argjson checkRuns "${codeql_checks}" \
-              '{run: $run, jobs: $jobs, checkRuns: $checkRuns}' | \
+              '{run: $run, jobs: $jobs, analyzeCheck: $analyzeCheck,
+                checkRuns: $checkRuns}' | \
               validate_codeql_observation check-runs \
               2>"${codeql_evidence_error}")"; then
               cat "${codeql_evidence_error}" >&2
@@ -607,9 +609,11 @@ jobs:
             if ! codeql_observation="$(jq -n \
               --argjson run "${codeql_run}" \
               --argjson jobs "${codeql_jobs}" \
+              --argjson analyzeCheck "${codeql_analyze_check}" \
               --argjson checkRuns "${codeql_checks}" \
               --argjson checkSuite "${codeql_check_suite}" \
-              '{run: $run, jobs: $jobs, checkRuns: $checkRuns,
+              '{run: $run, jobs: $jobs, analyzeCheck: $analyzeCheck,
+                checkRuns: $checkRuns,
                 checkSuite: $checkSuite}' | \
               validate_codeql_observation check-suite \
               2>"${codeql_evidence_error}")"; then

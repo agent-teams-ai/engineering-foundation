@@ -14,6 +14,16 @@ const pendingCodeqlStatuses = new Set([
   "requested",
   "waiting",
 ]);
+const terminalCodeqlConclusions = new Set([
+  "action_required",
+  "cancelled",
+  "failure",
+  "neutral",
+  "skipped",
+  "stale",
+  "success",
+  "timed_out",
+]);
 
 function requireString(value, label, pattern = /\S/u) {
   if (typeof value !== "string" || !pattern.test(value)) {
@@ -74,6 +84,20 @@ function validateObservationState(value, label, options = {}) {
     throw new Error(`${label} has not completed.`);
   }
   return "pending";
+}
+
+function validateCollectionEntryState(value, label) {
+  const status = requireString(value.status, `${label} status`);
+  if (status === "completed") {
+    const conclusion = requireString(value.conclusion, `${label} conclusion`);
+    if (!terminalCodeqlConclusions.has(conclusion)) {
+      throw new Error(`${label} conclusion is malformed.`);
+    }
+    return;
+  }
+  if (!pendingCodeqlStatuses.has(status) || value.conclusion !== null) {
+    throw new Error(`${label} status is malformed.`);
+  }
 }
 
 function assertPullRequestTuple(pullRequest, expected, label) {
@@ -158,6 +182,9 @@ function validateJobEntryShape(job, label) {
   requireObject(job, label);
   requirePositiveSafeInteger(job.id, `${label} ID`);
   requireString(job.name, `${label} name`);
+  if (requireString(job.workflow_name, `${label} workflow name`) !== "CodeQL") {
+    throw new Error(`${label} workflow name differs.`);
+  }
   requirePositiveSafeInteger(job.run_id, `${label} run ID`);
   requirePositiveSafeInteger(job.run_attempt, `${label} run attempt`);
   requireString(job.head_sha, `${label} head SHA`, exactShaPattern);
@@ -165,6 +192,7 @@ function validateJobEntryShape(job, label) {
   requireString(job.html_url, `${label} HTML URL`);
   requireString(job.run_url, `${label} run URL`);
   requireString(job.check_run_url, `${label} check run URL`);
+  validateCollectionEntryState(job, label);
 }
 
 function validateCheckRunEntryShape(check, label) {
@@ -182,6 +210,7 @@ function validateCheckRunEntryShape(check, label) {
   requireString(check.url, `${label} URL`);
   requireString(check.html_url, `${label} HTML URL`);
   requireString(check.details_url, `${label} details URL`);
+  validateCollectionEntryState(check, label);
 }
 
 function validateAnalysisEntryShape(entry, label) {
@@ -225,6 +254,14 @@ function validateRun(run, expected, options = {}) {
   requireObject(run, "CodeQL workflow run");
   requirePositiveSafeInteger(run.id, "CodeQL workflow run ID");
   requirePositiveSafeInteger(run.run_attempt, "CodeQL workflow run attempt");
+  const runCheckSuiteId = requirePositiveSafeInteger(
+    run.check_suite_id,
+    "CodeQL workflow run check suite ID",
+  );
+  const workflowId = requirePositiveSafeInteger(
+    run.workflow_id,
+    "CodeQL workflow ID",
+  );
   const expectedRunUrl =
     `${expected.serverUrl}/${expected.repository}/actions/runs/${expected.runId}`;
   const expectedRunApiUrl =
@@ -240,6 +277,10 @@ function validateRun(run, expected, options = {}) {
     run.html_url !== expectedRunUrl ||
     run.jobs_url !== `${expectedRunApiUrl}/jobs` ||
     run.rerun_url !== `${expectedRunApiUrl}/rerun` ||
+    run.check_suite_url !==
+      `${expected.apiUrl}/repos/${expected.repository}/check-suites/${runCheckSuiteId}` ||
+    run.workflow_url !==
+      `${expected.apiUrl}/repos/${expected.repository}/actions/workflows/${workflowId}` ||
     run.head_repository?.full_name !== expected.repository
   ) {
     throw new Error("CodeQL workflow run identity differs.");
@@ -248,7 +289,9 @@ function validateRun(run, expected, options = {}) {
   return {
     expectedRunApiUrl,
     expectedRunUrl,
+    runCheckSuiteId,
     state: validateObservationState(run, "CodeQL workflow run", options),
+    workflowId,
   };
 }
 
@@ -279,7 +322,11 @@ function validateAnalyze(jobs, expected, runUrls, options = {}) {
     { allowMissing: options.allowMissing === true },
   );
   if (analyze === null) {
-    return { state: "pending" };
+    return {
+      runCheckSuiteId: runUrls.runCheckSuiteId,
+      state: "pending",
+      workflowId: runUrls.workflowId,
+    };
   }
   const analyzeId = requirePositiveSafeInteger(analyze.id, "Analyze job ID");
   const expectedJobApiUrl =
@@ -307,7 +354,13 @@ function validateAnalyze(jobs, expected, runUrls, options = {}) {
   }
   const state = validateObservationState(analyze, "CodeQL analyze job", options);
   if (state === "pending") {
-    return { analyzeCheckId, analyzeId, state };
+    return {
+      analyzeCheckId,
+      analyzeId,
+      runCheckSuiteId: runUrls.runCheckSuiteId,
+      state,
+      workflowId: runUrls.workflowId,
+    };
   }
   const analyzeStartedAt = requireTimestamp(
     analyze.started_at,
@@ -326,7 +379,9 @@ function validateAnalyze(jobs, expected, runUrls, options = {}) {
     analyzeId,
     analyzeJobUrl: expectedJobUrl,
     analyzeStartedAt,
+    runCheckSuiteId: runUrls.runCheckSuiteId,
     state,
+    workflowId: runUrls.workflowId,
   };
 }
 
@@ -344,6 +399,7 @@ function validateAnalyzeCheck(analyzeCheck, expected, analyzeWindow, options = {
     analyzeCheck.html_url !== analyzeWindow.analyzeJobUrl ||
     analyzeCheck.name !== "analyze" ||
     analyzeCheck.app?.id !== 15368 ||
+    analyzeCheckSuiteId !== analyzeWindow.runCheckSuiteId ||
     analyzeCheck.head_sha !== expected.headSha ||
     analyzeCheck.details_url !== analyzeWindow.analyzeJobUrl
   ) {
@@ -558,6 +614,29 @@ function validateAnalysis(analyses, expected, analyzeWindow, options = {}) {
   return { analysisCreatedAt, analysisId, sarifId, state: "completed" };
 }
 
+function assertIndependentProducerIdentities(
+  analyze,
+  analyzeCheckEvidence,
+  check,
+) {
+  if (
+    check.checkId !== undefined &&
+    analyze.analyzeCheckId === check.checkId
+  ) {
+    throw new Error(
+      "CodeQL analyze and GitHub Advanced Security check identities must differ.",
+    );
+  }
+  if (
+    check.checkSuiteId !== undefined &&
+    analyzeCheckEvidence.analyzeCheckSuiteId === check.checkSuiteId
+  ) {
+    throw new Error(
+      "CodeQL analyze and GitHub Advanced Security suite identities must differ.",
+    );
+  }
+}
+
 export function validateReleaseCodeqlObservation(phase, payload, expected) {
   const normalized = normalizedExpected(expected);
   const run = validateRun(payload?.run, normalized, { allowPending: true });
@@ -591,20 +670,24 @@ export function validateReleaseCodeqlObservation(phase, payload, expected) {
       { allowPending: true },
     );
   }
-  if (phase === "check-runs") {
-    return validateCheck(
-      payload?.checkRuns,
+  if (phase === "check-runs" || phase === "check-suite") {
+    const analyzeCheckEvidence = validateAnalyzeCheck(
+      payload?.analyzeCheck,
       normalized,
       analyze,
-      { allowMissing: true, allowPending: true },
     );
-  }
-  if (phase === "check-suite") {
     const check = validateCheck(
       payload?.checkRuns,
       normalized,
       analyze,
+      phase === "check-runs"
+        ? { allowMissing: true, allowPending: true }
+        : undefined,
     );
+    assertIndependentProducerIdentities(analyze, analyzeCheckEvidence, check);
+    if (phase === "check-runs") {
+      return check;
+    }
     return validateSuite(
       payload?.checkSuite,
       normalized,
@@ -656,16 +739,7 @@ export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
     check.checkSuiteId,
     { analysisCreatedAt: analysis.analysisCreatedAt },
   );
-  if (analyze.analyzeCheckId === check.checkId) {
-    throw new Error(
-      "CodeQL analyze and GitHub Advanced Security check identities must differ.",
-    );
-  }
-  if (analyzeCheckEvidence.analyzeCheckSuiteId === check.checkSuiteId) {
-    throw new Error(
-      "CodeQL analyze and GitHub Advanced Security suite identities must differ.",
-    );
-  }
+  assertIndependentProducerIdentities(analyze, analyzeCheckEvidence, check);
 
   const receipt = Object.freeze({
     analysisId: analysis.analysisId,
@@ -675,11 +749,19 @@ export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
     checkId: check.checkId,
     checkSuiteId: check.checkSuiteId,
     runId: normalized.runId,
+    runCheckSuiteId: analyze.runCheckSuiteId,
     sarifId: analysis.sarifId,
+    workflowId: analyze.workflowId,
   });
   if (priorReceipt !== undefined) {
-    validateRun(postRun, normalized);
+    const postRunEvidence = validateRun(postRun, normalized);
     assertIndependentPullRequest(postPullRequest, normalized);
+    if (
+      postRunEvidence.runCheckSuiteId !== receipt.runCheckSuiteId ||
+      postRunEvidence.workflowId !== receipt.workflowId
+    ) {
+      throw new Error("Final CodeQL workflow run changed identity.");
+    }
     for (const [name, value] of Object.entries(receipt)) {
       if (priorReceipt?.[name] !== value) {
         throw new Error(`Final CodeQL ${name} changed identity.`);

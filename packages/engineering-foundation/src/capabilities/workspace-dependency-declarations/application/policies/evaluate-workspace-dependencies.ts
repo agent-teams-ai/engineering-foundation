@@ -3,6 +3,7 @@ import type {
   FoundationDiagnostic
 } from "../../../../check-contract.js";
 import { isExactVersion } from "../../../../semantic-version.js";
+import { parseNpmAlias } from "../../../../workspace-inventory/application/policies/normalize-dependency-declaration.js";
 import type { WorkspaceDependencyPolicy } from "../model/workspace-dependency-policy.js";
 import type {
   DependencyDeclaration,
@@ -10,15 +11,12 @@ import type {
 } from "../model/workspace-snapshot.js";
 import { RULES, type RuleMetadata } from "../rules.js";
 
-const EXACT_NPM_ALIAS_PATTERN =
-  /^npm:(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*@(.+)$/u;
-
 function isExactCatalogVersion(value: string): boolean {
   if (isExactVersion(value)) {
     return true;
   }
-  const alias = EXACT_NPM_ALIAS_PATTERN.exec(value);
-  return alias?.[1] !== undefined && isExactVersion(alias[1]);
+  const alias = parseNpmAlias(value);
+  return alias !== undefined && isExactVersion(alias.versionSpecifier);
 }
 
 function diagnostic(input: {
@@ -43,16 +41,6 @@ function diagnostic(input: {
 
 function declarationSubject(declaration: DependencyDeclaration): string {
   return `${declaration.packageName}:${declaration.section}:${declaration.dependencyName}`;
-}
-
-function catalogName(specifier: string): string | undefined {
-  if (specifier === "catalog:") {
-    return "default";
-  }
-  if (specifier.startsWith("catalog:") && specifier.length > "catalog:".length) {
-    return specifier.slice("catalog:".length);
-  }
-  return undefined;
 }
 
 function isReservedPackage(name: string, scopes: readonly string[]): boolean {
@@ -146,6 +134,119 @@ function evaluatePackageNames(snapshot: WorkspaceSnapshot): FoundationDiagnostic
   return diagnostics;
 }
 
+function evaluateDeclaration(input: {
+  readonly dependency: DependencyDeclaration;
+  readonly allDevOnly: ReadonlySet<string>;
+  readonly exactRegistryDevOnly: ReadonlySet<string>;
+  readonly workspaceNames: ReadonlySet<string>;
+  readonly reservedScopes: readonly string[];
+  readonly catalogKeys: ReadonlySet<string>;
+}): FoundationDiagnostic[] {
+  const { dependency, allDevOnly, exactRegistryDevOnly, workspaceNames, reservedScopes, catalogKeys } = input;
+  const diagnostics: FoundationDiagnostic[] = [];
+  const subject = declarationSubject(dependency);
+  const identities = [dependency.dependencyName, dependency.targetPackageName];
+  const developmentOnlyIdentity = identities.find((name) => allDevOnly.has(name));
+  const exactRegistryIdentity = identities.find((name) => exactRegistryDevOnly.has(name));
+  const exactRegistryDeclarationValid =
+    dependency.provenance.kind === "manifest" &&
+    dependency.targetPackageName === dependency.dependencyName &&
+    isExactVersion(dependency.specifier);
+  if (developmentOnlyIdentity !== undefined) {
+    if (dependency.section !== "devDependencies") {
+      diagnostics.push(
+        diagnostic({
+          rule: RULES.developmentOnlyPackageInRuntimeSection,
+          subject,
+          message: `Development-only package ${developmentOnlyIdentity} cannot be declared in ${dependency.section}.`,
+          path: dependency.manifestPath
+        })
+      );
+    }
+    if (
+      exactRegistryIdentity !== undefined &&
+      !exactRegistryDeclarationValid
+    ) {
+      diagnostics.push(
+        diagnostic({
+          rule: RULES.exactRegistryDevelopmentOnlyPackageVersionNotExact,
+          subject,
+          message: `Development-only package ${exactRegistryIdentity} must use an exact registry version.`,
+          path: dependency.manifestPath,
+          evidence: [{ kind: "specifier", value: dependency.specifier }]
+        })
+      );
+    }
+    if (
+      exactRegistryIdentity !== undefined &&
+      !dependency.effectiveSpecifier.startsWith("npm:")
+    ) {
+      return diagnostics;
+    }
+  }
+
+  const workspaceIdentity = identities.find((name) => workspaceNames.has(name));
+  if (workspaceIdentity !== undefined) {
+    if (
+      dependency.targetPackageName !== dependency.dependencyName ||
+      dependency.provenance.kind !== "manifest" ||
+      !dependency.specifier.startsWith("workspace:")
+    ) {
+      diagnostics.push(
+        diagnostic({
+          rule: RULES.internalDependencyWithoutWorkspaceProtocol,
+          subject,
+          message: `Internal dependency ${workspaceIdentity} must use the workspace protocol.`,
+          path: dependency.manifestPath,
+          evidence: [{ kind: "specifier", value: dependency.specifier }]
+        })
+      );
+    }
+    return diagnostics;
+  }
+
+  const reservedIdentity = identities.find((name) => isReservedPackage(name, reservedScopes));
+  if (reservedIdentity !== undefined) {
+    diagnostics.push(
+      diagnostic({
+        rule: RULES.reservedScopePackageNotInWorkspace,
+        subject,
+        message: `Reserved-scope dependency ${reservedIdentity} is not a workspace package.`,
+        path: dependency.manifestPath
+      })
+    );
+    return diagnostics;
+  }
+
+  const referencedCatalog = dependency.provenance.kind === "catalog"
+    ? dependency.provenance.catalogName
+    : undefined;
+  if (referencedCatalog === undefined) {
+    diagnostics.push(
+      diagnostic({
+        rule: RULES.externalVersionNotCataloged,
+        subject,
+        message: `External dependency ${dependency.dependencyName} must use a catalog reference.`,
+        path: dependency.manifestPath,
+        evidence: [{ kind: "specifier", value: dependency.specifier }]
+      })
+    );
+  } else if (
+    !catalogKeys.has(`${referencedCatalog}\u0000${dependency.dependencyName}`)
+  ) {
+    diagnostics.push(
+      diagnostic({
+        rule: RULES.catalogReferenceMissing,
+        subject,
+        message: `Catalog ${referencedCatalog} does not declare ${dependency.dependencyName}.`,
+        path: dependency.manifestPath,
+        evidence: [{ kind: "catalog", value: referencedCatalog }]
+      })
+    );
+  }
+  return diagnostics;
+}
+
 function evaluateDeclarations(
   snapshot: WorkspaceSnapshot,
   policy: WorkspaceDependencyPolicy
@@ -192,97 +293,16 @@ function evaluateDeclarations(
     }
 
     for (const dependency of workspacePackage.dependencies) {
-      const subject = declarationSubject(dependency);
-      if (allDevOnly.has(dependency.dependencyName)) {
-        if (dependency.section !== "devDependencies") {
-          diagnostics.push(
-            diagnostic({
-              rule: RULES.developmentOnlyPackageInRuntimeSection,
-              subject,
-              message: `Development-only package ${dependency.dependencyName} cannot be declared in ${dependency.section}.`,
-              path: dependency.manifestPath
-            })
-          );
-        }
-        if (
-          exactRegistryDevOnly.has(dependency.dependencyName) &&
-          !isExactVersion(dependency.specifier)
-        ) {
-          diagnostics.push(
-            diagnostic({
-              rule: RULES.exactRegistryDevelopmentOnlyPackageVersionNotExact,
-              subject,
-              message: `Development-only package ${dependency.dependencyName} must use an exact registry version.`,
-              path: dependency.manifestPath,
-              evidence: [{ kind: "specifier", value: dependency.specifier }]
-            })
-          );
-        }
-        if (exactRegistryDevOnly.has(dependency.dependencyName)) {
-          continue;
-        }
-      }
-
-      if (workspaceNames.has(dependency.dependencyName)) {
-        if (!dependency.specifier.startsWith("workspace:")) {
-          diagnostics.push(
-            diagnostic({
-              rule: RULES.internalDependencyWithoutWorkspaceProtocol,
-              subject,
-              message: `Internal dependency ${dependency.dependencyName} must use the workspace protocol.`,
-              path: dependency.manifestPath,
-              evidence: [{ kind: "specifier", value: dependency.specifier }]
-            })
-          );
-        }
-        continue;
-      }
-
-      if (
-        isReservedPackage(
-          dependency.dependencyName,
-          policy.reservedScopes
-        )
-      ) {
-        diagnostics.push(
-          diagnostic({
-            rule: RULES.reservedScopePackageNotInWorkspace,
-            subject,
-            message: `Reserved-scope dependency ${dependency.dependencyName} is not a workspace package.`,
-            path: dependency.manifestPath
-          })
-        );
-        continue;
-      }
-
-      const referencedCatalog = catalogName(dependency.specifier);
-      if (referencedCatalog === undefined) {
-        diagnostics.push(
-          diagnostic({
-            rule: RULES.externalVersionNotCataloged,
-            subject,
-            message: `External dependency ${dependency.dependencyName} must use a catalog reference.`,
-            path: dependency.manifestPath,
-            evidence: [{ kind: "specifier", value: dependency.specifier }]
-          })
-        );
-      } else if (
-        !catalogKeys.has(`${referencedCatalog}\u0000${dependency.dependencyName}`)
-      ) {
-        diagnostics.push(
-          diagnostic({
-            rule: RULES.catalogReferenceMissing,
-            subject,
-            message: `Catalog ${referencedCatalog} does not declare ${dependency.dependencyName}.`,
-            path: dependency.manifestPath,
-            evidence: [{ kind: "catalog", value: referencedCatalog }]
-          })
-        );
-      }
+      diagnostics.push(...evaluateDeclaration({
+        dependency, allDevOnly, exactRegistryDevOnly, workspaceNames,
+        reservedScopes: policy.reservedScopes, catalogKeys
+      }));
     }
 
     for (const packageName of workspacePackage.bundledDependencies) {
-      if (allDevOnly.has(packageName)) {
+      const bundledTargets = (grouped.get(packageName) ?? [])
+        .map(({ targetPackageName }) => targetPackageName);
+      if (allDevOnly.has(packageName) || bundledTargets.some((name) => allDevOnly.has(name))) {
         diagnostics.push(
           diagnostic({
             rule: RULES.developmentOnlyPackageBundled,

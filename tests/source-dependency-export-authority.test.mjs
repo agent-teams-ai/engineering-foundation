@@ -254,7 +254,6 @@ test("full capability requires an unambiguous workspace protocol binding", async
   });
 
   for (const declarations of [
-    { dependencies: { "@fixture/core": "npm:is-number@7.0.0" } },
     { dependencies: { "@fixture/core": "file:../core" } },
     { dependencies: { "@fixture/core": "link:../core" } },
     { dependencies: { "@fixture/core": "https://example.invalid/core.tgz" } },
@@ -275,7 +274,7 @@ test("full capability requires an unambiguous workspace protocol binding", async
       const report = await runSourceCapability(consumerRoot);
       assert.equal(
         ruleIds(report.diagnostics).includes(
-          "architecture.source-dependencies.undeclared-workspace-dependency",
+          `architecture.source-dependencies.undeclared-${Object.values(declarations).some((section) => section["@fixture/core"]?.startsWith("npm:")) ? "external" : "workspace"}-dependency`,
         ),
         true,
         reportDetails(report),

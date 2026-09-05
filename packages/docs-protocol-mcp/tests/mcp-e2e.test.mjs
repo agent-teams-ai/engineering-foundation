@@ -6,8 +6,7 @@ import test from "node:test";
 
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 
-import { createDocsProtocolMcpServer } from "../dist/server.js";
-import { DOCS_PROTOCOL_MCP_PACKAGE_VERSION } from "../dist/version.js";
+import { createDocsProtocolMcpServer } from "../dist/index.js";
 
 function execution(command, result) {
   return {
@@ -93,7 +92,8 @@ test("MCP transport exposes and calls only the fixed read-only surface", async (
   });
   assert.ok("result" in initialized);
   assert.equal(initialized.result.serverInfo.name, "@agent-teams/docs-protocol-mcp");
-  assert.equal(initialized.result.serverInfo.version, DOCS_PROTOCOL_MCP_PACKAGE_VERSION);
+  const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(initialized.result.serverInfo.version, manifest.version);
   await clientTransport.send({ jsonrpc: "2.0", method: "notifications/initialized" });
 
   const listed = await request("tools/list", {});
@@ -118,15 +118,38 @@ test("MCP transport exposes and calls only the fixed read-only surface", async (
   assert.equal(calls[0][1].consumerRoot, fixture);
   assert.equal(calls[0][1].profilePath, "docs.config.yaml");
 
+  for (const [name, arguments_, kind] of [
+    ["docs_info", {}, "info"],
+    ["docs_find", { id: "ADR-0001", maxResults: 1 }, "find"]
+  ]) {
+    const response = await request("tools/call", { name, arguments: arguments_ });
+    assert.notEqual(response.result.isError, true);
+    assert.deepEqual(response.result.structuredContent, JSON.parse(response.result.content[0].text));
+    assert.equal(response.result.structuredContent.result.kind, kind);
+    assert.equal(response.result.structuredContent.source.command, `docs.${kind}`);
+  }
+  assert.equal(calls.length, 3);
+  for (const [name, arguments_] of [
+    ["docs_info", { profilePath: "escape.yaml" }],
+    ["docs_find", { maxResults: 1 }],
+    ["docs_find", { owner: "docs/team", fuzzy: true }],
+    ["docs_context", { maxBytes: 1023 }],
+    ["docs_context", { fuzzy: true }]
+  ]) {
+    const invalid = await request("tools/call", { name, arguments: arguments_ });
+    assert.ok("error" in invalid || invalid.result?.isError === true);
+    assert.equal(calls.length, 3);
+  }
+
   const rootOverride = await request("tools/call", {
     name: "docs_context",
     arguments: { text: "sandbox", consumerRoot: "/escape" }
   });
   assert.ok("error" in rootOverride || rootOverride.result?.isError === true);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 3);
 
   const forbidden = await request("tools/call", { name: "docs_new", arguments: {} });
   assert.ok("error" in forbidden || forbidden.result?.isError === true);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 3);
   assert.deepEqual(await snapshot(fixture), before);
 });

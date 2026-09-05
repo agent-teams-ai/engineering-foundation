@@ -382,3 +382,16 @@ for (const [name, source, references, unresolved] of [
     assert.deepEqual(observe(source, "case.ts"), { parseErrorCount: 0, references, unresolved });
   });
 }
+
+for (const extension of ["cjs", "cts", "js", "ts"]) {
+  for (const [name, source] of [
+    ["var first", 'var require; function require(value) { return "USER"; } require("node:fs");'],
+    ["function first", 'function require(value) { return "USER"; } var require; require("node:fs");'],
+    ["call before declarations", 'require("node:fs"); var require; function require(value) { return "USER"; }'],
+    ["alias before declaration", 'var require; const load = require; function require(value) { return "USER"; } load("node:fs");'],
+  ]) {
+    test(`function hoisting ${extension}: ${name}`, () => {
+      assert.deepEqual(observe(source, `case.${extension}`), { parseErrorCount: 0, references: [], unresolved: [] });
+    });
+  }
+}

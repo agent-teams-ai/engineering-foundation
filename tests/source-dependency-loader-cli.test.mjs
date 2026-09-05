@@ -296,3 +296,35 @@ for (const schemaVersion of [1, 2]) {
     });
   });
 }
+
+for (const schemaVersion of [1, 2]) {
+  test(`installed CLI v${schemaVersion}: user function hoisting preserves both declaration orders`, async (t) => {
+    await withInstalledCli(async (root, cli) => {
+      for (const extension of ["cjs", "cts", "js", "ts"]) {
+        const path = `packages/app/src/a/probe.${extension}`;
+        for (const [name, source] of [
+          ["var first", 'var require; function require(value) { return "USER"; } console.log(require("node:fs"));'],
+          ["function first", 'function require(value) { return "USER"; } var require; console.log(require("node:fs"));'],
+          ["call before declarations", 'console.log(require("node:fs")); var require; function require(value) { return "USER"; }'],
+          ["alias before declaration", 'var require; const load = require; function require(value) { return "USER"; } console.log(load("node:fs"));'],
+        ]) {
+          await t.test(`${extension}: ${name}`, async () => {
+            await fixture(root, schemaVersion, { source: "export const marker = 1;" });
+            await write(root, path, source);
+            await check(root, cli, [], [path]);
+            const manifestPath = "packages/app/package.json";
+            const manifest = JSON.parse(await readFile(join(root, manifestPath), "utf8"));
+            await write(root, manifestPath, { ...manifest, type: "commonjs" });
+            const native = spawnSync(process.execPath, [join(root, path)], {
+              cwd: root, encoding: "utf8", timeout: 10_000,
+            });
+            assert.equal(native.status, 0, native.stderr);
+            assert.equal(native.stdout, "USER\n");
+            assert.equal(native.stderr, "");
+          });
+        }
+        await rm(join(root, path));
+      }
+    });
+  });
+}

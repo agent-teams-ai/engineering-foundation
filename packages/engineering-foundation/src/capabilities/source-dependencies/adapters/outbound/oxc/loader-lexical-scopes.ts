@@ -102,6 +102,12 @@ export class LoaderLexicalScopes {
   }>, scope: LexicalScope): void {
     if ((node.type === "FunctionDeclaration" || node.type === "TSDeclareFunction") && node.id !== null) {
       this.#declare(scope, node.id.name);
+      const binding = scope.bindings.get(node.id.name);
+      if (node.type === "FunctionDeclaration" && binding?.initialBinding !== undefined) {
+        // Hoisted functions replace the wrapper value before var initialization.
+        // Keep explicit initializer/write inputs for conservative provenance.
+        scope.bindings.set(node.id.name, { inputs: binding.inputs, mutable: binding.mutable });
+      }
     }
     const parameters = this.#childScope(scope, "function");
     this.#nodeScopes.set(node, parameters);

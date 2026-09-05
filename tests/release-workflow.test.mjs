@@ -1,5 +1,6 @@
 // oxlint-disable max-lines -- workflow contract coverage remains one auditable suite.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
@@ -13,7 +14,10 @@ import {
   releasePullRequestContentViolations,
   releasePullRequestFileViolations,
 } from "../scripts/check-release-pr-files.mjs";
-import { validateReleaseCodeqlEvidence } from "../scripts/check-release-codeql-evidence.mjs";
+import {
+  validateReleaseCodeqlCollectionEntries,
+  validateReleaseCodeqlEvidence,
+} from "../scripts/check-release-codeql-evidence.mjs";
 import { selectReleaseCiRun } from "../scripts/select-release-ci-run.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -230,6 +234,72 @@ function assertPaginatedEvidenceFailClosed(attestationSource) {
     6,
   );
   assert.match(attestationSource, /incomplete paginated object collection/u);
+  assert.equal(
+    (attestationSource.match(/if ! validate_codeql_collection /gu) ?? []).length,
+    6,
+  );
+  assert.match(attestationSource, /codeql_status_is_pending\(\) \{/u);
+  assert.equal(
+    (attestationSource.match(/if codeql_status_is_pending /gu) ?? []).length,
+    4,
+  );
+  const firstJobsValidation = attestationSource.indexOf(
+    'validate_codeql_collection jobs <<<"${codeql_jobs}"',
+  );
+  const firstAnalyzeCheckRead = attestationSource.indexOf(
+    'if ! codeql_analyze_check="$(gh api',
+  );
+  const firstChecksValidation = attestationSource.indexOf(
+    'validate_codeql_collection check-runs <<<"${codeql_checks}"',
+  );
+  const firstSuiteRead = attestationSource.indexOf(
+    'if ! codeql_check_suite="$(gh api',
+  );
+  const firstAnalysesValidation = attestationSource.indexOf(
+    'validate_codeql_collection analyses <<<"${codeql_analyses}"',
+  );
+  const initialReceiptValidation = attestationSource.indexOf(
+    'if codeql_receipt="$(jq -n',
+  );
+  assert.ok(firstJobsValidation < firstAnalyzeCheckRead);
+  assert.ok(firstChecksValidation < firstSuiteRead);
+  assert.ok(firstAnalysesValidation < initialReceiptValidation);
+  assert.match(
+    attestationSource,
+    /if codeql_receipt="\$\(jq -n[\s\S]*?then\n\s+break\n\s+fi\n\s+cat "\$\{codeql_evidence_error\}" >&2\n\s+fail_attestation "Release PR exact CodeQL evidence is malformed"/u,
+  );
+  assert.doesNotMatch(
+    attestationSource,
+    /\| \\\n\s+\[length, first\.check_run_url/u,
+  );
+  if (process.platform !== "win32") {
+    const analyzeMarker = "read -r codeql_analyze_count";
+    const analyzeBlock = attestationSource.slice(
+      attestationSource.indexOf(analyzeMarker),
+    );
+    const selectorStart = analyzeBlock.indexOf("'[") + 1;
+    const selectorEnd = analyzeBlock.indexOf("' \\", selectorStart);
+    assert.ok(selectorStart > 0 && selectorEnd > selectorStart);
+    const executed = spawnSync(
+      "jq",
+      ["-r", analyzeBlock.slice(selectorStart, selectorEnd)],
+      {
+        encoding: "utf8",
+        input: JSON.stringify({
+          jobs: [{
+            name: "analyze",
+            check_run_url: "https://api.github.test/check-runs/789",
+            status: "completed",
+          }],
+        }),
+      },
+    );
+    assert.equal(executed.status, 0, executed.stderr);
+    assert.equal(
+      executed.stdout.trim(),
+      "1\thttps://api.github.test/check-runs/789\tcompleted",
+    );
+  }
 }
 
 function exactPullRequestRun(overrides = {}) {
@@ -697,6 +767,65 @@ test("release CodeQL evidence rejects cross-producer identity aliases", () => {
   );
 });
 
+test("release CodeQL collection validation rejects malformed entries before retry", () => {
+  const evidence = exactCodeqlEvidence();
+  const collections = [
+    ["jobs", evidence.jobs],
+    ["check-runs", evidence.checkRuns],
+    ["analyses", evidence.analyses],
+  ];
+
+  for (const [kind, collection] of collections) {
+    assert.doesNotThrow(() =>
+      validateReleaseCodeqlCollectionEntries(kind, collection));
+
+    const nullEntry = structuredClone(collection);
+    const nullEntries = kind === "jobs"
+      ? nullEntry.jobs
+      : kind === "check-runs"
+        ? nullEntry.check_runs
+        : nullEntry;
+    nullEntries.push(null);
+    assert.throws(
+      () => validateReleaseCodeqlCollectionEntries(kind, nullEntry),
+      /malformed/u,
+    );
+
+    const stringId = structuredClone(collection);
+    const stringIdEntries = kind === "jobs"
+      ? stringId.jobs
+      : kind === "check-runs"
+        ? stringId.check_runs
+        : stringId;
+    stringIdEntries[0].id = "456";
+    assert.throws(
+      () => validateReleaseCodeqlCollectionEntries(kind, stringId),
+      /ID is malformed/u,
+    );
+  }
+
+  const stringRunId = structuredClone(evidence.jobs);
+  stringRunId.jobs[0].run_id = "123";
+  assert.throws(
+    () => validateReleaseCodeqlCollectionEntries("jobs", stringRunId),
+    /run ID is malformed/u,
+  );
+
+  const stringSuiteId = structuredClone(evidence.checkRuns);
+  stringSuiteId.check_runs[0].check_suite.id = "900";
+  assert.throws(
+    () => validateReleaseCodeqlCollectionEntries("check-runs", stringSuiteId),
+    /check suite ID is malformed/u,
+  );
+
+  const malformedTool = structuredClone(evidence.analyses);
+  malformedTool[0].tool = null;
+  assert.throws(
+    () => validateReleaseCodeqlCollectionEntries("analyses", malformedTool),
+    /tool is malformed/u,
+  );
+});
+
 test("release CI selection reuses only one exact attempt-1 pull request run", () => {
   assert.deepEqual(
     selectReleaseCiRun({ workflow_runs: [exactPullRequestRun()] }, exactRunExpectation),
@@ -907,7 +1036,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assert.equal(
     (attestation.run.match(/check-release-codeql-evidence\.mjs/gu) ?? []).length,
-    2,
+    3,
   );
   assert.match(attestation.run, /check_name=CodeQL/u);
   assert.match(attestation.run, /\.app\.id == 57789/u);

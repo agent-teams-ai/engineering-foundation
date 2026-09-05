@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- one fail-closed release evidence audit surface.
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -120,6 +121,73 @@ function exactEntries(entries, predicate, label, validateEntry) {
   return matches[0];
 }
 
+function validateJobEntryShape(job, label) {
+  requireObject(job, label);
+  requirePositiveSafeInteger(job.id, `${label} ID`);
+  requireString(job.name, `${label} name`);
+  requirePositiveSafeInteger(job.run_id, `${label} run ID`);
+  requirePositiveSafeInteger(job.run_attempt, `${label} run attempt`);
+  requireString(job.head_sha, `${label} head SHA`, exactShaPattern);
+  requireString(job.url, `${label} URL`);
+  requireString(job.html_url, `${label} HTML URL`);
+  requireString(job.run_url, `${label} run URL`);
+  requireString(job.check_run_url, `${label} check run URL`);
+}
+
+function validateCheckRunEntryShape(check, label) {
+  requireObject(check, label);
+  requirePositiveSafeInteger(check.id, `${label} ID`);
+  requireString(check.name, `${label} name`);
+  requireObject(check.app, `${label} app`);
+  requirePositiveSafeInteger(check.app.id, `${label} app ID`);
+  requireObject(check.check_suite, `${label} check suite`);
+  requirePositiveSafeInteger(
+    check.check_suite.id,
+    `${label} check suite ID`,
+  );
+  requireString(check.head_sha, `${label} head SHA`, exactShaPattern);
+  requireString(check.url, `${label} URL`);
+  requireString(check.html_url, `${label} HTML URL`);
+  requireString(check.details_url, `${label} details URL`);
+}
+
+function validateAnalysisEntryShape(entry, label) {
+  requireObject(entry, label);
+  requirePositiveSafeInteger(entry.id, `${label} ID`);
+  requireString(entry.ref, `${label} ref`);
+  requireString(entry.commit_sha, `${label} commit SHA`, exactShaPattern);
+  requireString(entry.analysis_key, `${label} analysis key`);
+  requireString(entry.category, `${label} category`);
+  requireObject(entry.tool, `${label} tool`);
+  requireString(entry.tool.name, `${label} tool name`);
+  requireString(entry.sarif_id, `${label} SARIF ID`);
+  requireTimestamp(entry.created_at, `${label} creation time`);
+  requireString(entry.url, `${label} URL`);
+}
+
+export function validateReleaseCodeqlCollectionEntries(kind, collection) {
+  const specifications = {
+    jobs: [collection?.jobs, "CodeQL jobs", validateJobEntryShape],
+    "check-runs": [
+      collection?.check_runs,
+      "CodeQL check runs",
+      validateCheckRunEntryShape,
+    ],
+    analyses: [collection, "Code scanning analyses", validateAnalysisEntryShape],
+  };
+  const specification = specifications[kind];
+  if (specification === undefined) {
+    throw new Error("CodeQL collection kind is malformed.");
+  }
+  const [entries, label, validateEntry] = specification;
+  if (!Array.isArray(entries)) {
+    throw new Error(`${label} response is malformed.`);
+  }
+  for (const [index, entry] of entries.entries()) {
+    validateEntry(entry, `${label} entry ${index}`);
+  }
+}
+
 function validateRun(run, expected) {
   const expectedRunUrl =
     `${expected.serverUrl}/${expected.repository}/actions/runs/${expected.runId}`;
@@ -156,12 +224,8 @@ function validateAnalyze(jobs, expected, runUrls) {
     (job) => job?.name === "analyze",
     "CodeQL jobs",
     (job, label) => {
-      requireObject(job, label);
-      const jobId = requirePositiveSafeInteger(job.id, `${label} ID`);
-      requireString(job.name, `${label} name`);
-      requirePositiveSafeInteger(job.run_id, `${label} run ID`);
-      requirePositiveSafeInteger(job.run_attempt, `${label} run attempt`);
-      requireString(job.head_sha, `${label} head SHA`, exactShaPattern);
+      validateJobEntryShape(job, label);
+      const jobId = job.id;
       if (
         job.url !== `${jobUrlPrefix}/${jobId}` ||
         job.html_url !== `${runUrls.expectedRunUrl}/job/${jobId}` ||
@@ -248,19 +312,8 @@ function validateCheck(checkRuns, expected, analyzeWindow, analysisCreatedAt) {
     (check) => check?.name === "CodeQL" && check.app?.id === 57789,
     "CodeQL check runs",
     (check, label) => {
-      requireObject(check, label);
-      const checkId = requirePositiveSafeInteger(check.id, `${label} ID`);
-      requireString(check.name, `${label} name`);
-      requireObject(check.app, `${label} app`);
-      requirePositiveSafeInteger(check.app.id, `${label} app ID`);
-      requireObject(check.check_suite, `${label} check suite`);
-      requirePositiveSafeInteger(
-        check.check_suite.id,
-        `${label} check suite ID`,
-      );
-      requireString(check.head_sha, `${label} head SHA`, exactShaPattern);
-      requireString(check.html_url, `${label} HTML URL`);
-      requireString(check.details_url, `${label} details URL`);
+      validateCheckRunEntryShape(check, label);
+      const checkId = check.id;
       if (
         check.url !==
           `${expected.apiUrl}/repos/${expected.repository}/check-runs/${checkId}`
@@ -361,16 +414,8 @@ function validateAnalysis(analyses, expected, analyzeWindow) {
       entry.tool?.name === "CodeQL",
     "Code scanning analyses",
     (entry, label) => {
-      requireObject(entry, label);
-      const analysisId = requirePositiveSafeInteger(entry.id, `${label} ID`);
-      requireString(entry.ref, `${label} ref`);
-      requireString(entry.commit_sha, `${label} commit SHA`, exactShaPattern);
-      requireString(entry.analysis_key, `${label} analysis key`);
-      requireString(entry.category, `${label} category`);
-      requireObject(entry.tool, `${label} tool`);
-      requireString(entry.tool.name, `${label} tool name`);
-      requireString(entry.sarif_id, `${label} SARIF ID`);
-      requireTimestamp(entry.created_at, `${label} creation time`);
+      validateAnalysisEntryShape(entry, label);
+      const analysisId = entry.id;
       if (
         entry.url !==
           `${expected.apiUrl}/repos/${expected.repository}/code-scanning/analyses/${analysisId}`
@@ -479,6 +524,7 @@ async function main() {
       base: { type: "string" },
       api: { type: "string" },
       branch: { type: "string" },
+      collection: { type: "string" },
       head: { type: "string" },
       pr: { type: "string" },
       repository: { type: "string" },
@@ -488,6 +534,10 @@ async function main() {
     strict: true,
   });
   const input = JSON.parse(await readStreamText(process.stdin));
+  if (values.collection !== undefined) {
+    validateReleaseCodeqlCollectionEntries(values.collection, input);
+    return;
+  }
   const receipt = validateReleaseCodeqlEvidence(input.evidence, {
     apiUrl: values.api,
     baseSha: values.base,

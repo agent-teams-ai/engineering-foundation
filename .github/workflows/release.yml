@@ -599,6 +599,47 @@ jobs:
 
           codeql_check_suite_id="$(jq -r '.checkSuiteId' <<<"${codeql_receipt}")"
           codeql_analyze_check_id="$(jq -r '.analyzeCheckId' <<<"${codeql_receipt}")"
+          observed_codeql_run="${codeql_run}"
+          observed_codeql_jobs="${codeql_jobs}"
+          observed_codeql_analyze_check="${codeql_analyze_check}"
+          observed_codeql_checks="${codeql_checks}"
+          observed_codeql_check_suite="${codeql_check_suite}"
+          observed_codeql_analyses="${codeql_analyses}"
+          observed_pull_request="$(< "${final_pull_request_json}")"
+
+          validate_final_codeql_snapshot() {
+            : > "${codeql_evidence_error}"
+            jq -n \
+              --argjson run "${observed_codeql_run}" \
+              --argjson jobs "${observed_codeql_jobs}" \
+              --argjson analyzeCheck "${observed_codeql_analyze_check}" \
+              --argjson analyses "${observed_codeql_analyses}" \
+              --argjson checkRuns "${observed_codeql_checks}" \
+              --argjson checkSuite "${observed_codeql_check_suite}" \
+              --argjson pullRequest "${observed_pull_request}" \
+              --argjson priorReceipt "${codeql_receipt}" \
+              '{evidence: {run: $run, jobs: $jobs, analyzeCheck: $analyzeCheck,
+                analyses: $analyses, checkRuns: $checkRuns, checkSuite: $checkSuite,
+                pullRequest: $pullRequest, postRun: $run,
+                postPullRequest: $pullRequest}, priorReceipt: $priorReceipt}' | \
+              node scripts/check-release-codeql-evidence.mjs \
+                --api "${GITHUB_API_URL}" \
+                --repository "${GITHUB_REPOSITORY}" \
+                --server "${GITHUB_SERVER_URL}" \
+                --run "${codeql_run_id}" \
+                --pr "${RELEASE_PULL_REQUEST}" \
+                --branch changeset-release/main \
+                --base "${base_sha}" \
+                --head "${head_sha}" >/dev/null 2>"${codeql_evidence_error}"
+          }
+
+          require_final_codeql_snapshot() {
+            if ! validate_final_codeql_snapshot; then
+              cat "${codeql_evidence_error}" >&2
+              fail_attestation "Final release PR CodeQL evidence changed identity"
+            fi
+          }
+
           final_run_verified=0
           final_verification_deadline=$((SECONDS + 60))
           while (( SECONDS < final_verification_deadline )); do
@@ -650,31 +691,68 @@ jobs:
               fail_attestation "Final release PR CI did not succeed"
             fi
             if ! final_codeql_run="$(gh api -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}")" || \
-              ! final_codeql_jobs="$(paginated_object_collection jobs \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}")"; then
+              sleep 5
+              continue
+            fi
+            observed_codeql_run="${final_codeql_run}"
+            require_final_codeql_snapshot
+            if ! final_codeql_jobs="$(paginated_object_collection jobs \
               -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}/attempts/1/jobs?per_page=100")" || \
-              ! final_codeql_analyze_check="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}/attempts/1/jobs?per_page=100")"; then
+              sleep 5
+              continue
+            fi
+            observed_codeql_jobs="${final_codeql_jobs}"
+            require_final_codeql_snapshot
+            if ! final_codeql_analyze_check="$(gh api \
               -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/check-runs/${codeql_analyze_check_id}")" || \
-              ! final_codeql_checks="$(paginated_object_collection check_runs --method GET \
+              "repos/${GITHUB_REPOSITORY}/check-runs/${codeql_analyze_check_id}")"; then
+              sleep 5
+              continue
+            fi
+            observed_codeql_analyze_check="${final_codeql_analyze_check}"
+            require_final_codeql_snapshot
+            if ! final_codeql_checks="$(paginated_object_collection check_runs --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs" \
-              -f check_name=CodeQL -f filter=all -f per_page=100)" || \
-              ! final_codeql_check_suite="$(gh api -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/check-suites/${codeql_check_suite_id}")" || \
-              ! final_codeql_analyses="$(paginated_array_collection --method GET \
+              -f check_name=CodeQL -f filter=all -f per_page=100)"; then
+              sleep 5
+              continue
+            fi
+            observed_codeql_checks="${final_codeql_checks}"
+            require_final_codeql_snapshot
+            if ! final_codeql_check_suite="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/check-suites/${codeql_check_suite_id}")"; then
+              sleep 5
+              continue
+            fi
+            observed_codeql_check_suite="${final_codeql_check_suite}"
+            require_final_codeql_snapshot
+            if ! final_codeql_analyses="$(paginated_array_collection --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/code-scanning/analyses" \
               -f ref=refs/heads/changeset-release/main -f tool_name=CodeQL -f per_page=100)"; then
               sleep 5
               continue
             fi
+            observed_codeql_analyses="${final_codeql_analyses}"
+            require_final_codeql_snapshot
             if ! post_codeql_run="$(gh api -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}")" || \
-              ! post_pull_request="$(gh api -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}")" || \
-              ! post_current_main_sha="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}")"; then
+              sleep 5
+              continue
+            fi
+            observed_codeql_run="${post_codeql_run}"
+            require_final_codeql_snapshot
+            if ! post_pull_request="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PULL_REQUEST}")"; then
+              sleep 5
+              continue
+            fi
+            observed_pull_request="${post_pull_request}"
+            require_final_codeql_snapshot
+            if ! post_current_main_sha="$(gh api \
               "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"; then
               sleep 5
               continue
@@ -684,7 +762,7 @@ jobs:
               --arg expectedBaseSha "${EXPECTED_RELEASE_BASE_SHA}" \
               --arg expectedHeadSha "${head_sha}" \
               --arg expectedPullRequestNumber "${RELEASE_PULL_REQUEST}" \
-              --argjson pullRequest "${post_pull_request}" \
+              --argjson pullRequest "${observed_pull_request}" \
               '{currentMainSha: $currentMainSha, expectedBaseSha: $expectedBaseSha,
                 expectedHeadSha: $expectedHeadSha,
                 expectedPullRequestNumber: $expectedPullRequestNumber,
@@ -692,36 +770,6 @@ jobs:
               node scripts/check-release-pr-freshness.mjs \
                 --processed-main "${PROCESSED_MAIN_SHA}"; then
               fail_attestation "Release PR or main changed during final evidence collection"
-            fi
-            : > "${codeql_evidence_error}"
-            if ! jq -n \
-              --argjson run "${final_codeql_run}" \
-              --argjson jobs "${final_codeql_jobs}" \
-              --argjson analyzeCheck "${final_codeql_analyze_check}" \
-              --argjson analyses "${final_codeql_analyses}" \
-              --argjson checkRuns "${final_codeql_checks}" \
-              --argjson checkSuite "${final_codeql_check_suite}" \
-              --argjson postRun "${post_codeql_run}" \
-              --argjson postPullRequest "${post_pull_request}" \
-              --argjson priorReceipt "${codeql_receipt}" \
-              --slurpfile pullRequest "${final_pull_request_json}" \
-              '{evidence: {run: $run, jobs: $jobs, analyzeCheck: $analyzeCheck,
-                analyses: $analyses,
-                checkRuns: $checkRuns, checkSuite: $checkSuite,
-                pullRequest: $pullRequest[0], postRun: $postRun,
-                postPullRequest: $postPullRequest},
-                priorReceipt: $priorReceipt}' | \
-              node scripts/check-release-codeql-evidence.mjs \
-                --api "${GITHUB_API_URL}" \
-                --repository "${GITHUB_REPOSITORY}" \
-                --server "${GITHUB_SERVER_URL}" \
-                --run "${codeql_run_id}" \
-                --pr "${RELEASE_PULL_REQUEST}" \
-                --branch changeset-release/main \
-                --base "${base_sha}" \
-                --head "${head_sha}" >/dev/null 2>"${codeql_evidence_error}"; then
-              cat "${codeql_evidence_error}" >&2
-              fail_attestation "Final release PR CodeQL evidence changed identity"
             fi
             final_run_verified=1
             break

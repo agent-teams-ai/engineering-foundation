@@ -181,6 +181,22 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
 }
 
+function assertFinalCodeqlReadsFailClosed(attestationSource) {
+  const immediatelyValidatedReads = [
+    /observed_codeql_run="\$\{final_codeql_run\}"\n\s+require_final_codeql_snapshot/u,
+    /observed_codeql_jobs="\$\{final_codeql_jobs\}"\n\s+require_final_codeql_snapshot/u,
+    /observed_codeql_analyze_check="\$\{final_codeql_analyze_check\}"\n\s+require_final_codeql_snapshot/u,
+    /observed_codeql_checks="\$\{final_codeql_checks\}"\n\s+require_final_codeql_snapshot/u,
+    /observed_codeql_check_suite="\$\{final_codeql_check_suite\}"\n\s+require_final_codeql_snapshot/u,
+    /observed_codeql_analyses="\$\{final_codeql_analyses\}"\n\s+require_final_codeql_snapshot/u,
+    /observed_codeql_run="\$\{post_codeql_run\}"\n\s+require_final_codeql_snapshot/u,
+    /observed_pull_request="\$\{post_pull_request\}"\n\s+require_final_codeql_snapshot/u,
+  ];
+  for (const pattern of immediatelyValidatedReads) {
+    assert.match(attestationSource, pattern);
+  }
+}
+
 function exactPullRequestRun(overrides = {}) {
   const repository = "agent-teams-ai/engineering-foundation";
   const baseSha = "a".repeat(40);
@@ -618,6 +634,34 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   );
 });
 
+test("release CodeQL evidence rejects cross-producer identity aliases", () => {
+  const expectation = { ...exactRunExpectation, runId: 123 };
+  const aliasedProducerCheck = exactCodeqlEvidence();
+  aliasedProducerCheck.checkRuns.check_runs[0].id = 456;
+  aliasedProducerCheck.checkRuns.check_runs[0].url =
+    "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/456";
+  aliasedProducerCheck.checkRuns.check_runs[0].html_url =
+    "https://github.com/agent-teams-ai/engineering-foundation/runs/456";
+  aliasedProducerCheck.checkRuns.check_runs[0].details_url =
+    "https://github.com/agent-teams-ai/engineering-foundation/runs/456";
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(aliasedProducerCheck, expectation),
+    /analyze and GitHub Advanced Security check identities must differ/u,
+  );
+
+  const aliasedProducerSuite = exactCodeqlEvidence();
+  aliasedProducerSuite.checkRuns.check_runs[0].check_suite.id = 458;
+  aliasedProducerSuite.checkSuite.id = 458;
+  aliasedProducerSuite.checkSuite.url =
+    "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/458";
+  aliasedProducerSuite.checkSuite.check_runs_url =
+    "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/458/check-runs";
+  assert.throws(
+    () => validateReleaseCodeqlEvidence(aliasedProducerSuite, expectation),
+    /analyze and GitHub Advanced Security suite identities must differ/u,
+  );
+});
+
 test("release CI selection reuses only one exact attempt-1 pull request run", () => {
   assert.deepEqual(
     selectReleaseCiRun({ workflow_runs: [exactPullRequestRun()] }, exactRunExpectation),
@@ -854,8 +898,15 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.match(attestation.run, /final_codeql_analyses/u);
   assert.match(attestation.run, /final_codeql_checks/u);
   assert.match(attestation.run, /priorReceipt: \$priorReceipt/u);
-  assert.match(attestation.run, /postRun: \$postRun/u);
-  assert.match(attestation.run, /postPullRequest: \$postPullRequest/u);
+  assert.match(attestation.run, /postRun: \$run/u);
+  assert.match(attestation.run, /postPullRequest: \$pullRequest/u);
+  assert.match(attestation.run, /validate_final_codeql_snapshot\(\) \{/u);
+  assert.match(attestation.run, /require_final_codeql_snapshot\(\) \{/u);
+  assert.equal(
+    (attestation.run.match(/^\s+require_final_codeql_snapshot$/gmu) ?? []).length,
+    8,
+  );
+  assertFinalCodeqlReadsFailClosed(attestation.run);
   assert.equal(
     (attestation.run.match(/--argjson analyzeCheck/gu) ?? []).length,
     2,

@@ -440,6 +440,16 @@ export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
     analysis.analysisCreatedAt,
     check.checkSuiteId,
   );
+  if (analyze.analyzeCheckId === check.checkId) {
+    throw new Error(
+      "CodeQL analyze and GitHub Advanced Security check identities must differ.",
+    );
+  }
+  if (analyzeCheckEvidence.analyzeCheckSuiteId === check.checkSuiteId) {
+    throw new Error(
+      "CodeQL analyze and GitHub Advanced Security suite identities must differ.",
+    );
+  }
 
   const receipt = Object.freeze({
     analysisId: analysis.analysisId,

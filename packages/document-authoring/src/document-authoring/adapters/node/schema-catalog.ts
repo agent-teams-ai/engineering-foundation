@@ -1,10 +1,10 @@
+import { createDocumentInputFailure } from "../../application/policies/document-input-failure.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
 
-import { CapabilityInputError } from "../../../documentation-observation/api.js";
 
 import type { DocumentAuthoringSchemaId } from "../../application/ports/document-schema-validator.js";
 
@@ -93,8 +93,6 @@ export async function assertSchema(
     validators.set(schemaId, validate);
   }
   if (!validate(input)) {
-    throw new CapabilityInputError({
-      code: "SCHEMA_INVALID", message: safeMessage(validate.errors), phase, retryable: false
-    });
+    throw createDocumentInputFailure("SCHEMA_INVALID", safeMessage(validate.errors), phase);
   }
 }

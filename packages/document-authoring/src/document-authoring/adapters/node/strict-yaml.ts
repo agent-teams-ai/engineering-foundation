@@ -1,9 +1,9 @@
+import { createDocumentInputFailure } from "../../application/policies/document-input-failure.js";
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
-import { CapabilityInputError } from "../../../documentation-observation/api.js";
 
-function invalid(code: string, message: string, phase: string): never {
-  throw new CapabilityInputError({ code, message, phase, retryable: false });
+function invalid(code: "YAML_INVALID" | "YAML_FEATURE_PROHIBITED", message: string, phase: string): never {
+  throw createDocumentInputFailure(code, message, phase);
 }
 
 export function parseStrictYamlSource(source: string, phase: string): unknown {

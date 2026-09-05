@@ -1,4 +1,4 @@
-import type { ContainedFileReader } from "../../../documentation-observation/api.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import type {
   AuthoringProfileReader,
   CatalogCollection,
@@ -18,7 +18,7 @@ function freezeCollection(collection: CatalogCollection): CatalogCollection {
 }
 
 export class NodeAuthoringProfileReader implements AuthoringProfileReader {
-  constructor(private readonly readFile: ContainedFileReader) {}
+  constructor(private readonly readFile: DocumentFileReader) {}
   async read(request: {
     readonly consumerRoot: string;
     readonly path: string;

@@ -1,4 +1,5 @@
-import { assertNotCancelled, type ContainedFileReader } from "../../../documentation-observation/api.js";
+import { assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 
 import { NodeDocumentMetadataSidecarReader } from "./node-document-metadata-sidecar-reader.js";
@@ -15,7 +16,7 @@ const MAX_TEMPLATE_BYTES = 256 * 1024;
 async function loadTemplateEvidence(
   request: DescriptionRequest,
   profile: ValidatedDescriptionProfile,
-  readFile: ContainedFileReader
+  readFile: DocumentFileReader
 ): Promise<ReadonlyMap<string, DocumentAuthorityEvidence>> {
   const paths = [...new Set(
     profile.authoring.artifactTypes.map((artifactType) => artifactType.template.path)
@@ -29,14 +30,14 @@ async function loadTemplateEvidence(
       })
     )
   );
-  assertNotCancelled(request.signal);
+  assertDocumentAuthoringActive(request.signal);
   return new Map(files.map((file) => [file.evidence.path, file.evidence]));
 }
 
 async function loadDescriptionAuthority(
   request: DescriptionRequest,
   expectedVersion: 2 | 3,
-  readFile: ContainedFileReader
+  readFile: DocumentFileReader
 ): Promise<LoadedDescriptionAuthority> {
   const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2(readFile, {
     consumerRoot: request.consumerRoot,
@@ -83,7 +84,7 @@ async function loadDescriptionAuthority(
 
 export async function describeDocumentAuthoringProfileV2(
   request: DescribeDocumentAuthoringProfileV2Request,
-  readFile: ContainedFileReader
+  readFile: DocumentFileReader
 ): Promise<DocumentAuthoringProfileDescriptionV2> {
   const description = await describeDocumentAuthoringProfile(request, 2, (input, version) => loadDescriptionAuthority(input, version, readFile));
   if (description.profileSchemaVersion !== 2) {
@@ -94,7 +95,7 @@ export async function describeDocumentAuthoringProfileV2(
 
 export async function describeDocumentAuthoringProfileV3(
   request: DescribeDocumentAuthoringProfileV3Request,
-  readFile: ContainedFileReader
+  readFile: DocumentFileReader
 ): Promise<DocumentAuthoringProfileDescriptionV3> {
   const description = await describeDocumentAuthoringProfile(request, 3, (input, version) => loadDescriptionAuthority(input, version, readFile));
   if (description.profileSchemaVersion !== 3) {

@@ -1,9 +1,4 @@
-import type { ContainedFileReader, MarkdownRepository, MarkdownSyntaxReader } from "../../../documentation-observation/api.js";
-export interface DocumentObservationDependencies {
-  readonly readFile: ContainedFileReader;
-  readonly repository: MarkdownRepository;
-  readonly syntax: MarkdownSyntaxReader;
-}
+import type { DocumentObservationDependencies } from "../../application/ports/document-observation.js";
 import { installedDocumentAuthoringVersion } from "./package-version.js";
 import { installedDocumentAuthoringBuildIdentity } from "./installed-artifact-identity.js";
 import {

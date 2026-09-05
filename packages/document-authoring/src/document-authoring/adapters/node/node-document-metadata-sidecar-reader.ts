@@ -1,4 +1,5 @@
-import { CapabilityInputError, assertNotCancelled, type ContainedFileReader } from "../../../documentation-observation/api.js";
+import { isDocumentInputFailure, assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 
 
 import { parseStrictYamlSource } from "./strict-yaml.js";
@@ -72,7 +73,7 @@ function parseSidecar(source: string): Readonly<Record<string, DocumentMetadataO
   try {
     input = parseStrictYamlSource(source, "document-metadata-sidecar");
   } catch (error) {
-    if (error instanceof CapabilityInputError) {
+    if (isDocumentInputFailure(error)) {
       invalidSidecar(error.message, error);
     }
     throw error;
@@ -97,20 +98,20 @@ function parseSidecar(source: string): Readonly<Record<string, DocumentMetadataO
 export class NodeDocumentMetadataSidecarReader
   implements DocumentMetadataSidecarReader
 {
-  constructor(private readonly readFile: ContainedFileReader) {}
+  constructor(private readonly readFile: DocumentFileReader) {}
   async read(request: {
     readonly consumerRoot: string;
     readonly path: string;
     readonly signal?: AbortSignal;
   }): Promise<DocumentMetadataSidecarSnapshot> {
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     const file = await readDocumentAuthorityFile(this.readFile, {
       consumerRoot: request.consumerRoot,
       maxBytes: MAXIMUM_SIDECAR_BYTES,
       path: request.path
     });
     const documents = parseSidecar(file.source);
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     return Object.freeze({ documents, evidence: file.evidence });
   }
 }

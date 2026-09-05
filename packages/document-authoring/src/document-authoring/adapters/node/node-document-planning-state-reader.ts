@@ -1,7 +1,9 @@
+import { assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import { isDocumentFileReadFailure } from "../../application/policies/document-file-read-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { assertNotCancelled, ContainedFileReadError, type ContainedFileReader } from "../../../documentation-observation/api.js";
 
 import type { DocumentPlanningStateSnapshot } from "../../application/model/document-planning.js";
 import type { DocumentPlanningStateReader } from "../../application/ports/document-planning-state-reader.js";
@@ -61,7 +63,7 @@ function observationUnavailable(message: string, cause?: unknown): never {
   );
 }
 
-async function observeRegularDestination(readContainedRegularFile: ContainedFileReader, input: {
+async function observeRegularDestination(readContainedRegularFile: DocumentFileReader, input: {
   readonly candidate: string;
   readonly destination: string;
   readonly root: string;
@@ -78,12 +80,12 @@ async function observeRegularDestination(readContainedRegularFile: ContainedFile
     });
   } catch (error) {
     if (
-      error instanceof ContainedFileReadError &&
+      isDocumentFileReadFailure(error) &&
       (error.failure === "invalid" || error.failure === "symlink")
     ) {
       return Object.freeze({ kind: "special-file", state: "conflict" });
     }
-    if (error instanceof ContainedFileReadError) {
+    if (isDocumentFileReadFailure(error)) {
       observationUnavailable(
         `Document destination changed or became unavailable: ${input.destination}.`,
         error
@@ -115,7 +117,7 @@ async function observeRealParent(input: {
   let current = root;
   const parentSegments = input.destination.split("/").slice(0, -1);
   for (const segment of parentSegments) {
-    assertNotCancelled(input.signal);
+    assertDocumentAuthoringActive(input.signal);
     try {
       if (await hasPortableNameCollision(current, segment)) {
         parentUnavailable(
@@ -149,14 +151,14 @@ async function observeRealParent(input: {
 
 export class NodeDocumentPlanningStateReader
 implements DocumentPlanningStateReader {
-  constructor(private readonly readFile: ContainedFileReader) {}
+  constructor(private readonly readFile: DocumentFileReader) {}
   async observe(request: {
     readonly consumerRoot: string;
     readonly destination: string;
     readonly parentPolicy?: "create-missing-real-directories";
     readonly signal?: AbortSignal;
   }): Promise<DocumentPlanningStateSnapshot> {
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     if (!isDocumentRepositoryPath(request.destination)) {
       throw new DocumentPlanningError(
         "DOCUMENT_PLANNING_INPUT_INVALID",
@@ -179,7 +181,7 @@ implements DocumentPlanningStateReader {
       });
     }
     const { parent, root } = await observeRealParent(request);
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     const basename = request.destination.split("/").at(-1) ?? "";
     let destination: DocumentPlanningStateSnapshot["destination"];
     try {
@@ -220,7 +222,7 @@ implements DocumentPlanningStateReader {
         error
       );
     }
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     return Object.freeze({
       destination,
       expectedParent: Object.freeze({

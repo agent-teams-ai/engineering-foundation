@@ -1,4 +1,5 @@
-import { CapabilityInputError, assertNotCancelled, type ContainedFileReader } from "../../../documentation-observation/api.js";
+import { isDocumentInputFailure, assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import { InvalidDocumentAuthoringProfileError, type ValidatedDocumentAuthoringProfile } from "../../application/model/validated-document-authoring-profile.js";
 
 
@@ -20,7 +21,7 @@ function invalidProfile(error: unknown): never {
   throw new InvalidDocumentAuthoringProfileError(message, { cause: error });
 }
 
-export async function loadValidatedDocumentAuthoringProfile(readFile: ContainedFileReader, request: {
+export async function loadValidatedDocumentAuthoringProfile(readFile: DocumentFileReader, request: {
   readonly consumerRoot: string;
   readonly path: string;
   readonly signal?: AbortSignal;
@@ -28,7 +29,7 @@ export async function loadValidatedDocumentAuthoringProfile(readFile: ContainedF
   readonly evidence: Awaited<ReturnType<typeof readDocumentAuthorityFile>>["evidence"];
   readonly profile: ValidatedDocumentAuthoringProfile;
 }> {
-  assertNotCancelled(request.signal);
+  assertDocumentAuthoringActive(request.signal);
   const file = await readDocumentAuthorityFile(readFile, {
     consumerRoot: request.consumerRoot,
     maxBytes: MAX_PROFILE_BYTES,
@@ -36,7 +37,7 @@ export async function loadValidatedDocumentAuthoringProfile(readFile: ContainedF
   });
   let input: unknown;
   try {
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     input = parseStrictYamlSource(file.source, "document-authoring-profile");
     await assertSchema(
       "document-authoring-profile/v1",
@@ -44,10 +45,10 @@ export async function loadValidatedDocumentAuthoringProfile(readFile: ContainedF
       "document-authoring-profile"
     );
     assertAuthoringProfileSemantics(input as AuthoringProfileSemantics);
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
   } catch (error) {
     if (
-      error instanceof CapabilityInputError ||
+      isDocumentInputFailure(error) ||
       error instanceof AuthoringProfileSemanticError
     ) {
       invalidProfile(error);

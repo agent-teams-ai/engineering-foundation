@@ -1,4 +1,5 @@
-import { CapabilityInputError, assertNotCancelled, type ContainedFileReader } from "../../../documentation-observation/api.js";
+import { isDocumentInputFailure, assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 
 
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
@@ -31,7 +32,7 @@ function parseOwnerIds(source: string): readonly string[] {
   try {
     input = parseStrictYamlSource(source, "document-owner-catalog");
   } catch (error) {
-    if (error instanceof CapabilityInputError) {
+    if (isDocumentInputFailure(error)) {
       invalidOwnerCatalog("Document owner catalog must contain strict YAML.", error);
     }
     throw error;
@@ -69,20 +70,20 @@ function parseOwnerIds(source: string): readonly string[] {
 }
 
 export class NodeOwnerMembershipReader implements OwnerMembershipReader {
-  constructor(private readonly readFile: ContainedFileReader) {}
+  constructor(private readonly readFile: DocumentFileReader) {}
   async read(request: {
     readonly consumerRoot: string;
     readonly contract: "foundation.owner-map/v1";
     readonly path: string;
     readonly signal?: AbortSignal;
   }): Promise<OwnerMembershipSnapshot> {
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     const file = await readDocumentAuthorityFile(this.readFile, {
       consumerRoot: request.consumerRoot,
       maxBytes: MAX_OWNER_CATALOG_BYTES,
       path: request.path
     });
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     return Object.freeze({ evidence: file.evidence, ids: parseOwnerIds(file.source) });
   }
 }

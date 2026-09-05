@@ -1262,7 +1262,6 @@ boundaries:
       boundaries:
         - document-authoring.application
         - document-authoring.binary-order
-        - document-authoring.observation.application
       packages:
         - "@agent-teams/repository-mutation"
         - ajv
@@ -1312,7 +1311,6 @@ boundaries:
       boundaries:
         - document-authoring.application
         - document-authoring.binary-order
-        - document-authoring.observation.application
         - document-authoring.outbound
       packages: []
       builtins:
@@ -1323,6 +1321,12 @@ boundaries:
       - packages/document-authoring/src/document-authoring/adapters/node/node-document-writing.ts
   - id: document-authoring.application
     roots:
+      - packages/document-authoring/src/document-authoring/application/ports/document-file-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-markdown-syntax-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-markdown-repository.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-observation.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-input-failure.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-file-read-failure.ts
       - packages/document-authoring/src/document-authoring/api.ts
       - packages/document-authoring/src/document-authoring/application/model/document-authoring-profile-description.ts
       - packages/document-authoring/src/document-authoring/application/model/document-catalog-error.ts
@@ -1424,6 +1428,12 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/document-authoring/src/document-authoring/application/ports/document-file-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-markdown-syntax-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-markdown-repository.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-observation.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-input-failure.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-file-read-failure.ts
       - packages/document-authoring/src/document-authoring/api.ts
       - packages/document-authoring/src/document-authoring/application/model/document-authoring-profile-description.ts
       - packages/document-authoring/src/document-authoring/application/model/document-catalog-error.ts

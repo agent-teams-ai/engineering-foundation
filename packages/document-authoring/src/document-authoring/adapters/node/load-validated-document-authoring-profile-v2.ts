@@ -1,4 +1,5 @@
-import { CapabilityInputError, assertNotCancelled, type ContainedFileReader } from "../../../documentation-observation/api.js";
+import { isDocumentInputFailure, assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import { InvalidDocumentAuthoringProfileError, type ValidatedDocumentAuthoringProfileVersioned } from "../../application/model/validated-document-authoring-profile.js";
 
 
@@ -52,7 +53,7 @@ function assertVersionedCanonicalStrings(
   }
 }
 
-export async function loadValidatedDocumentAuthoringProfileV2(readFile: ContainedFileReader, request: {
+export async function loadValidatedDocumentAuthoringProfileV2(readFile: DocumentFileReader, request: {
   readonly consumerRoot: string;
   readonly path: string;
   readonly signal?: AbortSignal;
@@ -60,7 +61,7 @@ export async function loadValidatedDocumentAuthoringProfileV2(readFile: Containe
   readonly evidence: Awaited<ReturnType<typeof readDocumentAuthorityFile>>["evidence"];
   readonly profile: ValidatedDocumentAuthoringProfileVersioned;
 }> {
-  assertNotCancelled(request.signal);
+  assertDocumentAuthoringActive(request.signal);
   const file = await readDocumentAuthorityFile(readFile, {
     consumerRoot: request.consumerRoot,
     maxBytes: MAX_PROFILE_BYTES,
@@ -88,10 +89,10 @@ export async function loadValidatedDocumentAuthoringProfileV2(readFile: Containe
       );
     }
     assertAuthoringProfileSemantics(input as unknown as AuthoringProfileSemantics);
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
   } catch (error) {
     if (
-      error instanceof CapabilityInputError ||
+      isDocumentInputFailure(error) ||
       error instanceof AuthoringProfileSemanticError ||
       error instanceof TypeError
     ) {

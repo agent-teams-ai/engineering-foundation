@@ -1,4 +1,5 @@
-import { assertNotCancelled, type ContainedFileReader } from "../../../documentation-observation/api.js";
+import { assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 
 
@@ -59,19 +60,19 @@ function messages(errors: readonly ErrorObject[] | null | undefined): readonly s
 }
 
 export class NodeMetadataInstanceValidator implements MetadataInstanceValidator {
-  constructor(private readonly readFile: ContainedFileReader) {}
+  constructor(private readonly readFile: DocumentFileReader) {}
   async load(request: {
     readonly consumerRoot: string;
     readonly path: string;
     readonly signal?: AbortSignal;
   }): Promise<MetadataSchemaSnapshot> {
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     const file = await readDocumentAuthorityFile(this.readFile, {
       consumerRoot: request.consumerRoot,
       maxBytes: MAX_METADATA_SCHEMA_BYTES,
       path: request.path
     });
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     let schema: unknown;
     try {
       schema = parseStrictJson(file.source);
@@ -97,7 +98,7 @@ export class NodeMetadataInstanceValidator implements MetadataInstanceValidator 
     } catch (error) {
       invalidSchema("Document metadata schema cannot be compiled as Draft 2020-12.", error);
     }
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     return Object.freeze({
       evidence: file.evidence,
       ...(Array.isArray(schema["required"]) &&

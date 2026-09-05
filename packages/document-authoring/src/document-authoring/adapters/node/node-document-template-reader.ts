@@ -1,4 +1,5 @@
-import { assertNotCancelled, CapabilityInputError, type ContainedFileReader } from "../../../documentation-observation/api.js";
+import { assertDocumentAuthoringActive, isDocumentInputFailure } from "../../application/policies/document-input-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 
 
 import type { DocumentTemplateSnapshot } from "../../application/model/document-planning.js";
@@ -10,23 +11,23 @@ import { readDocumentAuthorityFile } from "./read-document-authority-file.js";
 const MAX_TEMPLATE_BYTES = 256 * 1024;
 
 export class NodeDocumentTemplateReader implements DocumentTemplateReader {
-  constructor(private readonly readFile: ContainedFileReader) {}
+  constructor(private readonly readFile: DocumentFileReader) {}
   async read(request: {
     readonly consumerRoot: string;
     readonly path: string;
     readonly signal?: AbortSignal;
   }): Promise<DocumentTemplateSnapshot> {
-    assertNotCancelled(request.signal);
+    assertDocumentAuthoringActive(request.signal);
     try {
       const file = await readDocumentAuthorityFile(this.readFile, {
         consumerRoot: request.consumerRoot,
         maxBytes: MAX_TEMPLATE_BYTES,
         path: request.path
       });
-      assertNotCancelled(request.signal);
+      assertDocumentAuthoringActive(request.signal);
       return Object.freeze({ evidence: file.evidence, source: file.source });
     } catch (error) {
-      if (error instanceof CapabilityInputError || error instanceof DocumentPlanningError) {
+      if (isDocumentInputFailure(error) || error instanceof DocumentPlanningError) {
         throw error;
       }
       if (error instanceof DocumentCatalogError) {

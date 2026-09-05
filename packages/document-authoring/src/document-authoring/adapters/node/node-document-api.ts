@@ -20,7 +20,8 @@ import type {
 } from "../../application/use-cases/plan-documentation-document.js";
 import type { DocumentPlanContract } from "../../application/model/document-planning.js";
 import type { DocumentReceiptContract } from "../../application/model/document-receipt.js";
-import { planNodeDocumentationDocument, type DocumentObservationDependencies } from "./node-document-planning.js";
+import { planNodeDocumentationDocument } from "./node-document-planning.js";
+import type { DocumentObservationDependencies } from "../../application/ports/document-observation.js";
 import type { ApplyDocumentPlanRequest } from "../../application/use-cases/apply-document-plan.js";
 import type { RecoverDocumentTransactionRequest } from "../../application/use-cases/recover-document-transaction.js";
 import {

@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "../../../../documentation-observation/api.js";
+import { isDocumentInputFailure } from "../../../application/policies/document-input-failure.js";
 import { DocumentAuthoringError } from "../../../application/model/errors.js";
 import type {
   DocumentDescriptor,
@@ -99,7 +99,7 @@ export function documentFindFailure(
   error: unknown
 ): DocumentFindCommandResult {
   if (
-    error instanceof CapabilityInputError &&
+    isDocumentInputFailure(error) &&
     error.problem.code === "EXECUTION_CANCELLED"
   ) {
     return Object.freeze({
@@ -118,7 +118,7 @@ export function documentFindFailure(
       exitCode: 130
     });
   }
-  if (error instanceof CapabilityInputError) {
+  if (isDocumentInputFailure(error)) {
     return Object.freeze({
       envelope: envelope({
         diagnostics: [

@@ -1,6 +1,6 @@
+import type { DocumentMarkdownSyntaxReader } from "../application/ports/document-markdown-syntax-reader.js";
 import { isAlias, isNode, parseDocument, stringify, visit } from "yaml";
 
-import type { MarkdownSyntaxReader } from "../../documentation-observation/api.js";
 import { compareBinaryStrings } from "../../binary-string-comparator.js";
 import type {
   CanonicalDocumentInput,
@@ -340,7 +340,7 @@ function assertSafePlaceholderFrontmatter(source: string): void {
   canonicalizeValue(value as CanonicalFrontmatterValue, new Set<object>());
 }
 
-function extractMarkdownSkeleton(source: string, markdownNodes: MarkdownSyntaxReader): string {
+function extractMarkdownSkeleton(source: string, markdownNodes: DocumentMarkdownSyntaxReader): string {
   const candidates = markdownNodes(source, "code").filter(
     (node) => node.lang === "markdown" && (node.meta === null || node.meta === undefined)
   );
@@ -366,7 +366,7 @@ function extractMarkdownSkeleton(source: string, markdownNodes: MarkdownSyntaxRe
   return fenced.slice(opening[0].length, closingStart - 1);
 }
 
-function leadingH1(source: string, markdownNodes: MarkdownSyntaxReader): { readonly heading: string; readonly end: number } {
+function leadingH1(source: string, markdownNodes: DocumentMarkdownSyntaxReader): { readonly heading: string; readonly end: number } {
   const headings = markdownNodes(source, "heading").filter((node) => node.depth === 1);
   const first = headings[0];
   const start = first?.position?.start.offset;
@@ -385,7 +385,7 @@ function leadingH1(source: string, markdownNodes: MarkdownSyntaxReader): { reado
 
 export function parseGovernedTemplateSkeleton(
   source: string,
-  markdownNodes: MarkdownSyntaxReader
+  markdownNodes: DocumentMarkdownSyntaxReader
 ): GovernedTemplateSkeleton {
   const normalized = normalizeTemplateSource(source);
   const skeleton = extractMarkdownSkeleton(normalized, markdownNodes);
@@ -416,7 +416,7 @@ export function renderCanonicalDocument(input: CanonicalDocumentInput): string {
 }
 
 export class YamlCanonicalDocumentRenderer implements CanonicalDocumentRenderer {
-  constructor(private readonly markdownNodes: MarkdownSyntaxReader) {}
+  constructor(private readonly markdownNodes: DocumentMarkdownSyntaxReader) {}
   parseTemplate(source: string): GovernedTemplateSkeleton {
     return parseGovernedTemplateSkeleton(source, this.markdownNodes);
   }

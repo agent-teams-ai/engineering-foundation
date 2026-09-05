@@ -1,5 +1,6 @@
+import type { DocumentMarkdownRepository } from "../ports/document-markdown-repository.js";
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import type { MarkdownDocumentObservation, MarkdownObservationIssue, MarkdownRepositoryObservation, MarkdownRepository } from "../../../documentation-observation/api.js";
+import type { MarkdownDocumentObservation, MarkdownObservationIssue, MarkdownRepositoryObservation } from "../../../documentation-observation/api.js";
 
 import type { DocumentDescriptor, DocumentIdentityProjectionEntry, DocumentationCatalogDiagnostic, DocumentationCatalogSnapshot, DocumentationCatalogSnapshotV2, DocumentationSearchCatalogSnapshot, DocumentationSearchCatalogSnapshotV2, DocumentSearchCorpusEntry } from "../model/document-catalog.js";
 import type { DocumentationCatalogReadRequest, DocumentationSearchCatalogReader } from "../ports/documentation-search-catalog-reader.js";
@@ -151,7 +152,7 @@ interface CatalogDependencies {
   readonly metadata: MetadataInstanceValidator;
   readonly owners: OwnerMembershipReader;
   readonly profile: AuthoringProfileReader;
-  readonly repository: MarkdownRepository;
+  readonly repository: DocumentMarkdownRepository;
   readonly sidecar?: DocumentMetadataSidecarReader;
 }
 
@@ -224,7 +225,7 @@ async function loadCatalogAuthority(
 }
 
 async function observeCatalogTwice(
-  repository: MarkdownRepository,
+  repository: DocumentMarkdownRepository,
   authority: LoadedCatalogAuthority,
   request: BuildDocumentationCatalogRequest
 ): Promise<readonly [CatalogObservation, CatalogObservation]> {
@@ -397,13 +398,13 @@ export class BuildDocumentationCatalog
   readonly #metadata: MetadataInstanceValidator;
   readonly #owners: OwnerMembershipReader;
   readonly #profile: AuthoringProfileReader;
-  readonly #repository: MarkdownRepository;
+  readonly #repository: DocumentMarkdownRepository;
 
   constructor(dependencies: {
     readonly metadata: MetadataInstanceValidator;
     readonly owners: OwnerMembershipReader;
     readonly profile: AuthoringProfileReader;
-    readonly repository: MarkdownRepository;
+    readonly repository: DocumentMarkdownRepository;
   }) {
     this.#metadata = dependencies.metadata;
     this.#owners = dependencies.owners;
@@ -439,7 +440,7 @@ export class BuildDocumentationCatalogV2
   readonly #metadata: MetadataInstanceValidator;
   readonly #owners: OwnerMembershipReader;
   readonly #profile: AuthoringProfileReader;
-  readonly #repository: MarkdownRepository;
+  readonly #repository: DocumentMarkdownRepository;
   readonly #sidecar: DocumentMetadataSidecarReader | undefined;
 
   constructor(dependencies: CatalogDependencies) {

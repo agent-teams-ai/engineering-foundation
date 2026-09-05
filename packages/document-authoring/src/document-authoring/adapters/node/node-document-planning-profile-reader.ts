@@ -1,4 +1,4 @@
-import type { ContainedFileReader } from "../../../documentation-observation/api.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import type {
   DocumentArtifactType,
   DocumentCatalogCollection,
@@ -76,7 +76,7 @@ function invalidProfile(error: InvalidDocumentAuthoringProfileError): never {
 
 export class NodeDocumentPlanningProfileReader
 implements DocumentPlanningProfileReader {
-  constructor(private readonly readFile: ContainedFileReader) {}
+  constructor(private readonly readFile: DocumentFileReader) {}
   async read(request: {
     readonly consumerRoot: string;
     readonly path: string;

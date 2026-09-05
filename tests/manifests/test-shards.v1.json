@@ -16,6 +16,7 @@
         "tests/contract-json-schema-releases.test.mjs",
         "tests/contract-protobuf-qualification.test.mjs",
         "tests/document-authoring-canonical-markdown.test.mjs",
+        "tests/document-authoring-observation-boundary.test.mjs",
         "tests/document-authoring-donor-golden.test.mjs",
         "tests/document-authoring-profile-v2.test.mjs",
         "tests/document-authoring-transaction-coordination-v2.test.mjs",

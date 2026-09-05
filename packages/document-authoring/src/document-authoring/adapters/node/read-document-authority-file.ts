@@ -1,7 +1,8 @@
+import { type DocumentFileReadFailure, isDocumentFileReadFailure } from "../../application/policies/document-file-read-failure.js";
+import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
-import { ContainedFileReadError, type ContainedFileReader } from "../../../documentation-observation/api.js";
 import type {
   DocumentAuthorityDigest,
   DocumentAuthorityEvidence
@@ -58,7 +59,7 @@ function digest(bytes: Buffer): DocumentAuthorityDigest {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function unavailable(path: string, error: ContainedFileReadError): never {
+function unavailable(path: string, error: DocumentFileReadFailure): never {
   const detail =
     error.failure === "symlink"
       ? "cannot traverse a symbolic link"
@@ -74,7 +75,7 @@ function unavailable(path: string, error: ContainedFileReadError): never {
   );
 }
 
-export async function readDocumentAuthorityFile(readContainedRegularFile: ContainedFileReader, request: {
+export async function readDocumentAuthorityFile(readContainedRegularFile: DocumentFileReader, request: {
   readonly consumerRoot: string;
   readonly maxBytes: number;
   readonly path: string;
@@ -88,7 +89,7 @@ export async function readDocumentAuthorityFile(readContainedRegularFile: Contai
       root: request.consumerRoot
     }));
   } catch (error) {
-    if (error instanceof ContainedFileReadError) {
+    if (isDocumentFileReadFailure(error)) {
       unavailable(request.path, error);
     }
     throw error;

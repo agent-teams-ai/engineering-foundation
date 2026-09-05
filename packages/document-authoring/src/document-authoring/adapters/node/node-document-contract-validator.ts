@@ -1,6 +1,6 @@
+import { type DocumentInputFailure, isDocumentInputFailure } from "../../application/policies/document-input-failure.js";
 import { isProxy } from "node:util/types";
 
-import { CapabilityInputError } from "../../../documentation-observation/api.js";
 import { assertSchema } from "./schema-catalog.js";
 import type {
   DocumentIntent,
@@ -10,7 +10,7 @@ import type { DocumentContractValidator } from "../../application/ports/document
 import { DocumentPlanningError } from "../../application/model/document-planning-error.js";
 import { assertDocumentPlanDigests } from "../../application/policies/document-contract-digests.js";
 
-function invalidContract(kind: "Intent" | "Plan", error: CapabilityInputError): never {
+function invalidContract(kind: "Intent" | "Plan", error: DocumentInputFailure): never {
   throw new DocumentPlanningError(
     kind === "Intent"
       ? "DOCUMENT_PLANNING_INPUT_INVALID"
@@ -362,7 +362,7 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
       await assertSchema("document-intent/v1", input, "document-intent");
       return input as DocumentIntent;
     } catch (error) {
-      if (error instanceof CapabilityInputError) {
+      if (isDocumentInputFailure(error)) {
         invalidContract("Intent", error);
       }
       if (error instanceof TypeError) {
@@ -389,7 +389,7 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
       assertDocumentPlanDigests(snapshot);
       return snapshot;
     } catch (error) {
-      if (error instanceof CapabilityInputError) {
+      if (isDocumentInputFailure(error)) {
         invalidContract("Plan", error);
       }
       if (error instanceof Error) {

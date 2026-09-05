@@ -3,7 +3,7 @@ import type {
   DocumentTransactionEnvelope,
   RunDocumentAuthoringCrashQualificationRequest
 } from "../document-authoring/testing/api.js";
-import { createDocumentAuthoringCrashQualification, assertDocumentTransactionEnvelope as validateEnvelope } from "../document-authoring/testing/api.js";
+import { createDocumentAuthoringCrashQualification, createDocumentTransactionEnvelopeValidator } from "../document-authoring/testing/api.js";
 import { createNodeDocumentAuthority, documentSchemaValidator } from "../document-authoring/module.js";
 import { FilesystemMarkdownRepository, readContainedRegularFile, readMarkdownSyntax } from "../documentation-observation/module.js";
 
@@ -13,6 +13,8 @@ const runCrashQualification = createDocumentAuthoringCrashQualification(createNo
   syntax: readMarkdownSyntax
 }));
 
+const validateEnvelope = createDocumentTransactionEnvelopeValidator(documentSchemaValidator);
+
 export function runDocumentAuthoringCrashQualification(
   request: RunDocumentAuthoringCrashQualificationRequest
 ): Promise<DocumentAuthoringCrashQualificationResult> {
@@ -20,5 +22,5 @@ export function runDocumentAuthoringCrashQualification(
 }
 
 export function assertDocumentTransactionEnvelope(value: unknown): Promise<DocumentTransactionEnvelope> {
-  return validateEnvelope(documentSchemaValidator, value);
+  return validateEnvelope(value);
 }

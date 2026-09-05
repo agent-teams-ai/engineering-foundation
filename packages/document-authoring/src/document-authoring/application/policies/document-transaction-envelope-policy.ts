@@ -159,6 +159,14 @@ function assertLifecycleBindings(
   }
 }
 
+export function createDocumentTransactionEnvelopeValidator(
+  schema: DocumentSchemaValidator
+): (value: unknown) => Promise<DocumentTransactionEnvelope> {
+  return function validateEnvelope(value: unknown): Promise<DocumentTransactionEnvelope> {
+    return assertDocumentTransactionEnvelope(schema, value);
+  };
+}
+
 export async function assertDocumentTransactionEnvelope(
   schema: DocumentSchemaValidator,
   value: unknown

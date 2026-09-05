@@ -35,4 +35,4 @@ export type {
 export type { DocumentPhysicalIdentity } from "../application/model/document-physical-identity.js";
 export { assertDocumentPlanDigests } from "../application/policies/document-contract-digests.js";
 export { documentTemporaryPath } from "../application/policies/document-temporary-path.js";
-export { assertDocumentTransactionEnvelope } from "../application/policies/document-transaction-envelope-policy.js";
+export { assertDocumentTransactionEnvelope, createDocumentTransactionEnvelopeValidator } from "../application/policies/document-transaction-envelope-policy.js";

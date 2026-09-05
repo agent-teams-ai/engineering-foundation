@@ -1,7 +1,7 @@
 import { lstat, mkdir, realpath } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
-import type { PortablePathIdentity } from "../../application/model/path-identity.js";
+import type { PortablePathIdentity } from "../../../path-identity.js";
 
 export interface TerminalEvidenceDirectoryStat {
   readonly birthtimeNs: bigint;
@@ -17,10 +17,8 @@ export interface TerminalEvidenceDirectoryOperations {
   readonly realpath: typeof realpath;
 }
 
-export interface TerminalEvidenceDirectoryAuthority {
-  readonly identity: PortablePathIdentity;
-  readonly path: string;
-}
+import type { TerminalEvidenceDirectoryAuthority } from "../../application/file-observation.js";
+export type { TerminalEvidenceDirectoryAuthority } from "../../application/file-observation.js";
 
 const nodeOperations: TerminalEvidenceDirectoryOperations = {
   lstat: (path) => lstat(path, { bigint: true }),

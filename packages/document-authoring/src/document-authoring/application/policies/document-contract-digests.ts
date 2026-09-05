@@ -1,10 +1,5 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import {
-  canonicalJson,
-  type CanonicalJsonValue,
-  sha256Bytes,
-  sha256Json
-} from "@agent-teams/repository-mutation";
+import { canonicalJson, type CanonicalJsonValue, sha256Bytes, sha256Json } from "@agent-teams/repository-mutation/serialization";
 import { documentTemporaryPath } from "./document-temporary-path.js";
 import { documentRepositoryParentPath } from "./document-repository-path.js";
 

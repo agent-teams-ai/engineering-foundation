@@ -1,9 +1,5 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import {
-  canonicalJson,
-  sha256Json,
-  type CanonicalJsonValue
-} from "@agent-teams/repository-mutation";
+import { canonicalJson, sha256Json, type CanonicalJsonValue } from "@agent-teams/repository-mutation/serialization";
 import type {
   DocumentAuthoringProfileDescriptionV2,
   DocumentAuthoringProfileDescriptionV3

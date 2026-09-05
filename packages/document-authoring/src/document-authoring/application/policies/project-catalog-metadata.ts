@@ -1,5 +1,5 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import { canonicalJson } from "@agent-teams/repository-mutation";
+import { canonicalJson } from "@agent-teams/repository-mutation/serialization";
 import type {
   DocumentMetadataObject,
   DocumentMetadataValue

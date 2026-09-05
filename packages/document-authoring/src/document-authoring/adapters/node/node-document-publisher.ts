@@ -10,7 +10,7 @@ import {
   syncDirectoryDurably,
   syncDirectoryStrictly
 } from "@agent-teams/repository-mutation/node";
-import type { PortablePathIdentity } from "@agent-teams/repository-mutation";
+import type { PortablePathIdentity } from "@agent-teams/repository-mutation/paths";
 import {
   assertDocumentPhysicalIdentity,
   assertNonzeroDocumentPhysicalIdentity,

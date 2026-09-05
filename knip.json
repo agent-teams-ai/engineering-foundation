@@ -10,6 +10,7 @@
         "tests/fixtures/coverage-process-tree.fixture.mjs",
         "tests/fixtures/foundation-transaction-holder.mjs",
         "tests/fixtures/scaffolding-crash-worker.mjs",
+        "tests/support/document-authoring-schema-closures.mjs",
         "tests/fixtures/**/scripts/*.mjs"
       ],
       "project": [
@@ -24,6 +25,10 @@
         "src/public-api-surface.ts"
       ],
       "project": ["src/**/*.ts"]
+    },
+    "packages/document-authoring": {
+      "entry": ["tests/fixtures/public-api/crash-worker.mjs"],
+      "project": ["src/**/*.ts", "tests/**/*.mjs"]
     },
     "packages/docs-protocol": {
       "project": ["src/**/*.ts"]

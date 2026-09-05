@@ -6,7 +6,7 @@
   "required": ["schemaVersion", "protocol", "operations", "planDigest"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "protocol": { "const": "agent-teams.repository-mutation.known-file/v1" },
+    "protocol": { "const": "foundation.replace-known-file/v1" },
     "operations": {
       "type": "array",
       "maxItems": 32,

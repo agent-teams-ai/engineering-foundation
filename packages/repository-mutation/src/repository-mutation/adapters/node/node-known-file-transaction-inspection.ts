@@ -1,12 +1,10 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 
-import {
-  LOCAL_OPERATION_LOCK,
-  LOCAL_STATE_DIRECTORY
-} from "../../../state-contract.js";
-import { installedRepositoryMutationBuildIdentity } from "../../../installed-artifact-identity.js";
-import { installedRepositoryMutationVersion, REPOSITORY_MUTATION_PACKAGE_NAME } from "../../../package-version.js";
+import { LOCAL_OPERATION_LOCK, LOCAL_STATE_DIRECTORY, REPOSITORY_MUTATION_PACKAGE_NAME } from "../../../transaction-coordination/application-api.js";
+
+
 import { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
 import { canonicalKnownFileRoot, knownFileErrorCode } from "./node-known-file-transaction-filesystem.js";
 
@@ -31,18 +29,26 @@ async function operationLockExists(root: string): Promise<boolean> {
   }
 }
 
-export async function inspectKnownFileTransactionBarrier(options: {
+export async function inspectKnownFileTransactionBarrier(coordination: Pick<KnownFileCoordination,
+  "assertTerminalEvidenceDirectory"
+  | "captureFileHandleIdentity"
+  | "ensureTerminalEvidenceDirectory"
+  | "installedRepositoryMutationBuildIdentity"
+  | "installedRepositoryMutationVersion"
+  | "pathMatchesRegularFileIdentity"
+  | "readBoundedRegularFile"
+>, options: {
   readonly consumerRoot: string;
 }): Promise<KnownFileTransactionBarrierInspection> {
   const root = await canonicalKnownFileRoot(options.consumerRoot);
   const hasOperationLock = await operationLockExists(root);
   const [version, buildIdentity] = await Promise.all([
-    installedRepositoryMutationVersion(), installedRepositoryMutationBuildIdentity()
+    coordination.installedRepositoryMutationVersion(), coordination.installedRepositoryMutationBuildIdentity()
   ]);
   const artifact = { name: REPOSITORY_MUTATION_PACKAGE_NAME, version, buildIdentity };
   let observed;
   try {
-    observed = await new NodeKnownFileTransactionJournalStore(
+    observed = await new NodeKnownFileTransactionJournalStore(coordination,
       join(root, LOCAL_STATE_DIRECTORY), artifact, artifact
     ).read();
   } catch {

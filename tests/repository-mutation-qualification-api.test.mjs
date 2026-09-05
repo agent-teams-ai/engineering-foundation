@@ -76,6 +76,33 @@ test("production known-file APIs reject runtime excess and accessor properties",
   assert.equal(invoked, false);
 });
 
+test("production known-file options reject arbitrary JS containers before observing a root", async () => {
+  const { applyKnownFileTransaction, recoverKnownFileTransaction } = await import(
+    "../packages/repository-mutation/dist/index.js"
+  );
+  for (const invoke of [applyKnownFileTransaction, recoverKnownFileTransaction]) {
+    for (const candidate of [null, undefined, false, 1, "root", Symbol("root"), [], () => null,
+      Object.create({ consumerRoot: "/unused" })]) {
+      await assert.rejects(invoke(candidate), /unknown, missing, or executable/u);
+    }
+    const options = { consumerRoot: "/unused", ...(invoke === applyKnownFileTransaction ? { plan: null } : {}) };
+    for (const property of Reflect.ownKeys(options)) {
+      for (const descriptor of [
+        { get() { throw new Error("option accessor was invoked"); }, enumerable: true },
+        { value: options[property], enumerable: false }
+      ]) {
+        const candidate = { ...options };
+        Object.defineProperty(candidate, property, descriptor);
+        await assert.rejects(invoke(candidate), /unknown, missing, or executable/u);
+      }
+    }
+    for (const candidate of [Object.assign(Object.create({ inherited: true }), options),
+      { ...options, [Symbol("extra")]: true }]) {
+      await assert.rejects(invoke(candidate), /unknown, missing, or executable/u);
+    }
+  }
+});
+
 test("keeps production mutation signatures free of executable fault callbacks", async () => {
   const sources = await Promise.all([
     "node-known-file-transaction.ts",
@@ -85,7 +112,7 @@ test("keeps production mutation signatures free of executable fault callbacks", 
     "node-publish-prepared-absent-file.ts",
     "node-absent-file-publication.ts"
   ].map((name) => readFile(new URL(
-    `../packages/repository-mutation/src/repository-mutation/adapters/node/${name}`,
+    `../packages/repository-mutation/src/${name === "node-bounded-regular-file.ts" ? "transaction-coordination" : "repository-mutation"}/adapters/node/${name}`,
     import.meta.url
   ), "utf8")));
   const functionNames = [

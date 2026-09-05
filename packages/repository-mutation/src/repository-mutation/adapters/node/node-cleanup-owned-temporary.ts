@@ -1,17 +1,14 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { randomUUID } from "node:crypto";
 import { link, mkdir, rename } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-import type { PortablePathIdentity } from "../../application/model/path-identity.js";
+import type { PortablePathIdentity } from "../../../path-identity.js";
 import type { OwnedTemporaryCleanupTransitionPort } from "../../application/ports/owned-temporary-cleanup-transition.js";
-import { pathMatchesRegularFileIdentity } from "./node-bounded-regular-file.js";
+
 import type { DirectoryDurability } from "./node-directory-durability.js";
 import { syncPublicationDirectory } from "./node-absent-file-publication-private.js";
-import {
-  assertTerminalEvidenceDirectory,
-  ensureTerminalEvidenceDirectory,
-  type TerminalEvidenceDirectoryAuthority
-} from "./node-terminal-evidence-directory.js";
+import { type TerminalEvidenceDirectoryAuthority } from "../../../transaction-coordination/application-api.js";
 
 export const OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER =
   ".foundation-owned-cleanup-";
@@ -24,13 +21,13 @@ export function ownedTemporaryCleanupResiduePrefix(
   return `.${basename(temporaryPath)}${OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER}`;
 }
 
-function cleanupOperations(
-  operations: Parameters<typeof cleanupIdentityMatchingOwnedTemporary>[0]["operations"]
+function cleanupOperations(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+  operations: Parameters<typeof cleanupIdentityMatchingOwnedTemporary>[1]["operations"]
 ) {
   return {
     beforeLogicalRetirement: operations?.beforeLogicalRetirement,
     identityMatch:
-      operations?.pathMatchesRegularFileIdentity ?? pathMatchesRegularFileIdentity,
+      operations?.pathMatchesRegularFileIdentity ?? coordination.pathMatchesRegularFileIdentity,
     makeDirectory: operations?.mkdir ?? mkdir,
     restore: operations?.link ?? link,
     move: operations?.rename ?? rename,
@@ -41,7 +38,7 @@ function cleanupOperations(
 async function beginCleanupTransition(options: {
   readonly displayPath: string;
   readonly expectedIdentity: PortablePathIdentity;
-  readonly identityMatch: typeof pathMatchesRegularFileIdentity;
+  readonly identityMatch: KnownFileCoordination["pathMatchesRegularFileIdentity"];
   readonly temporaryPath: string;
   readonly transition?: OwnedTemporaryCleanupTransitionPort;
 }): Promise<
@@ -73,10 +70,10 @@ async function beginCleanupTransition(options: {
   return { outcome: "owned", transition };
 }
 
-async function removeEmptyQuarantineAfterMissing(options: {
+async function removeEmptyQuarantineAfterMissing(coordination: Pick<KnownFileCoordination, "assertTerminalEvidenceDirectory" | "ensureTerminalEvidenceDirectory">, options: {
   readonly cleanupOptions: Parameters<typeof syncPublicationDirectory>[0];
   readonly expectedIdentity: PortablePathIdentity;
-  readonly identityMatch: typeof pathMatchesRegularFileIdentity;
+  readonly identityMatch: KnownFileCoordination["pathMatchesRegularFileIdentity"];
   readonly makeDirectory: typeof mkdir;
   readonly quarantineDirectory: string;
   readonly move: typeof rename;
@@ -85,11 +82,11 @@ async function removeEmptyQuarantineAfterMissing(options: {
   readonly temporaryPath: string;
   readonly transition: Awaited<ReturnType<OwnedTemporaryCleanupTransitionPort["begin"]>> | undefined;
 }): Promise<"different" | "missing"> {
-  const terminalRoot = await ensureTerminalEvidenceDirectory(
+  const terminalRoot = await coordination.ensureTerminalEvidenceDirectory(
     options.retiredEvidenceRoot,
     { mkdir: options.makeDirectory }
   );
-  await assertTerminalEvidenceDirectory(terminalRoot);
+  await coordination.assertTerminalEvidenceDirectory(terminalRoot);
   await options.move(options.quarantineDirectory, options.retiredDirectory);
   await syncPublicationDirectory({
     ...options.cleanupOptions,
@@ -106,10 +103,10 @@ async function removeEmptyQuarantineAfterMissing(options: {
   return "missing";
 }
 
-async function logicallyRetireQuarantine(options: {
+async function logicallyRetireQuarantine(coordination: Pick<KnownFileCoordination, "assertTerminalEvidenceDirectory">, options: {
   readonly cleanupOptions: Parameters<typeof syncPublicationDirectory>[0];
   readonly expectedIdentity: PortablePathIdentity;
-  readonly identityMatch: typeof pathMatchesRegularFileIdentity;
+  readonly identityMatch: KnownFileCoordination["pathMatchesRegularFileIdentity"];
   readonly move: typeof rename;
   readonly quarantinedPath: string;
   readonly quarantineDirectory: string;
@@ -126,7 +123,7 @@ async function logicallyRetireQuarantine(options: {
   ) {
     return "different";
   }
-  await assertTerminalEvidenceDirectory(options.terminalRoot);
+  await coordination.assertTerminalEvidenceDirectory(options.terminalRoot);
   await options.move(options.quarantineDirectory, options.retiredDirectory);
   await syncPublicationDirectory({
     ...options.cleanupOptions,
@@ -136,7 +133,7 @@ async function logicallyRetireQuarantine(options: {
   return "removed";
 }
 
-export async function cleanupIdentityMatchingOwnedTemporary(options: {
+export async function cleanupIdentityMatchingOwnedTemporary(coordination: Pick<KnownFileCoordination, "assertTerminalEvidenceDirectory" | "ensureTerminalEvidenceDirectory" | "pathMatchesRegularFileIdentity">, options: {
   readonly allowUnsupportedDirectoryDurability: boolean;
   readonly displayPath: string;
   readonly expectedIdentity: PortablePathIdentity;
@@ -151,7 +148,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     readonly beforeLogicalRetirement?: (path: string) => Promise<void> | void;
     readonly mkdir?: typeof mkdir;
     readonly link?: typeof link;
-    readonly pathMatchesRegularFileIdentity?: typeof pathMatchesRegularFileIdentity;
+    readonly pathMatchesRegularFileIdentity?: KnownFileCoordination["pathMatchesRegularFileIdentity"];
     readonly quarantineToken?: () => string;
     readonly rename?: typeof rename;
   };
@@ -163,7 +160,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     move,
     restore,
     token
-  } = cleanupOperations(options.operations);
+  } = cleanupOperations(coordination, options.operations);
   const quarantineDirectory = join(
     options.parent,
     `${ownedTemporaryCleanupResiduePrefix(options.temporaryPath)}${token}`
@@ -199,7 +196,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     await move(options.temporaryPath, quarantinedPath);
   } catch (error) {
     if (errorCode(error) === "ENOENT") {
-      return removeEmptyQuarantineAfterMissing({
+      return removeEmptyQuarantineAfterMissing(coordination, {
         cleanupOptions: options,
         expectedIdentity: options.expectedIdentity,
         identityMatch,
@@ -238,7 +235,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
     await syncCleanupDirectory(options, options.parent);
     return "different";
   }
-  const terminalRoot = await ensureTerminalEvidenceDirectory(
+  const terminalRoot = await coordination.ensureTerminalEvidenceDirectory(
     retiredEvidenceRoot,
     { mkdir: makeDirectory }
   );
@@ -246,7 +243,7 @@ export async function cleanupIdentityMatchingOwnedTemporary(options: {
   // Node exposes no unlink-by-handle or identity-conditional unlink. Moving
   // the whole private directory into a terminal namespace is atomic and can
   // never delete a pathname replacement introduced after the final proof.
-  const retirement = await logicallyRetireQuarantine({
+  const retirement = await logicallyRetireQuarantine(coordination, {
     cleanupOptions: options,
     expectedIdentity: options.expectedIdentity,
     identityMatch,

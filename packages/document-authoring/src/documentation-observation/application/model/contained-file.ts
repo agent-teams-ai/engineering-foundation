@@ -10,7 +10,7 @@ export class ContainedFileReadError extends Error {
   }
 }
 
-export interface ContainedFileReadRequest {
+interface ContainedFileReadRequest {
   readonly candidate: string;
   readonly maxBytes: number;
   readonly root: string;

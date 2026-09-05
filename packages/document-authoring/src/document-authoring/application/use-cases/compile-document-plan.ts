@@ -1,4 +1,4 @@
-import { sha256Bytes } from "@agent-teams/repository-mutation";
+import { sha256Bytes } from "@agent-teams/repository-mutation/serialization";
 import type {
   DocumentAuthorityEvidence,
   DocumentIdentityProjectionEntry,
@@ -237,7 +237,7 @@ export function compileDocumentPlan(
       input.intent as unknown as Readonly<
         Record<
           string,
-          import("@agent-teams/repository-mutation").CanonicalJsonValue
+          import("@agent-teams/repository-mutation/serialization").CanonicalJsonValue
         >
       >
     ),
@@ -316,7 +316,7 @@ export function compileDocumentPlan(
   const plan: DocumentPlan = Object.freeze({
     ...digestInput,
     planDigest: documentPlanDigest({
-      ...(digestInput as unknown as Record<string, import("@agent-teams/repository-mutation").CanonicalJsonValue>),
+      ...(digestInput as unknown as Record<string, import("@agent-teams/repository-mutation/serialization").CanonicalJsonValue>),
       planDigest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
     })
   });

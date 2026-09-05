@@ -285,7 +285,7 @@ test("corrupt, unknown, and duplicate journal evidence is preserved fail-closed"
         store.read(),
         scenario === "duplicate"
           ? /transition evidence was preserved/u
-          : /invalid strict canonical JSON/u
+          : /foreign, mixed, corrupt, or incompatible; it was preserved for manual recovery/u
       );
       assert.equal(await readFile(journal, "utf8"), bytes);
       if (scenario === "duplicate") {

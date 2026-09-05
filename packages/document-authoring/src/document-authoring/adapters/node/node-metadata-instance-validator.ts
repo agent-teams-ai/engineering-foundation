@@ -2,7 +2,7 @@ import { assertNotCancelled, type ContainedFileReader } from "../../../documenta
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 
 
-import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation";
+import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 import type {
   MetadataInstanceValidator,
   MetadataSchemaSnapshot,

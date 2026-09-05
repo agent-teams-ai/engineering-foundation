@@ -10,6 +10,17 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(packageRoot, "../..");
 const fixtures = join(packageRoot, "tests/fixtures/public-api");
 
+async function materializeConsumerSources(consumerRoot) {
+  // Preserve the reviewed installed-consumer bytes, including recovery probes.
+  for (const name of ["consumer.ts", "runtime-consumer.mjs"]) {
+    const bytes = await readFile(join(fixtures, `${name}.txt`));
+    const destination = join(consumerRoot, name);
+    await writeFile(destination, bytes, { flag: "wx" });
+    assert.deepEqual(await readFile(destination), bytes);
+  }
+  await cp(join(fixtures, "crash-worker.mjs"), join(consumerRoot, "crash-worker.mjs"));
+}
+
 async function linkDependency(source, destination) {
   await mkdir(dirname(destination), { recursive: true });
   await symlink(await realpath(source), destination, process.platform === "win32" ? "junction" : "dir");
@@ -49,7 +60,7 @@ async function materializeInstalledConsumer(t) {
     copyInstalledPackage(packageRoot, join(scopeRoot, "document-authoring")),
     copyInstalledPackage(join(repositoryRoot, "packages/repository-mutation"), join(scopeRoot, "repository-mutation")),
     linkDependency(join(repositoryRoot, "node_modules/@types/node"), join(consumerRoot, "node_modules/@types/node")),
-    cp(fixtures, consumerRoot, { recursive: true }),
+    materializeConsumerSources(consumerRoot),
     cp(join(repositoryRoot, "tests/support/document-authoring-schema-closures.mjs"), join(consumerRoot, "schema-closures.mjs")),
     cp(join(packageRoot, "tests/fixtures/schema-recovery"), join(consumerRoot, "native"), { recursive: true }),
     linkDependency(join(packageRoot, "node_modules/ajv"), join(consumerRoot, "node_modules/ajv")),

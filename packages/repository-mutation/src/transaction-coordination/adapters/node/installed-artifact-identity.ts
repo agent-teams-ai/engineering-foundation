@@ -3,7 +3,7 @@ import { lstat, opendir } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { readBoundedRegularFile } from "./repository-mutation/adapters/node/node-bounded-regular-file.js";
+import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
 
 export type InstalledArtifactDigest = `sha256:${string}`;
 export interface InstalledArtifactClosure {
@@ -17,7 +17,7 @@ const maximumBuildBytes = 64 * 1024 * 1024;
 const maximumVisitedBuildEntries = 16_384;
 const maximumBuildTreeDepth = 64;
 const repositoryMutationPackageRoot = dirname(
-  fileURLToPath(new URL("../package.json", import.meta.url))
+  fileURLToPath(new URL("../../../../package.json", import.meta.url))
 );
 
 function comparePortablePaths(left: string, right: string): number {

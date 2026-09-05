@@ -101,3 +101,23 @@ export function findPortableRepositoryPathCollision(
   }
   return undefined;
 }
+
+export function findPortableRepositoryPathOverlap(
+  repositoryPaths: readonly string[]
+): { readonly ancestor: string; readonly descendant: string } | undefined {
+  // A sibling such as "managed-other" can sort between an ancestor and its
+  // descendant. Match every segment prefix using the collision identity.
+  const pathsByIdentity = new Map(
+    repositoryPaths.map((path) => [portableRepositoryPathIdentity(path), path])
+  );
+  for (const descendant of repositoryPaths) {
+    const segments = portableRepositoryPathIdentity(descendant).split("/");
+    for (let count = 1; count < segments.length; count += 1) {
+      const ancestor = pathsByIdentity.get(segments.slice(0, count).join("/"));
+      if (ancestor !== undefined) {
+        return { ancestor, descendant };
+      }
+    }
+  }
+  return undefined;
+}

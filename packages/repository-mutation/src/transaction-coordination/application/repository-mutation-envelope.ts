@@ -1,11 +1,9 @@
-import { TextDecoder } from "node:util";
-
 import {
   canonicalJson,
   sha256Json,
   type CanonicalJsonValue
-} from "./canonical-json.js";
-import { parseStrictJson } from "./strict-json.js";
+} from "../../canonical-json.js";
+import { parseStrictJson } from "../../strict-json.js";
 
 export const REPOSITORY_MUTATION_ENVELOPE_FORMAT =
   "agent-teams.repository-mutation.transaction-envelope/v1" as const;
@@ -135,7 +133,7 @@ function appendCanonicalArray(
   }
   for (let index = candidate.length - 1; index >= 0; index -= 1) {
     const descriptor = Object.getOwnPropertyDescriptor(candidate, String(index));
-    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) {
+    if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
       fail("Repository Mutation payload arrays must contain only dense enumerable data properties.");
     }
     pending.push({ value: descriptor.value, depth: depth + 1 });
@@ -189,7 +187,7 @@ function canonicalPayload(value: unknown): CanonicalJsonValue {
     if (typeof current.value !== "object") {
       fail("Repository Mutation payload is outside the canonical JSON data model.");
     }
-    const candidate = current.value as object;
+    const candidate = current.value;
     if (Array.isArray(candidate)) {
       entries += appendCanonicalArray(candidate, current.depth, pending);
     } else {
@@ -215,7 +213,10 @@ function clone(value: CanonicalJsonValue): CanonicalJsonValue {
   const result: Record<string, CanonicalJsonValue> = {};
   for (const key of Object.keys(value)) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
-    result[key] = clone(descriptor.value as CanonicalJsonValue);
+    Object.defineProperty(result, key, {
+      value: clone(descriptor.value as CanonicalJsonValue),
+      enumerable: true, configurable: true, writable: true
+    });
   }
   return result;
 }
@@ -225,7 +226,8 @@ function deepFreeze<T>(value: T): T {
   if (typeof value === "object" && value !== null) {pending.push(value);}
   while (pending.length > 0) {
     const current = pending.pop()!;
-    for (const child of Object.values(current)) {
+    const children: unknown[] = Object.values(current);
+    for (const child of children) {
       if (typeof child === "object" && child !== null && !Object.isFrozen(child)) {pending.push(child);}
     }
     Object.freeze(current);

@@ -1,4 +1,4 @@
-import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
+import type { PortablePathIdentity } from "../../path-identity.js";
 
 /**
  * One journal slot is a canonical pathname whose content transitions through

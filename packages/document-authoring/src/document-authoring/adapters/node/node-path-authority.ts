@@ -1,7 +1,7 @@
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { portableRepositoryPathIdentity, type PortablePathIdentity } from "@agent-teams/repository-mutation";
+import { portableRepositoryPathIdentity, type PortablePathIdentity } from "@agent-teams/repository-mutation/paths";
 
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 

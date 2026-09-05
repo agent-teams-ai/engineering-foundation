@@ -1,30 +1,17 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { createHash, randomUUID } from "node:crypto";
 import { link, lstat, mkdir, open, rename, unlink, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
 
 import { canonicalJson, type CanonicalJsonValue } from "../../../canonical-json.js";
-import {
-  assertRepositoryMutationArtifactBindings,
-  parseRepositoryMutationEnvelope,
-  type RepositoryMutationArtifactIdentity
-} from "../../../repository-mutation-envelope.js";
-import {
-  FOUNDATION_TRANSACTION_FILE,
-  KNOWN_FILE_TRANSACTION_TEMPORARY_FILE
-} from "../../../state-contract.js";
+import { assertRepositoryMutationArtifactBindings, parseRepositoryMutationEnvelope, type RepositoryMutationArtifactIdentity, FOUNDATION_TRANSACTION_FILE, KNOWN_FILE_TRANSACTION_TEMPORARY_FILE } from "../../../transaction-coordination/application-api.js";
+
 import type { KnownFileTransactionEnvelopeV1 } from "../../application/model/known-file-transaction-journal.js";
 import { assertKnownFileTransactionEnvelope } from "../../application/policies/known-file-transaction-envelope.js";
-import {
-  captureFileHandleIdentity,
-  pathMatchesRegularFileIdentity,
-  readBoundedRegularFile
-} from "./node-bounded-regular-file.js";
+
 import { cleanupIdentityMatchingOwnedTemporary } from "./node-cleanup-owned-temporary.js";
 import { syncDirectoryDurably, syncDirectoryStrictly } from "./node-directory-durability.js";
-import {
-  assertTerminalEvidenceDirectory,
-  ensureTerminalEvidenceDirectory
-} from "./node-terminal-evidence-directory.js";
+
 
 const MAXIMUM_JOURNAL_BYTES = 32 * 1024 * 1024;
 const KNOWN_FILE_TERMINAL_EVIDENCE =
@@ -32,7 +19,7 @@ const KNOWN_FILE_TERMINAL_EVIDENCE =
 
 export interface KnownFileJournalAuthority {
   readonly digest: `sha256:${string}`;
-  readonly identity: Awaited<ReturnType<typeof captureFileHandleIdentity>>;
+  readonly identity: Awaited<ReturnType<KnownFileCoordination["captureFileHandleIdentity"]>>;
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -57,7 +44,7 @@ function bytes(envelope: KnownFileTransactionEnvelopeV1): Buffer {
   return result;
 }
 
-async function readEnvelope(
+async function readEnvelope(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   path: string,
   expectedOwner: RepositoryMutationArtifactIdentity,
   expectedKernel: RepositoryMutationArtifactIdentity
@@ -67,7 +54,7 @@ async function readEnvelope(
 } | undefined> {
   let observed;
   try {
-    observed = await readBoundedRegularFile(path, MAXIMUM_JOURNAL_BYTES);
+    observed = await coordination.readBoundedRegularFile(path, MAXIMUM_JOURNAL_BYTES);
   } catch (error) {
     if (errorCode(error) === "ENOENT") {
       return undefined;
@@ -90,10 +77,10 @@ async function readEnvelope(
   };
 }
 
-async function prove(path: string, authority: KnownFileJournalAuthority): Promise<void> {
-  const observed = await readBoundedRegularFile(path, MAXIMUM_JOURNAL_BYTES);
+async function prove(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity" | "readBoundedRegularFile">, path: string, authority: KnownFileJournalAuthority): Promise<void> {
+  const observed = await coordination.readBoundedRegularFile(path, MAXIMUM_JOURNAL_BYTES);
   if (observed.outcome !== "read" || digest(observed.bytes) !== authority.digest ||
-    await pathMatchesRegularFileIdentity(path, authority.identity) !== "match") {
+    await coordination.pathMatchesRegularFileIdentity(path, authority.identity) !== "match") {
     throw new Error("Known-file transaction journal authority changed concurrently.");
   }
 }
@@ -115,7 +102,13 @@ export class NodeKnownFileTransactionJournalStore {
   readonly #expectedOwner: RepositoryMutationArtifactIdentity;
   readonly #expectedKernel: RepositoryMutationArtifactIdentity;
 
-  public constructor(
+  public constructor(private readonly coordination: Pick<KnownFileCoordination,
+  "assertTerminalEvidenceDirectory"
+  | "captureFileHandleIdentity"
+  | "ensureTerminalEvidenceDirectory"
+  | "pathMatchesRegularFileIdentity"
+  | "readBoundedRegularFile"
+>,
     stateDirectory: string,
     expectedOwner: RepositoryMutationArtifactIdentity,
     expectedKernel: RepositoryMutationArtifactIdentity
@@ -128,11 +121,11 @@ export class NodeKnownFileTransactionJournalStore {
   }
 
   public async read(): Promise<Awaited<ReturnType<typeof readEnvelope>>> {
-    const canonical = await readEnvelope(this.#journalPath, this.#expectedOwner, this.#expectedKernel);
+    const canonical = await readEnvelope(this.coordination, this.#journalPath, this.#expectedOwner, this.#expectedKernel);
     if (canonical !== undefined) {
       return canonical;
     }
-    return readEnvelope(this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
+    return readEnvelope(this.coordination, this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
   }
 
   async #writeTemporary(envelope: KnownFileTransactionEnvelopeV1): Promise<KnownFileJournalAuthority> {
@@ -142,11 +135,11 @@ export class NodeKnownFileTransactionJournalStore {
       handle = await open(this.#temporaryPath, "wx", 0o600);
     } catch (error) {
       if (errorCode(error) === "EEXIST") {
-        const stale = await readEnvelope(this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
+        const stale = await readEnvelope(this.coordination, this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
         if (stale === undefined) {
           throw error;
         }
-        await prove(this.#temporaryPath, stale.authority);
+        await prove(this.coordination, this.#temporaryPath, stale.authority);
         await unlink(this.#temporaryPath);
         await syncDirectoryStrictly(this.#parent);
         handle = await open(this.#temporaryPath, "wx", 0o600);
@@ -157,32 +150,32 @@ export class NodeKnownFileTransactionJournalStore {
     try {
       await handle.writeFile(content);
       await handle.sync();
-      return { digest: digest(content), identity: await captureFileHandleIdentity(handle) };
+      return { digest: digest(content), identity: await this.coordination.captureFileHandleIdentity(handle) };
     } finally {
       await handle.close();
     }
   }
 
   async #retireCanonical(expected: KnownFileJournalAuthority): Promise<void> {
-    await prove(this.#journalPath, expected);
+    await prove(this.coordination, this.#journalPath, expected);
     const token = randomUUID();
     const quarantine = join(
       this.#parent,
       `${FOUNDATION_TRANSACTION_FILE}.known-file-quarantine.${token}`
     );
     const captured = join(quarantine, "evidence");
-    const terminalRoot = await ensureTerminalEvidenceDirectory(join(
+    const terminalRoot = await this.coordination.ensureTerminalEvidenceDirectory(join(
       this.#parent,
       KNOWN_FILE_TERMINAL_EVIDENCE
     ));
     const terminal = join(terminalRoot.path, token);
     await mkdir(quarantine, { mode: 0o700 });
-    await prove(this.#journalPath, expected);
+    await prove(this.coordination, this.#journalPath, expected);
     await rename(this.#journalPath, captured);
     await syncDirectoryStrictly(quarantine);
     await syncDirectoryStrictly(this.#parent);
     try {
-      await prove(captured, expected);
+      await prove(this.coordination, captured, expected);
     } catch (error) {
       // Restore a blocking name without deleting the atomically captured
       // replacement. EEXIST means another foreign barrier already occupies it.
@@ -195,21 +188,21 @@ export class NodeKnownFileTransactionJournalStore {
       throw error;
     }
     await proveMissing(this.#journalPath);
-    await assertTerminalEvidenceDirectory(terminalRoot);
+    await this.coordination.assertTerminalEvidenceDirectory(terminalRoot);
     await rename(quarantine, terminal);
     await syncDirectoryStrictly(terminalRoot.path);
     await syncDirectoryStrictly(this.#parent);
-    await prove(join(terminal, "evidence"), expected);
+    await prove(this.coordination, join(terminal, "evidence"), expected);
     await proveMissing(this.#journalPath);
   }
 
   async #publishTemporary(authority: KnownFileJournalAuthority): Promise<void> {
-    await prove(this.#temporaryPath, authority);
+    await prove(this.coordination, this.#temporaryPath, authority);
     await link(this.#temporaryPath, this.#journalPath);
-    await prove(this.#journalPath, authority);
+    await prove(this.coordination, this.#journalPath, authority);
     await syncDirectoryStrictly(this.#parent);
-    await prove(this.#journalPath, authority);
-    const retired = await cleanupIdentityMatchingOwnedTemporary({
+    await prove(this.coordination, this.#journalPath, authority);
+    const retired = await cleanupIdentityMatchingOwnedTemporary(this.coordination, {
       allowUnsupportedDirectoryDurability: false,
       displayPath: KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
       expectedIdentity: authority.identity,
@@ -221,11 +214,11 @@ export class NodeKnownFileTransactionJournalStore {
     if (retired !== "removed") {
       throw new Error("Known-file transaction candidate changed during retirement.");
     }
-    await prove(this.#journalPath, authority);
+    await prove(this.coordination, this.#journalPath, authority);
   }
 
   public async create(envelope: KnownFileTransactionEnvelopeV1): Promise<KnownFileJournalAuthority> {
-    if (await readEnvelope(this.#journalPath, this.#expectedOwner, this.#expectedKernel) !== undefined) {
+    if (await readEnvelope(this.coordination, this.#journalPath, this.#expectedOwner, this.#expectedKernel) !== undefined) {
       throw new Error("Foundation transaction slot is already occupied.");
     }
     const authority = await this.#writeTemporary(envelope);
@@ -237,10 +230,10 @@ export class NodeKnownFileTransactionJournalStore {
     expected: KnownFileJournalAuthority,
     envelope: KnownFileTransactionEnvelopeV1
   ): Promise<KnownFileJournalAuthority> {
-    await prove(this.#journalPath, expected);
+    await prove(this.coordination, this.#journalPath, expected);
     const authority = await this.#writeTemporary(envelope);
-    await prove(this.#journalPath, expected);
-    await prove(this.#temporaryPath, authority);
+    await prove(this.coordination, this.#journalPath, expected);
+    await prove(this.coordination, this.#temporaryPath, authority);
     await this.#retireCanonical(expected);
     await this.#publishTemporary(authority);
     return authority;
@@ -251,7 +244,7 @@ export class NodeKnownFileTransactionJournalStore {
   }
 
   public async canonicalizeTemporary(): Promise<void> {
-    const canonical = await readEnvelope(this.#journalPath, this.#expectedOwner, this.#expectedKernel);
+    const canonical = await readEnvelope(this.coordination, this.#journalPath, this.#expectedOwner, this.#expectedKernel);
     if (canonical !== undefined) {
       // The canonical envelope remains authoritative during replacement. A
       // crash can leave an unbound candidate torn or foreign; recovery must
@@ -261,7 +254,7 @@ export class NodeKnownFileTransactionJournalStore {
       // a torn write nor a concurrent pathname replacement can block replay.
       let candidate;
       try {
-        candidate = await readBoundedRegularFile(
+        candidate = await this.coordination.readBoundedRegularFile(
           this.#temporaryPath,
           MAXIMUM_JOURNAL_BYTES
         );
@@ -272,7 +265,7 @@ export class NodeKnownFileTransactionJournalStore {
       if (candidate.outcome !== "read") {
         throw new Error("Known-file transaction candidate cannot be retired safely.");
       }
-      const retired = await cleanupIdentityMatchingOwnedTemporary({
+      const retired = await cleanupIdentityMatchingOwnedTemporary(this.coordination, {
         allowUnsupportedDirectoryDurability: false,
         displayPath: KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
         expectedIdentity: candidate.identity,
@@ -286,11 +279,11 @@ export class NodeKnownFileTransactionJournalStore {
       }
       return;
     }
-    const temporary = await readEnvelope(this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
+    const temporary = await readEnvelope(this.coordination, this.#temporaryPath, this.#expectedOwner, this.#expectedKernel);
     if (temporary === undefined) {
       throw new Error("Known-file recovery journal is absent.");
     }
-    await prove(this.#temporaryPath, temporary.authority);
+    await prove(this.coordination, this.#temporaryPath, temporary.authority);
     await this.#publishTemporary(temporary.authority);
   }
 }

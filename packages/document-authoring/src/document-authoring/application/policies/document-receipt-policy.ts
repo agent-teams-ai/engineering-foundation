@@ -1,7 +1,4 @@
-import {
-  canonicalJson,
-  type CanonicalJsonValue
-} from "@agent-teams/repository-mutation";
+import { canonicalJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation/serialization";
 import type { DocumentSchemaValidator } from "../ports/document-schema-validator.js";
 import type {
   DocumentReceipt,

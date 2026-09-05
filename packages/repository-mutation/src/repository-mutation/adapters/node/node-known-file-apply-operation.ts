@@ -1,3 +1,4 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { join } from "node:path";
 
 import { serializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
@@ -21,12 +22,8 @@ import {
   transitionKnownFileOperation,
   type KnownFileApplyState
 } from "./node-known-file-apply-state.js";
-import {
-  KnownFileTransactionError,
-  matchesKnownFileImage,
-  observeKnownFile,
-  sameKnownFileIdentity
-} from "./node-known-file-transaction-filesystem.js";
+import { matchesKnownFileImage, observeKnownFile, sameKnownFileIdentity } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import type { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
 
 interface OperationContext {
@@ -102,7 +99,12 @@ async function prepareCapture(
   return capture;
 }
 
-async function executeKnownFileReplacement(context: OperationContext): Promise<void> {
+async function executeKnownFileReplacement(coordination: Pick<KnownFileCoordination,
+  "captureFileHandleIdentity"
+  | "pathMatchesRegularFileIdentity"
+  | "readBoundedRegularFile"
+  | "readBoundedRegularFileHandle"
+>, context: OperationContext): Promise<void> {
   const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   if (operation.precondition.state !== "known-file") {
     throw new KnownFileTransactionError(
@@ -111,7 +113,7 @@ async function executeKnownFileReplacement(context: OperationContext): Promise<v
     );
   }
   const capture = await prepareCapture(context);
-  const captured = await captureKnownFilePreimage({
+  const captured = await captureKnownFilePreimage(coordination, {
     capture,
     operation: { ...operation, precondition: operation.precondition },
     root: context.root
@@ -126,7 +128,7 @@ async function executeKnownFileReplacement(context: OperationContext): Promise<v
     matchedPreimage: captured.matchedPreimage,
     state: "preimage-captured"
   }, "after-preimage-captured");
-  await prepareKnownFileRollback({
+  await prepareKnownFileRollback(coordination, {
     ...(context.faultInjector === undefined ? {} : { faultInjector: context.faultInjector }),
     index: context.index,
     operation: { ...operation, precondition: operation.precondition },
@@ -135,7 +137,7 @@ async function executeKnownFileReplacement(context: OperationContext): Promise<v
     store: context.store,
     stored: context.stored
   });
-  await retireKnownFileDestination({
+  await retireKnownFileDestination(coordination, {
     capture,
     capturedIdentity: captured.identity,
     destination: context.destination,
@@ -149,10 +151,10 @@ async function executeKnownFileReplacement(context: OperationContext): Promise<v
   await publishPreparedLink(context, true);
 }
 
-async function verifyPublishedPostimage(context: OperationContext): Promise<void> {
+async function verifyPublishedPostimage(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">, context: OperationContext): Promise<void> {
   const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   await syncDirectoryStrictly(context.parent);
-  const published = await observeKnownFile(context.root, operation.path, operation.postimage.size);
+  const published = await observeKnownFile(coordination, context.root, operation.path, operation.postimage.size);
   if (!matchesKnownFileImage(published, operation.postimage) || published.identity === undefined ||
     !sameKnownFileIdentity(published.identity, context.temporary.identity)) {
     throw new KnownFileTransactionError(
@@ -163,7 +165,12 @@ async function verifyPublishedPostimage(context: OperationContext): Promise<void
   await transitionAndCheckpoint(context, { state: "published" }, "after-operation-published");
 }
 
-export async function executeKnownFileOperation(options: {
+export async function executeKnownFileOperation(coordination: Pick<KnownFileCoordination,
+  "captureFileHandleIdentity"
+  | "pathMatchesRegularFileIdentity"
+  | "readBoundedRegularFile"
+  | "readBoundedRegularFileHandle"
+>, options: {
   readonly faultInjector?: KnownFileTransactionFaultInjector;
   readonly index: number;
   readonly root: string;
@@ -201,7 +208,7 @@ export async function executeKnownFileOperation(options: {
     operationIndex: options.index,
     path: operation.path
   });
-  const temporary = await prepareKnownFileTemporary({
+  const temporary = await prepareKnownFileTemporary(coordination, {
     operation,
     operationIndex: options.index,
     parent,
@@ -223,12 +230,12 @@ export async function executeKnownFileOperation(options: {
     operationIndex: options.index,
     path: operation.path
   });
-  await verifyKnownFileTemporary(temporary, operation.postimage);
+  await verifyKnownFileTemporary(coordination, temporary, operation.postimage);
   const context: OperationContext = { ...temporaryContext, temporary };
   if (operation.precondition.state === "absent") {
     await publishPreparedLink(context, false);
   } else {
-    await executeKnownFileReplacement(context);
+    await executeKnownFileReplacement(coordination, context);
   }
-  await verifyPublishedPostimage(context);
+  await verifyPublishedPostimage(coordination, context);
 }

@@ -1,3 +1,5 @@
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { createHash } from "node:crypto";
 import { lstat, opendir, realpath } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
@@ -11,30 +13,22 @@ import {
   portableRepositoryPathIdentity,
   portableRepositoryPathProblem
 } from "../../application/model/repository-path.js";
-import {
-  captureFileHandleIdentity,
-  readBoundedRegularFile
-} from "./node-bounded-regular-file.js";
+
 import { isLexicallyContainedPath } from "./node-repository-path.js";
 
 const MAXIMUM_MANAGED_FILE_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_DIRECTORY_ENTRIES = 1024;
 
-export class KnownFileTransactionError extends Error {
-  readonly code: string;
-
-  public constructor(code: string, message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "KnownFileTransactionError";
-    this.code = code;
-  }
-}
-
 export interface ObservedKnownFile {
   readonly state: "absent" | "file";
   readonly bytes?: Buffer;
-  readonly identity?: Awaited<ReturnType<typeof captureFileHandleIdentity>>;
+  readonly identity?: Awaited<ReturnType<KnownFileCoordination["captureFileHandleIdentity"]>>;
   readonly mode?: number;
+}
+
+export function hasPlainKnownFileOptionsPrototype(value: object): boolean {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 export function knownFileErrorCode(error: unknown): string | undefined {
@@ -44,8 +38,8 @@ export function knownFileErrorCode(error: unknown): string | undefined {
 }
 
 export function sameKnownFileIdentity(
-  left: Awaited<ReturnType<typeof captureFileHandleIdentity>>,
-  right: Awaited<ReturnType<typeof captureFileHandleIdentity>>
+  left: Awaited<ReturnType<KnownFileCoordination["captureFileHandleIdentity"]>>,
+  right: Awaited<ReturnType<KnownFileCoordination["captureFileHandleIdentity"]>>
 ): boolean {
   return left.birthtimeNs === right.birthtimeNs &&
     left.dev === right.dev && left.ino === right.ino;
@@ -165,7 +159,7 @@ async function resolveExistingParent(
   return { absolute: current, complete: true };
 }
 
-export async function observeKnownFile(
+export async function observeKnownFile(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   root: string,
   repositoryPath: string,
   maximumBytes: number
@@ -184,7 +178,7 @@ export async function observeKnownFile(
       `Managed path must be a real regular file: ${repositoryPath}.`
     );
   }
-  const observed = await readBoundedRegularFile(
+  const observed = await coordination.readBoundedRegularFile(
     path,
     Math.max(maximumBytes, MAXIMUM_MANAGED_FILE_BYTES)
   );

@@ -1,8 +1,4 @@
-import {
-  canonicalJson,
-  type CanonicalJsonValue,
-  sha256Json
-} from "@agent-teams/repository-mutation";
+import { canonicalJson, type CanonicalJsonValue, sha256Json } from "@agent-teams/repository-mutation/serialization";
 import type { DocumentAuthorityDigest } from "../model/document-catalog.js";
 import type {
   DocumentTransactionEnvelope,

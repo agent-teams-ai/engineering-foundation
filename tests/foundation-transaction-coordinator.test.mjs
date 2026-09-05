@@ -25,7 +25,7 @@ import {
 } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import {
   documentPlanDigest,
-} from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import {
   applyFilesystemScaffold,
   planScaffoldFromFile,

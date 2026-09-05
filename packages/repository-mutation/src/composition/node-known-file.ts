@@ -1,0 +1,56 @@
+import { createKnownFileNodeApi } from "../repository-mutation/composition/node-api.js";
+import {
+  acquireMutationLease,
+  assertTerminalEvidenceDirectory,
+  captureFileHandleIdentity,
+  claimMutation,
+  consumeMutationClaim,
+  ensureMutationStateDirectory,
+  ensureTerminalEvidenceDirectory,
+  installedRepositoryMutationBuildIdentity,
+  installedRepositoryMutationVersion,
+  mutationClaimIntent,
+  observeMutationState,
+  pathMatchesRegularFileIdentity,
+  pruneMutationStateDirectory,
+  readBoundedRegularFile,
+  readBoundedRegularFileHandle,
+  releaseMutationLease,
+  retainMutationBarrier,
+  retainMutationBarrierOnEvidence,
+  retainMutationClaimBarrierOnEvidence
+} from "../transaction-coordination/composition/node.js";
+
+export const {
+  applyKnownFileTransaction,
+  applyKnownFileTransactionWithFaults,
+  classifyExactFilePostimage,
+  cleanupIdentityMatchingOwnedTemporary,
+  inspectKnownFileTransactionBarrier,
+  prepareExactSiblingTemporary,
+  prepareExactSiblingTemporaryWithFaults,
+  publishAbsentFile,
+  publishAbsentFileWithFaults,
+  recoverKnownFileTransaction,
+  recoverKnownFileTransactionWithFaults
+} = createKnownFileNodeApi({
+  acquireMutationLease,
+  assertTerminalEvidenceDirectory,
+  captureFileHandleIdentity,
+  claimMutation,
+  consumeMutationClaim,
+  ensureMutationStateDirectory,
+  ensureTerminalEvidenceDirectory,
+  installedRepositoryMutationBuildIdentity,
+  installedRepositoryMutationVersion,
+  mutationClaimIntent,
+  observeMutationState,
+  pathMatchesRegularFileIdentity,
+  pruneMutationStateDirectory,
+  readBoundedRegularFile,
+  readBoundedRegularFileHandle,
+  releaseMutationLease,
+  retainMutationBarrier,
+  retainMutationBarrierOnEvidence,
+  retainMutationClaimBarrierOnEvidence
+});

@@ -2,12 +2,9 @@ import { canonicalJson, type CanonicalJsonValue } from "../../../canonical-json.
 import {
   compileRepositoryMutationEnvelope,
   parseRepositoryMutationEnvelope
-} from "../../../repository-mutation-envelope.js";
-import type {
-  KnownFileTransactionEnvelopeV1,
-  KnownFileTransactionJournalV1
-} from "../model/known-file-transaction-journal.js";
-import { deserializeKnownFileIdentity } from "../model/known-file-transaction-journal.js";
+} from "../../../transaction-coordination/application-api.js";
+import { type KnownFileTransactionEnvelopeV1, type KnownFileTransactionJournalV1, deserializeKnownFileIdentity } from "../model/known-file-transaction-journal.js";
+
 import type { KnownFileTransactionPlanV1 } from "../model/known-file-transaction.js";
 import { portableRepositoryPathProblem } from "../model/repository-path.js";
 import { assertKnownFileTransactionPlan } from "./known-file-transaction-plan.js";

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { readBoundedRegularFile } from "@agent-teams/repository-mutation/node";
-import type { PortablePathIdentity } from "@agent-teams/repository-mutation";
+import type { PortablePathIdentity } from "@agent-teams/repository-mutation/paths";
 import {
   assertNonzeroDocumentPhysicalIdentity,
   type DocumentPhysicalIdentity

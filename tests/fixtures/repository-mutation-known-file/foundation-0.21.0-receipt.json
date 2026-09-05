@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "protocol": "foundation.replace-known-file/v1",
+  "planDigest": "sha256:6173a6c7a358a2f697fa029d5ad7fceae068be53661638bdf00a9a52db80f2be",
+  "outcome": "applied",
+  "operations": [
+    {
+      "path": "managed/result.txt",
+      "outcome": "created",
+      "resultDigest": "sha256:59134a4054b27a3fc30e1ac81d9b9168dc0561f65982151324a021fe8ce88d06"
+    }
+  ],
+  "receiptDigest": "sha256:43e8cc36497308705e42b745f49f3958a9cf6d4f7279b17e768c45852aef8f61"
+}

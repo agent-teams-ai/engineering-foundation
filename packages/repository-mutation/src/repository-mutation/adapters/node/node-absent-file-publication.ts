@@ -1,3 +1,4 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { lstat, link, open, rm, type FileHandle } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -7,10 +8,10 @@ import {
   type ExactFilePostimage,
   type ExactFilePostimageState
 } from "../../application/model/exact-postimage.js";
-import type { PortablePathIdentity } from "../../application/model/path-identity.js";
+import type { PortablePathIdentity } from "../../../path-identity.js";
 import type { OwnedTemporaryCleanupTransitionPort } from "../../application/ports/owned-temporary-cleanup-transition.js";
 import { portableRepositoryPathIdentity } from "../../application/model/repository-path.js";
-import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
+
 import { cleanupIdentityMatchingOwnedTemporary } from "./node-cleanup-owned-temporary.js";
 import { syncDirectoryDurably } from "./node-directory-durability.js";
 import {
@@ -42,7 +43,7 @@ export interface AbsentFilePublicationOperations {
     flags: "wx",
     mode: number
   ) => Promise<FileHandle>;
-  readonly readBoundedRegularFile: typeof readBoundedRegularFile;
+  readonly readBoundedRegularFile: KnownFileCoordination["readBoundedRegularFile"];
   readonly rm: (path: string) => Promise<void>;
   readonly syncDirectory: typeof syncDirectoryDurably;
 }
@@ -66,13 +67,9 @@ interface PublicationState {
   temporaryIdentity?: PortablePathIdentity;
 }
 
-const nodeOperations: AbsentFilePublicationOperations = {
-  link,
-  open,
-  readBoundedRegularFile,
-  rm,
-  syncDirectory: syncDirectoryDurably
-};
+function nodeOperations(boundedReader: AbsentFilePublicationOperations["readBoundedRegularFile"]): AbsentFilePublicationOperations {
+  return { link, open, readBoundedRegularFile: boundedReader, rm, syncDirectory: syncDirectoryDurably };
+}
 
 function snapshotPostimage(postimage: ExactFilePostimage): ExactFilePostimage {
   const snapshot = {
@@ -104,12 +101,12 @@ function assertValidPublicationPaths(
   }
 }
 
-export async function classifyExactFilePostimage(
+export async function classifyExactFilePostimage(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   destinationPath: string,
   postimage: ExactFilePostimage
 ): Promise<ExactFilePostimageState> {
   return classifyExactFilePostimageWith(
-    readBoundedRegularFile,
+    coordination.readBoundedRegularFile,
     destinationPath,
     snapshotPostimage(postimage)
   );
@@ -134,7 +131,7 @@ export async function assertTemporaryPathsAbsent(
   }
 }
 
-async function runPublicationPhase(
+async function runPublicationPhase(coordination: Pick<KnownFileCoordination, "captureFileHandleIdentity">,
   context: PublicationContext
 ): Promise<PublicationState> {
   const state: PublicationState = {
@@ -142,7 +139,7 @@ async function runPublicationPhase(
     published: false
   };
   try {
-    const temporaryIdentity = await prepareExactSiblingTemporaryWithFaults({
+    const temporaryIdentity = await prepareExactSiblingTemporaryWithFaults(coordination, {
       displayPath: context.displayPath,
       ...(context.faultInjector === undefined
         ? {}
@@ -180,7 +177,7 @@ async function runPublicationPhase(
   return state;
 }
 
-async function cleanupPublicationTemporary(
+async function cleanupPublicationTemporary(coordination: Pick<KnownFileCoordination, "assertTerminalEvidenceDirectory" | "ensureTerminalEvidenceDirectory" | "pathMatchesRegularFileIdentity">,
   context: PublicationContext,
   state: PublicationState
 ): Promise<void> {
@@ -188,7 +185,7 @@ async function cleanupPublicationTemporary(
     const ownership =
       state.temporaryIdentity === undefined
         ? "missing"
-        : await cleanupIdentityMatchingOwnedTemporary({
+        : await cleanupIdentityMatchingOwnedTemporary(coordination, {
             allowUnsupportedDirectoryDurability:
               context.allowUnsupportedDirectoryDurability,
             displayPath: context.displayPath,
@@ -279,7 +276,13 @@ export interface AbsentFilePublicationOptions {
   readonly transition?: OwnedTemporaryCleanupTransitionPort;
 }
 
-export async function publishAbsentFileWithFaults(
+export async function publishAbsentFileWithFaults(coordination: Pick<KnownFileCoordination,
+  "assertTerminalEvidenceDirectory"
+  | "captureFileHandleIdentity"
+  | "ensureTerminalEvidenceDirectory"
+  | "pathMatchesRegularFileIdentity"
+  | "readBoundedRegularFile"
+>,
   options: AbsentFilePublicationOptions & {
     readonly faultInjector?: AbsentFilePublicationFaultInjector;
     readonly operations?: Partial<AbsentFilePublicationOperations>;
@@ -292,7 +295,7 @@ export async function publishAbsentFileWithFaults(
     destinationPath: options.destinationPath,
     displayPath: options.displayPath,
     faultInjector: options.faultInjector,
-    operations: { ...nodeOperations, ...options.operations },
+    operations: { ...nodeOperations(coordination.readBoundedRegularFile), ...options.operations },
     parent: dirname(resolve(options.destinationPath)),
     postimage,
     temporaryPath: options.temporaryPath,
@@ -317,13 +320,19 @@ export async function publishAbsentFileWithFaults(
       `Destination changed concurrently: ${context.displayPath}.`
     );
   }
-  const state = await runPublicationPhase(context);
-  await cleanupPublicationTemporary(context, state);
+  const state = await runPublicationPhase(coordination, context);
+  await cleanupPublicationTemporary(coordination, context, state);
   return publicationOutcome(context, state);
 }
 
-export function publishAbsentFile(
+export function publishAbsentFile(coordination: Pick<KnownFileCoordination,
+  "assertTerminalEvidenceDirectory"
+  | "captureFileHandleIdentity"
+  | "ensureTerminalEvidenceDirectory"
+  | "pathMatchesRegularFileIdentity"
+  | "readBoundedRegularFile"
+>,
   options: AbsentFilePublicationOptions
 ): Promise<AbsentFilePublicationOutcome> {
-  return publishAbsentFileWithFaults(options);
+  return publishAbsentFileWithFaults(coordination, options);
 }

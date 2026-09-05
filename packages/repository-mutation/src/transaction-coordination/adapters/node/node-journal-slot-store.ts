@@ -23,11 +23,11 @@ import {
   type JournalSlotSyncStage,
   type PendingJournalSlotMutation,
   type StoredJournalSlot
-} from "./node-journal-slot-profile.js";
+} from "../../application/journal-slot-profile.js";
 import {
   assertTerminalEvidenceDirectory,
   ensureTerminalEvidenceDirectory
-} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
+} from "./node-terminal-evidence-directory.js";
 
 interface PrivateEvidence {
   readonly authority: JournalSlotAuthority;

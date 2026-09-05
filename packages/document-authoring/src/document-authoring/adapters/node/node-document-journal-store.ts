@@ -12,7 +12,8 @@ import {
   type JournalSlotFaultPoint,
   type JournalSlotSubject
 } from "@agent-teams/repository-mutation/node";
-import { canonicalJson, parseStrictJson, type PortablePathIdentity, type CanonicalJsonValue } from "@agent-teams/repository-mutation";
+import { canonicalJson, parseStrictJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation/serialization";
+import { type PortablePathIdentity } from "@agent-teams/repository-mutation/paths";
 
 import { FOUNDATION_TRANSACTION_FILE } from "../../application/model/state-contract.js";
 

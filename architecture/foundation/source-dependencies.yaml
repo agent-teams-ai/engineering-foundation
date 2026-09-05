@@ -766,31 +766,85 @@ boundaries:
   - id: repository-mutation.primitives
     roots:
       - packages/repository-mutation/src/canonical-json.ts
-      - packages/repository-mutation/src/errors.ts
-      - packages/repository-mutation/src/package-version.ts
-      - packages/repository-mutation/src/repository-mutation-envelope.ts
-      - packages/repository-mutation/src/state-contract.ts
       - packages/repository-mutation/src/strict-json.ts
+      - packages/repository-mutation/src/path-identity.ts
     allow:
       boundaries: []
       packages: []
       builtins:
         - node:crypto
-        - node:fs/promises
-        - node:path
-        - node:url
-        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/canonical-json.ts
-      - packages/repository-mutation/src/errors.ts
-      - packages/repository-mutation/src/package-version.ts
-      - packages/repository-mutation/src/repository-mutation-envelope.ts
-      - packages/repository-mutation/src/state-contract.ts
+      - packages/repository-mutation/src/path-identity.ts
       - packages/repository-mutation/src/strict-json.ts
   - id: repository-mutation.application
     roots:
       - packages/repository-mutation/src/repository-mutation/application
+      - packages/repository-mutation/src/repository-mutation/application-api.ts
+    allow:
+      boundaries:
+        - repository-mutation.coordination-application
+        - repository-mutation.primitives
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/repository-mutation/application-api.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/directory-materialization.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/exact-postimage.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction-error.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction-journal.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/repository-path.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-receipt.ts
+      - packages/repository-mutation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
+  - id: repository-mutation.node-adapters
+    roots:
+      - packages/repository-mutation/src/repository-mutation/adapters
+    allow:
+      boundaries:
+        - repository-mutation.application
+        - repository-mutation.coordination-application
+        - repository-mutation.primitives
+      packages: []
+      builtins:
+        - node:crypto
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/repository-mutation/adapters/node/known-file-coordination.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-repository-path.ts
+  - id: repository-mutation.known-file-composition
+    roots:
+      - packages/repository-mutation/src/repository-mutation/composition
+    allow:
+      boundaries:
+        - repository-mutation.node-adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/repository-mutation/composition/node-api.ts
+  - id: repository-mutation.coordination-application
+    roots:
+      - packages/repository-mutation/src/transaction-coordination/application
+      - packages/repository-mutation/src/transaction-coordination/application-api.ts
     allow:
       boundaries:
         - repository-mutation.primitives
@@ -798,106 +852,19 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/repository-mutation/src/repository-mutation/application/model/directory-materialization.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/exact-postimage.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction-journal.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/path-identity.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/repository-path.ts
-      - packages/repository-mutation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
-      - packages/repository-mutation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts
-      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts
-      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
-  - id: repository-mutation.node-adapters
+      - packages/repository-mutation/src/transaction-coordination/application-api.ts
+      - packages/repository-mutation/src/transaction-coordination/application/errors.ts
+      - packages/repository-mutation/src/transaction-coordination/application/file-observation.ts
+      - packages/repository-mutation/src/transaction-coordination/application/journal-slot-profile.ts
+      - packages/repository-mutation/src/transaction-coordination/application/mutation-lease.ts
+      - packages/repository-mutation/src/transaction-coordination/application/ports/mutation-lease-port.ts
+      - packages/repository-mutation/src/transaction-coordination/application/state-contract.ts
+  - id: repository-mutation.coordination-node
     roots:
-      - packages/repository-mutation/src/installed-artifact-identity.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-repository-path.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters
     allow:
       boundaries:
-        - repository-mutation.primitives
-        - repository-mutation.application
-      packages: []
-      builtins:
-        - node:crypto
-        - node:fs/promises
-        - node:path
-        - node:url
-        - node:util
-      runtimeReferences: []
-    entrypoints:
-      - packages/repository-mutation/src/installed-artifact-identity.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-repository-path.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
-  - id: repository-mutation.known-file-composition
-    roots:
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-effects.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-faults.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-observation.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-operation.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-state.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-cleanup.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-executor.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-observation.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-retirement.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-state.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-    allow:
-      boundaries:
-        - repository-mutation.application
-        - repository-mutation.node-adapters
-        - repository-mutation.primitives
-        - repository-mutation.transaction-coordination
-      packages: []
-      builtins:
-        - node:fs/promises
-        - node:path
-      runtimeReferences: []
-    entrypoints:
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-  - id: repository-mutation.transaction-coordination
-    roots:
-      - packages/repository-mutation/src/transaction-coordination
-    allow:
-      boundaries:
-        - repository-mutation.application
-        - repository-mutation.node-adapters
+        - repository-mutation.coordination-application
         - repository-mutation.primitives
       packages: []
       builtins:
@@ -906,62 +873,151 @@ boundaries:
         - node:fs/promises
         - node:os
         - node:path
+        - node:url
         - node:util
       runtimeReferences: []
     entrypoints:
-      - packages/repository-mutation/src/transaction-coordination/mutation-lease.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/installed-artifact-identity.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-bounded-regular-file.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-store.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-mutation-observation.ts
       - packages/repository-mutation/src/transaction-coordination/adapters/node/node-operation-lock.ts
       - packages/repository-mutation/src/transaction-coordination/adapters/node/node-state-directory.ts
-      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-profile.ts
-      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-store.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-terminal-evidence-directory.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/package-version.ts
+  - id: repository-mutation.coordination-composition
+    roots:
+      - packages/repository-mutation/src/transaction-coordination/composition
+    allow:
+      boundaries:
+        - repository-mutation.coordination-application
+        - repository-mutation.coordination-node
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/transaction-coordination/composition/node-mutation-lease.ts
+      - packages/repository-mutation/src/transaction-coordination/composition/node.ts
+  - id: repository-mutation.composition
+    roots:
+      - packages/repository-mutation/src/composition
+    allow:
+      boundaries:
+        - repository-mutation.coordination-composition
+        - repository-mutation.known-file-composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/composition/node-known-file.ts
   - id: repository-mutation.public-api
-    packageExports:
-      - "."
     roots:
       - packages/repository-mutation/src/index.ts
+    packageExports:
+      - .
     allow:
       boundaries:
         - repository-mutation.application
-        - repository-mutation.known-file-composition
+        - repository-mutation.composition
+        - repository-mutation.coordination-application
+        - repository-mutation.coordination-composition
         - repository-mutation.node-adapters
         - repository-mutation.primitives
-        - repository-mutation.transaction-coordination
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/index.ts
   - id: repository-mutation.node-api
-    packageExports:
-      - "./node"
     roots:
       - packages/repository-mutation/src/node.ts
+    packageExports:
+      - ./node
     allow:
       boundaries:
         - repository-mutation.application
+        - repository-mutation.composition
+        - repository-mutation.coordination-application
+        - repository-mutation.coordination-composition
+        - repository-mutation.coordination-node
         - repository-mutation.node-adapters
-        - repository-mutation.transaction-coordination
+        - repository-mutation.primitives
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/node.ts
   - id: repository-mutation.qualification
-    packageExports:
-      - "./qualification"
     roots:
       - packages/repository-mutation/src/qualification
+    packageExports:
+      - ./qualification
     allow:
       boundaries:
         - repository-mutation.application
-        - repository-mutation.known-file-composition
+        - repository-mutation.composition
+        - repository-mutation.coordination-application
+        - repository-mutation.coordination-node
         - repository-mutation.node-adapters
-        - repository-mutation.transaction-coordination
+        - repository-mutation.primitives
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/qualification/index.ts
+  - id: repository-mutation.serialization-api
+    roots:
+      - packages/repository-mutation/src/serialization.ts
+    packageExports:
+      - ./serialization
+    allow:
+      boundaries:
+        - repository-mutation.primitives
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/serialization.ts
+  - id: repository-mutation.path-api
+    roots:
+      - packages/repository-mutation/src/paths.ts
+    packageExports:
+      - ./paths
+    allow:
+      boundaries:
+        - repository-mutation.application
+        - repository-mutation.primitives
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/paths.ts
+  - id: repository-mutation.coordination-api
+    roots:
+      - packages/repository-mutation/src/coordination.ts
+    packageExports:
+      - ./coordination
+    allow:
+      boundaries:
+        - repository-mutation.coordination-application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/coordination.ts
+  - id: repository-mutation.known-file-api
+    roots:
+      - packages/repository-mutation/src/known-file.ts
+    packageExports:
+      - ./known-file
+    allow:
+      boundaries:
+        - repository-mutation.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/known-file.ts
   - id: repository-mutation.tests
     dependencyMode: development
     roots:
@@ -1368,7 +1424,7 @@ boundaries:
   - id: document-authoring.tests
     dependencyMode: development
     roots:
-      - packages/document-authoring/tests
+      - packages/document-authoring/tests/package-boundary.test.mjs
     allow:
       boundaries:
         - document-authoring.application
@@ -1384,13 +1440,42 @@ boundaries:
       packages: []
       builtins:
         - node:assert/strict
+        - node:fs/promises
+        - node:path
+        - node:test
+      runtimeReferences: []
+    entrypoints: []
+  - id: document-authoring.tests.public-api
+    dependencyMode: development
+    roots:
+      - packages/document-authoring/tests/public-api-contract.test.mjs
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:assert/strict
         - node:child_process
-        - node:crypto
         - node:fs/promises
         - node:os
         - node:path
         - node:test
         - node:url
+      runtimeReferences: []
+    entrypoints: []
+  - id: document-authoring.tests.fault-injection
+    dependencyMode: development
+    roots:
+      - packages/document-authoring/tests/fixtures/public-api/crash-worker.mjs
+      - packages/document-authoring/tests/fixtures/writer-scheduling.mjs
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
       runtimeReferences:
         - dynamic
     entrypoints: []

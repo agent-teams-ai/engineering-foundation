@@ -1,6 +1,6 @@
 import type { DocumentContractValidator } from "../ports/document-contract-validator.js";
 import type { PlanDocumentationDocumentRequestContract } from "./plan-documentation-document.js";
-import { canonicalJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation";
+import { canonicalJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation/serialization";
 import { assertNotCancelled } from "../../../documentation-observation/api.js";
 import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
 import type {

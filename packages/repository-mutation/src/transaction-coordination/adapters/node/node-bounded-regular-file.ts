@@ -3,18 +3,10 @@ import { constants, lstat, open, type FileHandle } from "node:fs/promises";
 import type {
   PathIdentityMatch,
   PortablePathIdentity
-} from "../../application/model/path-identity.js";
+} from "../../../path-identity.js";
 
-export type BoundedRegularFileRead =
-  | {
-      readonly outcome: "read";
-      readonly bytes: Buffer;
-      readonly identity: PortablePathIdentity;
-      readonly linkCount: bigint;
-      readonly mode: number;
-    }
-  | { readonly outcome: "changed" }
-  | { readonly outcome: "invalid" };
+import type { BoundedRegularFileRead } from "../../application/file-observation.js";
+export type { BoundedRegularFileRead } from "../../application/file-observation.js";
 
 export type BoundedRegularFileReadFaultInjector = (point: {
   readonly phase: "before-stability-check";

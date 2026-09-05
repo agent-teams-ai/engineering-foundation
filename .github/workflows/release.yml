@@ -222,10 +222,13 @@ jobs:
             exit 1
           }
 
+          fetch_paginated_pages() {
+            gh api --paginate --slurp "$@"
+          }
+
           paginated_object_collection() {
             local collection="$1"
-            shift
-            gh api --paginate --slurp "$@" | jq -ce --arg collection "${collection}" '
+            jq -ce --arg collection "${collection}" '
               if type != "array" or length == 0 or
                 any(.[]; type != "object" or (.[$collection] | type) != "array")
               then error("malformed paginated object collection")
@@ -244,7 +247,7 @@ jobs:
           }
 
           paginated_array_collection() {
-            gh api --paginate --slurp "$@" | jq -ce '
+            jq -ce '
               if type != "array" or length == 0 or any(.[]; type != "array")
               then error("malformed paginated array collection")
               else [ .[][] ]
@@ -491,11 +494,15 @@ jobs:
             if [[ "$(jq -r '.conclusion // ""' <<<"${codeql_run}")" != "success" ]]; then
               fail_attestation "Release PR CodeQL workflow did not succeed"
             fi
-            if ! codeql_jobs="$(paginated_object_collection jobs \
+            if ! codeql_job_pages="$(fetch_paginated_pages \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}/attempts/1/jobs?per_page=100")"; then
               sleep 5
               continue
+            fi
+            if ! codeql_jobs="$(paginated_object_collection jobs \
+              <<<"${codeql_job_pages}")"; then
+              fail_attestation "Release PR CodeQL pagination evidence is malformed"
             fi
             read -r codeql_analyze_count codeql_analyze_check_id < <(jq -r \
               '[.jobs[] | select(.name == "analyze")] | \
@@ -516,12 +523,16 @@ jobs:
               sleep 5
               continue
             fi
-            if ! codeql_checks="$(paginated_object_collection check_runs --method GET \
+            if ! codeql_check_pages="$(fetch_paginated_pages --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs" \
               -f check_name=CodeQL -f filter=all -f per_page=100)"; then
               sleep 5
               continue
+            fi
+            if ! codeql_checks="$(paginated_object_collection check_runs \
+              <<<"${codeql_check_pages}")"; then
+              fail_attestation "Release PR CodeQL pagination evidence is malformed"
             fi
             read -r codeql_check_count codeql_check_suite_id < <(jq -r \
               '[.check_runs[] | select(.name == "CodeQL" and .app.id == 57789)] |
@@ -535,13 +546,20 @@ jobs:
               fail_attestation "Release PR CodeQL check identity is ambiguous"
             fi
             if ! codeql_check_suite="$(gh api -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/check-suites/${codeql_check_suite_id}")" || \
-              ! codeql_analyses="$(paginated_array_collection --method GET \
+              "repos/${GITHUB_REPOSITORY}/check-suites/${codeql_check_suite_id}")"; then
+              sleep 5
+              continue
+            fi
+            if ! codeql_analysis_pages="$(fetch_paginated_pages --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/code-scanning/analyses" \
               -f ref=refs/heads/changeset-release/main -f tool_name=CodeQL -f per_page=100)"; then
               sleep 5
               continue
+            fi
+            if ! codeql_analyses="$(paginated_array_collection \
+              <<<"${codeql_analysis_pages}")"; then
+              fail_attestation "Release PR CodeQL pagination evidence is malformed"
             fi
             : > "${codeql_evidence_error}"
             if codeql_receipt="$(jq -n \
@@ -715,11 +733,15 @@ jobs:
             fi
             observed_codeql_run="${final_codeql_run}"
             require_final_codeql_snapshot
-            if ! final_codeql_jobs="$(paginated_object_collection jobs \
+            if ! final_codeql_job_pages="$(fetch_paginated_pages \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${codeql_run_id}/attempts/1/jobs?per_page=100")"; then
               sleep 5
               continue
+            fi
+            if ! final_codeql_jobs="$(paginated_object_collection jobs \
+              <<<"${final_codeql_job_pages}")"; then
+              fail_attestation "Release PR CodeQL pagination evidence is malformed"
             fi
             observed_codeql_jobs="${final_codeql_jobs}"
             require_final_codeql_snapshot
@@ -731,12 +753,16 @@ jobs:
             fi
             observed_codeql_analyze_check="${final_codeql_analyze_check}"
             require_final_codeql_snapshot
-            if ! final_codeql_checks="$(paginated_object_collection check_runs --method GET \
+            if ! final_codeql_check_pages="$(fetch_paginated_pages --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs" \
               -f check_name=CodeQL -f filter=all -f per_page=100)"; then
               sleep 5
               continue
+            fi
+            if ! final_codeql_checks="$(paginated_object_collection check_runs \
+              <<<"${final_codeql_check_pages}")"; then
+              fail_attestation "Release PR CodeQL pagination evidence is malformed"
             fi
             observed_codeql_checks="${final_codeql_checks}"
             require_final_codeql_snapshot
@@ -747,12 +773,16 @@ jobs:
             fi
             observed_codeql_check_suite="${final_codeql_check_suite}"
             require_final_codeql_snapshot
-            if ! final_codeql_analyses="$(paginated_array_collection --method GET \
+            if ! final_codeql_analysis_pages="$(fetch_paginated_pages --method GET \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/code-scanning/analyses" \
               -f ref=refs/heads/changeset-release/main -f tool_name=CodeQL -f per_page=100)"; then
               sleep 5
               continue
+            fi
+            if ! final_codeql_analyses="$(paginated_array_collection \
+              <<<"${final_codeql_analysis_pages}")"; then
+              fail_attestation "Release PR CodeQL pagination evidence is malformed"
             fi
             observed_codeql_analyses="${final_codeql_analyses}"
             require_final_codeql_snapshot

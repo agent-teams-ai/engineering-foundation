@@ -197,6 +197,41 @@ function assertFinalCodeqlReadsFailClosed(attestationSource) {
   }
 }
 
+function assertPaginatedEvidenceFailClosed(attestationSource) {
+  assert.equal(
+    (attestationSource.match(/paginated_object_collection jobs/gu) ?? []).length,
+    2,
+  );
+  assert.equal(
+    (attestationSource.match(/paginated_object_collection check_runs/gu) ?? [])
+      .length,
+    2,
+  );
+  assert.equal(
+    (attestationSource.match(
+      /if ! [a-z_]+_analyses="\$\(paginated_array_collection/gu,
+    ) ?? []).length,
+    2,
+  );
+  assert.match(
+    attestationSource,
+    /fetch_paginated_pages\(\) \{\n\s+gh api --paginate --slurp "\$@"/u,
+  );
+  assert.equal(
+    (attestationSource.match(
+      /if ! [a-z_]+_pages="\$\(fetch_paginated_pages/gu,
+    ) ?? []).length,
+    6,
+  );
+  assert.equal(
+    (attestationSource.match(
+      /fail_attestation "Release PR CodeQL pagination evidence is malformed"/gu,
+    ) ?? []).length,
+    6,
+  );
+  assert.match(attestationSource, /incomplete paginated object collection/u);
+}
+
 function exactPullRequestRun(overrides = {}) {
   const repository = "agent-teams-ai/engineering-foundation";
   const baseSha = "a".repeat(40);
@@ -877,22 +912,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.match(attestation.run, /check_name=CodeQL/u);
   assert.match(attestation.run, /\.app\.id == 57789/u);
   assert.match(attestation.run, /code-scanning\/analyses/u);
-  assert.equal(
-    (attestation.run.match(/paginated_object_collection jobs/gu) ?? []).length,
-    2,
-  );
-  assert.equal(
-    (attestation.run.match(/paginated_object_collection check_runs/gu) ?? [])
-      .length,
-    2,
-  );
-  assert.equal(
-    (attestation.run.match(/paginated_array_collection --method GET/gu) ?? [])
-      .length,
-    2,
-  );
-  assert.match(attestation.run, /gh api --paginate --slurp "\$@"/u);
-  assert.match(attestation.run, /incomplete paginated object collection/u);
+  assertPaginatedEvidenceFailClosed(attestation.run);
   assert.match(attestation.run, /check-suites\/\$\{codeql_check_suite_id\}/u);
   assert.equal((attestation.run.match(/-f filter=all/gu) ?? []).length, 2);
   assert.match(attestation.run, /final_codeql_analyses/u);

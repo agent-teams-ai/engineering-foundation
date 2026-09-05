@@ -32,12 +32,16 @@ function rootName(node) {
   return ["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression"].includes(node?.type) ? rootName(node.expression) : undefined;
 }
 
+function parameterScope(node, hidden) {
+  const scope = new Set(hidden);
+  for (const param of node.params) {bindingNames(param, scope);}
+  if (node.type === "FunctionExpression") {bindingNames(node.id, scope);}
+  return scope;
+}
 function nestedScope(node, hidden) {
   let scope = hidden;
   if (functionNode(node)) {
-    scope = new Set(hidden);
-    for (const param of node.params) {bindingNames(param, scope);}
-    if (node.type === "FunctionExpression") {bindingNames(node.id, scope);}
+    scope = parameterScope(node, hidden);
     declarations(node.body?.body ?? [], true, scope);
   } else if (node.type === "BlockStatement") {scope = declarations(node.body, false, new Set(hidden));}
   else if (node.type === "CatchClause") {scope = bindingNames(node.param, new Set(hidden));}
@@ -57,25 +61,50 @@ function children(node) {
 /** Track writes and escapes of enclosing bindings without confusing inner shadows. */
 export function unstableFactoryBindings(body, bindings) {
   const names = new Set(bindings.keys());
-  const unstable = new Set();
-  function mark(node, hidden) {
+  const unstable = new Map();
+  const pending = [];
+  function mark(node, hidden, reason = "contentsUnstable") {
     const name = rootName(node);
-    if (name && names.has(name) && !hidden.has(name)) {unstable.add(name);}
-    if (node?.type === "ArrayPattern") {for (const child of node.elements) {mark(child, hidden);}}
-    if (node?.type === "ObjectPattern") {for (const child of node.properties) {mark(child.value ?? child.argument, hidden);}}
-    if (node?.type === "RestElement") {mark(node.argument, hidden);}
-    if (node?.type === "AssignmentPattern") {mark(node.left, hidden);}
+    if (name && names.has(name) && !hidden.has(name) && !unstable.get(name)?.[reason]) {
+      unstable.set(name, { ...unstable.get(name), [reason]: true });
+      pending.push([name, reason]);
+    }
+    if (node?.type === "ArrayPattern") {for (const child of node.elements) {mark(child, hidden, reason);}}
+    if (node?.type === "ObjectPattern") {for (const child of node.properties) {mark(child.value ?? child.argument, hidden, reason);}}
+    if (node?.type === "RestElement") {mark(node.argument, hidden, reason);}
+    if (node?.type === "AssignmentPattern") {mark(node.left, hidden, reason);}
   }
-  function scan(node, hidden, escaped = false) {
+  function write(node, hidden) {
+    if (node?.type === "ArrayPattern") {for (const child of node.elements) {write(child, hidden);}}
+    else if (node?.type === "ObjectPattern") {for (const child of node.properties) {write(child.value ?? child.argument, hidden);}}
+    else if (node?.type === "RestElement") {write(node.argument, hidden);}
+    else if (node?.type === "AssignmentPattern") {write(node.left, hidden);}
+    else {mark(node, hidden, node?.type === "Identifier" ? "unstable" : "contentsUnstable");}
+  }
+  function scan(node, hidden, escaped) {
     if (!node || typeof node !== "object") {return;}
+    // Defaults execute in the parameter environment, outside body var/function
+    // declarations. All real parameter bindings and expression self names shadow.
+    if (functionNode(node)) {
+      escaped = undefined;
+      const parameters = parameterScope(node, hidden);
+      for (const param of node.params) {scan(param, parameters, escaped);}
+    }
     const scope = nestedScope(node, hidden);
-    if (escaped && node.type === "Identifier") {mark(node, scope);}
-    if (node.type === "AssignmentExpression") {mark(node.left, scope);}
-    if (node.type === "UpdateExpression" || (node.type === "UnaryExpression" && node.operator === "delete")) {mark(node.argument, scope);}
+    if (escaped && node.type === "Identifier") {mark(node, scope, escaped);}
+    if (node.type === "AssignmentExpression") {scan(node.right, scope, "contentsUnstable");}
+    if (node.type === "VariableDeclarator" && [...bindingNames(node.id)].some((name) => scope.has(name) || !names.has(name))) {
+      // A value copied into an untracked inner binding has escaped this finite
+      // environment. Do not interpret subsequent inner alias mutations.
+      scan(node.init, scope, "contentsUnstable");
+    }
+    if (node.type === "AssignmentExpression" ||
+        (["ForInStatement", "ForOfStatement"].includes(node.type) && node.left.type !== "VariableDeclaration")) {write(node.left, scope);}
+    if (node.type === "UpdateExpression" || (node.type === "UnaryExpression" && node.operator === "delete")) {write(node.argument, scope);}
     if (["CallExpression", "NewExpression"].includes(node.type)) {
-      if (node.callee.type === "MemberExpression") {mark(node.callee.object, scope);}
+      if (node.callee.type === "MemberExpression") {mark(node.callee.object, scope, "receiverUnstable");}
       scan(node.callee, scope, escaped);
-      for (const argument of node.arguments) {scan(argument, scope, true);}
+      for (const argument of node.arguments) {scan(argument, scope, "contentsUnstable");}
       return;
     }
     for (const child of children(node)) {scan(child, scope, escaped);}
@@ -86,9 +115,11 @@ export function unstableFactoryBindings(body, bindings) {
   // Follow alias initializers and escaped closures in their original lexical
   // frame. A supplied argument belongs to its caller, so do not reinterpret it
   // under coincidentally equal parameter names in this factory.
-  for (const name of unstable) {
+  for (const [name, reason] of pending) {
     const value = bindings.get(name);
-    if (value?.locals === bindings) {scan(value.node, new Set(), true);}
+    // Reassigning an alias does not replace the source binding; writes through
+    // it and escapes do expose the source object's contents.
+    if (reason !== "unstable" && value?.locals === bindings) {scan(value.node, new Set(), reason);}
   }
   return unstable;
 }

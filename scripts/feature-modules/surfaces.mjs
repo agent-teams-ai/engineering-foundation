@@ -1,4 +1,5 @@
-import { factoryOrigins, flatBindings } from "./factory-origins.mjs";
+import { unstableFactoryBindings } from "./factory-stability.mjs";
+import { callableSelection, factoryOrigins, flatBindings, inheritStability } from "./factory-origins.mjs";
 import { parseSync } from "oxc-parser";
 import { classify, problem, sourceTarget, within } from "./profile.mjs";
 
@@ -36,7 +37,9 @@ function indexProgram(program) {
         exports.set(nameOf(specifier.exported), { local: nameOf(specifier.local), source: statement.source, typeOnly: statement.exportKind === "type" || specifier.exportKind === "type" });
       }
     }
-    if (statement.type === "ExportDefaultDeclaration") {exports.set("default", { declaration: node });}
+    if (statement.type === "ExportDefaultDeclaration") {
+      exports.set("default", ["FunctionDeclaration", "ClassDeclaration"].includes(node.type) && node.id ? { local: node.id.name } : { declaration: node });
+    }
     if (statement.type === "ExportAllDeclaration" && statement.exported) {
       exports.set(nameOf(statement.exported), { source: statement.source, local: "*", namespace: statement });
     }
@@ -63,7 +66,14 @@ export function indexSurfaces(files, problems, snapshots) {
 // resolver. We never resolve a new specifier or infer ownership from dist bytes.
 export function surfaceBindings(profile, policy, observations, sources, packageExportTargets = new Map()) {
   const byReference = new Map(observations.map((entry) => [`${entry.path}:${entry.reference.start}`, entry]));
-  const namespaceCache = new Map();
+  const namespaceCache = new Map(), moduleFrames = new Map();
+  // Each synchronous ownership query shares one total expansion allowance across
+  // imports, aliases and values. No result cache can conflate invocation frames.
+  let remaining = 0;
+  function enter(active, key) {
+    if (--remaining < 0 || active.has(key) || active.size >= 128) {return;}
+    return new Set([...active, key]);
+  }
   function publishedTarget(module, target) {
     return (packageExportTargets.get(module.packageName) ?? []).some((manifestTargets) => {
       const paths = manifestTargets.map((value) => sourceTarget(module, value));
@@ -105,57 +115,84 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     const paths = observation && targets(observation);
     return paths?.length ? paths.flatMap((target) => exported(target, name, active, selection)) : [undefined];
   }
+  function moduleFrame(path) {
+    if (moduleFrames.has(path)) {return moduleFrames.get(path);}
+    const surface = sources.get(path), locals = new Map();
+    moduleFrames.set(path, locals);
+    for (const [name, binding] of surface?.imports ?? []) {locals.set(name, { path, imported: binding });}
+    for (const [name, declaration] of surface?.locals ?? []) {
+      if (declaration.type !== "VariableDeclaration") {locals.set(name, { path, node: declaration, locals }); continue;}
+      for (const { id, init } of declaration.declarations) {
+        const projection = flatBindings(id).find((item) => item.name === name);
+        if (projection) {locals.set(name, { path, node: init, locals, selection: projection.selection, unstable: declaration.kind !== "const" });}
+      }
+    }
+    for (const [name, instability] of unstableFactoryBindings(surface?.program.body ?? [], locals)) {
+      locals.set(name, { ...locals.get(name), ...instability });
+    }
+    return locals;
+  }
+  function importValue(value, selection, active) {
+    if (value.unstable) {return [undefined];}
+    const binding = value.imported;
+    const typeOnly = binding.node.importKind === "type" || binding.node.specifiers.find((item) => item.local.name === value.name)?.importKind === "type";
+    // Escaping a function cannot replace its implementation. An escaped object
+    // import has no proven contents; callable selection never flattens it.
+    const projected = value.contentsUnstable || value.receiverUnstable ? [callableSelection] : selection;
+    const origins = imported(value.path, binding.node.source, binding.name, active, projected);
+    return origins.flatMap((entry) => {
+      if (!entry) {return [undefined];}
+      const result = { ...entry, typeOnly: entry.typeOnly || typeOnly };
+      return projected === selection ? [result] : values(result, selection, active);
+    });
+  }
   const owned = (value) => [{ ...value, owner: classify(value.path, profile) }];
   const values = factoryOrigins({
-    owned,
+    owned, enter,
     isComposition(path) {
       const owner = classify(path, profile);
       return owner?.kind === "assembly" || owner?.layer?.role === "composition";
     },
     identifier(value, selection, active) {
-      if (value.locals?.has(value.node.name)) {return values(value.locals.get(value.node.name), selection, active);}
+      const binding = value.locals?.get(value.node.name);
+      if (binding) {
+        const resolved = inheritStability(binding, value);
+        return resolved.imported ? importValue({ ...resolved, name: value.node.name }, selection, active)
+          : values(resolved, [...(binding.selection ?? []), ...selection], active);
+      }
       return localAlias(value.path, value.node.name, active, selection);
     }
   });
   function local(path, name, active, selection) {
     const surface = sources.get(path);
-    const binding = surface?.imports.get(name);
-    if (binding) {
-      const typeOnly = binding.node.importKind === "type" || binding.node.specifiers.find((item) => item.local.name === name)?.importKind === "type";
-      return imported(path, binding.node.source, binding.name, active, selection).map((entry) => entry && ({ ...entry, typeOnly: entry.typeOnly || typeOnly }));
-    }
-    const declaration = surface?.locals.get(name);
-    if (!declaration) {return [undefined];}
-    if (declaration.type === "VariableDeclaration") {
-      if (declaration.kind !== "const") {return [undefined];}
-      for (const { id, init } of declaration.declarations) {
-        const projection = flatBindings(id).find((item) => item.name === name);
-        if (projection) {return values({ path, node: init }, [...projection.selection, ...selection], active);}
-      }
-      return [undefined];
-    }
+    const value = moduleFrame(path).get(name);
+    if (!value) {return [undefined];}
+    if (value.imported) {return importValue({ ...value, name }, selection, active);}
+    const declaration = surface.locals.get(name);
+    if (declaration.type === "VariableDeclaration") {return values(value, [...(value.selection ?? []), ...selection], active);}
     const alias = typeOrigin(declaration.typeAnnotation);
     if (alias?.type === "Identifier" && alias.name !== name &&
         (surface.imports.has(alias.name) || surface.locals.has(alias.name))) {return localAlias(path, alias.name, active, selection);}
-    return values({ path, node: declaration }, selection, active);
+    return values(value, selection, active);
   }
   function localAlias(path, name, active, selection = []) {
-    const key = `${path}:local:${name}:${selection.join("/")}`;
-    if (active.has(key) || active.size > 128) {return [undefined];}
-    return local(path, name, new Set([...active, key]), selection);
+    const key = `${path}:local:${name}:${selection.map(String).join("/")}`;
+    const next = enter(active, key);
+    return next ? local(path, name, next, selection) : [undefined];
   }
   function exported(path, name, active = new Set(), selection = []) {
-    const key = `${path}:export:${name}:${selection.join("/")}`, surface = sources.get(path);
-    if (!surface || active.has(key) || active.size > 128) {return [undefined];}
-    const next = new Set([...active, key]);
+    const key = `${path}:export:${name}:${selection.map(String).join("/")}`, surface = sources.get(path);
+    const next = enter(active, key);
+    if (!surface || !next) {return [undefined];}
     if (name === "*") {
+      if (selection[0] === callableSelection) {return [undefined];}
       return surface.exports.size ? [...surface.exports.keys()].flatMap((item) => exported(path, item, next, selection)) : [undefined];
     }
     const binding = surface.exports.get(name);
     if (!binding) {return [undefined];}
     if (binding.namespace && !curatedNamespace(path, binding.namespace)) {return [undefined];}
     if (binding.source) {return imported(path, binding.source, binding.local, next, selection).map((entry) => entry && ({ ...entry, typeOnly: entry.typeOnly || binding.typeOnly }));}
-    const origins = binding.declaration ? values({ path, node: binding.declaration }, selection, next) : localAlias(path, binding.local, next, selection);
+    const origins = binding.declaration ? values({ path, node: binding.declaration, locals: moduleFrame(path) }, selection, next) : localAlias(path, binding.local, next, selection);
     return origins.map((entry) => entry && ({ ...entry, typeOnly: entry.typeOnly || binding.typeOnly }));
   }
   function selected(observation) {
@@ -171,8 +208,12 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     targets,
     curatedNamespace,
     owners(observation) {
+      remaining = 4096;
       const paths = targets(observation), names = selected(observation);
-      return paths.length && names.length ? paths.flatMap((path) => names.flatMap((name) => exported(path, name))).map((entry) => entry && ({ path: entry.path, owner: entry.owner })) : [undefined];
+      const origins = paths.length && names.length ? paths.flatMap((path) => names.flatMap((name) => exported(path, name))) : [undefined];
+      // Only the public ownership projection is deduplicated. Callable values
+      // retain their node and lexical frame throughout inference, including null.
+      return [...new Map(origins.map((entry) => [entry?.path, entry && ({ path: entry.path, owner: entry.owner })])).values()];
     },
     observation(path, start) {return byReference.get(`${path}:${start}`);}
   };

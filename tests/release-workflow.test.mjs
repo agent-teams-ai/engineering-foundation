@@ -112,6 +112,38 @@ function assertReviewRouterInteractionRuntime(
   assert.doesNotMatch(reviewInteractionSource, /pnpm (?:install|action-setup)/u);
 }
 
+function assertAttestationDeadlineBudget(source, jobTimeoutSeconds) {
+  const seconds = (name) => Number(source.match(
+    new RegExp(`^\\s*${name}=\\$\\(\\(SECONDS \\+ ([0-9]+)\\)\\)$`, "mu"),
+  )[1]);
+  const postStatus = source.slice(source.indexOf("post_status()"), source.indexOf("mark_attestation_error()"));
+  const attempts = postStatus.match(/for attempt in ([0-9 ]+); do/u)[1].trim().split(/\s+/u).length;
+  const requestBounds = [...postStatus.matchAll(/timeout --kill-after=([0-9]+)s ([0-9]+)s gh api/gu)];
+  assert.equal(requestBounds.length, 3, "bound creator lookup, POST and paginated read-back");
+  const attemptSeconds = requestBounds.reduce((sum, [, grace, timeout]) => sum + Number(grace) + Number(timeout), 0);
+  const [, retryLimit, delay] = postStatus.match(/if \(\( attempt < ([0-9]+) \)\); then sleep ([0-9]+); fi/u);
+  assert.equal(Number(retryLimit), attempts);
+  const statusSeconds = attempts * attemptSeconds + (attempts - 1) * Number(delay);
+  const ciContexts = source.match(/^\s*ci_contexts=\(([^)]+)\)$/mu)[1].split(" ");
+  assert.match(source, /attestation_contexts=\(analyze "\$\{ci_contexts\[@\]\}"\)/u);
+  const contextCount = ciContexts.length + 1;
+  // Conservatively charge uncached creator lookup on every attempt, even though
+  // successful resolution is cached. Include full pending, terminal and recovery
+  // passes: the last terminal write may be accepted but never reconciled.
+  const publicationSeconds = 3 * contextCount * statusSeconds;
+  const waitSeconds = seconds("selection_deadline") + seconds("deadline") + seconds("final_verification_deadline");
+  const pollingDelays = [...source.slice(source.indexOf("selection_deadline=")).matchAll(/\bsleep ([0-9]+)/gu)];
+  const pollingOvershootSeconds = 3 * Math.max(...pollingDelays.map(([, value]) => Number(value)));
+  // Explicit allowances for checkout/tool setup, dependency bootstrap, Git/API
+  // work and local validation; margin also absorbs scheduling/clock overhead.
+  const setupAndOtherWorkSeconds = 180;
+  const minimumMarginSeconds = 120;
+  const requiredSeconds = waitSeconds + pollingOvershootSeconds + publicationSeconds +
+    setupAndOtherWorkSeconds + minimumMarginSeconds;
+  assert.ok(jobTimeoutSeconds >= requiredSeconds,
+    `attestation needs ${requiredSeconds}s including a full ${contextCount * statusSeconds}s recovery pass; got ${jobTimeoutSeconds}s`);
+}
+
 function assertExactReleaseRunBinding(attestation, release, ci) {
   const jobTimeoutSeconds =
     release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
@@ -131,7 +163,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   const primaryDeadlineSeconds = deadlines.get("deadline");
   const finalVerificationSeconds = deadlines.get("final_verification_deadline");
 
-  assert.equal(jobTimeoutSeconds, 60 * 60);
+  assertAttestationDeadlineBudget(attestation.run, jobTimeoutSeconds);
   assert.equal(deadlines.size, 2);
   assert.equal(primaryDeadlineSeconds, 55 * 60);
   assert.equal(finalVerificationSeconds, 60);
@@ -175,10 +207,6 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
     attestation.run,
     /while \(\( SECONDS < final_verification_deadline \)\); do/u,
   );
-  assert.equal(
-    jobTimeoutSeconds - primaryDeadlineSeconds - finalVerificationSeconds,
-    4 * 60,
-  );
   assert.ok(
     attestation.run.lastIndexOf("final_bound_run") <
       attestation.run.lastIndexOf('post_status "${ci_contexts[index]}" success'),
@@ -191,6 +219,20 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   );
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
 }
+
+test("release deadline reserves bounded publication and full recovery time", async () => {
+  const release = await workflow("release.yml");
+  const job = release.jobs["attest-release-pr"];
+  const source = job.steps.at(-1).run;
+  const timeoutSeconds = job["timeout-minutes"] * 60;
+  assertAttestationDeadlineBudget(source, timeoutSeconds);
+  assert.throws(() => assertAttestationDeadlineBudget(source, 60 * 60), { code: "ERR_ASSERTION" });
+  // Increasing request limits must consume the reserve, even if retry/context
+  // counts and the CI/final windows stay unchanged.
+  const slowerRequests = source.replaceAll("--kill-after=1s 3s", "--kill-after=1s 4s");
+  assert.notEqual(slowerRequests, source);
+  assert.throws(() => assertAttestationDeadlineBudget(slowerRequests, timeoutSeconds), { code: "ERR_ASSERTION" });
+});
 
 // Execute local control fragments with the real post_status; gh cannot reach the API.
 function runAttestationFragment(source, fragment, setup = "") {
@@ -425,6 +467,7 @@ function assertStatusReconciliation(source) {
     ["fault_context=analyze:success; fault_mode=malformed", 1],
     ["fault_context=analyze:success; fault_mode=phantom", 2],
     ["read_transform='.[0] as $page | $page.statuses | map({sha:$page.sha,statuses:[.]})'", 1],
+    ["read_transform='.[0].statuses += [{context: \"unrelated\", description: null, target_url: null}]'", 1],
     ["fault_context=analyze:success; fault_mode=lost", 1],
     ["read_failures=2", 3],
     ["fault_context=analyze:success; fault_mode=lost; fault_count=3; read_failures=2", 3],
@@ -446,6 +489,11 @@ function assertStatusReconciliation(source) {
     '.[0].statuses[0].creator.type = "User"',
     '.[0].statuses += .[0].statuses',
     '.[0].statuses = null',
+    '.[0].statuses += [null]',
+    '.[0].statuses += [{"state":"failure"}]',
+    '. += [{sha: .[0].sha, statuses: [null]}]',
+    '. += [{sha: .[0].sha, statuses: [{"state":"failure"}]}]',
+    '.[0].statuses += [{"context":42}]',
     '[]',
     '"invalid-json-shape"',
   ]) {
@@ -512,6 +560,7 @@ test("release reconciliation rejects fail-open mutations", {
     ["ignore target", ".target_url == $target", "true"],
     ["ignore description", ".description == $description", "true"],
     ["ignore duplicate context", "length == 1 and all", "length > 0 and all"],
+    ["omit complete-set shape guard", 'all(.[].statuses[]; type == "object" and (.context | type) == "string") and', ""],
     ["silence recovery exhaustion", 'unreconciled+=("${context}")', ":"],
     ["erase original exit", 'exit "${exit_code}"', "exit 1"],
   ]) {

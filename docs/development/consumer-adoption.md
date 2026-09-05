@@ -28,9 +28,44 @@ adapters for supported agents, and expose `check:changed`, `check:fast`, and
 keeps only its policy mapping and existing required CI call. See the
 [agent workflow reference](../reference/repository-agent-workflow.md).
 
-Blocking CI runs the full check plus registry assertions. Local source work uses
-the guarded attach/status/detach lifecycle; manifests and lockfiles keep the
-published exact version throughout.
+Local source work uses the guarded attach/status/detach lifecycle; manifests and
+lockfiles keep the published exact version throughout.
+
+## Required integration gate
+
+**Adoption is incomplete until required CI blocks merging on the full configured
+Foundation check and the applicable consumer checks.** Installing the package,
+declaring scripts, or passing a local changed-file check does not establish this
+gate. Each consumer must explicitly select its applicable capabilities.
+
+Required CI must execute `foundation:check`, `foundation:assert-dev-only`, and
+`foundation:assert-registry`, plus the consumer's applicable lint, typecheck,
+test, and capability-qualification commands. `check:changed` and `check:fast`
+provide feedback but cannot replace the complete required checks.
+Static `foundation check` validates gate-runner and executable-specification
+configuration; it does not execute those scripts or prove they succeeded.
+
+Record each capability, its actual executed command, and its required status.
+The required status must fail when a prerequisite fails, is cancelled, is
+skipped, or is missing. `continue-on-error` and conditional job selection must
+not turn absent evidence into a successful merge gate. Use the consumer's
+existing required checks, rulesets, ownership review, and trusted validation to
+protect changes to policy, exclusions, suppressions, and the CI gate itself.
+A workflow file alone is not proof that repository protection requires it.
+
+Qualify adoption in a disposable consumer with one permitted dependency and a
+deliberately forbidden dependency that makes the installed check fail. Record
+the source-dependency schema and the exact selected source universe. V1 governs
+only `governedRoots`; a source outside those roots is not an unknown-source
+failure. V2 closes ownership inside its explicitly selected package universe:
+place unknown-source and unknown-package fixtures inside that universe. Moving
+from v1 to v2 requires explicit consumer policy activation. Preserve valid
+generated-output references and existing documented exceptions in both tests.
+
+Retain results for the exact candidate source, lockfile, configuration, and
+installed artifacts. Reuse equivalent existing fixtures; a new testing framework
+is not required. Consumer runtime or mutation qualification must use explicitly
+authorized test projects and must not execute against a real project by default.
 
 ## Configuration
 

@@ -238,6 +238,11 @@
       "immutableDigest": "sha256:ef6db9f665f85e9a5c062357dbd1e8469cb2cb6dc1f9b910f27091de75bcb5df"
     },
     {
+      "id": "ADR-0049",
+      "path": "docs/decisions/0049-truthful-authoring-generic-returns.md",
+      "immutableDigest": "sha256:8a063851555711f4f54e83fe7d26f3005d5f977826c9eaa7f24769eb2316c137"
+    },
+    {
       "id": "ADR-0050",
       "path": "docs/decisions/0050-exact-json-primitive-admission.md",
       "immutableDigest": "sha256:bc6ff5e2a85c2fb95ac156c294f0a09316531400ac5f373d2553eddb5f89953f"

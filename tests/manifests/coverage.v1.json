@@ -121,6 +121,7 @@
     "tests/release-workflow.test.mjs",
     "tests/repository-mutation-directory-materialization.test.mjs",
     "tests/repository-security-configuration.test.mjs",
+    "tests/suppression-configuration.test.mjs",
     "tests/repository-security-hardening.test.mjs",
     "tests/scaffolding-frozen-baseline.test.mjs",
     "tests/source-dependency-export-authority.test.mjs",

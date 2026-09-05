@@ -2161,6 +2161,7 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.source-inventory.application
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2174,17 +2175,12 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/suppression-governance/api.ts
       - packages/engineering-foundation/src/capabilities/suppression-governance/application/model/source-file-snapshot.ts
       - packages/engineering-foundation/src/capabilities/suppression-governance/application/ports/source-tree-reader.ts
+      - packages/engineering-foundation/src/capabilities/suppression-governance/application/configuration-input.ts
   - id: capability.suppression-governance.contract
     roots:
       - packages/engineering-foundation/src/capabilities/suppression-governance/contract
     allow:
-      boundaries:
-        - capability.suppression-governance.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2204,6 +2200,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/capabilities/suppression-governance/adapters/outbound/oxc/oxc-suppression-scanner.ts
       - packages/engineering-foundation/src/capabilities/suppression-governance/adapters/outbound/time/system-clock.ts
+      - packages/engineering-foundation/src/capabilities/suppression-governance/adapters/inbound/configuration/load-capability-config.ts
   - id: capability.suppression-governance.composition
     roots:
       - packages/engineering-foundation/src/capabilities/suppression-governance/module.ts
@@ -2214,6 +2211,7 @@ boundaries:
         - capability.suppression-governance.contract
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.configuration-input.composition
       packages: []
       builtins: []
       runtimeReferences: []

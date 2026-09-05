@@ -11,17 +11,18 @@ import { SUPPRESSION_GOVERNANCE_RULES_BY_ID } from "./application/rules.js";
 import { analyzeSuppressionGovernance } from "./application/use-cases/analyze-suppression-governance.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
+import { loadCapabilityConfig, type SuppressionConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export { SUPPRESSION_GOVERNANCE_RULES_BY_ID };
 
-export function createSuppressionGovernanceCapability(sourceReader: SourceTreeReader): CapabilityDefinition {
+export function createSuppressionGovernanceCapability(input: { readonly sourceReader: SourceTreeReader; readonly assertSchema: SuppressionConfigurationDependencies["assertSchema"] }): CapabilityDefinition {
   const dependencies = Object.freeze({
     clock: new SystemCalendarClock(),
     scanner: new OxcSuppressionScanner(),
-    sourceReader
+    sourceReader: input.sourceReader
   });
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -29,6 +30,7 @@ export function createSuppressionGovernanceCapability(sourceReader: SourceTreeRe
     async run(invocation: CapabilityInvocation) {
       try {
         const policy = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema: input.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

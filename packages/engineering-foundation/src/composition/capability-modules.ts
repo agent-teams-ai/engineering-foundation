@@ -111,7 +111,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       SOURCE_DEPENDENCY_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createSuppressionGovernanceCapability(createSourceTreeReader()),
+      createSuppressionGovernanceCapability({ sourceReader: createSourceTreeReader(), assertSchema }),
       SUPPRESSION_GOVERNANCE_RULES_BY_ID
     ),
     defineCapabilityModule(

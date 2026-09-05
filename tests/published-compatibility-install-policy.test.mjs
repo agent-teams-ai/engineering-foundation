@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { main as runPublishedCompatibility } from "../scripts/published-compatibility-e2e.mjs";
+
 import { commandDefaultTimeoutMs } from "../scripts/pack-test-support.mjs";
 import { createPublishedCompatibilityInstallPolicy } from "../scripts/published-compatibility-install-policy.mjs";
 
@@ -90,9 +92,9 @@ test("published compatibility callsites share one install policy", async () => {
     ),
   ]);
   assert.equal(entrypoint.match(/createPublishedCompatibilityInstallPolicy\(\)/gu)?.length, 1);
-  assert.match(entrypoint, /verifyOldFoundationTransactionBarrier\(\{ currentCliPath, installPackage \}\)/u);
-  assert.match(entrypoint, /verifyPublishedDocumentTransactionCompatibility\(\{[\s\S]*installPackage,/u);
-  assert.match(entrypoint, /verifyPublishedScaffoldingCompatibility\(\{[\s\S]*installPackage,/u);
+  assert.match(entrypoint, /verifyTransactions\(\{ currentCliPath, installPackage \}\)/u);
+  assert.match(entrypoint, /verifyAuthoring\(\{[\s\S]*installPackage,/u);
+  assert.match(entrypoint, /verifyScaffolding\(\{[\s\S]*installPackage,/u);
   assert.match(
     entrypoint,
     /currentRuntimePackageRoot: resolve\("packages", "repository-mutation"\)/u,
@@ -153,4 +155,56 @@ test("published compatibility fails closed when cleanup fails", async () => {
   });
   await assert.rejects(install([], "/fixture"), cleanupFailure);
   assert.equal(installs, 1);
+});
+
+function compatibilityChecks(calls) {
+  return {
+    args: [],
+    qualifyPublicDocs: async () => { throw new Error("current public completion ran in preflight"); },
+    verifyAuthoring: async ({ installPackage, temporaryRoot }) => {
+      assert.equal(typeof installPackage, "function");
+      assert.equal((await lstat(temporaryRoot)).isDirectory(), true);
+      calls.push("authoring");
+    },
+    verifyBootstrap: async () => { calls.push("bootstrap"); return ["bootstrap@0.0.0"]; },
+    verifyScaffolding: async ({ installPackage }) => {
+      assert.equal(typeof installPackage, "function");
+      calls.push("scaffolding");
+    },
+    verifyTransactions: async ({ currentCliPath, installPackage }) => {
+      assert.equal(currentCliPath, join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"));
+      assert.equal(typeof installPackage, "function");
+      calls.push("transactions");
+    },
+    write: (line) => calls.push(line),
+  };
+}
+
+test("ordinary compatibility defers public completion and retains all historical checks", async () => {
+  const calls = [];
+  const result = await runPublishedCompatibility(compatibilityChecks(calls));
+  assert.deepEqual(calls.slice(0, 4), ["bootstrap", "transactions", "authoring", "scaffolding"]);
+  assert.equal(calls.length, 5);
+  assert.match(calls[4], /deferred to required post-reconciliation public-docs-release:e2e/u);
+  assert.deepEqual(result, {
+    bootstrapBaselines: ["bootstrap@0.0.0"],
+    publicDocs: { status: "deferred" },
+  });
+});
+
+test("historical check failures still stop compatibility before reconciliation", async () => {
+  for (const check of ["verifyBootstrap", "verifyTransactions", "verifyAuthoring", "verifyScaffolding"]) {
+    const calls = [];
+    const failure = new Error(`${check} failed`);
+    let reconciled = false;
+    await assert.rejects(async () => {
+      await runPublishedCompatibility({
+        ...compatibilityChecks(calls),
+        [check]: async () => { throw failure; },
+      });
+      reconciled = true;
+    }, (error) => error === failure);
+    assert.equal(reconciled, false);
+    assert.equal(calls.some((line) => line.includes("PASS")), false);
+  }
 });

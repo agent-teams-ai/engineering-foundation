@@ -2105,6 +2105,8 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/configuration-input.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/public-api-evidence-errors.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-evidence.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/public-api.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-package-export-coverage.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/accepted-decision-evidence.ts
@@ -2193,10 +2195,6 @@ boundaries:
       boundaries:
         - capability.public-api-compatibility.application
         - foundation.core
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
-        - foundation.configuration-input.adapters
       packages:
         - "@microsoft/api-extractor"
         - "@microsoft/api-extractor-model"
@@ -2219,6 +2217,8 @@ boundaries:
     allow:
       boundaries:
         - foundation.configuration-input.composition
+        - foundation.configuration-input.adapters
+        - foundation.source-inventory.composition
         - capability.public-api-compatibility.adapters
         - capability.public-api-compatibility.application
         - capability.public-api-compatibility.contract
@@ -3389,6 +3389,7 @@ boundaries:
     allow:
       boundaries:
         - capability.public-api-compatibility.adapters
+        - capability.public-api-compatibility.composition
         - foundation.configuration-input.composition
         - foundation.schema-validation
       packages: []

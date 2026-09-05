@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { loadCapabilityConfig } from "../dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.js";
-import { MicrosoftPublicApiExtractor } from "../dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
+import { createPublicApiExtractor } from "../dist/capabilities/public-api-compatibility/module.js";
 import { loadStrictYamlFile } from "../dist/features/configuration-input/node.js";
 import { assertSchema } from "../dist/schema-catalog.js";
 
@@ -19,7 +19,7 @@ test("all Mutation entrypoints extract without leaking private composition ports
   const policy = config.packages.find((item) => item.packageName === "@agent-teams/repository-mutation");
   assert.ok(policy);
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  const actual = await new MicrosoftPublicApiExtractor().extract(repositoryRoot, policy, manifest.version);
+  const actual = await createPublicApiExtractor().extract(repositoryRoot, policy, manifest.version);
   const typedExports = Object.entries(manifest.exports)
     .filter(([, value]) => typeof value === "object" && typeof value.types === "string")
     .map(([name]) => name).toSorted();

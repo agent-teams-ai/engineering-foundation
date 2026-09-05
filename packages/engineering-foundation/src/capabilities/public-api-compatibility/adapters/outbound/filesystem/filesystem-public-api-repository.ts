@@ -10,12 +10,10 @@ import {
 } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
-import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
-import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import { assertNotCancelled, publicApiFileFailure, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
+import type { PublicApiFileReader, PublicApiPathInspection, PublicApiRepositoryEvidence } from "../../../application/ports/public-api-evidence.js";
 import type { PublicApiSchemaAssertion } from "../../schema-validation.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
-import { parseStrictYamlSource } from "../../../../../features/configuration-input/yaml.js";
 import { publicApiBaselineAnchorPath } from "../../../application/model/public-api.js";
 import {
   assertPackageExportCoverage,
@@ -44,7 +42,7 @@ const BUMP_RANK: Readonly<Record<ReleaseBump, number>> = {
 };
 
 function inputError(code: string, message: string, phase: string): never {
-  throw new CapabilityInputError({ code, message, phase, retryable: false });
+  publicApiInputError(code, message, phase);
 }
 
 function contained(parent: string, candidate: string): boolean {
@@ -68,10 +66,11 @@ async function canonicalRoot(consumerRoot: string): Promise<string> {
 async function safePath(
   root: string,
   repositoryPath: string,
-  kind: "directory" | "file"
+  kind: "directory" | "file",
+  paths: PublicApiPathInspection
 ): Promise<string> {
   const candidate = resolve(root, repositoryPath);
-  if (await pathTraversesSymbolicLink(root, candidate)) {
+  if (await paths.traversesSymbolicLink(root, candidate)) {
     inputError(
       "PUBLIC_API_EVIDENCE_SYMLINK_PROHIBITED",
       `Public API evidence cannot traverse a symbolic link: ${repositoryPath}.`,
@@ -118,13 +117,13 @@ function publicApiEvidenceReadError(
   repositoryPath: string,
   phase: string
 ): never {
-  if (error instanceof ContainedFileReadError) {
+  if (publicApiFileFailure(error) !== undefined) {
     const code =
-      error.failure === "symlink"
+      publicApiFileFailure(error) === "symlink"
         ? "PUBLIC_API_EVIDENCE_SYMLINK_PROHIBITED"
-        : error.failure === "escape"
+        : publicApiFileFailure(error) === "escape"
           ? "PUBLIC_API_EVIDENCE_ESCAPE"
-          : error.failure === "invalid"
+          : publicApiFileFailure(error) === "invalid"
             ? "PUBLIC_API_EVIDENCE_INVALID"
             : "PUBLIC_API_EVIDENCE_UNAVAILABLE";
     inputError(code, `Public API evidence is unavailable or changed: ${repositoryPath}.`, phase);
@@ -138,32 +137,36 @@ async function readPublicApiEvidenceFile(input: {
   readonly repositoryPath: string;
   readonly root: string;
   readonly phase: string;
-}): Promise<Buffer | undefined>;
+}, files: PublicApiFileReader): Promise<Buffer | undefined>;
 async function readPublicApiEvidenceFile(input: {
   readonly allowMissing?: false;
   readonly maxBytes: number;
   readonly repositoryPath: string;
   readonly root: string;
   readonly phase: string;
-}): Promise<Buffer>;
+}, files: PublicApiFileReader): Promise<Buffer>;
 async function readPublicApiEvidenceFile(input: {
   readonly allowMissing?: boolean;
   readonly maxBytes: number;
   readonly repositoryPath: string;
   readonly root: string;
   readonly phase: string;
-}): Promise<Buffer | undefined> {
+}, files: PublicApiFileReader): Promise<Buffer | undefined> {
   try {
-    return await readContainedRegularFile({
+    const bytes = await files.read({
       candidate: resolve(input.root, input.repositoryPath),
       maxBytes: input.maxBytes,
       root: input.root
     });
+    if (bytes.byteLength > input.maxBytes) {
+      inputError("PUBLIC_API_EVIDENCE_INVALID", `Public API evidence is unavailable or changed: ${input.repositoryPath}.`, input.phase);
+    }
+    return Buffer.from(bytes);
   } catch (error) {
     if (
       input.allowMissing === true &&
-      error instanceof ContainedFileReadError &&
-      error.failure === "missing"
+      publicApiFileFailure(error) !== undefined &&
+      publicApiFileFailure(error) === "missing"
     ) {
       return undefined;
     }
@@ -211,11 +214,11 @@ async function declaredBump(input: {
   readonly packageName: string;
   readonly root: string;
   readonly signal?: AbortSignal;
-}): Promise<ReleaseBump | undefined> {
+}, evidence: PublicApiRepositoryEvidence): Promise<ReleaseBump | undefined> {
   let bump: ReleaseBump | undefined;
   const entries = [];
   const directory = resolve(input.root, input.directory);
-  if (await pathTraversesSymbolicLink(input.root, directory)) {
+  if (await evidence.paths.traversesSymbolicLink(input.root, directory)) {
     inputError(
       "CHANGESET_SYMLINK_PROHIBITED",
       "Changeset directory cannot traverse a symbolic link.",
@@ -251,7 +254,7 @@ async function declaredBump(input: {
       repositoryPath: join(input.directory, name),
       root: input.root,
       phase: "public-api-evidence"
-    });
+    }, evidence.files);
     const frontmatter = changesetFrontmatter(source.toString("utf8"));
     if (frontmatter === undefined) {
       inputError(
@@ -264,7 +267,7 @@ async function declaredBump(input: {
       continue;
     }
     const parsed = record(
-      parseStrictYamlSource(frontmatter, "public-api-changeset"),
+      evidence.parseYaml(frontmatter, "public-api-changeset"),
       `changeset ${name}`
     );
     bump = strongerBump(bump, parsed[input.packageName]);
@@ -274,9 +277,11 @@ async function declaredBump(input: {
 
 export class FilesystemPublicApiRepository implements PublicApiRepository {
   readonly #assertSchema: PublicApiSchemaAssertion;
+  readonly #evidence: PublicApiRepositoryEvidence;
 
-  constructor(assertSchema: PublicApiSchemaAssertion) {
+  constructor(assertSchema: PublicApiSchemaAssertion, evidence: PublicApiRepositoryEvidence) {
     this.#assertSchema = assertSchema;
+    this.#evidence = evidence;
   }
 
   async readReleasedBaseline(
@@ -308,8 +313,8 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
     };
     const baselineSource =
       purpose === "release-promotion"
-        ? await readPublicApiEvidenceFile({ ...baselineRead, allowMissing: true })
-        : await readPublicApiEvidenceFile(baselineRead);
+        ? await readPublicApiEvidenceFile({ ...baselineRead, allowMissing: true }, this.#evidence.files)
+        : await readPublicApiEvidenceFile(baselineRead, this.#evidence.files);
     if (baselineSource === undefined) {
       return undefined;
     }
@@ -340,7 +345,7 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
       repositoryPath: policy.manifestPath,
       root,
       phase: "public-api-evidence"
-    });
+    }, this.#evidence.files);
     let manifestInput: unknown;
     try {
       manifestInput = JSON.parse(manifestSource.toString("utf8")) as unknown;
@@ -383,12 +388,12 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         packageName: policy.packageName,
         root,
         ...(signal === undefined ? {} : { signal })
-      }),
+      }, this.#evidence),
       readChangesetsPrereleaseState({
         directory: changesetDirectory,
         packageName: policy.packageName,
         root
-      })
+      }, this.#evidence.files)
     ]);
     return {
       packageName: policy.packageName,
@@ -416,9 +421,9 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
     const requestedBaselinePath = resolve(root, policy.releasedBaselinePath);
     const baselinePath =
       mode === "replace"
-        ? await safePath(root, policy.releasedBaselinePath, "file")
+        ? await safePath(root, policy.releasedBaselinePath, "file", this.#evidence.paths)
         : join(
-            await safePath(root, dirname(policy.releasedBaselinePath), "directory"),
+            await safePath(root, dirname(policy.releasedBaselinePath), "directory", this.#evidence.paths),
             policy.releasedBaselinePath.slice(policy.releasedBaselinePath.lastIndexOf("/") + 1)
           );
     if (baselinePath !== requestedBaselinePath) {

@@ -1,15 +1,10 @@
 import { stat, symlink } from "node:fs/promises";
 import { join } from "node:path";
 
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import { isPublicApiInputError, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
 
 function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "public-api-extraction",
-    retryable: false
-  });
+  publicApiInputError(code, message, "public-api-extraction");
 }
 
 function isMissingPath(error: unknown): boolean {
@@ -35,7 +30,7 @@ export async function linkStagedNodeModules(input: {
       inputError("PUBLIC_API_PATH_INVALID", "Public API package node_modules is not a directory.");
     }
   } catch (error) {
-    if (error instanceof CapabilityInputError) {
+    if (isPublicApiInputError(error)) {
       throw error;
     }
     if (isMissingPath(error)) {

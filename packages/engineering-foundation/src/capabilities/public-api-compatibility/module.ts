@@ -20,13 +20,28 @@ import {
 import { loadCapabilityConfig, type PublicApiConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../source-inventory/node.js";
+import { parseStrictYamlSource } from "../../features/configuration-input/yaml.js";
+import type { PublicApiExtractor } from "./application/ports/public-api-extractor.js";
+import type { PublicApiRepositoryEvidence } from "./application/ports/public-api-evidence.js";
+
+const evidence: PublicApiRepositoryEvidence = {
+  files: { read: readContainedRegularFile },
+  paths: { traversesSymbolicLink: pathTraversesSymbolicLink },
+  parseYaml: parseStrictYamlSource
+};
+
 export { PUBLIC_API_COMPATIBILITY_RULES_BY_ID };
+
+export function createPublicApiExtractor(): PublicApiExtractor {
+  return new MicrosoftPublicApiExtractor(evidence);
+}
 
 function createDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]) {
   return Object.freeze({
-    extractor: new MicrosoftPublicApiExtractor(),
+    extractor: createPublicApiExtractor(),
     fingerprint: new NodeChangeFingerprint(),
-    repository: new FilesystemPublicApiRepository(assertSchema),
+    repository: new FilesystemPublicApiRepository(assertSchema, evidence),
     acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedDecisions)
   });
 }

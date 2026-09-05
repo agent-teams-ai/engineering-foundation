@@ -933,7 +933,8 @@
             }
           ],
           "testRoots": [
-            "tests/capability-public-api.test.mjs"
+            "tests/capability-public-api.test.mjs",
+            "tests/public-api-evidence-ports.test.mjs"
           ]
         },
         {

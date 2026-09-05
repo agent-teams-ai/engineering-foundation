@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { loadCapabilityConfig } from "../dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.js";
-import { MicrosoftPublicApiExtractor } from "../dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
+import { createPublicApiExtractor } from "../dist/capabilities/public-api-compatibility/module.js";
 import { loadStrictYamlFile } from "../dist/features/configuration-input/node.js";
 import { assertSchema } from "../dist/schema-catalog.js";
 
@@ -18,7 +18,7 @@ test("managed composition preserves published function declarations and planner 
   const policy = config.packages.find((item) => item.packageName === packageName);
   assert.ok(policy);
   const manifest = JSON.parse(await readFile(join(repositoryRoot, "packages/docs-protocol-agent-teams/package.json"), "utf8"));
-  const actual = await new MicrosoftPublicApiExtractor().extract(repositoryRoot, policy, manifest.version);
+  const actual = await createPublicApiExtractor().extract(repositoryRoot, policy, manifest.version);
   assert.deepEqual(actual.entrypoints.map((item) => item.exportPath).toSorted(), [".", "./qualification"]);
   for (const entrypoint of actual.entrypoints) {
     const functions = ["runDocsProtocolQualificationV2", "runDocsProtocolQualificationV3"];

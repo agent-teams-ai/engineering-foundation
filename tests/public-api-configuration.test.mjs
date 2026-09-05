@@ -8,6 +8,7 @@ import { ROOT_STABLE_ITEM, currentBaseline } from "./support/public-api-fixtures
 import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.js";
 import { readConfigurationHeader, parseCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-capability-config.js";
 import { FilesystemPublicApiRepository } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.js";
+import { publicApiEvidenceAdapters } from "./support/capability-adapters.mjs";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 
 function configuration() {
@@ -85,7 +86,7 @@ test("Public API legacy baseline reads delegate schema validation without rewrit
       extractorVersion: "7.58.12", items: [ROOT_STABLE_ITEM] };
     const bytes = `${JSON.stringify(legacy)}\n`;
     await writeFile(path, bytes);
-    const repository = new FilesystemPublicApiRepository(async (...args) => { calls.push(args); await assertSchema(...args); });
+    const repository = new FilesystemPublicApiRepository(async (...args) => { calls.push(args); await assertSchema(...args); }, publicApiEvidenceAdapters());
     const result = await repository.readReleasedBaseline(root, policy);
     assert.deepEqual(calls, [["package-public-api-baseline/v1", legacy, "public-api-baseline"]]);
     assert.deepEqual(result.entrypoints, [{ exportPath: ".", items: [ROOT_STABLE_ITEM] }]);
@@ -98,7 +99,7 @@ test("Public API baseline schema rejection preserves the file and creates no tem
     const policy = packagePolicy(), path = join(root, policy.releasedBaselinePath), calls = [];
     const before = await readFile(path), entries = await readdir(dirname(path));
     const failure = new Error("baseline schema rejected");
-    const repository = new FilesystemPublicApiRepository(async (...args) => { calls.push(args); throw failure; });
+    const repository = new FilesystemPublicApiRepository(async (...args) => { calls.push(args); throw failure; }, publicApiEvidenceAdapters());
     const snapshot = currentBaseline();
     await assert.rejects(repository.writeReleasedBaseline(root, policy, snapshot), (error) => error === failure);
     assert.deepEqual(calls, [["package-public-api-baseline/v1", snapshot, "public-api-baseline-promotion"]]);
@@ -110,7 +111,7 @@ test("Public API baseline schema rejection preserves the file and creates no tem
 test("Public API baseline promotion retains canonical bytes through the injected schema validator", async () => {
   await withPublicApiFixture(async (root) => {
     const policy = packagePolicy(), calls = [], snapshot = currentBaseline();
-    const repository = new FilesystemPublicApiRepository(async (...args) => { calls.push(args); await assertSchema(...args); });
+    const repository = new FilesystemPublicApiRepository(async (...args) => { calls.push(args); await assertSchema(...args); }, publicApiEvidenceAdapters());
     await repository.writeReleasedBaseline(root, policy, snapshot);
     assert.deepEqual(calls, [["package-public-api-baseline/v1", snapshot, "public-api-baseline-promotion"]]);
     assert.equal(await readFile(join(root, policy.releasedBaselinePath), "utf8"), `${JSON.stringify(snapshot, null, 2)}\n`);

@@ -1,8 +1,7 @@
 import { resolve } from "node:path";
 
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
-import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import { publicApiFileFailure, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
+import type { PublicApiFileReader } from "../../../application/ports/public-api-evidence.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
 import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
 
@@ -12,12 +11,7 @@ export interface ChangesetsPrereleaseState {
 }
 
 function invalid(message: string): never {
-  throw new CapabilityInputError({
-    code: "CHANGESET_PRERELEASE_STATE_INVALID",
-    message,
-    phase: "public-api-evidence",
-    retryable: false
-  });
+  publicApiInputError("CHANGESET_PRERELEASE_STATE_INVALID", message, "public-api-evidence");
 }
 
 function record(value: unknown, field: string): Record<string, unknown> {
@@ -27,18 +21,22 @@ function record(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-async function readState(root: string, path: string): Promise<Buffer | undefined> {
+async function readState(root: string, path: string, files: PublicApiFileReader): Promise<Buffer | undefined> {
   try {
-    return await readContainedRegularFile({
+    const bytes = await files.read({
       candidate: resolve(root, path),
       maxBytes: 1024 * 1024,
       root
     });
+    if (bytes.byteLength > 1024 * 1024) {
+      invalid(`Changesets prerelease state is unavailable or changed: ${path}.`);
+    }
+    return Buffer.from(bytes);
   } catch (error) {
-    if (error instanceof ContainedFileReadError && error.failure === "missing") {
+    if (publicApiFileFailure(error) !== undefined && publicApiFileFailure(error) === "missing") {
       return undefined;
     }
-    if (error instanceof ContainedFileReadError) {
+    if (publicApiFileFailure(error) !== undefined) {
       invalid(`Changesets prerelease state is unavailable or changed: ${path}.`);
     }
     throw error;
@@ -49,9 +47,9 @@ export async function readChangesetsPrereleaseState(input: {
   readonly directory: string;
   readonly packageName: string;
   readonly root: string;
-}): Promise<Readonly<ChangesetsPrereleaseState> | undefined> {
+}, files: PublicApiFileReader): Promise<Readonly<ChangesetsPrereleaseState> | undefined> {
   const path = `${input.directory}/pre.json`;
-  const source = await readState(input.root, path);
+  const source = await readState(input.root, path, files);
   if (source === undefined) {
     return undefined;
   }

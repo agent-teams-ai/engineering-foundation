@@ -30,5 +30,5 @@ export function executableSpecificationAdapters() {
   return { workspaceManifestPathReader: workspace.createWorkspaceInventoryReader(), createJsonSchemaInspector, assertSchema: schemaCatalog.assertSchema };
 }
 export function protobufAdapters() {
-  return { acceptedDecisionEvidence: new protobuf.GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence) };
+  return { acceptedDecisionEvidence: new protobuf.GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence), assertSchema: schemaCatalog.assertSchema };
 }

@@ -1,5 +1,6 @@
 import { NodeSha256Digest } from "../adapters/outbound/crypto/node-sha256-digest.js";
-import { loadCapabilityConfig } from "../contract/config.js";
+import { loadCapabilityConfig, type ProtobufConfigurationDependencies } from "../adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import { FilesystemBufQualificationArtifacts } from "./adapters/outbound/filesystem/filesystem-buf-qualification-artifacts.js";
 import { ProcessBufExecutable } from "./adapters/outbound/process/process-buf-executable.js";
 import { ProcessBufQualificationRunner } from "./adapters/outbound/process/process-buf-qualification-runner.js";
@@ -14,8 +15,9 @@ export async function qualifyProtobufBreakingEvidence(input: {
   readonly executablePath: string;
   readonly write: boolean;
   readonly signal?: AbortSignal;
-}, executor: import("./ports/process-executor.js").BufProcessExecutor): Promise<QualifyBufBreakingEvidenceResult> {
+}, executor: import("./ports/process-executor.js").BufProcessExecutor, assertSchema: ProtobufConfigurationDependencies["assertSchema"]): Promise<QualifyBufBreakingEvidenceResult> {
   const configuration = await loadCapabilityConfig(
+    { readYaml: loadStrictYamlFile, assertSchema },
     input.consumerRoot,
     input.configPath,
     input.signal

@@ -1,4 +1,4 @@
-import { createManagedProcessExecutor } from "./support/capability-adapters.mjs";
+import { createManagedProcessExecutor, schemaConfigurationDependencies } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -250,7 +250,7 @@ test("qualification producer writes canonical evidence and reruns Buf before acc
 
 test("evidence reader rejects stale bindings, weakened FILE policy, and changed inputs", async () => {
   await withFixture(async ({ config, root }) => {
-    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence();
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema);
     const stale = qualifiedEvidence(config);
     stale.candidateDescriptorImageDigest = `sha256:${"f".repeat(64)}`;
     await writeFixture(root, config, stale);
@@ -364,7 +364,7 @@ test("binds breaking approval fingerprints to the complete qualified transition"
     };
     const firstEvidence = breakingEvidence(config, [finding]);
     await writeFixture(root, config, firstEvidence);
-    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence();
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema);
     const first = await adapter.read({ consumerRoot: root, configuration: config });
     assert.equal(first.breaking.fingerprint, firstEvidence.evidenceDigest);
     assert.notEqual(first.breaking.fingerprint, firstEvidence.result.findingSetDigest);
@@ -395,7 +395,7 @@ test("normal evidence reader accepts the producer's full bounded evidence size",
     assert.ok(Buffer.byteLength(source, "utf8") > 1024 * 1024);
     await writeFixture(root, config, evidence);
 
-    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence();
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema);
     assert.equal(
       (await adapter.read({ consumerRoot: root, configuration: config })).breaking.fingerprint,
       evidence.evidenceDigest,

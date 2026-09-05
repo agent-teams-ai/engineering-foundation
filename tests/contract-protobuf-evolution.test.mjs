@@ -1,4 +1,4 @@
-import { createManagedProcessExecutor, protobufAdapters, readAcceptedArchitectureDecisionEvidence, promoteArchitectureDecisionBaseline } from "./support/capability-adapters.mjs";
+import { createManagedProcessExecutor, protobufAdapters, readAcceptedArchitectureDecisionEvidence, promoteArchitectureDecisionBaseline, schemaConfigurationDependencies } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
@@ -27,7 +27,7 @@ const protobufModule = await import(
 );
 const protobufConfig = await import(
   pathToFileURL(
-    join(distRoot, "capabilities", "contract-protobuf-evolution", "contract", "config.js"),
+    join(distRoot, "capabilities", "contract-protobuf-evolution", "adapters", "inbound", "configuration", "load-capability-config.js"),
   ).href,
 );
 const protobufGovernanceAcl = await import(
@@ -302,7 +302,7 @@ test("rejects Protobuf baseline pointers outside stable governance anchors", asy
     const releasedReset = capabilityConfig("tmp/reset-history.yaml");
     await writeYaml(root, "contract.yaml", releasedReset);
     await assert.rejects(
-      protobufConfig.loadCapabilityConfig(root, "contract.yaml"),
+      protobufConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml"),
       /releasedBaselinePath must match pattern/u,
     );
 
@@ -313,7 +313,7 @@ test("rejects Protobuf baseline pointers outside stable governance anchors", asy
     decisionReset.acceptedDecisionBaselinePath = "architecture/decisions/reset-history.json";
     await writeYaml(root, "contract.yaml", decisionReset);
     await assert.rejects(
-      protobufConfig.loadCapabilityConfig(root, "contract.yaml"),
+      protobufConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml"),
       /acceptedDecisionBaselinePath must be equal to constant/u,
     );
 
@@ -325,7 +325,7 @@ test("rejects Protobuf baseline pointers outside stable governance anchors", asy
       acceptedDecisionBaselinePath;
     await writeYaml(root, "contract.yaml", incompleteGovernanceEvidence);
     await assert.rejects(
-      protobufConfig.loadCapabilityConfig(root, "contract.yaml"),
+      protobufConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml"),
       /acceptedDecisionBaselinePath and governanceConfigPath must be declared together/u,
     );
   });
@@ -443,7 +443,7 @@ test("keeps governance evidence as an opaque protobuf configuration reference", 
   config.governanceConfigPath = governanceConfigPath;
 
   await withConfig(config, async (root) => {
-    const configuration = await protobufConfig.loadCapabilityConfig(root, "contract.yaml");
+    const configuration = await protobufConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml");
     assert.equal(
       configuration.acceptedDecisionBaselinePath,
       acceptedDecisionBaselinePath,
@@ -457,7 +457,7 @@ test("accepts the repository root as an explicit Buf module path", async () => {
   const config = capabilityConfig();
   config.qualification.modulePath = ".";
   await withConfig(config, async (root) => assert.equal(
-    (await protobufConfig.loadCapabilityConfig(root, "contract.yaml")).qualification.modulePath,
+    (await protobufConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml")).qualification.modulePath,
     ".",
   ));
 });
@@ -475,6 +475,7 @@ test("resolves accepted decision evidence through the consumer-owned port", asyn
   await withConfig(config, async (root) => {
     consumerRoot = root;
     const capability = protobufModule.createProtobufEvolutionCapability({
+      assertSchema: schemaConfigurationDependencies().assertSchema,
       acceptedDecisionEvidence: {
         async readAcceptedDecisionEvidence(input) {
           calls.push(input);

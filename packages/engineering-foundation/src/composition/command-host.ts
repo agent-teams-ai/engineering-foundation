@@ -46,7 +46,7 @@ function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: st
     promotePublicApi: (input) => promotePublicApiRelease(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema)),
     loadProtobufQualifier: async () => {
       const { qualifyProtobufBreakingEvidence } = await import("../capabilities/contract-protobuf-evolution/qualification/module.js");
-      return (input) => qualifyProtobufBreakingEvidence(input, processExecutor);
+      return (input) => qualifyProtobufBreakingEvidence(input, processExecutor, assertSchema);
     },
     scaffold: runScaffoldingCliCommand,
     inspectPackage: () => inspectFoundationPackage(packageRoot),

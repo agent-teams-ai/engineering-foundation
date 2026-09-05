@@ -7,13 +7,15 @@ import {
 import { FilesystemBufBreakingQualificationEvidence } from "./adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
 import { evaluateProtobufEvolution } from "./application/policies/evaluate-protobuf-evolution.js";
 import type { AcceptedDecisionEvidencePort } from "./application/ports/accepted-decision-evidence.js";
 import type { BufBreakingQualificationEvidencePort } from "./application/ports/buf-breaking-qualification-evidence.js";
 import { resolveProtobufEvolutionPolicy } from "./application/use-cases/resolve-protobuf-evolution-policy.js";
+
+import { loadCapabilityConfig, type ProtobufConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export {
   evaluateProtobufEvolution
@@ -43,6 +45,7 @@ export {
 } from "./api.js";
 
 export interface ProtobufEvolutionCapabilityDependencies {
+  readonly assertSchema: ProtobufConfigurationDependencies["assertSchema"];
   readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
   readonly bufBreakingQualificationEvidence?: BufBreakingQualificationEvidencePort;
 }
@@ -54,13 +57,14 @@ export function createProtobufEvolutionCapability(
     dependencies.acceptedDecisionEvidence;
   const bufBreakingQualificationEvidence =
     dependencies.bufBreakingQualificationEvidence ??
-    new FilesystemBufBreakingQualificationEvidence();
+    new FilesystemBufBreakingQualificationEvidence(dependencies.assertSchema);
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     async run(invocation: CapabilityInvocation) {
       try {
         const configuration = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema: dependencies.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

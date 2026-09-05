@@ -2550,6 +2550,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/api.ts
     allow:
       boundaries:
+        - foundation.source-inventory.application
         - foundation.core
         - foundation.validation-reporting.application
         - capability.architecture-decisions.application
@@ -2557,6 +2558,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/model/buf-breaking-qualification.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/model/protobuf-release-evidence.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/policies/evaluate-protobuf-evolution.ts
@@ -2570,13 +2572,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/contract
     allow:
-      boundaries:
-        - capability.contract-protobuf.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2587,9 +2583,9 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters
     allow:
       boundaries:
+        - capability.contract-protobuf.contract
         - capability.contract-protobuf.application
         - foundation.core
-        - foundation.schema-validation
         - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
@@ -2600,6 +2596,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters/outbound/crypto/node-sha256-digest.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters/outbound/governance/governance-accepted-decision-evidence-acl.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.ts
@@ -2608,6 +2605,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.contract-protobuf.adapters
         - capability.contract-protobuf.application
         - capability.contract-protobuf.contract
@@ -2667,6 +2665,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.contract-protobuf.adapters
         - capability.contract-protobuf.contract
         - capability.contract-protobuf.qualification.adapters

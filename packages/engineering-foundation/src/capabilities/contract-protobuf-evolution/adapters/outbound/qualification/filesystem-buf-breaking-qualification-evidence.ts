@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
-import { assertSchema } from "../../../../../schema-catalog.js";
+import type { ProtobufSchemaAssertion } from "../../schema-validation.js";
 import { parseStrictYamlSource } from "../../../../../features/configuration-input/yaml.js";
 import {
   assertExactBufFilePolicy,
@@ -87,8 +87,10 @@ function withoutEvidenceDigest(
 export class FilesystemBufBreakingQualificationEvidence
 implements BufBreakingQualificationEvidencePort {
   readonly #digest: Sha256DigestPort;
+  readonly #assertSchema: ProtobufSchemaAssertion;
 
-  constructor(digest: Sha256DigestPort = new NodeSha256Digest()) {
+  constructor(assertSchema: ProtobufSchemaAssertion, digest: Sha256DigestPort = new NodeSha256Digest()) {
+    this.#assertSchema = assertSchema;
     this.#digest = digest;
   }
 
@@ -108,7 +110,7 @@ implements BufBreakingQualificationEvidencePort {
       evidenceBytes.toString("utf8"),
       "protobuf-buf-qualification-evidence"
     );
-    await assertSchema(
+    await this.#assertSchema(
       "contract-protobuf-breaking-qualification/v1",
       rawEvidence,
       "protobuf-buf-qualification-evidence"

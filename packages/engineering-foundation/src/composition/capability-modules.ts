@@ -78,7 +78,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       JSON_SCHEMA_RELEASE_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createProtobufEvolutionCapability({ acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence) }),
+      createProtobufEvolutionCapability({ acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence), assertSchema }),
       PROTOBUF_EVOLUTION_RULES_BY_ID
     ),
     defineCapabilityModule(

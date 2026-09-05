@@ -92,6 +92,7 @@
         "tests/suppression-configuration.test.mjs",
         "tests/quality-gate-configuration.test.mjs",
         "tests/governance-configuration.test.mjs",
+        "tests/protobuf-configuration.test.mjs",
         "tests/json-schema-configuration.test.mjs",
         "tests/executable-configuration.test.mjs",
         "tests/source-configuration.test.mjs",

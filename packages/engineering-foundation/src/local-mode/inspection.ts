@@ -262,16 +262,13 @@ function projectPublicTransactionStatus(
     status.state === "pending" &&
     status.operationKind === "known-file-transaction"
   ) {
-    return status;
-  }
-  if (
-    status.state === "pending" &&
-    status.operationKind === "document-authoring"
-  ) {
     return {
-      state: "manual-recovery-required",
-      reason: "recovery-handler-unavailable",
-      operationKind: "document-authoring",
+      state: status.state,
+      operationKind: status.operationKind,
+      format: status.format,
+      foundationVersion: status.foundationVersion,
+      foundationBuildIdentity: status.foundationBuildIdentity,
+      recovery: status.recovery,
       diagnostics: status.diagnostics
     };
   }

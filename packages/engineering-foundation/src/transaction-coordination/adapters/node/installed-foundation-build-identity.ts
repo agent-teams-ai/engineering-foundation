@@ -12,7 +12,7 @@ export function computeFoundationBuildIdentity(
   limits: { readonly maximumVisitedEntries?: number } = {}
 ): Promise<FoundationBuildIdentity> {
   return computeInstalledArtifactBuildIdentity(
-    { packageRoot: root, roots: ["dist", "schemas", "presets"] },
+    { packageRoot: root, roots: ["dist", "schemas", "presets", "assets"] },
     limits
   );
 }

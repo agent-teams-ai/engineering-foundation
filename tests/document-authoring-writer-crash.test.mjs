@@ -223,7 +223,7 @@ requiresStrictDirectoryDurability("v4 PREPARED without its profile preserves rec
   });
 });
 
-requiresStrictDirectoryDurability("v4 recovery routing requires exact version and same-version build", async () => {
+requiresStrictDirectoryDurability("Foundation leaves native v4 recovery to Authoring regardless of Foundation version/build", async () => {
   await withFixture(async (consumerRoot, scratch) => {
     const plan = await featurePlanV2(consumerRoot);
     await crashAt(consumerRoot, plan, "after-prepared-journal-durable", scratch);
@@ -237,8 +237,9 @@ requiresStrictDirectoryDurability("v4 recovery routing requires exact version an
       installedVersion: envelope.foundation.version,
       installedBuildIdentity: envelope.foundation.buildIdentity
     }).inspect();
-    assert.equal(exact.format, "document-authoring-envelope-v4");
-    assert.equal(exact.recovery?.commandId, "docs-recover");
+    assert.equal(exact.state, "manual-recovery-required");
+    assert.equal(exact.recovery, undefined);
+    assert.match(exact.diagnostics[0]?.message, /Claimed @agent-teams\/document-authoring/u);
     for (const installed of [
       {
         version: "0.0.0-wrong",
@@ -254,16 +255,7 @@ requiresStrictDirectoryDurability("v4 recovery routing requires exact version an
         installedVersion: installed.version,
         installedBuildIdentity: installed.buildIdentity
       }).inspect();
-      assert.equal(mismatch.state, "pending");
-      assert.equal(
-        mismatch.diagnostics[0]?.code,
-        "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
-      );
-      assert.deepEqual(mismatch.recovery, {
-        commandId: "docs-recover",
-        exactFoundationVersion: envelope.foundation.version,
-        exactFoundationBuildIdentity: envelope.foundation.buildIdentity
-      });
+      assert.deepEqual(mismatch, exact);
     }
   });
 });

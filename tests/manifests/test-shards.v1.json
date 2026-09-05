@@ -23,6 +23,7 @@
         "tests/executable-specification-inspector-limits.test.mjs",
         "tests/foundation-operation-lock.test.mjs",
         "tests/foundation-transaction-coordinator.test.mjs",
+        "tests/foundation-transaction-observation.test.mjs",
         "tests/local-mode.test.mjs",
         "tests/markdown-bundle-evidence.test.mjs",
         "tests/markdown-checkout.test.mjs",

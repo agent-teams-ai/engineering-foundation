@@ -77,9 +77,13 @@ async function loadSchema(schemaId: SchemaDependencyId): Promise<string> {
   for (const dependency of authoringSchema ? [] : SCHEMA_DEPENDENCIES[schemaId] ?? []) {
     await registerSchema(dependency);
   }
-  const source = authoringSchema
-    ? await readDocumentAuthoringSchema(schemaId)
-    : await readFile(schemaPath(schemaId), "utf8");
+  // Envelope v2's immutable reference requires the exact Foundation 0.21.0
+  // Plan bytes. The independently released Authoring catalog cannot redefine it.
+  const source = schemaId === "document-plan/v1"
+    ? await readFile(join(packageRoot, "assets/transaction-coordination/historical/document-plan-v1.schema.json"), "utf8")
+    : schemaId === "document-intent/v1"
+      ? await readDocumentAuthoringSchema(schemaId)
+      : await readFile(schemaPath(schemaId), "utf8");
   const schema = JSON.parse(source) as {
     readonly $id?: unknown;
   };

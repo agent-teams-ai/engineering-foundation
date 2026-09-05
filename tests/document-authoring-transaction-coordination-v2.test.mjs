@@ -85,7 +85,7 @@ async function writeEnvelope(root, envelope) {
   await writeFile(slotPath(root), `${JSON.stringify(envelope)}\n`, "utf8");
 }
 
-test("recognizes every strict document journal v2 lifecycle as recoverable only by its exact build", async () => {
+test("preserves every historical document journal v2 lifecycle without a local recovery lease", async () => {
   for (const state of ["PREPARED", "PUBLISHING", "PUBLISHED"]) {
     const root = await createRoot();
     try {
@@ -95,15 +95,10 @@ test("recognizes every strict document journal v2 lifecycle as recoverable only 
         installedVersion: version,
         installedBuildIdentity: buildIdentity,
       }).inspect();
-      assert.equal(status.state, "pending");
-      assert.equal(status.operationKind, "document-authoring");
-      assert.equal(status.format, "document-authoring-envelope-v3");
-      assert.deepEqual(status.recovery, {
-        commandId: "docs-recover",
-        exactFoundationVersion: version,
-        exactFoundationBuildIdentity: buildIdentity,
-      });
-      assert.equal(status.diagnostics[0]?.code, "FOUNDATION_TRANSACTION_ACTIVE");
+      assert.equal(status.state, "manual-recovery-required");
+      assert.equal(status.recovery, undefined);
+      assert.match(status.diagnostics[0]?.message, /Claimed @agent-teams\/engineering-foundation/u);
+      assert.deepEqual(JSON.parse(await readFile(slotPath(root), "utf8")), envelopeFor(state));
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -120,10 +115,10 @@ test("fails closed for a different installed build and never admits zero physica
       installedVersion: version,
       installedBuildIdentity: `sha256:${"3".repeat(64)}`,
     }).inspect();
-    assert.equal(mismatch.state, "pending");
+    assert.equal(mismatch.state, "manual-recovery-required");
     assert.equal(
       mismatch.diagnostics[0]?.code,
-      "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+      "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
     );
 
     const zero = envelopeFor("PUBLISHING");
@@ -138,14 +133,14 @@ test("fails closed for a different installed build and never admits zero physica
       installedBuildIdentity: buildIdentity,
     }).inspect();
     assert.equal(status.state, "manual-recovery-required");
-    assert.equal(status.reason, "corrupt-or-incompatible");
+    assert.equal(status.reason, "recovery-handler-unavailable");
   } finally {
     await rm(mismatchedRoot, { recursive: true, force: true });
     await rm(zeroRoot, { recursive: true, force: true });
   }
 });
 
-test("coordinator admits only exact document v2 recovery and blocks confused deputies", async () => {
+test("coordinator rejects historical document pending claims even with matching strings", async () => {
   const exact = {
     state: "pending",
     operationKind: "document-authoring",
@@ -163,11 +158,10 @@ test("coordinator admits only exact document v2 recovery and blocks confused dep
     lock: { async acquire() { return async () => {}; } },
     slot: { async inspect() { return exact; } },
   });
-  const lease = await coordinator.acquire({
+  await assert.rejects(coordinator.acquire({
     requestedMutation: "document-authoring",
     allowRecoveryOf: "document-authoring",
-  });
-  await lease.release();
+  }), (error) => error?.code === "FOUNDATION_TRANSACTION_ACTIVE");
   await assert.rejects(
     coordinator.acquire({
       requestedMutation: "attach",

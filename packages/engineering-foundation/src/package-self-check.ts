@@ -22,7 +22,9 @@ const FOUNDATION_REQUIRED_PRESET_PATHS = [
   "presets/typescript/base.json",
   "presets/typescript/node.json"
 ] as const;
+const historicalDocumentPlanPath = "assets/transaction-coordination/historical/document-plan-v1.schema.json";
 export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
+  historicalDocumentPlanPath,
   "dist/cli.js",
   "dist/index.d.ts",
   "dist/index.js",
@@ -38,6 +40,7 @@ export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
 ] as const;
 export const FOUNDATION_PACKAGE_FILE_ALLOWLIST = [
   "dist",
+  historicalDocumentPlanPath,
   ...FOUNDATION_REQUIRED_PRESET_PATHS,
   ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`),
   "assets/windows-managed-process/bootstrap.ps1",

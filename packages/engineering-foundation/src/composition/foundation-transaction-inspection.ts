@@ -4,8 +4,7 @@ import {
   inspectLegacyScaffoldingEnvelope,
   inspectLegacyScaffoldingJournal
 } from "../scaffolding/adapters/node/scaffold-transaction-status.js";
-import { inspectCurrentDocumentEnvelope } from "../transaction-coordination/adapters/node/document-envelope-bindings.js";
-import { pendingDocumentTransaction } from "../transaction-coordination/adapters/node/document-transaction-status.js";
+import { inspectDocumentTransactionStatus } from "../transaction-coordination/adapters/node/document-transaction-status.js";
 import { inspectLegacyDocumentTransaction } from "../transaction-coordination/adapters/node/legacy-document-transaction-status.js";
 import { inspectKnownFileTransactionStatus } from "../transaction-coordination/adapters/node/known-file-transaction-status.js";
 import { inspectSchema6TransactionStatus } from "../transaction-coordination/adapters/node/schema6-transaction-status.js";
@@ -37,24 +36,18 @@ export async function inspectFoundationTransaction(value: unknown, installed: {
       ? inspectLegacyScaffoldingEnvelope(record)
       : inspectLegacyDocumentTransaction(record);
   case 3:
-    return inspectCurrentDocumentEnvelope({ value: record, ...installed, pending: pendingDocumentTransaction });
   case 4:
-    return inspectCurrentDocumentEnvelope({
-      value: record, ...installed,
-      pending: (identity) => pendingDocumentTransaction({ ...identity, format: "document-authoring-envelope-v4" })
-    });
+    return inspectDocumentTransactionStatus(record);
+  case 5:
+    return inspectKnownFileTransactionStatus(record);
   case 6:
     return record["operationKind"] === "scaffolding"
       ? inspectCurrentScaffoldingTransaction({
           bytes: Buffer.from(canonicalJson(record as CanonicalJsonValue), "utf8"), ...installed
         })
-      : inspectSchema6TransactionStatus({
-          value: record,
-          installedFoundationVersion: installed.installedVersion,
-          installedFoundationBuildIdentity: installed.installedBuildIdentity
-        });
+      : inspectSchema6TransactionStatus(record);
   default:
-    return inspectKnownFileTransactionStatus({ value: record, schemaVersion, ...installed }) ?? {
+    return {
       state: "manual-recovery-required",
       reason: "unsupported-schema",
       diagnostics: [{

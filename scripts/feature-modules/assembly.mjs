@@ -17,6 +17,14 @@ function processValue(node, context) {
   return context.executable && staticMember(node) && node.object.name === "process" &&
     ["argv", "stdin", "stdout", "stderr"].includes(node.property.name) && !context.names.has("process");
 }
+function processArguments(node, context) {
+  if (node.type !== "CallExpression" || node.optional || !staticMember(node.callee)) {return false;}
+  const { object, property } = node.callee;
+  const [offset] = node.arguments;
+  // Only a fixed argv projection may be passed into the composed CLI handler.
+  return property.name === "slice" && processValue(object, context) && object.property.name === "argv" &&
+    node.arguments.length === 1 && offset?.type === "Literal" && Number.isSafeInteger(offset.value) && offset.value >= 0;
+}
 function resourceMethod(node, context) {
   return context.executable && staticMember(node) && identifier(node.object) &&
     context.names.get(node.object.name) === "resource" && lifecycle.has(node.property.name);
@@ -26,7 +34,8 @@ function wiring(node, context) {
   switch (node.type) {
     case "Identifier": return context.names.has(node.name) && context.names.get(node.name) !== "type";
     case "Literal": return !node.regex;
-    case "CallExpression": case "NewExpression": return factoryCall(node, context);
+    case "CallExpression": return processArguments(node, context) || factoryCall(node, context);
+    case "NewExpression": return factoryCall(node, context);
     case "AwaitExpression": return context.executable && factoryCall(node.argument, context);
     case "TSAsExpression": case "TSSatisfiesExpression": return wiring(node.expression, context);
     case "MemberExpression": return processValue(node, context) || resourceMethod(node, context) ||
@@ -129,6 +138,12 @@ function assemblyStatement(node, context) {
     return valid;
   }
   if (node.type === "VariableDeclaration") {return variables(node, context);}
+  if (node.type === "TSDeclareFunction") {
+    // Overload signatures emit no behavior. They never introduce a callable
+    // origin; the one same-scope implementation still passes wrapper validation.
+    return !node.declare && !node.body && identifier(node.id) &&
+      !context.importNames.has(node.id.name) && context.implementations.get(node.id.name) === 1;
+  }
   if (node.type === "FunctionDeclaration") {
     const valid = wrapper(node, context);
     if (valid) {context.names.set(node.id.name, "factory");}
@@ -144,6 +159,13 @@ export function invalidAssemblyStatements(path, surface, bindings, executable) {
     if (typeOnly) {names.set(name, "type");}
     else if (binding.name !== "*" && observation && ["local-file", "workspace-package"].includes(observation.result.kind)) {names.set(name, "factory");}
   }
-  const context = { names, executable };
+  const implementations = new Map();
+  for (const statement of surface.program.body) {
+    const node = statement.declaration ?? statement;
+    if (node.type === "FunctionDeclaration" && node.body && identifier(node.id)) {
+      implementations.set(node.id.name, (implementations.get(node.id.name) ?? 0) + 1);
+    }
+  }
+  const context = { names, executable, implementations, importNames: new Set(surface.imports.keys()) };
   return surface.program.body.filter((node) => !assemblyStatement(node, context));
 }

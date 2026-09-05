@@ -10,6 +10,8 @@ import { validateFeatureModules } from "../scripts/check-feature-modules.mjs";
 import { registerAssemblyFacadeCases } from "./fixtures/feature-modules/assembly-facade-cases.mjs";
 import { registerSemverPrimitiveCases } from "./fixtures/feature-modules/semver-cases.mjs";
 import { registerPrimitiveErrorCases } from "./fixtures/feature-modules/primitive-error-cases.mjs";
+import { registerExecutableArgumentsCases } from "./fixtures/feature-modules/executable-arguments-cases.mjs";
+import { registerAssemblyOverloadsCases } from "./fixtures/feature-modules/assembly-overloads-cases.mjs";
 
 const standard = await readFile(new URL("../standards/feature-module-standard-v1.md", import.meta.url));
 const cases = JSON.parse(await readFile(new URL("fixtures/feature-modules/cases.json", import.meta.url), "utf8"));
@@ -813,3 +815,6 @@ test("typed composed Function control remains an existing Oxlint failure", async
   const f = await primitiveFixture(t), proof = await qualifyPrimitive(f, 'export const compare = (): number => (Function("return 1") as () => number)();', [1, 1], /no-new-func/u);
   t.diagnostic(JSON.stringify({label: "existing Function restriction, not a third purity defect", ...proof}));
 });
+
+registerExecutableArgumentsCases(fixture, expectPass, rejects);
+registerAssemblyOverloadsCases(fixture, expectPass, rejects);

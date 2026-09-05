@@ -1601,6 +1601,7 @@ boundaries:
     roots:
       - packages/document-authoring/src/document-authoring/testing/api.ts
       - packages/document-authoring/src/document-authoring/testing/crash-qualification.ts
+      - packages/document-authoring/src/document-authoring/testing/qualification.ts
     allow:
       boundaries:
         - document-authoring.application

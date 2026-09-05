@@ -226,6 +226,16 @@
       "id": "ADR-0045",
       "path": "docs/decisions/0045-five-coordinate-qualified-docs-cohort.md",
       "immutableDigest": "sha256:619268aa0c3e108ee32f7db35c8c5c7a9a84a973092dec5214cbe7c1c6d6e421"
+    },
+    {
+      "id": "ADR-0046",
+      "path": "docs/decisions/0046-feature-module-standard-adoption.md",
+      "immutableDigest": "sha256:9ff2e33790dd5bc4bf515bcc97a94f2c94a5cb5e117fd5684f176e61c2a7641d"
+    },
+    {
+      "id": "ADR-0047",
+      "path": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md",
+      "immutableDigest": "sha256:ef6db9f665f85e9a5c062357dbd1e8469cb2cb6dc1f9b910f27091de75bcb5df"
     }
   ]
 }

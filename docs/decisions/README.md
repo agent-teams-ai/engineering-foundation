@@ -42,6 +42,7 @@ No proposed decisions.
 - [ADR-0045: Five-Coordinate Qualified Docs Cohort](0045-five-coordinate-qualified-docs-cohort.md)
 
 - [ADR-0046: Repository Feature Module Standard Adoption](0046-feature-module-standard-adoption.md)
+- [ADR-0047: Exact Ordering, Version and Identity Primitives](0047-exact-ordering-version-and-identity-primitives.md)
 
 ## Superseded
 

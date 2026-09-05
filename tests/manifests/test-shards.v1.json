@@ -137,6 +137,7 @@
         "tests/document-planning-composition.test.mjs",
         "tests/document-planning-use-case.test.mjs",
         "tests/document-reachability-projection.test.mjs",
+        "tests/exact-primitive-contracts.test.mjs",
         "tests/foundation-cleanup-marker-crash.test.mjs",
         "tests/foundation-local-mode-transaction-e2e.test.mjs",
         "tests/local-mode-process-runner.test.mjs",

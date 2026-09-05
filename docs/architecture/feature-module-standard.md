@@ -135,7 +135,10 @@ gate: `false && <gate>` is not a successful bypass. These static checks do not
 replace trusted policy/CI review or prove execution of a consumer's checks.
 
 The guard checks exact accepted decision evidence for primitive exceptions.
-No repository primitive or cycle exception is currently accepted. It does not
+[ADR-0047](../decisions/0047-exact-ordering-version-and-identity-primitives.md)
+admits the two exact ordinal comparators, exact SemVer and the type-only portable
+path identity contract with closed consumer identities. No cycle exception is
+accepted. It does not
 infer semantic SOLID, aggregate correctness or security from names or metrics.
 
 ## Generated and primitive ownership contract
@@ -247,19 +250,20 @@ fixed-byte hashing without inventing an IO port for deterministic computation.
 Purity checks are bounded prohibitions backed by semantic review, not a proof
 that arbitrary JavaScript is pure.
 
-ADR-0047 remains reserved for the coordinator's exact primitive decisions.
-Source owners must provide exact primitive scopes, actual consumer identities,
-current caller mappings and parity evidence for
-ordinal comparison, SemVer, canonical/strict JSON and any justified path
-identity primitive. Cancellation still needs its reporting owner settled first.
-Neither test-fixture ADRs nor ADR-0046 approve those product exceptions. Existing
+ADR-0047 records the coordinator's four exact primitive decisions, source
+fingerprints, current consumer identities and interoperability obligations.
+Caller paths in the profile come from observed imports and re-exports, including
+workspace package surfaces. The finite checker and negative fixtures remain
+mandatory. Canonical and strict JSON are not admitted: their present syntax
+fails the primitive guard and requires a separately qualified successor decision.
+Neither test-fixture ADRs nor ADR-0046 approve product exceptions. Existing
 accepted ADRs, standards, schemas, journals and release baselines stay immutable;
 supported export changes require their normal compatibility/promotion procedure.
 
 ## Known gaps and migration ownership
 
-- Root utilities in Foundation, Authoring and Mutation still need semantic owners
-  or a separately justified primitive decision. The profile leaves them
+- Mutation's canonical and strict JSON root utilities still need semantic owners
+  or a separately justified primitive decision. The profile leaves those two
   unowned; a `core` or `runtime-primitives` feature would conceal the gap.
 - Authoring's `document-authoring.surface` and MCP's
   `docs-protocol-mcp.surface` source-policy boundaries span layers. Their owners

@@ -57,7 +57,135 @@
         "packages/repository-mutation/src/composition"
       ],
       "generatedRoots": [],
-      "exceptions": [],
+      "exceptions": [
+        {
+          "path": "packages/repository-mutation/src/path-identity.ts",
+          "role": "domain",
+          "decision": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md",
+          "consumers": [
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-file-state.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-publisher.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-path-authority.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/recapture-document-publication-paths.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-file-identity.ts",
+              "owner": "engineering-foundation/scaffolding"
+            },
+            {
+              "path": "packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-cleanup-transition.ts",
+              "owner": "engineering-foundation/transaction-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/composition/node-known-file.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/index.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/node.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/paths.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/qualification/index.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/known-file-coordination.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/application/model/directory-materialization.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction-journal.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-bounded-regular-file.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-evidence.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-mutation-observation.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-operation-lock.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-terminal-evidence-directory.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/application/file-observation.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/application/journal-slot-profile.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/application/mutation-lease.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/application/ports/mutation-lease-port.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            }
+          ]
+        }
+      ],
       "features": [
         {
           "id": "known-file-transactions",
@@ -141,7 +269,75 @@
         "packages/document-authoring/src/composition"
       ],
       "generatedRoots": [],
-      "exceptions": [],
+      "exceptions": [
+        {
+          "path": "packages/document-authoring/src/binary-string-comparator.ts",
+          "role": "domain",
+          "decision": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md",
+          "consumers": [
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/canonical-markdown.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/describe-document-authoring-profile-v2.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-metadata-sidecar-reader.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-owner-membership-reader.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-authoring-semantic-digests.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-catalog-diagnostics.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-contract-digests.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-logical-preimage.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/normalize-document-intent.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/project-catalog-metadata.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/project-document-authoring-description.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/projections/document-catalog-projections.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/use-cases/build-documentation-catalog.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/use-cases/find-documents.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-tree-observer.ts",
+              "owner": "document-authoring/documentation-observation"
+            }
+          ]
+        }
+      ],
       "features": [
         {
           "id": "document-authoring",
@@ -550,7 +746,202 @@
         "packages/engineering-foundation/src/foundation-state-contract.ts"
       ],
       "generatedRoots": [],
-      "exceptions": [],
+      "exceptions": [
+        {
+          "path": "packages/engineering-foundation/src/binary-string-comparator.ts",
+          "role": "domain",
+          "decision": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md",
+          "consumers": [
+            {
+              "path": "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/adapters/outbound/filesystem/ajv-json-schema-release-inspector.ts",
+              "owner": "engineering-foundation/contract-json-schema-releases"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/model/buf-breaking-qualification.ts",
+              "owner": "engineering-foundation/contract-protobuf-evolution"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/executable-specifications/adapters/outbound/filesystem/filesystem-executable-specification-inspector.ts",
+              "owner": "engineering-foundation/executable-specifications"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/model/architecture-decision.ts",
+              "owner": "engineering-foundation/governance-architecture-decisions"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/policies/accepted-architecture-decision-baseline.ts",
+              "owner": "engineering-foundation/governance-architecture-decisions"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/policies/evaluate-architecture-decisions.ts",
+              "owner": "engineering-foundation/governance-architecture-decisions"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/policies/parse-accepted-architecture-decision-baseline.ts",
+              "owner": "engineering-foundation/governance-architecture-decisions"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/use-cases/resolve-architecture-decision-index-memberships.ts",
+              "owner": "engineering-foundation/governance-architecture-decisions"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/configuration/parse-agent-workflow-policy.ts",
+              "owner": "engineering-foundation/repository-agent-workflow"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/policies/evaluate-repository-agent-workflow.ts",
+              "owner": "engineering-foundation/repository-agent-workflow"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters/outbound/filesystem/repository-security-digests.ts",
+              "owner": "engineering-foundation/repository-security-baseline"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters/outbound/filesystem/workflow-evidence-parser.ts",
+              "owner": "engineering-foundation/repository-security-baseline"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters/outbound/filesystem/workflow-evidence-reader.ts",
+              "owner": "engineering-foundation/repository-security-baseline"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/inbound/configuration/parse-capability-config.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/pnpm-source-workspace-snapshot.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/pnpm-source-workspace-topology-inspector.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/selected-package-source-discovery.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/selected-package-source-snapshot-reader.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/source-workspace-root-snapshot.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/oxc/oxc-source-dependency-parser.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/policies/evaluate-source-dependency-cycles.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/policies/evaluate-source-workspace-coverage.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/analyze-source-dependencies.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/build-observed-source-graph.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/suppression-governance/adapters/outbound/oxc/oxc-suppression-scanner.ts",
+              "owner": "engineering-foundation/suppression-governance"
+            },
+            {
+              "path": "packages/engineering-foundation/src/features/foundation-check/application/map-foundation-config.ts",
+              "owner": "engineering-foundation/foundation-check"
+            },
+            {
+              "path": "packages/engineering-foundation/src/features/validation-reporting/application/reporting.ts",
+              "owner": "engineering-foundation/validation-reporting"
+            },
+            {
+              "path": "packages/engineering-foundation/src/local-mode/application/package-metadata.ts",
+              "owner": "engineering-foundation/local-package-mode"
+            },
+            {
+              "path": "packages/engineering-foundation/src/workspace-inventory/adapters/outbound/pnpm/pnpm-package-manifest-snapshot-reader.ts",
+              "owner": "engineering-foundation/workspace-inventory"
+            },
+            {
+              "path": "packages/engineering-foundation/src/workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.ts",
+              "owner": "engineering-foundation/workspace-inventory"
+            }
+          ]
+        },
+        {
+          "path": "packages/engineering-foundation/src/semantic-version.ts",
+          "role": "domain",
+          "decision": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md",
+          "consumers": [
+            {
+              "path": "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/policies/evaluate-json-schema-release.ts",
+              "owner": "engineering-foundation/contract-json-schema-releases"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/policies/evaluate-protobuf-evolution.ts",
+              "owner": "engineering-foundation/contract-protobuf-evolution"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/changesets-prerelease-state.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-baseline-mapper.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/evaluate-public-api-compatibility.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/promote-public-api-baselines.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/policies/evaluate-workspace-dependencies.ts",
+              "owner": "engineering-foundation/workspace-dependency-declarations"
+            },
+            {
+              "path": "packages/engineering-foundation/src/local-mode/application/attach-transaction.ts",
+              "owner": "engineering-foundation/local-package-mode"
+            },
+            {
+              "path": "packages/engineering-foundation/src/local-mode/application/consumer-policy.ts",
+              "owner": "engineering-foundation/local-package-mode"
+            },
+            {
+              "path": "packages/engineering-foundation/src/local-mode/application/package-metadata.ts",
+              "owner": "engineering-foundation/local-package-mode"
+            },
+            {
+              "path": "packages/engineering-foundation/src/local-mode/application/service.ts",
+              "owner": "engineering-foundation/local-package-mode"
+            },
+            {
+              "path": "packages/engineering-foundation/src/local-mode/index.ts",
+              "owner": "engineering-foundation/local-package-mode"
+            },
+            {
+              "path": "packages/engineering-foundation/src/transaction-coordination/adapters/node/claimed-artifact-coordinate.ts",
+              "owner": "engineering-foundation/transaction-coordination"
+            }
+          ]
+        }
+      ],
       "features": [
         {
           "id": "local-package-mode",

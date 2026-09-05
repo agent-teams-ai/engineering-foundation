@@ -1,4 +1,3 @@
-import { assertSchema } from "../../../schema-catalog.js";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 import { assertEnvelopeDigests } from "./legacy-envelope-digests.js";
 import { assertLegacyDocumentEnvelope, isKnownLegacyDocumentEnvelope } from "./legacy-document-envelope-v2.js";
@@ -9,7 +8,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function inspectLegacyDocumentTransaction(
-  value: Record<string, unknown>
+  value: Record<string, unknown>,
+  assertSchema: (schemaId: "foundation-transaction-envelope/v2", input: unknown, phase: string) => Promise<void>
 ): Promise<InternalFoundationTransactionStatus> {
     const legacyDocumentEnvelope = isKnownLegacyDocumentEnvelope(value);
     if (legacyDocumentEnvelope) {

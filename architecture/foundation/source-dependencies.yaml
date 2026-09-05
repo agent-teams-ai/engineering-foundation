@@ -1555,7 +1555,6 @@ boundaries:
         - foundation.validation-reporting.error
         - foundation.core
         - foundation.package-identity
-        - foundation.schema-validation
         - foundation.transaction-coordination.application
         - foundation.validation-reporting.application
       packages:
@@ -2731,6 +2730,7 @@ boundaries:
       - packages/engineering-foundation/src/composition/scaffold-filesystem.ts
     allow:
       boundaries:
+        - foundation.schema-validation
         - foundation.package-identity
         - foundation.scaffolding.canonical-adapters
         - foundation.scaffolding.core

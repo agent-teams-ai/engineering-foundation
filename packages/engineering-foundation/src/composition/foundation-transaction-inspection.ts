@@ -5,6 +5,7 @@ import {
 } from "../scaffolding/adapters/node/scaffold-transaction-status.js";
 import { inspectDocumentTransactionStatus } from "../transaction-coordination/adapters/node/document-transaction-status.js";
 import { inspectLegacyDocumentTransaction } from "../transaction-coordination/adapters/node/legacy-document-transaction-status.js";
+import { assertSchema } from "../schema-catalog.js";
 import { inspectKnownFileTransactionStatus } from "../transaction-coordination/adapters/node/known-file-transaction-status.js";
 import { inspectSchema6TransactionStatus } from "../transaction-coordination/adapters/node/schema6-transaction-status.js";
 import {
@@ -19,7 +20,7 @@ export function createFoundationTransactionInspection(
   return createInspection(installed, {
     legacyScaffoldingJournal: inspectLegacyScaffoldingJournal,
     legacyScaffoldingEnvelope: inspectLegacyScaffoldingEnvelope,
-    legacyDocument: inspectLegacyDocumentTransaction,
+    legacyDocument: (value) => inspectLegacyDocumentTransaction(value, assertSchema),
     document: inspectDocumentTransactionStatus,
     knownFile: inspectKnownFileTransactionStatus,
     currentScaffolding: inspectCurrentScaffoldingRecord,

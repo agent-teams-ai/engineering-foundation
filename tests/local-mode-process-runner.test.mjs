@@ -25,7 +25,7 @@ import { foundationCommandFailure } from "../packages/engineering-foundation/dis
 import {
   ProcessCancellationError,
   ProcessTimeoutError
-} from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
+} from "../packages/engineering-foundation/dist/process-execution/api.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
   spawnWindowsManagedProcess as spawnWindowsManagedProcessWithoutEnvironment,

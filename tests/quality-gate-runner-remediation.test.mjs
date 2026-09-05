@@ -251,7 +251,7 @@ test("late cancellation retains an already observed passing task", async () => {
 
 test("QGR binds one immutable exact child environment in the pnpm adapter", async () => {
   const publicProcessDeclarations = await readFile(new URL(
-    "../packages/engineering-foundation/dist/process-execution/types.d.ts",
+    "../packages/engineering-foundation/dist/process-execution/application/process.d.ts",
     import.meta.url,
   ), "utf8");
   const processRequestDeclaration = publicProcessDeclarations.match(

@@ -3,7 +3,8 @@ import { renderFoundationReportText } from "../features/foundation-check/module.
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runFoundationCli, nodeCommandCancellation, foundationCommandFailureJson } from "../features/command-host/module.js";
-import { promoteArchitectureDecisionBaseline } from "../capabilities/governance-architecture-decisions/module.js";
+import { createManagedProcessExecutor } from "../process-execution/module.js";
+import { promoteArchitectureDecisionBaseline, readAcceptedArchitectureDecisionEvidence } from "../capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "../capabilities/public-api-compatibility/module.js";
 import { createNodeAgentWorkflowCommands } from "../capabilities/repository-agent-workflow/command-module.js";
 import { createQualityGateCliCommand, createNodeQualityGateCommand, NodeSignalQualityGateCancellationSource } from "../capabilities/quality-gate-runner/command-module.js";
@@ -19,10 +20,11 @@ import { RULE_REGISTRY } from "./rule-registry.js";
 
 // Executable composition owns the concrete adapters and process environment.
 function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: string): FoundationCommandServices {
+  const processExecutor = createManagedProcessExecutor();
   const packageRoot = dirname(dirname(fileURLToPath(entrypointUrl)));
   const qualityGate = createQualityGateCliCommand({
     cancellationSource: new NodeSignalQualityGateCancellationSource(),
-    commandFactory: createNodeQualityGateCommand,
+    commandFactory: (snapshot) => createNodeQualityGateCommand(snapshot, processExecutor),
     foundationConfigLoader: loadFoundationConfig,
     failureJson: foundationCommandFailureJson
   });
@@ -37,13 +39,13 @@ function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: st
       ...(environment.npm_execpath === undefined ? {} : { npmExecPath: environment.npm_execpath }),
       ...(environment.PNPM_HOME === undefined ? {} : { pnpmHome: environment.PNPM_HOME }),
       ...(environment.PATH === undefined ? {} : { pathValue: environment.PATH })
-    }),
+    }, processExecutor),
     rules: RULE_REGISTRY,
     promoteDecisions: promoteArchitectureDecisionBaseline,
-    promotePublicApi: promotePublicApiRelease,
+    promotePublicApi: (input) => promotePublicApiRelease(input, readAcceptedArchitectureDecisionEvidence),
     loadProtobufQualifier: async () => {
       const { qualifyProtobufBreakingEvidence } = await import("../capabilities/contract-protobuf-evolution/qualification/module.js");
-      return qualifyProtobufBreakingEvidence;
+      return (input) => qualifyProtobufBreakingEvidence(input, processExecutor);
     },
     scaffold: runScaffoldingCliCommand,
     inspectPackage: () => inspectFoundationPackage(packageRoot),

@@ -1,3 +1,4 @@
+import { createManagedProcessExecutor } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { copyFile, mkdir, mkdtemp, readFile, realpath, symlink, writeFile } from "node:fs/promises";
@@ -17,7 +18,7 @@ import {
   validateQualityGatePolicy,
 } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/policies/validate-quality-gate-graph.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
-import { ProcessTimeoutError } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
+import { ProcessTimeoutError } from "../packages/engineering-foundation/dist/process-execution/api.js";
 import {
   awaitQgrSetupBeforeTransfer,
   cleanupSyntheticFixture,
@@ -824,7 +825,7 @@ test("resolves pnpm entrypoints from focused environment candidates", async () =
       const result = await new PnpmQualityGateScriptExecutor({
         ...environment,
         childEnvironment: {},
-      }).run({
+      }, createManagedProcessExecutor()).run({
         consumerRoot: root,
         scriptId: "probe",
       });

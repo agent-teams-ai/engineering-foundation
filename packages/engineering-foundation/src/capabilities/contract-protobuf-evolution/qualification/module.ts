@@ -1,6 +1,7 @@
 import { NodeSha256Digest } from "../adapters/outbound/crypto/node-sha256-digest.js";
 import { loadCapabilityConfig } from "../contract/config.js";
 import { FilesystemBufQualificationArtifacts } from "./adapters/outbound/filesystem/filesystem-buf-qualification-artifacts.js";
+import { ProcessBufExecutable } from "./adapters/outbound/process/process-buf-executable.js";
 import { ProcessBufQualificationRunner } from "./adapters/outbound/process/process-buf-qualification-runner.js";
 import {
   qualifyBufBreakingEvidence,
@@ -13,7 +14,7 @@ export async function qualifyProtobufBreakingEvidence(input: {
   readonly executablePath: string;
   readonly write: boolean;
   readonly signal?: AbortSignal;
-}): Promise<QualifyBufBreakingEvidenceResult> {
+}, executor: import("./ports/process-executor.js").BufProcessExecutor): Promise<QualifyBufBreakingEvidenceResult> {
   const configuration = await loadCapabilityConfig(
     input.consumerRoot,
     input.configPath,
@@ -30,7 +31,7 @@ export async function qualifyProtobufBreakingEvidence(input: {
     {
       artifacts: new FilesystemBufQualificationArtifacts(),
       digest: new NodeSha256Digest(),
-      runner: new ProcessBufQualificationRunner()
+      runner: new ProcessBufQualificationRunner(new ProcessBufExecutable(executor))
     }
   );
 }

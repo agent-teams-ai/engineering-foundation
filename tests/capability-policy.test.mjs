@@ -720,3 +720,23 @@ test("packaged schema observation refuses file and ancestor symlinks", { skip: p
     await assert.rejects(reader("value"), (error) => error instanceof ContainedFileReadError && error.failure === "symlink");
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test("suppression analysis consumes explicit snapshots and preserves scanner failures", async () => {
+  const { analyzeSuppressionGovernance } = await import("../packages/engineering-foundation/dist/capabilities/suppression-governance/api.js");
+  const { OxcSuppressionScanner } = await import("../packages/engineering-foundation/dist/capabilities/suppression-governance/adapters/outbound/oxc/oxc-suppression-scanner.js");
+  const signal = new AbortController().signal;
+  const input = { consumerRoot: "/inert", policy: { governedRoots: ["src"], nonWaivableRulePrefixes: [], waivers: [] }, signal };
+  const reader = { async read(root, roots, observedSignal) {
+    assert.equal(root, input.consumerRoot);
+    assert.deepEqual(roots, ["src"]);
+    assert.equal(observedSignal, signal);
+    return [{ path: "src/test.ts", source: "// @ts-ignore\nexport const value = 1;" }];
+  } };
+  const dependencies = { sourceReader: reader, scanner: new OxcSuppressionScanner(), clock: { today: () => "2026-09-05" } };
+  const diagnostics = await analyzeSuppressionGovernance(input, dependencies);
+  assert.ok(diagnostics.some(({ ruleId }) => ruleId === "quality.suppression-governance.prohibited-typescript-suppression"));
+  const failure = new Error("snapshot unavailable");
+  await assert.rejects(analyzeSuppressionGovernance(input, {
+    ...dependencies, sourceReader: { async read() { throw failure; } },
+  }), (error) => error === failure);
+});

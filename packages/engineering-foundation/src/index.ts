@@ -21,9 +21,9 @@ export {
   normalizeDeterministicSeedBank,
   normalizePropertyReplayEvidence,
   PropertyTestingEvidenceError
-} from "./capabilities/property-testing-standard/contract/deterministic-seed-bank.js";
+} from "./capabilities/property-testing-standard/api.js";
 export type {
   DeterministicSeedBank,
   FastCheckParameters,
   PropertyReplayEvidence
-} from "./capabilities/property-testing-standard/contract/deterministic-seed-bank.js";
+} from "./capabilities/property-testing-standard/api.js";

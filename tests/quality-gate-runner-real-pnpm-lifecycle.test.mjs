@@ -1,3 +1,4 @@
+import { createManagedProcessExecutor } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { constants } from "node:fs";
 import {
@@ -391,7 +392,7 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
         }),
         npmExecPath: installedPnpmEntrypoint,
         pathValue: dirname(installedPnpmEntrypoint),
-      }),
+      }, createManagedProcessExecutor()),
       projectId: "quality-gate-real-pnpm-lifecycle",
     });
     let commandSettled = false;

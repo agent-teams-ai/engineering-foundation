@@ -1,4 +1,5 @@
-import type { WorkspaceInventory } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
+import type { WorkspaceInventory } from "../../../../workspace-inventory/api.js";
+
 import type {
   ClassifiedSourceFile,
   ResolvedSourceDependency,

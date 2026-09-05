@@ -1,3 +1,4 @@
+import { createJsonSchemaInspector } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -94,7 +95,7 @@ test("real inspector accepts exactly 1024 combined identities and rejects 1025 b
     }
     const exactInspector = new capabilityModule.FilesystemExecutableSpecificationInspector({
       async discoverManifestPaths() { return ["package.json"]; },
-    });
+    }, createJsonSchemaInspector);
     const exact = await capabilityModule.analyzeExecutableSpecifications(
       { consumerRoot: root, catalog: catalogOf(candidate) },
       exactInspector,
@@ -105,7 +106,7 @@ test("real inspector accepts exactly 1024 combined identities and rejects 1025 b
       async discoverManifestPaths() {
         return ["package.json", "packages/unread/package.json"];
       },
-    });
+    }, createJsonSchemaInspector);
     await assert.rejects(
       oversizedInspector.inspectCatalog({
         consumerRoot: "/definitely-not-readable",
@@ -134,7 +135,7 @@ test("shared owner and ADR evidence are read and charged once across passing spe
       await Promise.all(uniquePaths.map((path) => readFile(join(root, path))))
     ).reduce((total, bytes) => total + bytes.byteLength, 0);
     const inspector = new capabilityModule.FilesystemExecutableSpecificationInspector(
-      { async discoverManifestPaths() { return ["package.json"]; } },
+      { async discoverManifestPaths() { return ["package.json"]; } }, createJsonSchemaInspector,
       exactBytes,
     );
     assert.deepEqual(
@@ -144,5 +145,32 @@ test("shared owner and ADR evidence are read and charged once across passing spe
       ),
       [],
     );
+  });
+});
+
+test("schema inspection uses a caller-selected factory sharing one bounded artifact session", async () => {
+  await withRoot(async (root) => {
+    const spec = specification();
+    await materialize(root, [spec]);
+    const failure = new Error("selected schema inspector");
+    let calls = 0;
+    const inspector = new capabilityModule.FilesystemExecutableSpecificationInspector(
+      { async discoverManifestPaths() { return ["package.json"]; } },
+      (readArtifact) => ({
+        async inspect(input) {
+          calls += 1;
+          assert.equal(input.consumerRoot, root);
+          const first = await readArtifact(spec.schemaPaths[0]);
+          await write(root, spec.schemaPaths[0], "changed after observation");
+          assert.deepEqual(await readArtifact(spec.schemaPaths[0]), first);
+          throw failure;
+        },
+      }),
+    );
+    await assert.rejects(
+      inspector.inspectCatalog({ consumerRoot: root, catalog: catalogOf(spec) }),
+      (error) => error === failure,
+    );
+    assert.equal(calls, 1);
   });
 });

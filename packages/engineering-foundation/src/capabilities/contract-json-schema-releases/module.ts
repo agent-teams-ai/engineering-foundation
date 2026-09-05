@@ -76,3 +76,9 @@ export function createJsonSchemaReleaseCapability(
     }
   });
 }
+
+export function createJsonSchemaInspector(
+  readArtifact: (repositoryPath: string) => Promise<Buffer | undefined>
+): JsonSchemaReleaseInspector {
+  return new AjvJsonSchemaReleaseInspector(readArtifact);
+}

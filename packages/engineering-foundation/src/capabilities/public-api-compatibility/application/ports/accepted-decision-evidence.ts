@@ -17,3 +17,5 @@ export interface AcceptedDecisionEvidencePort {
     readonly signal?: AbortSignal;
   }): Promise<AcceptedDecisionEvidence>;
 }
+
+export type { AcceptedArchitectureDecisionReader } from "../../../governance-architecture-decisions/api.js";

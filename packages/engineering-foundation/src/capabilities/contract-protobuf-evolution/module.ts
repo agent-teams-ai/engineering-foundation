@@ -4,7 +4,6 @@ import {
   type CapabilityDefinition,
   type CapabilityInvocation
 } from "../../features/validation-reporting/api.js";
-import { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";
 import { FilesystemBufBreakingQualificationEvidence } from "./adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
@@ -18,7 +17,7 @@ import { resolveProtobufEvolutionPolicy } from "./application/use-cases/resolve-
 
 export {
   evaluateProtobufEvolution
-} from "./application/policies/evaluate-protobuf-evolution.js";
+} from "./api.js";
 export type {
   ApprovedProtobufBreakingChange,
   BufBreakingEvidence,
@@ -32,27 +31,27 @@ export type {
   ProtobufEvolutionPolicy,
   ReleasedProtobufContractEvidence,
   Sha256Digest
-} from "./application/model/protobuf-release-evidence.js";
+} from "./api.js";
 export type {
   AcceptedDecisionEvidence,
   AcceptedDecisionEvidencePort,
   ReadAcceptedDecisionEvidenceInput
-} from "./application/ports/accepted-decision-evidence.js";
+} from "./api.js";
 export {
   PROTOBUF_EVOLUTION_RULES,
   PROTOBUF_EVOLUTION_RULES_BY_ID
-} from "./application/rules.js";
+} from "./api.js";
 
 export interface ProtobufEvolutionCapabilityDependencies {
-  readonly acceptedDecisionEvidence?: AcceptedDecisionEvidencePort;
+  readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
   readonly bufBreakingQualificationEvidence?: BufBreakingQualificationEvidencePort;
 }
 
 export function createProtobufEvolutionCapability(
-  dependencies: ProtobufEvolutionCapabilityDependencies = {}
+  dependencies: ProtobufEvolutionCapabilityDependencies
 ): CapabilityDefinition {
   const acceptedDecisionEvidence =
-    dependencies.acceptedDecisionEvidence ?? new GovernanceAcceptedDecisionEvidenceAcl();
+    dependencies.acceptedDecisionEvidence;
   const bufBreakingQualificationEvidence =
     dependencies.bufBreakingQualificationEvidence ??
     new FilesystemBufBreakingQualificationEvidence();
@@ -90,3 +89,5 @@ export function createProtobufEvolutionCapability(
     }
   });
 }
+
+export { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";

@@ -1,6 +1,6 @@
 import { CapabilityInputError } from "../../../../validation-reporting/api.js";
 import { FoundationError } from "../../../../../errors.js";
-import { ProcessCancellationError } from "../../../../../process-execution/node-process-runner.js";
+import { ProcessCancellationError } from "../../../../../process-execution/api.js";
 import { ScaffoldError } from "../../../../../scaffolding/scaffold-error.js";
 import { FoundationTransactionError } from "../../../../../transaction-coordination/application/foundation-transaction-error.js";
 

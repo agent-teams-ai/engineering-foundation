@@ -23,3 +23,14 @@ export interface ProcessResult {
 export interface ProcessRunner {
   run(request: ProcessRequest): Promise<ProcessResult>;
 }
+
+export interface ManagedProcessRequest extends ProcessRequest {
+  /** Reject malformed UTF-8 evidence rather than replacing bytes. */
+  readonly strictUtf8?: boolean;
+  /** Exact inherited environment; omission retains the platform adapter's inheritance. */
+  readonly environment?: Readonly<NodeJS.ProcessEnv>;
+}
+
+export interface ManagedProcessExecutor {
+  run(request: ManagedProcessRequest): Promise<ManagedProcessResult>;
+}

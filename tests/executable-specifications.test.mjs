@@ -1,3 +1,4 @@
+import { createJsonSchemaInspector, executableSpecificationAdapters } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -141,7 +142,7 @@ async function withFixture(callback, catalog) {
 }
 
 async function run(root) {
-  return capabilityModule.createExecutableSpecificationsCapability().run({
+  return capabilityModule.createExecutableSpecificationsCapability(executableSpecificationAdapters()).run({
     consumerRoot: root,
     configPath: "quality.yaml",
   });
@@ -235,7 +236,7 @@ test("rejects type-generation topology mismatches before inspector I/O", async (
 });
 
 test("validates the capability config path before trying to read it", async () => {
-  const result = await capabilityModule.createExecutableSpecificationsCapability().run({
+  const result = await capabilityModule.createExecutableSpecificationsCapability(executableSpecificationAdapters()).run({
     consumerRoot: "/definitely-not-readable",
     configPath: "docs/CON.ts",
   });
@@ -546,7 +547,7 @@ test("rejects selected workspace manifest aliases before reading them", async ()
       async discoverManifestPaths() {
         return ["package.json", "DOCS/WORKFLOW.MD"];
       },
-    });
+    }, createJsonSchemaInspector);
     await assert.rejects(
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog: catalogOf(specification()) },
@@ -565,7 +566,7 @@ test("rejects exact owner-manifest reuse and root package case aliases before re
         async discoverManifestPaths() {
           return ["package.json", manifestPath];
         },
-      });
+      }, createJsonSchemaInspector);
       await assert.rejects(
         capabilityModule.analyzeExecutableSpecifications(
           { consumerRoot: root, catalog: catalogOf(specification()) },
@@ -584,7 +585,7 @@ test("rejects non-ASCII selected workspace manifests before reading them", async
       async discoverManifestPaths() {
         return ["package.json", "packages/\u03a3/package.json"];
       },
-    });
+    }, createJsonSchemaInspector);
     await assert.rejects(
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog: catalogOf(specification()) },
@@ -613,7 +614,7 @@ test("uses one workspace inventory snapshot for a multi-specification catalog", 
       },
     };
     const inspector = new capabilityModule.FilesystemExecutableSpecificationInspector(
-      inventoryReader,
+      inventoryReader, createJsonSchemaInspector,
     );
     const diagnostics = await capabilityModule.analyzeExecutableSpecifications(
       { consumerRoot: root, catalog: catalogOf(specification(), second) },
@@ -667,8 +668,7 @@ test("enforces the shared aggregate byte budget at its exact boundary without re
       await capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog },
         new capabilityModule.FilesystemExecutableSpecificationInspector(
-          inventoryReader,
-          exactBytes,
+          inventoryReader, createJsonSchemaInspector, exactBytes,
         ),
       ),
       [],
@@ -677,8 +677,7 @@ test("enforces the shared aggregate byte budget at its exact boundary without re
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog },
         new capabilityModule.FilesystemExecutableSpecificationInspector(
-          inventoryReader,
-          exactBytes - 1,
+          inventoryReader, createJsonSchemaInspector, exactBytes - 1,
         ),
       ),
       ({ problem }) =>
@@ -751,7 +750,7 @@ test("charges workspace manifests before parsing beyond the aggregate budget", a
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog: catalogOf(specification()) },
         new capabilityModule.FilesystemExecutableSpecificationInspector(
-          reader,
+          reader, createJsonSchemaInspector,
           manifestBytes - 1,
         ),
       ),
@@ -774,7 +773,7 @@ test("rejects an oversized workspace manifest set before reading package files",
     await assert.rejects(
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog: catalogOf(specification()) },
-        new capabilityModule.FilesystemExecutableSpecificationInspector(reader),
+        new capabilityModule.FilesystemExecutableSpecificationInspector(reader, createJsonSchemaInspector),
       ),
       ({ problem }) =>
         problem?.code === "EXECUTABLE_SPECIFICATION_ARTIFACT_COUNT_EXCEEDED",

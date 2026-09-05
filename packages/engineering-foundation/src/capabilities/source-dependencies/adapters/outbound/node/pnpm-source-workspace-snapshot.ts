@@ -4,7 +4,7 @@ import { compareBinaryStrings } from "../../../../../binary-string-comparator.js
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../../cancellation.js";
 import { loadStrictYamlFile } from "../../../../../features/configuration-input/node.js";
-import type { WorkspaceInventory } from "../../../../../workspace-inventory/application/model/workspace-inventory.js";
+import type { WorkspaceInventory } from "../../../application/model/workspace-inventory.js";
 import { portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
 import type {
   InspectSourceWorkspaceTopologyInput,

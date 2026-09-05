@@ -7,3 +7,5 @@ export type {
   ContainedFileReadFailure
 } from "./application/model/contained-file.js";
 export { assertRepositoryRelativePath } from "./application/policies/repository-relative-path.js";
+export type { SourceFileSnapshot } from "./application/model/source-file-snapshot.js";
+export type { SourceTreeReader } from "./application/ports/source-tree-reader.js";

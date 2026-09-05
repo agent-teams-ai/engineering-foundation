@@ -13,7 +13,7 @@ test("portable declarations retain generic result contracts without managed root
     readFile(new URL("../dist/features/portable-documentation/application/docs-protocol.d.ts", import.meta.url), "utf8"),
     readFile(new URL("../dist/index.d.ts", import.meta.url), "utf8"),
     readFile(new URL("../dist/qualification/index.d.ts", import.meta.url), "utf8"),
-    readFile(new URL("../dist/features/qualification/adapters/qualification-runtime.d.ts", import.meta.url), "utf8")
+    readFile(new URL("../dist/features/qualification/application/runtime.d.ts", import.meta.url), "utf8")
   ]);
   assert.match(api, /docsNewV2: \(input: DocsNewRequest\) => Promise<DocsExecutionV2<DocsNewResultV2>>/u);
   assert.match(application, /newDocumentV2\(request: DocsNewRequest\): Promise<DocsOperationResult<DocsNewResultV2, "docs.new">>/u);
@@ -72,7 +72,7 @@ if (execution.envelope.result.writeState === "preview") {
 void [historicalIdentity, successor, validatePortableRepositoryPath("CON.yaml"), validatePortableRepositoryPathV2("docs.yaml")];
 `);
     const compiler = fileURLToPath(new URL("../../../node_modules/.pnpm/typescript@7.0.2/node_modules/typescript/bin/tsc", import.meta.url));
-    const output = await promisify(execFile)(process.execPath, [compiler, "--noEmit", "--strict", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
+    const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
     assert.equal(output.stdout, "");
     assert.equal(output.stderr, "");
   } finally {await rm(root, { recursive: true, force: true });}

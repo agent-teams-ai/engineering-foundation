@@ -13,7 +13,7 @@ import { NodeCodeAnchorMatcher } from "../dist/features/portable-documentation/a
 import { NodeDocsAdoptionInspector } from "../dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.js";
 import { NodeDocsProfileReader } from "../dist/features/portable-documentation/adapters/outbound/node-profile-reader.js";
 import { NodeDocumentAuthoringPort } from "../dist/features/portable-documentation/adapters/outbound/document-authoring-port.js";
-import { runDocsProtocolQualification } from "../dist/features/qualification/adapters/run-qualification.js";
+import { runDocsProtocolQualification } from "../dist/qualification/index.js";
 import {
   crashAfterDurablePublication,
   crashAtDurablePublishing

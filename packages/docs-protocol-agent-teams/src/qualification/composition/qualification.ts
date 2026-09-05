@@ -1,11 +1,13 @@
+import { interruptAndRecover } from "@agent-teams/docs-protocol/qualification";
 import {
   assertConsumerIntegrationProfileSchema,
   checkConsumerIntegration,
   observeQualifiedPnpmLockfileV2,
   projectQualificationAuthorityV2
 } from "../../consumer-integration/composition/qualification-v3-boundary.js";
-import { createDocsProtocolQualificationV2 } from "../adapters/outbound/node-managed-qualification.js";
+import { createNodeManagedQualificationEnvironment } from "../adapters/outbound/node-managed-qualification.js";
 import {
+  createDocsProtocolQualificationV2,
   createDocsProtocolQualificationV3Observer,
   createDocsProtocolQualificationV3,
   type DocsProtocolQualificationV2Request,
@@ -20,10 +22,14 @@ import {
 
 const observeLockfile =
   createDocsProtocolQualificationV3Observer(observeQualifiedPnpmLockfileV2);
+const qualificationEnvironment = createNodeManagedQualificationEnvironment(interruptAndRecover);
 const qualification = {
   runDocsProtocolQualificationV2: createDocsProtocolQualificationV2({
-    assertProfile: assertConsumerIntegrationProfileSchema,
-    check: checkConsumerIntegration
+    integrationApi: {
+      assertProfile: assertConsumerIntegrationProfileSchema,
+      check: checkConsumerIntegration
+    },
+    environment: qualificationEnvironment
   }),
   observeDocsProtocolQualificationV3Lockfile: observeLockfile,
   runDocsProtocolQualificationV3: createDocsProtocolQualificationV3(observeLockfile)

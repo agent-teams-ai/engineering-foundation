@@ -601,6 +601,7 @@
       "moduleAssembly": [
         "packages/docs-protocol/src/index.ts",
         "packages/docs-protocol/src/cli.ts",
+        "packages/docs-protocol/src/qualification/composition.ts",
         "packages/docs-protocol/src/qualification/index.ts"
       ],
       "generatedRoots": [],
@@ -721,17 +722,26 @@
         },
         {
           "id": "qualification",
-          "role": "testing",
+          "role": "sdk",
           "layers": [
             {
-              "role": "testing",
+              "role": "application",
+              "roots": ["packages/docs-protocol/src/features/qualification/application"]
+            },
+            {
+              "role": "adapters",
+              "roots": ["packages/docs-protocol/src/features/qualification/adapters"]
+            },
+            {
+              "role": "composition",
               "roots": [
-                "packages/docs-protocol/src/features/qualification"
+                "packages/docs-protocol/src/features/qualification/index.ts"
               ]
             }
           ],
           "testRoots": [
-            "packages/docs-protocol/tests/qualification.test.mjs"
+            "packages/docs-protocol/tests/qualification.test.mjs",
+            "packages/docs-protocol/tests/qualification-application.test.mjs"
           ]
         }
       ],
@@ -754,6 +764,8 @@
         "packages/docs-protocol-agent-teams/src/index.ts",
         "packages/docs-protocol-agent-teams/src/cli.ts",
         "packages/docs-protocol-agent-teams/src/composition",
+        "packages/docs-protocol-agent-teams/src/qualification/composition/qualification.ts",
+        "packages/docs-protocol-agent-teams/src/qualification/composition/managed-command.ts",
         "packages/docs-protocol-agent-teams/src/qualification/index.ts"
       ],
       "generatedRoots": [
@@ -819,7 +831,7 @@
         },
         {
           "id": "managed-qualification",
-          "role": "testing",
+          "role": "integration",
           "layers": [
             {
               "role": "application",
@@ -833,15 +845,10 @@
               "roots": [
                 "packages/docs-protocol-agent-teams/src/qualification/adapters"
               ]
-            },
-            {
-              "role": "composition",
-              "roots": [
-                "packages/docs-protocol-agent-teams/src/qualification/composition"
-              ]
             }
           ],
           "testRoots": [
+            "packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs",
             "packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs",
             "packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs",
             "packages/docs-protocol-agent-teams/tests/qualification.test.mjs"

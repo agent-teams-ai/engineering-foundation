@@ -1,3 +1,6 @@
+import { hasInfrastructureSegment, overlapsGovernedRoot, isQualificationMutationObservationExcludedPath, isQualificationSourceCopyExcludedPath, qualificationEvidencePolicy, type QualificationEvidenceEntryKind, type QualificationEvidencePolicy } from "../application/evidence-policy.js";
+export { isQualificationMutationObservationExcludedPath, isQualificationSourceCopyExcludedPath, qualificationEvidencePolicy } from "../application/evidence-policy.js";
+
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, opendir, readFile, realpath, rename, rm, type FileHandle } from "node:fs/promises";
@@ -13,57 +16,6 @@ const MAX_EVIDENCE_FILE_BYTES = 16 * 1024 * 1024;
 const MAX_EVIDENCE_TOTAL_BYTES = 512 * 1024 * 1024;
 const MAX_CACHE_TAG_BYTES = 1024;
 const CACHE_TAG_SIGNATURE = "Signature: 8a477f597d28d172789f06886806bc55";
-
-const IMMUTABLE_SOURCE_ROOT_EXCLUSIONS = new Set([".agent-teams-local", ".cache", ".git", "target"]);
-const MUTATION_OBSERVATION_ROOT_EXCLUSIONS = new Set([".cache", ".git", "target"]);
-
-function hasInfrastructureSegment(repositoryPath: string): boolean {
-  return repositoryPath.split("/").some((segment) => segment === ".git" || segment === "node_modules");
-}
-
-export interface QualificationEvidencePolicy {
-  readonly governedRoots: readonly string[];
-}
-
-export type QualificationEvidenceEntryKind = "directory" | "file" | "other" | "symbolic-link";
-
-export function qualificationEvidencePolicy(governedRoots: readonly string[]): QualificationEvidencePolicy {
-  if (governedRoots.length > 32 || governedRoots.some((path) =>
-    path.startsWith("/") || path.split("/").some((segment) => segment === "" || segment === "." || segment === ".."))) {
-    throw new TypeError("Qualification governed roots must be a bounded canonical repository-path set.");
-  }
-  return Object.freeze({
-    governedRoots: Object.freeze([...new Set(governedRoots)].toSorted((left, right) =>
-      Buffer.compare(Buffer.from(left), Buffer.from(right))))
-  });
-}
-
-function overlapsGovernedRoot(repositoryPath: string, policy: QualificationEvidencePolicy): boolean {
-  return policy.governedRoots.some((root) => repositoryPath === root ||
-    repositoryPath.startsWith(`${root}/`) || root.startsWith(`${repositoryPath}/`));
-}
-
-/** Excludes only unambiguous source-local state and root build caches. */
-export function isQualificationSourceCopyExcludedPath(
-  repositoryPath: string,
-  entryKind: QualificationEvidenceEntryKind
-): boolean {
-  if (hasInfrastructureSegment(repositoryPath)) {return true;}
-  if (entryKind !== "directory") {return false;}
-  const [rootSegment] = repositoryPath.split("/");
-  return IMMUTABLE_SOURCE_ROOT_EXCLUSIONS.has(rootSegment ?? "");
-}
-
-/** Keeps qualification-owned local state observable so previews cannot hide side effects there. */
-export function isQualificationMutationObservationExcludedPath(
-  repositoryPath: string,
-  entryKind: QualificationEvidenceEntryKind
-): boolean {
-  if (hasInfrastructureSegment(repositoryPath)) {return true;}
-  if (entryKind !== "directory") {return false;}
-  const [rootSegment] = repositoryPath.split("/");
-  return MUTATION_OBSERVATION_ROOT_EXCLUSIONS.has(rootSegment ?? "");
-}
 
 async function hasStableCacheDirectoryTag(root: string, repositoryPath: string): Promise<boolean> {
   const directoryPath = join(root, repositoryPath);
@@ -193,12 +145,6 @@ export async function fileSnapshot(
     result.set(key, `sha256:${createHash("sha256").update(bytes).digest("hex")}`);
   }
   return result;
-}
-
-export function changedPaths(before: ReadonlyMap<string, string>, after: ReadonlyMap<string, string>): readonly string[] {
-  return Object.freeze([...new Set([...before.keys(), ...after.keys()])]
-    .filter((path) => before.get(path) !== after.get(path))
-    .toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))));
 }
 
 const MAX_REACHABILITY_INDEX_BYTES = 8 * 1024 * 1024;

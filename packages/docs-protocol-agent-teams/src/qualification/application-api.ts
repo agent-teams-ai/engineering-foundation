@@ -27,3 +27,5 @@ export {
 export {
   createDocsProtocolQualificationV3
 } from "./application/use-cases/qualify-v3.js";
+export { createDocsProtocolQualificationV2 } from "./application/use-cases/qualify-v2.js";
+export type { ManagedIntegrationCandidate, ManagedQualificationEnvironment } from "./application/model/managed-environment.js";

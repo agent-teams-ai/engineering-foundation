@@ -32,6 +32,7 @@ boundaries:
         - docs-protocol.portable-bootstrap.composition
         - docs-protocol.portable-documentation.composition
         - docs-protocol.qualification
+        - docs-protocol.qualification.composition
       packages: []
       builtins: []
       runtimeReferences: []
@@ -234,16 +235,60 @@ boundaries:
       - packages/docs-protocol/src/features/docs-command/sdk.ts
   - id: docs-protocol.qualification
     roots:
-      - packages/docs-protocol/src/features/qualification
+      - packages/docs-protocol/src/features/qualification/index.ts
     allow:
       boundaries:
-        - docs-protocol.docs-command.composition
-        - docs-protocol.portable-bootstrap.application
+        - docs-protocol.qualification.application
+        - docs-protocol.qualification.adapters
         - docs-protocol.portable-documentation.application
-        - docs-protocol.portable-documentation.composition
         - docs-protocol.portable-documentation.domain
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/qualification/index.ts
+  - id: docs-protocol.qualification.composition
+    roots:
+      - packages/docs-protocol/src/qualification/composition.ts
+    allow:
+      boundaries:
+        - docs-protocol.qualification.application
+        - docs-protocol.qualification.adapters
+        - docs-protocol.docs-command.composition
+        - docs-protocol.portable-documentation.composition
       packages:
         - "@agent-teams/document-authoring"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/qualification/composition.ts
+  - id: docs-protocol.qualification.application
+    roots:
+      - packages/docs-protocol/src/features/qualification/application
+    allow:
+      boundaries:
+        - docs-protocol.portable-bootstrap.application
+        - docs-protocol.portable-documentation.application
+        - docs-protocol.portable-documentation.domain
+      packages: []
+      builtins:
+        - node:crypto
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/qualification/application/model.ts
+      - packages/docs-protocol/src/features/qualification/application/runtime.ts
+      - packages/docs-protocol/src/features/qualification/application/recovery.ts
+      - packages/docs-protocol/src/features/qualification/application/run-qualification.ts
+      - packages/docs-protocol/src/features/qualification/application/skill.ts
+      - packages/docs-protocol/src/features/qualification/application/evidence-policy.ts
+      - packages/docs-protocol/src/features/qualification/application/workspace.ts
+  - id: docs-protocol.qualification.adapters
+    roots:
+      - packages/docs-protocol/src/features/qualification/adapters
+    allow:
+      boundaries:
+        - docs-protocol.qualification.application
+      packages: []
       builtins:
         - node:child_process
         - node:crypto
@@ -254,7 +299,10 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/features/qualification/index.ts
+      - packages/docs-protocol/src/features/qualification/adapters/crash-driver.ts
+      - packages/docs-protocol/src/features/qualification/adapters/filesystem-evidence.ts
+      - packages/docs-protocol/src/features/qualification/adapters/qualification-runtime.ts
+      - packages/docs-protocol/src/features/qualification/adapters/run-qualification.ts
   - id: docs-protocol.tests
     dependencyMode: development
     roots:
@@ -510,13 +558,15 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/node-managed-qualification.ts
   - id: docs-protocol-agent-teams.qualification.composition
     roots:
-      - packages/docs-protocol-agent-teams/src/qualification/composition
+      - packages/docs-protocol-agent-teams/src/qualification/composition/qualification.ts
+      - packages/docs-protocol-agent-teams/src/qualification/composition/managed-command.ts
     allow:
       boundaries:
         - docs-protocol-agent-teams.consumer-integration.composition
         - docs-protocol-agent-teams.qualification.adapters
         - docs-protocol-agent-teams.qualification.application
-      packages: []
+      packages:
+        - "@agent-teams/docs-protocol"
       builtins: []
       runtimeReferences: []
     entrypoints:

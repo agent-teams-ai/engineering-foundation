@@ -1,14 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
-import { parseDocument } from "yaml";
-
-import { isExactVersion } from "../semantic-version.js";
-import type {
-  ConsumerPolicyInspection,
-  RegistryProvenanceInspection
-} from "./types.js";
-import { FOUNDATION_PACKAGE_NAME } from "./types.js";
+import { isExactVersion } from "../../semantic-version.js";
+import type { ConsumerPolicyInspection } from "./model.js";
+import { FOUNDATION_PACKAGE_NAME } from "./model.js";
 
 const SHA512_INTEGRITY_PATTERN = /^sha512-[A-Za-z0-9+/]+={0,2}$/;
 const RUNTIME_DEPENDENCY_FIELDS = [
@@ -40,26 +32,6 @@ function hasBundledFoundation(value: unknown): boolean {
     Array.isArray(value) &&
     value.some((candidate) => candidate === FOUNDATION_PACKAGE_NAME)
   );
-}
-
-async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(path, "utf8")) as unknown;
-}
-
-async function readConsumerManifest(
-  consumerRoot: string,
-  issues: string[]
-): Promise<Record<string, unknown> | undefined> {
-  try {
-    const candidate = await readJson(join(consumerRoot, "package.json"));
-    if (isRecord(candidate)) {
-      return candidate;
-    }
-    issues.push("Consumer package.json must contain an object.");
-  } catch {
-    issues.push("Consumer package.json cannot be read.");
-  }
-  return undefined;
 }
 
 function inspectDependencyPlacement(
@@ -111,11 +83,12 @@ function inspectDependencyOverrides(
   }
 }
 
-export async function inspectFoundationDevOnly(
-  consumerRoot: string
-): Promise<ConsumerPolicyInspection> {
-  const issues: string[] = [];
-  const manifest = await readConsumerManifest(consumerRoot, issues);
+export function inspectConsumerManifest(
+  consumerRoot: string,
+  manifest: Record<string, unknown> | undefined,
+  inputIssues: readonly string[] = []
+): ConsumerPolicyInspection {
+  const issues = [...inputIssues];
   const dependencySpec = inspectDependencyPlacement(manifest, issues);
   inspectDependencyOverrides(manifest, issues);
 
@@ -136,20 +109,6 @@ export async function inspectFoundationDevOnly(
     ...(packageManager === undefined ? {} : { packageManager }),
     issues
   };
-}
-
-function readLockfileObject(source: string): Record<string, unknown> {
-  const document = parseDocument(source, {
-    uniqueKeys: true
-  });
-  if (document.errors.length > 0) {
-    throw new Error(document.errors.map((error) => error.message).join("; "));
-  }
-  const value = document.toJS({ maxAliasCount: 0 }) as unknown;
-  if (!isRecord(value)) {
-    throw new Error("pnpm-lock.yaml must contain an object.");
-  }
-  return value;
 }
 
 function hasValidPnpmPeerContext(
@@ -190,7 +149,7 @@ function hasValidPnpmPeerContext(
   return contentByDepth.length === 0;
 }
 
-interface LockfileProvenanceInspection {
+export interface LockfileProvenanceInspection {
   readonly packageKey?: string;
   readonly snapshotKey?: string;
   readonly integrity?: string;
@@ -257,7 +216,7 @@ function inspectRegistryResolution(
   return integrity;
 }
 
-function inspectLockfile(
+export function inspectLockfile(
   lockfile: Record<string, unknown>,
   source: string,
   dependencySpec: string | undefined
@@ -300,71 +259,3 @@ function inspectLockfile(
   };
 }
 
-export async function inspectFoundationRegistryProvenance(
-  consumerRoot: string,
-  dependencySpec: string | undefined
-): Promise<RegistryProvenanceInspection> {
-  const issues: string[] = [];
-  const lockfilePath = join(consumerRoot, "pnpm-lock.yaml");
-  let lockfile: Record<string, unknown>;
-  try {
-    lockfile = readLockfileObject(await readFile(lockfilePath, "utf8"));
-  } catch {
-    return {
-      issues: ["Consumer pnpm-lock.yaml cannot be parsed safely."]
-    };
-  }
-
-  const rootProvenance = inspectLockfile(
-    lockfile,
-    "consumer pnpm-lock.yaml",
-    dependencySpec
-  );
-  issues.push(...rootProvenance.issues);
-
-  const virtualStoreLockfilePath = join(
-    consumerRoot,
-    "node_modules",
-    ".pnpm",
-    "lock.yaml"
-  );
-  let virtualStoreLockfile: Record<string, unknown>;
-  try {
-    virtualStoreLockfile = readLockfileObject(
-      await readFile(virtualStoreLockfilePath, "utf8")
-    );
-  } catch {
-    issues.push("Installed pnpm virtual-store lockfile cannot be parsed safely.");
-    return { issues };
-  }
-  const installedProvenance = inspectLockfile(
-    virtualStoreLockfile,
-    "installed pnpm virtual-store lockfile",
-    dependencySpec
-  );
-  issues.push(...installedProvenance.issues);
-  if (
-    rootProvenance.packageKey !== installedProvenance.packageKey ||
-    rootProvenance.snapshotKey !== installedProvenance.snapshotKey ||
-    rootProvenance.integrity !== installedProvenance.integrity
-  ) {
-    issues.push(
-      `${FOUNDATION_PACKAGE_NAME} root and installed pnpm lockfile provenance must match.`
-    );
-  }
-
-  return {
-    ...(issues.length === 0 &&
-    rootProvenance.packageKey !== undefined &&
-    rootProvenance.integrity !== undefined
-      ? {
-          provenance: {
-            lockfilePath,
-            packageKey: rootProvenance.packageKey,
-            integrity: rootProvenance.integrity
-          }
-        }
-      : {}),
-    issues
-  };
-}

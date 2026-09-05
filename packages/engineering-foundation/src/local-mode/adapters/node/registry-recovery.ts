@@ -1,14 +1,13 @@
 import { lstat, mkdir, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { FoundationError } from "../errors.js";
-import { syncDirectory } from "./local-state-store.js";
-import type { FoundationLinkState } from "./types.js";
+import { FoundationError } from "../../application/errors/foundation-error.js";
+import type { FoundationLinkState } from "../../application/model.js";
 import {
   FOUNDATION_PACKAGE_NAME,
   LOCAL_REGISTRY_BACKUP,
   LOCAL_STATE_DIRECTORY
-} from "./types.js";
+} from "../../application/model.js";
 
 interface PackageManifest {
   readonly name?: unknown;
@@ -91,7 +90,8 @@ function backupRootExpected(
 export async function restoreRegistryEntry(
   consumerRoot: string,
   dependencySpec: string,
-  state: FoundationLinkState | undefined
+  state: FoundationLinkState | undefined,
+  syncDirectory: (path: string) => Promise<void>
 ): Promise<void> {
   const installedPath = join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME);
   const backupPath = join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP);

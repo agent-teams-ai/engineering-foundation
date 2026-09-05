@@ -406,6 +406,10 @@ boundaries:
       - packages/engineering-foundation/src/public-api-surface.ts
     allow:
       boundaries:
+        - foundation.local-mode.adapters
+        - foundation.local-mode.application
+        - foundation.local-mode.composition
+        - foundation.local-mode.errors
         - foundation.core
         - foundation.local-mode
         - foundation.property-testing-support
@@ -422,6 +426,10 @@ boundaries:
       - packages/engineering-foundation/src/quality-gate-cli-command.ts
     allow:
       boundaries:
+        - foundation.local-mode.adapters
+        - foundation.local-mode.application
+        - foundation.local-mode.composition
+        - foundation.local-mode.errors
         - capability.architecture-decisions.composition
         - capability.contract-protobuf.qualification.composition
         - capability.public-api-compatibility.composition
@@ -517,6 +525,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters
     allow:
       boundaries:
+        - foundation.local-mode.errors
         - capability.repository-agent-workflow.application
         - foundation.core
         - foundation.process-execution
@@ -589,6 +598,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters
     allow:
       boundaries:
+        - foundation.local-mode.errors
         - capability.quality-gate-runner.application
         - foundation.cancellation
         - foundation.core
@@ -627,14 +637,14 @@ boundaries:
       - packages/engineering-foundation/src/binary-string-comparator.ts
       - packages/engineering-foundation/src/capability-runtime.ts
       - packages/engineering-foundation/src/check-contract.ts
-      - packages/engineering-foundation/src/errors.ts
       - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
       - packages/engineering-foundation/src/unexpected-failure.ts
       - packages/engineering-foundation/src/unique-registry.ts
     allow:
-      boundaries: []
+      boundaries:
+        - foundation.local-mode.errors
       packages: []
       builtins: []
       runtimeReferences: []
@@ -642,7 +652,6 @@ boundaries:
       - packages/engineering-foundation/src/binary-string-comparator.ts
       - packages/engineering-foundation/src/capability-runtime.ts
       - packages/engineering-foundation/src/check-contract.ts
-      - packages/engineering-foundation/src/errors.ts
       - packages/engineering-foundation/src/foundation-state-contract.ts
       - packages/engineering-foundation/src/schema-ids.ts
       - packages/engineering-foundation/src/semantic-version.ts
@@ -753,7 +762,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/application/policies/legacy-scaffolding-repository-path.ts
   - id: foundation.package-identity
     roots:
-      - packages/engineering-foundation/src/package-version.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/installed-package-version.ts
     allow:
       boundaries: []
       packages: []
@@ -762,7 +771,7 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/package-version.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/installed-package-version.ts
   - id: repository-mutation.primitives
     roots:
       - packages/repository-mutation/src/canonical-json.ts
@@ -1048,6 +1057,7 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/adapters
     allow:
       boundaries:
+        - foundation.local-mode.errors
         - foundation.canonical-json
         - foundation.core
         - foundation.package-identity
@@ -1199,16 +1209,55 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/canonical-api.ts
       - packages/engineering-foundation/src/scaffolding/cli-command.ts
       - packages/engineering-foundation/src/scaffolding/index.ts
-  - id: foundation.local-mode
+  - id: foundation.local-mode.errors
     roots:
-      - packages/engineering-foundation/src/local-mode
-      - packages/engineering-foundation/src/package-self-check.ts
+      - packages/engineering-foundation/src/local-mode/application/errors
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/local-mode/application/errors/foundation-error.ts
+  - id: foundation.local-mode.application
+    roots:
+      - packages/engineering-foundation/src/local-mode/application/attach-transaction.ts
+      - packages/engineering-foundation/src/local-mode/application/consumer-policy.ts
+      - packages/engineering-foundation/src/local-mode/application/mode-status.ts
+      - packages/engineering-foundation/src/local-mode/application/model.ts
+      - packages/engineering-foundation/src/local-mode/application/package-metadata.ts
+      - packages/engineering-foundation/src/local-mode/application/ports.ts
+      - packages/engineering-foundation/src/local-mode/application/service.ts
     allow:
       boundaries:
         - foundation.core
-        - foundation.package-identity
+        - foundation.local-mode.errors
         - foundation.process-execution
-        - foundation.transaction-coordination.adapters
+        - foundation.transaction-coordination.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/local-mode/application/consumer-policy.ts
+      - packages/engineering-foundation/src/local-mode/application/mode-status.ts
+      - packages/engineering-foundation/src/local-mode/application/model.ts
+      - packages/engineering-foundation/src/local-mode/application/package-metadata.ts
+      - packages/engineering-foundation/src/local-mode/application/ports.ts
+      - packages/engineering-foundation/src/local-mode/application/service.ts
+  - id: foundation.local-mode.adapters
+    roots:
+      - packages/engineering-foundation/src/local-mode/adapters/node/consumer-inspection.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/local-state-store.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/mode-inspection.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/package-inspection.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/registry-links.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/registry-recovery.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/target-reader.ts
+      - packages/engineering-foundation/src/local-mode/adapters/outbound/time
+    allow:
+      boundaries:
+        - foundation.local-mode.application
+        - foundation.local-mode.errors
         - foundation.transaction-coordination.application
       packages:
         - yaml
@@ -1221,18 +1270,51 @@ boundaries:
       runtimeReferences:
         - dynamic
     entrypoints:
-      - packages/engineering-foundation/src/local-mode/index.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/consumer-inspection.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/local-state-store.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/mode-inspection.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/package-inspection.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/registry-links.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/target-reader.ts
       - packages/engineering-foundation/src/local-mode/adapters/outbound/time/system-clock.ts
-      - packages/engineering-foundation/src/local-mode/inspection.ts
-      - packages/engineering-foundation/src/local-mode/process-runner.ts
-      - packages/engineering-foundation/src/local-mode/service.ts
-      - packages/engineering-foundation/src/local-mode/types.ts
-      - packages/engineering-foundation/src/package-self-check.ts
+  - id: foundation.local-mode.composition
+    roots:
+      - packages/engineering-foundation/src/local-mode/composition
+    allow:
+      boundaries:
+        - foundation.local-mode.application
+        - foundation.local-mode.adapters
+        - foundation.package-identity
+        - foundation.process-execution
+        - foundation.transaction-coordination.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/local-mode/composition/inspection.ts
+      - packages/engineering-foundation/src/local-mode/composition/process-runner.ts
+      - packages/engineering-foundation/src/local-mode/composition/service.ts
+      - packages/engineering-foundation/src/local-mode/composition/operation-lock.ts
+  - id: foundation.local-mode
+    roots:
+      - packages/engineering-foundation/src/local-mode/index.ts
+    allow:
+      boundaries:
+        - foundation.core
+        - foundation.local-mode.application
+        - foundation.local-mode.adapters
+        - foundation.local-mode.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/local-mode/index.ts
   - id: foundation.process-execution
     roots:
       - packages/engineering-foundation/src/process-execution
     allow:
       boundaries:
+        - foundation.local-mode.errors
         - foundation.core
       packages: []
       builtins:

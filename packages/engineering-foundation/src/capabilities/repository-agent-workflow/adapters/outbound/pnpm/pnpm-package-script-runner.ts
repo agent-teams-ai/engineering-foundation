@@ -2,7 +2,7 @@ import { lstat } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
 import type { PackageScriptRunner } from "../../../application/ports/changed-workflow.js";
-import { FoundationError } from "../../../../../errors.js";
+import { FoundationError } from "../../../../../local-mode/application/errors/foundation-error.js";
 import { execute } from "../process/process-execution.js";
 
 export interface PnpmProcessEnvironment {

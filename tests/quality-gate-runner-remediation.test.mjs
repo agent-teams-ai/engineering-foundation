@@ -16,7 +16,7 @@ import { runQualityGateProfile } from "../packages/engineering-foundation/dist/c
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import { CapabilityInputError } from "../packages/engineering-foundation/dist/capability-runtime.js";
 import { parseArguments } from "../packages/engineering-foundation/dist/cli-arguments.js";
-import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
+import { FoundationError } from "../packages/engineering-foundation/dist/local-mode/application/errors/foundation-error.js";
 import { createQualityGateCliCommand } from "../packages/engineering-foundation/dist/quality-gate-cli-command.js";
 import {
   cleanupSyntheticFixture,

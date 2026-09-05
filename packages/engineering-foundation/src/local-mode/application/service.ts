@@ -1,43 +1,22 @@
-import { realpath } from "node:fs/promises";
-import { resolve } from "node:path";
-
-import { FoundationError } from "../errors.js";
+import { FoundationError } from "./errors/foundation-error.js";
 import { attachFoundation } from "./attach-transaction.js";
-import {
-  inspectFoundationDevOnly
-} from "./consumer-policy.js";
-import { isExactVersion } from "../semantic-version.js";
-import { inspectFoundationMode } from "./inspection.js";
-import {
-  removeLinkState,
-  writeLinkState
-} from "./local-state-store.js";
-import { createNodeFoundationTransactionCoordinator } from "../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
-import { releaseFoundationTransactionLeaseSafely } from "../transaction-coordination/application/release-foundation-transaction-lease.js";
-import {
-  restoreRegistryEntry
-} from "./registry-recovery.js";
-import type {
-  AttachResult,
-  FoundationDevOnlyStatus,
-  FoundationStatus,
-  ProcessRunner
-} from "./types.js";
-import { FOUNDATION_PACKAGE_NAME } from "./types.js";
+import { isExactVersion } from "../../semantic-version.js";
+import { releaseFoundationTransactionLeaseSafely } from "../../transaction-coordination/application/release-foundation-transaction-lease.js";
+import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus } from "./model.js";
+import { FOUNDATION_PACKAGE_NAME } from "./model.js";
+import type { LocalPackageLifecyclePorts } from "./ports.js";
 
-export { acquireFoundationOperationLock } from "./local-state-store.js";
-
-export interface FoundationLocalModeServiceOptions {
-  readonly runner: ProcessRunner;
+export interface LocalPackageLifecycleOptions {
+  readonly ports: LocalPackageLifecyclePorts;
   readonly now: () => Date;
 }
 
-export class FoundationLocalModeService {
-  readonly #runner: ProcessRunner;
+export class LocalPackageLifecycle {
+  readonly #ports: LocalPackageLifecyclePorts;
   readonly #now: () => Date;
 
-  constructor(options: FoundationLocalModeServiceOptions) {
-    this.#runner = options.runner;
+  constructor(options: LocalPackageLifecycleOptions) {
+    this.#ports = options.ports;
     this.#now = options.now;
   }
 
@@ -45,7 +24,7 @@ export class FoundationLocalModeService {
     consumerPath: string,
     ignoreOperationLock: boolean
   ): Promise<FoundationStatus> {
-    const status = await inspectFoundationMode(consumerPath, {
+    const status = await this.#ports.inspection.mode(consumerPath, {
       ignoreOperationLock
     });
     if (status.mode !== "LOCAL" || status.linkState === undefined) {
@@ -53,32 +32,8 @@ export class FoundationLocalModeService {
     }
 
     try {
-      const sourceGitCommit = (
-        await this.#runner.run({
-          command: "git",
-          args: [
-            "-C",
-            status.linkState.targetPackageRoot,
-            "rev-parse",
-            "HEAD"
-          ],
-          cwd: status.consumerRoot
-        })
-      ).stdout.trim();
-      const sourceGitDirty =
-        (
-          await this.#runner.run({
-            command: "git",
-            args: [
-              "-C",
-              status.linkState.targetPackageRoot,
-              "status",
-              "--porcelain"
-            ],
-            cwd: status.consumerRoot
-          })
-        ).stdout.trim().length > 0;
-      return { ...status, sourceGitCommit, sourceGitDirty };
+      const git = await this.#ports.target.git(status.consumerRoot, status.linkState.targetPackageRoot);
+      return { ...status, sourceGitCommit: git.gitCommit, sourceGitDirty: git.gitDirty };
     } catch (error) {
       return {
         ...status,
@@ -104,7 +59,7 @@ export class FoundationLocalModeService {
     return await attachFoundation({
       consumerPath,
       targetPath,
-      runner: this.#runner,
+      ports: this.#ports,
       now: this.#now,
       readStatus: async (path, ignoreOperationLock) =>
         await this.#readStatus(path, ignoreOperationLock)
@@ -112,7 +67,7 @@ export class FoundationLocalModeService {
   }
 
   async detach(consumerPath: string): Promise<FoundationStatus> {
-    const before = await inspectFoundationMode(consumerPath);
+    const before = await this.#ports.inspection.mode(consumerPath);
     if (
       before.dependencySpec === undefined ||
       !isExactVersion(before.dependencySpec)
@@ -122,7 +77,7 @@ export class FoundationLocalModeService {
         `Consumer must retain an exact ${FOUNDATION_PACKAGE_NAME} registry dependency.`
       );
     }
-    const coordinator = await createNodeFoundationTransactionCoordinator(
+    const coordinator = await this.#ports.coordinator(
       before.consumerRoot
     );
     const lease = await coordinator.acquire({
@@ -130,7 +85,7 @@ export class FoundationLocalModeService {
       allowRecoveryOf: "local-mode"
     });
     try {
-      const current = await inspectFoundationMode(before.consumerRoot, {
+      const current = await this.#ports.inspection.mode(before.consumerRoot, {
         ignoreOperationLock: true
       });
       if (
@@ -148,17 +103,17 @@ export class FoundationLocalModeService {
         return current;
       }
       if (current.linkState !== undefined) {
-        await writeLinkState(before.consumerRoot, {
+        await this.#ports.state.write(before.consumerRoot, {
           ...current.linkState,
           phase: "DETACHING"
         });
       }
-      await restoreRegistryEntry(
+      await this.#ports.links.restore(
         before.consumerRoot,
         current.dependencySpec,
         current.linkState
       );
-      await removeLinkState(before.consumerRoot);
+      await this.#ports.state.remove(before.consumerRoot);
     } finally {
       await releaseFoundationTransactionLeaseSafely({
         lease,
@@ -167,7 +122,7 @@ export class FoundationLocalModeService {
       });
     }
 
-    const after = await inspectFoundationMode(before.consumerRoot);
+    const after = await this.#ports.inspection.mode(before.consumerRoot);
     if (after.mode !== "REGISTRY") {
       throw new FoundationError(
         "LOCAL_STATE_INVALID",
@@ -178,7 +133,7 @@ export class FoundationLocalModeService {
   }
 
   async assertRegistry(consumerPath: string): Promise<FoundationStatus> {
-    const status = await inspectFoundationMode(consumerPath);
+    const status = await this.#ports.inspection.mode(consumerPath);
     if (status.mode !== "REGISTRY") {
       throw new FoundationError(
         "REGISTRY_MODE_REQUIRED",
@@ -191,8 +146,7 @@ export class FoundationLocalModeService {
   async assertDevOnly(
     consumerPath: string
   ): Promise<FoundationDevOnlyStatus> {
-    const consumerRoot = await realpath(resolve(consumerPath));
-    const status = await inspectFoundationDevOnly(consumerRoot);
+    const status = await this.#ports.inspection.devOnly(consumerPath);
     if (status.issues.length > 0) {
       throw new FoundationError(
         "CONSUMER_INVALID",

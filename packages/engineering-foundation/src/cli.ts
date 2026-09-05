@@ -12,19 +12,19 @@ import { runFoundationCheck } from "./check-runner.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { foundationCommandFailure } from "./command-error.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
-import { FoundationError } from "./errors.js";
+import { FoundationError } from "./local-mode/application/errors/foundation-error.js";
 import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { loadFoundationConfig } from "./foundation-config.js";
 import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
-import { createNodeProcessRunner } from "./local-mode/process-runner.js";
-import { FoundationLocalModeService } from "./local-mode/service.js";
+import { createNodeProcessRunner } from "./local-mode/composition/process-runner.js";
+import { FoundationLocalModeService } from "./local-mode/composition/service.js";
 import type {
   FoundationDevOnlyStatus,
   FoundationStatus,
   FoundationTransactionAwareStatus
-} from "./local-mode/types.js";
-import { inspectFoundationPackage } from "./package-self-check.js";
-import { installedFoundationVersion } from "./package-version.js";
+} from "./local-mode/application/model.js";
+import { inspectFoundationPackage } from "./local-mode/adapters/node/package-inspection.js";
+import { installedFoundationVersion } from "./local-mode/adapters/node/installed-package-version.js";
 import { tryRunQualityGateCliCommand } from "./quality-gate-cli-command.js";
 import { renderFoundationReportText } from "./report-renderer.js";
 import { runScaffoldingCliCommand } from "./scaffolding/cli-command.js";

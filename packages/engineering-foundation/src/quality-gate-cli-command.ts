@@ -15,7 +15,7 @@ import {
 } from "./capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.js";
 import type { ParsedArguments } from "./cli-arguments.js";
 import { foundationCommandFailure } from "./command-error.js";
-import { FoundationError } from "./errors.js";
+import { FoundationError } from "./local-mode/application/errors/foundation-error.js";
 import {
   loadFoundationConfig,
   type FoundationSettings

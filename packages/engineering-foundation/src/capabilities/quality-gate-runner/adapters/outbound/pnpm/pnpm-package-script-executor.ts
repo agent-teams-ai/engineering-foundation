@@ -1,7 +1,7 @@
 import { lstat, realpath } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
-import { FoundationError } from "../../../../../errors.js";
+import { FoundationError } from "../../../../../local-mode/application/errors/foundation-error.js";
 import {
   executeManagedProcess,
   ProcessCancellationError,

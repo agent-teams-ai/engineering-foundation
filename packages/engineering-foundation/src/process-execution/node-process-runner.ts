@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { FoundationError } from "../errors.js";
+import { FoundationError } from "../local-mode/application/errors/foundation-error.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
   managedProcessCleanupFailure,

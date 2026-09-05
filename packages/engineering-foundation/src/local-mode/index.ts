@@ -1,17 +1,16 @@
+export { inspectFoundationDevOnly, inspectFoundationRegistryProvenance } from "./adapters/node/consumer-inspection.js";
+export { isExactVersion } from "../semantic-version.js";
 export {
-  inspectFoundationDevOnly,
-  inspectFoundationMode,
-  inspectFoundationRegistryProvenance,
-  isExactVersion
-} from "./inspection.js";
+  inspectFoundationMode
+} from "./composition/inspection.js";
 /**
  * @deprecated Qualification-only concrete adapter. Import from
  * `@agent-teams/repository-mutation/qualification` and keep
  * production integrations on the ProcessRunner port.
  */
-export { NodeProcessRunner } from "./process-runner.js";
-export { FoundationLocalModeService } from "./service.js";
-export type { FoundationLocalModeServiceOptions } from "./service.js";
+export { NodeProcessRunner } from "./composition/process-runner.js";
+export { FoundationLocalModeService } from "./composition/service.js";
+export type { FoundationLocalModeServiceOptions } from "./composition/service.js";
 export {
   FOUNDATION_PACKAGE_NAME,
   FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION,
@@ -19,7 +18,7 @@ export {
   LOCAL_REGISTRY_BACKUP,
   LOCAL_STATE_DIRECTORY,
   LOCAL_STATE_FILE
-} from "./types.js";
+} from "./application/model.js";
 export type {
   AttachResult,
   ConsumerPolicyInspection,
@@ -33,4 +32,4 @@ export type {
   ProcessResult,
   ProcessRunner,
   RegistryProvenanceInspection
-} from "./types.js";
+} from "./application/model.js";

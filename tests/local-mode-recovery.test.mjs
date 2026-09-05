@@ -24,8 +24,8 @@ import {
 import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
-} from "../packages/engineering-foundation/dist/package-self-check.js";
-import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
+} from "../packages/engineering-foundation/dist/local-mode/application/package-metadata.js";
+import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/composition/process-runner.js";
 
 function NodeProcessRunner() {
   return process.platform === "win32"
@@ -41,7 +41,7 @@ const HOLDER_PATH = fileURLToPath(
 );
 const SERVICE_MODULE_PATH = fileURLToPath(
   new URL(
-    "../packages/engineering-foundation/dist/local-mode/service.js",
+    "../packages/engineering-foundation/dist/local-mode/composition/operation-lock.js",
     import.meta.url
   )
 );
@@ -654,5 +654,18 @@ test("rejects recovery paths outside the consumer boundary", async () => {
     );
   } finally {
     await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+test("preserves manifest runtime dependency failure order before metadata normalization", async () => {
+  const fixture = await createFixture();
+  try {
+    const path = join(fixture.targetPackageRoot, "package.json");
+    const manifest = JSON.parse(await readFile(path, "utf8"));
+    manifest.dependencies = { "z-first-missing-ef3-dependency": "1.0.0", "a-second-missing-ef3-dependency": "1.0.0" };
+    await writeJson(path, manifest);
+    await assert.rejects(fixture.service.attach(fixture.consumerRoot, fixture.targetRepositoryRoot), /runtime dependency cannot be resolved: z-first-missing-ef3-dependency/u);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
   }
 });

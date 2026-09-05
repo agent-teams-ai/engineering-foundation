@@ -20,7 +20,7 @@ import test from "node:test";
 import {
   NodeProcessRunner as PublicNodeProcessRunner
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
-import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
+import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/composition/process-runner.js";
 import { foundationCommandFailure } from "../packages/engineering-foundation/dist/command-error.js";
 import {
   ProcessCancellationError,

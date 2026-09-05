@@ -16,6 +16,4 @@ export interface KnownFileCoordination extends KnownFileMutationPort, KnownFileO
 }
 
 // Released Node/qualification callbacks bind this exact exported type symbol.
-// A distinct consumer model fails API extraction; shared ownership needs a
-// successor primitive decision. Keep this unresolved edge visible to the guard.
-export type { BoundedRegularFileRead } from "../../../transaction-coordination/application-api.js";
+export type { BoundedRegularFileRead } from "../../../path-identity.js";

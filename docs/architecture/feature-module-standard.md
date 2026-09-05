@@ -137,8 +137,17 @@ replace trusted policy/CI review or prove execution of a consumer's checks.
 The guard checks exact accepted decision evidence for primitive exceptions.
 [ADR-0047](../decisions/0047-exact-ordering-version-and-identity-primitives.md)
 admits the two exact ordinal comparators, exact SemVer and the type-only portable
-path identity contract with closed consumer identities. No cycle exception is
-accepted. [ADR-0050](../decisions/0050-exact-json-primitive-admission.md) separately
+path identity contract with closed consumer identities.
+[ADR-0051](../decisions/0051-exact-file-observation-contract.md) succeeds only that
+exact path-identity admission: the same file co-locates PortablePathIdentity,
+PathIdentityMatch and the original BoundedRegularFileRead under the same six
+consumer identities. These are erased physical-observation contracts with the
+original readonly union, Buffer bytes, bigint identity/link count and numeric
+mode; observation implementations and terminal-directory authority stay with
+their features. This scope permits no imports, runtime implementation, state or
+IO and introduces no primitive dependency grammar or public exports.
+No cycle exception is accepted.
+[ADR-0050](../decisions/0050-exact-json-primitive-admission.md) separately
 admits the exact canonical and strict JSON files after behavior qualification.
 The checker does not
 infer semantic SOLID, aggregate correctness or security from names or metrics.
@@ -271,7 +280,10 @@ fingerprints, current consumer identities and interoperability obligations.
 Caller paths in the profile come from observed imports and re-exports, including
 workspace package surfaces. ADR-0050 records the separately qualified JSON scopes
 and finite inspection grammar. The finite checker and negative fixtures remain
-mandatory for all six exact primitives.
+mandatory for all six exact primitives. ADR-0051 records the coordinator-approved
+successor observation contract and its semantic, versioning and caller review
+triggers; the exact-primitive regression requires precisely its three erased
+declarations and empty runtime module, while retaining ambient-pollution rejection.
 Neither test-fixture ADRs nor ADR-0046 approve product exceptions. Existing
 accepted ADRs, standards, schemas, journals and release baselines stay immutable;
 supported export changes require their normal compatibility/promotion procedure.

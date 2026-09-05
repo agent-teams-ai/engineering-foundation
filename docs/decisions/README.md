@@ -45,6 +45,7 @@ No proposed decisions.
 - [ADR-0047: Exact Ordering, Version and Identity Primitives](0047-exact-ordering-version-and-identity-primitives.md)
 - [ADR-0049: Truthful Authoring Generic Returns](0049-truthful-authoring-generic-returns.md)
 - [ADR-0050: Exact JSON Primitive Admission](0050-exact-json-primitive-admission.md)
+- [ADR-0051: Exact File Observation Contract](0051-exact-file-observation-contract.md)
 
 ## Superseded
 

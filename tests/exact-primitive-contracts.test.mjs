@@ -18,6 +18,29 @@ const primitivePaths = [
   "packages/repository-mutation/src/strict-json.ts"
 ];
 
+test("physical observation primitive contains exactly three erased declarations and no imports", async () => {
+  const path = "packages/repository-mutation/src/path-identity.ts";
+  const source = await readFile(new URL(`../${path}`, import.meta.url), "utf8");
+  const parsed = parseSync(path, source);
+  assert.deepEqual(parsed.errors, []);
+  assert.deepEqual(parsed.program.body.map((node) => [
+    node.type, node.declaration?.type, node.declaration?.id?.name,
+    node.source, node.specifiers
+  ]), [
+    ["ExportNamedDeclaration", "TSInterfaceDeclaration", "PortablePathIdentity", null, []],
+    ["ExportNamedDeclaration", "TSTypeAliasDeclaration", "PathIdentityMatch", null, []],
+    ["ExportNamedDeclaration", "TSTypeAliasDeclaration", "BoundedRegularFileRead", null, []]
+  ]);
+  assert.doesNotMatch(JSON.stringify(parsed.program), /"type":"(?:TSImportType|ImportExpression)"/u);
+
+  const emitted = await readFile(new URL("../packages/repository-mutation/dist/path-identity.js", import.meta.url), "utf8");
+  const runtime = parseSync("path-identity.js", emitted);
+  assert.deepEqual(runtime.errors, []);
+  assert.deepEqual(runtime.program.body.map((node) => [
+    node.type, node.declaration, node.source, node.specifiers
+  ]), [["ExportNamedDeclaration", null, null, []]]);
+});
+
 test("text digests preserve exact UTF-8 bytes including malformed surrogate inputs", () => {
   for (const value of ["", "a\0b", "e\u0301", "\u00e9", "\ud800", "\udfff", "\ud800\udc00", "\ufffd", "\ud800a\udfff"]) {
     const expected = `sha256:${createHash("sha256").update(Buffer.from(value, "utf8")).digest("hex")}`;

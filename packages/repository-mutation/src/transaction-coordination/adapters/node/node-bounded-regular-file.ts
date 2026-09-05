@@ -1,12 +1,12 @@
 import { constants, lstat, open, type FileHandle } from "node:fs/promises";
 
 import type {
+  BoundedRegularFileRead,
   PathIdentityMatch,
   PortablePathIdentity
 } from "../../../path-identity.js";
 
-import type { BoundedRegularFileRead } from "../../application/file-observation.js";
-export type { BoundedRegularFileRead } from "../../application/file-observation.js";
+export type { BoundedRegularFileRead } from "../../../path-identity.js";
 
 export type BoundedRegularFileReadFaultInjector = (point: {
   readonly phase: "before-stability-check";

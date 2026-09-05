@@ -1,5 +1,4 @@
-import type { PortablePathIdentity } from "../../../path-identity.js";
-import type { BoundedRegularFileRead } from "../../../transaction-coordination/application-api.js";
+import type { BoundedRegularFileRead, PortablePathIdentity } from "../../../path-identity.js";
 
 export interface KnownFileTerminalDirectory {
   readonly identity: PortablePathIdentity;

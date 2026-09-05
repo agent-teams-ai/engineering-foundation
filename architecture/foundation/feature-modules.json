@@ -61,7 +61,7 @@
         {
           "path": "packages/repository-mutation/src/path-identity.ts",
           "role": "domain",
-          "decision": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md",
+          "decision": "docs/decisions/0051-exact-file-observation-contract.md",
           "consumers": [
             {
               "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-file-state.ts",
@@ -173,6 +173,10 @@
             },
             {
               "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-terminal-evidence-directory.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/application-api.ts",
               "owner": "repository-mutation/mutation-coordination"
             },
             {

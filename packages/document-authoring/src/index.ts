@@ -15,9 +15,11 @@ import {
   type FindDocumentsRequest
 } from "./application/use-cases/find-documents.js";
 import type {
-  PlanDocumentationDocumentRequest,
+  PlanDocumentationDocumentRequestContract,
   PlanDocumentationDocumentRequestV2
 } from "./application/use-cases/plan-documentation-document.js";
+import type { DocumentPlanContract } from "./application/model/document-planning.js";
+import type { DocumentReceiptContract } from "./application/model/document-receipt.js";
 import { planNodeDocumentationDocument } from "./composition/node-document-planning.js";
 import type { ApplyDocumentPlanRequest } from "./application/use-cases/apply-document-plan.js";
 import type { RecoverDocumentTransactionRequest } from "./application/use-cases/recover-document-transaction.js";
@@ -198,14 +200,13 @@ export async function findDocumentationDocumentsV2(request: FindDocumentsRequest
 
 /**
  * Compiles a deterministic Document Plan without reserving an identity or
- * mutating the consumer repository.
+ * mutating the consumer repository. Narrow schemaVersion before using fields
+ * specific to either Plan generation.
  */
 export async function planDocumentationDocument(
-  request: PlanDocumentationDocumentRequest
-): Promise<import("./application/model/document-planning.js").DocumentPlan> {
-  return planNodeDocumentationDocument(request) as Promise<
-    import("./application/model/document-planning.js").DocumentPlan
-  >;
+  request: PlanDocumentationDocumentRequestContract
+): Promise<DocumentPlanContract> {
+  return planNodeDocumentationDocument(request);
 }
 
 /** Compiles the directory-materializing Document Plan v2 contract. */
@@ -221,13 +222,11 @@ export async function planDocumentationDocumentV2(
   return plan;
 }
 
-/** Applies one exact Document Plan through the durable create-only writer. */
+/** Applies one exact Plan; the Receipt generation follows the validated Plan. */
 export async function applyDocumentationPlan(
   request: ApplyDocumentPlanRequest
-): Promise<import("./application/model/document-receipt.js").DocumentReceipt> {
-  return applyNodeDocumentationPlan(request) as Promise<
-    import("./application/model/document-receipt.js").DocumentReceipt
-  >;
+): Promise<DocumentReceiptContract> {
+  return applyNodeDocumentationPlan(request);
 }
 
 /** Applies one exact Document Plan v2 through envelope v4. */
@@ -243,18 +242,16 @@ export async function applyDocumentationPlanV2(
   return receipt;
 }
 
-/** Recovers one coordinator-qualified document transaction. */
+/** Recovers one qualified transaction; persisted evidence selects its generation. */
 export async function recoverDocumentationTransaction(
   request: RecoverDocumentTransactionRequest
-): Promise<import("./application/model/document-receipt.js").DocumentReceipt> {
-  return recoverNodeDocumentationTransaction(request) as Promise<
-    import("./application/model/document-receipt.js").DocumentReceipt
-  >;
+): Promise<DocumentReceiptContract> {
+  return recoverNodeDocumentationTransaction(request);
 }
 
 /** Recovers either exact supported document transaction generation. */
 export async function recoverDocumentationTransactionV2(
   request: RecoverDocumentTransactionRequest
-): Promise<import("./application/model/document-receipt.js").DocumentReceiptContract> {
+): Promise<DocumentReceiptContract> {
   return recoverNodeDocumentationTransaction(request);
 }

@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -193,8 +195,25 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
 // Execute local control fragments with the real post_status; gh cannot reach the API.
 function runAttestationFragment(source, fragment, setup = "") {
   const control = source.slice(0, source.indexOf("fetch_paginated_pages()"));
+  const remote = mkdtempSync(join(tmpdir(), "release-status-"));
   const result = spawnSync("bash", ["-c", `
+    timeout() { [[ "$1 $2" == "--kill-after=1s 3s" ]] || return 96; shift 2; "$@"; }
+    sleep() { [[ "$1" == 1 ]] || return 96; }
     gh() {
+      if [[ "$*" == 'api users/github-actions[bot]' ]]; then
+        printf '%s' '{"id":42,"login":"github-actions[bot]","type":"Bot"}'
+        return 0
+      fi
+      if [[ "$*" == "api --paginate --slurp repos/owner/repo/commits/${"a".repeat(40)}/status?per_page=100" ]]; then
+        local reads=0
+        read -r reads < "$REMOTE/reads" || :
+        reads=$((reads + 1)); echo "$reads" > "$REMOTE/reads"
+        (( reads > \${read_failures:-0} )) || return 43
+        jq -sc --arg sha '${"a".repeat(40)}' '
+          reverse | unique_by(.context) | [{sha:$sha,statuses:.}]
+        ' "$REMOTE/statuses" | jq -c "\${read_transform:-.}" || return 44
+        return 0
+      fi
       [[ "$1 $2 $3 $4" == "api --method POST repos/owner/repo/statuses/${"a".repeat(40)}" ]] || return 97
       shift 4
       local state="" context="" description="" target_url="" outcome=accepted
@@ -210,14 +229,32 @@ function runAttestationFragment(source, fragment, setup = "") {
         shift 2
       done
       [[ -n "$context" && -n "$state" && -n "$description" ]] || return 100
-      if [[ "$context:$state" == "\${reject_status:-none}" ||
-        "$context:$state" == "\${reject_recovery:-none}" ]]; then
+      local count=0 mode=normal
+      if [[ -f "$REMOTE/$context-$state" ]]; then read -r count < "$REMOTE/$context-$state"; fi
+      count=$((count + 1)); echo "$count" > "$REMOTE/$context-$state"
+      if { [[ "$context:$state" == "\${reject_status:-none}" ]] && (( count <= 3 )); } ||
+        [[ "$context:$state" == "\${reject_recovery:-none}" ]]; then
         outcome=rejected
-        reject_status=none
       fi
+      if [[ "$context:$state" == "\${fault_context:-none}" ]] && (( count <= \${fault_count:-1} )); then
+        mode="\${fault_mode:-reject}"
+        if [[ "$mode" == reject || "$mode" == phantom ]]; then outcome=rejected; fi
+      fi
+      if [[ "$state" == error ]] && (( count <= \${recovery_failures:-0} )); then outcome=rejected; fi
       printf '%s|%s|%s|%s\n' "$context" "$state" "$target_url" "$outcome" >&3
-      [[ "$outcome" == accepted ]]
+      if [[ "$mode" == phantom ]]; then echo invalid; return 0; fi
+      [[ "$outcome" == accepted ]] || return 42
+      local status
+      status="$(jq -nc --arg context "$context" --arg state "$state" \
+        --arg target "$target_url" --arg description "$description" \
+        '{context:$context,state:$state,target_url:$target,description:$description,
+          creator:{id:42,login:"github-actions[bot]",type:"Bot"}}')"
+      echo "$status" >> "$REMOTE/statuses"
+      [[ "$mode" != lost ]] || return 42
+      if [[ "$mode" == malformed ]]; then echo invalid; else echo "$status"; fi
     }
+    : > "$REMOTE/statuses"
+    echo 0 > "$REMOTE/reads"
     ${control}
     trap mark_attestation_error ERR
     ${setup}
@@ -226,20 +263,23 @@ function runAttestationFragment(source, fragment, setup = "") {
     encoding: "utf8",
     timeout: 5000,
     stdio: ["pipe", "pipe", "pipe", "pipe"],
-    env: { ...process.env, EXPECTED_RELEASE_HEAD_SHA: "a".repeat(40),
+    env: { ...process.env, REMOTE: remote, EXPECTED_RELEASE_HEAD_SHA: "a".repeat(40),
       GITHUB_REPOSITORY: "owner/repo",
       RELEASE_RUN_URL: "https://github.com/owner/repo/actions/runs/999" },
   });
+  const latest = new Map(readFileSync(join(remote, "statuses"), "utf8").trim()
+    .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+    .map((status) => [status.context, status.state]));
+  rmSync(remote, { recursive: true, force: true });
   const attempts = (result.output[3] ?? "").trim().split("\n").filter(Boolean);
-  return { ...result, attempts, stdout: attempts
+  return { ...result, latest, attempts, stdout: attempts
     .filter((line) => line.endsWith("|accepted"))
     .map((line) => line.slice(0, -"|accepted".length)).join("\n") };
 }
 
 function assertTerminalRecovery(result, contexts) {
   assert.equal(result.status, 1, result.stderr);
-  const statuses = result.stdout.trim().split("\n").map((line) => line.split("|"));
-  const latest = new Map(statuses.map(([context, state]) => [context, state]));
+  const { latest } = result;
   assert.deepEqual([...latest.keys()].toSorted(), contexts.toSorted());
   for (const context of contexts) {
     assert.match(latest.get(context), /^(?:failure|error)$/u, context);
@@ -278,9 +318,12 @@ function assertAttestationStatusContract(source) {
   const recoveryFailure = runAttestationFragment(source, `${pending}\nfalse`,
     "reject_recovery=analyze:error");
   assert.equal(recoveryFailure.status, 1, recoveryFailure.stderr);
-  assert.deepEqual(recoveryFailure.attempts.slice(contexts.length),
-    contexts.map((context) =>
-      `${context}|error|https://github.com/owner/repo/actions/runs/999|${context === "analyze" ? "rejected" : "accepted"}`));
+  assert.equal(recoveryFailure.attempts.filter((line) => line.startsWith("analyze|error|")).length, 3);
+  assert.match(recoveryFailure.stderr, /Recovery incomplete; unreconciled contexts: analyze/u);
+  assert.equal(recoveryFailure.latest.get("analyze"), "pending");
+  for (const context of contexts.slice(1)) {
+    assert.equal(recoveryFailure.latest.get(context), "error");
+  }
 
   const collected = runAttestationFragment(source, 'printf "%s\\n" "${ci_contexts[@]}"');
   assert.equal(collected.status, 0, collected.stderr);
@@ -333,9 +376,9 @@ function assertAttestationStatusContract(source) {
     const rejected = runAttestationFragment(source, `${pending}\n${finalGate}`,
       `${setup}; final_run_verified=1; reject_status=${context}:success`);
     assertTerminalRecovery(rejected, contexts);
-    assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 1);
+    assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 3);
     const failureIndex = rejected.attempts.findIndex((line) => line.endsWith("|rejected"));
-    assert.ok(rejected.attempts.slice(failureIndex + 1).every((line) => !line.includes("|success|")));
+    assert.ok(rejected.attempts.slice(failureIndex + 3).every((line) => !line.includes("|success|")));
   }
   const unverified = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=0`);
   assert.equal(unverified.status, 1, unverified.stderr);
@@ -347,7 +390,7 @@ function assertAttestationStatusContract(source) {
     ...["{}", '{"html_url":""}', '{"html_url":null}', '{"html_url":42}', '{"html_url":false}',
       '{"html_url":[]}', '{"html_url":{}}', "invalid-json"]
       .map((value) => `observed_codeql_analyze_check='${value}'`),
-    "jq() { return 42; }",
+    'jq() { if [[ "$*" == *".html_url | select"* ]]; then return 42; fi; command jq "$@"; }',
   ]) {
     const rejected = runAttestationFragment(source, `${pending}\n${finalGate}`,
       `${setup}; final_run_verified=1; ${extractionSetup}`);
@@ -369,10 +412,116 @@ function assertAttestationStatusContract(source) {
     const rejected = runAttestationFragment(source, `${pending}\n${fragment}`,
       `reject_status=analyze:${state}; ${failureSetup}`);
     assertTerminalRecovery(rejected, contexts);
-    assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 1);
+    assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 3);
     assert.ok(rejected.attempts.every((line) => !line.includes("|success|")));
   }
 }
+
+function assertStatusReconciliation(source) {
+  const contexts = ["analyze", "check", "windows-check", "macos-qualification"];
+  const publish = 'post_status analyze success "verified" "target"';
+  for (const [setup, attempts] of [
+    ["fault_context=analyze:success; fault_mode=reject", 2],
+    ["fault_context=analyze:success; fault_mode=malformed", 1],
+    ["fault_context=analyze:success; fault_mode=phantom", 2],
+    ["read_transform='.[0] as $page | $page.statuses | map({sha:$page.sha,statuses:[.]})'", 1],
+    ["fault_context=analyze:success; fault_mode=lost", 1],
+    ["read_failures=2", 3],
+    ["fault_context=analyze:success; fault_mode=lost; fault_count=3; read_failures=2", 3],
+  ]) {
+    const result = runAttestationFragment(source, publish, setup);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.latest.get("analyze"), "success");
+    assert.equal(result.attempts.length, attempts, setup);
+    assert.doesNotMatch(result.stderr, /Unreconciled|Recovery incomplete/u);
+  }
+  for (const transform of [
+    '.[0].sha = "wrong"',
+    '.[0].statuses[0].state = "pending"',
+    '.[0].statuses[0].context = "other"',
+    '.[0].statuses[0].target_url = "other"',
+    '.[0].statuses[0].description = "other"',
+    '.[0].statuses[0].creator.id = 99',
+    '.[0].statuses[0].creator.login = "impostor"',
+    '.[0].statuses[0].creator.type = "User"',
+    '.[0].statuses += .[0].statuses',
+    '.[0].statuses = null',
+    '[]',
+    '"invalid-json-shape"',
+  ]) {
+    const result = runAttestationFragment(source, publish, `read_transform='${transform}'`);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Unreconciled status: analyze/u);
+  }
+  const seed = 'for context in "${attestation_contexts[@]}"; do post_status "$context" success "verified" "target"; done';
+  // A terminal failure after all successes still retries every recovery context.
+  const recovered = runAttestationFragment(source, `${seed}\nfalse`, "recovery_failures=1");
+  assertTerminalRecovery(recovered, contexts);
+  assert.equal(recovered.attempts.length, 12, recovered.stderr);
+  assert.doesNotMatch(recovered.stderr, /Recovery incomplete/u);
+  // Reproduce the combined lost final response / failed recovery writes. The API
+  // becomes available within the retry window, so authoritative states converge.
+  const combined = `${seed}
+    echo 0 > "$REMOTE/reads"
+    read_failures=3; fault_context=analyze:success; fault_mode=lost; fault_count=4
+    recovery_failures=1
+    ${publish}`;
+  const result = runAttestationFragment(source, combined);
+  assertTerminalRecovery(result, contexts);
+  assert.equal(result.attempts.length, 15);
+  assert.doesNotMatch(result.stderr, /Recovery incomplete/u);
+  // A total outage after an ambiguous write cannot be repaired locally. Keep the
+  // original exit, try all contexts, and name every unreconciled context.
+  const outage = runAttestationFragment(source, `${seed}
+    read_failures=999; recovery_failures=999
+    fault_context=analyze:success; fault_mode=lost; fault_count=4
+    ${publish}`);
+  assert.equal(outage.status, 1, outage.stderr);
+  assert.equal(outage.attempts.length, 19);
+  assert.deepEqual([...outage.latest.values()], Array(4).fill("success"));
+  assert.match(outage.stderr,
+    /Recovery incomplete; unreconciled contexts: analyze check windows-check macos-qualification/u);
+  const originalExit = runAttestationFragment(source,
+    'return_42() { return 42; }; return_42', "recovery_failures=999");
+  assert.equal(originalExit.status, 42, originalExit.stderr);
+  assert.equal(originalExit.attempts.length, 12);
+  assert.match(originalExit.stderr, /Recovery incomplete/u);
+}
+
+test("release status publication reconciles bounded distributed failures", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async () => {
+  const release = await workflow("release.yml");
+  assertStatusReconciliation(release.jobs["attest-release-pr"].steps.at(-1).run);
+});
+
+test("release reconciliation rejects fail-open mutations", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async (t) => {
+  const release = await workflow("release.yml");
+  const source = release.jobs["attest-release-pr"].steps.at(-1).run;
+  for (const [name, before, after] of [
+    ["unverified POST", 'if statuses="$(trap - ERR; timeout',
+      'return 0\n    if statuses="$(trap - ERR; timeout'],
+    ["omit retries", "for attempt in 1 2 3", "for attempt in 1"],
+    ["ignore creator", ".creator.id == $creator", "true"],
+    ["ignore creator login", '.creator.login == "github-actions[bot]"', "true"],
+    ["ignore creator type", '.creator.type == "Bot"', "true"],
+    ["ignore SHA", ".sha == $sha", "true"],
+    ["ignore state", ".state == $state", "true"],
+    ["ignore target", ".target_url == $target", "true"],
+    ["ignore description", ".description == $description", "true"],
+    ["ignore duplicate context", "length == 1 and all", "length > 0 and all"],
+    ["silence recovery exhaustion", 'unreconciled+=("${context}")', ":"],
+    ["erase original exit", 'exit "${exit_code}"', "exit 1"],
+  ]) {
+    await t.test(name, () => {
+      const mutated = source.replace(before, after);
+      assert.notEqual(mutated, source);
+      assert.throws(() => assertStatusReconciliation(mutated), { code: "ERR_ASSERTION" });
+    });
+  }
+});
 
 test("release analyze status is fail-closed and separate from CI jobs", {
   skip: process.platform === "win32" && "attester runs in Ubuntu Bash",

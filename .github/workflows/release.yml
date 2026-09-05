@@ -194,22 +194,70 @@ jobs:
             local status_state="$2"
             local description="$3"
             local target_url="$4"
-            gh api --method POST \
-              "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
-              -f state="${status_state}" \
-              -f context="${context}" \
-              -f description="${description}" \
-              -f target_url="${target_url}" >/dev/null
+            local attempt creator statuses
+            # GITHUB_TOKEN is the GitHub Actions installation token, not the actor's
+            # token. Resolve its documented bot login through the API (no pinned ID).
+            # Always read effective latest statuses, including after a lost response.
+            for attempt in 1 2 3; do
+              if [[ -z "${status_creator_id:-}" ]]; then
+                if creator="$(trap - ERR; timeout --kill-after=1s 3s gh api 'users/github-actions[bot]')" &&
+                  status_creator_id="$(trap - ERR; jq -er '
+                    select(.login == "github-actions[bot]" and .type == "Bot") |
+                    .id | select(type == "number" and . > 0 and floor == .)
+                  ' <<<"${creator}")"; then
+                  :
+                else
+                  status_creator_id=""
+                fi
+              fi
+              if [[ -n "${status_creator_id}" ]]; then
+                # A command failure does not tell us whether GitHub accepted a write.
+                if timeout --kill-after=1s 3s gh api --method POST \
+                  "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
+                  -f state="${status_state}" \
+                  -f context="${context}" \
+                  -f description="${description}" \
+                  -f target_url="${target_url}" >/dev/null; then
+                  :
+                fi
+                if statuses="$(trap - ERR; timeout --kill-after=1s 3s gh api --paginate --slurp \
+                  "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status?per_page=100")" &&
+                  jq -e --arg sha "${head_sha}" --arg context "${context}" \
+                    --arg state "${status_state}" --arg description "${description}" \
+                    --arg target "${target_url}" --argjson creator "${status_creator_id}" '
+                    type == "array" and length > 0 and
+                    all(.[]; .sha == $sha and (.statuses | type) == "array") and
+                    ([.[].statuses[] | select(.context == $context)] |
+                      length == 1 and all(.[];
+                        .state == $state and .description == $description and
+                        .target_url == $target and .creator.id == $creator and
+                        .creator.login == "github-actions[bot]" and .creator.type == "Bot"))
+                  ' <<<"${statuses}" >/dev/null; then
+                  return 0
+                fi
+              fi
+              if (( attempt < 3 )); then sleep 1; fi
+            done
+            echo "::error::Unreconciled status: ${context}; intended ${status_state} on ${head_sha}" >&2
+            return 1
           }
 
           mark_attestation_error() {
             local exit_code="$?"
+            local context
+            local unreconciled=()
             trap - ERR
             if (( status_finalized == 0 )); then
-              set +e
               for context in "${attestation_contexts[@]}"; do
-                post_status "${context}" error "Release PR attestation failed" "${RELEASE_RUN_URL}"
+                if ! post_status "${context}" error "Release PR attestation failed" "${RELEASE_RUN_URL}"; then
+                  unreconciled+=("${context}")
+                fi
               done
+              if (( ${#unreconciled[@]} > 0 )); then
+                # During a total outage an ambiguous success can remain remote.
+                # Report uncertainty; never claim that recovery completed.
+                echo "::error::Recovery incomplete; unreconciled contexts: ${unreconciled[*]}" >&2
+              fi
             fi
             exit "${exit_code}"
           }

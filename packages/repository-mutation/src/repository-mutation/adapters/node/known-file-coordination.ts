@@ -27,3 +27,5 @@ export interface KnownFileCoordination {
   readonly ensureMutationStateDirectory: (root: string) => Promise<string>;
   readonly pruneMutationStateDirectory: (root: string) => Promise<void>;
 }
+
+export type { BoundedRegularFileRead } from "../../../transaction-coordination/application-api.js";

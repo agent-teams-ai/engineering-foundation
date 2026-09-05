@@ -1,0 +1,39 @@
+import assert from "node:assert/strict";
+import { mkdir, readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
+import * as mutation from "@agent-teams/repository-mutation";
+import * as node from "@agent-teams/repository-mutation/node";
+import * as qualification from "@agent-teams/repository-mutation/qualification";
+import { canonicalJson, parseStrictJson } from "@agent-teams/repository-mutation/serialization";
+import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation/paths";
+import { assertKnownFileTransactionPlan } from "@agent-teams/repository-mutation/known-file";
+import { compileRepositoryMutationEnvelope } from "@agent-teams/repository-mutation/coordination";
+const root = process.argv[2];
+for (const [api, names] of [[mutation, ["applyKnownFileTransaction", "recoverKnownFileTransaction", "inspectKnownFileTransactionBarrier"]], [node, ["acquireMutationLease", "classifyExactFilePostimage", "cleanupIdentityMatchingOwnedTemporary", "prepareExactSiblingTemporary", "publishAbsentFile"]]]) {
+  for (const name of names) assert.equal(api[name].name, name);
+}
+assert.equal(qualification.applyKnownFileTransaction.name, "applyKnownFileTransactionWithFaults");
+assert.equal(qualification.recoverKnownFileTransaction.name, "recoverKnownFileTransactionWithFaults");
+assert.equal(typeof compileRepositoryMutationEnvelope, "function");
+assert.deepEqual(parseStrictJson(canonicalJson({ b: 1, a: [true] })), { a: [true], b: 1 });
+assert.equal(portableRepositoryPathIdentity("managed/result.txt"), "managed/result.txt");
+const plan = mutation.compileKnownFileTransactionPlan({ operations: [{ path: "managed/result.txt", precondition: { state: "absent" }, postimage: { bytes: Buffer.from("result\n") } }] });
+assertKnownFileTransactionPlan(plan);
+await mkdir(root, { recursive: true });
+if (process.platform === "win32") {
+  await assert.rejects(mutation.applyKnownFileTransaction({ consumerRoot: root, plan }), (error) => error.code === "KNOWN_FILE_APPLY_UNSUPPORTED");
+  await assert.rejects(stat(join(root, "managed/result.txt")), /ENOENT/u);
+} else {
+  await assert.rejects(qualification.applyKnownFileTransaction({ consumerRoot: root, plan, faultInjector: ({ phase }) => { if (phase === "after-operation-published") throw new Error("stop after publication"); } }));
+  assert.equal(await readFile(join(root, "managed/result.txt"), "utf8"), "result\n");
+  assert.equal((await mutation.inspectKnownFileTransactionBarrier({ consumerRoot: root })).state, "recovery-required");
+  assert.equal((await mutation.recoverKnownFileTransaction({ consumerRoot: root })).outcome, "rolled-back");
+  await assert.rejects(stat(join(root, "managed/result.txt")), /ENOENT/u);
+  assert.equal((await mutation.inspectKnownFileTransactionBarrier({ consumerRoot: root })).state, "idle");
+  assert.equal((await mutation.applyKnownFileTransaction({ consumerRoot: root, plan })).outcome, "applied");
+  assert.equal((await mutation.applyKnownFileTransaction({ consumerRoot: root, plan })).outcome, "already-satisfied");
+  const lease = await node.acquireMutationLease(root);
+  await node.observeMutationState(lease);
+  await node.releaseMutationLease(lease);
+}
+console.log(JSON.stringify({ outcome: "passed", platform: process.platform }));

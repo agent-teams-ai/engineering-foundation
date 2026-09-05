@@ -866,6 +866,7 @@ boundaries:
     allow:
       boundaries:
         - repository-mutation.node-adapters
+        - repository-mutation.application
       packages: []
       builtins: []
       runtimeReferences: []
@@ -933,10 +934,13 @@ boundaries:
       - packages/repository-mutation/src/composition
     allow:
       boundaries:
+        - repository-mutation.primitives
+        - repository-mutation.coordination-application
         - repository-mutation.coordination-composition
         - repository-mutation.known-file-composition
       packages: []
-      builtins: []
+      builtins:
+        - node:fs/promises
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/composition/node-known-file.ts
@@ -1030,6 +1034,7 @@ boundaries:
     allow:
       boundaries:
         - repository-mutation.coordination-application
+        - repository-mutation.primitives
       packages: []
       builtins: []
       runtimeReferences: []
@@ -1059,10 +1064,12 @@ boundaries:
       packages: []
       builtins:
         - node:assert/strict
+        - node:child_process
         - node:fs/promises
         - node:os
         - node:path
         - node:test
+        - node:url
       runtimeReferences: []
     entrypoints: []
   - id: document-authoring.binary-order
@@ -3262,3 +3269,21 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/composition/node-scaffolding.ts
+  - id: foundation.tests.repository-mutation-public-api
+    dependencyMode: development
+    roots:
+      - packages/engineering-foundation/tests/repository-mutation-public-api.test.mjs
+    allow:
+      boundaries:
+        - capability.public-api-compatibility.adapters
+        - foundation.configuration-input.composition
+        - foundation.schema-validation
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:path
+        - node:test
+        - node:url
+      runtimeReferences: []
+    entrypoints: []

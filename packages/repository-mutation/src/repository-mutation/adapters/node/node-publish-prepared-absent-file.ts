@@ -1,4 +1,4 @@
-import type { KnownFileCoordination } from "./known-file-coordination.js";
+import type { BoundedRegularFileRead, KnownFileCoordination } from "./known-file-coordination.js";
 import { type ExactFilePostimage, AbsentFilePublicationError } from "../../application/model/exact-postimage.js";
 
 import type { PortablePathIdentity } from "../../../path-identity.js";
@@ -66,14 +66,14 @@ export async function verifyPublishedAbsentFile(options: {
 
 export interface PublishPreparedAbsentFileOptions {
   readonly allowUnsupportedDirectoryDurability: boolean;
-  readonly classifyBoundedRegularFile: KnownFileCoordination["readBoundedRegularFile"];
+  readonly classifyBoundedRegularFile: (path: string, maximumBytes: number) => Promise<BoundedRegularFileRead>;
   readonly destinationPath: string;
   readonly displayPath: string;
   readonly expectedIdentity: PortablePathIdentity;
   readonly link: (source: string, destination: string) => Promise<void>;
   readonly parent: string;
   readonly postimage: ExactFilePostimage;
-  readonly readBoundedRegularFile: KnownFileCoordination["readBoundedRegularFile"];
+  readonly readBoundedRegularFile: (path: string, maximumBytes: number) => Promise<BoundedRegularFileRead>;
   readonly syncDirectory: (
     path: string
   ) => Promise<DirectoryDurability>;

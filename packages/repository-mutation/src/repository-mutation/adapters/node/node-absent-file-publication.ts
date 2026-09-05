@@ -1,4 +1,4 @@
-import type { KnownFileCoordination } from "./known-file-coordination.js";
+import type { BoundedRegularFileRead, KnownFileCoordination } from "./known-file-coordination.js";
 import { lstat, link, open, rm, type FileHandle } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -43,7 +43,7 @@ export interface AbsentFilePublicationOperations {
     flags: "wx",
     mode: number
   ) => Promise<FileHandle>;
-  readonly readBoundedRegularFile: KnownFileCoordination["readBoundedRegularFile"];
+  readonly readBoundedRegularFile: (path: string, maximumBytes: number) => Promise<BoundedRegularFileRead>;
   readonly rm: (path: string) => Promise<void>;
   readonly syncDirectory: typeof syncDirectoryDurably;
 }

@@ -6,3 +6,4 @@ export type { CompileRepositoryMutationEnvelopeInput, RepositoryMutationArtifact
   RepositoryMutationEnvelope, RepositoryMutationErrorCode,
   MutationArtifactIdentity, MutationClaim, MutationIntent, MutationLease,
   MutationObservation } from "./transaction-coordination/application-api.js";
+export type { CanonicalJsonPrimitive, CanonicalJsonValue } from "./canonical-json.js";

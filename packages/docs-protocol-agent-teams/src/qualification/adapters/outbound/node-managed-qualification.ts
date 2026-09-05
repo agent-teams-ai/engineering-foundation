@@ -155,20 +155,23 @@ async function collectEvidence(input: {
   readonly integration: ManagedIntegrationCandidate & { readonly qualification: NonNullable<ManagedIntegrationCandidate["qualification"]> };
 }): Promise<{
   readonly executingModule: Buffer;
+  readonly executingApplication: Buffer;
   readonly lockfileDigest: `sha256:${string}`;
   readonly packageManifestDigest: `sha256:${string}`;
   readonly profile: { readonly path: string; readonly digest: `sha256:${string}` };
   readonly skill: { readonly path: string; readonly digest: `sha256:${string}` };
 }> {
-  const [profile, skill, packageManifest, lockfile, executingModule] = await Promise.all([
+  const [profile, skill, packageManifest, lockfile, executingModule, executingApplication] = await Promise.all([
     readContainedBoundedFile(input.consumerRoot, input.integration.profilePath, "Docs Protocol profile"),
     readContainedBoundedFile(input.consumerRoot, input.integration.skillPath, "Documentation Skill"),
     readContainedBoundedFile(input.consumerRoot, "package.json", "Package manifest"),
     readContainedBoundedFile(input.consumerRoot, "pnpm-lock.yaml", "pnpm lockfile", 64 * 1024 * 1024),
-    readFile(fileURLToPath(import.meta.url))
+    readFile(fileURLToPath(import.meta.url)),
+    readFile(new URL("../../application/use-cases/qualify-v2.js", import.meta.url))
   ]);
   return {
     executingModule,
+    executingApplication,
     lockfileDigest: lockfile.digest,
     packageManifestDigest: packageManifest.digest,
     profile: { path: profile.path, digest: profile.digest },

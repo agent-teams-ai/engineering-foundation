@@ -597,7 +597,29 @@ boundaries:
   - id: docs-protocol-agent-teams.tests
     dependencyMode: development
     roots:
-      - packages/docs-protocol-agent-teams/tests
+      - packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-execution-schema-fixtures.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-integration-authority-response-streaming.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-integration-plan.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-lockfile-snapshot-selection.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-lockfile-v2-policy.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-upgrade-e2e-fixtures.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-upgrade.test.mjs
+      - packages/docs-protocol-agent-teams/tests/direct-split-structure.test.mjs
+      - packages/docs-protocol-agent-teams/tests/fixtures
+      - packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs
+      - packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs
+      - packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs
+      - packages/docs-protocol-agent-teams/tests/qualification.test.mjs
     allow:
       boundaries:
         - docs-protocol-agent-teams.adapters
@@ -625,6 +647,25 @@ boundaries:
         - node:url
         - node:zlib
       runtimeReferences: []
+    entrypoints: []
+  - id: docs-protocol-agent-teams.tests.qualification-provenance
+    dependencyMode: development
+    roots:
+      - packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs
+    allow:
+      boundaries:
+        - docs-protocol-agent-teams.qualification.application
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:url
+      # Loads only disposable copies of the two emitted managed qualification artifacts.
+      runtimeReferences:
+        - dynamic
     entrypoints: []
   - id: docs-protocol-agent-teams.scripts
     dependencyMode: development

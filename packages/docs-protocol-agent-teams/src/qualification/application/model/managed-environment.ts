@@ -44,6 +44,7 @@ export interface ManagedQualificationEnvironment {
   readonly applyReachability: (root: string, action: unknown) => Promise<void>;
   readonly collectEvidence: (input: { readonly consumerRoot: string; readonly integration: QualifiedManagedIntegration }) => Promise<{
     readonly executingModule: Uint8Array;
+    readonly executingApplication: Uint8Array;
     readonly lockfileDigest: `sha256:${string}`;
     readonly packageManifestDigest: `sha256:${string}`;
     readonly profile: FileEvidence;

@@ -153,4 +153,3 @@ export interface PortableQualificationProtocol {
 export function signalOption(signal: AbortSignal | undefined): { readonly signal?: AbortSignal } {
   return signal === undefined ? {} : { signal };
 }
-

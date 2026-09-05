@@ -21,4 +21,3 @@ export interface DocsProtocolQualificationReceipt {
   readonly projectId: string;
   readonly schemaVersion: 1;
 }
-

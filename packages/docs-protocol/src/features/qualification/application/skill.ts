@@ -8,4 +8,3 @@ export function portableQualificationSkill(): Buffer {
   }
   return Buffer.from(skill.bytes);
 }
-

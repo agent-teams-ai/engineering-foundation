@@ -54,4 +54,3 @@ export function changedPaths(before: ReadonlyMap<string, string>, after: Readonl
     .filter((path) => before.get(path) !== after.get(path))
     .toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))));
 }
-

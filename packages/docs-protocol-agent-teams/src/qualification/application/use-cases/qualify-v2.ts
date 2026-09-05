@@ -230,7 +230,13 @@ export function createDocsProtocolQualificationV2(dependencies: { readonly integ
           skill: Object.freeze(evidence.skill),
           packageManifestDigest: evidence.packageManifestDigest,
           lockfileDigest: evidence.lockfileDigest,
-          executingDocsProtocol: Object.freeze({ version: executingPackages.docsVersion, buildDigest: digest(evidence.executingModule) }),
+          executingDocsProtocol: Object.freeze({
+            version: executingPackages.docsVersion,
+            buildDigest: digest(canonicalJson({
+              "adapters/outbound/node-managed-qualification.js": digest(evidence.executingModule),
+              "application/use-cases/qualify-v2.js": digest(evidence.executingApplication)
+            }))
+          }),
           executingFoundation: Object.freeze({
             version: installedEnvironment.installedFoundationVersion,
             buildIdentity: installedEnvironment.installedFoundationBuildIdentity

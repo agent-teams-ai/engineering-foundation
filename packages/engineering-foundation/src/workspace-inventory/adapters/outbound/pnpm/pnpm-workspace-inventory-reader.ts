@@ -3,8 +3,7 @@ import { opendir } from "node:fs/promises";
 import { isAbsolute, join, posix, sep } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
-import { assertNotCancelled } from "../../../../cancellation.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import { loadStrictYamlFile } from "../../../../features/configuration-input/node.js";
 import type {
   CatalogEntry,

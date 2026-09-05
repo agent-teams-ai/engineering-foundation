@@ -12,10 +12,9 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { lock } from "proper-lockfile";
 
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../../source-inventory/node.js";
-import { assertNotCancelled } from "../../../../../cancellation.js";
 import { parseAcceptedArchitectureDecisionBaseline } from "../../../application/policies/accepted-architecture-decision-baseline.js";
 import type {
   ArchitectureDecisionBaselineExpectedState,

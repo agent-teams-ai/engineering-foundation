@@ -2,10 +2,9 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
-import { assertNotCancelled } from "../../../../../cancellation.js";
 import { parseStrictJson, StrictJsonError } from "../../../../../strict-json.js";
 import type { JsonSchemaInspectorFactory } from "../../../application/ports/json-schema-inspector-factory.js";
 import type { WorkspaceManifestPathReader } from "../../../application/ports/workspace-manifest-path-reader.js";

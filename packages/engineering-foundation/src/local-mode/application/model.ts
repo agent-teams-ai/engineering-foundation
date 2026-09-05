@@ -5,22 +5,22 @@ export {
   FOUNDATION_REGISTRY_BACKUP as LOCAL_REGISTRY_BACKUP,
   LOCAL_OPERATION_LOCK,
   LOCAL_STATE_DIRECTORY
-} from "../foundation-state-contract.js";
+} from "../../foundation-state-contract.js";
 export const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION = 1 as const;
 
 export type {
   ProcessRequest,
   ProcessResult,
   ProcessRunner
-} from "../process-execution/api.js";
-import type { FoundationTransactionStatus } from "../transaction-coordination/application/model/transaction-status.js";
+} from "../../process-execution/api.js";
+import type { FoundationTransactionStatus } from "../../transaction-coordination/application/model/transaction-status.js";
 
 export type {
   FoundationManualRecoveryReason,
   FoundationRecoveryRoute,
   FoundationTransactionDiagnostic,
   FoundationTransactionStatus
-} from "../transaction-coordination/application/model/transaction-status.js";
+} from "../../transaction-coordination/application/model/transaction-status.js";
 
 export type FoundationMode = "INVALID" | "LOCAL" | "REGISTRY";
 export type FoundationLinkPhase = "ATTACHING" | "DETACHING" | "LOCAL";

@@ -1,10 +1,9 @@
 import { resolve } from "node:path";
 
-import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../features/validation-reporting/api.js";
 import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../source-inventory/api.js";
 import { readContainedRegularFile } from "../../../source-inventory/node.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { assertNotCancelled } from "../../../cancellation.js";
 
 import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import { parseStrictJson, StrictJsonError } from "../../../strict-json.js";

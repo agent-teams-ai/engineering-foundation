@@ -1,6 +1,6 @@
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type { SourceTreeReader } from "../ports/source-tree-reader.js";
-import { assertNotCancelled } from "../../../../cancellation.js";
+import { assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type { SuppressionGovernancePolicy } from "../model/suppression-governance.js";
 import type { CalendarClock } from "../ports/calendar-clock.js";
 import type { SuppressionScanner } from "../ports/suppression-scanner.js";

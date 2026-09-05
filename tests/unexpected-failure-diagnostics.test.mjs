@@ -9,9 +9,8 @@ import {
   capabilityFailureReport,
   classifyUnexpectedFailure,
   capabilityReport,
-  foundationReport,
+  foundationReport,FoundationError
 } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
-import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
 
 const classifications = [
   [

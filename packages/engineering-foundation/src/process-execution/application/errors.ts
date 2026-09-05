@@ -1,4 +1,4 @@
-import { FoundationError } from "../../errors.js";
+import { FoundationError } from "../../features/validation-reporting/api.js";
 
 export class ProcessCancellationError extends FoundationError {
   constructor(message: string, options?: ErrorOptions) {

@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { FoundationError } from "../../../../../errors.js";
+import { FoundationError } from "../../../../validation-reporting/api.js";
 import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "../../../../../scaffolding/scaffold-defaults.js";
 
 import type { CommandInvocation as ParsedArguments, OutputFormat } from "../../../application/command-invocation.js";

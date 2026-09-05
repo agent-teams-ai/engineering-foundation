@@ -7,9 +7,8 @@ import {
 } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
-import { assertNotCancelled } from "../../../../../cancellation.js";
 import {
   portableRepositoryPathProblem
 } from "../../../application/model/repository-path.js";

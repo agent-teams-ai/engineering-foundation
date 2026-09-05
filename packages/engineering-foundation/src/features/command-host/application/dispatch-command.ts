@@ -1,4 +1,4 @@
-import { FoundationError } from "../../../errors.js";
+import { FoundationError } from "../../validation-reporting/api.js";
 import type { CommandInvocation } from "./command-invocation.js";
 
 export type FoundationCommandHandler = (invocation: CommandInvocation) => Promise<boolean>;

@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { ProcessCancellationError, ProcessTimeoutError } from "./api.js";
-import { FoundationError } from "../errors.js";
+import { FoundationError } from "../features/validation-reporting/api.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
   managedProcessCleanupFailure,

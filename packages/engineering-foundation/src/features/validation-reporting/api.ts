@@ -25,3 +25,6 @@ export type { CapabilityDefinition, CapabilityInvocation } from "./application/r
 export { classifyUnexpectedFailure, isProcessCancellationFailure } from "./application/unexpected-failure.js";
 export type { UnexpectedFailureProblem } from "./application/unexpected-failure.js";
 export { createUniqueRegistry } from "./application/unique-registry.js";
+export { FoundationError } from "./foundation-error.js";
+export type { FoundationErrorCode } from "./foundation-error.js";
+export { assertNotCancelled } from "./application/cancellation.js";

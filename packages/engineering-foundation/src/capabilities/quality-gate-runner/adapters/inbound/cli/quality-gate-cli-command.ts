@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import { CapabilityInputError,FoundationError } from "../../../../../features/validation-reporting/api.js";
 import type { QualityGateCommand } from "../../../api.js";
 import {
   projectQualityGateRun,
@@ -7,7 +7,6 @@ import {
   type QualityGateCliProjection,
   type QualityGateOperatorCancellation
 } from "./quality-gate-cli.js";
-import { FoundationError } from "../../../../../errors.js";
 import type { FoundationConfigReader } from "../../../../../features/foundation-check/api.js";
 
 export interface QualityGateCliCommandDependencies {

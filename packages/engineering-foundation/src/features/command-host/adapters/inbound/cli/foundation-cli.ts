@@ -1,10 +1,9 @@
-import { CapabilityInputError, exitCodeForOutcome } from "../../../../validation-reporting/api.js";
-import { FoundationError } from "../../../../../errors.js";
+import { CapabilityInputError, exitCodeForOutcome,FoundationError } from "../../../../validation-reporting/api.js";
 import { ProcessCancellationError } from "../../../../../process-execution/api.js";
 import { ScaffoldError } from "../../../../../scaffolding/scaffold-error.js";
 import { FoundationTransactionError } from "../../../../../transaction-coordination/application/foundation-transaction-error.js";
 import type { FoundationDevOnlyStatus, FoundationStatus } from "../../../../../local-mode/index.js";
-import type { FoundationTransactionAwareStatus } from "../../../../../local-mode/types.js";
+import type { FoundationTransactionAwareStatus } from "../../../../../local-mode/application/model.js";
 import { dispatchFoundationCommand, type FoundationCommandServices } from "../../../api.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { foundationCommandFailure } from "./command-error.js";

@@ -1,7 +1,7 @@
 import { opendir } from "node:fs/promises";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { assertNotCancelled } from "../../../../../cancellation.js";
+import { assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import type {
   CompositeActionEvidence,
   RepositorySecurityPolicy,

@@ -1,8 +1,7 @@
 import { join, posix } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import { assertNotCancelled } from "../../../../../cancellation.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import { loadStrictYamlFile } from "../../../../../features/configuration-input/node.js";
 import type { WorkspaceInventory } from "../../../application/model/workspace-inventory.js";
 import { portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";

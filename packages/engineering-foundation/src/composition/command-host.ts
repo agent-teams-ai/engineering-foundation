@@ -9,10 +9,10 @@ import { promotePublicApiRelease } from "../capabilities/public-api-compatibilit
 import { createNodeAgentWorkflowCommands } from "../capabilities/repository-agent-workflow/command-module.js";
 import { createQualityGateCliCommand, createNodeQualityGateCommand, NodeSignalQualityGateCancellationSource } from "../capabilities/quality-gate-runner/command-module.js";
 import { systemNow } from "../local-mode/adapters/outbound/time/system-clock.js";
-import { createNodeProcessRunner } from "../local-mode/process-runner.js";
-import { FoundationLocalModeService } from "../local-mode/service.js";
-import { inspectFoundationPackage } from "../package-self-check.js";
-import { installedFoundationVersion } from "../package-version.js";
+import { createNodeProcessRunner } from "../local-mode/composition/process-runner.js";
+import { FoundationLocalModeService } from "../local-mode/composition/service.js";
+import { inspectFoundationPackage } from "../local-mode/adapters/node/package-inspection.js";
+import { installedFoundationVersion } from "../transaction-coordination/adapters/node/installed-foundation-version.js";
 import { runScaffoldingCliCommand } from "../scaffolding/cli-command.js";
 import { isFoundationSchemaId, readFoundationSchema } from "../schema-catalog.js";
 import { loadFoundationConfig, runFoundationCheck } from "./foundation-check.js";

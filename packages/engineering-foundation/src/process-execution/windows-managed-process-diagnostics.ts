@@ -135,5 +135,5 @@ export function managedProcessCleanupFailure(
     { cause: error }
   );
 }
-import { FoundationError } from "../errors.js";
+import { FoundationError } from "../features/validation-reporting/api.js";
 import type { ProcessRequest } from "./api.js";

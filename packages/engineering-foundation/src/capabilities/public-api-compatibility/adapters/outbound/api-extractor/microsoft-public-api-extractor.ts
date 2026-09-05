@@ -15,8 +15,7 @@ import {
   type ApiItem
 } from "@microsoft/api-extractor-model";
 
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import { assertNotCancelled } from "../../../../../cancellation.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import {
   compareCanonicalReferences,
   publicApiEntrypoints,

@@ -1,9 +1,8 @@
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
-import { CapabilityInputError } from "../../../../../../features/validation-reporting/api.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../../features/validation-reporting/api.js";
 import type { BufProcessExecutor } from "../../../ports/process-executor.js";
-import { assertNotCancelled } from "../../../../../../cancellation.js";
 import type {
   BufExecutable,
   BufExecutionResult,

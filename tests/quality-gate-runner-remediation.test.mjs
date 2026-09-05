@@ -14,9 +14,8 @@ import {
 import { NodeSignalQualityGateCancellationSource } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
-import { CapabilityInputError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
+import { CapabilityInputError,FoundationError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import { parseArguments } from "../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/cli-arguments.js";
-import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
 import { foundationCommandFailureJson } from "../packages/engineering-foundation/dist/features/command-host/module.js";
 import { createQualityGateCliCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.js";
 import {

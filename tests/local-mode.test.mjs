@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
+  lstat,
+  realpath,
+  symlink,
   mkdir,
   mkdtemp,
   readFile,
@@ -11,6 +14,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { LocalPackageLifecycle } from "../packages/engineering-foundation/dist/local-mode/application/service.js";
+import { createNodeLocalPackageLifecyclePorts } from "../packages/engineering-foundation/dist/local-mode/composition/service.js";
+import { inspectConsumerManifest, inspectLockfile } from "../packages/engineering-foundation/dist/local-mode/application/consumer-policy.js";
+import { parseDocument } from "yaml";
+
 
 import {
   FOUNDATION_PACKAGE_NAME,
@@ -21,12 +29,12 @@ import {
 import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
-} from "../packages/engineering-foundation/dist/package-self-check.js";
+} from "../packages/engineering-foundation/dist/local-mode/application/package-metadata.js";
 import {
   compileKnownFileTransactionPlan,
 } from "../packages/repository-mutation/dist/index.js";
 import { applyKnownFileTransaction } from "../packages/repository-mutation/dist/qualification/index.js";
-import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
+import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/composition/process-runner.js";
 
 function NodeProcessRunner() {
   return process.platform === "win32"
@@ -268,7 +276,7 @@ class FakeProcessRunner {
 async function createFixture(
   { failAttachedStatus = false, blockExcludeLookup = false } = {}
 ) {
-  const root = await mkdtemp(join(tmpdir(), "foundation-local-mode-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-local-mode-")));
   const consumerRoot = join(root, "consumer");
   const targetRepositoryRoot = join(root, "foundation");
   const targetPackageRoot = join(
@@ -757,5 +765,80 @@ test("rejects a stale local install hidden by only rewriting the root lockfile",
     );
   } finally {
     await rm(fixture.root, { force: true, recursive: true });
+  }
+});
+
+
+
+test("pure manifest and lockfile admission matches the Node reader diagnostics", async () => {
+  const fixture = await createFixture();
+  try {
+    const { inspectFoundationDevOnly, inspectFoundationRegistryProvenance } = await import("../packages/engineering-foundation/dist/local-mode/index.js");
+    for (const spec of ["1.2.3", "^1.2.3", "link:../target"]) {
+      const path = join(fixture.consumerRoot, "package.json");
+      const manifest = JSON.parse(await readFile(path, "utf8"));
+      manifest.devDependencies[FOUNDATION_PACKAGE_NAME] = spec;
+      await writeJson(path, manifest);
+      assert.deepEqual(await inspectFoundationDevOnly(fixture.consumerRoot), inspectConsumerManifest(fixture.consumerRoot, manifest));
+      const lock = parseDocument(await readFile(join(fixture.consumerRoot, "pnpm-lock.yaml"), "utf8")).toJS();
+      const root = inspectLockfile(lock, "consumer pnpm-lock.yaml", spec);
+      const installed = inspectLockfile(lock, "installed pnpm virtual-store lockfile", spec);
+      const actual = await inspectFoundationRegistryProvenance(fixture.consumerRoot, spec);
+      assert.deepEqual(actual.issues, [...root.issues, ...installed.issues]);
+    }
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+
+
+test("alternate inspection port preserves real directory and pnpm-link lifecycle bytes", async (context) => {
+  for (const kind of ["directory", "symbolic-link"]) {
+    await context.test(kind, async () => {
+      const fixture = await createFixture();
+      try {
+        const installedPath = join(fixture.consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME);
+        if (kind === "symbolic-link") {
+          const packageRoot = join(fixture.consumerRoot, "node_modules/.pnpm/foundation/node_modules", FOUNDATION_PACKAGE_NAME);
+          await createPackage(packageRoot, "1.2.3");
+          await rm(installedPath, { recursive: true, force: true });
+          await symlink(packageRoot, installedPath, process.platform === "win32" ? "junction" : "dir");
+        }
+        await writeFile(join(fixture.consumerRoot, "pnpm-workspace.yaml"), "# preserved workspace bytes\npackages: []\n", "utf8");
+        const protectedPaths = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "node_modules/.pnpm/lock.yaml"];
+        const before = await Promise.all(protectedPaths.map((path) => readFile(join(fixture.consumerRoot, path))));
+        const registryRoot = await realpath(installedPath);
+        const ports = createNodeLocalPackageLifecyclePorts(fixture.runner);
+        const observations = [];
+        const alternate = new LocalPackageLifecycle({
+          ports: {
+            ...ports,
+            inspection: {
+              ...ports.inspection,
+              async mode(path, options) {
+                const status = await ports.inspection.mode(path, options);
+                observations.push({ mode: status.mode, ignoreLock: options?.ignoreOperationLock === true });
+                return structuredClone(status);
+              }
+            }
+          },
+          now: () => new Date("2026-07-29T12:00:00.000Z")
+        });
+        const attached = await alternate.attach(fixture.consumerRoot, fixture.targetRepositoryRoot);
+        assert.equal(attached.status.mode, "LOCAL");
+        assert.equal(attached.status.linkState.registryEntryKind, kind);
+        assert.equal(await realpath(installedPath), fixture.targetPackageRoot);
+        assert.equal((await alternate.detach(fixture.consumerRoot)).mode, "REGISTRY");
+        assert.equal(await realpath(installedPath), registryRoot);
+        assert.equal((await lstat(installedPath)).isSymbolicLink(), kind === "symbolic-link");
+        assert.deepEqual(await Promise.all(protectedPaths.map((path) => readFile(join(fixture.consumerRoot, path)))), before);
+        assert.deepEqual(observations.map(({ mode }) => mode), ["REGISTRY", "REGISTRY", "LOCAL", "LOCAL", "LOCAL", "REGISTRY"]);
+        assert.deepEqual(observations.map(({ ignoreLock }) => ignoreLock), [true, true, true, false, true, false]);
+        assert.equal(fixture.runner.requests.some(({ command }) => /(?:pnpm|npm)(?:\.cmd)?$/u.test(command)), false);
+      } finally {
+        await rm(fixture.root, { recursive: true, force: true });
+      }
+    });
   }
 });

@@ -1,4 +1,4 @@
-import { assertNotCancelled } from "../../../../cancellation.js";
+import { assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type { MarkdownRepository } from "@agent-teams/document-authoring/observation";
 import type { ArchitectureDecisionPolicy } from "../model/architecture-decision.js";
 import {

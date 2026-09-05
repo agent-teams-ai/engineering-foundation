@@ -1,7 +1,7 @@
 import { lstat, realpath } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
-import { FoundationError } from "../../../../../errors.js";
+import { FoundationError } from "../../../../../features/validation-reporting/api.js";
 import {
   ProcessCancellationError,
   ProcessTimeoutError

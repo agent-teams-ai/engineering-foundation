@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "./features/validation-reporting/api.js";
+import { CapabilityInputError } from "./reporting.js";
 
 /**
  * Throws the stable cancellation outcome without coupling callers to a

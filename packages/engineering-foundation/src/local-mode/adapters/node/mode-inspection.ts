@@ -1,27 +1,24 @@
+import { buildStatus, projectPublicTransactionStatus } from "../../application/mode-status.js";
+import type { InstalledFoundation } from "../../application/mode-status.js";
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type {
   FoundationLinkState,
-  FoundationStatus,
   FoundationTransactionAwareStatus
-} from "./types.js";
+} from "../../application/model.js";
 import {
   inspectFoundationDevOnly,
   inspectFoundationRegistryProvenance
-} from "./consumer-policy.js";
+} from "./consumer-inspection.js";
 import {
   FOUNDATION_PACKAGE_NAME,
   LOCAL_OPERATION_LOCK,
   LOCAL_REGISTRY_BACKUP,
   LOCAL_STATE_DIRECTORY,
   LOCAL_STATE_FILE
-} from "./types.js";
-import { installedFoundationVersion } from "../package-version.js";
-import { installedFoundationBuildIdentity } from "../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
-import { NodeFoundationTransactionSlot } from "../transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
-import type { FoundationTransactionStatus } from "../transaction-coordination/application/model/transaction-status.js";
-import type { InternalFoundationTransactionStatus } from "../transaction-coordination/application/model/internal-transaction-status.js";
+} from "../../application/model.js";
+import type { InternalFoundationTransactionStatus } from "../../../transaction-coordination/application/model/internal-transaction-status.js";
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown;
@@ -147,11 +144,6 @@ async function inspectLocalStateDirectory(
   return true;
 }
 
-interface InstalledFoundation {
-  readonly root?: string;
-  readonly version?: string;
-}
-
 async function inspectInstalledFoundation(
   consumerRoot: string,
   issues: string[]
@@ -225,100 +217,8 @@ async function inspectOrphanBackup(
   }
 }
 
-function buildStatus(input: {
-  readonly consumerRoot: string;
-  readonly dependencySpec?: string;
-  readonly installed: InstalledFoundation;
-  readonly provenance?: { readonly lockfilePath: string; readonly packageKey: string; readonly integrity: string };
-  readonly linkState?: FoundationLinkState;
-  readonly transaction?: FoundationTransactionStatus;
-  readonly issues: readonly string[];
-}): FoundationTransactionAwareStatus {
-  return {
-    mode: input.issues.length === 0
-      ? input.linkState === undefined ? "REGISTRY" : "LOCAL"
-      : "INVALID",
-    consumerRoot: input.consumerRoot,
-    ...(input.dependencySpec === undefined ? {} : { dependencySpec: input.dependencySpec }),
-    ...(input.installed.root === undefined ? {} : { installedPackageRoot: input.installed.root }),
-    ...(input.installed.version === undefined ? {} : { installedVersion: input.installed.version }),
-    ...(input.provenance === undefined
-      ? {}
-      : {
-          lockfilePath: input.provenance.lockfilePath,
-          lockfilePackageKey: input.provenance.packageKey,
-          registryIntegrity: input.provenance.integrity
-        }),
-    ...(input.linkState === undefined ? {} : { linkState: input.linkState }),
-    ...(input.transaction === undefined ? {} : { transaction: input.transaction }),
-    issues: input.issues
-  };
-}
-
-function projectPublicTransactionStatus(
-  status: InternalFoundationTransactionStatus
-): FoundationTransactionStatus {
-  if (
-    status.state === "pending" &&
-    status.operationKind === "known-file-transaction"
-  ) {
-    return status;
-  }
-  if (
-    status.state === "pending" &&
-    status.operationKind === "document-authoring"
-  ) {
-    return {
-      state: "manual-recovery-required",
-      reason: "recovery-handler-unavailable",
-      operationKind: "document-authoring",
-      diagnostics: status.diagnostics
-    };
-  }
-  if (status.state === "manual-recovery-required") {
-    if (
-      status.reason === "journal-transition-residue" ||
-      status.reason === "physical-identity-unverifiable" ||
-      status.format === "envelope-v3" ||
-      status.format === "envelope-v4" ||
-      status.format === "known-file-transaction-envelope-v1"
-    ) {
-      return {
-        state: "manual-recovery-required",
-        reason: "recovery-handler-unavailable",
-        ...(status.operationKind === undefined
-          ? {}
-          : { operationKind: status.operationKind }),
-        diagnostics: status.diagnostics
-      };
-    }
-    return {
-      state: "manual-recovery-required",
-      reason: status.reason,
-      ...(status.operationKind === undefined
-        ? {}
-        : { operationKind: status.operationKind }),
-      ...(status.format === undefined ? {} : { format: status.format }),
-      ...(status.foundationVersion === undefined
-        ? {}
-        : { foundationVersion: status.foundationVersion }),
-      ...(status.foundationBuildIdentity === undefined
-        ? {}
-        : { foundationBuildIdentity: status.foundationBuildIdentity }),
-      diagnostics: status.diagnostics
-    };
-  }
-  return status;
-}
-
-export async function inspectFoundationMode(
-  consumerPath: string,
-  options: { readonly ignoreOperationLock?: boolean } = {}
-): Promise<FoundationStatus> {
-  return inspectFoundationTransactionAwareMode(consumerPath, options);
-}
-
-export async function inspectFoundationTransactionAwareMode(
+async function inspectMode(
+  readTransaction: (consumerRoot: string) => Promise<InternalFoundationTransactionStatus>,
   consumerPath: string,
   options: { readonly ignoreOperationLock?: boolean } = {}
 ): Promise<FoundationTransactionAwareStatus> {
@@ -330,11 +230,7 @@ export async function inspectFoundationTransactionAwareMode(
     issues
   );
   const transaction = localStateDirectoryIsSafe
-    ? await new NodeFoundationTransactionSlot({
-        consumerRoot,
-        installedVersion: await installedFoundationVersion(),
-        installedBuildIdentity: await installedFoundationBuildIdentity()
-      }).inspect()
+    ? await readTransaction(consumerRoot)
     : { state: "idle" as const, diagnostics: [] as const };
   const publicTransaction = projectPublicTransactionStatus(transaction);
   const transactionDiagnostic =
@@ -399,8 +295,7 @@ export async function inspectFoundationTransactionAwareMode(
   });
 }
 
-export {
-  inspectFoundationDevOnly,
-  inspectFoundationRegistryProvenance
-} from "./consumer-policy.js";
-export { isExactVersion } from "../semantic-version.js";
+export function createNodeModeInspector(readTransaction: (consumerRoot: string) => Promise<InternalFoundationTransactionStatus>) {
+  return (consumerPath: string, options: { readonly ignoreOperationLock?: boolean } = {}): Promise<FoundationTransactionAwareStatus> =>
+    inspectMode(readTransaction, consumerPath, options);
+}

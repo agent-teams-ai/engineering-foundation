@@ -10,12 +10,11 @@ import {
 } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../../source-inventory/node.js";
 import { assertSchema } from "../../../../../schema-catalog.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
-import { assertNotCancelled } from "../../../../../cancellation.js";
 import { parseStrictYamlSource } from "../../../../../features/configuration-input/yaml.js";
 import { publicApiBaselineAnchorPath } from "../../../application/model/public-api.js";
 import {

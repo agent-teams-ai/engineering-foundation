@@ -1,9 +1,8 @@
-import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import {
   sameNumberedPrereleaseTrain,
   semanticVersionBumpBetween
 } from "../../../../semantic-version.js";
-import { assertNotCancelled } from "../../../../cancellation.js";
 import type {
   PublicApiCompatibilityPolicy,
   PublicApiSnapshot

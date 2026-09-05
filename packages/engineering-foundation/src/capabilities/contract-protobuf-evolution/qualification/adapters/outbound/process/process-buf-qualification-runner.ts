@@ -2,9 +2,8 @@ import { open, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CapabilityInputError } from "../../../../../../features/validation-reporting/api.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../../features/validation-reporting/api.js";
 import { readContainedRegularFile } from "../../../../../../source-inventory/node.js";
-import { assertNotCancelled } from "../../../../../../cancellation.js";
 import { bufQualificationInvocationPlan } from "../../../../application/model/buf-breaking-qualification.js";
 import type {
   BufQualificationRunner,

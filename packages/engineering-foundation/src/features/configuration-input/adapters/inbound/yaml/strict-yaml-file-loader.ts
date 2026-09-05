@@ -1,8 +1,7 @@
 import { realpath, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { assertNotCancelled } from "../../../../../cancellation.js";
-import { CapabilityInputError } from "../../../../validation-reporting/api.js";
+import { assertNotCancelled,CapabilityInputError } from "../../../../validation-reporting/api.js";
 import { assertRepositoryRelativePath, ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { configurationFileProblem, MAX_CONFIG_BYTES } from "../../../application/configuration-file-problem.js";
 import type { ConfigurationFileReader } from "../../../application/ports/configuration-file-reader.js";

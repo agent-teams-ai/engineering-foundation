@@ -263,7 +263,7 @@ test("SIGTERM cancels Buf qualification with exit code 130", {
 
 test("command host dispatches once, preserves handler precedence and propagates failures", async () => {
   const { dispatchFoundationCommand } = await import("../packages/engineering-foundation/dist/features/command-host/api.js");
-  const { FoundationError } = await import("../packages/engineering-foundation/dist/errors.js");
+  const { FoundationError } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
   const input = Object.freeze({ command: "fixture", positional: [], consumerRoot: "/inert", configPath: "unused", format: "json", write: false });
   const calls = [];
   await dispatchFoundationCommand(input, [

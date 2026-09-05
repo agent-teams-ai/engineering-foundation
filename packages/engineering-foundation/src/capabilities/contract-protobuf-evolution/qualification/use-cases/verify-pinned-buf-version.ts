@@ -1,5 +1,4 @@
-import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
-import { assertNotCancelled } from "../../../../cancellation.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type { BufExecutable, BufInvocation } from "../ports/buf-executable.js";
 
 function hasControlCharacter(value: string): boolean {

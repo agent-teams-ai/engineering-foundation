@@ -38,6 +38,175 @@ async function fixture(t) {
   return root;
 }
 
+// Keep stream interception out of the test runner's own IPC channel.
+function commandFailureObservation(options) {
+  const base = new URL("../packages/engineering-foundation/dist/", import.meta.url);
+  const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { runInNewContext } from "node:vm";
+    import { CapabilityInputError, FoundationError } from ${JSON.stringify(new URL("features/validation-reporting/api.js", base).href)};
+    import { runFoundationCli } from ${JSON.stringify(new URL("features/command-host/adapters/inbound/cli/foundation-cli.js", base).href)};
+    const options = ${JSON.stringify(options)};
+    const { kind, codes = [], message = "invalid invocation", format = "text" } = options;
+    const cause = { identity: "original cause" };
+    let thenReads = 0;
+    const thenable = Object.defineProperty({}, "then", { get() { thenReads++; throw cause; } });
+    const sentinels = { error: new Error("accessor sentinel", { cause }), undefined, null: null, symbol: Symbol("sentinel"), thenable };
+    const sentinel = sentinels[options.sentinel ?? "error"];
+    const errors = {
+      foundation: () => new FoundationError(codes[0], message, { cause }),
+      capability: () => new CapabilityInputError({ code: codes[0], message, phase: "caller", retryable: true }, { cause }),
+      native: () => new Error(message, { cause }),
+      foreign: () => runInNewContext('new Error("foreign failure")'),
+      undefined: () => undefined, null: () => null, false: () => false, number: () => 42,
+      string: () => "primitive failure", symbol: () => Symbol("failure"), thenable: () => thenable
+    };
+    const error = errors[kind]();
+    const trace = [];
+    let codeReads = 0, messageReads = 0;
+    if (kind === "foundation" || kind === "capability") {
+      const target = kind === "foundation" ? error : error.problem;
+      Object.defineProperty(target, "code", { get() {
+        trace.push("code");
+        if (++codeReads === options.throwCodeRead) throw sentinel;
+        assert.ok(codeReads <= 2, "unexpected extra code read");
+        return codes[codeReads - 1];
+      } });
+    }
+    if (error instanceof Error) {
+      Object.defineProperty(kind === "capability" ? error.problem : error, "message", { get() {
+        trace.push("message");
+        if (++messageReads === options.throwMessageRead) throw sentinel;
+        assert.equal(messageReads, 1, "unexpected extra message read");
+        return message;
+      } });
+    }
+    const stdoutWrite = process.stdout.write, stderrWrite = process.stderr.write, previousExitCode = process.exitCode;
+    let stdout = "", stderr = "", rejected = false, thrown, exitCode;
+    process.stdout.write = (text) => { trace.push("stdout"); stdout += text; return true; };
+    process.stderr.write = (text) => {
+      trace.push("stderr");
+      if (options.throwWrite) throw sentinel;
+      stderr += text;
+      if (options.writeCode !== undefined) codes[1] = options.writeCode;
+      return true;
+    };
+    process.exitCode = 17;
+    try {
+      const args = ["status", ...(format === "json" ? ["--json"] : format === "format-json" ? ["--format", "json"] : [])];
+      await runFoundationCli(() => { throw error; }, args);
+    } catch (failure) { rejected = true; thrown = failure; }
+    finally {
+      exitCode = process.exitCode;
+      process.stdout.write = stdoutWrite;
+      process.stderr.write = stderrWrite;
+      process.exitCode = previousExitCode;
+    }
+    if (rejected) assert.equal(thrown, sentinel, "thrown value identity");
+    if (error instanceof Error) assert.equal(error.cause, cause, "original cause identity");
+    assert.equal(thenReads, 0, "must not assimilate a thrown thenable");
+    console.log(JSON.stringify({ trace, codeReads, messageReads, stdout, stderr, exitCode, rejected }));
+  `], { encoding: "utf8" });
+  assert.equal(child.status, 0, child.stderr);
+  return JSON.parse(child.stdout);
+}
+
+const commandErrorKinds = [
+  { kind: "foundation", ordinary: "PROCESS_FAILED", classified: "CONSUMER_INVALID", ordinaryExit: 1, classifiedExit: 2, ordinaryOutcome: "execution-failure", classifiedOutcome: "invalid-input" },
+  { kind: "capability", ordinary: "INPUT_INVALID", classified: "EXECUTION_CANCELLED", ordinaryExit: 2, classifiedExit: 130, ordinaryOutcome: "invalid-input", classifiedOutcome: "cancelled" }
+];
+
+test("command text preserves code/message reads, publication order and thrown identity", { concurrency: 1 }, async (t) => {
+  for (const { kind, ordinary, classified, ordinaryExit, classifiedExit } of commandErrorKinds) {
+    for (const [first, second, exitCode] of [[ordinary, ordinary, ordinaryExit], [ordinary, classified, classifiedExit], [classified, ordinary, ordinaryExit]]) {
+      await t.test(`${kind}: ${first} then ${second}`, () => {
+        assert.deepEqual(commandFailureObservation({ kind, codes: [first, second] }), {
+          trace: ["code", "message", "stderr", "code"], codeReads: 2, messageReads: 1,
+          stdout: "", stderr: `${first}: invalid invocation\n`, exitCode, rejected: false
+        });
+      });
+    }
+    for (const sentinel of ["error", "undefined", "null", "symbol", "thenable"]) {
+      for (const throwCodeRead of [1, 2]) {
+        await t.test(`${kind}: ${sentinel} thrown on code read ${throwCodeRead}`, () => {
+          const published = throwCodeRead === 2;
+          const first = kind === "foundation" ? classified : ordinary;
+          assert.deepEqual(commandFailureObservation({ kind, codes: [first, classified], throwCodeRead, sentinel }), {
+            trace: published ? ["code", "message", "stderr", "code"] : ["code"], codeReads: throwCodeRead, messageReads: published ? 1 : 0,
+            stdout: "", stderr: published ? `${first}: invalid invocation\n` : "", exitCode: 17, rejected: true
+          });
+        });
+      }
+    }
+    await t.test(`${kind}: message accessor throws before publication`, () => {
+      assert.deepEqual(commandFailureObservation({ kind, codes: [ordinary, classified], throwMessageRead: 1 }), {
+        trace: ["code", "message"], codeReads: 1, messageReads: 1, stdout: "", stderr: "", exitCode: 17, rejected: true
+      });
+    });
+    await t.test(`${kind}: failed write prevents classification`, () => {
+      assert.deepEqual(commandFailureObservation({ kind, codes: [ordinary, classified], throwWrite: true }), {
+        trace: ["code", "message", "stderr"], codeReads: 1, messageReads: 1, stdout: "", stderr: "", exitCode: 17, rejected: true
+      });
+    });
+    await t.test(`${kind}: classification observes a code changed during publication`, () => {
+      assert.deepEqual(commandFailureObservation({ kind, codes: [ordinary, ordinary], writeCode: classified }), {
+        trace: ["code", "message", "stderr", "code"], codeReads: 2, messageReads: 1,
+        stdout: "", stderr: `${ordinary}: invalid invocation\n`, exitCode: classifiedExit, rejected: false
+      });
+    });
+  }
+});
+
+test("command JSON retains classification before message reads and publication", { concurrency: 1 }, async (t) => {
+  for (const { kind, ordinary, classified, ordinaryExit, classifiedExit, ordinaryOutcome, classifiedOutcome } of commandErrorKinds) {
+    for (const format of ["json", "format-json"]) {
+      for (const [first, second, exitCode, outcome] of [[ordinary, classified, ordinaryExit, ordinaryOutcome], [classified, ordinary, classifiedExit, classifiedOutcome]]) {
+        await t.test(`${kind}: ${format}, ${first} then ${second}`, () => {
+          const message = "m".repeat(1100);
+          assert.deepEqual(commandFailureObservation({ kind, codes: [first, second], message, format }), {
+            trace: ["code", "code", "message", "stdout"], codeReads: 2, messageReads: 1,
+            stdout: `${JSON.stringify({ schemaVersion: 1, outcome, error: { code: second, message: kind === "capability" ? message : message.slice(0, 1000), retryable: kind === "capability" } })}\n`,
+            stderr: "", exitCode, rejected: false
+          });
+        });
+      }
+      for (const throwCodeRead of [1, 2]) {
+        await t.test(`${kind}: ${format}, code read ${throwCodeRead} throws`, () => {
+          assert.deepEqual(commandFailureObservation({ kind, codes: [ordinary, classified], format, throwCodeRead }), {
+            trace: Array(throwCodeRead).fill("code"), codeReads: throwCodeRead, messageReads: 0, stdout: "", stderr: "", exitCode: 17, rejected: true
+          });
+        });
+      }
+      await t.test(`${kind}: ${format}, message accessor throws`, () => {
+        assert.deepEqual(commandFailureObservation({ kind, codes: [ordinary, classified], format, throwMessageRead: 1 }), {
+          trace: ["code", "code", "message"], codeReads: 2, messageReads: 1, stdout: "", stderr: "", exitCode: 17, rejected: true
+        });
+      });
+    }
+  }
+});
+
+test("command unknown failures retain text, JSON, accessor and thenable behavior", { concurrency: 1 }, async (t) => {
+  for (const [kind, message] of [["native", "invalid invocation"], ["foreign", "Error: foreign failure"], ["undefined", "undefined"], ["null", "null"], ["false", "false"], ["number", "42"], ["string", "primitive failure"], ["symbol", "Symbol(failure)"], ["thenable", "[object Object]"]]) {
+    for (const format of ["text", "json"]) {
+      await t.test(`${kind}: ${format}`, () => {
+        assert.deepEqual(commandFailureObservation({ kind, format }), {
+          trace: [...(kind === "native" ? ["message"] : []), format === "text" ? "stderr" : "stdout"], codeReads: 0, messageReads: kind === "native" ? 1 : 0,
+          stdout: format === "json" ? `${JSON.stringify({ schemaVersion: 1, outcome: "execution-failure", error: { code: "UNEXPECTED", message, retryable: false } })}\n` : "",
+          stderr: format === "text" ? `UNEXPECTED: ${message}\n` : "", exitCode: 1, rejected: false
+        });
+      });
+    }
+  }
+  for (const format of ["text", "json"]) {
+    await t.test(`unknown message accessor throws: ${format}`, () => {
+      assert.deepEqual(commandFailureObservation({ kind: "native", format, throwMessageRead: 1 }), {
+        trace: ["message"], codeReads: 0, messageReads: 1, stdout: "", stderr: "", exitCode: 17, rejected: true
+      });
+    });
+  }
+});
+
 test("the seventeen remaining reporting adapters reach only their own application policy", async () => {
   const result = await validateFeatureModules();
   const owned = ["features/command-host/", "features/configuration-input/", "features/foundation-check/", "local-mode/", "process-execution/", "source-inventory/", "workspace-inventory/", "transaction-coordination/"];

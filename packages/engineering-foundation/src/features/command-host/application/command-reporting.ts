@@ -68,17 +68,23 @@ export function checkCommandExitCode(outcome: FoundationOutcome): number {
   return exitCodeForOutcome(outcome);
 }
 
-/** Text keeps the full original message; only the JSON envelope bounds it. */
+/** Text keeps the full original message; the adapter reads exitCode after publishing it. */
 export function commandInputText(error: unknown): { readonly text: string; readonly exitCode: 2 | 130 } | undefined {
   if (error instanceof CapabilityInputError) {
-    return { text: `${error.problem.code}: ${error.problem.message}\n`, exitCode: error.problem.code === "EXECUTION_CANCELLED" ? 130 : 2 };
+    return {
+      text: `${error.problem.code}: ${error.problem.message}\n`,
+      get exitCode() { return error.problem.code === "EXECUTION_CANCELLED" ? 130 : 2; }
+    };
   }
   return undefined;
 }
 
 export function commandFoundationText(error: unknown): { readonly text: string; readonly exitCode: 1 | 2 } | undefined {
   if (error instanceof FoundationError) {
-    return { text: `${error.code}: ${error.message}\n`, exitCode: error.code === "CONSUMER_INVALID" ? 2 : 1 };
+    return {
+      text: `${error.code}: ${error.message}\n`,
+      get exitCode() { return error.code === "CONSUMER_INVALID" ? 2 : 1; }
+    };
   }
   return undefined;
 }

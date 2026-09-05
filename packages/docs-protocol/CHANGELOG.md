@@ -1,5 +1,27 @@
 # @agent-teams/docs-protocol
 
+## 0.5.0
+
+### Minor Changes
+
+- [#224](https://github.com/agent-teams-ai/engineering-foundation/pull/224) [`4e22962`](https://github.com/agent-teams-ai/engineering-foundation/commit/4e229623ff555b655e7df24f9d1502ec5b968911) Thanks [@777genius](https://github.com/777genius)! - Register the initial public API for the Agent Teams managed adapter and retain
+  the portable Docs Protocol result type required by its current public API.
+
+- [#232](https://github.com/agent-teams-ai/engineering-foundation/pull/232) [`e486355`](https://github.com/agent-teams-ai/engineering-foundation/commit/e4863550a0e44769987a98a9f98fa6ccc9b1d014) Thanks [@777genius](https://github.com/777genius)! - Extract portable document authoring into its own package, remove the obsolete
+  Engineering Foundation authoring exports and CLI, and rewire Docs Protocol to
+  the new-only dependency graph without a compatibility facade.
+
+### Patch Changes
+
+- [#246](https://github.com/agent-teams-ai/engineering-foundation/pull/246) [`588a50d`](https://github.com/agent-teams-ai/engineering-foundation/commit/588a50d99fcb02dce5389407ebd5eba9d901b6b3) Thanks [@777genius](https://github.com/777genius)! - Make the managed authoring Skill compatible with portable adoption and bounded context at custom profile paths. Preserve historical Skill bytes and script digests, qualify the installed adapter Skill through the portable CLI, and accept the exact AGENTS route with Windows CRLF lines.
+
+- [#224](https://github.com/agent-teams-ai/engineering-foundation/pull/224) [`4e22962`](https://github.com/agent-teams-ai/engineering-foundation/commit/4e229623ff555b655e7df24f9d1502ec5b968911) Thanks [@777genius](https://github.com/777genius)! - Extract the zero-monorepo-dependency Repository Mutation leaf, cut generic
+  callers over to its new-only API, and remove the obsolete Foundation mutation
+  facade.
+- Updated dependencies [[`14ff06f`](https://github.com/agent-teams-ai/engineering-foundation/commit/14ff06fd984c33106b5322d672bc1e0af2bbc9f8), [`e486355`](https://github.com/agent-teams-ai/engineering-foundation/commit/e4863550a0e44769987a98a9f98fa6ccc9b1d014), [`4e22962`](https://github.com/agent-teams-ai/engineering-foundation/commit/4e229623ff555b655e7df24f9d1502ec5b968911), [`8c6a252`](https://github.com/agent-teams-ai/engineering-foundation/commit/8c6a252fe36d868bd3757a370b60775ecdafd185)]:
+  - @agent-teams/document-authoring@0.1.0
+  - @agent-teams/repository-mutation@0.1.0
+
 ## 0.4.1
 
 ### Patch Changes

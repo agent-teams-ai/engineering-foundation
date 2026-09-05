@@ -1,19 +1,12 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol",
-  "packageVersion": "0.4.1",
+  "packageVersion": "0.5.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
       "exportPath": ".",
       "items": [
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!CANONICAL_DOCS_SKILL_V2:var",
-          "kind": "Variable",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "CANONICAL_DOCS_SKILL_V2: \"---\\nname: docs-authoring\\ndescription: Use when creating, changing, reorganizing, or reviewing governed documentation in this repository.\\n---\\n\\n# Documentation Authoring\\n\\nProtocol: `agent-teams.docs-protocol/v1`.\\n\\n## Required workflow\\n\\n- Read the current types, owners, placement, metadata, and index policy with `pnpm docs:info`.\\n- Search first with `pnpm docs:find -- --text query`.\\n- Reuse or relate existing authority instead of creating a competing source.\\n- Preview with `pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --dry-run`.\\n- Review the exact destination, metadata, relations, anchors, and diagnostics.\\n- Apply with `pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --apply` after review.\\n- Manually update the reported index/link exactly when reachability requires it.\\n- For edits, preserve canonical frontmatter and sidecar ownership; use the repository's governed review flow rather than bypassing the create-only writer.\\n- For accepted authority, record supersession explicitly instead of silently rewriting history.\\n- Finish with the full consumer gate `pnpm docs:protocol:check` after the index is current.\\n\\n## Rules\\n- Never invent owners, types, statuses, paths, or metadata outside `docs:info`.\\n- If dependencies are absent, use only `pnpm install --frozen-lockfile`; never use npx, dlx, or latest tags.\\n- Keep preview and apply inputs identical.\\n- Stop when recovery is required; use `pnpm docs:doctor` before `pnpm docs:recover`.\\n- Resolve required anchors and blockers before apply.\\n- Do not bypass repository scripts or hand-edit transaction evidence.\\n\""
-        },
         {
           "canonicalReference": "@agent-teams/docs-protocol!CommunityContextCatalog#projectId:member",
           "kind": "PropertySignature",
@@ -351,62 +344,6 @@
           "signature": "export interface DocsCodeAnchor"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsCommand:type",
-          "kind": "TypeAlias",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export type DocsCommand = \"docs.check\" | \"docs.doctor\" | \"docs.find\" | \"docs.info\" | \"docs.new\" | \"docs.recover\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsCommandEnvelope#command:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsCommandEnvelope:interface",
-          "parentKind": "Interface",
-          "signature": "readonly command: DocsCommand;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsCommandEnvelope#diagnostics:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsCommandEnvelope:interface",
-          "parentKind": "Interface",
-          "signature": "readonly diagnostics: readonly DocsDiagnostic[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsCommandEnvelope#outcome:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsCommandEnvelope:interface",
-          "parentKind": "Interface",
-          "signature": "readonly outcome: DocsCommandOutcome;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsCommandEnvelope#protocol:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsCommandEnvelope:interface",
-          "parentKind": "Interface",
-          "signature": "readonly protocol: {\n        readonly id: typeof DOCS_PROTOCOL_ID;\n        readonly version: typeof DOCS_PROTOCOL_VERSION;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsCommandEnvelope#result:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsCommandEnvelope:interface",
-          "parentKind": "Interface",
-          "signature": "readonly result: Result;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsCommandEnvelope#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsCommandEnvelope:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsCommandEnvelope:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export interface DocsCommandEnvelope<Result = unknown>"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!DocsCommandEnvelopeV2#command:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol!DocsCommandEnvelopeV2:interface",
@@ -516,7 +453,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
-          "signature": "export type DocsCommandV2 = \"docs.check\" | \"docs.doctor\" | \"docs.find\" | \"docs.info\" | \"docs.new\" | \"docs.qualify\" | \"docs.recover\";"
+          "signature": "export type DocsCommandV2 = \"docs.check\" | \"docs.doctor\" | \"docs.find\" | \"docs.info\" | \"docs.new\" | \"docs.recover\";"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!DocsCommandV3:type",
@@ -804,27 +741,6 @@
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
           "signature": "export interface DocsDiagnostic"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsExecution#envelope:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsExecution:interface",
-          "parentKind": "Interface",
-          "signature": "readonly envelope: DocsCommandEnvelope<Result>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsExecution#exitCode:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsExecution:interface",
-          "parentKind": "Interface",
-          "signature": "readonly exitCode: 0 | 1 | 2 | 3 | 130;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsExecution:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export interface DocsExecution<Result>"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!DocsExecutionV2#envelope:member",
@@ -1366,90 +1282,6 @@
           "signature": "export type DocsNewResultV2 = Exclude<DocsNewResult, Extract<DocsNewResult, {\n    readonly writeState: \"preview\";\n}> | Extract<DocsNewResult, {\n    readonly receipt: unknown;\n}>> | Readonly<Extract<DocsNewResult, {\n    readonly writeState: \"preview\";\n}> & {\n    readonly compiled: DocsCompiledDocumentV1;\n}> | Readonly<Extract<DocsNewResult, {\n    readonly receipt: unknown;\n}> & {\n    readonly compiled: DocsCompiledDocumentV1;\n}>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfile#agentWorkflow:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfile:interface",
-          "parentKind": "Interface",
-          "signature": "readonly agentWorkflow: {\n        readonly skillPath: string;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfile#foundationProfile:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfile:interface",
-          "parentKind": "Interface",
-          "signature": "readonly foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v2-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 2;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfile#protocol:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfile:interface",
-          "parentKind": "Interface",
-          "signature": "readonly protocol: {\n        readonly id: typeof DOCS_PROTOCOL_ID;\n        readonly version: typeof DOCS_PROTOCOL_VERSION;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfile#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfile:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfile#semanticValidatorIds:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfile:interface",
-          "parentKind": "Interface",
-          "signature": "readonly semanticValidatorIds: readonly string[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfile:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export interface DocsProtocolProfile"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2#agentWorkflow:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly agentWorkflow: {\n        readonly skillPath: string;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2#foundationProfile:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v3-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 3;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2#protocol:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly protocol: {\n        readonly id: typeof DOCS_PROTOCOL_ID;\n        readonly version: typeof DOCS_PROTOCOL_VERSION;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 2;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2#semanticValidatorIds:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly semanticValidatorIds: readonly string[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfileV2:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export interface DocsProtocolProfileV2"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolProfileV3#agentWorkflow:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol!DocsProtocolProfileV3:interface",
@@ -1646,790 +1478,6 @@
           "signature": "export interface ReachabilityAction"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1#currentDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly currentDigest: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1#expectedDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly expectedDigest: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1#issues:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly issues: readonly ConsumerIntegrationIssue[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1#postimage:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly postimage?: Uint8Array;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1#state:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly state: \"absent\" | \"conflict\" | \"exact-current\" | \"known-prior\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.AgentsRoutePlanV1:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface AgentsRoutePlanV1"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS:var",
-          "kind": "Variable",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS: readonly Uint8Array[]"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.CANONICAL_DOCS_SKILL:var",
-          "kind": "Variable",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "CANONICAL_DOCS_SKILL: \"---\\nname: docs-authoring\\ndescription: Use when creating, changing, reorganizing, or reviewing governed documentation in this repository.\\n---\\n\\n# Documentation Authoring\\n\\nProtocol: `agent-teams.docs-protocol/v1`.\\n\\n## Required workflow\\n\\n- Read the current types, owners, placement, metadata, and index policy with `pnpm docs:info`.\\n- Search first with `pnpm docs:find -- --text query`.\\n- Reuse or relate existing authority instead of creating a competing source.\\n- Preview with `pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --dry-run`.\\n- Review the exact destination, metadata, relations, anchors, and diagnostics.\\n- Apply with `pnpm docs:new -- --type TYPE --id ID --title TITLE --owner OWNER --summary SUMMARY --apply` after review.\\n- Manually update the reported index/link exactly when reachability requires it.\\n- Finish with `pnpm docs:check` after the index is current.\\n\\n## Rules\\n\\n- Never invent owners, types, statuses, paths, or metadata outside `docs:info`.\\n- If dependencies are absent, use only `pnpm install --frozen-lockfile`; never use npx, dlx, or latest tags.\\n- Keep preview and apply inputs identical.\\n- Stop when recovery is required; use `pnpm docs:doctor` before `pnpm docs:recover`.\\n- Resolve required anchors and blockers before apply.\\n- Do not bypass repository scripts or hand-edit transaction evidence.\\n\""
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan#action:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan:interface",
-          "parentKind": "Interface",
-          "signature": "readonly action: \"create\" | \"none\" | \"replace\" | \"blocked\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan#currentDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan:interface",
-          "parentKind": "Interface",
-          "signature": "readonly currentDigest?: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan#expectedDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan:interface",
-          "parentKind": "Interface",
-          "signature": "readonly expectedDigest: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan#id:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan:interface",
-          "parentKind": "Interface",
-          "signature": "readonly id: \"agents-route\" | \"caller-workflow\" | \"managed-state\" | \"package-manifest\" | \"skill\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan#ownership:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan:interface",
-          "parentKind": "Interface",
-          "signature": "readonly ownership: \"full-bytes\" | \"partial-fields\" | \"managed-block\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan#path:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan:interface",
-          "parentKind": "Interface",
-          "signature": "readonly path: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan#state:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan:interface",
-          "parentKind": "Interface",
-          "signature": "readonly state: ConsumerIntegrationAssetState;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetPlan:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface ConsumerIntegrationAssetPlan"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationAssetState:type",
-          "kind": "TypeAlias",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export type ConsumerIntegrationAssetState = \"absent\" | \"exact-current\" | \"known-prior\" | \"partial-adoption\" | \"outdated-cohort\" | \"unknown-modified\" | \"conflict\" | \"unsupported\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#callerWorkflowPath:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly callerWorkflowPath: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#cohort:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly cohort: QualifiedDocsCohortBindingV1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#governedDocsRoots:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly governedDocsRoots?: readonly string[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#integrationRoot:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly integrationRoot: \".\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#managedStatePath:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly managedStatePath: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#packageManager:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly packageManager: \"pnpm\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#profilePath:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly profilePath: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#repository:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly repository: {\n        readonly provider: \"github\";\n        readonly id: string;\n        readonly nameWithOwner: string;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1#skillPath:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly skillPath: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDesiredStateV1:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface ConsumerIntegrationDesiredStateV1"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationDigest:type",
-          "kind": "TypeAlias",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export type ConsumerIntegrationDigest = `sha256:${string}`;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1#command:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly command: \"consumer.apply\" | \"consumer.check\" | \"consumer.plan\" | \"consumer.recover\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1#issues:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly issues: readonly ConsumerIntegrationIssue[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1#outcome:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly outcome: \"applied\" | \"blocked\" | \"change-required\" | \"current\" | \"recovered\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1#plan:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly plan?: ConsumerIntegrationPlanV1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1#receipt:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly receipt?: KnownFileTransactionReceiptV1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationExecutionV1:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface ConsumerIntegrationExecutionV1"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationFileObservation:type",
-          "kind": "TypeAlias",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export type ConsumerIntegrationFileObservation = {\n    readonly state: \"absent\";\n} | {\n    readonly state: \"file\";\n    readonly bytes: Uint8Array;\n    readonly mode: number;\n};"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue#code:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue:interface",
-          "parentKind": "Interface",
-          "signature": "readonly code: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue#message:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue:interface",
-          "parentKind": "Interface",
-          "signature": "readonly message: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue#severity:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue:interface",
-          "parentKind": "Interface",
-          "signature": "readonly severity: \"error\" | \"warning\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue#subject:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue:interface",
-          "parentKind": "Interface",
-          "signature": "readonly subject: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationIssue:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface ConsumerIntegrationIssue"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationNodeError#code:member",
-          "kind": "Property",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationNodeError:class",
-          "parentKind": "Class",
-          "signature": "readonly code: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationNodeError:class",
-          "kind": "Class",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare class ConsumerIntegrationNodeError extends Error"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationNodeError:constructor(1)",
-          "kind": "Constructor",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationNodeError:class",
-          "parentKind": "Class",
-          "signature": "constructor(code: string, message: string, options?: ErrorOptions);"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1#assets:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly assets: readonly ConsumerIntegrationAssetPlan[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1#cohortId:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly cohortId: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1#issues:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly issues: readonly ConsumerIntegrationIssue[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1#outcome:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly outcome: \"blocked\" | \"change-required\" | \"current\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1#planDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly planDigest: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1#repository:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly repository: ConsumerIntegrationDesiredStateV1[\"repository\"];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationPlanV1:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface ConsumerIntegrationPlanV1"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot#agents:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot:interface",
-          "parentKind": "Interface",
-          "signature": "readonly agents: ConsumerIntegrationFileObservation;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot#callerWorkflow:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot:interface",
-          "parentKind": "Interface",
-          "signature": "readonly callerWorkflow: ConsumerIntegrationFileObservation;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot#integrationProfile:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot:interface",
-          "parentKind": "Interface",
-          "signature": "readonly integrationProfile: ConsumerIntegrationFileObservation;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot#lockfile:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot:interface",
-          "parentKind": "Interface",
-          "signature": "readonly lockfile: ConsumerIntegrationFileObservation;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot#managedState:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot:interface",
-          "parentKind": "Interface",
-          "signature": "readonly managedState: ConsumerIntegrationFileObservation;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot#packageManifest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot:interface",
-          "parentKind": "Interface",
-          "signature": "readonly packageManifest: ConsumerIntegrationFileObservation;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot#skill:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot:interface",
-          "parentKind": "Interface",
-          "signature": "readonly skill: ConsumerIntegrationFileObservation;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerIntegrationSnapshot:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface ConsumerIntegrationSnapshot"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1#cohort:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly cohort: QualifiedDocsCohortBindingV1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1#path:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly path: \"governance/docs-qualified-cohorts.json\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1#repository:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly repository: \"agent-teams-ai/.github\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1#revision:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly revision: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeAuthorityV1:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface ConsumerUpgradeAuthorityV1"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#authority:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly authority?: {\n        readonly repository: ConsumerUpgradeAuthorityV1[\"repository\"];\n        readonly path: ConsumerUpgradeAuthorityV1[\"path\"];\n        readonly revision: string;\n        readonly cohortId: string;\n        readonly recordDigest: ConsumerIntegrationDigest;\n        readonly qualificationEventDigest: ConsumerIntegrationDigest;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#command:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly command: \"consumer.upgrade\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#issues:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly issues: readonly ConsumerIntegrationIssue[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#outcome:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly outcome: \"blocked\" | \"current\" | \"upgraded\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#receipt:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly receipt?: KnownFileTransactionReceiptV1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.ConsumerUpgradeExecutionV1:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface ConsumerUpgradeExecutionV1"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1#currentDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly currentDigest: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1#expectedDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly expectedDigest: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1#issues:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly issues: readonly ConsumerIntegrationIssue[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1#postimage:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly postimage?: Uint8Array;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1#state:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly state: \"conflict\" | \"exact-current\" | \"known-prior\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.PnpmManifestPlanV1:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface PnpmManifestPlanV1"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortBindingV1:type",
-          "kind": "TypeAlias",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export type QualifiedDocsCohortBindingV1 = Omit<QualifiedDocsCohortV1, \"canaryRepositoryIds\" | \"lifecycleState\">;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#assets:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly assets: {\n        readonly skillDigest: ConsumerIntegrationDigest;\n        readonly callerWorkflowDigest: ConsumerIntegrationDigest;\n        readonly assetCatalogDigest: ConsumerIntegrationDigest;\n        readonly transitionCatalogDigest: ConsumerIntegrationDigest;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#canaryRepositoryIds:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly canaryRepositoryIds: readonly string[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#channel:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly channel: \"rc\" | \"stable\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#cohortId:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly cohortId: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#eligibleAfter:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly eligibleAfter: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#lifecycleState:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly lifecycleState: \"QUALIFIED\" | \"CANARY\" | \"RECOMMENDED\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#packages:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly packages: {\n        readonly docsProtocol: {\n            readonly version: string;\n            readonly integrity: `sha512-${string}`;\n        };\n        readonly engineeringFoundation: {\n            readonly version: string;\n            readonly integrity: `sha512-${string}`;\n        };\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#qualificationEventDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly qualificationEventDigest: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#recordDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly recordDigest: ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#rollbackTo:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly rollbackTo: readonly string[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#runtime:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly runtime: {\n        readonly node: \">=24.18.0 <25\";\n        readonly pnpm: \">=11.17.0 <12\";\n        readonly runtimeClosureDigest: ConsumerIntegrationDigest;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#schemas:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemas: {\n        readonly consumerIntegration: 1;\n        readonly managedState: 1;\n        readonly docsProtocol: 1;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#upgradeFrom:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly upgradeFrom: readonly string[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1#workflow:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "parentKind": "Interface",
-          "signature": "readonly workflow: {\n        readonly repository: string;\n        readonly path: string;\n        readonly revision: string;\n        readonly blobSha: string;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.QualifiedDocsCohortV1:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export interface QualifiedDocsCohortV1"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.applyConsumerIntegration:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function applyConsumerIntegration(options: {\n    readonly consumerRoot: string;\n    readonly expect: string;\n    readonly integrationProfilePath?: string;\n}): Promise<ConsumerIntegrationExecutionV1>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.canonicalCallerWorkflow:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV1): string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.canonicalDocsScripts:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function canonicalDocsScripts(profilePath: string): Readonly<Record<string, string>>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.canonicalDocsScriptsDigest:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function canonicalDocsScriptsDigest(profilePath: string): ConsumerIntegrationDigest;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.canonicalManagedRoute:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function canonicalManagedRoute(skillPath: string): string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.canonicalManagedState:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function canonicalManagedState(desired: ConsumerIntegrationDesiredStateV1, assets: {\n    readonly skillDigest: ConsumerIntegrationDigest;\n    readonly callerWorkflowDigest: ConsumerIntegrationDigest;\n    readonly assetCatalogDigest: ConsumerIntegrationDigest;\n    readonly transitionCatalogDigest: ConsumerIntegrationDigest;\n    readonly agentsRouteDigest: ConsumerIntegrationDigest;\n    readonly docsScriptsDigest: ConsumerIntegrationDigest;\n}): string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.checkConsumerIntegration:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function checkConsumerIntegration(options: {\n    readonly consumerRoot: string;\n    readonly integrationProfilePath?: string;\n}): Promise<ConsumerIntegrationExecutionV1>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.describeCanonicalConsumerAssets:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortBindingV1): {\n    readonly skillDigest: ConsumerIntegrationDigest;\n    readonly callerWorkflowDigest: ConsumerIntegrationDigest;\n    readonly assetCatalogDigest: ConsumerIntegrationDigest;\n    readonly transitionCatalogDigest: ConsumerIntegrationDigest;\n};"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.planAgentsRouteV1:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function planAgentsRouteV1(input: {\n    readonly observation: ConsumerIntegrationFileObservation;\n    readonly skillPath: string;\n    readonly knownPriorRouteDigest?: ConsumerIntegrationDigest;\n}): AgentsRoutePlanV1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.planConsumerIntegration:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function planConsumerIntegration(input: {\n    readonly desired: ConsumerIntegrationDesiredStateV1;\n    readonly snapshot: ConsumerIntegrationSnapshot;\n}): ConsumerIntegrationPlanV1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.planNodeConsumerIntegration:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function planNodeConsumerIntegration(options: {\n    readonly consumerRoot: string;\n    readonly integrationProfilePath?: string;\n    readonly to: string;\n}): Promise<ConsumerIntegrationExecutionV1>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.planPnpmManifestV1:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function planPnpmManifestV1(input: {\n    readonly observation: ConsumerIntegrationFileObservation;\n    readonly profilePath: string;\n    readonly cohort: QualifiedDocsCohortBindingV1;\n    readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;\n}): PnpmManifestPlanV1;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.readConsumerIntegrationInput:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function readConsumerIntegrationInput(options: {\n    readonly consumerRoot: string;\n    readonly integrationProfilePath?: string;\n}): Promise<{\n    readonly desired: ConsumerIntegrationDesiredStateV1;\n    readonly root: string;\n    readonly snapshot: ConsumerIntegrationSnapshot;\n}>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.recoverConsumerIntegration:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function recoverConsumerIntegration(options: {\n    readonly consumerRoot: string;\n}): Promise<ConsumerIntegrationExecutionV1>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration.upgradeConsumerIntegration:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "parentKind": "Namespace",
-          "signature": "export declare function upgradeConsumerIntegration(options: {\n    readonly consumerRoot: string;\n    readonly authorityRevision?: string;\n    readonly to: string;\n}): Promise<ConsumerUpgradeExecutionV1>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!consumerIntegration:namespace",
-          "kind": "Namespace",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "namespace consumerIntegration"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!createCommunityMiniSearchIndex:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol!",
@@ -2437,25 +1485,11 @@
           "signature": "export declare function createCommunityMiniSearchIndex(): CommunitySearchIndex;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!docsCheck:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export declare function docsCheck(input: DocsConsumerRequest): Promise<DocsExecution<Readonly<{\n    kind: \"check\";\n    projectId: string;\n    catalogStatus: \"complete\" | \"partial\";\n    documents: number;\n    foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v2-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 2;\n    };\n    metadataSidecar: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"path-metadata-map\";\n        readonly path: string;\n    };\n    semanticValidatorIds: readonly string[];\n    valid: boolean;\n}>>>;"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!docsCheckV2:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function docsCheckV2(input: DocsConsumerRequest): Promise<DocsExecutionV2<Readonly<{\n    kind: \"check\";\n    projectId: string;\n    catalogStatus: \"complete\" | \"partial\";\n    documents: number;\n    foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v2-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 2;\n    } | {\n        readonly metadataSidecarPolicy: \"foundation-profile-v3-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 3;\n    };\n    metadataSidecar: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"path-metadata-map\";\n        readonly path: string;\n    };\n    semanticValidatorIds: readonly string[];\n    valid: boolean;\n}>>>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!docsContext:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export declare function docsContext(input: DocsContextRequestV1): Promise<DocsExecutionV3<DocsContextResultV1>>;"
+          "signature": "export declare function docsCheckV2(input: DocsConsumerRequest): Promise<DocsExecutionV2<Readonly<{\n    kind: \"check\";\n    projectId: string;\n    catalogStatus: \"complete\" | \"partial\";\n    documents: number;\n    foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v3-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 3;\n    };\n    metadataSidecar: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"path-metadata-map\";\n        readonly path: string;\n    };\n    semanticValidatorIds: readonly string[];\n    valid: boolean;\n}>>>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!docsContextV1:function(1)",
@@ -2465,25 +1499,11 @@
           "signature": "export declare function docsContextV1(input: DocsContextRequestV1): Promise<DocsExecutionV3<DocsContextResultV1>>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!docsDoctor:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export declare function docsDoctor(input: DocsConsumerRequest): Promise<DocsExecution<Readonly<{\n    kind: \"doctor\";\n    protocol: Readonly<{\n        id: \"agent-teams.docs-protocol\";\n        version: 1;\n    }>;\n    projectId?: string;\n    environment: {\n        readonly installedFoundationVersion: string;\n        readonly installedFoundationBuildIdentity: string;\n        readonly filesystem: {\n            readonly basis: \"platform-contract\";\n            readonly strictDirectoryDurability: \"platform-supported\" | \"platform-unsupported\";\n        };\n    };\n    transaction: Readonly<{\n        state: \"idle\";\n    }> | Readonly<{\n        state: \"recoverable\";\n        transactionKind: \"document\";\n        recovery: Readonly<{\n            commandId: \"docs.recover\";\n            args: Readonly<{\n                exactFoundationBuildIdentity: string;\n                exactFoundationVersion: string;\n            }>;\n        }>;\n    }> | Readonly<{\n        state: \"manual-recovery-required\";\n        transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n        reason: string;\n        recovery?: {\n            readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n            readonly args: Readonly<Record<string, string>>;\n        };\n    }>;\n}>>>;"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!docsDoctorV2:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
           "signature": "export declare function docsDoctorV2(input: DocsConsumerRequest): Promise<DocsExecutionV2<Readonly<{\n    kind: \"doctor\";\n    protocol: Readonly<{\n        id: \"agent-teams.docs-protocol\";\n        version: 1;\n    }>;\n    projectId?: string;\n    environment: {\n        readonly installedFoundationVersion: string;\n        readonly installedFoundationBuildIdentity: string;\n        readonly filesystem: {\n            readonly basis: \"platform-contract\";\n            readonly strictDirectoryDurability: \"platform-supported\" | \"platform-unsupported\";\n        };\n    };\n    transaction: Readonly<{\n        state: \"idle\";\n    }> | Readonly<{\n        state: \"recoverable\";\n        transactionKind: \"document\";\n        recovery: Readonly<{\n            commandId: \"docs.recover\";\n            args: Readonly<{\n                exactFoundationBuildIdentity: string;\n                exactFoundationVersion: string;\n            }>;\n        }>;\n    }> | Readonly<{\n        state: \"manual-recovery-required\";\n        transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n        reason: string;\n        recovery?: {\n            readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n            readonly args: Readonly<Record<string, string>>;\n        };\n    }>;\n}>>>;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!docsFind:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export declare function docsFind(input: DocsConsumerRequest & {\n    readonly query: DocsFindQuery;\n    readonly signal?: AbortSignal;\n}): Promise<DocsExecution<Readonly<{\n    kind: \"find\";\n    matches: number;\n    documents: readonly import(\"../domain/model.js\").DocsFindDocument[];\n}>>>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!docsFindV2:function(1)",
@@ -2500,18 +1520,11 @@
           "signature": "export declare function docsFindV3(input: DocsConsumerRequest & {\n    readonly query: DocsFindQueryV3;\n    readonly signal?: AbortSignal;\n}): Promise<DocsExecutionV3<DocsFindResultV3>>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!docsInfo:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export declare function docsInfo(input: DocsConsumerRequest): Promise<DocsExecution<Readonly<{\n    kind: \"info\";\n    projectId: string;\n    protocol: {\n        readonly id: typeof import(\"../domain/model.js\").DOCS_PROTOCOL_ID;\n        readonly version: typeof import(\"../domain/model.js\").DOCS_PROTOCOL_VERSION;\n    };\n    foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v2-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 2;\n    };\n    agentWorkflow: {\n        readonly skillPath: string;\n    };\n    metadataSchemaPath: string;\n    metadataSidecar: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"path-metadata-map\";\n        readonly path: string;\n    };\n    ownerIds: readonly string[];\n    types: readonly import(\"../domain/model.js\").DocsTypeProfile[];\n    semanticValidatorIds: readonly string[];\n}>>>;"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!docsInfoV2:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function docsInfoV2(input: DocsConsumerRequest): Promise<DocsExecutionV2<Readonly<{\n    kind: \"info\";\n    projectId: string;\n    protocol: {\n        readonly id: typeof import(\"../domain/model.js\").DOCS_PROTOCOL_ID;\n        readonly version: typeof import(\"../domain/model.js\").DOCS_PROTOCOL_VERSION;\n    } | {\n        readonly id: typeof import(\"../domain/model.js\").DOCS_PROTOCOL_ID;\n        readonly version: typeof import(\"../domain/model.js\").DOCS_PROTOCOL_VERSION;\n    };\n    foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v2-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 2;\n    } | {\n        readonly metadataSidecarPolicy: \"foundation-profile-v3-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 3;\n    };\n    agentWorkflow: {\n        readonly skillPath: string;\n    } | {\n        readonly skillPath: string;\n    };\n    authority: {\n        readonly metadataSchema: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly metadataSidecar?: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly ownerCatalog: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly profile: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly templates: readonly {\n            readonly evidence: {\n                readonly digest: string;\n                readonly path: string;\n                readonly size: number;\n            };\n            readonly type: string;\n        }[];\n    };\n    authorityPaths: readonly string[];\n    catalog: {\n        readonly collections: readonly unknown[];\n        readonly excludedPrefixes: readonly string[];\n    };\n    semanticDigest: string;\n    metadataSchemaPath: string;\n    metadataSidecar: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"path-metadata-map\";\n        readonly path: string;\n    };\n    ownerIds: readonly string[];\n    types: readonly import(\"../domain/model.js\").DocsTypeProfile[];\n    semanticValidatorIds: readonly string[];\n}>>>;"
+          "signature": "export declare function docsInfoV2(input: DocsConsumerRequest): Promise<DocsExecutionV2<Readonly<{\n    kind: \"info\";\n    projectId: string;\n    protocol: {\n        readonly id: typeof import(\"../domain/model.js\").DOCS_PROTOCOL_ID;\n        readonly version: typeof import(\"../domain/model.js\").DOCS_PROTOCOL_VERSION;\n    };\n    foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v3-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 3;\n    };\n    agentWorkflow: {\n        readonly adoption: \"portable-v1\";\n        readonly skillPath: string;\n    };\n    authority: {\n        readonly metadataSchema: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly metadataSidecar?: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly ownerCatalog: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly profile: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly templates: readonly {\n            readonly evidence: {\n                readonly digest: string;\n                readonly path: string;\n                readonly size: number;\n            };\n            readonly type: string;\n        }[];\n    };\n    authorityPaths: readonly string[];\n    catalog: {\n        readonly collections: readonly unknown[];\n        readonly excludedPrefixes: readonly string[];\n    };\n    semanticDigest: string;\n    metadataSchemaPath: string;\n    metadataSidecar: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"path-metadata-map\";\n        readonly path: string;\n    };\n    ownerIds: readonly string[];\n    types: readonly import(\"../domain/model.js\").DocsTypeProfile[];\n    semanticValidatorIds: readonly string[];\n}>>>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!docsInitApply:function(1)",
@@ -2535,13 +1548,6 @@
           "signature": "export declare function docsInitRecover(input: {\n    readonly consumerRoot: string;\n}): Promise<DocsInitRecovery>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!docsNew:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export declare function docsNew(input: DocsNewRequest): Promise<DocsExecution<DocsNewResult>>;"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!docsNewV2:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol!",
@@ -2556,18 +1562,11 @@
           "signature": "export declare function docsProfilePath(input: {\n    readonly consumerRoot: string;\n    readonly explicitProfilePath?: string;\n}): Promise<string>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!docsRecover:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export declare function docsRecover(input: DocsConsumerRequest & {\n    readonly signal?: AbortSignal;\n}): Promise<DocsExecution<Readonly<{\n    kind: \"recover\";\n    transactionState: \"no-pending-transaction\";\n    writeState: \"unchanged\";\n}>> | DocsExecution<Readonly<{\n    kind: \"recover\";\n    transactionState: \"manual-required\";\n    writeState: \"unknown\";\n    transaction: Readonly<{\n        state: \"idle\";\n    }> | Readonly<{\n        state: \"recoverable\";\n        transactionKind: \"document\";\n        recovery: Readonly<{\n            commandId: \"docs.recover\";\n            args: Readonly<{\n                exactFoundationBuildIdentity: string;\n                exactFoundationVersion: string;\n            }>;\n        }>;\n    }> | Readonly<{\n        state: \"manual-recovery-required\";\n        transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n        reason: string;\n        recovery?: {\n            readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n            readonly args: Readonly<Record<string, string>>;\n        };\n    }>;\n}>> | DocsExecution<Readonly<{\n    kind: \"recover\";\n    transactionState: \"recovered\" | \"recovery-required\";\n    writeState: \"committed\" | \"published-recovery-required\" | \"unchanged\" | \"unknown\";\n    receiptDigest: `sha256:${string}`;\n    receipt: Readonly<{\n        outcome: import(\"@agent-teams/engineering-foundation/document-authoring\").DocumentReceiptOutcome;\n        commit: Readonly<{\n            state: \"committed\" | \"manual-recovery-required\" | \"not-published\" | \"recovery-required\";\n            publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";\n            recoverability: \"not-required\" | \"preserved-for-recovery\";\n        }>;\n        directoryMaterialization?: {\n            readonly state: \"none-created\" | \"created-and-retained\" | \"preserved-unknown\";\n            readonly plannedDirectories: readonly string[];\n            readonly observedCreatedDirectories: readonly string[];\n        };\n    }>;\n}>>>;"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!docsRecoverV2:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function docsRecoverV2(input: DocsConsumerRequest & {\n    readonly signal?: AbortSignal;\n}): Promise<DocsExecutionV2<Readonly<{\n    kind: \"recover\";\n    transactionState: \"no-pending-transaction\";\n    writeState: \"unchanged\";\n}>> | DocsExecutionV2<Readonly<{\n    kind: \"recover\";\n    transactionState: \"manual-required\";\n    writeState: \"unknown\";\n    transaction: Readonly<{\n        state: \"idle\";\n    }> | Readonly<{\n        state: \"recoverable\";\n        transactionKind: \"document\";\n        recovery: Readonly<{\n            commandId: \"docs.recover\";\n            args: Readonly<{\n                exactFoundationBuildIdentity: string;\n                exactFoundationVersion: string;\n            }>;\n        }>;\n    }> | Readonly<{\n        state: \"manual-recovery-required\";\n        transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n        reason: string;\n        recovery?: {\n            readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n            readonly args: Readonly<Record<string, string>>;\n        };\n    }>;\n}>> | DocsExecutionV2<Readonly<{\n    kind: \"recover\";\n    transactionState: \"recovered\" | \"recovery-required\";\n    writeState: \"committed\" | \"published-recovery-required\" | \"unchanged\" | \"unknown\";\n    receiptDigest: `sha256:${string}`;\n    receipt: Readonly<{\n        outcome: import(\"@agent-teams/engineering-foundation/document-authoring\").DocumentReceiptOutcome;\n        commit: Readonly<{\n            state: \"committed\" | \"manual-recovery-required\" | \"not-published\" | \"recovery-required\";\n            publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";\n            recoverability: \"not-required\" | \"preserved-for-recovery\";\n        }>;\n        directoryMaterialization?: {\n            readonly state: \"none-created\" | \"created-and-retained\" | \"preserved-unknown\";\n            readonly plannedDirectories: readonly string[];\n            readonly observedCreatedDirectories: readonly string[];\n        };\n    }>;\n}>>>;"
+          "signature": "export declare function docsRecoverV2(input: DocsConsumerRequest & {\n    readonly signal?: AbortSignal;\n}): Promise<DocsExecutionV2<Readonly<{\n    kind: \"recover\";\n    transactionState: \"no-pending-transaction\";\n    writeState: \"unchanged\";\n}>> | DocsExecutionV2<Readonly<{\n    kind: \"recover\";\n    transactionState: \"manual-required\";\n    writeState: \"unknown\";\n    transaction: Readonly<{\n        state: \"idle\";\n    }> | Readonly<{\n        state: \"recoverable\";\n        transactionKind: \"document\";\n        recovery: Readonly<{\n            commandId: \"docs.recover\";\n            args: Readonly<{\n                exactFoundationBuildIdentity: string;\n                exactFoundationVersion: string;\n            }>;\n        }>;\n    }> | Readonly<{\n        state: \"manual-recovery-required\";\n        transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n        reason: string;\n        recovery?: {\n            readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n            readonly args: Readonly<Record<string, string>>;\n        };\n    }>;\n}>> | DocsExecutionV2<Readonly<{\n    kind: \"recover\";\n    transactionState: \"recovered\" | \"recovery-required\";\n    writeState: \"committed\" | \"published-recovery-required\" | \"unchanged\" | \"unknown\";\n    receiptDigest: `sha256:${string}`;\n    receipt: Readonly<{\n        outcome: import(\"@agent-teams/document-authoring\").DocumentReceiptOutcome;\n        commit: Readonly<{\n            state: \"committed\" | \"manual-recovery-required\" | \"not-published\" | \"recovery-required\";\n            publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";\n            recoverability: \"not-required\" | \"preserved-for-recovery\";\n        }>;\n        directoryMaterialization?: {\n            readonly state: \"none-created\" | \"created-and-retained\" | \"preserved-unknown\";\n            readonly plannedDirectories: readonly string[];\n            readonly observedCreatedDirectories: readonly string[];\n        };\n    }>;\n}>>>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!projectCommunityLlmsText:function(1)",
@@ -2582,13 +1581,6 @@
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
           "signature": "export declare function rankCommunityDocuments(input: RankCommunityDocumentsInput): readonly CommunityRankedDocument[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!renderDocsHuman:function(1)",
-          "kind": "Function",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export declare function renderDocsHuman(envelope: DocsCommandEnvelope): string;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!renderDocsHumanV2:function(1)",
@@ -2750,27 +1742,6 @@
           "signature": "export interface DocsNewRequest"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationContractV2#scenarios:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationContractV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly scenarios: readonly DocsProtocolQualificationScenarioV2[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationContractV2#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationContractV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 2;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationContractV2:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export interface DocsProtocolQualificationContractV2"
-        },
-        {
           "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceipt#appliedDocumentPath:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceipt:interface",
@@ -2804,76 +1775,6 @@
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
           "signature": "export interface DocsProtocolQualificationReceipt"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#checks:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly checks: readonly (\"info\" | \"find\" | \"check\" | \"doctor\" | \"recover\" | \"preview\" | \"apply\" | \"path\" | \"reachability\" | \"golden\" | \"source-unchanged\")[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#cohortAdmissible:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly cohortAdmissible: boolean;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#derived:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly derived: {\n        readonly contractPath: string;\n        readonly gateCommand: string;\n        readonly packageVersions: {\n            readonly docsProtocol: string;\n            readonly engineeringFoundation: string;\n        };\n        readonly profilePath: string;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#evidence:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly evidence: {\n        readonly sourceDigest: `sha256:${string}`;\n        readonly integration: {\n            readonly path: string;\n            readonly digest: `sha256:${string}`;\n        };\n        readonly contract: {\n            readonly path: string;\n            readonly digest: `sha256:${string}`;\n        };\n        readonly profile: {\n            readonly path: string;\n            readonly digest: `sha256:${string}`;\n        };\n        readonly skill: {\n            readonly path: string;\n            readonly digest: `sha256:${string}`;\n        };\n        readonly packageManifestDigest: `sha256:${string}`;\n        readonly lockfileDigest: `sha256:${string}`;\n        readonly executingDocsProtocol: {\n            readonly version: string;\n            readonly buildDigest: `sha256:${string}`;\n        };\n        readonly executingFoundation: {\n            readonly version: string;\n            readonly buildIdentity: `sha256:${string}`;\n        };\n        readonly cohort: Readonly<Record<string, unknown>>;\n    };"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#evidenceClass:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly evidenceClass: \"local-development\" | \"released-cohort\";"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#projectId:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly projectId: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#receiptDigest:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly receiptDigest: `sha256:${string}`;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#scenarios:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly scenarios: readonly {\n        readonly id: string;\n        readonly type: string;\n        readonly documentPath: string;\n        readonly outputDigest: string;\n    }[];"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2#schemaVersion:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "parentKind": "Interface",
-          "signature": "readonly schemaVersion: 2;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationReceiptV2:interface",
-          "kind": "Interface",
-          "parentReference": "@agent-teams/docs-protocol!",
-          "parentKind": "EntryPoint",
-          "signature": "export interface DocsProtocolQualificationReceiptV2"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationRequest#fixtureRoot:member",
@@ -2932,74 +1833,158 @@
           "signature": "export interface DocsProtocolQualificationScenario"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2#expected:member",
+          "canonicalReference": "@agent-teams/docs-protocol!PortableQualificationProtocol#checkV2:member",
           "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2:interface",
+          "parentReference": "@agent-teams/docs-protocol!PortableQualificationProtocol:interface",
           "parentKind": "Interface",
-          "signature": "readonly expected: {\n        readonly documentPath: string;\n        readonly metadataStorage: \"frontmatter\";\n        readonly reachability: unknown;\n        readonly goldenFile?: string;\n        readonly goldenDigest?: `sha256:${string}`;\n    };"
+          "signature": "readonly checkV2: (input: {\n        readonly consumerRoot: string;\n        readonly profilePath: string;\n        readonly signal?: AbortSignal;\n    }) => Promise<{\n        readonly envelope: {\n            readonly result: {\n                readonly kind: \"check\";\n            };\n        };\n        readonly exitCode: 0 | 1 | 2 | 3 | 130;\n    }>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2#id:member",
+          "canonicalReference": "@agent-teams/docs-protocol!PortableQualificationProtocol#doctorV2:member",
           "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2:interface",
+          "parentReference": "@agent-teams/docs-protocol!PortableQualificationProtocol:interface",
           "parentKind": "Interface",
-          "signature": "readonly id: string;"
+          "signature": "readonly doctorV2: (input: {\n        readonly consumerRoot: string;\n        readonly profilePath: string;\n        readonly signal?: AbortSignal;\n    }) => Promise<{\n        readonly envelope: {\n            readonly outcome: \"authority-stale\" | \"cancelled\" | \"conflict\" | \"execution-failure\" | \"invalid-input\" | \"recovery-required\" | \"success\" | \"violation\";\n            readonly result: {\n                readonly environment: {\n                    readonly installedFoundationBuildIdentity: string;\n                    readonly installedFoundationVersion: string;\n                };\n                readonly kind: \"doctor\";\n                readonly transaction: {\n                    readonly state: \"idle\";\n                } | {\n                    readonly state: \"recoverable\";\n                } | {\n                    readonly state: \"manual-recovery-required\";\n                };\n            };\n        };\n        readonly exitCode: 0 | 1 | 2 | 3 | 130;\n    }>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2#intent:member",
+          "canonicalReference": "@agent-teams/docs-protocol!PortableQualificationProtocol#findV2:member",
           "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2:interface",
+          "parentReference": "@agent-teams/docs-protocol!PortableQualificationProtocol:interface",
           "parentKind": "Interface",
-          "signature": "readonly intent: {\n        readonly id: string;\n        readonly title: string;\n        readonly owner: string;\n        readonly summary: string;\n        readonly slug?: string;\n        readonly destination?: string;\n        readonly related?: readonly string[];\n        readonly blockedBy?: readonly string[];\n        readonly codeAnchors?: readonly {\n            readonly enforcement: \"advisory\" | \"required\";\n            readonly pattern: string;\n        }[];\n        readonly metadata?: Readonly<Record<string, DocumentJsonValue>>;\n    };"
+          "signature": "readonly findV2: (input: {\n        readonly consumerRoot: string;\n        readonly profilePath: string;\n        readonly query: DocsFindQuery;\n        readonly signal?: AbortSignal;\n    }) => Promise<{\n        readonly envelope: {\n            readonly result: {\n                readonly kind: \"find\";\n                readonly documents: readonly {\n                    readonly id: string;\n                }[];\n            };\n        };\n        readonly exitCode: 0 | 1 | 2 | 3 | 130;\n    }>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2#type:member",
+          "canonicalReference": "@agent-teams/docs-protocol!PortableQualificationProtocol#infoV2:member",
           "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2:interface",
+          "parentReference": "@agent-teams/docs-protocol!PortableQualificationProtocol:interface",
           "parentKind": "Interface",
-          "signature": "readonly type: string;"
+          "signature": "readonly infoV2: (input: {\n        readonly consumerRoot: string;\n        readonly profilePath: string;\n        readonly signal?: AbortSignal;\n    }) => Promise<{\n        readonly envelope: {\n            readonly result: {\n                readonly kind: \"info\";\n                readonly projectId: string;\n                readonly types: readonly {\n                    readonly type: string;\n                }[];\n            };\n        };\n        readonly exitCode: 0 | 1 | 2 | 3 | 130;\n    }>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationScenarioV2:interface",
+          "canonicalReference": "@agent-teams/docs-protocol!PortableQualificationProtocol#newDocumentV2:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!PortableQualificationProtocol:interface",
+          "parentKind": "Interface",
+          "signature": "readonly newDocumentV2: (input: DocsNewRequest) => Promise<{\n        readonly envelope: {\n            readonly result: {\n                readonly kind: \"new\";\n            };\n        };\n        readonly exitCode: 0 | 1 | 2 | 3 | 130;\n    }>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!PortableQualificationProtocol#recoverV2:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol!PortableQualificationProtocol:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recoverV2: (input: {\n        readonly consumerRoot: string;\n        readonly profilePath: string;\n        readonly signal?: AbortSignal;\n    }) => Promise<{\n        readonly envelope: {\n            readonly result: {\n                readonly kind: \"recover\";\n                readonly transactionState: \"no-pending-transaction\";\n                readonly writeState: \"unchanged\";\n            } | {\n                readonly kind: \"recover\";\n                readonly transactionState: \"manual-required\";\n                readonly writeState: \"unknown\";\n            } | {\n                readonly kind: \"recover\";\n                readonly transactionState: \"recovered\" | \"recovery-required\";\n                readonly writeState: \"committed\" | \"published-recovery-required\" | \"unchanged\" | \"unknown\";\n                readonly receiptDigest: `sha256:${string}`;\n                readonly receipt: {\n                    readonly commit: {\n                        readonly publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";\n                        readonly state: \"committed\" | \"manual-recovery-required\" | \"not-published\" | \"recovery-required\";\n                    };\n                    readonly directoryMaterialization?: {\n                        readonly observedCreatedDirectories: readonly string[];\n                        readonly state: \"none-created\" | \"created-and-retained\" | \"preserved-unknown\";\n                    };\n                    readonly outcome: \"applied\" | \"already-applied\" | \"authority-stale\" | \"cancelled\" | \"failed-before-publication\" | \"manual-recovery-required\" | \"recovery-required\" | \"rejected\";\n                };\n            };\n        };\n        readonly exitCode: 0 | 1 | 2 | 3 | 130;\n    }>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!PortableQualificationProtocol:interface",
           "kind": "Interface",
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
-          "signature": "export interface DocsProtocolQualificationScenarioV2"
+          "signature": "export interface PortableQualificationProtocol"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request#consumerRoot:member",
+          "canonicalReference": "@agent-teams/docs-protocol!QualificationEvidenceEntryKind:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export type QualificationEvidenceEntryKind = \"directory\" | \"file\" | \"other\" | \"symbolic-link\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!QualificationEvidencePolicy#governedRoots:member",
           "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request:interface",
+          "parentReference": "@agent-teams/docs-protocol!QualificationEvidencePolicy:interface",
           "parentKind": "Interface",
-          "signature": "readonly consumerRoot: string;"
+          "signature": "readonly governedRoots: readonly string[];"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request#integrationPath:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request:interface",
-          "parentKind": "Interface",
-          "signature": "readonly integrationPath?: string;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request#localDevelopment:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request:interface",
-          "parentKind": "Interface",
-          "signature": "readonly localDevelopment?: boolean;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request#signal:member",
-          "kind": "PropertySignature",
-          "parentReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request:interface",
-          "parentKind": "Interface",
-          "signature": "readonly signal?: AbortSignal;"
-        },
-        {
-          "canonicalReference": "@agent-teams/docs-protocol!DocsProtocolQualificationV2Request:interface",
+          "canonicalReference": "@agent-teams/docs-protocol!QualificationEvidencePolicy:interface",
           "kind": "Interface",
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
-          "signature": "export interface DocsProtocolQualificationV2Request"
+          "signature": "export interface QualificationEvidencePolicy"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!applyReachability:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function applyReachability(root: string, reachability: unknown): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!bootstrapQualificationInstallation:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function bootstrapQualificationInstallation(consumerRoot: string, rewriteManifest: boolean): Promise<{\n    readonly docsVersion: string;\n    readonly authoringVersion: string;\n    readonly mutationVersion: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!changedPaths:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function changedPaths(before: ReadonlyMap<string, string>, after: ReadonlyMap<string, string>): readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!digest:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function digest(value: Uint8Array | string): `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!documentResult:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function documentResult(execution: {\n    readonly envelope: {\n        readonly result: unknown;\n    };\n    readonly exitCode: number;\n}): {\n    readonly documentPath: string;\n    readonly planDigest: string;\n    readonly compiled?: {\n        readonly document?: {\n            readonly content?: string;\n            readonly digest?: string;\n        };\n    };\n    readonly receiptDigest?: string;\n    readonly reachability: unknown;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!fileSnapshot:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function fileSnapshot(root: string, policy?: QualificationEvidencePolicy): Promise<ReadonlyMap<string, string>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!interruptAndRecover:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function interruptAndRecover(input: {\n    readonly base: Omit<DocsNewRequest, \"apply\">;\n    readonly consumerRoot: string;\n    readonly previewResult: ReturnType<typeof documentResult>;\n    readonly profilePath: string;\n    readonly protocol: PortableQualificationProtocol;\n}): Promise<{\n    readonly receiptDigest: string;\n    readonly receipt: {\n        readonly commit: {\n            readonly publication: \"published\";\n            readonly state: \"committed\";\n        };\n        readonly directoryMaterialization?: {\n            readonly observedCreatedDirectories: readonly string[];\n            readonly state: string;\n        };\n        readonly outcome: \"applied\";\n    };\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!isQualificationEvidenceExcludedPath:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function isQualificationEvidenceExcludedPath(root: string, repositoryPath: string, policy: QualificationEvidencePolicy, observation: \"mutation\" | \"source\", entryKind: QualificationEvidenceEntryKind): Promise<boolean>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!portableQualificationSkill:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function portableQualificationSkill(): Buffer;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!qualificationEvidencePolicy:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function qualificationEvidencePolicy(governedRoots: readonly string[]): QualificationEvidencePolicy;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!readContainedBoundedFile:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function readContainedBoundedFile(root: string, repositoryPath: string, label: string, maximumBytes?: number): Promise<{\n    readonly bytes: Buffer;\n    readonly digest: `sha256:${string}`;\n    readonly path: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!requireSuccess:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function requireSuccess(label: string, execution: {\n    readonly envelope?: unknown;\n    readonly exitCode: number;\n}): void;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol!runDocsProtocolQualification:function(1)",
@@ -3009,11 +1994,18 @@
           "signature": "export declare function runDocsProtocolQualification(request: DocsProtocolQualificationRequest): Promise<DocsProtocolQualificationReceipt>;"
         },
         {
-          "canonicalReference": "@agent-teams/docs-protocol!runDocsProtocolQualificationV2:function(1)",
+          "canonicalReference": "@agent-teams/docs-protocol!signalOption:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function runDocsProtocolQualificationV2(request: DocsProtocolQualificationV2Request): Promise<DocsProtocolQualificationReceiptV2>;"
+          "signature": "export declare function signalOption(signal: AbortSignal | undefined): {\n    readonly signal?: AbortSignal;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol!snapshot:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function snapshot(root: string, policy?: QualificationEvidencePolicy): Promise<string>;"
         }
       ]
     }

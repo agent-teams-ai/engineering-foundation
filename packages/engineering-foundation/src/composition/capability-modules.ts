@@ -71,7 +71,7 @@ function defineCapabilityModule(
 export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
   Object.freeze([
     defineCapabilityModule(
-      createJsonSchemaReleaseCapability(),
+      createJsonSchemaReleaseCapability({ assertSchema }),
       JSON_SCHEMA_RELEASE_RULES_BY_ID
     ),
     defineCapabilityModule(
@@ -83,7 +83,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createExecutableSpecificationsCapability({ workspaceManifestPathReader: createWorkspaceInventoryReader(), createJsonSchemaInspector }),
+      createExecutableSpecificationsCapability({ workspaceManifestPathReader: createWorkspaceInventoryReader(), createJsonSchemaInspector, assertSchema }),
       EXECUTABLE_SPECIFICATION_RULES_BY_ID
     ),
     defineCapabilityModule(

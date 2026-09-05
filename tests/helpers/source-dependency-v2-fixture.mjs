@@ -1,4 +1,4 @@
-import { sourceDependencyAdapters, sourceConfigurationDependencies } from "../support/capability-adapters.mjs";
+import { sourceDependencyAdapters, schemaConfigurationDependencies } from "../support/capability-adapters.mjs";
 import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -57,7 +57,7 @@ const [
 ]);
 
 export const loadCapabilityConfig = (root, path, signal, observeSchemaVersion) => loadSourceDependencyCapabilityConfig(
-  sourceConfigurationDependencies(), root, path, signal, observeSchemaVersion
+  schemaConfigurationDependencies(), root, path, signal, observeSchemaVersion
 );
 export { PnpmWorkspaceInventoryReader };
 export { revalidateStableRepositoryPath };

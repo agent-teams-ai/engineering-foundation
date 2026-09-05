@@ -8,9 +8,12 @@ import { FilesystemExecutableSpecificationInspector } from "./adapters/outbound/
 import { analyzeExecutableSpecifications } from "./application/use-cases/analyze-executable-specifications.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
+
+import { loadCapabilityConfig, type ExecutableConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
+import { readContainedRegularFile } from "../../source-inventory/node.js";
 
 export { FilesystemExecutableSpecificationInspector } from "./adapters/outbound/filesystem/filesystem-executable-specification-inspector.js";
 export type {
@@ -35,6 +38,7 @@ export type { JsonSchemaInspectorFactory } from "./api.js";
 export type { WorkspaceManifestPathReader } from "./api.js";
 
 export function createExecutableSpecificationsCapability(dependencies: {
+  readonly assertSchema: ExecutableConfigurationDependencies["assertSchema"];
   readonly workspaceManifestPathReader: import("./application/ports/workspace-manifest-path-reader.js").WorkspaceManifestPathReader;
   readonly createJsonSchemaInspector: import("./application/ports/json-schema-inspector-factory.js").JsonSchemaInspectorFactory;
 }): CapabilityDefinition {
@@ -47,6 +51,7 @@ export function createExecutableSpecificationsCapability(dependencies: {
     async run(invocation: CapabilityInvocation) {
       try {
         const catalog = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, readFile: readContainedRegularFile, assertSchema: dependencies.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

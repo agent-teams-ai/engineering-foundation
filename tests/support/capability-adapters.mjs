@@ -22,11 +22,11 @@ export const createWorkflowProcess = () => workflow.createProcessExecution(creat
 export function sourceDependencyAdapters() {
   return { sourceReader: source.createSourceTreeReader(), inventoryReader: workspace.createWorkspaceInventoryReader(), assertSchema: schemaCatalog.assertSchema };
 }
-export function sourceConfigurationDependencies() {
+export function schemaConfigurationDependencies() {
   return { readYaml: configurationInput.loadStrictYamlFile, assertSchema: schemaCatalog.assertSchema };
 }
 export function executableSpecificationAdapters() {
-  return { workspaceManifestPathReader: workspace.createWorkspaceInventoryReader(), createJsonSchemaInspector };
+  return { workspaceManifestPathReader: workspace.createWorkspaceInventoryReader(), createJsonSchemaInspector, assertSchema: schemaCatalog.assertSchema };
 }
 export function protobufAdapters() {
   return { acceptedDecisionEvidence: new protobuf.GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence) };

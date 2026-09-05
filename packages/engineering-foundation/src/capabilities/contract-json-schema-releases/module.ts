@@ -9,9 +9,11 @@ import type { JsonSchemaReleaseInspector } from "./application/ports/json-schema
 import { verifyJsonSchemaRelease } from "./application/use-cases/verify-json-schema-release.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
+
+import { loadCapabilityConfig, type JsonSchemaConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export { AjvJsonSchemaReleaseInspector } from "./adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
 export {
@@ -35,11 +37,12 @@ export {
 export { verifyJsonSchemaRelease } from "./application/use-cases/verify-json-schema-release.js";
 
 export interface JsonSchemaReleaseCapabilityDependencies {
+  readonly assertSchema: JsonSchemaConfigurationDependencies["assertSchema"];
   readonly inspector?: JsonSchemaReleaseInspector;
 }
 
 export function createJsonSchemaReleaseCapability(
-  dependencies: JsonSchemaReleaseCapabilityDependencies = {}
+  dependencies: JsonSchemaReleaseCapabilityDependencies
 ): CapabilityDefinition {
   const inspector = dependencies.inspector ?? new AjvJsonSchemaReleaseInspector();
   return Object.freeze({
@@ -48,6 +51,7 @@ export function createJsonSchemaReleaseCapability(
     async run(invocation: CapabilityInvocation) {
       try {
         const policy = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema: dependencies.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

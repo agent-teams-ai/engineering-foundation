@@ -2413,6 +2413,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/executable-specifications/api.ts
     allow:
       boundaries:
+        - foundation.source-inventory.application
         - capability.contract-json-schema.application
         - foundation.core
         - foundation.validation-reporting.application
@@ -2420,6 +2421,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/executable-specifications/application/model/executable-specification.ts
       - packages/engineering-foundation/src/capabilities/executable-specifications/application/policies/evaluate-executable-specifications.ts
       - packages/engineering-foundation/src/capabilities/executable-specifications/application/policies/portable-executable-specification-path.ts
@@ -2433,17 +2435,9 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/executable-specifications/contract
     allow:
-      boundaries:
-        - capability.executable-specifications.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
-        - foundation.configuration-input.composition
-      packages: [ "@agent-teams/repository-mutation" ]
-      builtins:
-        - node:path
+      boundaries: []
+      packages: []
+      builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/executable-specifications/contract/config.ts
@@ -2463,12 +2457,15 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/executable-specifications/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/executable-specifications/adapters/outbound/filesystem/filesystem-executable-specification-inspector.ts
   - id: capability.executable-specifications.composition
     roots:
       - packages/engineering-foundation/src/capabilities/executable-specifications/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
+        - foundation.source-inventory.composition
         - capability.executable-specifications.adapters
         - capability.executable-specifications.application
         - capability.executable-specifications.contract
@@ -2485,12 +2482,14 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/api.ts
     allow:
       boundaries:
+        - foundation.source-inventory.application
         - foundation.core
         - foundation.validation-reporting.application
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/model/json-schema-release.ts
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/policies/evaluate-json-schema-release.ts
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application/ports/json-schema-release-inspector.ts
@@ -2501,13 +2500,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/contract
     allow:
-      boundaries:
-        - capability.contract-json-schema.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2518,6 +2511,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/adapters
     allow:
       boundaries:
+        - capability.contract-json-schema.contract
         - capability.contract-json-schema.application
         - foundation.core
         - foundation.validation-reporting.application
@@ -2533,12 +2527,14 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/adapters/outbound/filesystem/ajv-json-schema-release-inspector.ts
   - id: capability.contract-json-schema.composition
     roots:
       - packages/engineering-foundation/src/capabilities/contract-json-schema-releases/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.contract-json-schema.adapters
         - capability.contract-json-schema.application
         - capability.contract-json-schema.contract

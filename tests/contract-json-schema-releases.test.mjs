@@ -1,3 +1,4 @@
+import { schemaConfigurationDependencies } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import {
   mkdir,
@@ -38,8 +39,10 @@ const jsonSchemaConfig = await import(
       distRoot,
       "capabilities",
       "contract-json-schema-releases",
-      "contract",
-      "config.js",
+      "adapters",
+      "inbound",
+      "configuration",
+      "load-capability-config.js",
     ),
   ).href,
 );
@@ -371,7 +374,7 @@ test("rejects a JSON Schema released-baseline pointer outside the release-owned 
     const config = capabilityConfig(observation, "tmp/reset-history.yaml");
     await writeYaml(root, "contract.yaml", config);
     await assert.rejects(
-      jsonSchemaConfig.loadCapabilityConfig(root, "contract.yaml"),
+      jsonSchemaConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml"),
       /releasedBaselinePath must match pattern/u,
     );
   });
@@ -575,7 +578,7 @@ test("runs as a deterministic capability and closes unexpected inspector failure
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
     const observation = await inspector.inspect(request(root));
     await writeSeparatedPolicy(root, observation, "architecture/contracts/released.json");
-    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(first.outcome, "passed");
@@ -600,6 +603,7 @@ test("runs as a deterministic capability and closes unexpected inspector failure
 
     await writeSeparatedPolicy(root, observation);
     const failedCapability = jsonSchemaModule.createJsonSchemaReleaseCapability({
+      assertSchema: schemaConfigurationDependencies().assertSchema,
       inspector: {
         async inspect() {
           throw new Error("unexpected adapter failure");
@@ -617,7 +621,7 @@ test("requires an explicitly supported root configuration schema version", async
   await withContractFixture(async (root) => {
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
     const observation = await inspector.inspect(request(root));
-    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
 
     const missingVersion = capabilityConfig(observation);
     delete missingVersion.schemaVersion;
@@ -702,7 +706,7 @@ test("loads a separate released baseline deterministically and rejects inline su
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
     const observation = await inspector.inspect(request(root));
     await writeSeparatedPolicy(root, observation);
-    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
 
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -724,7 +728,7 @@ test("rejects missing, escaping, and invalid released JSON Schema baselines", as
   await withContractFixture(async (root) => {
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector();
     const observation = await inspector.inspect(request(root));
-    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability();
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
     const config = capabilityConfig(observation);
     await writeYaml(root, "contract.yaml", config);
 

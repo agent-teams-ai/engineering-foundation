@@ -26,12 +26,8 @@ const SOURCE_EXTENSIONS = new Set([
   ".ts",
   ".tsx"
 ]);
-const IGNORED_DIRECTORY_NAMES = new Set([
-  ".git",
-  "coverage",
-  "dist",
-  "node_modules"
-]);
+const REPOSITORY_METADATA_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
+const PACKAGE_GENERATED_DIRECTORY_NAMES = new Set(["coverage", "dist"]);
 
 export interface SourceWorkspaceDiscoveryLimits {
   readonly maxDirectoryEntries: number;
@@ -250,6 +246,27 @@ function childRepositoryPath(parent: string, name: string): string {
   return parent === "." ? name : posix.join(parent, name);
 }
 
+function isExcludedDirectory(
+  name: string,
+  parentIsPackageRoot: boolean
+): boolean {
+  if (REPOSITORY_METADATA_DIRECTORY_NAMES.has(name)) {
+    return true;
+  }
+  return parentIsPackageRoot && PACKAGE_GENERATED_DIRECTORY_NAMES.has(name);
+}
+
+function isPackageRootLocation(
+  repositoryPath: string,
+  repositoryRootIdentities: ReadonlySet<string>
+): boolean {
+  const identity = portableRepositoryPathIdentity(repositoryPath);
+  return (
+    repositoryRootIdentities.has(identity) ||
+    repositoryRootIdentities.has(posix.dirname(identity))
+  );
+}
+
 function assertPortablePaths(paths: readonly string[], kind: string): void {
   const identities = new Map<string, string>();
   for (const path of paths) {
@@ -289,6 +306,9 @@ export async function discoverSourceWorkspacePaths(
   const selectedPackageRootIdentities = new Set(
     (options.selectedPackageRoots ?? []).map(portableRepositoryPathIdentity)
   );
+  const repositoryRootIdentities = new Set(
+    options.repositoryRoots.map(portableRepositoryPathIdentity)
+  );
   const isSelectedPackageRootOrAncestor = (repositoryPath: string): boolean => {
     const identity = portableRepositoryPathIdentity(repositoryPath);
     return [...selectedPackageRootIdentities].some(
@@ -324,12 +344,17 @@ export async function discoverSourceWorkspacePaths(
       ...(options.signal === undefined ? {} : { signal: options.signal })
     });
     directorySnapshots.push(captured);
+    // A package root is the configured path or a manifest-bearing direct child.
+    // Nested source/type scopes cannot turn their coverage/dist into build output.
+    const cursorIsPackageRoot =
+      isPackageRootLocation(cursor.repositoryPath, repositoryRootIdentities) &&
+      entries.some((entry) => entry.name === "package.json" && entry.isFile());
     const childDirectories: DirectoryCursor[] = [];
     for (const entry of entries) {
       assertNotCancelled(options.signal);
       const repositoryPath = childRepositoryPath(cursor.repositoryPath, entry.name);
       if (
-        IGNORED_DIRECTORY_NAMES.has(entry.name) &&
+        isExcludedDirectory(entry.name, cursorIsPackageRoot) &&
         !isSelectedPackageRootOrAncestor(repositoryPath)
       ) {
         if (entry.name === "dist" && entry.isSymbolicLink()) {

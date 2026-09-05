@@ -80,6 +80,11 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
     RULE_REGISTRIES,
     CAPABILITY_MODULES.map(({ rules }) => rules),
   );
+  assert.equal(Object.isFrozen(RULE_REGISTRIES), true);
+  assert.throws(() => RULE_REGISTRIES.push(new Map()), TypeError);
+  CAPABILITY_MODULES.forEach(({ rules }, index) => {
+    assert.equal(RULE_REGISTRIES[index], rules);
+  });
   const registeredRuleCount = CAPABILITY_MODULES.reduce(
     (count, { rules }) => count + rules.size,
     0,

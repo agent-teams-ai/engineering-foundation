@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { CapabilityInputError, FoundationError } from "../dist/features/validation-reporting/api.js";
+import {
+  CapabilityInputError,
+  FoundationError,
+  createCapabilityRegistry,
+  createRuleRegistries,
+  createRuleRegistry
+} from "../dist/features/validation-reporting/api.js";
+import { CAPABILITY_MODULES } from "../dist/composition/capability-modules.js";
 import { FilesystemPackageScriptCatalogReader } from "../dist/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { createQualityGateCliCommand } from "../dist/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.js";
 import { FilesystemEffectiveInstructionsReader } from "../dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.js";
@@ -168,4 +175,74 @@ test("CLI input rejection and unexpected errors preserve identity and release th
   assert.equal(released, 0);
   await assert.rejects(command({ ...parsed, positional: ["fast"] }, {}), (error) => error === unexpected);
   assert.equal(released, 1);
+});
+
+const registryDefinition = (id) => Object.freeze({
+  id,
+  configSchemaVersion: 1,
+  run: () => assert.fail("registry construction must not run capabilities"),
+});
+const registryExplanation = (id) => Object.freeze({
+  id, rationale: "rationale", remediation: "remediation", documentation: "docs",
+});
+
+test("registry factories preserve empty inputs, contribution order, and identity", () => {
+  const first = Object.freeze({
+    definition: registryDefinition("z"),
+    rules: new Map(["z.second", "z.first"].map((id) => [id, registryExplanation(id)])),
+  });
+  const empty = Object.freeze({ definition: registryDefinition("empty"), rules: new Map() });
+  const last = Object.freeze({
+    definition: registryDefinition("a"),
+    rules: new Map([["a.last", registryExplanation("a.last")]]),
+  });
+  const modules = Object.freeze([first, empty, last]);
+  assert.deepEqual([...createCapabilityRegistry([])], []);
+  const capabilities = createCapabilityRegistry(modules);
+  assert.deepEqual([...capabilities.keys()], ["z", "empty", "a"]);
+  for (const { definition: value } of modules) { assert.equal(capabilities.get(value.id), value); }
+  assert.notEqual(createCapabilityRegistry(modules), capabilities);
+  assert.deepEqual([...createRuleRegistry([])], []);
+  assert.deepEqual([...createRuleRegistry([empty, empty])], []);
+  const registry = createRuleRegistry(modules);
+  assert.deepEqual([...registry.keys()], ["z.second", "z.first", "a.last"]);
+  for (const { rules } of modules) {
+    for (const [id, value] of rules) { assert.equal(registry.get(id), value); }
+  }
+  assert.notEqual(createRuleRegistry(modules), registry);
+  assert.equal(createCapabilityRegistry([{ definition: first.definition }]).get("z"), first.definition);
+  assert.equal(createRuleRegistry([{ definition: { id: "z" }, rules: first.rules }]).get("z.first"), first.rules.get("z.first"));
+  const selected = createRuleRegistries([{ rules: first.rules }, { rules: empty.rules }, { rules: first.rules }]);
+  assert.deepEqual(selected, [first.rules, empty.rules, first.rules]);
+  assert.equal(selected[0], first.rules);
+  assert.equal(selected[2], first.rules);
+  assert.equal(Object.isFrozen(selected), true);
+  assert.throws(() => { selected[0] = last.rules; }, TypeError);
+  assert.throws(() => selected.pop(), TypeError);
+  assert.deepEqual(createRuleRegistries([]), []);
+  assert.equal(Object.isFrozen(createRuleRegistries([])), true);
+});
+
+test("rule metadata validation precedes duplicates and preserves first-error order", () => {
+  const [valid] = CAPABILITY_MODULES;
+  const [id, metadata] = valid.rules.entries().next().value;
+  const mismatched = {
+    definition: valid.definition,
+    rules: new Map([["foreign.rule", { ...metadata, id: "wrong.metadata" }]]),
+  };
+  const foreign = {
+    definition: valid.definition,
+    rules: new Map([["foreign.rule", { ...metadata, id: "foreign.rule" }]]),
+  };
+  const keyError = new Error("Rule registry key foreign.rule does not match metadata ID wrong.metadata.");
+  const ownerError = new Error(`Rule ID foreign.rule is not owned by capability ${valid.definition.id}.`);
+  assert.throws(() => createRuleRegistry([valid, valid, mismatched]), keyError);
+  assert.throws(() => createRuleRegistry([valid, valid, foreign]), ownerError);
+  assert.throws(() => createRuleRegistry([mismatched, foreign]), keyError);
+  assert.throws(() => createRuleRegistry([foreign, mismatched]), ownerError);
+  assert.throws(() => createRuleRegistry([valid, valid]), new Error(`Duplicate rule ID: ${id}.`));
+  assert.throws(() => createRuleRegistry([{
+    definition: { ...valid.definition, id: "cap" },
+    rules: new Map([["capability.rule", { ...metadata, id: "capability.rule" }]]),
+  }]), new Error("Rule ID capability.rule is not owned by capability cap."));
 });

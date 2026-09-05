@@ -172,3 +172,24 @@ declare const kernelLessDirectory: Omit<DocumentTransactionEnvelopeV4Base, "kern
 kernelLessFile satisfies DocumentTransactionEnvelopeBase;
 // @ts-expect-error Current directory envelopes require the exact Mutation coordinate.
 kernelLessDirectory satisfies DocumentTransactionEnvelopeV4Base;
+
+// Profile and environment APIs retain public request/result contracts without
+// depending on private composition functions in their declarations.
+import {
+  describeDocumentAuthoringProfileV2,
+  describeDocumentAuthoringProfileV3,
+  inspectDocumentAuthoringEnvironmentV1,
+  type DescribeDocumentAuthoringProfileV2Request,
+  type DescribeDocumentAuthoringProfileV3Request,
+  type DocumentAuthoringProfileDescriptionV2,
+  type DocumentAuthoringProfileDescriptionV3,
+  type DocumentEnvironmentInspection,
+  type InspectDocumentAuthoringEnvironmentV1Request
+} from "@agent-teams/document-authoring";
+const describeV2: (request: DescribeDocumentAuthoringProfileV2Request) => Promise<DocumentAuthoringProfileDescriptionV2> = describeDocumentAuthoringProfileV2;
+const describeV3: (request: DescribeDocumentAuthoringProfileV3Request) => Promise<DocumentAuthoringProfileDescriptionV3> = describeDocumentAuthoringProfileV3;
+const inspectEnvironment: (request: InspectDocumentAuthoringEnvironmentV1Request) => Promise<DocumentEnvironmentInspection> = inspectDocumentAuthoringEnvironmentV1;
+const projectedDescribeV2: typeof describeDocumentAuthoringProfileV2 = describeV2;
+const projectedDescribeV3: typeof describeDocumentAuthoringProfileV3 = describeV3;
+const projectedInspectEnvironment: typeof inspectDocumentAuthoringEnvironmentV1 = inspectEnvironment;
+void [projectedDescribeV2, projectedDescribeV3, projectedInspectEnvironment];

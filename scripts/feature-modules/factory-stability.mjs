@@ -53,7 +53,8 @@ function nestedScope(node, hidden) {
 }
 function children(node) {
   return Object.entries(node).filter(([key]) => {
-    if (["id", "params", "typeAnnotation", "returnType", "typeParameters", "typeArguments"].includes(key)) {return false;}
+    if (key === "id" && node.type !== "VariableDeclarator") {return false;}
+    if (["params", "typeAnnotation", "returnType", "typeParameters", "typeArguments"].includes(key)) {return false;}
     return !(node.type === "Property" && key === "key" && !node.computed) && !(node.type === "MemberExpression" && key === "property" && !node.computed);
   }).flatMap(([, value]) => Array.isArray(value) ? value : [value]);
 }
@@ -81,18 +82,20 @@ export function unstableFactoryBindings(body, bindings) {
     else if (node?.type === "AssignmentPattern") {write(node.left, hidden);}
     else {mark(node, hidden, node?.type === "Identifier" ? "unstable" : "contentsUnstable");}
   }
-  function scan(node, hidden, escaped) {
-    if (!node || typeof node !== "object") {return;}
-    // Defaults execute in the parameter environment, outside body var/function
-    // declarations. All real parameter bindings and expression self names shadow.
-    if (functionNode(node)) {
-      escaped = undefined;
-      const parameters = parameterScope(node, hidden);
-      for (const param of node.params) {scan(param, parameters, escaped);}
-    }
-    const scope = nestedScope(node, hidden);
-    if (escaped && node.type === "Identifier") {mark(node, scope, escaped);}
-    if (node.type === "AssignmentExpression") {scan(node.right, scope, "contentsUnstable");}
+  // Defaults execute outside body var/function declarations. Real parameters
+  // and named expression self bindings shadow enclosing names.
+  function scanFunction(node, hidden, escaped) {
+    const parameters = parameterScope(node, hidden);
+    for (const param of node.params) {scan(param, parameters);}
+    // A declaration in an untracked inner frame can pass its result to inner
+    // aliases just like an initializer copied into an untracked binding.
+    if (node.type === "FunctionDeclaration" && (hidden.has(node.id?.name) || !names.has(node.id?.name))) {escaped ??= "contentsUnstable";}
+    // Escaping a function result exposes its returned values, not each local
+    // read. A nested function gets its own return context.
+    scan(node.body, nestedScope(node, hidden), node.body?.type === "BlockStatement" ? undefined : escaped, escaped);
+  }
+  function scanEffects(node, scope) {
+    if (["AssignmentExpression", "AssignmentPattern"].includes(node.type)) {scan(node.right, scope, "contentsUnstable");}
     if (node.type === "VariableDeclarator" && [...bindingNames(node.id)].some((name) => scope.has(name) || !names.has(name))) {
       // A value copied into an untracked inner binding has escaped this finite
       // environment. Do not interpret subsequent inner alias mutations.
@@ -100,14 +103,34 @@ export function unstableFactoryBindings(body, bindings) {
     }
     if (node.type === "AssignmentExpression" ||
         (["ForInStatement", "ForOfStatement"].includes(node.type) && node.left.type !== "VariableDeclaration")) {write(node.left, scope);}
+    // Iteration hands values to a loop binding outside the tracked frame,
+    // including destructured bindings without a VariableDeclarator initializer.
+    if (node.type === "ForOfStatement") {scan(node.right, scope, "contentsUnstable");}
     if (node.type === "UpdateExpression" || (node.type === "UnaryExpression" && node.operator === "delete")) {write(node.argument, scope);}
+  }
+  function scan(node, hidden, escaped, returned) {
+    if (!node || typeof node !== "object") {return;}
+    if (functionNode(node)) {scanFunction(node, hidden, escaped); return;}
+    const scope = nestedScope(node, hidden);
+    if (node.type === "SwitchStatement") {
+      // Case declarations do not exist in the discriminant's environment.
+      scan(node.discriminant, hidden, escaped, returned);
+      for (const item of node.cases) {scan(item, scope, escaped, returned);}
+      return;
+    }
+    if (node.type === "ReturnStatement") {
+      scan(node.argument, scope, escaped ?? returned);
+      return;
+    }
+    if (escaped && node.type === "Identifier") {mark(node, scope, escaped);}
+    scanEffects(node, scope);
     if (["CallExpression", "NewExpression"].includes(node.type)) {
       if (node.callee.type === "MemberExpression") {mark(node.callee.object, scope, "receiverUnstable");}
       scan(node.callee, scope, escaped);
       for (const argument of node.arguments) {scan(argument, scope, "contentsUnstable");}
       return;
     }
-    for (const child of children(node)) {scan(child, scope, escaped);}
+    for (const child of children(node)) {scan(child, scope, escaped, returned);}
   }
 
   // The enclosing declarations are the tracked bindings, not shadows.

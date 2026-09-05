@@ -152,8 +152,11 @@ export function factoryOrigins(hooks) {
     if (identifier(node)) {return hooks.identifier(value, selection, next);}
     if (["TSAsExpression", "TSSatisfiesExpression"].includes(node.type)) {return resolve({ ...value, node: node.expression }, selection, next);}
     if (staticMember(node)) {return resolve({ ...value, node: node.object }, [node.property.name, ...selection], next);}
-    if (value.contentsUnstable && !functions.has(node.type)) {return unknown();}
-    if (value.receiverUnstable && !functions.has(node.type)) {
+    // Copying or passing a primitive cannot mutate its value. RegExp literals
+    // are objects; binding reassignment is still rejected above for every type.
+    const immutableValue = functions.has(node.type) || (node.type === "Literal" && !node.regex);
+    if (value.contentsUnstable && !immutableValue) {return unknown();}
+    if (value.receiverUnstable && !immutableValue) {
       const stable = { ...value, receiverUnstable: false };
       const members = resolve(stable, [], active);
       if (!members.length || members.some((member) => !member || !functions.has(member.node.type) || !receiverIndependent(member.node))) {return unknown();}

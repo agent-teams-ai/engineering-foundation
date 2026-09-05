@@ -49,6 +49,19 @@ export function registerFactoryReviewCases({ test, assert }) {
   };
   const owned = (result, path, role) => assert.deepEqual(result.owners, [{path, role}]);
   const importedFactory = 'import {createApi} from "../adapters/factory.js"; export const {execute}=createApi();';
+  for (const literal of ['"marker"', "42", "42n", "true", "null"]) {
+    test(`factory review preserves escaped primitive ${literal}`, () => {
+      const result=inspect({code:importedFactory,factory:'const marker='+literal+'; function use(alias=marker){} export function createApi(){return {execute:marker};}'});
+      owned(result,afactory,"adapters");
+      assert.ok(result.problems.some(({code})=>code==='layer-direction'));
+    });
+  }
+  test("factory review escaped RegExp literal remains unknown", () => unknown(inspect({
+    code:importedFactory,factory:'const marker=/x/g; function use(alias=marker){alias.lastIndex=1;} use(); export function createApi(){return {execute:marker};}'
+  })));
+  test("factory review reassigned primitive remains unknown", () => unknown(inspect({
+    code:importedFactory,factory:'let marker="safe"; marker="changed"; export function createApi(){return {execute:marker};}'
+  })));
   for (const [name, code] of [
     ["module object write", 'const state={execute:safe}; state.execute=read; function createApi(){return state;}'],
     ["module factory reassignment", 'function createApi(){return {execute:safe};} createApi=()=>({execute:read});'],
@@ -59,6 +72,59 @@ export function registerFactoryReviewCases({ test, assert }) {
     ["module captured default write", 'const state={execute:safe}; function replace(x=(state.execute=read)){} function createApi(){return state;}'],
   ]) {
     test(`factory review rejects ${name}`, () => unknown(inspect({code: imports+code+' export const {execute}=createApi();'})));
+  }
+  for (const [name, action] of [
+    ["default parameter alias", 'function replace(alias=state){alias.execute=read;} replace();'],
+    ["destructured parameter alias", 'function replace({alias=state}={}){alias.execute=read;} replace();'],
+    ["array parameter alias", 'function replace([alias=state]=[]){alias.execute=read;} replace();'],
+    ["default before body alias shadow", 'function replace(alias=state){var state={}; alias.execute=read;} replace();'],
+    ["for-of declaration alias", 'for(const alias of [state]){alias.execute=read;}'],
+    ["for-of destructured alias", 'for(const {alias} of [{alias:state}]){alias.execute=read;}'],
+    ["for-of var alias", 'for(var alias of [state]){alias.execute=read;}'],
+    ["returned alias write", 'function expose(){return state;} const alias=expose(); alias.execute=read;'],
+    ["arrow returned alias write", 'const expose=()=>state; const alias=expose(); alias.execute=read;'],
+    ["block arrow returned alias write", 'const expose=()=>{return state;}; const alias=expose(); alias.execute=read;'],
+    ["returned alias chain write", 'function expose(){return state;} const first=expose(); const alias=first; alias.execute=read;'],
+    ["returned object alias write", 'function expose(){return {value:state};} const holder=expose(); holder.value.execute=read;'],
+    ["binding default execution", 'const {value=(state.execute=read)}={};'],
+    ["array binding default execution", 'const [value=(state.execute=read)]=[];'],
+    ["binding computed key execution", 'const {[state.execute=read]:value}={};'],
+    ["nested binding default execution", 'const {nested:{value=(state.execute=read)}}={nested:{}};'],
+    ["for initializer binding execution", 'for(const {value=(state.execute=read)}={};false;){}'],
+    ["switch discriminant outer binding", 'switch(state.execute=read){default: const state={};}'],
+  ]) {
+    test(`factory review residual rejects ${name}`, () => unknown(inspect({
+      code: imports+' const state={execute:safe}; '+action+' function createApi(){return state;} export const {execute}=createApi();'
+    })));
+  }
+  for (const [name, change] of [
+    ["factory default alias", 'function change(alias=api){alias.execute=provided;}'],
+    ["factory destructured default alias", 'function change({alias=api}={}){alias.execute=provided;}'],
+    ["factory loop alias", 'function change(){for(const alias of [api]){alias.execute=provided;}}'],
+    ["factory returned alias", 'function change(){function expose(){return api;} const alias=expose(); alias.execute=provided;}'],
+    ["factory binding execution", 'function change(){const {value=(api.execute=provided)}={};}'],
+    ["factory switch discriminant", 'function change(){switch(api.execute=provided){default:const api={};}}'],
+  ]) {
+    test(`factory review residual rejects ${name}`, () => unknown(inspect({
+      code:'import {createApi} from "../application/factory.js"; import {read} from "../adapters/index.js"; export const execute=createApi(read);',
+      extra:{[fsroot+'/application/factory.js']:'import {safe} from "../domain/index.js"; export function createApi(provided){const api={execute:safe}; '+change+' return {api,change};}'}
+    })));
+  }
+  for (const [name, action] of [
+    ["unused returned alias", 'function expose(){return state;} const alias=expose();'],
+    ["unused arrow returned alias", 'const expose=()=>state; const alias=expose();'],
+    ["alias binding reassignment", 'function expose(){return state;} let alias=expose(); alias={execute:read};'],
+    ["returned primitive", 'function expose(){return 1;} const alias=expose();'],
+    ["parameter alias of inner shadow", 'function replace(state,alias=state){alias.execute=read;} replace({});'],
+    ["block binding initializer shadow", '{const state={}; const {value=(state.execute=read)}={};}'],
+    ["switch case local binding", 'switch(1){default:const state={}; state.execute=read;}'],
+    ["switch test local binding", 'switch(1){case (state.execute=read): break; default:const state={};}'],
+    ["for-of loop binding shadow", 'for(const state of [{}]){state.execute=read;}'],
+  ]) {
+    test(`factory review residual preserves ${name}`, () => {
+      const result=inspect({code:imports+' const state={execute:safe}; '+action+' function createApi(){return state;} export const {execute}=createApi();'});
+      owned(result,domain,"domain"); assert.deepEqual(result.problems,[]);
+    });
   }
   for (const [name, change] of [
     ["default parameter captured write", 'function change(value=(api.execute=provided)){}'],
@@ -177,6 +243,7 @@ export function registerFactoryReviewCases({ test, assert }) {
     const result=inspect({code:imports+aliases.join('')+' export const execute=a17;'});
     assert.ok(result.owners.length<=2, `expanded ${result.owners.length} origins`);
     assert.ok(result.owners.every(x=>x===null||x.path===domain));
+    unknown(result);
   });
   test("factory review expansion preserves distinct invocation environments and unknown", () => {
     const result=inspect({code:imports+' function createApi(provided){return {execute:provided};} const good=createApi(safe); const bad=createApi(read); const opaque=createApi(missing); export const execute={good,bad,opaque};'});

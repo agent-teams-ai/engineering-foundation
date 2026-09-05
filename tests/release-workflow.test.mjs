@@ -1,5 +1,6 @@
 // oxlint-disable max-lines -- workflow contract coverage remains one auditable suite.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
@@ -188,6 +189,110 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   );
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
 }
+
+// Execute only local status-control fragments; never dispatch workflow/API calls.
+function runAttestationFragment(source, fragment, setup = "") {
+  const declarations = source.slice(0, source.indexOf("post_status()"));
+  const handlers = source.slice(
+    source.indexOf("mark_attestation_error()"),
+    source.indexOf("fetch_paginated_pages()"),
+  );
+  return spawnSync("bash", ["-c", `${declarations}
+    post_status() {
+      printf '%s|%s|%s\\n' "$1" "$2" "$4"
+      if [[ "$1:$2" == "\${reject_status:-none}" ]]; then return 1; fi
+    }
+    ${handlers}
+    trap mark_attestation_error ERR
+    ${setup}
+    ${fragment}
+  `], {
+    encoding: "utf8",
+    env: { ...process.env, EXPECTED_RELEASE_HEAD_SHA: "a".repeat(40),
+      RELEASE_RUN_URL: "https://github.com/owner/repo/actions/runs/999" },
+  });
+}
+
+test("release analyze status is fail-closed and separate from CI jobs", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async () => {
+  const release = await workflow("release.yml");
+  const source = release.jobs["attest-release-pr"].steps.at(-1).run;
+  const contexts = ["analyze", "check", "windows-check", "macos-qualification"];
+  const block = (start, end) => {
+    const from = source.indexOf(start);
+    const to = source.indexOf(end, from);
+    assert.ok(from >= 0 && to > from, `missing control block: ${start}`);
+    return source.slice(from, to);
+  };
+  const pending = source.match(/for context in [^\n]+; do\n\s+post_status "\$\{context\}" pending[^]*?\bdone/u)?.[0];
+  assert.ok(pending);
+  assert.ok(source.indexOf(pending) < source.indexOf("git fetch --no-tags origin"));
+  assert.ok(source.indexOf(pending) < source.indexOf("actions/workflows/ci.yml/dispatches"));
+  assert.ok(source.indexOf(pending) < source.indexOf("actions/workflows/codeql.yml/dispatches"));
+  const ciSetup = 'conclusions=(success failure success); target_urls=(ci1 ci2 ci3)';
+  for (const [fragment, setup, state, exitCode] of [
+    [pending, "", "pending", 0],
+    ["false", "", "error", 1],
+    ['fail_attestation "invalid evidence"', "", "failure", 1],
+    [block("if (( all_completed != 1 )); then", "failed=0"), "all_completed=0", "error", 1],
+    [block("if (( failed != 0 )); then", 'codeql_receipt=""'), `${ciSetup}; failed=1`, "failure", 1],
+  ]) {
+    const result = runAttestationFragment(source, fragment, setup);
+    assert.equal(result.status, exitCode, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n").map((line) => line.split("|").slice(0, 2)),
+      contexts.map((context) => [context, state]));
+  }
+  const collected = runAttestationFragment(source, 'printf "%s\\n" "${ci_contexts[@]}"');
+  assert.equal(collected.status, 0, collected.stderr);
+  assert.deepEqual(collected.stdout.trim().split("\n"), contexts.slice(1));
+  const jobLoops = [...source.matchAll(/for context in ([^\n]+); do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu)];
+  assert.equal(jobLoops.length, 2);
+  assert.deepEqual(jobLoops.map((match) => match[1]), Array(2).fill('"${ci_contexts[@]}"'));
+
+  const finalGate = source.slice(source.indexOf("if (( final_run_verified != 1 )); then"));
+  assert.ok(finalGate.startsWith("if (( final_run_verified != 1 )); then"));
+  assertFinalCodeqlReadsFailClosed(source);
+  const ordered = [
+    'if [[ -z "${codeql_receipt}" ]]; then',
+    'observed_pull_request="${post_pull_request}"',
+    'require_final_codeql_snapshot\n',
+    'require_final_release_pr_snapshot "${post_current_main_sha}"',
+    'final_run_verified=1',
+    'if (( final_run_verified != 1 )); then',
+    'post_status analyze success',
+    'status_finalized=1',
+  ];
+  let cursor = 0;
+  for (const statement of ordered) {
+    const index = source.indexOf(statement, cursor);
+    assert.ok(index >= cursor, `missing/early success barrier: ${statement}`);
+    cursor = index + statement.length;
+  }
+  assert.equal((source.match(/post_status analyze success/gu) ?? []).length, 1);
+  const evidence = exactCodeqlEvidence();
+  const expectation = { ...exactRunExpectation, runId: 123 };
+  const receipt = validateReleaseCodeqlEvidence(evidence, expectation);
+  for (const url of [evidence.run.html_url, evidence.checkRuns.check_runs[0].html_url]) {
+    const changed = asFinalEvidence(structuredClone(evidence));
+    changed.analyzeCheck.html_url = url;
+    assert.throws(() => validateReleaseCodeqlEvidence(changed, expectation, receipt),
+      /analyze check run identity differs/u);
+  }
+  const setup = `${ciSetup}; codeql_evidence_error=/dev/null;
+    observed_codeql_analyze_check='${JSON.stringify(evidence.analyzeCheck)}'`;
+  const success = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=1`);
+  assert.equal(success.status, 0, success.stderr);
+  assert.equal(success.stdout.trim().split("\n").at(-1),
+    `analyze|success|${evidence.analyzeCheck.html_url}`);
+  for (const extra of ["final_run_verified=0", 'final_run_verified=1; reject_status=windows-check:success',
+    'final_run_verified=1; reject_status=analyze:success']) {
+    const rejected = runAttestationFragment(source, finalGate, `${setup}; ${extra}`);
+    assert.equal(rejected.status, 1, rejected.stderr);
+    const analyze = rejected.stdout.trim().split("\n").filter((line) => line.startsWith("analyze|"));
+    assert.match(analyze.at(-1), /^analyze\|(?:failure|error)\|/u);
+  }
+});
 
 function assertFinalCodeqlReadsFailClosed(attestationSource) {
   const immediatelyValidatedReads = [

@@ -182,9 +182,10 @@ jobs:
           RELEASE_PULL_REQUEST: ${{ needs.release.outputs.pullRequestNumber }}
           RELEASE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
 
           ci_contexts=(check windows-check macos-qualification)
+          attestation_contexts=(analyze "${ci_contexts[@]}")
           head_sha="${EXPECTED_RELEASE_HEAD_SHA}"
           status_finalized=0
 
@@ -206,7 +207,7 @@ jobs:
             trap - ERR
             if (( status_finalized == 0 )); then
               set +e
-              for context in "${ci_contexts[@]}"; do
+              for context in "${attestation_contexts[@]}"; do
                 post_status "${context}" error "Release PR attestation failed" "${RELEASE_RUN_URL}"
               done
             fi
@@ -216,7 +217,7 @@ jobs:
           fail_attestation() {
             local description="$1"
             status_finalized=1
-            for context in "${ci_contexts[@]}"; do
+            for context in "${attestation_contexts[@]}"; do
               post_status "${context}" failure "${description}" "${RELEASE_RUN_URL}"
             done
             exit 1
@@ -293,7 +294,7 @@ jobs:
             fail_attestation "Release PR revision tuple is malformed"
           fi
 
-          for context in "${ci_contexts[@]}"; do
+          for context in "${attestation_contexts[@]}"; do
             post_status "${context}" pending "Release PR ${context}: dispatched" "${RELEASE_RUN_URL}"
           done
 
@@ -457,7 +458,7 @@ jobs:
 
           if (( all_completed != 1 )); then
             status_finalized=1
-            for context in "${ci_contexts[@]}"; do
+            for context in "${attestation_contexts[@]}"; do
               post_status "${context}" error "Release PR ${context}: CI timeout" "${RELEASE_RUN_URL}"
             done
             echo "Timed out waiting for release pull request CI." >&2
@@ -492,6 +493,7 @@ jobs:
 
           if (( failed != 0 )); then
             status_finalized=1
+            post_status analyze failure "Release PR CI failed" "${RELEASE_RUN_URL}"
             for index in "${!ci_contexts[@]}"; do
               post_status "${ci_contexts[index]}" failure \
                 "Release PR ${ci_contexts[index]}: ${conclusions[index]}" \
@@ -917,9 +919,11 @@ jobs:
             fail_attestation "Final release PR CI could not be verified"
           fi
 
-          status_finalized=1
           for index in "${!ci_contexts[@]}"; do
             post_status "${ci_contexts[index]}" success \
               "Release PR ${ci_contexts[index]}: ${conclusions[index]}" \
               "${target_urls[index]}"
           done
+          post_status analyze success "Release PR analyze: success" \
+            "$(jq -r '.html_url' <<<"${observed_codeql_analyze_check}")"
+          status_finalized=1

@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/repository-mutation",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Closed, portable repository mutation and exact recovery primitives.",
   "license": "Apache-2.0",
   "type": "module",
@@ -9,20 +9,60 @@
     "@types/node": "catalog:",
     "typescript": "catalog:"
   },
-  "scripts": { "build": "tsc --build tsconfig.json --pretty false" },
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false"
+  },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-    "./serialization": { "types": "./dist/serialization.d.ts", "import": "./dist/serialization.js" },
-    "./paths": { "types": "./dist/paths.d.ts", "import": "./dist/paths.js" },
-    "./coordination": { "types": "./dist/coordination.d.ts", "import": "./dist/coordination.js" },
-    "./known-file": { "types": "./dist/known-file.d.ts", "import": "./dist/known-file.js" },
-    "./node": { "types": "./dist/node.d.ts", "import": "./dist/node.js" },
-    "./qualification": { "types": "./dist/qualification/index.d.ts", "import": "./dist/qualification/index.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./serialization": {
+      "types": "./dist/serialization.d.ts",
+      "import": "./dist/serialization.js"
+    },
+    "./paths": {
+      "types": "./dist/paths.d.ts",
+      "import": "./dist/paths.js"
+    },
+    "./coordination": {
+      "types": "./dist/coordination.d.ts",
+      "import": "./dist/coordination.js"
+    },
+    "./known-file": {
+      "types": "./dist/known-file.d.ts",
+      "import": "./dist/known-file.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./qualification": {
+      "types": "./dist/qualification/index.d.ts",
+      "import": "./dist/qualification/index.js"
+    },
     "./schemas/*": "./schemas/*",
     "./package.json": "./package.json"
   },
-  "files": ["dist", "schemas", "LICENSE", "README.md", "CHANGELOG.md"],
-  "engines": { "node": ">=24.18.0 <25", "pnpm": ">=11.17.0 <12" },
-  "publishConfig": { "access": "public", "provenance": true, "registry": "https://registry.npmjs.org/" },
-  "repository": { "type": "git", "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git", "directory": "packages/repository-mutation" }
+  "files": [
+    "dist",
+    "schemas",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=11.17.0 <12"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/repository-mutation"
+  }
 }

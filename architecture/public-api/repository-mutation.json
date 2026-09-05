@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/repository-mutation",
-  "packageVersion": "0.0.0",
+  "packageVersion": "0.1.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -1252,6 +1252,279 @@
           "signature": "export type ExistingRepositoryAncestorProblem = \"name-collision\" | \"not-directory\" | \"outside-root\";"
         },
         {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotAuthority#authorityDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authorityDigest: `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotAuthority#identity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly identity: PortablePathIdentity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotAuthority:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface JournalSlotAuthority"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotCodec#parse:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotCodec:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parse: (bytes: Buffer) => Promise<TJournal>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotCodec#serialize:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotCodec:interface",
+          "parentKind": "Interface",
+          "signature": "readonly serialize: (journal: TJournal) => Promise<Buffer>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotCodec:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface JournalSlotCodec<TJournal>"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotEvidence:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotEvidence = \"candidate\" | \"previous\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFailure:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotFailure = \"candidate-exists\" | \"candidate-unavailable\" | \"canonical-recreated\" | \"changed\" | \"must-be-stabilized\" | \"not-regular-file\" | \"publication-conflict\" | \"quarantine-unavailable\" | \"slot-occupied\" | \"state-directory-missing\" | \"too-many-entries\" | \"transition-residue\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFailureContext#cause:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotFailureContext:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cause?: unknown;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFailureContext#evidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotFailureContext:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evidence?: JournalSlotEvidence;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFailureContext#mutation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotFailureContext:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mutation?: JournalSlotMutation | \"read\" | \"stabilize\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFailureContext#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotFailureContext:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject?: JournalSlotSubject;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFailureContext:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface JournalSlotFailureContext"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFailureFactory:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotFailureFactory = (failure: JournalSlotFailure, context: JournalSlotFailureContext) => Error;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFaultInjector:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotFaultInjector = (point: JournalSlotFaultPoint) => Promise<void> | void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotFaultPoint:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotFaultPoint = {\n    readonly mutation: JournalSlotMutation;\n    readonly phase: \"after-candidate-synced\";\n} | {\n    readonly mutation: \"remove\" | \"replace\";\n    readonly path: string;\n    readonly phase: \"before-quarantine-directory\";\n} | {\n    readonly mutation: \"remove\" | \"replace\";\n    readonly path: string;\n    readonly phase: \"before-shared-quarantine\";\n} | {\n    readonly mutation: \"remove\" | \"replace\";\n    readonly phase: \"after-shared-quarantine-synced\";\n} | {\n    readonly mutation: \"create\" | \"replace\";\n    readonly phase: \"before-canonical-link\";\n} | {\n    readonly mutation: \"create\" | \"replace\";\n    readonly phase: \"after-canonical-linked\";\n} | {\n    readonly mutation: \"create\" | \"replace\";\n    readonly phase: \"after-canonical-synced\";\n} | {\n    readonly evidence: JournalSlotEvidence;\n    readonly mutation: JournalSlotMutation;\n    readonly path: string;\n    readonly phase: \"before-retirement-directory\";\n} | {\n    readonly evidence: JournalSlotEvidence;\n    readonly mutation: JournalSlotMutation;\n    readonly path: string;\n    readonly phase: \"before-private-retirement\";\n} | {\n    readonly evidence: JournalSlotEvidence;\n    readonly mutation: JournalSlotMutation;\n    readonly path: string;\n    readonly phase: \"before-private-retirement-rename\";\n} | {\n    readonly evidence: JournalSlotEvidence;\n    readonly mutation: JournalSlotMutation;\n    readonly path: string;\n    readonly phase: \"before-logical-retirement\";\n} | {\n    readonly mutation: JournalSlotMutation;\n    readonly phase: \"before-final-directory-sync\";\n} | {\n    readonly mutation: JournalSlotMutation;\n    readonly phase: \"after-final-directory-sync\";\n} | {\n    readonly mutation: JournalSlotMutation;\n    readonly path: string;\n    readonly phase: \"before-directory-sync\";\n    readonly role: JournalSlotSyncRole;\n    readonly stage: JournalSlotSyncStage;\n} | {\n    readonly phase: \"before-reconciliation-directory-sync\";\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotMutation:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotMutation = \"create\" | \"remove\" | \"replace\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotNaming#candidatePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotNaming:interface",
+          "parentKind": "Interface",
+          "signature": "readonly candidatePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotNaming#quarantineDirectoryName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotNaming:interface",
+          "parentKind": "Interface",
+          "signature": "readonly quarantineDirectoryName: (previous: JournalSlotAuthority) => string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotNaming#residues:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotNaming:interface",
+          "parentKind": "Interface",
+          "signature": "readonly residues: readonly JournalSlotResidueMatcher[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotNaming#retiredDirectoryName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotNaming:interface",
+          "parentKind": "Interface",
+          "signature": "readonly retiredDirectoryName: () => string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotNaming#terminalRootName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotNaming:interface",
+          "parentKind": "Interface",
+          "signature": "readonly terminalRootName: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotNaming:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface JournalSlotNaming"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotObservation:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotObservation<TJournal> = {\n    readonly outcome: \"stable\";\n    readonly stored?: StoredJournalSlot<TJournal>;\n} | {\n    readonly outcome: \"committed\" | \"not-applied\";\n    readonly stored?: StoredJournalSlot<TJournal>;\n} | {\n    readonly canonical?: StoredJournalSlot<TJournal>;\n    readonly outcome: \"recovery-required\";\n    readonly residueNames: readonly string[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#canonicalInspection:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly canonicalInspection: \"authority\" | \"parsed\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#canonicalPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly canonicalPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#codec:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly codec: JournalSlotCodec<TJournal>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#failure:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly failure: JournalSlotFailureFactory;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#faultInjector:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly faultInjector?: JournalSlotFaultInjector;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#maximumBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly maximumBytes: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#naming:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly naming: JournalSlotNaming;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#observableSyncStages:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly observableSyncStages: readonly JournalSlotSyncStage[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#reconciliation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly reconciliation: \"residue-only\" | \"sticky-pending\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile#syncDirectory:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly syncDirectory: (path: string) => Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotProfile:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface JournalSlotProfile<TJournal>"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotResidueMatcher:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotResidueMatcher = {\n    readonly exact: string;\n} | {\n    readonly prefix: string;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotSubject:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotSubject = \"candidate\" | \"canonical\" | \"evidence\" | \"quarantine\" | \"replacement\" | \"retired-evidence\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotSyncRole:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotSyncRole = \"destination\" | \"source\" | \"state-parent\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!JournalSlotSyncStage:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JournalSlotSyncStage = \"candidate\" | \"final\" | \"publication\" | \"transition\";"
+        },
+        {
           "canonicalReference": "@agent-teams/repository-mutation!MutationArtifactIdentity#buildIdentity:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!MutationArtifactIdentity:interface",
@@ -1376,6 +1649,62 @@
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
           "signature": "export interface NodeDirectoryCreateAndBindOperations<Parent, Observed, Bound>"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeJournalSlotStore#canonicalPath:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:class",
+          "parentKind": "Class",
+          "signature": "get canonicalPath(): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeJournalSlotStore#create:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:class",
+          "parentKind": "Class",
+          "signature": "create(journal: TJournal): Promise<JournalSlotAuthority>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeJournalSlotStore#read:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:class",
+          "parentKind": "Class",
+          "signature": "read(): Promise<StoredJournalSlot<TJournal> | undefined>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeJournalSlotStore#remove:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:class",
+          "parentKind": "Class",
+          "signature": "remove(expected: JournalSlotAuthority): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeJournalSlotStore#replace:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:class",
+          "parentKind": "Class",
+          "signature": "replace(expected: JournalSlotAuthority, journal: TJournal): Promise<JournalSlotAuthority>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeJournalSlotStore#stabilizeForReconciliation:member(1)",
+          "kind": "Method",
+          "parentReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:class",
+          "parentKind": "Class",
+          "signature": "stabilizeForReconciliation(): Promise<JournalSlotObservation<TJournal>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class NodeJournalSlotStore<TJournal>"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!NodeJournalSlotStore:class",
+          "parentKind": "Class",
+          "signature": "constructor(profile: JournalSlotProfile<TJournal>);"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER:var",
@@ -1579,6 +1908,27 @@
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
           "signature": "export interface PublishPreparedAbsentFileOptions"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!StoredJournalSlot#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!StoredJournalSlot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: JournalSlotAuthority;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!StoredJournalSlot#journal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/repository-mutation!StoredJournalSlot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly journal: TJournal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!StoredJournalSlot:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface StoredJournalSlot<TJournal>"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!TerminalEvidenceDirectoryAuthority#identity:member",
@@ -1831,6 +2181,13 @@
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function retainMutationBarrier(lease: MutationLease): void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!sameJournalSlotAuthority:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function sameJournalSlotAuthority(left: JournalSlotAuthority, right: JournalSlotAuthority): boolean;"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!syncDirectoryDurably:function(1)",

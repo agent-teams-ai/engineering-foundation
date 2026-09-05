@@ -733,6 +733,109 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   );
 });
 
+for (const conclusion of ["success", "neutral"]) {
+  test(`release CodeQL accepts verified GHAS ${conclusion} through final rereads`, () => {
+    const evidence = exactCodeqlEvidence();
+    const expected = { ...exactRunExpectation, runId: 123 };
+    evidence.checkRuns.check_runs[0].conclusion = conclusion;
+    evidence.checkSuite.conclusion = conclusion;
+    const receipt = validateReleaseCodeqlEvidence(evidence, expected);
+    assert.equal(receipt.analysisId, 901);
+    assert.deepEqual(
+      validateReleaseCodeqlEvidence(asFinalEvidence(evidence), expected, receipt),
+      receipt,
+    );
+    for (const phase of ["check-runs", "check-suite"]) {
+      assert.equal(
+        validateReleaseCodeqlObservation(phase, evidence, expected).state,
+        "completed",
+      );
+    }
+
+    const mixed = structuredClone(evidence);
+    mixed.checkSuite.conclusion = conclusion === "success" ? "neutral" : "success";
+    assert.throws(() => validateReleaseCodeqlEvidence(mixed, expected),
+      /check and suite conclusions differ/u);
+    assert.throws(() => validateReleaseCodeqlObservation("check-suite", mixed, expected),
+      /check and suite conclusions differ/u);
+    assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(mixed), expected, receipt),
+      /check and suite conclusions differ/u);
+
+    for (const [phase, select] of [
+      ["check-runs", (value) => value.checkRuns.check_runs[0]],
+      ["check-suite", (value) => value.checkSuite],
+    ]) {
+      const pending = structuredClone(evidence);
+      select(pending).status = "in_progress";
+      select(pending).conclusion = null;
+      assert.equal(validateReleaseCodeqlObservation(phase, pending, expected).state, "pending");
+      assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(pending), expected, receipt),
+        /has not completed/u);
+      select(pending).conclusion = conclusion;
+      assert.throws(() => validateReleaseCodeqlObservation(phase, pending, expected),
+        /status is malformed/u);
+    }
+
+    for (const [mutate, message] of [
+      [(value) => { value.analyses = []; }, /exactly one matching/u],
+      [(value) => { value.analyses[0].warning = "analysis failed"; }, /not bound/u],
+      [(value) => { value.analyses[0].category = "release-attestation-124-1"; }, /exactly one matching/u],
+      [(value) => { value.analyses[0].category = "release-attestation-123-2"; }, /exactly one matching/u],
+      [(value) => { value.analyses[0].commit_sha = "c".repeat(40); }, /exactly one matching/u],
+      [(value) => { value.analyses[0].ref = "refs/heads/main"; }, /exactly one matching/u],
+      [(value) => { value.checkRuns.check_runs[0].app.id = 15368; }, /exactly one matching/u],
+      [(value) => { value.checkSuite.app.id = 15368; }, /suite identity differs/u],
+      [(value) => { value.checkSuite.id += 1; }, /suite identity differs/u],
+      [(value) => { value.checkRuns.check_runs[0].completed_at = "2026-09-04T13:00:00Z"; }, /outside/u],
+      [(value) => { value.run.run_attempt = 2; }, /run identity differs/u],
+    ]) {
+      const hostile = structuredClone(evidence);
+      mutate(hostile);
+      // Human output cannot authorize otherwise invalid evidence.
+      hostile.checkRuns.check_runs[0].output = { summary: "Normal main configuration was not found" };
+      assert.throws(() => validateReleaseCodeqlEvidence(hostile, expected), message);
+      assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt), message);
+    }
+
+    const drift = asFinalEvidence(evidence);
+    drift.postRun.workflow_id += 1;
+    drift.postRun.workflow_url = drift.postRun.workflow_url.replace("321", "322");
+    assert.throws(() => validateReleaseCodeqlEvidence(drift, expected, receipt), /changed identity/u);
+    const prDrift = asFinalEvidence(evidence);
+    prDrift.postPullRequest.head.sha = "c".repeat(40);
+    assert.throws(() => validateReleaseCodeqlEvidence(prDrift, expected, receipt), /provenance differs/u);
+  });
+}
+
+test("release CodeQL keeps unsuccessful producer evidence fail closed", () => {
+  const expected = { ...exactRunExpectation, runId: 123 };
+  const evidence = exactCodeqlEvidence();
+  evidence.checkRuns.check_runs[0].conclusion = "neutral";
+  evidence.checkSuite.conclusion = "neutral";
+  const receipt = validateReleaseCodeqlEvidence(evidence, expected);
+  for (const conclusion of ["failure", "cancelled", "skipped", "neutral", "action_required", "stale", "timed_out"]) {
+    for (const [phase, select] of [
+      ["run", (value) => value.run],
+      ["jobs", (value) => value.jobs.jobs[0]],
+      ["analyze-check", (value) => value.analyzeCheck],
+      ["check-runs", (value) => value.checkRuns.check_runs[0]],
+      ["check-suite", (value) => value.checkSuite],
+    ]) {
+      if (conclusion === "neutral" && phase.startsWith("check-")) {
+        continue;
+      }
+      const hostile = structuredClone(evidence);
+      select(hostile).conclusion = conclusion;
+      assert.throws(() => validateReleaseCodeqlObservation(phase, hostile, expected), /did not succeed/u);
+      assert.throws(() => validateReleaseCodeqlEvidence(hostile, expected), /did not succeed/u);
+      assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt), /did not succeed/u);
+    }
+    const postRunFailure = asFinalEvidence(evidence);
+    postRunFailure.postRun.conclusion = conclusion;
+    assert.throws(() => validateReleaseCodeqlEvidence(postRunFailure, expected, receipt), /did not succeed/u);
+  }
+});
+
 test("release CodeQL receipt retains workflow and run suite identity", () => {
   const evidence = exactCodeqlEvidence();
   const expectation = { ...exactRunExpectation, runId: 123 };

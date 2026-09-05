@@ -19,3 +19,11 @@ export function createFoundationConfigReader(
     return mapFoundationConfig(input, supportedCapabilityIds);
   };
 }
+
+/** Captures the selected registry's capability IDs when module wiring is created. */
+export function createRegisteredFoundationConfigReader(
+  capabilities: Pick<ReadonlyMap<string, unknown>, "keys">,
+  input: FoundationConfigInput
+): FoundationConfigReader {
+  return createFoundationConfigReader(new Set(capabilities.keys()), input);
+}

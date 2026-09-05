@@ -21,7 +21,7 @@ import {
   withSuppressionFixture
 } from "./support/capability-fixtures.mjs";
 
-import { createFoundationConfigReader } from "../packages/engineering-foundation/dist/features/foundation-check/module.js";
+import { createFoundationConfigReader, createRegisteredFoundationConfigReader } from "../packages/engineering-foundation/dist/features/foundation-check/module.js";
 import { createStrictYamlFileLoader, createPackagedSchemaReader, createSchemaCatalog } from "../packages/engineering-foundation/dist/features/configuration-input/module.js";
 import { parseStrictYamlSource } from "../packages/engineering-foundation/dist/features/configuration-input/yaml.js";
 import { ContainedFileReadError, readContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
@@ -649,6 +649,32 @@ test("check-host config observation receives strict input without a schema regis
     ["load", "/virtual-consumer", "foundation.config.yaml", "foundation-config", undefined],
     ["schema", "foundation-config/v1", config, "foundation-config"]
   ]);
+});
+
+test("registered config admission snapshots capability IDs at composition", async () => {
+  const capabilities = new Map([["alpha", {}]]);
+  const signal = new AbortController().signal;
+  const calls = [];
+  let config = { schemaVersion: 1, project: { id: "snapshot" }, capabilities: {
+    alpha: { configPath: "alpha.yaml" }
+  } };
+  const reader = createRegisteredFoundationConfigReader(capabilities, {
+    async loadStrictYamlFile(...args) { calls.push(["load", ...args]); return config; },
+    async assertSchema(...args) { calls.push(["schema", ...args]); }
+  });
+  capabilities.clear();
+  capabilities.set("beta", {});
+  assert.deepEqual(await reader("/virtual-snapshot", signal), {
+    projectId: "snapshot", declaredCapabilities: [{ id: "alpha", configPath: "alpha.yaml" }]
+  });
+  assert.deepEqual(calls, [
+    ["load", "/virtual-snapshot", "foundation.config.yaml", "foundation-config", signal],
+    ["schema", "foundation-config/v1", config, "foundation-config"]
+  ]);
+  config = { ...config, capabilities: { beta: { configPath: "beta.yaml" } } };
+  await assert.rejects(reader("/virtual-snapshot", signal),
+    (error) => error.problem.code === "FOUNDATION_CONFIG_INVALID" &&
+      error.message === "Unsupported capability declaration: beta.");
 });
 
 test("schema contribution assembly preserves every published source byte and dependency registration", async () => {

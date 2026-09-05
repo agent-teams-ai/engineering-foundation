@@ -80,11 +80,11 @@ export async function validateFeatureModules(options = {}) {
     const files = [];
     for (const module of profile.modules) {files.push(...await validateModule(repositoryRoot, module, problems, profile));}
     validateTopology(profile, policy, problems);
-    const { diagnostics, observations, sourceSnapshots } = await observeDependencies(repositoryRoot, profile.topology.sourcePolicy);
+    const { diagnostics, observations, sourceSnapshots, packageExportTargets } = await observeDependencies(repositoryRoot, profile.topology.sourcePolicy);
     for (const diagnostic of diagnostics) {
       if (diagnostic.severity === "error") {problem(problems, "source-policy", JSON.stringify(diagnostic));}
     }
-    const surfaces = await validateSurfaces({ repositoryRoot, profile, policy, files, observations, sourceSnapshots }, problems);
+    const surfaces = await validateSurfaces({ repositoryRoot, profile, policy, files, observations, sourceSnapshots, packageExportTargets }, problems);
     validateObservations(profile, policy, observations, problems, surfaces);
   } catch (error) {
     problem(problems, "input-error", error.message);

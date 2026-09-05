@@ -24,6 +24,7 @@ export async function observeDependencies(repositoryRoot, configPath) {
   const policy = await config.loadCapabilityConfig({ readYaml: configuration.loadStrictYamlFile, assertSchema: schema.assertSchema }, repositoryRoot, configPath);
   const observations = [];
   const sourceSnapshots = new Map();
+  const packageExportTargets = new Map();
   const inventoryReader = new inventory.PnpmWorkspaceInventoryReader();
   const nodeResolver = new resolver.NodeSourceDependencyResolver();
   const topologyInspector = new topology.PnpmSourceWorkspaceTopologyInspector({ inventoryReader });
@@ -34,6 +35,12 @@ export async function observeDependencies(repositoryRoot, configPath) {
     topologyInspector: { async inspect(input) {
       const result = await topologyInspector.inspect(input);
       for (const file of result.sourceFiles) {sourceSnapshots.set(file.path, file.source);}
+      for (const pkg of result.inventory.packages) {
+        packageExportTargets.set(pkg.name, pkg.exportSurface.explicit
+          ? pkg.exportSurface.entries.filter((entry) => !entry.subpath.includes("*") && entry.availability === "available")
+            .map((entry) => exports.exactPackageExportTargetPaths(pkg.exportSurface.entries, entry.subpath))
+          : []);
+      }
       return result;
     } },
     resolver: { resolve(input) {
@@ -43,7 +50,7 @@ export async function observeDependencies(repositoryRoot, configPath) {
       return result;
     } }
   });
-  return { observations, diagnostics, sourceSnapshots };
+  return { observations, diagnostics, sourceSnapshots, packageExportTargets };
 }
 
 function boundaryFor(path, policy) {
@@ -190,14 +197,14 @@ function validatePrimitiveConsumers(profile, observations, bindings, problems) {
     }
   }
 }
-export async function validateSurfaces({ repositoryRoot, profile, policy, files, observations, sourceSnapshots }, problems) {
+export async function validateSurfaces({ repositoryRoot, profile, policy, files, observations, sourceSnapshots, packageExportTargets }, problems) {
   for (const path of sourceSnapshots.keys()) {
     if (!files.includes(path) && profile.modules.some((module) => within(path, module.sourceRoot))) {
       problem(problems, "source-snapshot", `${path}: observed source is absent from the module inventory.`);
     }
   }
   const sources = indexSurfaces(files, problems, sourceSnapshots);
-  const bindings = surfaceBindings(profile, policy, observations, sources);
+  const bindings = surfaceBindings(profile, policy, observations, sources, packageExportTargets);
   const executables = new Set();
   for (const module of profile.modules) {for (const path of await executableSources(repositoryRoot, module)) {executables.add(path);}}
   const entrypoints = new Set([...profile.modules.flatMap((module) => module.publicEntrypoints), ...policy.boundaries.flatMap((boundary) => boundary.entrypoints ?? [])]);
@@ -206,7 +213,9 @@ export async function validateSurfaces({ repositoryRoot, profile, policy, files,
     const assembly = owner?.kind === "assembly";
     if (owner?.kind === "primitive") {validatePrimitiveSyntax(file, surface.program, problems);}
     for (const node of surface.program.body) {
-      if (entrypoints.has(file) && node.type === "ExportAllDeclaration") {problem(problems, "uncurated-entrypoint", `${file}: export-star is not a curated surface.`);}
+      if (entrypoints.has(file) && node.type === "ExportAllDeclaration" && !bindings.curatedNamespace(file, node)) {
+        problem(problems, "uncurated-entrypoint", `${file}: export-star is not a curated surface.`);
+      }
     }
     if (!assembly) {continue;}
     for (const node of invalidAssemblyStatements(file, surface, bindings, executables.has(file))) {

@@ -36,6 +36,9 @@ function indexProgram(program) {
       }
     }
     if (statement.type === "ExportDefaultDeclaration") {exports.set("default", { declaration: node });}
+    if (statement.type === "ExportAllDeclaration" && statement.exported) {
+      exports.set(nameOf(statement.exported), { source: statement.source, local: "*", namespace: statement });
+    }
   }
   return { program, imports, exports, locals, references };
 }
@@ -57,8 +60,33 @@ export function indexSurfaces(files, problems, snapshots) {
 
 // Follow only curated names/aliases over observations from the accepted
 // resolver. We never resolve a new specifier or infer ownership from dist bytes.
-export function surfaceBindings(profile, policy, observations, sources) {
+export function surfaceBindings(profile, policy, observations, sources, packageExportTargets = new Map()) {
   const byReference = new Map(observations.map((entry) => [`${entry.path}:${entry.reference.start}`, entry]));
+  const namespaceCache = new Map();
+  function publishedTarget(module, target) {
+    return (packageExportTargets.get(module.packageName) ?? []).some((manifestTargets) => {
+      const paths = manifestTargets.map((value) => sourceTarget(module, value));
+      return paths.includes(target) && paths.every((path) => path && sources.has(path) && module.publicEntrypoints.includes(path));
+    });
+  }
+  function curatedNamespace(path, node, active = new Set()) {
+    if (node.type !== "ExportAllDeclaration" || node.exported?.type !== "Identifier") {return false;}
+    const key = `${path}:${node.start}`;
+    if (active.has(key) || active.size >= 128) {return false;}
+    if (namespaceCache.has(key)) {return namespaceCache.get(key);}
+    const owner = classify(path, profile);
+    const observation = byReference.get(`${path}:${node.source.start}`);
+    const target = observation?.result.kind === "local-file" ? observation.result.path : undefined;
+    const surface = sources.get(target);
+    const next = new Set([...active, key]);
+    // A namespace preserves a separately published, explicitly curated API.
+    // Exact manifest targets come from the accepted topology and export matcher.
+    const valid = owner?.kind === "assembly" && owner.module.publicEntrypoints.includes(path) &&
+      target !== path && surface?.exports.size > 0 && publishedTarget(owner.module, target) &&
+      surface.program.body.every((statement) => statement.type !== "ExportAllDeclaration" || curatedNamespace(target, statement, next));
+    namespaceCache.set(key, Boolean(valid));
+    return Boolean(valid);
+  }
   function targets(observation) {
     if (observation.result.kind === "local-file") {return [observation.result.path];}
     if (observation.result.kind !== "workspace-package" || !observation.result.exported) {return [];}
@@ -102,6 +130,7 @@ export function surfaceBindings(profile, policy, observations, sources) {
     }
     const binding = surface.exports.get(name);
     if (!binding) {return [undefined];}
+    if (binding.namespace && !curatedNamespace(path, binding.namespace)) {return [undefined];}
     if (binding.source) {return imported(path, binding.source, binding.local, next);}
     if (binding.declaration?.type === "Identifier") {return localAlias(path, binding.declaration.name, next);}
     if (binding.declaration) {return [{ path, owner: classify(path, profile) }];}
@@ -118,6 +147,7 @@ export function surfaceBindings(profile, policy, observations, sources) {
   }
   return {
     targets,
+    curatedNamespace,
     owners(observation) {
       const paths = targets(observation), names = selected(observation);
       return paths.length && names.length ? paths.flatMap((path) => names.flatMap((name) => exported(path, name))) : [undefined];

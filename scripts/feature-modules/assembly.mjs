@@ -167,5 +167,6 @@ export function invalidAssemblyStatements(path, surface, bindings, executable) {
     }
   }
   const context = { names, executable, implementations, importNames: new Set(surface.imports.keys()) };
-  return surface.program.body.filter((node) => !assemblyStatement(node, context));
+  return surface.program.body.filter((node) =>
+    !(node.type === "ExportAllDeclaration" && bindings.curatedNamespace(path, node)) && !assemblyStatement(node, context));
 }

@@ -12,6 +12,7 @@ import { registerSemverPrimitiveCases } from "./fixtures/feature-modules/semver-
 import { registerPrimitiveErrorCases } from "./fixtures/feature-modules/primitive-error-cases.mjs";
 import { registerExecutableArgumentsCases } from "./fixtures/feature-modules/executable-arguments-cases.mjs";
 import { registerAssemblyOverloadsCases } from "./fixtures/feature-modules/assembly-overloads-cases.mjs";
+import { registerNamespaceSurfaceCases } from "./fixtures/feature-modules/namespace-surface-cases.mjs";
 
 const standard = await readFile(new URL("../standards/feature-module-standard-v1.md", import.meta.url));
 const cases = JSON.parse(await readFile(new URL("fixtures/feature-modules/cases.json", import.meta.url), "utf8"));
@@ -818,3 +819,4 @@ test("typed composed Function control remains an existing Oxlint failure", async
 
 registerExecutableArgumentsCases(fixture, expectPass, rejects);
 registerAssemblyOverloadsCases(fixture, expectPass, rejects);
+registerNamespaceSurfaceCases(workspaceSurface, expectPass, rejects);

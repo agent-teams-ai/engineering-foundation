@@ -103,7 +103,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createRepositorySecurityBaselineCapability(),
+      createRepositorySecurityBaselineCapability({ assertSchema }),
       REPOSITORY_SECURITY_RULES_BY_ID
     ),
     defineCapabilityModule(

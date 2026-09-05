@@ -1986,6 +1986,7 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.source-inventory.application
       packages: []
       builtins: []
       runtimeReferences: []
@@ -1994,17 +1995,12 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/ports/repository-security-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/rules.ts
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/use-cases/analyze-repository-security.ts
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/configuration-input.ts
   - id: capability.repository-security.contract
     roots:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/contract
     allow:
-      boundaries:
-        - capability.repository-security.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2028,6 +2024,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters/outbound/filesystem/filesystem-repository-security-reader.ts
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters/inbound/configuration/load-capability-config.ts
   - id: capability.repository-security.composition
     roots:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/module.ts
@@ -2038,6 +2035,7 @@ boundaries:
         - capability.repository-security.contract
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.configuration-input.composition
       packages: []
       builtins: []
       runtimeReferences: []

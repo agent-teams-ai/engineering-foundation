@@ -88,6 +88,7 @@
         "tests/release-publish-policy.test.mjs",
         "tests/repository-mutation-publication.test.mjs",
         "tests/repository-mutation-directory-materialization.test.mjs",
+        "tests/repository-security-configuration.test.mjs",
         "tests/repository-security-hardening.test.mjs",
         "tests/scaffolding-adversarial.test.mjs",
         "tests/source-dependency-development-mode.test.mjs",

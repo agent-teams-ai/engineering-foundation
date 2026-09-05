@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { actualSourceDependenciesCLI, copySourcePolicyFixture, observeFoundationFeatureGraph } from "./helpers/local-mode-boundaries.mjs";
+import { assertFeatureOutsideSchemaCycles, assertSchemaAssemblyImportRejected } from "./helpers/schema-assembly-boundaries.mjs";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
@@ -335,26 +335,12 @@ test("configuration adapter preserves schema rejection before normalizing input"
 });
 
 test("documentation configuration no longer joins the module schema assembly cycle", async () => {
-  const graph = await observeFoundationFeatureGraph();
-  assert.deepEqual(graph.missing, []);
-  for (const cycle of [...graph.runtimeCycles, ...graph.combinedCycles]) {
-    assert.equal(cycle.includes("documentation-local-references"), false, JSON.stringify(cycle));
-  }
+  await assertFeatureOutsideSchemaCycles("documentation-local-references");
 });
 
 test("source policy rejects reintroducing schema assembly inside the documentation adapter", async () => {
-  const root = await mkdtemp(join(tmpdir(), "documentation-schema-boundary-"));
-  try {
-    await copySourcePolicyFixture(root);
-    const path = "packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.ts";
-    const source = await readFile(join(root, path), "utf8");
-    await writeFile(join(root, path), `${source}\nexport { assertSchema as ModuleSchemaLeak } from "../../../../../schema-catalog.js";\n`);
-    const result = actualSourceDependenciesCLI(root);
-    assert.equal(result.exitCode, 1, JSON.stringify(result));
-    assert.ok(result.report.capabilities.flatMap((capability) => capability.diagnostics).some((diagnostic) =>
-      diagnostic.ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" && diagnostic.location.path === path
-    ), JSON.stringify(result.report));
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
+  await assertSchemaAssemblyImportRejected(
+    "packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.ts",
+    "../../../../../schema-catalog.js"
+  );
 });

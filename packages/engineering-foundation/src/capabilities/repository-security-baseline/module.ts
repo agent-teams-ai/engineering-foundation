@@ -9,13 +9,14 @@ import { REPOSITORY_SECURITY_RULES_BY_ID } from "./application/rules.js";
 import { analyzeRepositorySecurity } from "./application/use-cases/analyze-repository-security.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
+import { loadCapabilityConfig, type RepositorySecurityConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export { REPOSITORY_SECURITY_RULES_BY_ID };
 
-export function createRepositorySecurityBaselineCapability(): CapabilityDefinition {
+export function createRepositorySecurityBaselineCapability(input: { readonly assertSchema: RepositorySecurityConfigurationDependencies["assertSchema"] }): CapabilityDefinition {
   const reader = new FilesystemRepositorySecurityReader();
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -23,6 +24,7 @@ export function createRepositorySecurityBaselineCapability(): CapabilityDefiniti
     async run(invocation: CapabilityInvocation) {
       try {
         const policy = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema: input.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

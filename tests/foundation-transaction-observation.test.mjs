@@ -8,7 +8,7 @@ import { FoundationTransactionCoordinator } from "../packages/engineering-founda
 import { FoundationTransactionError } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-error.js";
 import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
-import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import { applyFilesystemScaffold, planScaffoldFromFile, recoverFilesystemScaffold } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 const scaffoldFixtureRoot = fileURLToPath(new URL("fixtures/scaffolding-authority-consumer/", import.meta.url));

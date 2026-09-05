@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FoundationTransactionCoordinator } from "../../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-coordinator.js";
 import { installedFoundationBuildIdentity } from "../../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
-import { documentPlanDigest } from "../../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { documentPlanDigest } from "../../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import { sha256Json } from "../../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const documentFixture = JSON.parse(

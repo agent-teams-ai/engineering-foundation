@@ -1,0 +1,238 @@
+[
+  {
+    "suffix": "1.2.3",
+    "registry": true
+  },
+  {
+    "suffix": "1.2.3-rc.1+build.2",
+    "registry": true
+  },
+  {
+    "suffix": "v1.2.3",
+    "registry": true
+  },
+  {
+    "suffix": "=1.2.3",
+    "registry": true
+  },
+  {
+    "suffix": "^1.2.3",
+    "registry": true
+  },
+  {
+    "suffix": "~1.2",
+    "registry": true
+  },
+  {
+    "suffix": "~> 1.2.3",
+    "registry": true
+  },
+  {
+    "suffix": "1",
+    "registry": true
+  },
+  {
+    "suffix": "1.2",
+    "registry": true
+  },
+  {
+    "suffix": "1.x",
+    "registry": true
+  },
+  {
+    "suffix": "1.2.*",
+    "registry": true
+  },
+  {
+    "suffix": "*",
+    "registry": true
+  },
+  {
+    "suffix": ">= 1.2.3 < 2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": ">=1.2.3 <2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": ">=1.2.3\t<2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": ">=1.2.3\n<2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": "1.2.3\r\n-\r\n2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": "^1.2.3\n||\n^2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": " \r\n>=1.2.3\n<2.0.0\r\n ",
+    "registry": true
+  },
+  {
+    "suffix": "1.2.3 - 2.3.4",
+    "registry": true
+  },
+  {
+    "suffix": "1.2 - 2",
+    "registry": true
+  },
+  {
+    "suffix": "^1.2.3 || ~2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": ">=1.2.3-rc.1 <2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": "latest",
+    "registry": true
+  },
+  {
+    "suffix": "next",
+    "registry": true
+  },
+  {
+    "suffix": "release-2026",
+    "registry": true
+  },
+  {
+    "suffix": "canary.1",
+    "registry": true
+  },
+  {
+    "suffix": "1.2.3.4",
+    "registry": true
+  },
+  {
+    "suffix": " beta ",
+    "registry": true
+  },
+  {
+    "suffix": "= v1.2.3",
+    "registry": true
+  },
+  {
+    "suffix": "01.02.03",
+    "registry": true
+  },
+  {
+    "suffix": "1.2.3beta",
+    "registry": true
+  },
+  {
+    "suffix": "1.2.3 ||",
+    "registry": true
+  },
+  {
+    "suffix": "||",
+    "registry": true
+  },
+  {
+    "suffix": "file:../core",
+    "registry": false
+  },
+  {
+    "suffix": "link:../core",
+    "registry": false
+  },
+  {
+    "suffix": "workspace:*",
+    "registry": false
+  },
+  {
+    "suffix": "npm:typescript@7.0.2",
+    "registry": false
+  },
+  {
+    "suffix": "1.2.3@garbage",
+    "registry": false
+  },
+  {
+    "suffix": "https://example.invalid/pkg.tgz",
+    "registry": false
+  },
+  {
+    "suffix": "git+https://example.invalid/repo.git",
+    "registry": false
+  },
+  {
+    "suffix": "github:vendor/library",
+    "registry": false
+  },
+  {
+    "suffix": "../core",
+    "registry": false
+  },
+  {
+    "suffix": "/tmp/core",
+    "registry": false
+  },
+  {
+    "suffix": "C:\\core",
+    "registry": false
+  },
+  {
+    "suffix": "vendor/library",
+    "registry": false
+  },
+  {
+    "suffix": "1.2.3.tgz",
+    "registry": false
+  },
+  {
+    "suffix": "1.2.3.tar.gz",
+    "registry": false
+  },
+  {
+    "suffix": ".tag",
+    "registry": false
+  },
+  {
+    "suffix": ">= nope",
+    "registry": false
+  },
+  {
+    "suffix": "foo bar",
+    "registry": false
+  },
+  {
+    "suffix": "1.2.3#bad",
+    "registry": false
+  },
+  {
+    "suffix": "1.2.3%20bad",
+    "registry": false
+  },
+  {
+    "suffix": ">9007199254740992",
+    "registry": false
+  },
+  {
+    "suffix": "1.2.3+build..bad",
+    "registry": false
+  },
+  {
+    "suffix": ">1.2.3.4",
+    "registry": false
+  },
+  {
+    "suffix": "v 1.2.3 - 2",
+    "registry": true
+  },
+  {
+    "suffix": "= 1.2.3 - 2.0.0",
+    "registry": true
+  },
+  {
+    "suffix": "1.2.3 - v 2",
+    "registry": true
+  }
+]

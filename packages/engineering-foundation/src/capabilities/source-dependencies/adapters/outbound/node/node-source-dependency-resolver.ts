@@ -108,46 +108,37 @@ function declarationKind(
   const matching = declarations.filter(
     (declaration) => declaration.dependencyName === packageName
   );
-  if (matching.length === 0 || matching.some(({ specifier }) => !isWorkspaceBinding(specifier))) {
+  if (
+    matching.length === 0 ||
+    matching.some(
+      (declaration) =>
+        declaration.provenance.kind !== "manifest" ||
+        declaration.targetPackageName !== packageName ||
+        !isWorkspaceBinding(declaration.specifier)
+    )
+  ) {
     return "undeclared";
   }
   return declarationKindV1(matching, packageName);
 }
 
-function catalogTarget(
-  specifier: string,
-  packageName: string,
-  inventory: ResolveSourceDependencyInput["inventory"]
-): string | undefined {
-  if (!specifier.startsWith("catalog:")) {
-    return undefined;
-  }
-  const catalogName = specifier.slice("catalog:".length) || "default";
-  return inventory.catalogs.find(
-    (entry) =>
-      entry.catalogName === catalogName && entry.dependencyName === packageName
-  )?.version;
-}
-
 function isLocalIdentitySpecifier(
-  specifier: string,
-  packageName: string,
-  inventory: ResolveSourceDependencyInput["inventory"]
+  declaration: DependencyDeclaration
 ): boolean {
-  const effective = catalogTarget(specifier, packageName, inventory) ?? specifier;
-  return /^(?:workspace|link|file):/u.test(effective);
+  return /^(?:workspace|link|file):/u.test(declaration.effectiveSpecifier);
 }
 
 function externalDeclarationKind(
   declarations: readonly DependencyDeclaration[],
-  packageName: string,
-  inventory: ResolveSourceDependencyInput["inventory"]
+  packageName: string
 ): "development" | "runtime" | "undeclared" {
   const matching = declarations.filter(
     (declaration) => declaration.dependencyName === packageName
   );
-  return matching.some(({ specifier }) =>
-    isLocalIdentitySpecifier(specifier, packageName, inventory)
+  return matching.some((declaration) =>
+    isLocalIdentitySpecifier(declaration) ||
+    declaration.normalizationProblem !== undefined ||
+    declaration.targetPackageName !== matching[0]?.targetPackageName
   )
     ? "undeclared"
     : declarationKindV1(matching, packageName);
@@ -292,6 +283,28 @@ function resolveLocal(input: ResolveSourceDependencyInput): ResolvedSourceDepend
     : { kind: "local-file", path, workspacePackage };
 }
 
+function workspaceTarget(
+  input: ResolveSourceDependencyInput,
+  target: WorkspacePackage | undefined,
+  slotIsRegistryAlias: boolean
+): WorkspacePackage | undefined {
+  // Node checks an importing package's own exports before node_modules aliases.
+  if (
+    target?.name === input.file.workspacePackage.name &&
+    target.exportSurface.explicit &&
+    target.exportSurface.selfReferenceDisabled !== true
+  ) {
+    return target;
+  }
+  return slotIsRegistryAlias ||
+    (input.enforceWorkspaceBindings === true &&
+      target !== undefined &&
+      input.governedWorkspacePackageManifestPaths !== undefined &&
+      !input.governedWorkspacePackageManifestPaths.has(target.manifestPath))
+    ? undefined
+    : target;
+}
+
 function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDependency {
   const specifier = input.reference.specifier;
   if (BUILTINS.has(specifier)) {
@@ -313,20 +326,23 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
   const inventoryTarget = input.inventory.packages.find(
     (workspacePackage) => workspacePackage.name === packageName
   );
-  const target =
-    input.enforceWorkspaceBindings === true &&
-    inventoryTarget !== undefined &&
-    input.governedWorkspacePackageManifestPaths !== undefined &&
-    !input.governedWorkspacePackageManifestPaths.has(inventoryTarget.manifestPath)
-      ? undefined
-      : inventoryTarget;
-  const declaration = input.enforceWorkspaceBindings === true
+  const matchingDeclarations = input.file.workspacePackage.dependencies.filter(
+    (declaration) => declaration.dependencyName === packageName
+  );
+  const slotIsRegistryAlias = matchingDeclarations.some(
+    (declaration) =>
+      declaration.targetPackageName !== packageName ||
+      declaration.effectiveSpecifier.startsWith("npm:")
+  );
+  const target = workspaceTarget(input, inventoryTarget, slotIsRegistryAlias);
+  const declaration = slotIsRegistryAlias
+    ? externalDeclarationKind(matchingDeclarations, packageName)
+    : input.enforceWorkspaceBindings === true
     ? target === undefined
       ? inventoryTarget === undefined
         ? externalDeclarationKind(
             input.file.workspacePackage.dependencies,
-            packageName,
-            input.inventory
+            packageName
           )
         : declarationKind(
             input.file.workspacePackage.dependencies,

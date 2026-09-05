@@ -7,6 +7,7 @@ import { ContainedFileReadError } from "../../../../source-inventory/api.js";
 import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../source-inventory/node.js";
 import {
   DEPENDENCY_SECTIONS,
+  type CatalogEntry,
   type DependencyDeclaration,
   type PackageExportEntry,
   type PackageExportSurface,
@@ -14,6 +15,7 @@ import {
   type WorkspacePackage
 } from "../../../application/model/workspace-inventory.js";
 import { resolvePackageExport } from "../../../application/policies/package-export-matcher.js";
+import { normalizeDependencyDeclaration } from "../../../application/policies/normalize-dependency-declaration.js";
 
 const MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
 const READ_CONCURRENCY = 32;
@@ -194,6 +196,7 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
   }
   return {
     explicit: true,
+    ...(value === null ? { selfReferenceDisabled: true as const } : {}),
     entries: entries.toSorted((left, right) =>
       compareBinaryStrings(left.subpath, right.subpath)
     )
@@ -203,6 +206,7 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
 async function readJsonManifest(
   consumerRoot: string,
   manifestPath: string,
+  catalogs: readonly CatalogEntry[],
   signal?: AbortSignal
 ): Promise<WorkspacePackage> {
   assertNotCancelled(signal);
@@ -271,13 +275,14 @@ async function readJsonManifest(
       "package-manifest"
     );
     for (const [dependencyName, specifier] of Object.entries(declarations)) {
-      dependencies.push({
+      dependencies.push(normalizeDependencyDeclaration({
+        catalogs,
         packageName,
         manifestPath,
         section,
         dependencyName,
         specifier
-      });
+      }));
     }
   }
   return {
@@ -310,6 +315,7 @@ async function readJsonManifest(
 export async function readPnpmPackageManifestSnapshots(
   consumerRoot: string,
   paths: readonly string[],
+  catalogs: readonly CatalogEntry[],
   signal?: AbortSignal
 ): Promise<readonly WorkspacePackage[]> {
   const packages: WorkspacePackage[] = [];
@@ -318,7 +324,7 @@ export async function readPnpmPackageManifestSnapshots(
       ...(await Promise.all(
         paths
           .slice(index, index + READ_CONCURRENCY)
-          .map((path) => readJsonManifest(consumerRoot, path, signal))
+          .map((path) => readJsonManifest(consumerRoot, path, catalogs, signal))
       ))
     );
   }

@@ -1,3 +1,4 @@
+import { flatBindings } from "./factory-origins.mjs";
 import { isPublicAssemblyFacade } from "./assembly-facade.mjs";
 
 const lifecycle = new Set(["start", "ready", "stop", "dispose", "close"]);
@@ -87,7 +88,7 @@ function containsOrigin(node, context) {
 }
 function wrapper(node, context) {
   const nested = { ...context, names: new Map(context.names), wrapperName: node.id?.name, wrapperParameters: node.params };
-  if (!node.params.every(identifier) || node.declare || !node.body) {return false;}
+  if (!node.params.every(identifier) || node.declare || node.generator || !node.body) {return false;}
   if (node.type === "FunctionExpression" && node.id) {nested.names.set(node.id.name, "input");}
   for (const param of node.params) {nested.names.set(param.name, "input");}
   if (node.body.type !== "BlockStatement") {return delegation(node.body, nested, true);}
@@ -100,7 +101,14 @@ function wrapper(node, context) {
 function variables(node, context) {
   if (node.kind !== "const") {return false;}
   return node.declarations.every(({ id, init }) => {
-    if (!identifier(id) || !init) {return false;}
+    if (!init) {return false;}
+    if (id.type === "ObjectPattern") {
+      const selected = flatBindings(id);
+      if (!selected.length || selected.some(({ name }) => context.names.has(name)) || !factoryCall(init, context)) {return false;}
+      for (const { name } of selected) {context.names.set(name, "resource");}
+      return true;
+    }
+    if (!identifier(id)) {return false;}
     // A local binding must not inherit a shadowed import's origin.
     const previous = context.names.get(id.name);
     context.names.delete(id.name);

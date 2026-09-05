@@ -1,3 +1,4 @@
+import { registerFactorySurfaceCases } from "./fixtures/feature-modules/factory-surface-cases.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -822,3 +823,5 @@ test("typed composed Function control remains an existing Oxlint failure", async
 registerExecutableArgumentsCases(fixture, expectPass, rejects);
 registerAssemblyOverloadsCases(fixture, expectPass, rejects);
 registerNamespaceSurfaceCases(workspaceSurface, expectPass, rejects);
+
+registerFactorySurfaceCases({ test, assert, workspaceSurface, rejects, expectPass });

@@ -1,3 +1,4 @@
+import { factoryOrigins, flatBindings } from "./factory-origins.mjs";
 import { parseSync } from "oxc-parser";
 import { classify, problem, sourceTarget, within } from "./profile.mjs";
 
@@ -11,7 +12,7 @@ export function walk(node, visit, parent) {
 }
 const nameOf = (node) => node?.name ?? node?.value;
 const declarationNames = (node) => node?.type === "VariableDeclaration"
-  ? node.declarations.map(({ id }) => nameOf(id)).filter(Boolean) : [nameOf(node?.id)].filter(Boolean);
+  ? node.declarations.flatMap(({ id }) => flatBindings(id).map(({ name }) => name)) : [nameOf(node?.id)].filter(Boolean);
 function typeOrigin(node) {
   if (node?.type === "TSArrayType") {return typeOrigin(node.elementType);}
   if (node?.type === "TSTypeOperator") {return typeOrigin(node.typeAnnotation);}
@@ -30,9 +31,9 @@ function indexProgram(program) {
     const node = statement.declaration ?? statement;
     for (const name of declarationNames(node)) {locals.set(name, node);}
     if (statement.type === "ExportNamedDeclaration") {
-      for (const name of declarationNames(node)) {exports.set(name, { local: name });}
+      for (const name of declarationNames(node)) {exports.set(name, { local: name, typeOnly: statement.exportKind === "type" });}
       for (const specifier of statement.specifiers) {
-        exports.set(nameOf(specifier.exported), { local: nameOf(specifier.local), source: statement.source });
+        exports.set(nameOf(specifier.exported), { local: nameOf(specifier.local), source: statement.source, typeOnly: statement.exportKind === "type" || specifier.exportKind === "type" });
       }
     }
     if (statement.type === "ExportDefaultDeclaration") {exports.set("default", { declaration: node });}
@@ -99,42 +100,63 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     if (claims.length === 1 && paths.some((path) => !claims[0].roots.some((root) => within(path, root)))) {return [];}
     return paths;
   }
-  function imported(path, source, name, active) {
+  function imported(path, source, name, active, selection = []) {
     const observation = byReference.get(`${path}:${source.start}`);
     const paths = observation && targets(observation);
-    return paths?.length ? paths.flatMap((target) => exported(target, name, active)) : [undefined];
+    return paths?.length ? paths.flatMap((target) => exported(target, name, active, selection)) : [undefined];
   }
-  function local(path, name, active) {
+  const owned = (value) => [{ ...value, owner: classify(value.path, profile) }];
+  const values = factoryOrigins({
+    owned,
+    isComposition(path) {
+      const owner = classify(path, profile);
+      return owner?.kind === "assembly" || owner?.layer?.role === "composition";
+    },
+    identifier(value, selection, active) {
+      if (value.locals?.has(value.node.name)) {return values(value.locals.get(value.node.name), selection, active);}
+      return localAlias(value.path, value.node.name, active, selection);
+    }
+  });
+  function local(path, name, active, selection) {
     const surface = sources.get(path);
     const binding = surface?.imports.get(name);
-    if (binding) {return imported(path, binding.node.source, binding.name, active);}
+    if (binding) {
+      const typeOnly = binding.node.importKind === "type" || binding.node.specifiers.find((item) => item.local.name === name)?.importKind === "type";
+      return imported(path, binding.node.source, binding.name, active, selection).map((entry) => entry && ({ ...entry, typeOnly: entry.typeOnly || typeOnly }));
+    }
     const declaration = surface?.locals.get(name);
     if (!declaration) {return [undefined];}
-    const alias = declaration.type === "VariableDeclaration"
-      ? declaration.declarations.find(({ id }) => nameOf(id) === name)?.init : typeOrigin(declaration.typeAnnotation);
+    if (declaration.type === "VariableDeclaration") {
+      if (declaration.kind !== "const") {return [undefined];}
+      for (const { id, init } of declaration.declarations) {
+        const projection = flatBindings(id).find((item) => item.name === name);
+        if (projection) {return values({ path, node: init }, [...projection.selection, ...selection], active);}
+      }
+      return [undefined];
+    }
+    const alias = typeOrigin(declaration.typeAnnotation);
     if (alias?.type === "Identifier" && alias.name !== name &&
-        (surface.imports.has(alias.name) || surface.locals.has(alias.name))) {return localAlias(path, alias.name, active);}
-    return [{ path, owner: classify(path, profile) }];
+        (surface.imports.has(alias.name) || surface.locals.has(alias.name))) {return localAlias(path, alias.name, active, selection);}
+    return values({ path, node: declaration }, selection, active);
   }
-  function localAlias(path, name, active) {
-    const key = `${path}:local:${name}`;
+  function localAlias(path, name, active, selection = []) {
+    const key = `${path}:local:${name}:${selection.join("/")}`;
     if (active.has(key) || active.size > 128) {return [undefined];}
-    return local(path, name, new Set([...active, key]));
+    return local(path, name, new Set([...active, key]), selection);
   }
-  function exported(path, name, active = new Set()) {
-    const key = `${path}:export:${name}`, surface = sources.get(path);
+  function exported(path, name, active = new Set(), selection = []) {
+    const key = `${path}:export:${name}:${selection.join("/")}`, surface = sources.get(path);
     if (!surface || active.has(key) || active.size > 128) {return [undefined];}
     const next = new Set([...active, key]);
     if (name === "*") {
-      return surface.exports.size ? [...surface.exports.keys()].flatMap((item) => exported(path, item, next)) : [undefined];
+      return surface.exports.size ? [...surface.exports.keys()].flatMap((item) => exported(path, item, next, selection)) : [undefined];
     }
     const binding = surface.exports.get(name);
     if (!binding) {return [undefined];}
     if (binding.namespace && !curatedNamespace(path, binding.namespace)) {return [undefined];}
-    if (binding.source) {return imported(path, binding.source, binding.local, next);}
-    if (binding.declaration?.type === "Identifier") {return localAlias(path, binding.declaration.name, next);}
-    if (binding.declaration) {return [{ path, owner: classify(path, profile) }];}
-    return localAlias(path, binding.local, next);
+    if (binding.source) {return imported(path, binding.source, binding.local, next, selection).map((entry) => entry && ({ ...entry, typeOnly: entry.typeOnly || binding.typeOnly }));}
+    const origins = binding.declaration ? values({ path, node: binding.declaration }, selection, next) : localAlias(path, binding.local, next, selection);
+    return origins.map((entry) => entry && ({ ...entry, typeOnly: entry.typeOnly || binding.typeOnly }));
   }
   function selected(observation) {
     const node = sources.get(observation.path)?.references.get(observation.reference.start);
@@ -150,7 +172,7 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     curatedNamespace,
     owners(observation) {
       const paths = targets(observation), names = selected(observation);
-      return paths.length && names.length ? paths.flatMap((path) => names.flatMap((name) => exported(path, name))) : [undefined];
+      return paths.length && names.length ? paths.flatMap((path) => names.flatMap((name) => exported(path, name))).map((entry) => entry && ({ path: entry.path, owner: entry.owner })) : [undefined];
     },
     observation(path, start) {return byReference.get(`${path}:${start}`);}
   };

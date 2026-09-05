@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +10,7 @@ const fixture = fileURLToPath(new URL("../../../../tests/fixtures/workspace-depe
 const cli = fileURLToPath(new URL("../../dist/cli.js", import.meta.url));
 
 export async function withFixture(callback) {
-  const root = await mkdtemp(join(tmpdir(), "foundation-dependency-aliases-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-dependency-aliases-")));
   try {
     await cp(fixture, root, { recursive: true });
     return await callback(root);

@@ -235,8 +235,9 @@ jobs:
                     type == "array" and length > 0 and
                     all(.[]; type == "array") and
                     all(.[][]; type == "object" and (.context | type) == "string") and
-                    ([.[][] | select(.context == $context)] |
+                    ([.[][] | select((.context | ascii_downcase) == ($context | ascii_downcase))] |
                       .[0] | type == "object" and
+                        .context == $context and
                         .state == $state and .description == $description and
                         .target_url == $target and .creator.id == $creator and
                         .creator.login == "github-actions[bot]" and .creator.type == "Bot" and

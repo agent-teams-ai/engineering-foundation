@@ -461,6 +461,9 @@ function assertAttestationStatusContract(source) {
 }
 
 function assertStatusReconciliation(source) {
+  // Keep explicit shape validation even though normalization also rejects
+  // non-string contexts; removing this guard is now behaviorally redundant.
+  assert.ok(source.includes('all(.[][]; type == "object" and (.context | type) == "string") and'));
   const contexts = ["analyze", "check", "windows-check", "macos-qualification"];
   const publish = 'post_status analyze success "verified" "target"';
   for (const [setup, attempts] of [
@@ -483,12 +486,38 @@ function assertStatusReconciliation(source) {
   // requested context, even when older statuses conflict or lack a creator.
   for (const transform of [
     '.[0] += [.[0][0] | .state = "pending" | del(.creator)]',
+    '.[0] += [.[0][0] | .context = "ANALYZE" | .state = "pending" | del(.creator)]',
     '.[0] += .[0]',
     '.[0] as $entries | [[{context:"unrelated",creator:{id:99}}], $entries, [$entries[0] | .state = "error"]]',
   ]) {
     const result = runAttestationFragment(source, publish, `read_transform='${transform}'`);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.attempts.length, 1);
+  }
+  // GitHub folds context case. A newer variant must shadow the older exact-case
+  // write, including across pages and while reconciling recovery errors.
+  for (const transform of [
+    '.[0] = [.[0][0] | .context = "ANALYZE" | .state = "pending"] + .[0]',
+    '.[0] as $entries | [[{context:"unrelated"}], [$entries[0] | .context = "aNaLyZe" | .creator.id = 99], $entries]',
+    '.[0] = [.[0][0] | .context = "ANALYZE"] + .[0]',
+  ]) {
+    const setup = `read_transform='${transform}'`;
+    const rejected = runAttestationFragment(source, publish, setup);
+    assert.equal(rejected.status, 1, `${transform}: ${rejected.stderr}`);
+    assert.equal(rejected.attempts.filter((line) => line.startsWith("analyze|success|")).length, 3);
+    assert.match(rejected.stderr, /Unreconciled status: analyze; intended success/u);
+    assert.match(rejected.stderr, /Recovery incomplete; unreconciled contexts: analyze\n/u);
+
+    const recovery = runAttestationFragment(source,
+      'return_42() { return 42; }; return_42', setup);
+    assert.equal(recovery.status, 42, recovery.stderr);
+    assert.equal(recovery.attempts.length, 6);
+    assert.equal(recovery.attempts.filter((line) => line.startsWith("analyze|error|")).length, 3);
+    for (const context of contexts.slice(1)) {
+      assert.equal(recovery.latest.get(context), "error");
+    }
+    assert.match(recovery.stderr, /Unreconciled status: analyze; intended error/u);
+    assert.match(recovery.stderr, /Recovery incomplete; unreconciled contexts: analyze\n/u);
   }
   for (const transform of [
     '.[0] = [.[0][0] | .state = "pending"] + .[0]',
@@ -579,7 +608,9 @@ test("release reconciliation rejects fail-open mutations", {
     ["wrong endpoint SHA", "statuses/${head_sha}?per_page=100", "statuses/wrong?per_page=100"],
     ["ignore app", '.avatar_url == "https://avatars.githubusercontent.com/in/15368?v=4"', "true"],
     ["oldest context", ".[0] | type", ".[-1] | type"],
-    ["first entry before context", "[.[][] | select(.context == $context)]", "[.[][]][0:1]"],
+    ["first entry before context", "[.[][] | select((.context | ascii_downcase) == ($context | ascii_downcase))]", "[.[][]][0:1]"],
+    ["case-sensitive context selection", "select((.context | ascii_downcase) == ($context | ascii_downcase))", "select(.context == $context)"],
+    ["ignore exact output context", ".context == $context and", ""],
     ["ignore state", ".state == $state", "true"],
     ["ignore target", ".target_url == $target", "true"],
     ["ignore description", ".description == $description", "true"],

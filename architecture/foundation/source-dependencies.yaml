@@ -398,64 +398,37 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints: []
-  - id: docs-protocol-agent-teams.domain
-    roots:
-      - packages/docs-protocol-agent-teams/src/consumer-integration/domain
-    allow:
-      boundaries: []
-      packages: []
-      builtins: []
-      runtimeReferences: []
-    entrypoints:
-      - packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts
-  - id: docs-protocol-agent-teams.generated-assets
-    roots:
-      - packages/docs-protocol-agent-teams/src/consumer-integration/generated
-    allow:
-      boundaries: []
-      packages: []
-      builtins: []
-      runtimeReferences: []
-    entrypoints:
-      - packages/docs-protocol-agent-teams/src/consumer-integration/generated/canonical-assets.ts
   - id: docs-protocol-agent-teams.application
     roots:
       - packages/docs-protocol-agent-teams/src/consumer-integration/application
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application-api.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/generated
     allow:
-      boundaries:
-        - docs-protocol-agent-teams.domain
-        - docs-protocol-agent-teams.generated-assets
+      boundaries: []
       packages:
         - "@agent-teams/repository-mutation"
-      builtins:
-        - node:crypto
+      builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol-agent-teams/src/consumer-integration/application/model/consumer-integration-execution.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/application/model/consumer-upgrade-execution.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application-api.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-assets.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/qualified-docs-cohort-v2.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-integration-planners.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-upgrade.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/compile-consumer-integration-v3.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/plan-consumer-integration.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/run-consumer-integration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts
   - id: docs-protocol-agent-teams.adapters
     roots:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters
     allow:
       boundaries:
         - docs-protocol-agent-teams.application
-        - docs-protocol-agent-teams.domain
       packages:
         - "@agent-teams/repository-mutation"
         - ajv
-        - ajv-formats
         - jsonc-parser
         - yaml
+        - "@agent-teams/docs-protocol"
       builtins:
         - node:child_process
         - node:crypto
@@ -470,34 +443,20 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/inbound/consumer-integration-cli.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/inbound/managed-cli.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-qualification-input.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-repository-files.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-source-proof.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-target.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-validator-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-validator-v2.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v2.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-validator-v2.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-planner.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v1.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v2.ts
-  - id: docs-protocol-agent-teams.composition
-    packageExports:
-      - "."
-    roots:
-      - packages/docs-protocol-agent-teams/src/composition
-      - packages/docs-protocol-agent-teams/src/index.ts
-      - packages/docs-protocol-agent-teams/src/cli.ts
-    allow:
-      boundaries:
-        - docs-protocol-agent-teams.consumer-integration.composition
-        - docs-protocol-agent-teams.qualification
-      packages:
-        - "@agent-teams/docs-protocol"
-      builtins: []
-      runtimeReferences: []
-    entrypoints:
-      - packages/docs-protocol-agent-teams/src/index.ts
-      - packages/docs-protocol-agent-teams/src/cli.ts
   - id: docs-protocol-agent-teams.consumer-integration.composition
     roots:
       - packages/docs-protocol-agent-teams/src/consumer-integration/composition
@@ -506,30 +465,40 @@ boundaries:
       boundaries:
         - docs-protocol-agent-teams.adapters
         - docs-protocol-agent-teams.application
-        - docs-protocol-agent-teams.domain
-      packages: []
+      packages:
+        - "@agent-teams/repository-mutation"
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol-agent-teams/src/consumer-integration/index.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/composition/consumer-integration-cli.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/composition/consumer-integration-planner.ts
-      - packages/docs-protocol-agent-teams/src/consumer-integration/composition/node-consumer-integration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/composition/known-file-transaction.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/composition/managed-command.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/composition/qualification-v3-boundary.ts
-  - id: docs-protocol-agent-teams.qualification
-    packageExports:
-      - "./qualification"
+      - packages/docs-protocol-agent-teams/src/consumer-integration/index.ts
+  - id: docs-protocol-agent-teams.qualification.application
     roots:
-      - packages/docs-protocol-agent-teams/src/qualification
+      - packages/docs-protocol-agent-teams/src/qualification/application
+      - packages/docs-protocol-agent-teams/src/qualification/application-api.ts
     allow:
       boundaries:
-        - docs-protocol-agent-teams.adapters
-        - docs-protocol-agent-teams.consumer-integration.composition
+        - docs-protocol-agent-teams.application
+      packages:
+        - "@agent-teams/docs-protocol"
+      builtins:
+        - node:crypto
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-agent-teams/src/qualification/application-api.ts
+  - id: docs-protocol-agent-teams.qualification.adapters
+    roots:
+      - packages/docs-protocol-agent-teams/src/qualification/adapters
+    allow:
+      boundaries:
+        - docs-protocol-agent-teams.qualification.application
       packages:
         - "@agent-teams/docs-protocol"
         - ajv
       builtins:
-        - node:crypto
         - node:fs
         - node:fs/promises
         - node:os
@@ -537,9 +506,44 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints:
+      - packages/docs-protocol-agent-teams/src/qualification/adapters/inbound/qualification-cli.ts
+      - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/node-managed-qualification.ts
+  - id: docs-protocol-agent-teams.qualification.composition
+    roots:
+      - packages/docs-protocol-agent-teams/src/qualification/composition
+    allow:
+      boundaries:
+        - docs-protocol-agent-teams.consumer-integration.composition
+        - docs-protocol-agent-teams.qualification.adapters
+        - docs-protocol-agent-teams.qualification.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-agent-teams/src/qualification/composition/managed-command.ts
+      - packages/docs-protocol-agent-teams/src/qualification/composition/qualification.ts
+  - id: docs-protocol-agent-teams.composition
+    packageExports:
+      - .
+      - ./qualification
+    roots:
+      - packages/docs-protocol-agent-teams/src/index.ts
+      - packages/docs-protocol-agent-teams/src/cli.ts
+      - packages/docs-protocol-agent-teams/src/composition
       - packages/docs-protocol-agent-teams/src/qualification/index.ts
-      - packages/docs-protocol-agent-teams/src/qualification/managed-command-envelope-validator.ts
-      - packages/docs-protocol-agent-teams/src/qualification/qualification-v2-runner.ts
+    allow:
+      boundaries:
+        - docs-protocol-agent-teams.application
+        - docs-protocol-agent-teams.consumer-integration.composition
+        - docs-protocol-agent-teams.qualification.application
+        - docs-protocol-agent-teams.qualification.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol-agent-teams/src/qualification/index.ts
+      - packages/docs-protocol-agent-teams/src/index.ts
+      - packages/docs-protocol-agent-teams/src/cli.ts
   - id: docs-protocol-agent-teams.tests
     dependencyMode: development
     roots:
@@ -548,11 +552,14 @@ boundaries:
       boundaries:
         - docs-protocol-agent-teams.adapters
         - docs-protocol-agent-teams.application
+        - docs-protocol-agent-teams.composition
         - docs-protocol-agent-teams.consumer-integration.composition
-        - docs-protocol-agent-teams.qualification
+        - docs-protocol-agent-teams.qualification.adapters
       packages:
         - ajv
         - yaml
+        - "@agent-teams/repository-mutation"
+        - "@agent-teams/docs-protocol"
       builtins:
         - node:assert/strict
         - node:child_process
@@ -563,6 +570,10 @@ boundaries:
         - node:os
         - node:path
         - node:test
+        - node:events
+        - node:http
+        - node:url
+        - node:zlib
       runtimeReferences: []
     entrypoints: []
   - id: docs-protocol-agent-teams.scripts
@@ -3381,6 +3392,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/tests/repository-mutation-public-api.test.mjs
       - packages/engineering-foundation/tests/docs-protocol-public-api.test.mjs
+      - packages/engineering-foundation/tests/managed-public-api.test.mjs
     allow:
       boundaries:
         - capability.public-api-compatibility.adapters

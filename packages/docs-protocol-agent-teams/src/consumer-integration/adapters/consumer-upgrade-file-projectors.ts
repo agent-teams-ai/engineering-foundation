@@ -1,18 +1,20 @@
-import { applyEdits, modify } from "jsonc-parser";
-import { isMap, isScalar, isSeq, parseDocument, type Scalar, type YAMLSeq } from "yaml";
-
-import type {
-  ConsumerIntegrationDesiredStateV1,
-  ConsumerIntegrationDesiredStateV3,
-  ConsumerUpgradeAuthorityV1,
-  ConsumerUpgradeAuthorityV2,
-  QualifiedDocsCohortBindingV1,
-  QualifiedDocsCohortBindingV2
-} from "../domain/model.js";
-import { qualifiedDocsCohortV2PackageEntries } from
-  "../application/policies/qualified-docs-cohort-v2.js";
+import { portableRepositoryPathProblem } from "@agent-teams/repository-mutation";
 import {
-  assertConsumerIntegrationProfileSchema
+  canonicalManagedPortableProfileV4,
+  canonicalConsumerIntegrationJson,
+  qualifiedDocsCohortV2PackageEntries,
+  type ConsumerIntegrationDesiredStateV1,
+  type ConsumerIntegrationDesiredStateV3,
+  type ConsumerUpgradeAuthorityV1,
+  type ConsumerUpgradeAuthorityV2,
+  type QualifiedDocsCohortBindingV1,
+  type QualifiedDocsCohortBindingV2
+} from "../application-api.js";
+import { applyEdits, modify } from "jsonc-parser";
+import { isMap, isScalar, isSeq, parseDocument, visit, type Scalar, type YAMLSeq } from "yaml";
+
+import {
+  assertConsumerIntegrationProfileSchema, readManagedPortableProfileV3
 } from "./consumer-integration-schema-validator.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { parseJsonRecord } from "./strict-json-record.js";
@@ -451,4 +453,32 @@ export async function projectConsumerUpgradeFiles(
     "DOCS_CONSUMER_UPGRADE_GENERATION_MISMATCH",
     "Cross-generation consumer file projection is forbidden."
   );
+}
+
+/** Returns reviewable bytes only; Cohort upgrades never invoke this optional migration. */
+export async function projectManagedPortableProfileV4(bytes: Uint8Array): Promise<Uint8Array> {
+  if (bytes.byteLength > 128 * 1024) {throw new TypeError("Portable profile exceeds 128 KiB.");}
+  const source = decode(bytes, "Managed portable profile");
+  const document = parseDocument(source, { uniqueKeys: true });
+  if (document.errors.length > 0 || document.warnings.length > 0) {
+    throw new TypeError("Managed portable profile must be strict YAML.");
+  }
+  visit(document, {
+    Alias() {throw new TypeError("Managed portable profile must not contain aliases.");},
+    Node(_key, node) {
+      if (node.tag !== undefined) {throw new TypeError("Managed portable profile must not contain tags.");}
+    }
+  });
+  const value: unknown = document.toJS();
+  const profile = await readManagedPortableProfileV3(value);
+  for (const path of [profile.foundationProfile.path, profile.agentWorkflow.skillPath]) {
+    if (portableRepositoryPathProblem(path) !== undefined) {
+      throw new TypeError("Managed portable v4 projection requires portable authority paths.");
+    }
+  }
+  return Buffer.from(`${canonicalConsumerIntegrationJson(canonicalManagedPortableProfileV4({
+    foundationProfilePath: profile.foundationProfile.path,
+    skillPath: profile.agentWorkflow.skillPath,
+    semanticValidatorIds: profile.semanticValidatorIds
+  }))}\n`, "utf8");
 }

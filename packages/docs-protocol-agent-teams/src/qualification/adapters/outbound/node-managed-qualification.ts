@@ -35,17 +35,14 @@ import {
   type QualificationEvidencePolicy
 } from "@agent-teams/docs-protocol/qualification";
 
-import { assertConsumerIntegrationProfileSchema } from "../consumer-integration/adapters/consumer-integration-schema-validator.js";
-import {
-  checkConsumerIntegration,
-  type ConsumerIntegrationDesiredStateV1
-} from "../consumer-integration/index.js";
 import type {
+  ConsumerIntegrationDesiredStateV1,
+  ManagedQualificationIntegration,
   DocsProtocolQualificationContractV2,
   DocsProtocolQualificationReceiptV2,
   DocsProtocolQualificationScenarioV2,
   DocsProtocolQualificationV2Request
-} from "./v2-contract.js";
+} from "../../application-api.js";
 
 type ManagedIntegrationCandidate = Omit<ConsumerIntegrationDesiredStateV1, "schemaVersion"> & {
   readonly schemaVersion: unknown;
@@ -74,7 +71,7 @@ async function readQualificationContractV2(root: string, path: string): Promise<
   if (value.schemaVersion === 1) {
     throw new Error("DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED: replace fixtureRoot/tests/pins/paths/gate with schemaVersion 2 scenarios; managed integration owns package and route authority.");
   }
-  const schema = JSON.parse(await readFile(new URL("../../schemas/docs-protocol-qualification/v2.schema.json", import.meta.url), "utf8")) as object;
+  const schema = JSON.parse(await readFile(new URL("../../../../schemas/docs-protocol-qualification/v2.schema.json", import.meta.url), "utf8")) as object;
   const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
   if (!validate(value)) {
     const details = (validate.errors ?? []).slice(0, 8).map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`).join("; ");
@@ -119,7 +116,7 @@ async function bootstrapManagedQualificationInstallation(
   readonly mutationVersion: string;
 }> {
   const portable = await bootstrapQualificationInstallation(consumerRoot, rewriteManifest);
-  const adapterManifestPath = fileURLToPath(new URL("../../package.json", import.meta.url));
+  const adapterManifestPath = fileURLToPath(new URL("../../../../package.json", import.meta.url));
   const [adapterManifest, consumerManifestSource] = await Promise.all([
     readFile(adapterManifestPath, "utf8").then((source) => JSON.parse(source) as { readonly version: string }),
     readFile(join(consumerRoot, "package.json"), "utf8")
@@ -233,15 +230,15 @@ function assertScenarioCoverage(contract: DocsProtocolQualificationContractV2, d
   }
 }
 
-async function assertManagedIntegrationAuthority(integration: ManagedIntegrationCandidate): Promise<void> {
-  await assertConsumerIntegrationProfileSchema(integration);
+async function assertManagedIntegrationAuthority(integration: ManagedIntegrationCandidate, integrationApi: ManagedQualificationIntegration): Promise<void> {
+  await integrationApi.assertProfile(integration);
   if (integration.schemaVersion !== 2 || integration.qualification === undefined) {
     throw new Error("DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED: managed integration schemaVersion 2 with qualification authority is required.");
   }
 }
 
-async function assertReleasedIntegrationCurrent(sourceRoot: string, integrationPath: string): Promise<void> {
-  const managed = await checkConsumerIntegration({
+async function assertReleasedIntegrationCurrent(sourceRoot: string, integrationPath: string, integrationApi: ManagedQualificationIntegration): Promise<void> {
+  const managed = await integrationApi.check({
     consumerRoot: sourceRoot,
     integrationProfilePath: integrationPath
   });
@@ -329,118 +326,120 @@ async function collectEvidence(input: {
   };
 }
 
-export async function runDocsProtocolQualificationV2(
-  request: DocsProtocolQualificationV2Request
-): Promise<DocsProtocolQualificationReceiptV2> {
-  const sourceRoot = await realpath(resolvePath(request.consumerRoot));
-  const integrationPath = request.integrationPath ?? "architecture/foundation/docs-consumer-integration.json";
-  const integrationFile = await readContainedBoundedFile(sourceRoot, integrationPath, "Managed integration profile");
-  const integration = JSON.parse(integrationFile.bytes.toString("utf8")) as ManagedIntegrationCandidate;
-  await assertManagedIntegrationAuthority(integration);
-  const qualifiedIntegration = integration as ManagedIntegrationCandidate & {
-    readonly schemaVersion: 2;
-    readonly qualification: NonNullable<ManagedIntegrationCandidate["qualification"]>;
+export function createDocsProtocolQualificationV2(integrationApi: ManagedQualificationIntegration) {
+  return async function runDocsProtocolQualificationV2(
+    request: DocsProtocolQualificationV2Request
+  ): Promise<DocsProtocolQualificationReceiptV2> {
+    const sourceRoot = await realpath(resolvePath(request.consumerRoot));
+    const integrationPath = request.integrationPath ?? "architecture/foundation/docs-consumer-integration.json";
+    const integrationFile = await readContainedBoundedFile(sourceRoot, integrationPath, "Managed integration profile");
+    const integration = JSON.parse(integrationFile.bytes.toString("utf8")) as ManagedIntegrationCandidate;
+    await assertManagedIntegrationAuthority(integration, integrationApi);
+    const qualifiedIntegration = integration as ManagedIntegrationCandidate & {
+      readonly schemaVersion: 2;
+      readonly qualification: NonNullable<ManagedIntegrationCandidate["qualification"]>;
+    };
+    const evidencePolicy = qualificationEvidencePolicy(qualifiedIntegration.governedDocsRoots ?? []);
+    const before = await snapshot(sourceRoot, evidencePolicy) as `sha256:${string}`;
+    const qualification = await readQualificationContractV2(sourceRoot, qualifiedIntegration.qualification.contractPath);
+    if (request.localDevelopment !== true) {
+      await assertReleasedIntegrationCurrent(sourceRoot, integrationPath, integrationApi);
+    }
+    const temporary = await realpath(await mkdtemp(join(tmpdir(), "atd-q2-")));
+    const consumerRoot = join(temporary, "consumer");
+    try {
+      request.signal?.throwIfAborted();
+      await copyDisposableConsumer(sourceRoot, consumerRoot, evidencePolicy);
+      const executingPackages = await bootstrapManagedQualificationInstallation(
+        consumerRoot,
+        request.localDevelopment === true
+      );
+      await overlayLocalDevelopmentSkill(consumerRoot, qualifiedIntegration.skillPath, request.localDevelopment === true);
+      const manifest = JSON.parse(await readFile(join(consumerRoot, "package.json"), "utf8")) as { readonly scripts?: Readonly<Record<string, unknown>> };
+      if (typeof manifest.scripts?.["docs:protocol:check"] !== "string") {
+        throw new Error(`Managed qualification gate ${qualifiedIntegration.qualification.gateCommand} must resolve to a package script; it is never executed by qualification.`);
+      }
+      const protocol: PortableQualificationProtocol = {
+        checkV2: docsCheckV2,
+        doctorV2: docsDoctorV2,
+        findV2: docsFindV2,
+        infoV2: docsInfoV2,
+        newDocumentV2: docsNewV2,
+        recoverV2: docsRecoverV2
+      };
+      const base = { consumerRoot, profilePath: qualifiedIntegration.profilePath, ...signalOption(request.signal) };
+      const info = await protocol.infoV2(base);
+      requireSuccess("info", info);
+      const infoResult = info.envelope.result;
+      assertScenarioCoverage(qualification.contract, infoResult.types.map(({ type }) => type));
+      requireSuccess("find", await protocol.findV2({ ...base, query: {} }));
+      requireSuccess("check", await protocol.checkV2(base));
+      const initialDoctor = await protocol.doctorV2(base);
+      requireSuccess("doctor", initialDoctor);
+      const idleRecovery = await protocol.recoverV2(base);
+      requireSuccess("recover", idleRecovery);
+      if (idleRecovery.envelope.result.transactionState !== "no-pending-transaction") {
+        throw new Error("Qualification recover did not prove the initial idle state.");
+      }
+      const receipts = await qualifyScenarios({ base, contract: qualification.contract, evidencePolicy, protocol });
+      requireSuccess("doctor", await protocol.doctorV2(base));
+      requireSuccess("recover", await protocol.recoverV2(base));
+      if (await snapshot(sourceRoot, evidencePolicy) !== before) {
+        throw new Error("Qualification modified its source consumer.");
+      }
+      const evidence = await collectEvidence({
+        consumerRoot,
+        integration: qualifiedIntegration
+      });
+      const environment = initialDoctor.envelope.result.environment as {
+        readonly installedFoundationBuildIdentity: `sha256:${string}`;
+        readonly installedFoundationVersion: string;
+      };
+      if (request.localDevelopment !== true &&
+        executingPackages.docsVersion !== qualifiedIntegration.cohort.packages.docsProtocol.version) {
+        throw new Error("Released-cohort qualification execution identity does not match the exact cohort package versions.");
+      }
+      const hasGolden = qualification.contract.scenarios.some(({ expected }) =>
+        expected.goldenFile !== undefined || expected.goldenDigest !== undefined);
+      const body = Object.freeze({
+        schemaVersion: 2,
+        cohortAdmissible: request.localDevelopment !== true,
+        evidenceClass: request.localDevelopment === true ? "local-development" : "released-cohort",
+        projectId: infoResult.projectId,
+        scenarios: receipts,
+        checks: Object.freeze([
+          "info", "find", "check", "doctor", "recover", "preview", "apply", "path", "reachability",
+          ...(hasGolden ? ["golden" as const] : []),
+          "source-unchanged"
+        ] as const),
+        derived: Object.freeze({
+          contractPath: qualifiedIntegration.qualification.contractPath,
+          gateCommand: qualifiedIntegration.qualification.gateCommand,
+          packageVersions: Object.freeze({
+            docsProtocol: qualifiedIntegration.cohort.packages.docsProtocol.version,
+            engineeringFoundation: qualifiedIntegration.cohort.packages.engineeringFoundation.version
+          }),
+          profilePath: qualifiedIntegration.profilePath
+        }),
+        evidence: Object.freeze({
+          sourceDigest: before,
+          integration: Object.freeze({ path: integrationPath, digest: integrationFile.digest }),
+          contract: qualification.evidence,
+          profile: Object.freeze(evidence.profile),
+          skill: Object.freeze(evidence.skill),
+          packageManifestDigest: evidence.packageManifestDigest,
+          lockfileDigest: evidence.lockfileDigest,
+          executingDocsProtocol: Object.freeze({ version: executingPackages.docsVersion, buildDigest: digest(evidence.executingModule) }),
+          executingFoundation: Object.freeze({
+            version: environment.installedFoundationVersion,
+            buildIdentity: environment.installedFoundationBuildIdentity
+          }),
+          cohort: Object.freeze({ ...qualifiedIntegration.cohort })
+        })
+      });
+      return Object.freeze({ ...body, receiptDigest: digest(canonicalJson(body)) });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
   };
-  const evidencePolicy = qualificationEvidencePolicy(qualifiedIntegration.governedDocsRoots ?? []);
-  const before = await snapshot(sourceRoot, evidencePolicy) as `sha256:${string}`;
-  const qualification = await readQualificationContractV2(sourceRoot, qualifiedIntegration.qualification.contractPath);
-  if (request.localDevelopment !== true) {
-    await assertReleasedIntegrationCurrent(sourceRoot, integrationPath);
-  }
-  const temporary = await realpath(await mkdtemp(join(tmpdir(), "atd-q2-")));
-  const consumerRoot = join(temporary, "consumer");
-  try {
-    request.signal?.throwIfAborted();
-    await copyDisposableConsumer(sourceRoot, consumerRoot, evidencePolicy);
-    const executingPackages = await bootstrapManagedQualificationInstallation(
-      consumerRoot,
-      request.localDevelopment === true
-    );
-    await overlayLocalDevelopmentSkill(consumerRoot, qualifiedIntegration.skillPath, request.localDevelopment === true);
-    const manifest = JSON.parse(await readFile(join(consumerRoot, "package.json"), "utf8")) as { readonly scripts?: Readonly<Record<string, unknown>> };
-    if (typeof manifest.scripts?.["docs:protocol:check"] !== "string") {
-      throw new Error(`Managed qualification gate ${qualifiedIntegration.qualification.gateCommand} must resolve to a package script; it is never executed by qualification.`);
-    }
-    const protocol: PortableQualificationProtocol = {
-      checkV2: docsCheckV2,
-      doctorV2: docsDoctorV2,
-      findV2: docsFindV2,
-      infoV2: docsInfoV2,
-      newDocumentV2: docsNewV2,
-      recoverV2: docsRecoverV2
-    };
-    const base = { consumerRoot, profilePath: qualifiedIntegration.profilePath, ...signalOption(request.signal) };
-    const info = await protocol.infoV2(base);
-    requireSuccess("info", info);
-    const infoResult = info.envelope.result;
-    assertScenarioCoverage(qualification.contract, infoResult.types.map(({ type }) => type));
-    requireSuccess("find", await protocol.findV2({ ...base, query: {} }));
-    requireSuccess("check", await protocol.checkV2(base));
-    const initialDoctor = await protocol.doctorV2(base);
-    requireSuccess("doctor", initialDoctor);
-    const idleRecovery = await protocol.recoverV2(base);
-    requireSuccess("recover", idleRecovery);
-    if (idleRecovery.envelope.result.transactionState !== "no-pending-transaction") {
-      throw new Error("Qualification recover did not prove the initial idle state.");
-    }
-    const receipts = await qualifyScenarios({ base, contract: qualification.contract, evidencePolicy, protocol });
-    requireSuccess("doctor", await protocol.doctorV2(base));
-    requireSuccess("recover", await protocol.recoverV2(base));
-    if (await snapshot(sourceRoot, evidencePolicy) !== before) {
-      throw new Error("Qualification modified its source consumer.");
-    }
-    const evidence = await collectEvidence({
-      consumerRoot,
-      integration: qualifiedIntegration
-    });
-    const environment = initialDoctor.envelope.result.environment as {
-      readonly installedFoundationBuildIdentity: `sha256:${string}`;
-      readonly installedFoundationVersion: string;
-    };
-    if (request.localDevelopment !== true &&
-      executingPackages.docsVersion !== qualifiedIntegration.cohort.packages.docsProtocol.version) {
-      throw new Error("Released-cohort qualification execution identity does not match the exact cohort package versions.");
-    }
-    const hasGolden = qualification.contract.scenarios.some(({ expected }) =>
-      expected.goldenFile !== undefined || expected.goldenDigest !== undefined);
-    const body = Object.freeze({
-      schemaVersion: 2,
-      cohortAdmissible: request.localDevelopment !== true,
-      evidenceClass: request.localDevelopment === true ? "local-development" : "released-cohort",
-      projectId: infoResult.projectId,
-      scenarios: receipts,
-      checks: Object.freeze([
-        "info", "find", "check", "doctor", "recover", "preview", "apply", "path", "reachability",
-        ...(hasGolden ? ["golden" as const] : []),
-        "source-unchanged"
-      ] as const),
-      derived: Object.freeze({
-        contractPath: qualifiedIntegration.qualification.contractPath,
-        gateCommand: qualifiedIntegration.qualification.gateCommand,
-        packageVersions: Object.freeze({
-          docsProtocol: qualifiedIntegration.cohort.packages.docsProtocol.version,
-          engineeringFoundation: qualifiedIntegration.cohort.packages.engineeringFoundation.version
-        }),
-        profilePath: qualifiedIntegration.profilePath
-      }),
-      evidence: Object.freeze({
-        sourceDigest: before,
-        integration: Object.freeze({ path: integrationPath, digest: integrationFile.digest }),
-        contract: qualification.evidence,
-        profile: Object.freeze(evidence.profile),
-        skill: Object.freeze(evidence.skill),
-        packageManifestDigest: evidence.packageManifestDigest,
-        lockfileDigest: evidence.lockfileDigest,
-        executingDocsProtocol: Object.freeze({ version: executingPackages.docsVersion, buildDigest: digest(evidence.executingModule) }),
-        executingFoundation: Object.freeze({
-          version: environment.installedFoundationVersion,
-          buildIdentity: environment.installedFoundationBuildIdentity
-        }),
-        cohort: Object.freeze({ ...qualifiedIntegration.cohort })
-      })
-    });
-    return Object.freeze({ ...body, receiptDigest: digest(canonicalJson(body)) });
-  } finally {
-    await rm(temporary, { recursive: true, force: true });
-  }
 }

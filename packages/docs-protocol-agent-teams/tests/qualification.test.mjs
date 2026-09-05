@@ -5,9 +5,10 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
-  overlayLocalDevelopmentSkill,
-  runDocsProtocolQualificationV2
-} from "../dist/qualification/qualification-v2-runner.js";
+  overlayLocalDevelopmentSkill
+} from "../dist/qualification/adapters/outbound/node-managed-qualification.js";
+
+import { runDocsProtocolQualificationV2 } from "../dist/qualification/index.js";
 
 const fixtureRoot = new URL("./fixtures/qualification", import.meta.url).pathname;
 

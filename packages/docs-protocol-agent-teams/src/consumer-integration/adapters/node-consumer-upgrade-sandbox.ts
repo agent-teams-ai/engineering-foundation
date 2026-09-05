@@ -31,6 +31,12 @@ import type {
 import {
   projectConsumerUpgradeFiles
 } from "./consumer-upgrade-file-projectors.js";
+import {
+  extractHead,
+  MAXIMUM_INVENTORY_BYTES,
+  MAXIMUM_INVENTORY_FILE_BYTES,
+  MAXIMUM_INVENTORY_FILES
+} from "./node-consumer-upgrade-archive.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import {
   INTEGRATION_PROFILE_PATH,
@@ -62,9 +68,6 @@ function isAuthorityV1(value: ConsumerUpgradeAuthority): value is ConsumerUpgrad
 
 const WORKSPACE_PATH = "pnpm-workspace.yaml";
 const MAXIMUM_PROCESS_OUTPUT_BYTES = 4 * 1024 * 1024;
-const MAXIMUM_INVENTORY_FILES = 100_000;
-const MAXIMUM_INVENTORY_BYTES = 1024 * 1024 * 1024;
-const MAXIMUM_INVENTORY_FILE_BYTES = 64 * 1024 * 1024;
 interface ProcessResult {
   readonly code: number;
   readonly stderr: string;
@@ -233,14 +236,6 @@ async function operationForChangedPath(input: {
   });
 }
 
-async function extractHead(root: string, head: string, target: string): Promise<void> {
-  const archive = `${target}.tar`;
-  await execute("git", ["archive", "--format=tar", `--output=${archive}`, head], root);
-  await mkdir(target, { recursive: true });
-  await execute("tar", ["-xf", archive, "-C", target], root);
-  await rm(archive, { force: true });
-}
-
 async function installCohort(root: string, offline: boolean): Promise<void> {
   await runPnpm(root, [
     "install",
@@ -275,8 +270,8 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     const stagedRoot = join(temporary, "staged");
     try {
       await Promise.all([
-        extractHead(options.consumerRoot, head, beforeRoot),
-        extractHead(options.consumerRoot, head, stagedRoot)
+        extractHead({ root: options.consumerRoot, head, target: beforeRoot }, execute),
+        extractHead({ root: options.consumerRoot, head, target: stagedRoot }, execute)
       ]);
       await assertProvedSourceSnapshot({
         current: options.current,

@@ -1,3 +1,8 @@
+import type {
+  ConsumerIntegrationExecutionV1
+} from "../../../consumer-integration/application-api.js";
+export type { ConsumerIntegrationDesiredStateV1 } from "../../../consumer-integration/application-api.js";
+
 import type { DocumentJsonValue } from "@agent-teams/docs-protocol/qualification";
 
 export interface DocsProtocolQualificationScenarioV2 {
@@ -62,4 +67,12 @@ export interface DocsProtocolQualificationReceiptV2 {
     readonly executingFoundation: { readonly version: string; readonly buildIdentity: `sha256:${string}` };
     readonly cohort: Readonly<Record<string, unknown>>;
   };
+}
+
+export interface ManagedQualificationIntegration {
+  readonly assertProfile: (profile: unknown) => Promise<void>;
+  readonly check: (options: {
+    readonly consumerRoot: string;
+    readonly integrationProfilePath: string;
+  }) => Promise<ConsumerIntegrationExecutionV1>;
 }

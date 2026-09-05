@@ -22,9 +22,9 @@ async function validator(): Promise<ValidateFunction> {
   if (validatorPromise !== undefined) {return validatorPromise;}
   validatorPromise = (async () => {
     const [envelopeSource, receiptSource, integrationSource] = await Promise.all([
-      readFile(new URL("../../schemas/docs-protocol-command-envelope/v2.schema.json", import.meta.url), "utf8"),
-      readFile(new URL("../../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"),
-      readFile(new URL("../../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8")
+      readFile(new URL("../../../../schemas/docs-protocol-command-envelope/v2.schema.json", import.meta.url), "utf8"),
+      readFile(new URL("../../../../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"),
+      readFile(new URL("../../../../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8")
     ]);
     const ajv = new Ajv2020({ allErrors: true, strict: true });
     ajv.addSchema(JSON.parse(integrationSource) as object);

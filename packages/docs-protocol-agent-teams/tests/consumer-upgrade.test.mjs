@@ -1,3 +1,4 @@
+import { assertConsumerUpgradeExecutionSchema } from "../dist/consumer-integration/adapters/consumer-integration-schema-validator.js";
 /* oxlint-disable max-lines, max-lines-per-function -- Disposable E2E keeps setup and cleanup local. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -36,7 +37,7 @@ import {
 } from "../dist/consumer-integration/adapters/pnpm-manifest-adapter-v1.js";
 import {
   foundationKnownFileTransaction
-} from "../dist/consumer-integration/adapters/foundation-known-file-transaction.js";
+} from "../dist/consumer-integration/composition/known-file-transaction.js";
 import {
   computePnpmRuntimeClosureDigestV2
 } from "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
@@ -1258,6 +1259,7 @@ ${Object.entries(sourceBinding.packages).map(([key, coordinate]) => {
       transaction: foundationKnownFileTransaction
     });
     const execution = await upgrade({ consumerRoot, targetGeneration: 2, to: target.cohortId });
+    await assertConsumerUpgradeExecutionSchema(execution);
     assert.deepEqual(
       [execution.outcome, execution.authority.revision],
       ["upgraded", authority.revision]

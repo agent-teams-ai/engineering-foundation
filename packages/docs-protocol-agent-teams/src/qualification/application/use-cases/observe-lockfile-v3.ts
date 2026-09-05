@@ -1,12 +1,11 @@
 import {
   assertConsumerIntegrationDesiredStateV3,
-  describeCanonicalConsumerAssets,
-  observeQualifiedPnpmLockfileV2
-} from "../consumer-integration/composition/qualification-v3-boundary.js";
+  describeCanonicalConsumerAssets
+} from "../../../consumer-integration/application-api.js";
 import type {
   DocsProtocolQualificationLockfileObservationV3,
   DocsProtocolQualificationLockfileObservationV3Request
-} from "./v3-contract.js";
+} from "../model/v3-contract.js";
 
 function assertDocsProtocolQualificationV3ProfileAuthority(
   profile: DocsProtocolQualificationLockfileObservationV3Request["profile"]
@@ -25,14 +24,19 @@ function assertDocsProtocolQualificationV3ProfileAuthority(
  * Observes a registry/SRI-bound five-coordinate lockfile against trusted Profile v3 authority.
  * It does not accept package coordinates as caller-supplied qualification evidence.
  */
-export function observeDocsProtocolQualificationV3Lockfile(
-  request: DocsProtocolQualificationLockfileObservationV3Request
-): DocsProtocolQualificationLockfileObservationV3 {
-  assertDocsProtocolQualificationV3ProfileAuthority(request.profile);
-  return Object.freeze({
-    runtimeClosureDigest: observeQualifiedPnpmLockfileV2(
-      request.lockfileBytes,
-      request.profile
-    )
-  });
+export function createDocsProtocolQualificationV3Observer(observeLockfile: (
+  bytes: Uint8Array,
+  profile: DocsProtocolQualificationLockfileObservationV3Request["profile"]
+) => `sha256:${string}`) {
+  return function observeDocsProtocolQualificationV3Lockfile(
+    request: DocsProtocolQualificationLockfileObservationV3Request
+  ): DocsProtocolQualificationLockfileObservationV3 {
+    assertDocsProtocolQualificationV3ProfileAuthority(request.profile);
+    return Object.freeze({
+      runtimeClosureDigest: observeLockfile(
+        request.lockfileBytes,
+        request.profile
+      )
+    });
+  };
 }

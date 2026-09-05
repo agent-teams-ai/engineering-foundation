@@ -23,7 +23,7 @@ const REPOSITORY = {
   nameWithOwner: "agent-teams-ai/docs-upgrade-sandbox"
 };
 const repositoryMutationReceiptSchema = JSON.parse(await readFile(new URL(
-  import.meta.resolve("@agent-teams/repository-mutation/schemas/known-file-transaction-receipt/v1.schema.json")
+  import.meta.resolve("@agent-teams/repository-mutation/schemas/repository-mutation/known-file-transaction-receipt/v1.schema.json")
 ), "utf8"));
 const actualOrgV2Registry = JSON.parse(await readFile(new URL(
   "./fixtures/actual-org-cohort-v2.json", import.meta.url

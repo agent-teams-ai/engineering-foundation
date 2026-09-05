@@ -373,13 +373,13 @@
       "preferredFeatureRoot": "packages/docs-protocol-agent-teams/src/features",
       "publicEntrypoints": [
         "packages/docs-protocol-agent-teams/src/index.ts",
-        "packages/docs-protocol-agent-teams/src/consumer-integration/index.ts",
         "packages/docs-protocol-agent-teams/src/qualification/index.ts"
       ],
       "moduleAssembly": [
         "packages/docs-protocol-agent-teams/src/index.ts",
         "packages/docs-protocol-agent-teams/src/cli.ts",
-        "packages/docs-protocol-agent-teams/src/composition"
+        "packages/docs-protocol-agent-teams/src/composition",
+        "packages/docs-protocol-agent-teams/src/qualification/index.ts"
       ],
       "generatedRoots": [
         {
@@ -401,15 +401,11 @@
           "role": "integration",
           "layers": [
             {
-              "role": "domain",
-              "roots": [
-                "packages/docs-protocol-agent-teams/src/consumer-integration/domain"
-              ]
-            },
-            {
               "role": "application",
               "roots": [
                 "packages/docs-protocol-agent-teams/src/consumer-integration/application",
+                "packages/docs-protocol-agent-teams/src/consumer-integration/application-api.ts",
+                "packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts",
                 "packages/docs-protocol-agent-teams/src/consumer-integration/generated"
               ]
             },
@@ -428,8 +424,22 @@
             }
           ],
           "testRoots": [
+            "packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-integration-authority-response-streaming.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
-            "packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs"
+            "packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-integration-plan.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-lockfile-snapshot-selection.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-lockfile-v2-policy.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-upgrade.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/direct-split-structure.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"
           ]
         },
         {
@@ -437,15 +447,29 @@
           "role": "testing",
           "layers": [
             {
-              "role": "testing",
+              "role": "application",
               "roots": [
-                "packages/docs-protocol-agent-teams/src/qualification"
+                "packages/docs-protocol-agent-teams/src/qualification/application",
+                "packages/docs-protocol-agent-teams/src/qualification/application-api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/docs-protocol-agent-teams/src/qualification/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/docs-protocol-agent-teams/src/qualification/composition"
               ]
             }
           ],
           "testRoots": [
-            "packages/docs-protocol-agent-teams/tests/qualification.test.mjs",
-            "packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs"
+            "packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/qualification.test.mjs"
           ]
         }
       ],

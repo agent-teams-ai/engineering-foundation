@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-agent-teams/docs-consumer-upgrade-execution/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "command", "outcome", "issues"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "command": { "const": "consumer.upgrade" },
+    "outcome": { "enum": ["blocked", "current", "upgraded"] },
+    "issues": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "subject", "message"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$", "maxLength": 128 },
+          "severity": { "enum": ["error", "warning"] },
+          "subject": { "type": "string", "maxLength": 2048 },
+          "message": { "type": "string", "maxLength": 4096 }
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "path", "revision", "cohortId", "recordDigest", "qualificationEventDigest"],
+      "properties": {
+        "repository": { "const": "agent-teams-ai/.github" },
+        "path": { "const": "governance/docs-qualified-cohorts.json" },
+        "revision": { "type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$" },
+        "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+        "recordDigest": { "$ref": "#/$defs/sha256" },
+        "qualificationEventDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "receipt": { "$ref": "https://agent-teams.ai/schemas/repository-mutation/known-file-transaction-receipt/v1" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

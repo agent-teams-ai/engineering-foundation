@@ -7,10 +7,10 @@ export {
   canonicalManagedRoute,
   canonicalManagedState,
   describeCanonicalConsumerAssets
-} from "./application/policies/consumer-integration-assets.js";
+} from "./application-api.js";
 export type {
   CanonicalManagedAssetDigests
-} from "./application/policies/consumer-integration-assets.js";
+} from "./application-api.js";
 export { planConsumerIntegration } from "./composition/consumer-integration-planner.js";
 export { planAgentsRouteV1 } from "./adapters/agents-route-adapter-v1.js";
 export type { AgentsRoutePlanV1 } from "./adapters/agents-route-adapter-v1.js";
@@ -27,7 +27,7 @@ export {
 export type { ConsumerIntegrationExecutionV1 } from "./composition/node-consumer-integration.js";
 export type {
   ConsumerUpgradeExecutionV1
-} from "./application/model/consumer-upgrade-execution.js";
+} from "./application-api.js";
 export {
   ConsumerIntegrationNodeError,
   readConsumerIntegrationInput
@@ -50,4 +50,6 @@ export type {
   QualifiedDocsCohortV1,
   QualifiedDocsCohortV2,
   QualifiedDocsPackageCoordinateV2
-} from "./domain/model.js";
+} from "./application-api.js";
+
+export { projectManagedPortableProfileV4 } from "./adapters/consumer-upgrade-file-projectors.js";

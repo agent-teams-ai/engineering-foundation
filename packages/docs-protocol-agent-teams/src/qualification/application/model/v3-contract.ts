@@ -1,7 +1,7 @@
 import type {
   ConsumerIntegrationDesiredStateV3,
   QualifiedDocsCohortBindingV2
-} from "../consumer-integration/composition/qualification-v3-boundary.js";
+} from "../../../consumer-integration/application-api.js";
 
 export type DocsProtocolQualificationCheckV3 =
   | "profile-v3"

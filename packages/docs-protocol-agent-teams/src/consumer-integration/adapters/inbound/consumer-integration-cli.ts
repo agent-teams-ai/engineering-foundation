@@ -1,18 +1,13 @@
-import {
-  applyConsumerIntegration,
-  checkConsumerIntegration,
-  planNodeConsumerIntegration,
-  recoverConsumerIntegration,
-  upgradeConsumerIntegrationToGeneration,
-  type ConsumerIntegrationExecutionV1
-} from "./node-consumer-integration.js";
+import type {
+  createConsumerIntegrationUseCases,
+  createConsumerUpgradeUseCase,
+  ConsumerIntegrationExecutionV1,
+  ConsumerUpgradeExecutionV1
+} from "../../application-api.js";
 import {
   assertConsumerIntegrationExecutionSchema,
   assertConsumerUpgradeExecutionSchema
-} from "../adapters/consumer-integration-schema-validator.js";
-import type {
-  ConsumerUpgradeExecutionV1
-} from "../application/model/consumer-upgrade-execution.js";
+} from "../consumer-integration-schema-validator.js";
 
 class ConsumerCliInputError extends Error {
   readonly code = "DOCS_CONSUMER_CLI_INVALID";
@@ -174,73 +169,82 @@ Options:
 `;
 }
 
-// oxlint-disable-next-line complexity
-export async function runManagedConsumerCommand(argv: readonly string[]): Promise<number> {
-  let command = "";
-  const jsonRequested = requestsJsonOutput(argv);
-  let execution: ConsumerExecution;
-  try {
-    assertBoundedArgv(argv);
-    command = argv[0] ?? "";
-    if (command === "help" || command === "--help" || argv[1] === "--help") {
-      const helpArgs = new Arguments(argv.slice(1));
-      if (argv[1] === "--help") {helpArgs.flag("--help");}
-      helpArgs.assertConsumed();
-      process.stdout.write(managedDocsHelp());
-      return 0;
-    }
-    const args = new Arguments(argv.slice(1));
-    args.flag("--json");
-    const consumerRoot = args.one("--consumer") ?? ".";
-    if (command === "check") {
-      args.assertConsumed();
-      execution = await checkConsumerIntegration({ consumerRoot });
-    } else if (command === "plan") {
-      const to = args.one("--to", true)!;
-      if (!COHORT_ID.test(to)) {throw new ConsumerCliInputError("--to must be one exact Cohort ID.");}
-      args.assertConsumed();
-      execution = await planNodeConsumerIntegration({ consumerRoot, to });
-    } else if (command === "apply") {
-      const expect = args.one("--expect", true)!;
-      if (!SHA256.test(expect)) {throw new ConsumerCliInputError("--expect must be one sha256 Plan digest.");}
-      args.assertConsumed();
-      execution = await applyConsumerIntegration({ consumerRoot, expect });
-    } else if (command === "upgrade") {
-      const to = args.one("--to", true)!;
-      if (!COHORT_ID.test(to)) {throw new ConsumerCliInputError("--to must be one exact Cohort ID.");}
-      const authorityRevision = args.one("--authority-revision");
-      if (authorityRevision !== undefined && !GIT_SHA.test(authorityRevision)) {
-        throw new ConsumerCliInputError("--authority-revision must be one nonzero lowercase Git SHA.");
-      }
-      const generation = args.one("--target-generation", true)!;
-      if (generation !== "1" && generation !== "2") {
-        throw new ConsumerCliInputError("--target-generation must be exactly 1 or 2.");
-      }
-      args.assertConsumed();
-      execution = await upgradeConsumerIntegrationToGeneration({
-        consumerRoot,
-        to,
-        targetGeneration: Number(generation) as 1 | 2,
-        ...(authorityRevision === undefined ? {} : { authorityRevision })
-      });
-    } else if (command === "recover") {
-      args.assertConsumed();
-      execution = await recoverConsumerIntegration({ consumerRoot });
-    } else {
-      throw new ConsumerCliInputError("Expected consumer command: check, plan, apply, upgrade, or recover.");
-    }
-  } catch (error) {
-    execution = failure(command || "check", error);
+export function createManagedConsumerCommand(operations:
+  ReturnType<typeof createConsumerIntegrationUseCases> & {
+    readonly upgrade: (options: Parameters<ReturnType<typeof createConsumerUpgradeUseCase>>[0] & {
+      readonly targetGeneration: 1 | 2;
+    }) => Promise<ConsumerUpgradeExecutionV1>;
   }
-  try {
-    if (execution.command === "consumer.upgrade") {
-      await assertConsumerUpgradeExecutionSchema(execution);
-    } else {
-      await assertConsumerIntegrationExecutionSchema(execution);
+) {
+  // oxlint-disable-next-line complexity
+  return async function runManagedConsumerCommand(argv: readonly string[]): Promise<number> {
+    let command = "";
+    const jsonRequested = requestsJsonOutput(argv);
+    let execution: ConsumerExecution;
+    try {
+      assertBoundedArgv(argv);
+      command = argv[0] ?? "";
+      if (command === "help" || command === "--help" || argv[1] === "--help") {
+        const helpArgs = new Arguments(argv.slice(1));
+        if (argv[1] === "--help") {helpArgs.flag("--help");}
+        helpArgs.assertConsumed();
+        if (jsonRequested) {throw new ConsumerCliInputError("--help does not accept --json.");}
+        process.stdout.write(managedDocsHelp());
+        return 0;
+      }
+      const args = new Arguments(argv.slice(1));
+      args.flag("--json");
+      const consumerRoot = args.one("--consumer") ?? ".";
+      if (command === "check") {
+        args.assertConsumed();
+        execution = await operations.check({ consumerRoot });
+      } else if (command === "plan") {
+        const to = args.one("--to", true)!;
+        if (!COHORT_ID.test(to)) {throw new ConsumerCliInputError("--to must be one exact Cohort ID.");}
+        args.assertConsumed();
+        execution = await operations.plan({ consumerRoot, to });
+      } else if (command === "apply") {
+        const expect = args.one("--expect", true)!;
+        if (!SHA256.test(expect)) {throw new ConsumerCliInputError("--expect must be one sha256 Plan digest.");}
+        args.assertConsumed();
+        execution = await operations.apply({ consumerRoot, expect });
+      } else if (command === "upgrade") {
+        const to = args.one("--to", true)!;
+        if (!COHORT_ID.test(to)) {throw new ConsumerCliInputError("--to must be one exact Cohort ID.");}
+        const authorityRevision = args.one("--authority-revision");
+        if (authorityRevision !== undefined && !GIT_SHA.test(authorityRevision)) {
+          throw new ConsumerCliInputError("--authority-revision must be one nonzero lowercase Git SHA.");
+        }
+        const generation = args.one("--target-generation", true)!;
+        if (generation !== "1" && generation !== "2") {
+          throw new ConsumerCliInputError("--target-generation must be exactly 1 or 2.");
+        }
+        args.assertConsumed();
+        execution = await operations.upgrade({
+          consumerRoot,
+          to,
+          targetGeneration: Number(generation) as 1 | 2,
+          ...(authorityRevision === undefined ? {} : { authorityRevision })
+        });
+      } else if (command === "recover") {
+        args.assertConsumed();
+        execution = await operations.recover({ consumerRoot });
+      } else {
+        throw new ConsumerCliInputError("Expected consumer command: check, plan, apply, upgrade, or recover.");
+      }
+    } catch (error) {
+      execution = failure(command || "check", error);
     }
-  } catch (error) {
-    execution = failure(command || "check", error);
-  }
-  process.stdout.write(jsonRequested ? `${JSON.stringify(execution)}\n` : human(execution));
-  return exitCode(execution);
+    try {
+      if (execution.command === "consumer.upgrade") {
+        await assertConsumerUpgradeExecutionSchema(execution);
+      } else {
+        await assertConsumerIntegrationExecutionSchema(execution);
+      }
+    } catch (error) {
+      execution = failure(command || "check", error);
+    }
+    process.stdout.write(jsonRequested ? `${JSON.stringify(execution)}\n` : human(execution));
+    return exitCode(execution);
+  };
 }

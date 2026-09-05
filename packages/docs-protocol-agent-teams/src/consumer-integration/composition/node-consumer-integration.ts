@@ -1,4 +1,4 @@
-import { foundationKnownFileTransaction } from "../adapters/foundation-known-file-transaction.js";
+import { foundationKnownFileTransaction } from "./known-file-transaction.js";
 import { githubCohortAuthorityReader } from "../adapters/github-cohort-authority-reader.js";
 import {
   nodeConsumerIntegrationInputReader
@@ -7,23 +7,17 @@ import {
   packageConsumerAssetCatalogReader
 } from "../adapters/package-consumer-asset-catalog.js";
 import { nodeConsumerUpgradeSandbox } from "../adapters/node-consumer-upgrade-sandbox.js";
-import type {
-  ConsumerIntegrationExecutionV1
-} from "../application/model/consumer-integration-execution.js";
 import {
-  createConsumerIntegrationUseCases
-} from "../application/use-cases/run-consumer-integration.js";
-import {
-  createConsumerUpgradeUseCase
-} from "../application/use-cases/upgrade-consumer-integration.js";
-import type {
-  ConsumerUpgradeExecutionV1
-} from "../application/model/consumer-upgrade-execution.js";
+  createConsumerIntegrationUseCases,
+  createConsumerUpgradeUseCase,
+  type ConsumerIntegrationExecutionV1,
+  type ConsumerUpgradeExecutionV1
+} from "../application-api.js";
 import { consumerIntegrationPlanningPorts } from "./consumer-integration-planner.js";
 
 export type {
   ConsumerIntegrationExecutionV1
-} from "../application/model/consumer-integration-execution.js";
+} from "../application-api.js";
 
 const useCases = createConsumerIntegrationUseCases({
   assets: packageConsumerAssetCatalogReader,

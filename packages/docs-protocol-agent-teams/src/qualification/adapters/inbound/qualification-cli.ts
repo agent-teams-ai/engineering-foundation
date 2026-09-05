@@ -3,16 +3,14 @@ import {
   DOCS_PROTOCOL_VERSION
 } from "@agent-teams/docs-protocol";
 
-import { readManagedQualificationProfileInput } from
-  "../consumer-integration/composition/qualification-v3-boundary.js";
 import {
   assertManagedQualificationEnvelopeSchema,
   type ManagedQualificationEnvelope
-} from "../qualification/managed-command-envelope-validator.js";
-import {
-  runDocsProtocolQualificationV2,
-  type DocsProtocolQualificationReceiptV2
-} from "../qualification/index.js";
+} from "./managed-command-envelope-validator.js";
+import type {
+  DocsProtocolQualificationReceiptV2,
+  DocsProtocolQualificationV2Request
+} from "../../application-api.js";
 import { Arguments, CliInputError } from "./managed-cli-input.js";
 
 class QualificationOutputError extends Error {
@@ -77,7 +75,8 @@ function qualificationHelpText(): string {
 
 async function qualificationSuccess(
   args: Arguments,
-  signal: AbortSignal
+  signal: AbortSignal,
+  operations: QualificationCliOperations
 ): Promise<{
   readonly envelope: ManagedQualificationEnvelope<DocsProtocolQualificationReceiptV2>;
   readonly exitCode: 0;
@@ -87,7 +86,7 @@ async function qualificationSuccess(
   const integrationPath = args.one("--integration") ??
     "architecture/foundation/docs-consumer-integration.json";
   if (args.positionals().length !== 0) {throw new CliInputError("qualify accepts no positional arguments.");}
-  const input = await readManagedQualificationProfileInput(consumerRoot, integrationPath);
+  const input = await operations.readProfile(consumerRoot, integrationPath);
   const integration = input.profile;
   if (integration.schemaVersion !== 1 && integration.schemaVersion !== 2 &&
     integration.schemaVersion !== 3) {
@@ -98,7 +97,7 @@ async function qualificationSuccess(
       "Qualification profile v3 requires a trusted registry/canary receipt produced outside the consumer CLI."
     );
   }
-  const receipt = await runDocsProtocolQualificationV2({
+  const receipt = await operations.qualify({
     consumerRoot: input.consumerRoot,
     localDevelopment,
     signal,
@@ -126,33 +125,43 @@ function renderQualificationSuccess(
   return `docs.qualify: success\nProject: ${receipt.projectId}\nScenarios: ${receipt.scenarios.length}\nEvidence: ${receipt.evidenceClass}\n`;
 }
 
-export async function runQualificationCli(values: readonly string[]): Promise<number> {
-  if (values.length === 1 && values[0] === "--help") {
-    process.stdout.write(qualificationHelpText());
-    return 0;
-  }
-  const controller = new AbortController();
-  const cancel = () => { controller.abort(new DOMException("Documentation qualification was cancelled.", "AbortError")); };
-  process.once("SIGINT", cancel);
-  process.once("SIGTERM", cancel);
-  let json = values.includes("--json");
-  try {
-    const args = new Arguments(values);
-    json = args.flag("--json");
-    const execution = await qualificationSuccess(args, controller.signal);
-    if (json) {
-      try {await assertManagedQualificationEnvelopeSchema(execution.envelope);}
-      catch {throw new QualificationOutputError();}
+interface QualificationCliOperations {
+  readonly readProfile: (consumerRoot: string, integrationPath: string) => Promise<{
+    readonly consumerRoot: string;
+    readonly profile: { readonly schemaVersion?: unknown };
+  }>;
+  readonly qualify: (request: DocsProtocolQualificationV2Request) => Promise<DocsProtocolQualificationReceiptV2>;
+}
+
+export function createQualificationCli(operations: QualificationCliOperations) {
+  return async function runQualificationCli(values: readonly string[]): Promise<number> {
+    if (values.length === 1 && values[0] === "--help") {
+      process.stdout.write(qualificationHelpText());
+      return 0;
     }
-    process.stdout.write(renderQualificationSuccess(execution, json));
-    return 0;
-  } catch (error) {
-    const failure = qualificationFailure(error);
-    if (json) {await assertManagedQualificationEnvelopeSchema(failure.envelope);}
-    process.stdout.write(json ? `${JSON.stringify(failure.envelope)}\n` : `docs.qualify: ${failure.envelope.outcome}\n${failure.message}\n`);
-    return failure.exitCode;
-  } finally {
-    process.off("SIGINT", cancel);
-    process.off("SIGTERM", cancel);
-  }
+    const controller = new AbortController();
+    const cancel = () => { controller.abort(new DOMException("Documentation qualification was cancelled.", "AbortError")); };
+    process.once("SIGINT", cancel);
+    process.once("SIGTERM", cancel);
+    let json = values.includes("--json");
+    try {
+      const args = new Arguments(values);
+      json = args.flag("--json");
+      const execution = await qualificationSuccess(args, controller.signal, operations);
+      if (json) {
+        try {await assertManagedQualificationEnvelopeSchema(execution.envelope);}
+        catch {throw new QualificationOutputError();}
+      }
+      process.stdout.write(renderQualificationSuccess(execution, json));
+      return 0;
+    } catch (error) {
+      const failure = qualificationFailure(error);
+      if (json) {await assertManagedQualificationEnvelopeSchema(failure.envelope);}
+      process.stdout.write(json ? `${JSON.stringify(failure.envelope)}\n` : `docs.qualify: ${failure.envelope.outcome}\n${failure.message}\n`);
+      return failure.exitCode;
+    } finally {
+      process.off("SIGINT", cancel);
+      process.off("SIGTERM", cancel);
+    }
+  };
 }

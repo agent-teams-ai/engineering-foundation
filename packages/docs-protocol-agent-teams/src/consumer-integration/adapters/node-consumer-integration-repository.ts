@@ -6,11 +6,9 @@ import type {
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationFileObservation,
-  ConsumerIntegrationSnapshot
-} from "../domain/model.js";
-import type {
+  ConsumerIntegrationSnapshot,
   ConsumerIntegrationInputReader
-} from "../application/ports/consumer-integration-lifecycle.js";
+} from "../application-api.js";
 import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-schema-validator.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";

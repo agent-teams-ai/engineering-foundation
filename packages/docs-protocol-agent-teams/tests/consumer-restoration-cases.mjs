@@ -1,7 +1,7 @@
 /* oxlint-disable max-lines-per-function -- Sequential hostile cases share one disposable migration. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmod, cp, lstat, mkdir, open, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, cp, lstat, mkdir, open, readFile, readdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
@@ -144,7 +144,7 @@ export function registerConsumerRestorationTests(helpers) {
         await assert.rejects(fixture.restore({ expect }), /unrelated edits/u); await rm(foreign);
         const skill = join(consumerRoot, fixture.current.skillPath); const bytes = await readFile(skill);
         await rm(skill); await symlink(readme, skill);
-        await assert.rejects(fixture.restore({ expect })); assert.ok((await lstat(skill)).isSymbolicLink());
+        await assert.rejects(fixture.restore({ expect })); assert.equal(await readlink(skill), readme);
         await rm(skill);
         const restoredSkill = await open(skill, "wx", original[fixture.current.skillPath].mode);
         try {

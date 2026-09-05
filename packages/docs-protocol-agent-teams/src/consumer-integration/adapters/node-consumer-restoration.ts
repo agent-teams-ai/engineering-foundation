@@ -1,5 +1,4 @@
 import { lstat } from "node:fs/promises";
-import { basename, dirname } from "node:path";
 import {
   applyKnownFileTransaction, inspectKnownFileTransactionBarrier, sha256Bytes
 } from "@agent-teams/repository-mutation";
@@ -10,8 +9,8 @@ import type { ConsumerRestorationExecution, ConsumerRestorationOptions, Consumer
 import type { ConsumerRestorationAuthorityReader, ConsumerRestorationRecorder } from "../application/ports/consumer-restoration.js";
 import type { ConsumerUpgradeSandboxPort } from "../application/ports/consumer-upgrade.js";
 import {
-  assertFullyReplacedReceipt, inverseRestorationPlan, MAXIMUM_RESTORATION_PROOF_BYTES,
-  parseConsumerRestorationProof, requireRestoration, restorationJson
+  assertFullyReplacedReceipt, inverseRestorationPlan,
+  parseConsumerRestorationPreparation, requireRestoration, restorationJson
 } from "../application/policies/consumer-restoration-proof.js";
 import {
   assertRestorationImages, assertRestorationPlanSource, externalRestorationPath,
@@ -19,7 +18,8 @@ import {
   restorationGit, restorationInventory, retainRestorationProof
 } from "./node-consumer-restoration-evidence.js";
 import { nodeConsumerIntegrationInputReader } from "./node-consumer-integration-repository.js";
-import { canonicalConsumerRoot, readStableConsumerFile } from "./node-consumer-repository-files.js";
+import { assertRestorationBinding, readSelectedRestorationProof } from "./node-consumer-restoration-selection.js";
+import { canonicalConsumerRoot } from "./node-consumer-repository-files.js";
 
 export function consumerRestorationRecorder(authority: ConsumerRestorationAuthorityReader): ConsumerRestorationRecorder {
   return { prepare: async (options) => {
@@ -36,10 +36,10 @@ export function consumerRestorationRecorder(authority: ConsumerRestorationAuthor
     const current = await historicalRestorationProfile(consumer.root, options.sourceRevision);
     requireRestoration(restorationJson(current) === restorationJson(options.current), "source profile changed.");
     inverseRestorationPlan(options.plan);
-    await assertRestorationPlanSource(consumer.root, options.sourceRevision, current, options.plan);
+    await assertRestorationPlanSource(consumer.root, options.sourceRevision, current, options.plan, options.target);
     const pending = {
-      schemaVersion: 1 as const, protocol: "agent-teams.managed-v1-restoration/v1" as const,
-      sourceGeneration: 1 as const, targetGeneration: 2 as const, consumer,
+      schemaVersion: 1 as const, protocol: "agent-teams.managed-v1-restoration-preparation/v1" as const,
+      sourceGeneration: 1 as const, targetGeneration: 2 as const, consumer, initialProofPath: path,
       sourceRevision: options.sourceRevision,
       sourceTree: (await restorationGit(consumer.root, ["rev-parse", `${options.sourceRevision}^{tree}`])).toString().trim(),
       sourceInventoryDigest: await restorationInventory(consumer.root),
@@ -47,24 +47,10 @@ export function consumerRestorationRecorder(authority: ConsumerRestorationAuthor
       ...await restorationArtifacts(consumer.root), plan: options.plan
     };
     await assertRestorationAuthority(authority, pending);
-    await retainRestorationProof(await externalRestorationPath(`${path}.prepared`, consumer.root), {
-      ...pending, protocol: "agent-teams.managed-v1-restoration-preparation/v1"
-    });
-    return { retain: async (receipt) => {
-      const proof = { ...pending, receipt, activation: "verified-current-v2" as const };
-      assertFullyReplacedReceipt(proof.plan, receipt);
-      requireRestoration(restorationJson(await restorationArtifacts(consumer.root)) ===
-        restorationJson({ controller: proof.controller, kernel: proof.kernel }), "controller changed during activation.");
-      await assertRestorationImages(consumer.root, proof, false);
-      const target = await nodeConsumerIntegrationInputReader.read({ consumerRoot: consumer.root });
-      requireRestoration(target.desired.schemaVersion === 3 &&
-        restorationJson(target.desired.cohort) === restorationJson(proof.targetCohort), "activated target differs from recorded Cohort.");
-      // Validate our complete emitted wire contract before persisting any success evidence.
-      const bytes = Buffer.from(`${restorationJson(proof)}\n`);
-      parseConsumerRestorationProof(bytes, sha256Bytes(bytes));
-      await externalRestorationPath(path, consumer.root);
-      return retainRestorationProof(path, proof);
-    } };
+    await assertRestorationImages(consumer.root, pending, true);
+    const bytes = Buffer.from(`${restorationJson(pending)}\n`);
+    parseConsumerRestorationPreparation(bytes, sha256Bytes(bytes));
+    return retainRestorationProof(await externalRestorationPath(`${path}.prepared`, consumer.root), pending);
   } };
 }
 
@@ -76,7 +62,7 @@ function assertRestoreGenerations(source: unknown, target: unknown): void {
   requireRestoration(source === 2 && target === 1, "restore requires explicit source generation 2 and target generation 1.");
 }
 
-async function assertRestorationAuthority(reader: ConsumerRestorationAuthorityReader,
+export async function assertRestorationAuthority(reader: ConsumerRestorationAuthorityReader,
   proof: Pick<ConsumerRestorationProof, "sourceCohort" | "targetCohort" | "consumer">): Promise<void> {
   const authority = await reader.readRestoration({
     source: proof.targetCohort, origin: proof.sourceCohort, repository: proof.consumer.repository
@@ -100,26 +86,10 @@ export async function restoreNodeConsumerIntegration(options: ConsumerRestoratio
 }): Promise<ConsumerRestorationExecution> {
   assertRestoreGenerations(options.sourceGeneration, options.targetGeneration);
   const root = await canonicalConsumerRoot(options.consumerRoot);
-  const path = await externalRestorationPath(options.proofPath, root);
-  const file = await readStableConsumerFile(dirname(path), basename(path), MAXIMUM_RESTORATION_PROOF_BYTES, true);
-  requireRestoration(file.state === "file", "proof is missing.");
-  const proof = parseConsumerRestorationProof(file.bytes, options.expect);
+  const { proof, digest } = await readSelectedRestorationProof(root, options);
   requireRestoration(options.from === proof.targetCohort.cohortId && options.to === proof.sourceCohort.cohortId,
     "command must name the exact recorded source and target Cohorts.");
-  const consumer = await restorationConsumer(options.consumerRoot, proof.consumer.repository);
-  requireRestoration(restorationJson(consumer) === restorationJson(proof.consumer), "proof belongs to another consumer.");
-  const artifacts = await restorationArtifacts(root);
-  requireRestoration(restorationJson(artifacts) === restorationJson({ controller: proof.controller, kernel: proof.kernel }),
-    "retain the exact recorded controller and kernel package versions AND builds.");
-  const idle = await inspectKnownFileTransactionBarrier({ consumerRoot: root });
-  requireRestoration(idle.state === "idle", "active transaction requires exact kernel recovery first.");
-  const source = await historicalRestorationProfile(root, proof.sourceRevision);
-  requireRestoration(restorationJson(source.cohort) === restorationJson(proof.sourceCohort) &&
-    restorationJson(source.repository) === restorationJson(proof.consumer.repository) &&
-    (await restorationGit(root, ["rev-parse", `${proof.sourceRevision}^{tree}`])).toString().trim() === proof.sourceTree,
-  "historical source binding changed.");
-  await assertRestorationPlanSource(root, proof.sourceRevision, source, proof.plan);
-  const inverse = inverseRestorationPlan(proof.plan);
+  const source = await assertRestorationBinding(root, proof);  const inverse = inverseRestorationPlan(proof.plan);
   let receipt;
   const lease = await acquireMutationLease(root);
   try {
@@ -147,7 +117,7 @@ export async function restoreNodeConsumerIntegration(options: ConsumerRestoratio
   return {
     schemaVersion: 1 as const, command: "consumer.restore" as const,
     outcome: options.activationOnly === true ? "activated-v1" as const : "restored" as const,
-    issues: [], proofDigest: options.expect, inversePlanDigest: inverse.planDigest,
+    issues: [], proofDigest: digest, inversePlanDigest: inverse.planDigest,
     ...(receipt === undefined ? {} : { receipt })
   };
 }

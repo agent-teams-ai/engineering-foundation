@@ -1,5 +1,6 @@
+import { finalizeNodeConsumerRestoration } from "../adapters/node-consumer-restoration-finalization.js";
 import { consumerRestorationRecorder, restoreNodeConsumerIntegration } from "../adapters/node-consumer-restoration.js";
-import type { ConsumerRestorationOptions, RestorableConsumerUpgradeExecution } from "../application/model/consumer-restoration.js";
+import type { ConsumerFinalizationOptions, ConsumerRestorationOptions, RestorableConsumerUpgradeExecution } from "../application/model/consumer-restoration.js";
 import { foundationKnownFileTransaction } from "../adapters/foundation-known-file-transaction.js";
 import { githubCohortAuthorityReader } from "../adapters/github-cohort-authority-reader.js";
 import {
@@ -73,12 +74,14 @@ export function recoverConsumerIntegration(options: {
   return useCases.recover(options);
 }
 
-export function upgradeConsumerIntegration(options: {
+export async function upgradeConsumerIntegration(options: {
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
   readonly to: string;
 }): Promise<ConsumerUpgradeExecutionV1> {
-  return upgrade(options);
+  const result = await upgrade(options);
+  if (result.outcome === "prepared" || result.command !== "consumer.upgrade") {throw new TypeError("Explicit preparation is CLI-only.");}
+  return { ...result, command: "consumer.upgrade", outcome: result.outcome };
 }
 
 export function upgradeConsumerIntegrationToGeneration(options: {
@@ -87,6 +90,7 @@ export function upgradeConsumerIntegrationToGeneration(options: {
   readonly targetGeneration: 1 | 2;
   readonly sourceGeneration?: 1;
   readonly restorationProofPath?: string;
+  readonly prepare?: boolean;
   readonly to: string;
 }): Promise<RestorableConsumerUpgradeExecution> {
   return upgrade(options);
@@ -94,4 +98,8 @@ export function upgradeConsumerIntegrationToGeneration(options: {
 
 export function restoreConsumerIntegration(options: ConsumerRestorationOptions) {
   return restoreNodeConsumerIntegration(options, { authority: githubCohortAuthorityReader, sandbox: nodeConsumerUpgradeSandbox });
+}
+
+export function finalizeConsumerRestoration(options: ConsumerFinalizationOptions) {
+  return finalizeNodeConsumerRestoration(options, { authority: githubCohortAuthorityReader, sandbox: nodeConsumerUpgradeSandbox });
 }

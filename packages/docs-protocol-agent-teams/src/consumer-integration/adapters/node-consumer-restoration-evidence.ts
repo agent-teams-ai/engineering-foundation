@@ -6,8 +6,8 @@ import {
   computeInstalledArtifactBuildIdentity, sha256Bytes, sha256Json,
   type KnownFileTransactionPlanV1, type KnownFileImageV1
 } from "@agent-teams/repository-mutation";
-import type { ConsumerIntegrationDesiredStateV1 } from "../domain/model.js";
-import type { ConsumerRestorationProof } from "../application/model/consumer-restoration.js";
+import type { ConsumerIntegrationDesiredStateV1, QualifiedDocsCohortBindingV2 } from "../domain/model.js";
+import type { ConsumerRestorationIntent } from "../application/model/consumer-restoration.js";
 import {
   MAXIMUM_RESTORATION_PROOF_BYTES, requireRestoration, restorationJson
 } from "../application/policies/consumer-restoration-proof.js";
@@ -16,7 +16,9 @@ import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-s
 import {
   canonicalConsumerRoot, INTEGRATION_PROFILE_PATH, readStableConsumerFile
 } from "./node-consumer-repository-files.js";
+import { assertRestorationManagedEffects } from "./node-consumer-restoration-scope.js";
 import { allowedUpgradePaths } from "./node-consumer-upgrade-source-proof.js";
+import { assertGitHubRuntimeIdentity } from "./node-consumer-integration-repository.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 
 const controllerRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -55,10 +57,7 @@ export async function restorationConsumer(rootInput: string, repository: Consume
   requireRestoration(root === resolvePath(rootInput), "consumer root must be canonical without aliases.");
   requireRestoration((await restorationGit(root, ["rev-parse", "--show-toplevel"])).toString().trim() === root,
     "consumer must be the exact Git top-level directory.");
-  const id = process.env["GITHUB_REPOSITORY_ID"];
-  const name = process.env["GITHUB_REPOSITORY"];
-  requireRestoration(id === repository.id && name === repository.nameWithOwner,
-    "explicit GitHub runtime repository ID and name must match the recorded consumer.");
+  assertGitHubRuntimeIdentity({ repository });
   const stat = await lstat(root, { bigint: true });
   return { root, device: String(stat.dev), inode: String(stat.ino), birthtimeNs: String(stat.birthtimeNs), repository };
 }
@@ -76,7 +75,7 @@ export async function historicalRestorationProfile(root: string, revision: strin
 }
 
 export async function assertRestorationPlanSource(root: string, revision: string,
-  current: ConsumerIntegrationDesiredStateV1, plan: KnownFileTransactionPlanV1): Promise<void> {
+  current: ConsumerIntegrationDesiredStateV1, plan: KnownFileTransactionPlanV1, target: QualifiedDocsCohortBindingV2): Promise<void> {
   const allowed = allowedUpgradePaths(current);
   requireRestoration(plan.operations.some(({ path }) => path === INTEGRATION_PROFILE_PATH) &&
     plan.operations.some(({ path }) => path === "package.json") &&
@@ -88,13 +87,14 @@ export async function assertRestorationPlanSource(root: string, revision: string
     const mode = (await restorationGit(root, ["ls-tree", revision, "--", operation.path])).toString().split(" ")[0];
     const preimage = operation.precondition.acceptedPreimages[0]!;
     requireRestoration(original.equals(Buffer.from(preimage.contentBase64, "base64")) &&
-      mode === ((preimage.mode & 0o111) === 0 ? "100644" : "100755"), "preimage differs from immutable source Git evidence.");
+      mode === (preimage.mode === 0o644 ? "100644" : preimage.mode === 0o755 ? "100755" : "unsupported"), "preimage differs from immutable source Git evidence.");
   }
-  const manifest = plan.operations.find(({ path }) => path === "package.json")!;
-  requireRestoration(manifest.precondition.state === "known-file", "manifest preimage required.");
-  const oldPin = parseJsonRecord(Buffer.from(manifest.precondition.acceptedPreimages[0]!.contentBase64, "base64").toString())["packageManager"];
-  const newPin = parseJsonRecord(Buffer.from(manifest.postimage.contentBase64, "base64").toString())["packageManager"];
-  requireRestoration(typeof oldPin === "string" && oldPin === newPin, "migration must preserve the real packageManager pin.");
+  const originals = new Map<string, Buffer>();
+  const tracked = (await restorationGit(root, ["ls-tree", "-r", "--name-only", revision])).toString().split("\n");
+  for (const path of allowed) {
+    if (tracked.includes(path)) {originals.set(path, await restorationGit(root, ["show", `${revision}:${path}`]));}
+  }
+  await assertRestorationManagedEffects({ current, target, plan, originals });
 }
 
 // Observe every repository file, including ignored files, except installation and kernel state.
@@ -123,7 +123,7 @@ export async function restorationInventory(root: string, substitutes = new Map<s
   return sha256Json(entries.toSorted((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
 }
 
-export async function assertRestorationImages(root: string, proof: ConsumerRestorationProof, historical: boolean): Promise<void> {
+export async function assertRestorationImages(root: string, proof: ConsumerRestorationIntent, historical: boolean): Promise<void> {
   const originalImages = new Map<string, KnownFileImageV1>();
   for (const operation of proof.plan.operations) {
     requireRestoration(operation.precondition.state === "known-file", "replacement preimage required.");
@@ -160,4 +160,12 @@ export async function retainRestorationProof(path: string, proof: unknown) {
   const parent = await open(dirname(path), "r");
   try {await parent.sync();} finally {await parent.close();}
   return { path, digest: sha256Bytes(bytes) };
+}
+
+// A complete write may have survived a kill before its sync or before result output.
+export async function syncRestorationProof(path: string): Promise<void> {
+  const file = await open(path, "r");
+  try {await file.sync();} finally {await file.close();}
+  const parent = await open(dirname(path), "r");
+  try {await parent.sync();} finally {await parent.close();}
 }

@@ -1,5 +1,7 @@
 /* oxlint-disable max-lines, max-lines-per-function -- Disposable E2E keeps setup and cleanup local. */
 import assert from "node:assert/strict";
+import { registerRestorationSelectionTests } from "./consumer-restoration-selection-cases.mjs";
+import { registerRestorationFinalizationTests } from "./consumer-restoration-finalization-cases.mjs";
 import { registerConsumerRestorationTests } from "./consumer-restoration-cases.mjs";
 import { readFileSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -1379,3 +1381,7 @@ ${Object.entries(sourceBinding.packages).map(([key, coordinate]) => {
 });
 
 registerConsumerRestorationTests({ cohortV2, desired, rawRegistry, sourceCohort });
+
+registerRestorationFinalizationTests({ cohortV2, desired });
+
+registerRestorationSelectionTests({ cohortV2, desired });

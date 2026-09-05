@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { sourceCohort, sourceManifest, lockfileObjectForV2, runGit, packageRoot } from "./consumer-upgrade-e2e-fixtures.mjs";
@@ -19,6 +19,7 @@ import { nodeConsumerIntegrationInputReader } from "../dist/consumer-integration
 import { consumerIntegrationPlanningPorts } from "../dist/consumer-integration/composition/consumer-integration-planner.js";
 import { foundationKnownFileTransaction } from "../dist/consumer-integration/adapters/foundation-known-file-transaction.js";
 import { NodeConsumerUpgradeSandbox } from "../dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js";
+import { finalizeNodeConsumerRestoration } from "../dist/consumer-integration/adapters/node-consumer-restoration-finalization.js";
 import { consumerRestorationRecorder, restoreNodeConsumerIntegration } from "../dist/consumer-integration/adapters/node-consumer-restoration.js";
 
 export async function fixtureProcess(executable, args, cwd) {
@@ -64,7 +65,7 @@ async function fixtureRegistry(packages) {
 
 const projection = (cohort) => ({ repository: "agent-teams-ai/.github", path: "governance/docs-qualified-cohorts.json", revision: "8".repeat(40), cohort });
 
-export async function managedRestorationFixture({ cohortV2, desired }) {
+export async function managedRestorationFixture({ cohortV2, desired, preserveForeign = false }) {
   const disposable = await mkdtemp(join(tmpdir(), "managed-restoration-TEST-"));
   const consumerRoot = join(disposable, "consumer");
   await mkdir(consumerRoot);
@@ -99,13 +100,14 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
       docsProtocol: docsName, docsProtocolAgentTeams: "@agent-teams/docs-protocol-agent-teams", engineeringFoundation: foundationName
     };
     const snapshots = lockfileObjectForV2(target).snapshots;
-    const managedCli = `// TEST fixture delegates to the retained implementation, not a published package claim.\nimport {runManagedConsumerCommand} from ${JSON.stringify(pathToFileURL(join(packageRoot, "dist/consumer-integration/composition/consumer-integration-cli.js")).href)};\nprocess.exitCode=await runManagedConsumerCommand(process.argv.slice(2));\n`;
+    const managedCli = `// TEST fixture delegates to the retained implementation, not a published package claim.\nimport {runManagedConsumerCommand} from ${JSON.stringify(pathToFileURL(join(packageRoot, "dist/consumer-integration/composition/consumer-integration-cli.js")).href)};\nprocess.exitCode=await runManagedConsumerCommand(process.argv.slice(2));\nif(process.argv[2]==='check' && process.env.MANAGED_RESTORATION_TARGET_FAIL==='1') process.exitCode=1;\n`;
     for (const [key, name] of Object.entries(names)) {
       const pkg = await fixturePackage(disposable, name, "99.0.0", snapshots[`${name}@99.0.0`].dependencies ?? {},
         key === "docsProtocolAgentTeams" ? managedCli : undefined);
       packages.push(pkg);
       target.packages[key].integrity = pkg.integrity;
     }
+    if (preserveForeign) {packages.push(await fixturePackage(disposable, "consumer-test-tool", "1.0.0", {}));}
     target.assets = describeCanonicalConsumerAssets(target);
     target.runtime.runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfileObjectForV2(target), target);
     registry = await fixtureRegistry(packages);
@@ -120,7 +122,13 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     setEnv("GITHUB_REPOSITORY", current.repository.nameWithOwner);
     const profilePath = "architecture/foundation/docs-consumer-integration.json";
     async function write(path, bytes) {await mkdir(dirname(join(consumerRoot, path)), { recursive: true }); await writeFile(join(consumerRoot, path), bytes);}
-    await write("package.json", `${JSON.stringify(sourceManifest(origin, current.profilePath), null, 2)}\n`);
+    const manifest = structuredClone(sourceManifest(origin, current.profilePath));
+    if (preserveForeign) {
+      manifest.description = "Consumer-owned description";
+      manifest.scripts["consumer:custom"] = "node local-check.mjs";
+      manifest.devDependencies["consumer-test-tool"] = "1.0.0";
+    }
+    await write("package.json", `${JSON.stringify(manifest, null, 2)}\n`);
     await write(".node-version", "24.18.0\n");
     await write(".gitignore", "node_modules/\n");
     await write("pnpm-workspace.yaml", `packages: []\npackageImportMethod: copy\nminimumReleaseAgeExclude:\n  - "${docsName}@${origin.packages.docsProtocol.version}"\n  - "${foundationName}@${origin.packages.engineeringFoundation.version}"\n`);
@@ -133,7 +141,7 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     const route = Buffer.from(canonicalManagedRoute(current.skillPath));
     const caller = Buffer.from(canonicalCallerWorkflow(origin));
     await write(profilePath, `${JSON.stringify(current, null, 2)}\n`);
-    await write("AGENTS.md", route);
+    await write("AGENTS.md", preserveForeign ? Buffer.concat([Buffer.from("Consumer policy before the managed route.\n\n"), route, Buffer.from("\nConsumer policy after the route.\n")]) : route);
     await write(current.skillPath, historical.skill);
     await write(current.callerWorkflowPath, caller);
     await write(current.managedStatePath, canonicalManagedState(current, {
@@ -156,20 +164,32 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
       ...catalog.directTargetBundles.filter(({ cohort }) => cohort.cohortId !== origin.cohortId)] };
     const authority = { read: async () => projection(target), readRestoration: async () => ({ source: projection(target), target: projection(origin) }) };
     const sandbox = new NodeConsumerUpgradeSandbox();
-    const upgrade = createConsumerUpgradeUseCase({
+    const prepare = createConsumerUpgradeUseCase({
       assets: { read: async () => fixtureCatalog }, authority,
       restoration: consumerRestorationRecorder(authority), input: nodeConsumerIntegrationInputReader,
       planning: consumerIntegrationPlanningPorts, sandbox, transaction: foundationKnownFileTransaction
     });
     const proofPath = join(disposable, "restoration.json");
-    const upgradeOptions = { consumerRoot, targetGeneration: 2, sourceGeneration: 1, to: target.cohortId, restorationProofPath: proofPath };
+    const upgradeOptions = { consumerRoot, targetGeneration: 2, sourceGeneration: 1, to: target.cohortId, restorationProofPath: proofPath, prepare: true };
+    const finalizeOptions = { consumerRoot, sourceGeneration: 1, targetGeneration: 2, from: origin.cohortId, to: target.cohortId, proofPath, preparationPath: `${proofPath}.prepared` };
+    const finalize = (options, overrides = {}) => finalizeNodeConsumerRestoration({ ...finalizeOptions, ...options }, { authority, sandbox, ...overrides });
+    const upgrade = async (options) => {
+      const result = await prepare(options);
+      if (result.outcome !== "prepared") {return result;}
+      return finalize({ expect: result.preparation.digest, preparationPath: result.preparation.path, proofPath: options.restorationProofPath });
+    };
     const restoreOptions = { consumerRoot, sourceGeneration: 2, targetGeneration: 1, from: target.cohortId, to: origin.cohortId, proofPath };
     return {
-      disposable, consumerRoot, current, origin, target, authority, sandbox, upgrade, upgradeOptions,
+      disposable, consumerRoot, current, origin, target, authority, sandbox, upgrade, upgradeOptions, prepare, finalize, finalizeOptions, fixtureCatalog,
       restoreOptions, proofPath, sourceRevision, pnpmVersion, oldCheck,
       restore: (options, overrides = {}) => restoreNodeConsumerIntegration({ ...restoreOptions, ...options }, { authority, sandbox, ...overrides }),
       close: async () => {
         for (const [key, value] of saved) {if (value === undefined) {delete process.env[key];} else {process.env[key] = value;}}
+        if (process.env.MANAGED_RESTORATION_EVIDENCE_DIR) {
+          await cp(disposable, join(process.env.MANAGED_RESTORATION_EVIDENCE_DIR, basename(disposable)), {
+            recursive: true, filter: (path) => !path.split("/").some((part) => ["node_modules", ".git", ".agent-teams-local"].includes(part))
+          });
+        }
         await registry.close(); await rm(disposable, { recursive: true, force: true });
       }
     };

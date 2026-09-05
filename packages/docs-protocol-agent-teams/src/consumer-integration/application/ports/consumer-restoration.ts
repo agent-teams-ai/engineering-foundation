@@ -1,4 +1,4 @@
-import type { KnownFileTransactionPlanV1, KnownFileTransactionReceiptV1 } from "@agent-teams/repository-mutation";
+import type { KnownFileTransactionPlanV1 } from "@agent-teams/repository-mutation";
 import type {
   ConsumerIntegrationDesiredStateV1, ConsumerUpgradeAuthorityV1, ConsumerUpgradeAuthorityV2,
   QualifiedDocsCohortBindingV1, QualifiedDocsCohortBindingV2
@@ -24,5 +24,5 @@ export interface ConsumerRestorationRecorder {
     readonly target: QualifiedDocsCohortBindingV2;
     readonly plan: KnownFileTransactionPlanV1;
     readonly proofPath: string;
-  }): Promise<{ retain(receipt: KnownFileTransactionReceiptV1): Promise<RetainedConsumerRestoration> }>;
+  }): Promise<RetainedConsumerRestoration>;
 }

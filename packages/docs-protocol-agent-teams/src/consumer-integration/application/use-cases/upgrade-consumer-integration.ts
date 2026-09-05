@@ -173,15 +173,15 @@ async function rollbackReceiptOwnedReplacements(
   }
 }
 
-function restorationOptionIssue(options: { readonly restorationProofPath?: string; readonly sourceGeneration?: 1; readonly targetGeneration?: 1 | 2; readonly to: string },
+function restorationOptionIssue(options: { readonly prepare?: boolean; readonly restorationProofPath?: string; readonly sourceGeneration?: 1; readonly targetGeneration?: 1 | 2; readonly to: string },
   desired: ConsumerIntegrationDesiredState, recorder: ConsumerRestorationRecorder | undefined): RestorableConsumerUpgradeExecution | undefined {
   if (options.restorationProofPath !== undefined &&
-    (options.sourceGeneration !== 1 || options.targetGeneration !== 2 ||
+    (options.prepare !== true || options.sourceGeneration !== 1 || options.targetGeneration !== 2 ||
     desired.schemaVersion !== 1 || recorder === undefined)) {
     return blocked(issue("DOCS_CONSUMER_RESTORATION_GENERATION_INVALID", options.to,
-    "Retained restoration requires explicit 1->2 migration and an external proof path."));
+    "Retained restoration requires --prepare, explicit 1->2 migration and an external proof path."));
   }
-  if (options.sourceGeneration !== undefined && options.restorationProofPath === undefined) {
+  if ((options.sourceGeneration !== undefined || options.prepare === true) && options.restorationProofPath === undefined) {
     return blocked(issue("DOCS_CONSUMER_RESTORATION_PROOF_REQUIRED", options.to,
     "--source-generation requires --restoration-proof for the bounded migration."));
   }
@@ -196,16 +196,19 @@ async function prepareRestoration(recorder: ConsumerRestorationRecorder | undefi
         current: input.desired, target: authority.cohort, plan, proofPath }) : undefined;
 }
 
+interface ConsumerUpgradeOptions {
+  readonly consumerRoot: string;
+  readonly authorityRevision?: string;
+  readonly targetGeneration?: 1 | 2;
+  readonly to: string;
+  readonly sourceGeneration?: 1;
+  readonly restorationProofPath?: string;
+  readonly prepare?: boolean;
+}
+
 export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
   // oxlint-disable-next-line complexity
-  return async function upgrade(options: {
-    readonly consumerRoot: string;
-    readonly authorityRevision?: string;
-    readonly targetGeneration?: 1 | 2;
-    readonly to: string;
-    readonly sourceGeneration?: 1;
-    readonly restorationProofPath?: string;
-  }): Promise<RestorableConsumerUpgradeExecution> {
+  return async function upgrade(options: ConsumerUpgradeOptions): Promise<RestorableConsumerUpgradeExecution> {
     if (options.targetGeneration !== 1 && options.targetGeneration !== 2) {
       return blocked(issue(
         "DOCS_CONSUMER_TARGET_GENERATION_REQUIRED",
@@ -322,6 +325,9 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
     }
     const mutationPlan = compileKnownFileTransactionPlan({ operations: prepared.operations });
     const restoration = await prepareRestoration(ports.restoration, options.restorationProofPath, input, authority, mutationPlan);
+    if (restoration !== undefined) {
+      return { schemaVersion: 1, command: "consumer.upgrade", outcome: "prepared", issues: [], preparation: restoration };
+    }
     const receipt = await ports.transaction.apply({
       consumerRoot: input.root,
       plan: mutationPlan
@@ -341,8 +347,7 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
       outcome: receipt.outcome === "applied" ? "upgraded" : "current",
       issues: Object.freeze([]),
       authority: authorityEvidence(authority),
-      receipt,
-      ...(restoration === undefined ? {} : { restoration: await restoration.retain(receipt) })
+      receipt
     });
   };
 }

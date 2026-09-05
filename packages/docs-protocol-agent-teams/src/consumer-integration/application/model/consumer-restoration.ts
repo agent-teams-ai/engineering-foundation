@@ -8,9 +8,8 @@ import type {
   QualifiedDocsCohortBindingV2
 } from "../../domain/model.js";
 
-export interface ConsumerRestorationProof {
+export interface ConsumerRestorationIntent {
   readonly schemaVersion: 1;
-  readonly protocol: "agent-teams.managed-v1-restoration/v1";
   readonly sourceGeneration: 1;
   readonly targetGeneration: 2;
   readonly consumer: {
@@ -28,7 +27,20 @@ export interface ConsumerRestorationProof {
   readonly controller: RepositoryMutationArtifactIdentity;
   readonly kernel: RepositoryMutationArtifactIdentity;
   readonly plan: KnownFileTransactionPlanV1;
+}
+
+export interface ConsumerRestorationPreparation extends ConsumerRestorationIntent {
+  readonly protocol: "agent-teams.managed-v1-restoration-preparation/v1";
+  readonly initialProofPath: string;
+}
+
+export interface ConsumerRestorationProof extends ConsumerRestorationIntent {
+  readonly protocol: "agent-teams.managed-v1-restoration/v1";
+  readonly initialProofPath: string;
+  readonly preparationDigest: `sha256:${string}`;
+  readonly proofPath: string;
   readonly receipt: KnownFileTransactionReceiptV1;
+  readonly originalReceipt: KnownFileTransactionReceiptV1 | null;
   readonly activation: "verified-current-v2";
 }
 
@@ -59,6 +71,20 @@ export interface ConsumerRestorationExecution {
 }
 
 // The existing public upgrade API stays unchanged; retained proof is an explicit CLI lifecycle.
-export interface RestorableConsumerUpgradeExecution extends ConsumerUpgradeExecutionV1 {
+export interface RestorableConsumerUpgradeExecution extends Omit<ConsumerUpgradeExecutionV1, "outcome" | "command"> {
+  readonly command: "consumer.upgrade" | "consumer.finalize";
+  readonly outcome: ConsumerUpgradeExecutionV1["outcome"] | "prepared";
+  readonly preparation?: RetainedConsumerRestoration;
   readonly restoration?: RetainedConsumerRestoration;
+}
+
+export interface ConsumerFinalizationOptions {
+  readonly consumerRoot: string;
+  readonly sourceGeneration: 1;
+  readonly targetGeneration: 2;
+  readonly from: string;
+  readonly to: string;
+  readonly preparationPath: string;
+  readonly expect: string;
+  readonly proofPath: string;
 }

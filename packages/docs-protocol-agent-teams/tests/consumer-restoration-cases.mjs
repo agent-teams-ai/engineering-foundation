@@ -9,6 +9,7 @@ import { sha256Bytes, sha256Json, compileKnownFileTransactionPlan, recoverKnownF
 import { acquireMutationLease, releaseMutationLease } from "@agent-teams/repository-mutation/node";
 import { packageRoot } from "./consumer-upgrade-e2e-fixtures.mjs";
 import { managedRestorationFixture, fixtureProcess } from "./consumer-restoration-fixture.mjs";
+import { resealRestorationProof } from "./consumer-restoration-cli-fixture.mjs";
 import { restorationJson } from "../dist/consumer-integration/application/policies/consumer-restoration-proof.js";
 import { GitHubCohortAuthorityReader, projectQualifiedCohortAuthority } from "../dist/consumer-integration/adapters/github-cohort-authority-reader.js";
 
@@ -82,8 +83,13 @@ export function registerConsumerRestorationTests(helpers) {
       const assertUnchanged = async () => assert.deepEqual(await snapshot(consumerRoot), migrated);
       async function editedProof(change, recompute = false, pattern) {
         const edited = structuredClone(proof); change(edited);
-        const bytes = Buffer.from(`${restorationJson(edited)}\n`);
         const path = join(fixture.disposable, "hostile-proof.json");
+        if (recompute) {
+          const receipt = edited.receipt;
+          resealRestorationProof(edited, path);
+          edited.receipt = receipt;
+        }
+        const bytes = Buffer.from(`${restorationJson(edited)}\n`);
         await writeFile(path, bytes);
         await assert.rejects(fixture.restore({ expect: recompute ? sha256Bytes(bytes) : expect, proofPath: path }), pattern);
         await assertUnchanged();

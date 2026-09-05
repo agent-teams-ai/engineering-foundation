@@ -34,15 +34,37 @@ The controller and its exact kernel installation must be retained outside the
 consumer and the installation that will be replaced. No bridge, old export,
 portable dependency on managed behavior, plugin or runtime discovery is added.
 
-Before publication, a requested proof destination receives an exclusive,
-bounded `.prepared` companion containing consumer identity, source revision and
-tree, full repository inventory digest, immutable Cohorts, original full Plan,
-and controller/kernel name, version and build identity. This companion is inert
-preparation evidence; it cannot authorize restoration. Only after successful
-managed activation and exact postimage reobservation is the final proof written
-exclusively and synced. It additionally binds the exact full receipt and verified
-V2 activation. Partial, pre-existing or ambiguous files are preserved and fail.
-These are two immutable evidence records, not another mutable transaction journal.
+The opt-in lifecycle separates preparation from consumer publication. `upgrade
+--prepare --restoration-proof` runs normal disposable staging, then exclusively
+writes and syncs an immutable `.prepared` companion. It binds consumer identity,
+source Git revision/tree and inventory, exact original Plan/preimages, original
+and target Cohorts, initial final destination, and the retained controller/kernel
+names, versions and build identities. Its returned digest must be independently
+selected **before** `finalize` can mutate the consumer.
+
+`finalize --preparation --expect --proof` validates that exact selection, source
+Git and managed effects, root/inode, exact artifacts, fresh central upgrade and
+rollback authority, and the entire original or target inventory. Every attempt
+uses public kernel apply, including retries against already-satisfied target
+images. The result reports that attempt's honest receipt. After public cleanup,
+actual target offline Corepack installation/check and exact inventory revalidation
+must pass before the exclusive final proof is synced and its digest returned.
+An original receipt is retained in a create-only `.receipt` companion whenever
+public apply returns; a kill before its retention can leave no original receipt.
+A retry records `already-satisfied` as observed, never invented replacements.
+The proof's optional original receipt is historical retained evidence, while its
+receipt records the completing attempt. They are not independent signatures.
+
+Preparation never authorizes inverse or establishes successful activation.
+Restore accepts only the independently observed **final** digest. A lost final
+stdout requires explicit `finalize` retry, which performs public apply and real
+target activation again, then returns the existing proof digest. An intact
+preparation digest cannot authenticate a fabricated later completion. The retry's
+current receipt remains separate from any receipt in an existing final proof.
+Partial or colliding final files/companions are preserved; select a distinct
+explicit `--proof` path to retry. The final proof binds that destination. Original
+receipts at earlier destinations remain retained there; absence of replacement
+history in a retry is explicit. These immutable records are not a second journal.
 
 The operator retains the returned successful-upgrade proof digest separately.
 The proof file is untrusted input; its own contents or a recomputed digest do not
@@ -53,8 +75,18 @@ unknown, mixed, noncanonical and tampered evidence fails closed. A digest is an
 integrity binding to an authenticated successful invocation, not a signature or
 protection against an operator who deliberately fabricates both file and digest.
 
-The source Git object binds every original preimage. Only the original complete
-managed replacement set can be inverted: integration profile, manifest, lock,
+The source Git object binds every original preimage. Scope is checked independently
+of candidate Plan/receipt hashes: existing deterministic forward projectors must
+reproduce the exact changed-path set and permitted postimages. The profile,
+manifest and workspace retain non-owned fields; AGENTS retains every byte outside
+its managed route. Skill, caller workflow and generated state are whole-file
+managed assets bound to exact source/target projections. The lock's independently
+qualified managed closures may change, while other policy, importers, dependency
+entries and shared/foreign package graphs must remain semantically identical.
+Consumer lock comments must survive unchanged; staging that loses them is refused
+before consumer mutation.
+Canonical evidence may reorder object keys, so profile rendering accepts only
+key order from an otherwise exactly equal target Cohort. The actual owned set is: integration profile, manifest, lock,
 managed state, Skill, caller workflow, AGENTS route and an already-existing
 workspace file. No new file, broad tree restore or accepted-preimage alternatives
 are supported. Modes are preserved exactly. A complete repository inventory,
@@ -69,8 +101,11 @@ V1 projection. The adapter mirrors existing central binding support: RECOMMENDED
 enrolled QUALIFIED/CANARY, or SUPERSEDED before `support_until`. A suspended
 source may leave by its recorded edge; a suspended or unsupported target may
 not be restored. Supported SUPERSEDED selection is confined to recorded
-restoration bindings and does not expand ordinary upgrade eligibility. Consumer
-repository ID and name must match explicit GitHub execution identity. Central
+restoration bindings and does not expand ordinary upgrade eligibility. Caller
+`GITHUB_REPOSITORY_ID` and `GITHUB_REPOSITORY` values are optional
+assertions: each supplied value must match independently, with case-insensitive
+repository-name comparison. These variables do not add authentication or replace
+the exact consumer, Git, selection and central bindings. Central
 schemas, decisions, guards, protection and enrollment remain unchanged.
 
 The inverse holds the existing operation lease during current-state and fresh
@@ -92,20 +127,30 @@ Retain the exact controller installation and record its package/build identities
 Use its absolute CLI path for every command below. Keep the approved explicit
 pnpm store available, populated by the forward staging install and the original
 V1 installation. Do not change HOME, replace Corepack, enable scripts/hooks or
-substitute a floating package manager. Set the real `GITHUB_REPOSITORY_ID` and
-`GITHUB_REPOSITORY` execution identity. The consumer must be a disposable TEST
+substitute a floating package manager. Local callers may omit both GitHub identity
+variables; each supplied value must agree with the consumer identity (repository
+names compare case-insensitively). The consumer must be a disposable TEST
 repository during qualification.
 
 ```sh
 node /retained/controller/dist/cli.js upgrade --consumer /TEST/consumer \
   --source-generation 1 --target-generation 2 --to QUALIFIED_V2 \
-  --restoration-proof /retained/evidence/migration.json --json
+  --restoration-proof /retained/evidence/migration.json --prepare --json
 ```
 
-Retain the successful result's `restoration.digest` in independently controlled
-evidence. The preparation companion and final proof must stay outside both
-consumer and controller trees. Keep the original Git objects available. Restore
-only the original target; do not substitute another old Cohort or edit the proof.
+Retain the preparation result's `preparation.digest` independently before mutation.
+Keep all evidence outside both consumer and controller trees, and keep original
+Git objects and exact controller/kernel installations available. Apply/finalize:
+
+```sh
+node /retained/controller/dist/cli.js finalize --consumer /TEST/consumer \
+  --source-generation 1 --target-generation 2 --from ORIGINAL_V1 --to QUALIFIED_V2 \
+  --preparation /retained/evidence/migration.json.prepared \
+  --expect sha256:PRESELECTED_INTENT --proof /retained/evidence/migration.json --json
+```
+
+Only after successful real target activation and final retention, retain the
+result's `restoration.digest` independently. Restore only the recorded origin:
 
 ```sh
 node /retained/controller/dist/cli.js restore --consumer /TEST/consumer \
@@ -125,13 +170,18 @@ That route requires an idle transaction and the entire exact V1 tree, performs n
 inverse publication, and returns `activated-v1` only after historical installation
 and check pass. Normal restore rejects already-restored/stale postimages.
 
-A failure between successful V2 activation and final-proof persistence emits no
-successful result. Preserve `.prepared`, any partial proof, kernel evidence and
-the controller installation for independent diagnosis. Neither preparation nor
-COMMITTED proves successful managed activation, and this route cannot upgrade
-those records into a successful proof. Do not synthesize the missing digest.
-Existing migrations without retained successful proof are not retroactively
-eligible. No Git reset or replacement checkout is positive restoration evidence.
+After a failed or killed forward finalization, preserve preparation, receipts,
+partial final files and kernel evidence. APPLYING requires the retained exact
+controller's `recover` first; recovery returns original V1 images. COMMITTED
+cleanup leaves V2 images and proves no managed activation. After the kernel is
+idle, repeat `finalize` with the original independently retained preparation
+selection. Use a new explicit final path when an existing file/companion is
+partial or colliding. The retry revalidates actual target installation/check;
+it does not silently undo a committed migration. With complete proof but lost
+stdout, repeat `finalize` at that exact path to obtain its digest after real
+revalidation. Do not pass preparation selection to `restore`, including
+`--activation-only`, or synthesize a completed proof/digest. Migrations without
+preselected evidence cannot acquire this route retroactively.
 
 ## Qualification obligations and limits
 
@@ -140,7 +190,10 @@ V2 activation, use supported restoration, then prove exact identity and old
 installed behavior. It must reject hostile proof/identity/build/edge/support,
 foreign edits, path/mode/symlink attacks and active transactions. Actual kernel
 APPLYING and COMMITTED process-death boundaries, activation failure and explicit
-activation retry must be observed. Existing upgrades and exact-build recovery
+activation retry must be observed. Forward final-write EFBIG/EACCES, partial and
+colliding files, SIGKILL between CAS and proof retention, lost stdout, intact-intent
+fabricated completion, failed target check and selected retry require actual CLI
+serialization evidence. Existing upgrades and exact-build recovery
 remain separate regression requirements.
 
 Hermetic package fixtures and injected authority establish implementation

@@ -369,6 +369,8 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-finalization.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-evidence.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-repository-files.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-source-proof.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts

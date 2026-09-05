@@ -4,7 +4,7 @@ import {
   type CanonicalJsonValue, type KnownFileTransactionPlanV1,
   type KnownFileTransactionReceiptV1
 } from "@agent-teams/repository-mutation";
-import type { ConsumerRestorationProof } from "../model/consumer-restoration.js";
+import type { ConsumerRestorationIntent, ConsumerRestorationPreparation, ConsumerRestorationProof } from "../model/consumer-restoration.js";
 import {
   assertQualifiedDocsCohortBindingV1, assertQualifiedDocsCohortBindingV2
 } from "./consumer-integration-desired-state.js";
@@ -63,7 +63,7 @@ export function inverseRestorationPlan(plan: KnownFileTransactionPlanV1): KnownF
   }) });
 }
 
-function assertRestorationArtifactShapes(proof: ConsumerRestorationProof): void {
+function assertRestorationArtifactShapes(proof: ConsumerRestorationIntent): void {
   for (const [artifact, name] of [
     [proof.controller, "@agent-teams/docs-protocol-agent-teams"],
     [proof.kernel, "@agent-teams/repository-mutation"]
@@ -75,7 +75,7 @@ function assertRestorationArtifactShapes(proof: ConsumerRestorationProof): void 
   }
 }
 
-function assertRestorationIdentities(proof: ConsumerRestorationProof): void {
+function assertRestorationIdentities(proof: ConsumerRestorationIntent): void {
   exactRestorationKeys(proof.consumer, ["root", "device", "inode", "birthtimeNs", "repository"]);
   const repository = exactRestorationKeys(proof.consumer.repository, ["provider", "id", "nameWithOwner"]);
   requireRestoration(typeof proof.consumer.root === "string" && proof.consumer.root.length <= 4096 &&
@@ -90,26 +90,60 @@ function assertRestorationIdentities(proof: ConsumerRestorationProof): void {
   assertRestorationArtifactShapes(proof);
 }
 
-export function parseConsumerRestorationProof(bytes: Uint8Array, expect: string): ConsumerRestorationProof {
+const intentKeys = [
+  "schemaVersion", "protocol", "sourceGeneration", "targetGeneration", "consumer",
+  "sourceRevision", "sourceTree", "sourceInventoryDigest", "sourceCohort", "targetCohort",
+  "controller", "kernel", "plan", "initialProofPath"
+];
+
+function parseSelected(bytes: Uint8Array, expect: string, final: boolean): ConsumerRestorationPreparation | ConsumerRestorationProof {
   requireRestoration(bytes.byteLength > 0 && bytes.byteLength <= MAXIMUM_RESTORATION_PROOF_BYTES &&
     /^sha256:[0-9a-f]{64}$/u.test(expect) && sha256Bytes(bytes) === expect,
-  "proof bytes differ from the separately retained successful-upgrade digest.");
+  "proof bytes differ from the separately retained selection digest.");
   const parsed = parseStrictJson(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  const wire = exactRestorationKeys(parsed, [
-    "schemaVersion", "protocol", "sourceGeneration", "targetGeneration", "consumer",
-    "sourceRevision", "sourceTree", "sourceInventoryDigest", "sourceCohort", "targetCohort",
-    "controller", "kernel", "plan", "receipt", "activation"
-  ]);
-  const proof = parsed as ConsumerRestorationProof;
-  requireRestoration(wire["schemaVersion"] === 1 && wire["protocol"] === "agent-teams.managed-v1-restoration/v1" &&
-    wire["sourceGeneration"] === 1 && wire["targetGeneration"] === 2 && wire["activation"] === "verified-current-v2",
-  "unsupported proof generation or activation evidence.");
+  const wire = exactRestorationKeys(parsed, final ? [...intentKeys, "receipt", "originalReceipt", "activation", "preparationDigest", "proofPath"] : intentKeys);
+  requireRestoration(wire["schemaVersion"] === 1 && wire["sourceGeneration"] === 1 && wire["targetGeneration"] === 2 &&
+    wire["protocol"] === (final ? "agent-teams.managed-v1-restoration/v1" : "agent-teams.managed-v1-restoration-preparation/v1"),
+  "unsupported evidence generation.");
+  const proof = parsed as ConsumerRestorationPreparation | ConsumerRestorationProof;
   assertRestorationIdentities(proof);
   assertQualifiedDocsCohortBindingV1(proof.sourceCohort);
   assertQualifiedDocsCohortBindingV2(proof.targetCohort);
   inverseRestorationPlan(proof.plan);
-  assertFullyReplacedReceipt(proof.plan, proof.receipt);
+  requireRestoration(typeof proof.initialProofPath === "string" && proof.initialProofPath.startsWith("/") &&
+    proof.initialProofPath.length <= 4096, "invalid initial proof destination.");
   requireRestoration(`${restorationJson(proof)}\n` === Buffer.from(bytes).toString("utf8"),
     "proof must be canonical, duplicate-free inert JSON.");
+  return proof;
+}
+
+export function assertObservedRestorationReceipt(plan: KnownFileTransactionPlanV1, receipt: KnownFileTransactionReceiptV1): void {
+  requireRestoration(receipt !== null && typeof receipt === "object" && Array.isArray(receipt.operations) &&
+    receipt.operations.length === plan.operations.length, "receipt must classify every selected operation.");
+  const operations = plan.operations.map(({ path, postimage }, index) => {
+    const observed = receipt.operations[index];
+    requireRestoration(observed?.outcome === "replaced" || observed?.outcome === "already-satisfied", "invalid observed receipt outcome.");
+    return { path, outcome: observed.outcome, resultDigest: postimage.digest };
+  });
+  const body = { schemaVersion: 1, protocol: plan.protocol, planDigest: plan.planDigest,
+    outcome: operations.some(({ outcome }) => outcome === "replaced") ? "applied" : "already-satisfied", operations };
+  const expected = { ...body, receiptDigest: sha256Json({ domain: "agent-teams.repository-mutation.known-file-receipt/v1", body }) };
+  requireRestoration(restorationJson(receipt) === restorationJson(expected), "receipt does not bind the honest selected operation outcomes.");
+}
+
+export function parseConsumerRestorationPreparation(bytes: Uint8Array, expect: string): ConsumerRestorationPreparation {
+  return parseSelected(bytes, expect, false) as ConsumerRestorationPreparation;
+}
+
+export function parseConsumerRestorationProof(bytes: Uint8Array, expect: string): ConsumerRestorationProof {
+  const proof = parseSelected(bytes, expect, true) as ConsumerRestorationProof;
+  requireRestoration(proof.activation === "verified-current-v2" && /^sha256:[0-9a-f]{64}$/u.test(proof.preparationDigest) &&
+    typeof proof.proofPath === "string" && proof.proofPath.startsWith("/") && proof.proofPath.length <= 4096,
+  "unsupported final activation or selection evidence.");
+  assertObservedRestorationReceipt(proof.plan, proof.receipt);
+  if (proof.originalReceipt !== null) {assertFullyReplacedReceipt(proof.plan, proof.originalReceipt);}
+  const { receipt: _receipt, originalReceipt: _original, activation: _activation, preparationDigest, proofPath: _path, ...intent } = proof;
+  const preparation = { ...intent, protocol: "agent-teams.managed-v1-restoration-preparation/v1" };
+  parseConsumerRestorationPreparation(Buffer.from(`${restorationJson(preparation)}\n`), preparationDigest);
   return proof;
 }

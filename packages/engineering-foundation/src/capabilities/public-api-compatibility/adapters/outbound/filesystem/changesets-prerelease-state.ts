@@ -4,7 +4,7 @@ import { CapabilityInputError } from "../../../../../features/validation-reporti
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
-import { parseStrictJson } from "../../../../../strict-json.js";
+import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
 
 export interface ChangesetsPrereleaseState {
   readonly initialVersion: string;

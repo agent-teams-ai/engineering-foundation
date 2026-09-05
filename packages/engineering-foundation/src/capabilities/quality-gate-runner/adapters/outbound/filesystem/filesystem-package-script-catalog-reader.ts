@@ -2,7 +2,7 @@ import { join } from "node:path";
 
 import { assertNotCancelled,CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
 import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
-import { parseStrictJson } from "../../../../../strict-json.js";
+import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
 import type { PackageScriptCatalogReader } from "../../../application/ports/package-script-catalog-reader.js";
 
 const MAX_PACKAGE_JSON_BYTES = 1024 * 1024;

@@ -3,7 +3,7 @@ import {
   sha256Bytes as sha256RepositoryMutationBytes,
   sha256Json as sha256RepositoryMutationJson,
   sha256Text as sha256RepositoryMutationText
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/serialization";
 
 import type {
   JsonValue,

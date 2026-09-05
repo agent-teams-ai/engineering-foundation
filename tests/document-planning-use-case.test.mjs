@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sha256Bytes } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { sha256Bytes } from "../packages/repository-mutation/dist/serialization.js";
 import { PlanDocumentationDocument } from "../packages/document-authoring/dist/document-authoring/application/use-cases/plan-documentation-document.js";
 
 const digest = (source) => sha256Bytes(new TextEncoder().encode(source));

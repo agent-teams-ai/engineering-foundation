@@ -6,7 +6,7 @@ import { readContainedRegularFile } from "../../../source-inventory/node.js";
 import { assertSchema } from "../../../schema-catalog.js";
 
 import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
-import { parseStrictJson, StrictJsonError } from "../../../strict-json.js";
+import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 import type {
   ConsumerGateBinding,
   ExecutableSpecification,

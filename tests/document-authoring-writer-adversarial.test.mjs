@@ -17,7 +17,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { sha256Bytes } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { sha256Bytes } from "../packages/repository-mutation/dist/serialization.js";
 import { NodeDocumentFileState } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-file-state.js";
 import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-journal-store-private.js";
 import { NodeDocumentPublisher } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-publisher-private.js";

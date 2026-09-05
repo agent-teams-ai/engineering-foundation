@@ -1,4 +1,4 @@
-import { sha256Json as sha256DocumentJson } from "../../../canonical-json.js";
+import { sha256Json as sha256DocumentJson } from "@agent-teams/repository-mutation/serialization";
 import type {
   AuthorityScaffoldJournal
 } from "../../contract/types.js";

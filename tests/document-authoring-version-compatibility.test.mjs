@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 
 import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
-import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { sha256Json } from "../packages/repository-mutation/dist/serialization.js";
 import {
   createDocumentEnvelopeV3,
   documentEnvelopeV3BuildIdentity,

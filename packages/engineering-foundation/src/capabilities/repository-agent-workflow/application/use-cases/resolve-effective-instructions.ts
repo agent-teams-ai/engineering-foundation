@@ -1,4 +1,4 @@
-import { sha256Bytes, sha256Json } from "../../../../canonical-json.js";
+import { sha256Bytes, sha256Json } from "@agent-teams/repository-mutation/serialization";
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import type {
   EffectiveInstructionCandidateObservation,

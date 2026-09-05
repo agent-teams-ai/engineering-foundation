@@ -9,7 +9,7 @@ import { documentPlanDigest } from "../packages/document-authoring/dist/document
 import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
-import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { sha256Json } from "../packages/repository-mutation/dist/serialization.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const fixture = JSON.parse(await readFile(fileURLToPath(new URL(

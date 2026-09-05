@@ -16,7 +16,7 @@ import { assertAuthorityScaffoldJournal } from "../inbound/assert-authority-scaf
 import { canonicalJson } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { parseStrictJson } from "../../../strict-json.js";
+import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
 import {
   compileFoundationScaffoldEnvelope,
   parseFoundationScaffoldEnvelope

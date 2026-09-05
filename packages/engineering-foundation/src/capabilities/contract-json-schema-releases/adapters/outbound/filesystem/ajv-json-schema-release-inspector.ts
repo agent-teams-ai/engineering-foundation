@@ -10,7 +10,7 @@ import { CapabilityInputError,assertNotCancelled } from "../../../../../features
 import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../../../source-inventory/api.js";
 import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
 
-import { parseStrictJson, StrictJsonError } from "../../../../../strict-json.js";
+import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 import type {
   JsonSchemaDigest,
   JsonSchemaFixture,

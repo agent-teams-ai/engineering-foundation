@@ -17,7 +17,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { canonicalJson } from "../packages/repository-mutation/dist/serialization.js";
 import { createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
 import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-journal-store-private.js";
 import {

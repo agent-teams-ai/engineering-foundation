@@ -7,7 +7,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { canonicalJson } from "../packages/repository-mutation/dist/serialization.js";
 import {
   documentPlanDigest,
   documentReceiptDigest,

@@ -8,7 +8,7 @@ import {
   KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
   LOCAL_STATE_DIRECTORY
 } from "../../application/model/foundation-transaction-identity.js";
-import { parseStrictJson } from "../../../strict-json.js";
+import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
 import type {
   InternalFoundationManualRecoveryReason,
   InternalFoundationTransactionStatus

@@ -542,11 +542,10 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application
     allow:
       boundaries:
-        - foundation.canonical-json
         - foundation.core
         - foundation.validation-reporting.application
         - foundation.process-execution.application
-      packages: []
+      packages: [ "@agent-teams/repository-mutation" ]
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -672,9 +671,8 @@ boundaries:
         - foundation.core
         - foundation.process-execution.application
         - foundation.check.application
-        - foundation.strict-json
         - foundation.source-inventory.composition
-      packages: []
+      packages: [ "@agent-teams/repository-mutation" ]
       builtins:
         - node:fs/promises
         - node:path
@@ -738,18 +736,6 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/schema-catalog.ts
-  - id: foundation.canonical-json
-    roots:
-      - packages/engineering-foundation/src/canonical-json.ts
-    allow:
-      boundaries: []
-      packages:
-        - "@agent-teams/repository-mutation"
-      builtins:
-        - node:crypto
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/canonical-json.ts
   - id: foundation.scaffolding.core
     roots:
       - packages/engineering-foundation/src/scaffolding/application/model
@@ -1570,12 +1556,10 @@ boundaries:
       boundaries:
         - foundation.validation-reporting.error
         - foundation.state-assembly
-        - foundation.canonical-json
         - foundation.core
         - foundation.package-identity
         - foundation.schema-validation
         - foundation.transaction-coordination.application
-        - foundation.strict-json
         - foundation.validation-reporting.application
       packages:
         - "@agent-teams/document-authoring"
@@ -1677,7 +1661,6 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
     allow:
       boundaries:
-        - foundation.canonical-json
         - foundation.scaffolding.parameters
         - foundation.scaffolding.transactions
         - foundation.core
@@ -1688,7 +1671,6 @@ boundaries:
         - foundation.scaffolding.shared-adapters
         - foundation.transaction-coordination.adapters
         - foundation.transaction-coordination.application
-        - foundation.strict-json
         - foundation.configuration-input.adapters
         - foundation.source-inventory.composition
         - foundation.source-inventory.application
@@ -2084,7 +2066,6 @@ boundaries:
       boundaries:
         - capability.public-api-compatibility.application
         - foundation.core
-        - foundation.strict-json
         - foundation.schema-validation
         - foundation.validation-reporting.application
         - foundation.source-inventory.application
@@ -2093,6 +2074,7 @@ boundaries:
       packages:
         - "@microsoft/api-extractor"
         - "@microsoft/api-extractor-model"
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
         - node:fs/promises
@@ -2471,13 +2453,12 @@ boundaries:
       boundaries:
         - capability.executable-specifications.application
         - foundation.core
-        - foundation.strict-json
         - foundation.schema-validation
         - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
         - foundation.configuration-input.composition
-      packages: []
+      packages: [ "@agent-teams/repository-mutation" ]
       builtins:
         - node:path
       runtimeReferences: []
@@ -2490,11 +2471,10 @@ boundaries:
       boundaries:
         - capability.executable-specifications.application
         - foundation.core
-        - foundation.strict-json
         - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
-      packages: []
+      packages: [ "@agent-teams/repository-mutation" ]
       builtins:
         - node:crypto
         - node:path
@@ -2557,13 +2537,13 @@ boundaries:
       boundaries:
         - capability.contract-json-schema.application
         - foundation.core
-        - foundation.strict-json
         - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
       packages:
         - ajv
         - ajv-formats
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
         - node:fs/promises
@@ -2937,17 +2917,6 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/composition/command-host.ts
-  - id: foundation.strict-json
-    roots:
-      - packages/engineering-foundation/src/strict-json.ts
-    allow:
-      boundaries: []
-      packages:
-        - "@agent-teams/repository-mutation"
-      builtins: []
-      runtimeReferences: []
-    entrypoints:
-      - packages/engineering-foundation/src/strict-json.ts
   - id: foundation.schema-identities
     roots:
       - packages/engineering-foundation/src/schema-ids.ts

@@ -5,7 +5,7 @@ import { compareBinaryStrings } from "../../../../../binary-string-comparator.js
 import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
-import { parseStrictJson, StrictJsonError } from "../../../../../strict-json.js";
+import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 import type { JsonSchemaInspectorFactory } from "../../../application/ports/json-schema-inspector-factory.js";
 import type { WorkspaceManifestPathReader } from "../../../application/ports/workspace-manifest-path-reader.js";
 import type {

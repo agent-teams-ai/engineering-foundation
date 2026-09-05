@@ -5,7 +5,7 @@ import { join, resolve as resolvePath } from "node:path";
 import test from "node:test";
 
 import { check, cliPath, withAgentWorkflowFixture } from "./support/capability-fixtures.mjs";
-import { sha256Bytes, sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { sha256Bytes, sha256Json } from "../packages/repository-mutation/dist/serialization.js";
 import { ContainedFileReadError, inspectContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
 import { FilesystemEffectiveInstructionsReader } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.js";
 import { resolveEffectiveInstructions } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/use-cases/resolve-effective-instructions.js";

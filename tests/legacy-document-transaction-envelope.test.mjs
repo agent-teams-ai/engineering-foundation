@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { sha256Json as sha256DocumentJson } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { sha256Json as sha256DocumentJson } from "../packages/repository-mutation/dist/serialization.js";
 import { installedFoundationBuildIdentity } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 import {

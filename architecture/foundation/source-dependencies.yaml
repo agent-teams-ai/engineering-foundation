@@ -1960,6 +1960,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application
     allow:
       boundaries:
+        - foundation.source-inventory.application
         - foundation.core
         - foundation.validation-reporting.application
         - capability.architecture-decisions.application
@@ -1967,6 +1968,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/public-api.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-package-export-coverage.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/accepted-decision-evidence.ts
@@ -2042,13 +2044,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/contract
     allow:
-      boundaries:
-        - capability.public-api-compatibility.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2061,7 +2057,6 @@ boundaries:
       boundaries:
         - capability.public-api-compatibility.application
         - foundation.core
-        - foundation.schema-validation
         - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
@@ -2077,6 +2072,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/crypto/node-change-fingerprint.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.ts
@@ -2086,6 +2082,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.public-api-compatibility.adapters
         - capability.public-api-compatibility.application
         - capability.public-api-compatibility.contract

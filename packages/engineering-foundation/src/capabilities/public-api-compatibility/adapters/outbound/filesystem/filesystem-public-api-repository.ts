@@ -13,7 +13,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../../source-inventory/node.js";
-import { assertSchema } from "../../../../../schema-catalog.js";
+import type { PublicApiSchemaAssertion } from "../../schema-validation.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
 import { parseStrictYamlSource } from "../../../../../features/configuration-input/yaml.js";
 import { publicApiBaselineAnchorPath } from "../../../application/model/public-api.js";
@@ -273,6 +273,12 @@ async function declaredBump(input: {
 }
 
 export class FilesystemPublicApiRepository implements PublicApiRepository {
+  readonly #assertSchema: PublicApiSchemaAssertion;
+
+  constructor(assertSchema: PublicApiSchemaAssertion) {
+    this.#assertSchema = assertSchema;
+  }
+
   async readReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
@@ -317,7 +323,7 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         "public-api-evidence"
       );
     }
-    await assertSchema(releasedBaselineSchemaId(input), input, "public-api-baseline");
+    await this.#assertSchema(releasedBaselineSchemaId(input), input, "public-api-baseline");
     return mapReleasedBaseline(input, policy, purpose === "release-promotion");
   }
 
@@ -429,7 +435,7 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         "public-api-baseline-promotion"
       );
     }
-    await assertSchema(
+    await this.#assertSchema(
       promotionBaselineSchemaId(policy),
       snapshot,
       "public-api-baseline-promotion"

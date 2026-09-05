@@ -94,7 +94,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createPublicApiCompatibilityCapability(readAcceptedArchitectureDecisionEvidence),
+      createPublicApiCompatibilityCapability(readAcceptedArchitectureDecisionEvidence, assertSchema),
       PUBLIC_API_COMPATIBILITY_RULES_BY_ID
     ),
     defineCapabilityModule(

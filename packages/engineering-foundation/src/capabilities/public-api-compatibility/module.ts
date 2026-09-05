@@ -14,17 +14,19 @@ import { promotePublicApiBaselines } from "./application/use-cases/promote-publi
 import { publicApiPolicySchemaVersion } from "./application/model/public-api.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
+
+import { loadCapabilityConfig, type PublicApiConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export { PUBLIC_API_COMPATIBILITY_RULES_BY_ID };
 
-function createDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader) {
+function createDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]) {
   return Object.freeze({
     extractor: new MicrosoftPublicApiExtractor(),
     fingerprint: new NodeChangeFingerprint(),
-    repository: new FilesystemPublicApiRepository(),
+    repository: new FilesystemPublicApiRepository(assertSchema),
     acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedDecisions)
   });
 }
@@ -33,8 +35,9 @@ export async function promotePublicApiRelease(input: {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly signal?: AbortSignal;
-}, readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader) {
+}, readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]) {
   const policy = await loadCapabilityConfig(
+    { readYaml: loadStrictYamlFile, assertSchema },
     input.consumerRoot,
     input.configPath,
     input.signal
@@ -45,18 +48,19 @@ export async function promotePublicApiRelease(input: {
       policy,
       ...(input.signal === undefined ? {} : { signal: input.signal })
     },
-    createDependencies(readAcceptedDecisions)
+    createDependencies(readAcceptedDecisions, assertSchema)
   );
 }
 
-export function createPublicApiCompatibilityCapability(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader): CapabilityDefinition {
-  const dependencies = createDependencies(readAcceptedDecisions);
+export function createPublicApiCompatibilityCapability(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]): CapabilityDefinition {
+  const dependencies = createDependencies(readAcceptedDecisions, assertSchema);
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     async run(invocation: CapabilityInvocation) {
       try {
         const policy = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

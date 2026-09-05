@@ -1065,6 +1065,7 @@ boundaries:
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-api.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts

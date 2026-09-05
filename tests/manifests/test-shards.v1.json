@@ -15,6 +15,7 @@
         "tests/capability-reporting-architecture.test.mjs",
         "packages/repository-mutation/tests/public-api-contract.test.mjs",
         "packages/repository-mutation/tests/known-file-mutation-boundaries.test.mjs",
+        "packages/repository-mutation/tests/known-file-node-api.test.mjs",
         "tests/capability-public-api.test.mjs",
         "tests/contract-json-schema-releases.test.mjs",
         "tests/contract-protobuf-qualification.test.mjs",

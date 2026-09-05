@@ -136,6 +136,10 @@
               "owner": "repository-mutation/known-file-transactions"
             },
             {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-api.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
               "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts",
               "owner": "repository-mutation/known-file-transactions"
             },

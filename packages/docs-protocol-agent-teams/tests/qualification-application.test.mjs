@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -126,7 +126,7 @@ const applicationArtifact = "dist/qualification/application/use-cases/qualify-v2
 const adapterArtifact = "dist/qualification/adapters/outbound/node-managed-qualification.js";
 
 async function executingFixture(t, mutate = async () => {}) {
-  const root = await mkdtemp(join(tmpdir(), "managed-qualification-provenance-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "managed-qualification-provenance-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const packageRoot = fileURLToPath(new URL("../", import.meta.url));
   // Copy exact emitted artifacts before any mutation or import; installed bytes stay untouched.
